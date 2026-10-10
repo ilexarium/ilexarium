@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out-tsc/
+*.tsbuildinfo
+
+# Angular / nx cache (from spartan CLI)
+.angular/
+.nx/
+
+# Test output
+coverage/
+__screenshots__/
+
+# Env / secrets — never commit
+.env
+.env.*
+!.env.example
+*.key
+
+# Editors / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.history/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
