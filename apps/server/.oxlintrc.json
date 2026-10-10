@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "rules": {
+    "typescript/no-explicit-any": "off",
+    "typescript/no-floating-promises": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "child_process",
+            "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+          },
+          {
+            "name": "node:child_process",
+            "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/executor/**"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "env": {
+    "node": true
+  }
+}
