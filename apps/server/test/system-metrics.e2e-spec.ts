@@ -1,20 +1,10 @@
-import type { AddressInfo } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { REALTIME_PATH } from '@homelab/shared';
-import request from 'supertest';
-import { WebSocket } from 'ws';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
-import { PrismaService } from '../src/prisma/prisma.service.js';
 import { SystemMetricsService } from '../src/system-metrics/system-metrics.service.js';
-import { UsersService } from '../src/users/users.service.js';
-import { resetDatabase } from './database.js';
-import { Client } from './realtime-client.js';
-
-const PASSWORD = 'correct horse battery';
-const testHasher = new PasswordHasher({ logN: 11 });
+import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
 
 // The real `system` topic on this machine, end to end: the gateway, the subscription registry,
 // SystemMetricsService and SystemReader. Every message is checked against the shared schema.
@@ -28,29 +18,7 @@ describe('system topic (e2e)', () => {
       .useValue(testHasher)
       .compile();
     app = configureApp(moduleRef.createNestApplication<NestExpressApplication>());
-    await app.listen(0, '127.0.0.1');
-    const host = `127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`;
-    await resetDatabase(app.get(PrismaService));
-    await app.get(UsersService).create({
-      username: 'owner',
-      passwordHash: await testHasher.hash(PASSWORD),
-    });
-    const login = await request(`http://${host}`)
-      .post('/api/auth/login')
-      .set('Origin', `http://${host}`)
-      .send({ username: 'owner', password: PASSWORD })
-      .expect(200);
-    const cookie = ([] as string[])
-      .concat(login.headers['set-cookie'] ?? [])
-      .find((c) => c.startsWith('__Host-sid='))!
-      .split(';')[0];
-    client = new Client(
-      new WebSocket(`ws://${host}${REALTIME_PATH}`, {
-        headers: { Cookie: cookie },
-        origin: `http://${host}`,
-      }),
-    );
-    await new Promise((resolve) => client.socket.once('open', resolve));
+    client = await connectSignedIn(app);
   });
 
   afterEach(async () => {

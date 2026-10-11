@@ -39,6 +39,16 @@ export const envSchema = z
     TRUST_PROXY: trustProxySchema,
     SETUP_TOKEN_FILE: z.string().trim().min(1).optional(),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    /**
+     * The Docker API: always the read-only socket proxy, never the socket itself — so only
+     * tcp:// or http:// (a unix:// socket path is refused).
+     */
+    DOCKER_HOST: z
+      .url({
+        protocol: /^(tcp|http)$/,
+        error: 'Must be a tcp:// or http:// URL of the Docker socket proxy',
+      })
+      .default('tcp://127.0.0.1:2375'),
   })
   .transform((env) => ({
     ...env,

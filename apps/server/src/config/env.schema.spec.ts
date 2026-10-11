@@ -10,7 +10,17 @@ describe('validateEnv', () => {
       TRUST_PROXY: false,
       PORT: 3000,
       SETUP_TOKEN_FILE: '.dev/setup-token',
+      DOCKER_HOST: 'tcp://127.0.0.1:2375',
     });
+  });
+
+  it('accepts the Docker proxy over tcp:// or http://, never a unix socket', () => {
+    for (const url of ['tcp://127.0.0.1:2375', 'http://docker-proxy:2375']) {
+      expect(validateEnv({ ...base, DOCKER_HOST: url }).DOCKER_HOST, url).toBe(url);
+    }
+    for (const url of ['unix:///var/run/docker.sock', '/var/run/docker.sock', 'ssh://host']) {
+      expect(() => validateEnv({ ...base, DOCKER_HOST: url }), url).toThrow(/DOCKER_HOST/);
+    }
   });
 
   it('uses the production setup-token path in production', () => {
