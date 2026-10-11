@@ -9,7 +9,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build:shared": "npm run build -w @homelab/shared",
+    "build:shared": "npm run build -w @homelab/shared -w @homelab/i18n",
     "build": "npm run build:shared && npm run build -w @homelab/server -w @homelab/web",
     "dev:shared": "npm run dev -w @homelab/shared",
     "dev:server": "npm run build:shared && npm run start:dev -w @homelab/server",
