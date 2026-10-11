@@ -28,9 +28,17 @@ const inspects: Record<string, object> = {
   [ID_B]: {
     Name: '/web',
     Config: { Tty: false },
-    State: { StartedAt: '2026-10-11T12:00:00.123456789Z', Health: { Status: 'healthy' } },
+    State: {
+      Status: 'running',
+      StartedAt: '2026-10-11T12:00:00.123456789Z',
+      Health: { Status: 'healthy' },
+    },
   },
-  [ID_A]: { Name: '/app', Config: { Tty: true }, State: { StartedAt: '0001-01-01T00:00:00Z' } },
+  [ID_A]: {
+    Name: '/app',
+    Config: { Tty: true },
+    State: { Status: 'exited', StartedAt: '0001-01-01T00:00:00Z' },
+  },
 };
 // Inspect and logs work by name too.
 inspects.web = inspects[ID_B];
@@ -95,7 +103,8 @@ class FakeDocker {
       res.writeHead(200, { 'Content-Type': 'application/vnd.docker.multiplexed-stream' });
       if (name === 'app') {
         // TTY, stopped: raw text, and Docker ends the stream after the history.
-        return res.end(`${T1} tty line\r\n${T2} \x1b[32mgreen\x1b[0m\r\n`);
+        res.end(`${T1} tty line\r\n${T2} \x1b[32mgreen\x1b[0m\r\n`);
+        return;
       }
       this.openStreams.add(res);
       res.on('close', () => this.openStreams.delete(res));
@@ -247,6 +256,13 @@ describe('DockerService', () => {
     controller.abort();
   });
 
+  it('tells a container’s state by name, and null for an unknown one', async () => {
+    expect(await docker.containerState('web')).toBe('running');
+    expect(await docker.containerState('app')).toBe('exited');
+    expect(await docker.containerState('nope')).toBeNull();
+    await expect(docker.containerState('../json')).rejects.toThrow(/Invalid container name/);
+  });
+
   it('tells an unknown container and an unreadable log driver apart', async () => {
     const signal = new AbortController().signal;
     await expect(take(docker.containerLogs('nope', {}, signal), 1)).rejects.toEqual(
@@ -299,6 +315,7 @@ describe('DockerService', () => {
     expect(methods.sort()).toEqual([
       'containerEvents',
       'containerLogs',
+      'containerState',
       'containerStats',
       'listContainers',
     ]);
