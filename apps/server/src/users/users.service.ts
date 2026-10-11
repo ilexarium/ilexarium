@@ -1,18 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import type { PublicUser } from '@homelab/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { publicUserSelect, toPublicUser } from './public-user.js';
 
 /** What login and password change need to verify a password. Never returned by the API. */
 export interface UserCredentials {
   id: string;
   username: string;
   passwordHash: string;
-}
-
-const publicUserSelect = { id: true, username: true, createdAt: true } as const;
-
-function toPublicUser(user: { id: string; username: string; createdAt: Date }): PublicUser {
-  return { id: user.id, username: user.username, createdAt: user.createdAt.toISOString() };
 }
 
 /** Usernames are stored lowercase; normalise here too so uniqueness never depends on the caller. */

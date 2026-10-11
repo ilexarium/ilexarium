@@ -11,6 +11,8 @@ export function configureApp(app: NestExpressApplication): NestExpressApplicatio
   const config = app.get<ConfigService<Env, true>>(ConfigService);
   app.setGlobalPrefix('api');
   applyTrustProxy(app, config.get('TRUST_PROXY', { infer: true }));
+  // Refuses state-changing requests from other origins (with the session cookie's SameSite=Lax).
+  app.enableCsrfProtection();
   app.enableShutdownHooks();
   return app;
 }
