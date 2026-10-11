@@ -1,10 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { HlmButton } from '@ui/button';
+import { HlmToaster } from '@ui/sonner';
 import { AuthStore } from './core/auth/auth-store';
 
 @Component({
-  imports: [RouterOutlet, HlmButton],
+  imports: [RouterOutlet, HlmButton, HlmToaster],
   selector: 'app-root',
   templateUrl: './app.html',
 })
