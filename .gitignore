@@ -31,3 +31,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Generated code
+apps/server/src/generated/
+
+# Local dev state (setup token file, …)
+.dev/

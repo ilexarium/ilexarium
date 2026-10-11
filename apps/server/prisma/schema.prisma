@@ -1,0 +1,54 @@
+// Connection URLs live in prisma.config.ts (Prisma 7); the app connects through @prisma/adapter-pg.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  username     String    @unique // stored lowercase
+  passwordHash String // self-describing ($scrypt$…); never leaves the server
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  sessions     Session[]
+}
+
+/// Mirrors @nestjs/authentication's SessionRecord. Times come from the package's clock, never DB defaults.
+model Session {
+  id           String   @id // SHA-256 of the cookie token
+  userId       String   @db.Uuid
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @db.Timestamptz(3)
+  expiresAt    DateTime @db.Timestamptz(3) // absolute expiry
+  lastActiveAt DateTime @db.Timestamptz(3) // idle timeout
+  mfa          String? // unused until 2FA
+  metadata     Json? // user agent, IP — for a later "your sessions" page
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum AuditOutcome {
+  success
+  failure
+}
+
+model AuditEvent {
+  id       String       @id @default(uuid(7)) @db.Uuid
+  at       DateTime     @default(now()) @db.Timestamptz(3)
+  /// No relation to User: history outlives users.
+  userId   String?      @db.Uuid
+  username String? // snapshot at the time of the event
+  action   String // e.g. 'auth.login' — allowed values listed in code
+  outcome  AuditOutcome
+  ip       String?      @db.Inet
+  details  Json? // never secrets
+
+  @@index([at])
+  @@index([userId])
+}

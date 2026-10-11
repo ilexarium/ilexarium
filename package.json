@@ -19,7 +19,9 @@
     "test": "npm run build:shared && npm test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:migrate": "npm run db:migrate -w @homelab/server",
+    "test:e2e": "npm run build:shared && npm run test:e2e -w @homelab/server"
   },
   "devDependencies": {
     "prettier": "^3.8.1"
