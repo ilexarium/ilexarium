@@ -1,7 +1,7 @@
 import { Component, DestroyRef, inject } from '@angular/core';
 import { HlmSkeleton } from '@ui/skeleton';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
-import { ContainersTable } from '../containers-table/containers-table';
+import { ContainersTable } from '../../../shared/containers-table/containers-table';
 import { CpuCard } from '../cpu-card/cpu-card';
 import { DiskList } from '../disk-list/disk-list';
 import { HostSummary } from '../host-summary/host-summary';
@@ -49,7 +49,7 @@ export class DashboardPage {
   protected readonly store = inject(MonitoringStore);
 
   constructor() {
-    const stop = this.store.watch();
+    const stop = this.store.watch(['system', 'containers']);
     inject(DestroyRef).onDestroy(stop);
   }
 }

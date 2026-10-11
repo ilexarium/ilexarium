@@ -2,6 +2,7 @@ import { effect, inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import {
   type ContainerHistoryPoint,
+  type RealtimeTopic,
   type ContainersSnapshot,
   type ContainersUpdate,
   type SystemSnapshot,
@@ -61,38 +62,46 @@ export function applyContainersUpdate(
 }
 
 /**
- * Live system and container data for the dashboard, fed by the realtime topics while a page
- * `watch()`es them. Global, so returning to the dashboard shows the last values at once (a fresh
+ * Live system and container data, fed by the realtime topics a page `watch()`es (the dashboard
+ * both, the Containers page only containers). Global, so returning to the dashboard shows the last values at once (a fresh
  * snapshot follows); reset on sign-out like every global store.
  */
 export const MonitoringStore = signalStore(
   { providedIn: 'root' },
   withState<MonitoringState>(initialState),
   withMethods((store, realtime = inject(RealtimeService)) => ({
-    /** Subscribes to the system and containers topics until the returned function is called. */
-    watch(): () => void {
-      const stopSystem = realtime.subscribe('system', (message) => {
-        if (message.event === 'system:snapshot') {
-          patchState(store, { system: message.data });
-        } else if (message.event === 'system:update') {
-          const system = store.system();
-          if (system) patchState(store, { system: applySystemUpdate(system, message.data) });
-        }
-      });
-      const stopContainers = realtime.subscribe('containers', (message) => {
-        if (message.event === 'containers:snapshot') {
-          patchState(store, { containers: message.data });
-        } else if (message.event === 'containers:update') {
-          const containers = store.containers();
-          if (containers) {
-            patchState(store, { containers: applyContainersUpdate(containers, message.data) });
-          }
-        }
-      });
+    /** Subscribes to the given topics until the returned function is called. */
+    watch(topics: readonly RealtimeTopic[]): () => void {
+      const stops: (() => void)[] = [];
+      if (topics.includes('system')) stops.push(watchSystem());
+      if (topics.includes('containers')) stops.push(watchContainers());
       return () => {
-        stopSystem();
-        stopContainers();
+        for (const stop of stops) stop();
       };
+
+      function watchSystem(): () => void {
+        return realtime.subscribe('system', (message) => {
+          if (message.event === 'system:snapshot') {
+            patchState(store, { system: message.data });
+          } else if (message.event === 'system:update') {
+            const system = store.system();
+            if (system) patchState(store, { system: applySystemUpdate(system, message.data) });
+          }
+        });
+      }
+
+      function watchContainers(): () => void {
+        return realtime.subscribe('containers', (message) => {
+          if (message.event === 'containers:snapshot') {
+            patchState(store, { containers: message.data });
+          } else if (message.event === 'containers:update') {
+            const containers = store.containers();
+            if (containers) {
+              patchState(store, { containers: applyContainersUpdate(containers, message.data) });
+            }
+          }
+        });
+      }
     },
   })),
   withHooks((store, auth = inject(AuthStore)) => ({

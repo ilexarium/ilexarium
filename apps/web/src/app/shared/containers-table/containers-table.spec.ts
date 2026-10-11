@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import type { Container, ContainersSnapshot } from '@homelab/shared';
 import { ContainersTable } from './containers-table';
 
@@ -38,13 +39,14 @@ const stopped: Container = {
 };
 const sick: Container = { ...web, id: 'c3', name: 'db', health: 'unhealthy' };
 
-async function render(containers: ContainersSnapshot | null) {
+async function render(containers: ContainersSnapshot | null, now: number | null = NOW) {
   const fixture = TestBed.createComponent(ContainersTable);
   fixture.componentRef.setInput('containers', containers);
-  fixture.componentRef.setInput('now', NOW);
+  if (now !== null) fixture.componentRef.setInput('now', NOW);
   await fixture.whenStable();
   const el = fixture.nativeElement as HTMLElement;
   return {
+    fixture,
     el,
     /** Per row, the text of each cell (screen readers announce cells one by one). */
     tableRows: () =>
@@ -63,7 +65,13 @@ const snapshot = (...containers: Container[]): ContainersSnapshot => ({
   history: {},
 });
 
+const ENTER = { key: 'Enter', keyCode: 13, bubbles: true } as KeyboardEventInit;
+
 describe('ContainersTable', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideRouter([{ path: '**', children: [] }])] });
+  });
+
   it('shows each container with state, health and live resource use', async () => {
     const { tableRows } = await render(snapshot(web));
     expect(tableRows()).toEqual([
@@ -76,6 +84,7 @@ describe('ContainersTable', () => {
         '3.0 MB read, 4.0 MB written',
         '3 hours',
         '8096 → 8096/tcp, 1900/udp',
+        '', // the actions button: named by its aria-label
       ],
     ]);
   });
@@ -91,7 +100,54 @@ describe('ContainersTable', () => {
       '—',
       '—',
       '—',
+      '',
     ]);
+  });
+
+  it('times uptimes by the newest stats frame when not given a "now"', async () => {
+    const { tableRows } = await render(snapshot(web, stopped), null);
+    expect(tableRows()[0][6]).toBe('3 hours');
+  });
+
+  describe('actions', () => {
+    afterEach(() =>
+      document.querySelectorAll('.cdk-overlay-container').forEach((el) => el.remove()),
+    );
+
+    it('has an actions button per container, named for it, in the table and the cards', async () => {
+      const { el, cards } = await render(snapshot(web, stopped));
+      const inTable = [...el.querySelectorAll('tbody button')].map((b) =>
+        b.getAttribute('aria-label'),
+      );
+      expect(inTable).toEqual(['Actions for jellyfin', 'Actions for old-app']);
+      for (const [i, card] of cards().entries()) {
+        expect(card.querySelector('button')!.getAttribute('aria-label')).toBe(inTable[i]);
+      }
+      expect(el.querySelector('thead th:last-child')!.textContent!.trim()).toBe('Actions');
+    });
+
+    it('opens a menu whose View logs goes to the container’s logs page', async () => {
+      const { el } = await render(snapshot(web, stopped));
+      const trigger = el.querySelectorAll<HTMLButtonElement>('tbody button')[1];
+      trigger.click();
+      await TestBed.inject(Router).navigated; // let the menu render
+      const items = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+      expect(items.map((item) => item.textContent!.trim())).toEqual(['View logs']);
+      items[0].click();
+      await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/containers/old-app/logs'));
+    });
+
+    it('works from the keyboard: Enter opens the menu at its first item, Enter picks it', async () => {
+      const { fixture, cards } = await render(snapshot(web));
+      const trigger = cards()[0].querySelector<HTMLButtonElement>('button')!; // phone card
+      trigger.focus();
+      trigger.dispatchEvent(new KeyboardEvent('keydown', ENTER));
+      await vi.waitFor(() => expect(document.activeElement?.getAttribute('role')).toBe('menuitem'));
+      await fixture.whenStable();
+      expect(trigger.getAttribute('aria-expanded')).toBe('true');
+      document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', ENTER));
+      await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/containers/jellyfin/logs'));
+    });
   });
 
   it('flags an unhealthy container in words', async () => {
@@ -121,7 +177,7 @@ describe('ContainersTable', () => {
     const { el } = await render({ dockerAvailable: false });
     const alert = el.querySelector('[role="alert"]')!;
     expect(alert.textContent).toContain("Docker isn't reachable");
-    expect(alert.textContent).toContain('keep working');
+    expect(alert.textContent).toContain('Make sure Docker is running');
     expect(el.querySelector('table')).toBeNull();
     expect(el.querySelector('[hlmCardDescription]')!.textContent).toContain('Docker not reachable');
   });
