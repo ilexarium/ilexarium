@@ -119,6 +119,20 @@ export class DockerService {
     }
   }
 
+  /** A container's state, by name; null if there is no such container. */
+  async containerState(name: string): Promise<ContainerState | null> {
+    if (!containerNameSchema.safeParse(name).success) throw new Error('Invalid container name');
+    try {
+      const details = await this.docker
+        .getContainer(name)
+        .inspect({ abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      return toState(details.State.Status);
+    } catch (error) {
+      if ((error as { statusCode?: number } | null)?.statusCode === 404) return null;
+      throw error;
+    }
+  }
+
   /**
    * A container's logs, by name: the last `tail` lines (all if left out) or only those after
    * `since`, then new lines live — until the container stops (Docker ends the stream, and so does
