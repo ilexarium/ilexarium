@@ -5,7 +5,7 @@ import {
   toContainerHistoryPoint,
   toSystemHistoryPoint,
 } from './monitoring.js';
-import { clientMessageSchema, serverMessageSchema } from './realtime.js';
+import { clientMessageSchema, serverMessageSchema, topicRequestSchema } from './realtime.js';
 
 const sample: SystemSample = {
   at: 1_791_720_000_000,
@@ -64,75 +64,85 @@ const container: Container = {
 
 describe('clientMessageSchema', () => {
   it('accepts subscribe and unsubscribe for each topic', () => {
-    for (const type of ['subscribe', 'unsubscribe']) {
+    for (const event of ['subscribe', 'unsubscribe']) {
       for (const topic of ['system', 'containers']) {
-        expect(clientMessageSchema.safeParse({ type, topic }).success, `${type} ${topic}`).toBe(
-          true,
-        );
+        const message = { event, data: { topic } };
+        expect(clientMessageSchema.safeParse(message).success, `${event} ${topic}`).toBe(true);
       }
     }
   });
 
-  it('rejects unknown types and topics', () => {
-    expect(clientMessageSchema.safeParse({ type: 'publish', topic: 'system' }).success).toBe(false);
-    expect(clientMessageSchema.safeParse({ type: 'subscribe', topic: 'logs' }).success).toBe(false);
-    expect(clientMessageSchema.safeParse({ type: 'subscribe', topic: 'System' }).success).toBe(
-      false,
-    );
-  });
-
-  it('rejects malformed messages', () => {
-    for (const message of [null, 'subscribe', [], {}, { type: 'subscribe' }, { topic: 'system' }]) {
+  it('rejects unknown events and topics', () => {
+    for (const message of [
+      { event: 'publish', data: { topic: 'system' } },
+      { event: 'subscribe', data: { topic: 'logs' } },
+      { event: 'subscribe', data: { topic: 'System' } },
+    ]) {
       expect(clientMessageSchema.safeParse(message).success, JSON.stringify(message)).toBe(false);
     }
   });
 
-  it('rejects unknown fields', () => {
-    const message = { type: 'subscribe', topic: 'system', containerId: 'abc' };
-    expect(clientMessageSchema.safeParse(message).success).toBe(false);
+  it('rejects malformed messages', () => {
+    for (const message of [
+      null,
+      'subscribe',
+      [],
+      {},
+      { event: 'subscribe' },
+      { event: 'subscribe', data: 'system' },
+      { data: { topic: 'system' } },
+    ]) {
+      expect(clientMessageSchema.safeParse(message).success, JSON.stringify(message)).toBe(false);
+    }
+  });
+
+  it('rejects unknown fields, in the envelope and in data', () => {
+    const extraData = { event: 'subscribe', data: { topic: 'system', containerId: 'abc' } };
+    const extraEnvelope = { event: 'subscribe', data: { topic: 'system' }, id: 1 };
+    expect(clientMessageSchema.safeParse(extraData).success).toBe(false);
+    expect(clientMessageSchema.safeParse(extraEnvelope).success).toBe(false);
+    expect(topicRequestSchema.safeParse(extraData.data).success).toBe(false);
   });
 });
 
 describe('serverMessageSchema', () => {
   it('accepts snapshots and updates for each topic', () => {
     const messages = [
-      { type: 'snapshot', topic: 'system', data: systemSnapshot },
-      { type: 'update', topic: 'system', data: systemUpdate },
+      { event: 'system:snapshot', data: systemSnapshot },
+      { event: 'system:update', data: systemUpdate },
       {
-        type: 'snapshot',
-        topic: 'containers',
+        event: 'containers:snapshot',
         data: {
           dockerAvailable: true,
           containers: [container],
           history: { [container.id]: [toContainerHistoryPoint(container.stats!)] },
         },
       },
-      { type: 'update', topic: 'containers', data: { dockerAvailable: true, containers: [] } },
+      { event: 'containers:update', data: { dockerAvailable: true, containers: [] } },
     ];
     for (const message of messages) {
-      expect(
-        serverMessageSchema.safeParse(message).success,
-        `${message.type} ${message.topic}`,
-      ).toBe(true);
+      expect(serverMessageSchema.safeParse(message).success, message.event).toBe(true);
     }
   });
 
   it('accepts "Docker not reachable" for containers', () => {
-    for (const type of ['snapshot', 'update']) {
-      const message = { type, topic: 'containers', data: { dockerAvailable: false } };
-      expect(serverMessageSchema.safeParse(message).success, type).toBe(true);
+    for (const event of ['containers:snapshot', 'containers:update']) {
+      const message = { event, data: { dockerAvailable: false } };
+      expect(serverMessageSchema.safeParse(message).success, event).toBe(true);
     }
   });
 
-  it('rejects data that does not match the topic', () => {
-    expect(
-      serverMessageSchema.safeParse({ type: 'update', topic: 'containers', data: systemUpdate })
-        .success,
-    ).toBe(false);
-    expect(
-      serverMessageSchema.safeParse({ type: 'snapshot', topic: 'system', data: systemUpdate })
-        .success,
-    ).toBe(false);
+  it('rejects data that does not match the event', () => {
+    for (const message of [
+      { event: 'containers:update', data: systemUpdate },
+      { event: 'system:snapshot', data: systemUpdate },
+    ]) {
+      expect(serverMessageSchema.safeParse(message).success, message.event).toBe(false);
+    }
+  });
+
+  it('rejects unknown events', () => {
+    expect(serverMessageSchema.safeParse({ event: 'logs:update', data: {} }).success).toBe(false);
   });
 
   it('accepts a stopped container without stats or a start time', () => {
@@ -144,8 +154,7 @@ describe('serverMessageSchema', () => {
       stats: null,
     };
     const message = {
-      type: 'update',
-      topic: 'containers',
+      event: 'containers:update',
       data: { dockerAvailable: true, containers: [stopped] },
     };
     expect(serverMessageSchema.safeParse(message).success).toBe(true);
@@ -153,25 +162,19 @@ describe('serverMessageSchema', () => {
 
   it('rejects an unknown container state', () => {
     const message = {
-      type: 'update',
-      topic: 'containers',
+      event: 'containers:update',
       data: { dockerAvailable: true, containers: [{ ...container, state: 'zombie' }] },
     };
     expect(serverMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it('accepts the known error codes only', () => {
-    expect(
-      serverMessageSchema.safeParse({ type: 'error', code: 'invalid_message', message: 'Bad' })
-        .success,
-    ).toBe(true);
-    expect(
-      serverMessageSchema.safeParse({ type: 'error', code: 'rate_limited', message: 'Slow down' })
-        .success,
-    ).toBe(true);
-    expect(
-      serverMessageSchema.safeParse({ type: 'error', code: 'oops', message: 'x' }).success,
-    ).toBe(false);
+    for (const code of ['invalid_message', 'rate_limited']) {
+      const message = { event: 'error', data: { code, message: 'x' } };
+      expect(serverMessageSchema.safeParse(message).success, code).toBe(true);
+    }
+    const unknown = { event: 'error', data: { code: 'oops', message: 'x' } };
+    expect(serverMessageSchema.safeParse(unknown).success).toBe(false);
   });
 });
 
