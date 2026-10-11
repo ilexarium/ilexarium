@@ -7,7 +7,246 @@
     "logs": "Logs · {{name}}",
     "account": "Account"
   },
+  "app": {
+    "loading": "Loading…",
+    "unreachable": {
+      "title": "Can't reach the server",
+      "text": "The {{app}} server didn't answer. It may be starting up or stopped.",
+      "retry": "Retry"
+    }
+  },
+  "nav": {
+    "label": "Main",
+    "sheetTitle": "Navigation",
+    "sheetDescription": "The pages of the app.",
+    "toggle": "Toggle navigation",
+    "dashboard": "Dashboard",
+    "containers": "Containers",
+    "settings": "Settings",
+    "account": "Account"
+  },
   "userMenu": {
-    "language": "Language"
+    "open": "Account menu",
+    "language": "Language",
+    "changePassword": "Change password",
+    "signOut": "Sign out"
+  },
+  "connection": {
+    "offline": "Offline",
+    "connecting": "Connecting…",
+    "live": "Live",
+    "reconnecting": "Reconnecting…"
+  },
+  "theme": {
+    "title": "Theme",
+    "current": "Theme: {{choice}}",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "auth": {
+    "insecure": {
+      "title": "This connection isn't encrypted",
+      "text": "Open this app over HTTPS — for example {{example}} with Tailscale. Signing in isn't possible over an unencrypted connection."
+    },
+    "showPasswords": "Show passwords",
+    "hidePasswords": "Hide passwords",
+    "username": "Username",
+    "password": "Password",
+    "login": {
+      "description": "Sign in to manage your server.",
+      "expiredTitle": "Your session expired",
+      "expiredText": "Please sign in again.",
+      "submit": "Sign in",
+      "submitting": "Signing in…"
+    },
+    "setup": {
+      "heading": "Set up {{app}}",
+      "description": "Create the owner account. You'll need the setup code the installer printed.",
+      "setupCode": "Setup code",
+      "setupCodeHelp": "Shown at the end of installation. Lost it? Run {{command}} on the server.",
+      "usernameHelp": "Lowercase letters, digits, \".\", \"_\" and \"-\".",
+      "passwordHelp": "At least {{passwordMin}} characters. A few random words work well.",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account",
+      "submitting": "Creating account…"
+    }
+  },
+  "account": {
+    "title": "Change password",
+    "description": "You'll stay signed in here; other devices are signed out.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "newPasswordHelp": "At least {{passwordMin}} characters.",
+    "confirmNewPassword": "Confirm new password",
+    "submit": "Change password",
+    "submitting": "Changing…",
+    "changed": "Password changed",
+    "changedText": "Other devices were signed out."
+  },
+  "validation": {
+    "usernameRequired": "Enter your username",
+    "usernameTooShort": "At least {{usernameMin}} characters",
+    "usernameTooLong": "At most {{usernameMax}} characters",
+    "usernameInvalid": "Only lowercase letters, digits, \".\", \"_\" and \"-\"",
+    "passwordRequired": "Enter your password",
+    "passwordTooShort": "At least {{passwordMin}} characters",
+    "passwordTooLong": "At most {{passwordMax}} characters",
+    "setupCodeRequired": "Enter the setup code",
+    "setupCodeInvalid": "This is not a valid setup code",
+    "passwordsMismatch": "Passwords do not match"
+  },
+  "errors": {
+    "network": "Couldn't reach the server. Check your connection and try again.",
+    "tooManyAttemptsIn_one": "Too many attempts. Try again in {{count}} second.",
+    "tooManyAttemptsIn_other": "Too many attempts. Try again in {{count}} seconds.",
+    "tooManyAttempts": "Too many attempts. Try again later.",
+    "server": "Something went wrong ({{status}}).",
+    "invalid_credentials": "Invalid username or password",
+    "invalid_setup_token": "This setup code is not valid",
+    "setup_not_available": "Setup has already been completed",
+    "wrong_password": "Current password is incorrect",
+    "too_many_attempts": "Too many attempts. Try again later."
+  },
+  "format": {
+    "lessThanAMinute": "less than a minute"
+  },
+  "chart": {
+    "lastMinutes_one": "{{label}}, last {{count}} minute",
+    "lastMinutes_other": "{{label}}, last {{count}} minutes",
+    "now": "{{description}}: now {{values}}"
+  },
+  "dashboard": {
+    "loading": "Loading server data",
+    "host": {
+      "up": "up {{duration}}"
+    },
+    "cpu": {
+      "title": "CPU",
+      "cores_one": "{{count}} core",
+      "cores_other": "{{count}} cores",
+      "usage": "CPU usage",
+      "load": "Load {{values}}",
+      "loadPeriods": "(1, 5, 15 min)"
+    },
+    "memory": {
+      "title": "Memory",
+      "total": "{{size}} total",
+      "inUse": "Memory in use",
+      "series": "In use",
+      "used": "{{size}} in use",
+      "noSwap": "No swap",
+      "swap": "Swap: {{used}} of {{total}}"
+    },
+    "network": {
+      "title": "Network",
+      "description": "All interfaces",
+      "receiving": "Receiving",
+      "sending": "Sending",
+      "traffic": "Network traffic",
+      "none": "No network interfaces found.",
+      "receivingInline": "receiving",
+      "sendingInline": "sending"
+    },
+    "storage": {
+      "title": "Storage",
+      "description": "Space used on each disk",
+      "none": "No disks found.",
+      "almostFull": "Almost full",
+      "spaceUsedOn": "Space used on {{mount}}",
+      "usage": "{{used}} of {{size}} used ({{percent}}) · {{free}} free"
+    }
+  },
+  "containers": {
+    "title": "Containers",
+    "loading": "Loading…",
+    "loadingLabel": "Loading containers",
+    "dockerUnavailable": "Docker not reachable",
+    "running": "{{running}} of {{total}} running",
+    "unreachable": {
+      "title": "Docker isn't reachable",
+      "text": "Container information is unavailable right now. Make sure Docker is running; this page updates by itself once it is."
+    },
+    "none": "No containers yet.",
+    "column": {
+      "name": "Name",
+      "state": "State",
+      "cpu": "CPU",
+      "memory": "Memory",
+      "network": "Network",
+      "diskIo": "Disk I/O",
+      "upFor": "Up for",
+      "ports": "Ports",
+      "actions": "Actions"
+    },
+    "state": {
+      "running": "Running",
+      "created": "Created",
+      "restarting": "Restarting",
+      "paused": "Paused",
+      "removing": "Removing",
+      "exited": "Stopped",
+      "dead": "Dead"
+    },
+    "health": {
+      "healthy": "Healthy",
+      "unhealthy": "Unhealthy",
+      "starting": "Starting"
+    },
+    "memoryValue": "{{used}} / {{limit}}",
+    "networkValue": "{{rx}} in, {{tx}} out",
+    "diskValue": "{{read}} read, {{written}} written",
+    "actionsFor": "Actions for {{name}}",
+    "viewLogs": "View logs"
+  },
+  "logs": {
+    "loading": "Loading logs",
+    "empty": {
+      "title": "No log output yet",
+      "text": "New lines appear here as soon as the container writes them."
+    },
+    "notice": {
+      "stopped": {
+        "title": "Container is stopped",
+        "text": "These are its logs up to when it stopped. Start it again to see new output.",
+        "retry": "Follow again"
+      },
+      "removed": {
+        "title": "Container was removed",
+        "text": "It no longer exists. The lines already loaded stay here until you leave this page."
+      },
+      "notFound": {
+        "title": "Container not found",
+        "text": "There is no container named “{{name}}”. It may have been removed, or the link is out of date."
+      },
+      "unavailable": {
+        "title": "Logs are not available",
+        "text": "This container’s logging setting (its “log driver”, for example none or syslog) keeps no logs that Docker can read back."
+      },
+      "error": {
+        "title": "Docker isn't reachable",
+        "text": "The logs can’t be read right now. Make sure Docker is running, then try again.",
+        "retry": "Try again"
+      },
+      "refused": {
+        "title": "Too many log views open",
+        "text": "This browser tab already shows logs of as many containers as it can at once. Close one, then try again.",
+        "retry": "Try again"
+      }
+    },
+    "controls": "Log controls",
+    "filterLabel": "Filter lines",
+    "filterPlaceholder": "Filter",
+    "pause": "Pause",
+    "resume": "Resume",
+    "timestamps": "Timestamps",
+    "wrap": "Wrap lines",
+    "lines": "Log lines",
+    "skipped_one": "{{count}} line skipped (too many at once)",
+    "skipped_other": "{{count}} lines skipped (too many at once)",
+    "noMatch": "No lines match “{{filter}}”.",
+    "matches_one": "{{shown}} of {{count}} line matches",
+    "matches_other": "{{shown}} of {{count}} lines match",
+    "jumpToLatest": "Jump to latest"
   }
 }

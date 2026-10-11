@@ -5,13 +5,13 @@ import type { NavGroup } from './layout.model';
 export const NAVIGATION: NavGroup[] = [
   {
     items: [
-      { label: 'Dashboard', link: '/', icon: 'lucideLayoutDashboard', exact: true },
-      { label: 'Containers', link: '/containers', icon: 'lucideBoxes' },
+      { label: 'nav.dashboard', link: '/', icon: 'lucideLayoutDashboard', exact: true },
+      { label: 'nav.containers', link: '/containers', icon: 'lucideBoxes' },
     ],
   },
   {
-    label: 'Settings',
-    items: [{ label: 'Account', link: '/settings/account', icon: 'lucideKeyRound' }],
+    label: 'nav.settings',
+    items: [{ label: 'nav.account', link: '/settings/account', icon: 'lucideKeyRound' }],
   },
 ];
 

@@ -3,13 +3,16 @@ import { Router, RouterOutlet } from '@angular/router';
 import { HlmButton } from '@ui/button';
 import { HlmToaster } from '@ui/sonner';
 import { AuthStore } from './core/auth/auth-store';
+import { TranslatePipe } from '@ngx-translate/core';
+import { APP_NAME } from './core/page-title/page-title';
 
 @Component({
-  imports: [RouterOutlet, HlmButton, HlmToaster],
+  imports: [RouterOutlet, HlmButton, HlmToaster, TranslatePipe],
   selector: 'app-root',
   templateUrl: './app.html',
 })
 export class App {
+  protected readonly appName = APP_NAME;
   protected readonly auth = inject(AuthStore);
   private readonly router = inject(Router);
 

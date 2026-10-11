@@ -1,3 +1,5 @@
+import { flattenMessages, placeholders } from '@homelab/i18n';
+import en from '@homelab/i18n/en.json' with { type: 'json' };
 import { describe, expect, it } from 'vitest';
 import {
   changePasswordFormSchema,
@@ -10,6 +12,7 @@ import {
   publicUserSchema,
   setupFormSchema,
   setupRequestSchema,
+  VALIDATION_LIMITS,
   USERNAME_MAX_LENGTH,
   USERNAME_MIN_LENGTH,
   usernameSchema,
@@ -161,5 +164,53 @@ describe('response schemas', () => {
   it('meResponseSchema accepts a user or null', () => {
     expect(meResponseSchema.safeParse({ user }).success).toBe(true);
     expect(meResponseSchema.safeParse({ user: null }).success).toBe(true);
+  });
+});
+
+describe('validation messages', () => {
+  // Every rule, broken once: the messages it produces must be keys in en.json, with only the
+  // parameters VALIDATION_LIMITS provides.
+  const broken = [
+    loginRequestSchema.safeParse({ username: '', password: '' }),
+    loginRequestSchema.safeParse({ username: 'a'.repeat(99), password: 'x'.repeat(999) }),
+    setupFormSchema.safeParse({
+      setupToken: '',
+      username: 'A',
+      password: 'short',
+      confirmPassword: 'other',
+    }),
+    setupFormSchema.safeParse({
+      setupToken: 'x'.repeat(99),
+      username: 'Not Valid!',
+      password: 'x'.repeat(999),
+      confirmPassword: '',
+    }),
+    setupRequestSchema.safeParse({ setupToken: 't', username: 'a'.repeat(99), password: 'x' }),
+    changePasswordFormSchema.safeParse({
+      currentPassword: '',
+      newPassword: 'x'.repeat(12),
+      confirmNewPassword: 'y',
+    }),
+  ];
+  const messages = new Set(
+    broken.flatMap((result) => result.error?.issues ?? []).map((i) => i.message),
+  );
+
+  it('are translation keys that exist in en.json', () => {
+    const keys = new Set(Object.keys(flattenMessages(en)));
+    expect(messages.size).toBeGreaterThanOrEqual(10);
+    for (const message of messages) {
+      expect(message, message).toMatch(/^validation\./);
+      expect(keys.has(message), `${message} in en.json`).toBe(true);
+    }
+  });
+
+  it('use only the limits VALIDATION_LIMITS gives', () => {
+    const flat = flattenMessages(en);
+    for (const message of messages) {
+      for (const name of placeholders(flat[message])) {
+        expect(Object.keys(VALIDATION_LIMITS), `${message}: {{${name}}}`).toContain(name);
+      }
+    }
   });
 });

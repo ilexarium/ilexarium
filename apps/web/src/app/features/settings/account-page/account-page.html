@@ -1,13 +1,13 @@
 <section hlmCard class="mt-6 max-w-md">
   <div hlmCardHeader>
-    <h2 hlmCardTitle>Change password</h2>
-    <p hlmCardDescription>You'll stay signed in here; other devices are signed out.</p>
+    <h2 hlmCardTitle>{{ 'account.title' | translate }}</h2>
+    <p hlmCardDescription>{{ 'account.description' | translate }}</p>
   </div>
   <div hlmCardContent>
     <form [formRoot]="form" class="grid gap-5">
       @for (error of form().errors(); track error) {
         <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error.message }}</p>
+          <p hlmAlertDescription>{{ error | errorText }}</p>
         </div>
       }
 
@@ -15,7 +15,9 @@
       <input type="text" autocomplete="username" [value]="auth.user()?.username" hidden readonly />
 
       <div hlmField>
-        <label hlmFieldLabel for="currentPassword">Current password</label>
+        <label hlmFieldLabel for="currentPassword">{{
+          'account.currentPassword' | translate
+        }}</label>
         <div class="relative">
           <input
             hlmInput
@@ -28,12 +30,12 @@
           <app-password-toggle [(visible)]="showPasswords" />
         </div>
         @for (error of form.currentPassword().errors(); track error) {
-          <hlm-field-error>{{ error.message }}</hlm-field-error>
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
         }
       </div>
 
       <div hlmField>
-        <label hlmFieldLabel for="newPassword">New password</label>
+        <label hlmFieldLabel for="newPassword">{{ 'account.newPassword' | translate }}</label>
         <input
           hlmInput
           id="newPassword"
@@ -41,14 +43,16 @@
           [formField]="form.newPassword"
           autocomplete="new-password"
         />
-        <p hlmFieldDescription>At least 12 characters.</p>
+        <p hlmFieldDescription>{{ 'account.newPasswordHelp' | translate: limits }}</p>
         @for (error of form.newPassword().errors(); track error) {
-          <hlm-field-error>{{ error.message }}</hlm-field-error>
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
         }
       </div>
 
       <div hlmField>
-        <label hlmFieldLabel for="confirmNewPassword">Confirm new password</label>
+        <label hlmFieldLabel for="confirmNewPassword">{{
+          'account.confirmNewPassword' | translate
+        }}</label>
         <input
           hlmInput
           id="confirmNewPassword"
@@ -57,12 +61,12 @@
           autocomplete="new-password"
         />
         @for (error of form.confirmNewPassword().errors(); track error) {
-          <hlm-field-error>{{ error.message }}</hlm-field-error>
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
         }
       </div>
 
       <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
-        {{ form().submitting() ? 'Changing…' : 'Change password' }}
+        {{ (form().submitting() ? 'account.submitting' : 'account.submit') | translate }}
       </button>
     </form>
   </div>

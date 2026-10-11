@@ -1,25 +1,35 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import type { NetworkInterfaceStats, SystemHistoryPoint } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowDown, lucideArrowUp } from '@ng-icons/lucide';
 import { HlmCardImports } from '@ui/card';
 import { MetricChart } from '../../../shared/charts/metric-chart';
-import { formatRate } from '../../../shared/format/format';
 import type { ChartSeries } from '../../../shared/charts/charts.model';
+import { TranslatePipe } from '@ngx-translate/core';
+import { Translator } from '../../../core/i18n/translator';
+import { Formatter } from '../../../shared/format/formatter';
 
 @Component({
   selector: 'app-network-card',
-  imports: [HlmCardImports, MetricChart, NgIcon],
+  imports: [HlmCardImports, MetricChart, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideArrowDown, lucideArrowUp })],
   templateUrl: './network-card.html',
 })
 export class NetworkCard {
   readonly interfaces = input.required<NetworkInterfaceStats[]>();
   readonly history = input.required<SystemHistoryPoint[]>();
+  private readonly translator = inject(Translator);
+  private readonly formatter = inject(Formatter);
 
   protected readonly chart = computed<ChartSeries[]>(() => [
-    { name: 'Receiving', points: this.history().map((p) => [p.at, p.rxBytesPerSec]) },
-    { name: 'Sending', points: this.history().map((p) => [p.at, p.txBytesPerSec]) },
+    {
+      name: this.translator.t('dashboard.network.receiving'),
+      points: this.history().map((p) => [p.at, p.rxBytesPerSec]),
+    },
+    {
+      name: this.translator.t('dashboard.network.sending'),
+      points: this.history().map((p) => [p.at, p.txBytesPerSec]),
+    },
   ]);
 
   protected readonly total = computed(() => {
@@ -29,13 +39,13 @@ export class NetworkCard {
       rx += iface.rxBytesPerSec;
       tx += iface.txBytesPerSec;
     }
-    return { rx: formatRate(rx), tx: formatRate(tx) };
+    return { rx: this.formatter.rate(rx), tx: this.formatter.rate(tx) };
   });
   protected readonly rows = computed(() =>
     this.interfaces().map((iface) => ({
       name: iface.name,
-      rx: formatRate(iface.rxBytesPerSec),
-      tx: formatRate(iface.txBytesPerSec),
+      rx: this.formatter.rate(iface.rxBytesPerSec),
+      tx: this.formatter.rate(iface.txBytesPerSec),
     })),
   );
 }

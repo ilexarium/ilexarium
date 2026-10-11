@@ -25,6 +25,9 @@ import { HlmInput } from '@ui/input';
 import { formatLogTime } from '../../../shared/format/format';
 import { LogPreferences } from './log-preferences';
 import type { LogEntry } from '../containers.model';
+import { TranslatePipe } from '@ngx-translate/core';
+import { PluralPipe } from '../../../core/i18n/plural-pipe';
+import { Translator } from '../../../core/i18n/translator';
 
 /** Within this many pixels of the bottom counts as "at the bottom" (following). */
 const BOTTOM_SLACK_PX = 16;
@@ -53,7 +56,7 @@ export class LogTimePipe implements PipeTransform {
  */
 @Component({
   selector: 'app-log-view',
-  imports: [HlmButton, HlmInput, LogTimePipe, NgIcon],
+  imports: [HlmButton, HlmInput, LogTimePipe, NgIcon, PluralPipe, TranslatePipe],
   providers: [
     provideIcons({
       lucideArrowDownToLine,
@@ -73,6 +76,7 @@ export class LogView {
   readonly entries = input.required<LogEntry[]>();
 
   protected readonly prefs = inject(LogPreferences);
+  private readonly translator = inject(Translator);
   protected readonly filter = signal('');
   /** Following stopped with the Pause button. */
   protected readonly paused = signal(false);
@@ -93,7 +97,7 @@ export class LogView {
   protected readonly matchSummary = computed(() => {
     const total = this.entries().filter((entry) => entry.kind === 'line').length;
     const shown = this.visible().length;
-    return `${shown} of ${total} ${total === 1 ? 'line matches' : 'lines match'}`;
+    return this.translator.plural('logs.matches', total, { shown });
   });
 
   constructor() {

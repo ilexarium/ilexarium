@@ -1,8 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import type { FieldTree, TreeValidationResult, ValidationError } from '@angular/forms/signals';
-import { apiErrorResponseSchema } from '@homelab/shared';
+import { apiErrorResponseSchema, AUTH_ERROR_CODES } from '@homelab/shared';
+import type { FormError } from './forms.model';
 
-const NETWORK_ERROR = "Couldn't reach the server. Check your connection and try again.";
+/** Server codes with their own text (`errors.<code>` in en.json); others show the server's text. */
+export const TRANSLATED_ERROR_CODES: readonly string[] = Object.values(AUTH_ERROR_CODES);
 
 /** The field tree at a dotted path (`currentPassword`, `a.b`), if the form has it. */
 function fieldAt(form: FieldTree<unknown>, path: string): FieldTree<unknown> | undefined {
@@ -14,32 +16,43 @@ function fieldAt(form: FieldTree<unknown>, path: string): FieldTree<unknown> | u
   return typeof node === 'function' ? (node as FieldTree<unknown>) : undefined;
 }
 
+/** A server code's own text if there is one, else what the server said. */
+function messageFor(code: string | undefined, serverMessage: string): string {
+  return code && TRANSLATED_ERROR_CODES.includes(code) ? `errors.${code}` : serverMessage;
+}
+
 /**
  * Turns a failed API call into Signal Forms submission errors: the server's field errors land on
  * their fields (shown like client-side errors, cleared when the user edits); anything else becomes
- * a form-level error. Return it from a form's `submission.action`.
+ * a form-level error. Return it from a form's `submission.action`. Messages are translation keys
+ * (with `params`), worded by the `errorText` pipe; only an unknown code keeps the server's text.
  */
 export function toSubmissionErrors(error: unknown, form: FieldTree<unknown>): TreeValidationResult {
   if (!(error instanceof HttpErrorResponse) || error.status === 0) {
-    return { kind: 'network', message: NETWORK_ERROR };
+    return formError('network', 'errors.network');
   }
   if (error.status === 429) {
     const seconds = Number(error.headers.get('Retry-After'));
-    return {
-      kind: 'too_many_attempts',
-      message:
-        seconds > 0
-          ? `Too many attempts. Try again in ${seconds} second${seconds === 1 ? '' : 's'}.`
-          : 'Too many attempts. Try again later.',
-    };
+    return seconds > 0
+      ? formError('too_many_attempts', 'errors.tooManyAttemptsIn', { count: seconds })
+      : formError('too_many_attempts', 'errors.tooManyAttempts');
   }
   const body = apiErrorResponseSchema.safeParse(error.error);
-  if (!body.success) return { kind: 'server', message: `Something went wrong (${error.status}).` };
+  if (!body.success) return formError('server', 'errors.server', { status: error.status });
 
-  const fieldErrors: ValidationError.WithOptionalFieldTree[] = (body.data.errors ?? []).map(
-    ({ field, code, message }) => ({ kind: code, message, fieldTree: fieldAt(form, field) }),
-  );
+  const fieldErrors = (body.data.errors ?? []).map(({ field, code, message }) => {
+    const fieldError: ValidationError.WithOptionalFieldTree = {
+      kind: code,
+      message: messageFor(code, message),
+      fieldTree: fieldAt(form, field),
+    };
+    return fieldError;
+  });
   return fieldErrors.length > 0
     ? fieldErrors
-    : { kind: body.data.code ?? 'server', message: body.data.message };
+    : formError(body.data.code ?? 'server', messageFor(body.data.code, body.data.message));
+}
+
+function formError(kind: string, message: string, params?: FormError['params']): FormError {
+  return params ? { kind, message, params } : { kind, message };
 }

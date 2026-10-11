@@ -11,12 +11,17 @@ import { AuthApi } from '../../../core/auth/auth-api';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { TranslatePipe } from '@ngx-translate/core';
+import { VALIDATION_LIMITS } from '@homelab/shared';
+import { Translator } from '../../../core/i18n/translator';
+import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 
 const EMPTY: ChangePasswordForm = { currentPassword: '', newPassword: '', confirmNewPassword: '' };
 
 @Component({
   selector: 'app-account-page',
   imports: [
+    ErrorTextPipe,
     FormField,
     FormRoot,
     HlmAlertImports,
@@ -25,6 +30,7 @@ const EMPTY: ChangePasswordForm = { currentPassword: '', newPassword: '', confir
     HlmFieldImports,
     HlmInput,
     PasswordToggle,
+    TranslatePipe,
   ],
   templateUrl: './account-page.html',
 })
@@ -32,6 +38,8 @@ export class AccountPage {
   private readonly api = inject(AuthApi);
   protected readonly auth = inject(AuthStore);
   protected readonly showPasswords = signal(false);
+  protected readonly limits = VALIDATION_LIMITS;
+  private readonly translator = inject(Translator);
 
   private readonly model = signal<ChangePasswordForm>({ ...EMPTY });
   protected readonly form = form(
@@ -48,8 +56,8 @@ export class AccountPage {
           }
           this.form().reset({ ...EMPTY });
           this.showPasswords.set(false);
-          toast.success('Password changed', {
-            description: 'Other devices were signed out.',
+          toast.success(this.translator.t('account.changed'), {
+            description: this.translator.t('account.changedText'),
           });
           return undefined;
         },

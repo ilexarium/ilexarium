@@ -1,4 +1,5 @@
 export interface NavItem {
+  /** Translation key. */
   label: string;
   link: string;
   /** Lucide icon name, registered with `provideIcons(NAV_ICONS)`. */
@@ -8,7 +9,7 @@ export interface NavItem {
 }
 
 export interface NavGroup {
-  /** Omitted for the top-level group. */
+  /** Translation key; omitted for the top-level group. */
   label?: string;
   items: NavItem[];
 }

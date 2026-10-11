@@ -1,7 +1,7 @@
 <hlm-sidebar
   collapsible="icon"
-  srOnlySheetTitle="Navigation"
-  srOnlySheetDescription="The pages of the app."
+  [srOnlySheetTitle]="'nav.sheetTitle' | translate"
+  [srOnlySheetDescription]="'nav.sheetDescription' | translate"
 >
   <div hlmSidebarHeader>
     <ul hlmSidebarMenu>
@@ -24,11 +24,11 @@
       </li>
     </ul>
   </div>
-  <nav hlmSidebarContent aria-label="Main">
+  <nav hlmSidebarContent [attr.aria-label]="'nav.label' | translate">
     @for (group of navigation; track $index) {
       <div hlmSidebarGroup>
         @if (group.label) {
-          <div hlmSidebarGroupLabel>{{ group.label }}</div>
+          <div hlmSidebarGroupLabel>{{ group.label | translate }}</div>
         }
         <ul hlmSidebarMenu>
           @for (item of group.items; track item.link) {
@@ -41,12 +41,12 @@
                 [routerLinkActiveOptions]="{ exact: !!item.exact }"
                 ariaCurrentWhenActive="page"
                 [isActive]="active.isActive"
-                [tooltip]="item.label"
+                [tooltip]="item.label | translate"
                 closeMobileSidebarOnClick
                 class="max-md:h-11"
               >
                 <ng-icon [name]="item.icon" aria-hidden="true" />
-                <span>{{ item.label }}</span>
+                <span>{{ item.label | translate }}</span>
               </a>
             </li>
           }

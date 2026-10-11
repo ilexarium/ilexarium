@@ -4,19 +4,14 @@ import { GridComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
-import { formatBytes, formatPercent, formatRate } from '../format/format';
 import { canDrawCharts } from './can-draw';
 import { ChartColorsService } from './chart-colors';
 import type { ChartSeries, ChartUnit } from './charts.model';
+import { Translator } from '../../core/i18n/translator';
+import { Formatter } from '../format/formatter';
 
 // Only what these charts use (line chart, grid, tooltip, canvas) — keeps the chunk small.
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
-
-const FORMATTERS: Record<ChartUnit, (value: number) => string> = {
-  percent: formatPercent,
-  bytes: formatBytes,
-  rate: formatRate,
-};
 
 /**
  * A small live line chart of the last `windowMs` (15 minutes by default). The canvas is hidden
@@ -33,7 +28,7 @@ const FORMATTERS: Record<ChartUnit, (value: number) => string> = {
 export class MetricChart {
   readonly series = input.required<ChartSeries[]>();
   readonly unit = input.required<ChartUnit>();
-  /** Accessible name, e.g. "CPU usage". */
+  /** Accessible name, e.g. "CPU usage" (translated by the caller, like the series names). */
   readonly label = input.required<string>();
   /** Fixed top of the axis (100 for percentages); otherwise it follows the data. */
   readonly max = input<number | undefined>(undefined);
@@ -41,19 +36,33 @@ export class MetricChart {
 
   protected readonly canDraw = canDrawCharts();
   private readonly chartColors = inject(ChartColorsService).colors;
+  private readonly translator = inject(Translator);
+  private readonly formatter = inject(Formatter);
+
+  private format(unit: ChartUnit): (value: number) => string {
+    const formatter = this.formatter;
+    return { percent: formatter.percent, bytes: formatter.bytes, rate: formatter.rate }[unit].bind(
+      formatter,
+    );
+  }
 
   protected readonly description = computed(() => {
-    const format = FORMATTERS[this.unit()];
+    const format = this.format(this.unit());
     const latest = this.series()
       .map((s) => (s.points.length ? `${s.name} ${format(s.points.at(-1)![1])}` : null))
       .filter(Boolean);
     const minutes = Math.round(this.windowMs() / 60_000);
-    return `${this.label()}, last ${minutes} minutes${latest.length ? `: now ${latest.join(', ')}` : ''}`;
+    const description = this.translator.plural('chart.lastMinutes', minutes, {
+      label: this.label(),
+    });
+    return latest.length
+      ? this.translator.t('chart.now', { description, values: latest.join(', ') })
+      : description;
   });
 
   protected readonly options = computed<echarts.EChartsCoreOption>(() => {
     const colors = this.chartColors();
-    const format = FORMATTERS[this.unit()];
+    const format = this.format(this.unit());
     const series = this.series();
     const end = Math.max(0, ...series.map((s) => s.points.at(-1)?.[0] ?? 0));
     return {

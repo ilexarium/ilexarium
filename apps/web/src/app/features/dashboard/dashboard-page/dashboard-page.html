@@ -18,7 +18,11 @@
     <app-containers-table [containers]="store.containers()" [now]="system.sample.at" />
   </div>
 } @else {
-  <div class="grid gap-4 md:gap-6" role="status" aria-label="Loading server data">
+  <div
+    class="grid gap-4 md:gap-6"
+    role="status"
+    [attr.aria-label]="'dashboard.loading' | translate"
+  >
     <hlm-skeleton class="h-5 w-2/3" />
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       @for (card of [1, 2, 3]; track card) {

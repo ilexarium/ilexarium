@@ -1,6 +1,6 @@
 <a hlmBtn variant="ghost" size="sm" routerLink="/containers" class="-ms-2 self-start">
   <ng-icon name="lucideArrowLeft" aria-hidden="true" />
-  Containers
+  {{ 'nav.containers' | translate }}
 </a>
 
 @if (notice(); as notice) {
@@ -9,12 +9,12 @@
     [variant]="notice.problem ? 'destructive' : 'default'"
     [attr.role]="notice.problem ? 'alert' : 'status'"
   >
-    <p hlmAlertTitle>{{ notice.title }}</p>
+    <p hlmAlertTitle>{{ notice.key + '.title' | translate }}</p>
     <div hlmAlertDescription>
-      <p>{{ notice.text }}</p>
+      <p>{{ notice.key + '.text' | translate: notice.params }}</p>
       @if (notice.retry) {
         <button hlmBtn variant="outline" size="sm" class="mt-2" (click)="openLogs()">
-          {{ notice.retry }}
+          {{ notice.key + '.retry' | translate }}
         </button>
       }
     </div>
@@ -23,17 +23,15 @@
 
 @switch (view()) {
   @case ('loading') {
-    <div class="grid gap-2" role="status" aria-label="Loading logs">
+    <div class="grid gap-2" role="status" [attr.aria-label]="'logs.loading' | translate">
       <hlm-skeleton class="h-9 w-full" />
       <hlm-skeleton class="h-64 w-full" />
     </div>
   }
   @case ('empty') {
     <div class="rounded-lg border border-dashed p-4 text-sm" role="status">
-      <p class="font-medium">No log output yet</p>
-      <p class="mt-1 text-muted-foreground">
-        New lines appear here as soon as the container writes them.
-      </p>
+      <p class="font-medium">{{ 'logs.empty.title' | translate }}</p>
+      <p class="mt-1 text-muted-foreground">{{ 'logs.empty.text' | translate }}</p>
     </div>
   }
   @case ('lines') {

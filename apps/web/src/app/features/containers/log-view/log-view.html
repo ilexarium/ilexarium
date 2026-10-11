@@ -1,17 +1,21 @@
-<div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Log controls">
+<div
+  class="flex flex-wrap items-center gap-2"
+  role="toolbar"
+  [attr.aria-label]="'logs.controls' | translate"
+>
   <div class="relative min-w-0 flex-1 basis-40">
     <ng-icon
       name="lucideSearch"
       class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
       aria-hidden="true"
     />
-    <label for="log-filter" class="sr-only">Filter lines</label>
+    <label for="log-filter" class="sr-only">{{ 'logs.filterLabel' | translate }}</label>
     <input
       hlmInput
       id="log-filter"
       type="search"
       class="w-full ps-8"
-      placeholder="Filter"
+      [placeholder]="'logs.filterPlaceholder' | translate"
       autocomplete="off"
       [value]="filter()"
       (input)="filter.set($any($event.target).value)"
@@ -19,7 +23,9 @@
   </div>
   <button hlmBtn variant="outline" [attr.aria-pressed]="paused()" (click)="togglePause()">
     <ng-icon [name]="paused() ? 'lucidePlay' : 'lucidePause'" aria-hidden="true" />
-    <span class="sr-only sm:not-sr-only">{{ paused() ? 'Resume' : 'Pause' }}</span>
+    <span class="sr-only sm:not-sr-only">{{
+      (paused() ? 'logs.resume' : 'logs.pause') | translate
+    }}</span>
   </button>
   <button
     hlmBtn
@@ -28,7 +34,7 @@
     (click)="prefs.setTimestamps(!prefs.timestamps())"
   >
     <ng-icon name="lucideClock" aria-hidden="true" />
-    <span class="sr-only sm:not-sr-only">Timestamps</span>
+    <span class="sr-only sm:not-sr-only">{{ 'logs.timestamps' | translate }}</span>
   </button>
   <button
     hlmBtn
@@ -37,7 +43,7 @@
     (click)="prefs.setWrap(!prefs.wrap())"
   >
     <ng-icon name="lucideWrapText" aria-hidden="true" />
-    <span class="sr-only sm:not-sr-only">Wrap lines</span>
+    <span class="sr-only sm:not-sr-only">{{ 'logs.wrap' | translate }}</span>
   </button>
 </div>
 @if (filter()) {
@@ -48,7 +54,7 @@
   <ol
     #box
     tabindex="0"
-    aria-label="Log lines"
+    [attr.aria-label]="'logs.lines' | translate"
     class="min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/40 py-2 font-mono text-xs leading-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     (scroll)="onScroll()"
   >
@@ -80,19 +86,21 @@
         </li>
       } @else {
         <li class="px-3 text-center text-muted-foreground italic">
-          {{ entry.count }} {{ entry.count === 1 ? 'line' : 'lines' }} skipped (too many at once)
+          {{ 'logs.skipped' | plural: entry.count }}
         </li>
       }
     } @empty {
       @if (filter()) {
-        <li class="px-3 text-muted-foreground">No lines match “{{ filter() }}”.</li>
+        <li class="px-3 text-muted-foreground">
+          {{ 'logs.noMatch' | translate: { filter: filter() } }}
+        </li>
       }
     }
   </ol>
   @if (!pinned()) {
     <button hlmBtn size="sm" class="absolute end-3 bottom-3 shadow-md" (click)="jumpToLatest()">
       <ng-icon name="lucideArrowDownToLine" aria-hidden="true" />
-      Jump to latest
+      {{ 'logs.jumpToLatest' | translate }}
     </button>
   }
 </div>

@@ -2,6 +2,8 @@ import en from '@homelab/i18n/en.json';
 import {
   type MissingTranslationHandler,
   type MissingTranslationHandlerParams,
+  provideMissingTranslationHandler,
+  provideTranslateLoader,
   provideTranslateService,
   type TranslateLoader,
   type TranslationObject,
@@ -27,7 +29,7 @@ export function provideTestTranslations() {
   return provideTranslateService({
     lang: 'en',
     fallbackLang: 'en',
-    loader: EnglishLoader,
-    missingTranslationHandler: FailOnMissingTranslation,
+    loader: provideTranslateLoader(EnglishLoader),
+    missingTranslationHandler: provideMissingTranslationHandler(FailOnMissingTranslation),
   });
 }
