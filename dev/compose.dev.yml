@@ -1,4 +1,5 @@
 # Local development only. Production Postgres is provisioned by the install script.
+# Creates `homelab` (dev) and `homelab_test` (tests); init scripts run only on a fresh volume.
 name: homelab-dev
 
 services:
@@ -12,6 +13,7 @@ services:
       - '127.0.0.1:5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U homelab -d homelab']
       interval: 5s
