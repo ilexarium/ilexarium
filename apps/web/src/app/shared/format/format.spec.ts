@@ -1,4 +1,11 @@
-import { formatBytes, formatDuration, formatPercent, formatRate, percentOf } from './format';
+import {
+  formatBytes,
+  formatDuration,
+  formatLogTime,
+  formatPercent,
+  formatRate,
+  percentOf,
+} from './format';
 
 describe('formatBytes', () => {
   it('uses decimal units, one decimal below 10', () => {
@@ -46,5 +53,24 @@ describe('percentOf', () => {
   it('is 0 for an empty total', () => {
     expect(percentOf(5, 0)).toBe(0);
     expect(percentOf(45, 50)).toBe(90);
+  });
+});
+
+describe('formatLogTime', () => {
+  it('shows a Docker timestamp in local time, to the millisecond', () => {
+    const at = '2026-10-11T12:03:22.123456789Z';
+    // Built from the same instant in this machine's time zone, whatever it is.
+    const local = new Date(Date.UTC(2026, 9, 11, 12, 3, 22, 123));
+    const pad = (n: number) => String(n).padStart(2, '0');
+    expect(formatLogTime(at)).toBe(
+      `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +
+        `${pad(local.getHours())}:03:22.123`,
+    );
+  });
+
+  it('pads small values', () => {
+    expect(formatLogTime('2026-01-02T00:00:00.000000000Z')).toMatch(
+      /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:00\.000$/,
+    );
   });
 });
