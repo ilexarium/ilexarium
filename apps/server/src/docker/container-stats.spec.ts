@@ -1,9 +1,5 @@
-import {
-  cpuPercent,
-  memoryUsedBytes,
-  type RawContainerStats,
-  toContainerStats,
-} from './container-stats.js';
+import { cpuPercent, memoryUsedBytes, toContainerStats } from './container-stats.js';
+import type { RawContainerStats } from './docker.model.js';
 
 /** A real frame (Postgres in Docker 29, cgroup v2), trimmed to the fields we read. */
 const frame: RawContainerStats = {

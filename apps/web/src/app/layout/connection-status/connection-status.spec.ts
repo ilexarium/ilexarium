@@ -1,10 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-  type ConnectionStatus as Status,
-  RealtimeService,
-} from '../../core/realtime/realtime-service';
+import { RealtimeService } from '../../core/realtime/realtime-service';
 import { ConnectionStatus } from './connection-status';
+import type { ConnectionStatus as Status } from '../../core/realtime/realtime.model';
 
 describe('ConnectionStatus', () => {
   it('says whether live data is flowing, as a status for screen readers', async () => {

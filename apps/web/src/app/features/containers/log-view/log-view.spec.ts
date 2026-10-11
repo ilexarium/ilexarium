@@ -3,9 +3,9 @@ import { TestBed } from '@angular/core/testing';
 import { LOG_LIMITS, type LogLine } from '@homelab/shared';
 import { stubLocalStorage, stubScreenWidth } from '../../../layout/testing';
 import { formatLogTime } from '../../../shared/format/format';
-import type { LogEntry } from '../logs-page/log-stream';
 import { LOG_TIMESTAMPS_KEY, LOG_WRAP_KEY } from './log-preferences';
 import { LogView } from './log-view';
+import type { LogEntry } from '../containers.model';
 
 let nextId = 0;
 function entry(text: string, stream: LogLine['stream'] = 'stdout'): LogEntry {

@@ -16,19 +16,13 @@ import type { Subscription } from 'rxjs';
 import { WS_CLOSE_CODES } from '@homelab/shared';
 import { WebSocket } from 'ws';
 import { MessageRateLimiter } from './message-rate-limiter.js';
-import { REALTIME_OPTIONS, type RealtimeOptions } from './realtime.options.js';
+import { REALTIME_OPTIONS } from './realtime.options.js';
 import { isSameOrigin } from './same-origin.js';
+import type { Connection, RealtimeOptions } from './realtime.model.js';
 
 /** RFC 6455 §7.4.1. */
 const POLICY_VIOLATION = 1008;
 const INTERNAL_ERROR = 1011;
-
-export interface Connection {
-  readonly sessionId: string;
-  readonly userId: string;
-  readonly limiter: MessageRateLimiter;
-  readonly recheck: NodeJS.Timeout;
-}
 
 /**
  * Admits or refuses each socket and keeps the admitted ones in check:

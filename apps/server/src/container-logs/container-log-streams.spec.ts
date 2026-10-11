@@ -3,13 +3,14 @@ import { type ContainerState, LOG_LIMITS, type LogLine, type ServerMessage } fro
 import { WebSocket } from 'ws';
 import { ContainerLogsError, type DockerService } from '../docker/docker.service.js';
 import { RealtimeLogStreams } from '../realtime/realtime-log-streams.js';
-import { RealtimeException, type RealtimeClient } from '../realtime/realtime-messages.js';
+import { RealtimeException } from '../realtime/realtime-messages.js';
 import {
   ContainerLogStreams,
   MAX_BATCH_BYTES,
   MAX_BATCH_LINES,
   REOPEN_DELAY_MS,
 } from './container-log-streams.js';
+import type { RealtimeClient } from '../realtime/realtime.model.js';
 
 const BATCH_MS = LOG_LIMITS.batchIntervalMs;
 

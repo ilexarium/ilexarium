@@ -7,17 +7,10 @@ import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
 import { formatBytes, formatPercent, formatRate } from '../format/format';
 import { canDrawCharts } from './can-draw';
 import { ChartColorsService } from './chart-colors';
+import type { ChartSeries, ChartUnit } from './charts.model';
 
 // Only what these charts use (line chart, grid, tooltip, canvas) — keeps the chunk small.
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
-
-export type ChartUnit = 'percent' | 'bytes' | 'rate';
-
-export interface ChartSeries {
-  name: string;
-  /** [epoch ms, value], oldest first. */
-  points: [number, number][];
-}
 
 const FORMATTERS: Record<ChartUnit, (value: number) => string> = {
   percent: formatPercent,

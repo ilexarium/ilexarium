@@ -1,24 +1,7 @@
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import type { RealtimeTopic, ServerMessage } from '@homelab/shared';
-import {
-  type RealtimeClient,
-  sendMessage,
-  type SnapshotData,
-  type UpdateData,
-} from './realtime-messages.js';
-
-/**
- * Where a topic's data comes from (system metrics, Docker). Collects only between `start()` and
- * `stop()`, which the registry calls when the first client subscribes and the last one leaves.
- */
-export interface TopicSource<T extends RealtimeTopic = RealtimeTopic> {
-  readonly topic: T;
-  /** Current values plus history — sent to each new subscriber. */
-  snapshot(): Promise<SnapshotData<T>>;
-  /** Start collecting; call `publish` with every update until `stop()`. */
-  start(publish: (update: UpdateData<T>) => void): void;
-  stop(): void;
-}
+import { sendMessage } from './realtime-messages.js';
+import type { RealtimeClient, TopicSource, UpdateData } from './realtime.model.js';
 
 /**
  * Who is subscribed to which topic, and the only place topic sources are started and stopped:

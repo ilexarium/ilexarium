@@ -1,19 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { LogsClose, LogsOpen } from '@homelab/shared';
-import type { RealtimeClient } from './realtime-messages.js';
-
-/**
- * Per-client log streams (`logs:open` / `logs:close`). Unlike topics, each viewer has its own
- * stream: a specific container, from its own starting point.
- */
-export interface LogStreamHandler {
-  /** Throws a `RealtimeException` to refuse (e.g. `too_many_streams`). */
-  open(client: RealtimeClient, request: LogsOpen): void;
-  /** Idempotent. */
-  close(client: RealtimeClient, request: LogsClose): void;
-  /** A disconnected client: close all of its streams. */
-  removeClient(client: RealtimeClient): void;
-}
+import type { LogStreamHandler, RealtimeClient } from './realtime.model.js';
 
 /**
  * Where the gateway hands log messages to — the container-logs feature registers itself here,

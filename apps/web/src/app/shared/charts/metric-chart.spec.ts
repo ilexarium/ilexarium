@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { type ChartSeries, type ChartUnit, MetricChart } from './metric-chart';
+import { MetricChart } from './metric-chart';
+import type { ChartSeries, ChartUnit } from './charts.model';
 
 interface Options {
   xAxis: { min?: number; max?: number };

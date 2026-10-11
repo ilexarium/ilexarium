@@ -14,16 +14,16 @@ import { Client } from './realtime-client.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { RealtimeSubscriptions, type TopicSource } from '../src/realtime/realtime-subscriptions.js';
+import { RealtimeSubscriptions } from '../src/realtime/realtime-subscriptions.js';
 import {
   DEFAULT_REALTIME_OPTIONS,
   MAX_MESSAGE_BYTES,
   REALTIME_OPTIONS,
-  type RealtimeOptions,
 } from '../src/realtime/realtime.options.js';
 import { SystemMetricsService } from '../src/system-metrics/system-metrics.service.js';
 import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
+import type { RealtimeOptions, TopicSource } from '../src/realtime/realtime.model.js';
 
 const PASSWORD = 'correct horse battery';
 const testHasher = new PasswordHasher({ logN: 11 });

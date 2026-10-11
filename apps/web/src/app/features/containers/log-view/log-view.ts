@@ -23,8 +23,8 @@ import {
 import { HlmButton } from '@ui/button';
 import { HlmInput } from '@ui/input';
 import { formatLogTime } from '../../../shared/format/format';
-import type { LogEntry } from '../logs-page/log-stream';
 import { LogPreferences } from './log-preferences';
+import type { LogEntry } from '../containers.model';
 
 /** Within this many pixels of the bottom counts as "at the bottom" (following). */
 const BOTTOM_SLACK_PX = 16;

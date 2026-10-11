@@ -11,13 +11,9 @@ import {
 import { WebSocket } from 'ws';
 import { ContainerLogsError, DockerService } from '../docker/docker.service.js';
 import { normaliseTimestamp } from '../docker/log-lines.js';
-import { type LogStreamHandler, RealtimeLogStreams } from '../realtime/realtime-log-streams.js';
-import {
-  canSend,
-  type RealtimeClient,
-  RealtimeException,
-  sendMessage,
-} from '../realtime/realtime-messages.js';
+import { RealtimeLogStreams } from '../realtime/realtime-log-streams.js';
+import { canSend, RealtimeException, sendMessage } from '../realtime/realtime-messages.js';
+import type { LogStreamHandler, RealtimeClient } from '../realtime/realtime.model.js';
 
 /** A batch holds at most this many lines and bytes; the rest of a flood is counted as skipped. */
 export const MAX_BATCH_LINES = 500;

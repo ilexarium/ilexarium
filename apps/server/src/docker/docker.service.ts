@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import {
   CONTAINER_HEALTH,
   CONTAINER_STATES,
-  type Container,
   type ContainerHealth,
   type ContainerPort,
   type ContainerState,
@@ -13,18 +12,10 @@ import {
 } from '@homelab/shared';
 import Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
-import { type RawContainerStats, toContainerStats } from './container-stats.js';
+import { toContainerStats } from './container-stats.js';
 import { jsonLines } from './json-lines.js';
 import { logLines, normaliseTimestamp, toUnixSeconds } from './log-lines.js';
-
-/** A container without its live stats. */
-export type DockerContainer = Omit<Container, 'stats'>;
-
-/** A container event: something about it changed (started, died, became healthy, …). */
-export interface DockerContainerEvent {
-  containerId: string;
-  action: string;
-}
+import type { DockerContainer, DockerContainerEvent, RawContainerStats } from './docker.model.js';
 
 /** Why a container's logs can't be read: no such container, or a log driver Docker can't read back. */
 export class ContainerLogsError extends Error {

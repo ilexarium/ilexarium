@@ -2,13 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { PublicUser } from '@homelab/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { publicUserSelect, toPublicUser } from './public-user.js';
-
-/** What login and password change need to verify a password. Never returned by the API. */
-export interface UserCredentials {
-  id: string;
-  username: string;
-  passwordHash: string;
-}
+import type { UserCredentials } from './users.model.js';
 
 /** Arbitrary constant identifying the "create the first user" advisory lock. */
 const FIRST_USER_LOCK_KEY = 4_401_001;
