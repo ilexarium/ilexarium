@@ -7,20 +7,32 @@ export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 128;
 const SETUP_TOKEN_MAX_LENGTH = 64;
 
+/**
+ * The numbers validation messages mention — their `{{ }}` parameters. Messages are translation
+ * keys (`@homelab/i18n`): the browser's checks and the server's 400s carry the same key, and the
+ * web app words it with these values, so no limit is ever written into a translation.
+ */
+export const VALIDATION_LIMITS = {
+  usernameMin: USERNAME_MIN_LENGTH,
+  usernameMax: USERNAME_MAX_LENGTH,
+  passwordMin: PASSWORD_MIN_LENGTH,
+  passwordMax: PASSWORD_MAX_LENGTH,
+} as const;
+
 /** Username when choosing one (setup). Normalised to lowercase before the checks run. */
 export const usernameSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .min(USERNAME_MIN_LENGTH, `At least ${USERNAME_MIN_LENGTH} characters`)
-  .max(USERNAME_MAX_LENGTH, `At most ${USERNAME_MAX_LENGTH} characters`)
-  .regex(USERNAME_PATTERN, 'Only lowercase letters, digits, ".", "_" and "-"');
+  .min(USERNAME_MIN_LENGTH, 'validation.usernameTooShort')
+  .max(USERNAME_MAX_LENGTH, 'validation.usernameTooLong')
+  .regex(USERNAME_PATTERN, 'validation.usernameInvalid');
 
 /** Password when choosing one (setup, change). Length only — no composition rules (NIST 800-63B). */
 export const newPasswordSchema = z
   .string()
-  .min(PASSWORD_MIN_LENGTH, `At least ${PASSWORD_MIN_LENGTH} characters`)
-  .max(PASSWORD_MAX_LENGTH, `At most ${PASSWORD_MAX_LENGTH} characters`);
+  .min(PASSWORD_MIN_LENGTH, 'validation.passwordTooShort')
+  .max(PASSWORD_MAX_LENGTH, 'validation.passwordTooLong');
 
 /**
  * An existing password (login, current password on change): present and bounded only.
@@ -28,8 +40,8 @@ export const newPasswordSchema = z
  */
 export const existingPasswordSchema = z
   .string()
-  .min(1, 'Enter your password')
-  .max(PASSWORD_MAX_LENGTH, `At most ${PASSWORD_MAX_LENGTH} characters`);
+  .min(1, 'validation.passwordRequired')
+  .max(PASSWORD_MAX_LENGTH, 'validation.passwordTooLong');
 
 // Requests — strict: unknown fields are rejected.
 
@@ -38,8 +50,8 @@ export const loginRequestSchema = z.strictObject({
     .string()
     .trim()
     .toLowerCase()
-    .min(1, 'Enter your username')
-    .max(USERNAME_MAX_LENGTH, `At most ${USERNAME_MAX_LENGTH} characters`),
+    .min(1, 'validation.usernameRequired')
+    .max(USERNAME_MAX_LENGTH, 'validation.usernameTooLong'),
   password: existingPasswordSchema,
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
@@ -49,8 +61,8 @@ export const setupRequestSchema = z.strictObject({
   setupToken: z
     .string()
     .trim()
-    .min(1, 'Enter the setup code')
-    .max(SETUP_TOKEN_MAX_LENGTH, 'This is not a valid setup code'),
+    .min(1, 'validation.setupCodeRequired')
+    .max(SETUP_TOKEN_MAX_LENGTH, 'validation.setupCodeInvalid'),
   username: usernameSchema,
   password: newPasswordSchema,
 });
@@ -68,7 +80,7 @@ export const setupFormSchema = setupRequestSchema
   .extend({ confirmPassword: z.string() })
   .refine((form) => form.password === form.confirmPassword, {
     path: ['confirmPassword'],
-    error: 'Passwords do not match',
+    error: 'validation.passwordsMismatch',
   });
 export type SetupForm = z.infer<typeof setupFormSchema>;
 
@@ -76,7 +88,7 @@ export const changePasswordFormSchema = changePasswordRequestSchema
   .extend({ confirmNewPassword: z.string() })
   .refine((form) => form.newPassword === form.confirmNewPassword, {
     path: ['confirmNewPassword'],
-    error: 'Passwords do not match',
+    error: 'validation.passwordsMismatch',
   });
 export type ChangePasswordForm = z.infer<typeof changePasswordFormSchema>;
 

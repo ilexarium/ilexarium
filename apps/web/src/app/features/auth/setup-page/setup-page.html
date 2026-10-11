@@ -1,6 +1,6 @@
 <app-auth-frame
-  heading="Set up Homelab"
-  description="Create the owner account. You'll need the setup code the installer printed."
+  [heading]="'auth.setup.heading' | translate: { app: appName }"
+  [description]="'auth.setup.description' | translate"
 >
   @if (!secure) {
     <app-insecure-context-notice />
@@ -8,12 +8,12 @@
     <form [formRoot]="form" class="grid gap-5">
       @for (error of form().errors(); track error) {
         <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error.message }}</p>
+          <p hlmAlertDescription>{{ error | errorText }}</p>
         </div>
       }
 
       <div hlmField>
-        <label hlmFieldLabel for="setupToken">Setup code</label>
+        <label hlmFieldLabel for="setupToken">{{ 'auth.setup.setupCode' | translate }}</label>
         <input
           hlmInput
           id="setupToken"
@@ -24,16 +24,16 @@
           spellcheck="false"
         />
         <p hlmFieldDescription>
-          Shown at the end of installation. Lost it? Run <code>sudo homelab-setup-code</code> on the
-          server.
+          {{ setupCodeHelp()[0] }}<code dir="ltr">sudo homelab-setup-code</code
+          >{{ setupCodeHelp()[1] }}
         </p>
         @for (error of form.setupToken().errors(); track error) {
-          <hlm-field-error>{{ error.message }}</hlm-field-error>
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
         }
       </div>
 
       <div hlmField>
-        <label hlmFieldLabel for="username">Username</label>
+        <label hlmFieldLabel for="username">{{ 'auth.username' | translate }}</label>
         <input
           hlmInput
           id="username"
@@ -42,14 +42,14 @@
           autocapitalize="none"
           spellcheck="false"
         />
-        <p hlmFieldDescription>Lowercase letters, digits, ".", "_" and "-".</p>
+        <p hlmFieldDescription>{{ 'auth.setup.usernameHelp' | translate }}</p>
         @for (error of form.username().errors(); track error) {
-          <hlm-field-error>{{ error.message }}</hlm-field-error>
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
         }
       </div>
 
       <div hlmField>
-        <label hlmFieldLabel for="password">Password</label>
+        <label hlmFieldLabel for="password">{{ 'auth.password' | translate }}</label>
         <div class="relative">
           <input
             hlmInput
@@ -61,14 +61,16 @@
           />
           <app-password-toggle [(visible)]="showPasswords" />
         </div>
-        <p hlmFieldDescription>At least 12 characters. A few random words work well.</p>
+        <p hlmFieldDescription>{{ 'auth.setup.passwordHelp' | translate: limits }}</p>
         @for (error of form.password().errors(); track error) {
-          <hlm-field-error>{{ error.message }}</hlm-field-error>
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
         }
       </div>
 
       <div hlmField>
-        <label hlmFieldLabel for="confirmPassword">Confirm password</label>
+        <label hlmFieldLabel for="confirmPassword">{{
+          'auth.setup.confirmPassword' | translate
+        }}</label>
         <input
           hlmInput
           id="confirmPassword"
@@ -77,12 +79,12 @@
           autocomplete="new-password"
         />
         @for (error of form.confirmPassword().errors(); track error) {
-          <hlm-field-error>{{ error.message }}</hlm-field-error>
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
         }
       </div>
 
       <button hlmBtn type="submit" class="w-full" [disabled]="form().submitting()">
-        {{ form().submitting() ? 'Creating account…' : 'Create account' }}
+        {{ (form().submitting() ? 'auth.setup.submitting' : 'auth.setup.submit') | translate }}
       </button>
     </form>
   }

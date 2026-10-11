@@ -1,39 +1,48 @@
 <section hlmCard aria-labelledby="containers-title">
   <div hlmCardHeader>
-    <h2 hlmCardTitle id="containers-title">Containers</h2>
+    <h2 hlmCardTitle id="containers-title">{{ 'containers.title' | translate }}</h2>
     <p hlmCardDescription>{{ summary() }}</p>
   </div>
   <div hlmCardContent>
     @if (containers() === null) {
-      <div class="grid gap-2" role="status" aria-label="Loading containers">
+      <div
+        class="grid gap-2"
+        role="status"
+        [attr.aria-label]="'containers.loadingLabel' | translate"
+      >
         <hlm-skeleton class="h-8 w-full" />
         <hlm-skeleton class="h-8 w-full" />
       </div>
     } @else if (!dockerAvailable()) {
       <div role="alert" class="rounded-lg border border-dashed p-4 text-sm">
-        <p class="font-medium">Docker isn't reachable</p>
-        <p class="mt-1 text-muted-foreground">
-          Container information is unavailable right now. Make sure Docker is running; this page
-          updates by itself once it is.
-        </p>
+        <p class="font-medium">{{ 'containers.unreachable.title' | translate }}</p>
+        <p class="mt-1 text-muted-foreground">{{ 'containers.unreachable.text' | translate }}</p>
       </div>
     } @else if (rows().length === 0) {
-      <p class="text-sm text-muted-foreground">No containers yet.</p>
+      <p class="text-sm text-muted-foreground">{{ 'containers.none' | translate }}</p>
     } @else {
       <!-- Large screens: a table. -->
       <div hlmTableContainer class="hidden lg:block">
         <table hlmTable>
           <thead hlmTHead>
             <tr hlmTr>
-              <th hlmTh scope="col">Name</th>
-              <th hlmTh scope="col">State</th>
-              <th hlmTh scope="col" class="text-end">CPU</th>
-              <th hlmTh scope="col" class="text-end">Memory</th>
-              <th hlmTh scope="col" class="text-end">Network</th>
-              <th hlmTh scope="col" class="text-end">Disk I/O</th>
-              <th hlmTh scope="col">Up for</th>
-              <th hlmTh scope="col">Ports</th>
-              <th hlmTh scope="col" class="w-12"><span class="sr-only">Actions</span></th>
+              <th hlmTh scope="col">{{ 'containers.column.name' | translate }}</th>
+              <th hlmTh scope="col">{{ 'containers.column.state' | translate }}</th>
+              <th hlmTh scope="col" class="text-end">{{ 'containers.column.cpu' | translate }}</th>
+              <th hlmTh scope="col" class="text-end">
+                {{ 'containers.column.memory' | translate }}
+              </th>
+              <th hlmTh scope="col" class="text-end">
+                {{ 'containers.column.network' | translate }}
+              </th>
+              <th hlmTh scope="col" class="text-end">
+                {{ 'containers.column.diskIo' | translate }}
+              </th>
+              <th hlmTh scope="col">{{ 'containers.column.upFor' | translate }}</th>
+              <th hlmTh scope="col">{{ 'containers.column.ports' | translate }}</th>
+              <th hlmTh scope="col" class="w-12">
+                <span class="sr-only">{{ 'containers.column.actions' | translate }}</span>
+              </th>
             </tr>
           </thead>
           <tbody hlmTBody>
@@ -84,27 +93,27 @@
             </div>
             <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
               <div>
-                <dt class="text-muted-foreground">CPU</dt>
+                <dt class="text-muted-foreground">{{ 'containers.column.cpu' | translate }}</dt>
                 <dd class="tabular-nums">{{ row.cpu }}</dd>
               </div>
               <div>
-                <dt class="text-muted-foreground">Memory</dt>
+                <dt class="text-muted-foreground">{{ 'containers.column.memory' | translate }}</dt>
                 <dd class="tabular-nums">{{ row.memory }}</dd>
               </div>
               <div>
-                <dt class="text-muted-foreground">Up for</dt>
+                <dt class="text-muted-foreground">{{ 'containers.column.upFor' | translate }}</dt>
                 <dd>{{ row.uptime }}</dd>
               </div>
               <div>
-                <dt class="text-muted-foreground">Network</dt>
+                <dt class="text-muted-foreground">{{ 'containers.column.network' | translate }}</dt>
                 <dd class="tabular-nums">{{ row.network }}</dd>
               </div>
               <div>
-                <dt class="text-muted-foreground">Disk I/O</dt>
+                <dt class="text-muted-foreground">{{ 'containers.column.diskIo' | translate }}</dt>
                 <dd class="tabular-nums">{{ row.disk }}</dd>
               </div>
               <div>
-                <dt class="text-muted-foreground">Ports</dt>
+                <dt class="text-muted-foreground">{{ 'containers.column.ports' | translate }}</dt>
                 <dd class="break-all">{{ row.ports }}</dd>
               </div>
             </dl>

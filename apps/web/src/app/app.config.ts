@@ -6,7 +6,11 @@ import {
 } from '@angular/core';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideRouter, TitleStrategy } from '@angular/router';
-import { provideTranslateService } from '@ngx-translate/core';
+import {
+  provideMissingTranslationHandler,
+  provideTranslateLoader,
+  provideTranslateService,
+} from '@ngx-translate/core';
 import { provideSpartanHlm } from '@ui/utils';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth-interceptor';
@@ -26,8 +30,8 @@ export const appConfig: ApplicationConfig = {
     provideSpartanHlm(),
     provideTranslateService({
       fallbackLang: 'en',
-      loader: I18nLoader,
-      missingTranslationHandler: WarnOnMissingTranslation,
+      loader: provideTranslateLoader(I18nLoader),
+      missingTranslationHandler: provideMissingTranslationHandler(WarnOnMissingTranslation),
     }),
     // The language's texts before the first page renders: no keys flash on screen.
     provideAppInitializer(() => inject(LanguageService).init()),

@@ -14,11 +14,14 @@ import { SECURE_CONTEXT } from '../../../core/security/secure-context';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { AuthFrame } from '../auth-frame/auth-frame';
+import { TranslatePipe } from '@ngx-translate/core';
+import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 
 @Component({
   selector: 'app-login-page',
   imports: [
     AuthFrame,
+    ErrorTextPipe,
     FormField,
     FormRoot,
     HlmAlertImports,
@@ -27,6 +30,7 @@ import { AuthFrame } from '../auth-frame/auth-frame';
     HlmInput,
     InsecureContextNotice,
     PasswordToggle,
+    TranslatePipe,
   ],
   templateUrl: './login-page.html',
 })

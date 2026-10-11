@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideServer } from '@ng-icons/lucide';
+import { TranslatePipe } from '@ngx-translate/core';
 import { HlmSidebarImports } from '@ui/sidebar';
 import { APP_NAME } from '../../core/page-title/page-title';
 import { NAV_ICONS, NAVIGATION } from '../navigation';
@@ -12,7 +13,7 @@ import { NAV_ICONS, NAVIGATION } from '../navigation';
  */
 @Component({
   selector: 'app-sidebar',
-  imports: [HlmSidebarImports, NgIcon, RouterLink, RouterLinkActive],
+  imports: [HlmSidebarImports, NgIcon, RouterLink, RouterLinkActive, TranslatePipe],
   providers: [provideIcons({ ...NAV_ICONS, lucideServer })],
   templateUrl: './app-sidebar.html',
 })

@@ -1,14 +1,16 @@
 @switch (auth.status()) {
   @case ('unknown') {
-    <p class="p-8 text-sm text-muted-foreground" role="status">Loading…</p>
+    <p class="p-8 text-sm text-muted-foreground" role="status">{{ 'app.loading' | translate }}</p>
   }
   @case ('unreachable') {
     <main class="mx-auto max-w-md p-8" role="alert">
-      <h1 class="text-xl font-semibold">Can't reach the server</h1>
+      <h1 class="text-xl font-semibold">{{ 'app.unreachable.title' | translate }}</h1>
       <p class="mt-2 text-sm text-muted-foreground">
-        The Homelab server didn't answer. It may be starting up or stopped.
+        {{ 'app.unreachable.text' | translate: { app: appName } }}
       </p>
-      <button hlmBtn class="mt-4" (click)="retry()">Retry</button>
+      <button hlmBtn class="mt-4" (click)="retry()">
+        {{ 'app.unreachable.retry' | translate }}
+      </button>
     </main>
   }
   @default {

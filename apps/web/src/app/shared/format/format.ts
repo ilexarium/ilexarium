@@ -1,5 +1,6 @@
-// The one place raw numbers from the server (bytes, bytes/s, percent, seconds) become text.
-// Decimal units (1 GB = 1000³ bytes), as GNOME, macOS and disk makers show them.
+// The one place raw numbers from the server (bytes, bytes/s, percent, seconds) become text, in a
+// language's own number format (`Formatter` passes the current one). Decimal units (1 GB = 1000³
+// bytes), as GNOME, macOS and disk makers show them; unit symbols aren't translated.
 
 const UNITS = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
 
@@ -14,49 +15,66 @@ function scaled(bytes: number): { value: number; unit: string } {
 }
 
 /** One decimal below 10, none above ("3.4 GB", "512 MB"); whole bytes. */
-function number(value: number, unit: string): string {
+function number(value: number, unit: string, locale: string): string {
   const digits = unit === 'B' || value >= 10 ? 0 : 1;
-  return value.toLocaleString('en', {
+  return value.toLocaleString(locale, {
     maximumFractionDigits: digits,
     minimumFractionDigits: digits,
   });
 }
 
-/** "3.4 GB" */
-export function formatBytes(bytes: number): string {
+/** "3.4 GB" ("3,4 GB" in German) */
+export function formatBytes(bytes: number, locale = 'en'): string {
   const { value, unit } = scaled(bytes);
-  return `${number(value, unit)} ${unit}`;
+  return `${number(value, unit, locale)} ${unit}`;
 }
 
 /** "1.2 MB/s" */
-export function formatRate(bytesPerSecond: number): string {
-  return `${formatBytes(bytesPerSecond)}/s`;
+export function formatRate(bytesPerSecond: number, locale = 'en'): string {
+  return `${formatBytes(bytesPerSecond, locale)}/s`;
 }
 
-/** "42%" — "<1%" for a small non-zero share, so it never reads as idle when it isn't. */
-export function formatPercent(percent: number): string {
-  if (percent > 0 && percent < 1) return '<1%';
-  return `${Math.round(percent)}%`;
+/** "42%" ("42 %" in German) — "<1%" for a small non-zero share, so it never reads as idle. */
+export function formatPercent(percent: number, locale = 'en'): string {
+  const format = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
+  if (percent > 0 && percent < 1) return `<${format.format(0.01)}`;
+  return format.format(Math.round(percent) / 100);
 }
 
-/** "3 days, 4 hours" / "4 hours, 12 minutes" / "12 minutes" / "less than a minute". */
-export function formatDuration(seconds: number): string {
-  const units: [string, number][] = [
-    ['day', 86_400],
-    ['hour', 3_600],
-    ['minute', 60],
-  ];
-  const parts: string[] = [];
+/**
+ * The two largest units: "3 days, 4 hours" / "4 hours, 12 minutes" / "12 minutes" — worded by the
+ * browser in the language (`Intl.DurationFormat`); `lessThanAMinute` (translated) below a minute.
+ */
+export function formatDuration(seconds: number, locale: string, lessThanAMinute: string): string {
+  const units = [
+    ['days', 86_400],
+    ['hours', 3_600],
+    ['minutes', 60],
+  ] as const;
+  const parts: Partial<Record<(typeof units)[number][0], number>> = {};
   let rest = Math.floor(Math.max(0, seconds));
+  let taken = 0;
   for (const [name, size] of units) {
     const count = Math.floor(rest / size);
     rest %= size;
-    if (count > 0 || parts.length > 0) parts.push(`${count} ${name}${count === 1 ? '' : 's'}`);
-    if (parts.length === 2) break;
+    if (count > 0 || taken > 0) {
+      if (count > 0) parts[name] = count;
+      if (++taken === 2) break;
+    }
   }
-  const shown = parts.filter((part) => !part.startsWith('0 '));
-  return shown.length > 0 ? shown.join(', ') : 'less than a minute';
+  if (Object.keys(parts).length === 0) return lessThanAMinute;
+  return new DurationFormat(locale, { style: 'long' }).format(parts);
 }
+
+/** `Intl.DurationFormat` (in every current browser) — not yet in TypeScript's ES2022 library. */
+const DurationFormat = (
+  Intl as unknown as {
+    DurationFormat: new (
+      locale: string,
+      options: { style: 'long' },
+    ) => { format(duration: Record<string, number>): string };
+  }
+).DurationFormat;
 
 /** Used share of a total as a percentage (0 for an empty total). */
 export function percentOf(used: number, total: number): number {

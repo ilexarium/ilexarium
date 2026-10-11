@@ -1,13 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
+import { Translator } from '../../core/i18n/translator';
 import { RealtimeService } from '../../core/realtime/realtime-service';
-import type { ConnectionStatus as Status } from '../../core/realtime/realtime.model';
-
-const LABELS: Record<Status, string> = {
-  offline: 'Offline',
-  connecting: 'Connecting…',
-  live: 'Live',
-  reconnecting: 'Reconnecting…',
-};
 
 /**
  * Whether live data is flowing: a dot plus a label (the label is hidden on phones, but stays
@@ -24,5 +17,6 @@ const LABELS: Record<Status, string> = {
 })
 export class ConnectionStatus {
   protected readonly status = inject(RealtimeService).status;
-  protected readonly label = computed(() => LABELS[this.status()]);
+  private readonly translator = inject(Translator);
+  protected readonly label = computed(() => this.translator.t(`connection.${this.status()}`));
 }

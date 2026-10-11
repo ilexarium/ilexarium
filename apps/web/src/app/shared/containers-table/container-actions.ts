@@ -4,6 +4,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideEllipsis, lucideScrollText } from '@ng-icons/lucide';
 import { HlmButton } from '@ui/button';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
+import { TranslatePipe } from '@ngx-translate/core';
 
 /**
  * A container's actions: a "⋯" button opening a menu. View logs for now; later actions (restart,
@@ -12,7 +13,7 @@ import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
  */
 @Component({
   selector: 'app-container-actions',
-  imports: [HlmButton, HlmDropdownMenuImports, NgIcon],
+  imports: [HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideEllipsis, lucideScrollText })],
   templateUrl: './container-actions.html',
 })

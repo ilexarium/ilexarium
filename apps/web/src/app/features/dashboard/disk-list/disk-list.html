@@ -1,11 +1,11 @@
 <section hlmCard aria-labelledby="storage-title">
   <div hlmCardHeader>
-    <h2 hlmCardTitle id="storage-title">Storage</h2>
-    <p hlmCardDescription>Space used on each disk</p>
+    <h2 hlmCardTitle id="storage-title">{{ 'dashboard.storage.title' | translate }}</h2>
+    <p hlmCardDescription>{{ 'dashboard.storage.description' | translate }}</p>
   </div>
   <div hlmCardContent>
     @if (rows().length === 0) {
-      <p class="text-sm text-muted-foreground">No disks found.</p>
+      <p class="text-sm text-muted-foreground">{{ 'dashboard.storage.none' | translate }}</p>
     } @else {
       <ul class="grid gap-5">
         @for (disk of rows(); track disk.device) {
@@ -20,16 +20,27 @@
               @if (disk.warning) {
                 <span hlmBadge variant="destructive">
                   <ng-icon name="lucideTriangleAlert" aria-hidden="true" />
-                  Almost full
+                  {{ 'dashboard.storage.almostFull' | translate }}
                 </span>
               }
             </div>
-            <hlm-progress [value]="disk.percent" [attr.aria-label]="'Space used on ' + disk.mount">
+            <hlm-progress
+              [value]="disk.percent"
+              [attr.aria-label]="'dashboard.storage.spaceUsedOn' | translate: { mount: disk.mount }"
+            >
               <hlm-progress-indicator [class]="disk.warning ? 'bg-destructive' : ''" />
             </hlm-progress>
             <p class="text-sm text-muted-foreground tabular-nums">
-              {{ disk.used }} of {{ disk.size }} used ({{ disk.percentText }}) ·
-              {{ disk.free }} free
+              {{
+                'dashboard.storage.usage'
+                  | translate
+                    : {
+                        used: disk.used,
+                        size: disk.size,
+                        percent: disk.percentText,
+                        free: disk.free,
+                      }
+              }}
             </p>
           </li>
         }

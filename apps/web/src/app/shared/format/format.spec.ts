@@ -39,13 +39,34 @@ describe('formatPercent', () => {
   });
 });
 
+describe('in other languages', () => {
+  it('uses the language’s number format', () => {
+    expect(formatBytes(3_400_000_000, 'de')).toBe('3,4 GB');
+    expect(formatRate(1_200_000, 'de')).toBe('1,2 MB/s');
+    // German keeps "42" and "%" together with a non-breaking space.
+    expect(formatPercent(42, 'de')).toBe('42\u00a0%');
+    expect(formatPercent(0.5, 'de')).toBe('<1\u00a0%');
+  });
+});
+
 describe('formatDuration', () => {
   it('shows the two largest units', () => {
-    expect(formatDuration(3 * 86_400 + 4 * 3_600 + 5 * 60)).toBe('3 days, 4 hours');
-    expect(formatDuration(4 * 3_600 + 12 * 60 + 30)).toBe('4 hours, 12 minutes');
-    expect(formatDuration(60)).toBe('1 minute');
-    expect(formatDuration(86_400 + 30)).toBe('1 day');
-    expect(formatDuration(30)).toBe('less than a minute');
+    expect(formatDuration(3 * 86_400 + 4 * 3_600 + 5 * 60, 'en', 'less than a minute')).toBe(
+      '3 days, 4 hours',
+    );
+    expect(formatDuration(4 * 3_600 + 12 * 60 + 30, 'en', 'less than a minute')).toBe(
+      '4 hours, 12 minutes',
+    );
+    expect(formatDuration(60, 'en', 'less than a minute')).toBe('1 minute');
+    expect(formatDuration(86_400 + 30, 'en', 'less than a minute')).toBe('1 day');
+    expect(formatDuration(30, 'en', 'less than a minute')).toBe('less than a minute');
+  });
+
+  it('is worded by the browser in the language', () => {
+    const seconds = 3 * 86_400 + 4 * 3_600;
+    expect(formatDuration(seconds, 'de', 'weniger als eine Minute')).toBe('3 Tage, 4 Stunden');
+    expect(formatDuration(seconds, 'ar', '')).toBe('3 أيام و4 ساعات');
+    expect(formatDuration(5, 'de', 'weniger als eine Minute')).toBe('weniger als eine Minute');
   });
 });
 

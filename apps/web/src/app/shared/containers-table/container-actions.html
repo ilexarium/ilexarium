@@ -4,7 +4,7 @@
   size="icon"
   [hlmDropdownMenuTrigger]="menu"
   align="end"
-  [attr.aria-label]="'Actions for ' + name()"
+  [attr.aria-label]="'containers.actionsFor' | translate: { name: name() }"
 >
   <ng-icon name="lucideEllipsis" aria-hidden="true" />
 </button>
@@ -12,7 +12,7 @@
   <hlm-dropdown-menu class="w-44">
     <button hlmDropdownMenuItem (triggered)="viewLogs()">
       <ng-icon name="lucideScrollText" aria-hidden="true" />
-      View logs
+      {{ 'containers.viewLogs' | translate }}
     </button>
   </hlm-dropdown-menu>
 </ng-template>

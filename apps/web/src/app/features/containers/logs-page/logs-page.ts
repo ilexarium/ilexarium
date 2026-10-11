@@ -10,14 +10,16 @@ import { HlmSkeleton } from '@ui/skeleton';
 import { map } from 'rxjs';
 import { LogView } from '../log-view/log-view';
 import { LogStream } from './log-stream';
+import { TranslatePipe } from '@ngx-translate/core';
 
 interface Notice {
-  title: string;
-  text: string;
+  /** Translation keys `<key>.title`, `<key>.text` and, if it can help, `<key>.retry`. */
+  key: string;
+  params?: Record<string, string>;
   /** Problems are announced at once (`alert`); the rest politely (`status`). */
   problem: boolean;
-  /** Label of a button that opens the stream again, if that can help. */
-  retry: string | null;
+  /** A button that opens the stream again. */
+  retry: boolean;
 }
 
 /**
@@ -28,7 +30,7 @@ interface Notice {
  */
 @Component({
   selector: 'app-logs-page',
-  imports: [HlmAlertImports, HlmButton, HlmSkeleton, LogView, NgIcon, RouterLink],
+  imports: [HlmAlertImports, HlmButton, HlmSkeleton, LogView, NgIcon, RouterLink, TranslatePipe],
   providers: [LogStream, provideIcons({ lucideArrowLeft })],
   host: {
     // The viewport minus the top bar (3.5rem) and the page padding (1rem / 1.5rem each side).
@@ -58,12 +60,7 @@ export class LogsPage {
     const state = this.logs.state();
     if (state.status === 'ended') return endNotice(state.reason, this.name());
     if (state.status === 'refused') {
-      return {
-        title: 'Too many log views open',
-        text: 'This browser tab already shows logs of as many containers as it can at once. Close one, then try again.',
-        problem: true,
-        retry: 'Try again',
-      };
+      return { key: 'logs.notice.refused', problem: true, retry: true };
     }
     return null;
   });
@@ -85,39 +82,14 @@ export class LogsPage {
 function endNotice(reason: LogsEndReason, name: string): Notice {
   switch (reason) {
     case 'stopped':
-      return {
-        title: 'Container is stopped',
-        text: 'These are its logs up to when it stopped. Start it again to see new output.',
-        problem: false,
-        retry: 'Follow again',
-      };
+      return { key: 'logs.notice.stopped', problem: false, retry: true };
     case 'removed':
-      return {
-        title: 'Container was removed',
-        text: 'It no longer exists. The lines already loaded stay here until you leave this page.',
-        problem: false,
-        retry: null,
-      };
+      return { key: 'logs.notice.removed', problem: false, retry: false };
     case 'not_found':
-      return {
-        title: 'Container not found',
-        text: `There is no container named “${name}”. It may have been removed, or the link is out of date.`,
-        problem: true,
-        retry: null,
-      };
+      return { key: 'logs.notice.notFound', params: { name }, problem: true, retry: false };
     case 'unavailable':
-      return {
-        title: 'Logs are not available',
-        text: 'This container’s logging setting (its “log driver”, for example none or syslog) keeps no logs that Docker can read back.',
-        problem: false,
-        retry: null,
-      };
+      return { key: 'logs.notice.unavailable', problem: false, retry: false };
     case 'error':
-      return {
-        title: "Docker isn't reachable",
-        text: 'The logs can’t be read right now. Make sure Docker is running, then try again.',
-        problem: true,
-        retry: 'Try again',
-      };
+      return { key: 'logs.notice.error', problem: true, retry: true };
   }
 }

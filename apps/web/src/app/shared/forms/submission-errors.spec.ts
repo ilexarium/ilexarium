@@ -2,7 +2,9 @@ import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
-import { toSubmissionErrors } from './submission-errors';
+import en from '@homelab/i18n/en.json';
+import { flattenMessages } from '@homelab/i18n';
+import { toSubmissionErrors, TRANSLATED_ERROR_CODES } from './submission-errors';
 
 function makeForm() {
   return TestBed.runInInjectionContext(() =>
@@ -14,17 +16,21 @@ const httpError = (status: number, body: unknown, headers?: Record<string, strin
   new HttpErrorResponse({ status, error: body, headers: new HttpHeaders(headers) });
 
 describe('toSubmissionErrors', () => {
-  it('puts server field errors on their fields', () => {
+  it('puts server field errors on their fields, a known code as its own key', () => {
     const f = makeForm();
     const result = toSubmissionErrors(
       httpError(400, {
         message: 'Validation failed',
-        errors: [{ field: 'currentPassword', code: 'wrong_password', message: 'Wrong' }],
+        errors: [
+          { field: 'currentPassword', code: 'wrong_password', message: 'Wrong' },
+          { field: 'newPassword', code: 'too_small', message: 'validation.passwordTooShort' },
+        ],
       }),
       f,
     );
     expect(result).toEqual([
-      { kind: 'wrong_password', message: 'Wrong', fieldTree: f.currentPassword },
+      { kind: 'wrong_password', message: 'errors.wrong_password', fieldTree: f.currentPassword },
+      { kind: 'too_small', message: 'validation.passwordTooShort', fieldTree: f.newPassword },
     ]);
   });
 
@@ -33,33 +39,42 @@ describe('toSubmissionErrors', () => {
       httpError(401, { message: 'Invalid username or password', code: 'invalid_credentials' }),
       makeForm(),
     );
-    expect(result).toEqual({
-      kind: 'invalid_credentials',
-      message: 'Invalid username or password',
-    });
+    expect(result).toEqual({ kind: 'invalid_credentials', message: 'errors.invalid_credentials' });
+  });
+
+  it('keeps the server’s text for a code without a translation', () => {
+    const result = toSubmissionErrors(
+      httpError(409, { message: 'Something new happened', code: 'brand_new' }),
+      makeForm(),
+    );
+    expect(result).toEqual({ kind: 'brand_new', message: 'Something new happened' });
   });
 
   it('says how long to wait on a 429, from Retry-After', () => {
     expect(toSubmissionErrors(httpError(429, {}, { 'Retry-After': '8' }), makeForm())).toEqual({
       kind: 'too_many_attempts',
-      message: 'Too many attempts. Try again in 8 seconds.',
+      message: 'errors.tooManyAttemptsIn',
+      params: { count: 8 },
     });
-    expect(
-      toSubmissionErrors(httpError(429, {}, { 'Retry-After': '1' }), makeForm()),
-    ).toMatchObject({
-      message: 'Too many attempts. Try again in 1 second.',
+    expect(toSubmissionErrors(httpError(429, {}), makeForm())).toEqual({
+      kind: 'too_many_attempts',
+      message: 'errors.tooManyAttempts',
     });
   });
 
   it('reports network failures plainly', () => {
-    expect(toSubmissionErrors(httpError(0, null), makeForm())).toMatchObject({ kind: 'network' });
+    expect(toSubmissionErrors(httpError(0, null), makeForm())).toEqual({
+      kind: 'network',
+      message: 'errors.network',
+    });
     expect(toSubmissionErrors(new Error('boom'), makeForm())).toMatchObject({ kind: 'network' });
   });
 
   it('copes with an unexpected body', () => {
-    expect(toSubmissionErrors(httpError(502, '<html>'), makeForm())).toMatchObject({
+    expect(toSubmissionErrors(httpError(502, '<html>'), makeForm())).toEqual({
       kind: 'server',
-      message: 'Something went wrong (502).',
+      message: 'errors.server',
+      params: { status: 502 },
     });
   });
 
@@ -69,5 +84,10 @@ describe('toSubmissionErrors', () => {
       makeForm(),
     ) as readonly { fieldTree?: unknown }[];
     expect(error.fieldTree).toBeUndefined();
+  });
+
+  it('has a text in en.json for every code it translates', () => {
+    const keys = Object.keys(flattenMessages(en));
+    for (const code of TRANSLATED_ERROR_CODES) expect(keys).toContain(`errors.${code}`);
   });
 });

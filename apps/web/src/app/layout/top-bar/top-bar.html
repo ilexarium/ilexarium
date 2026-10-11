@@ -1,4 +1,4 @@
-<button hlmSidebarTrigger srOnlyText="Toggle navigation" class="-ms-1"></button>
+<button hlmSidebarTrigger [srOnlyText]="'nav.toggle' | translate" class="-ms-1"></button>
 <hlm-separator orientation="vertical" class="me-2 h-4" />
 <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
 <app-connection-status class="ms-auto" />
@@ -9,7 +9,7 @@
   class="gap-2 px-2"
   [hlmDropdownMenuTrigger]="userMenu"
   align="end"
-  aria-label="Account menu"
+  [attr.aria-label]="'userMenu.open' | translate"
 >
   <hlm-avatar class="size-7">
     <span hlmAvatarFallback class="text-xs">{{ initials() }}</span>
@@ -36,7 +36,11 @@
       }
     </div>
     <hlm-dropdown-menu-separator />
-    <a hlmDropdownMenuItem routerLink="/settings/account">Change password</a>
-    <button hlmDropdownMenuItem (click)="auth.logout()">Sign out</button>
+    <a hlmDropdownMenuItem routerLink="/settings/account">{{
+      'userMenu.changePassword' | translate
+    }}</a>
+    <button hlmDropdownMenuItem (click)="auth.logout()">
+      {{ 'userMenu.signOut' | translate }}
+    </button>
   </hlm-dropdown-menu>
 </ng-template>
