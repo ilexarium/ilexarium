@@ -22,7 +22,11 @@
       "@ui/separator": ["./src/ui/separator/src/index.ts"],
       "@ui/dropdown-menu": ["./src/ui/dropdown-menu/src/index.ts"],
       "@ui/avatar": ["./src/ui/avatar/src/index.ts"],
-      "@ui/sonner": ["./src/ui/sonner/src/index.ts"]
+      "@ui/sonner": ["./src/ui/sonner/src/index.ts"],
+      "@ui/sidebar": ["./src/ui/sidebar/src/index.ts"],
+      "@ui/sheet": ["./src/ui/sheet/src/index.ts"],
+      "@ui/skeleton": ["./src/ui/skeleton/src/index.ts"],
+      "@ui/tooltip": ["./src/ui/tooltip/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

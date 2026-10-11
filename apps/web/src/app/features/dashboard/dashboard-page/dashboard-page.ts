@@ -7,8 +7,7 @@ import { HlmButton } from '@ui/button';
   selector: 'app-dashboard-page',
   imports: [HlmButton],
   template: `
-    <h1 class="text-2xl font-semibold">Dashboard</h1>
-    <section class="mt-6 flex items-center gap-4 rounded-lg border p-4">
+    <section class="flex items-center gap-4 rounded-lg border p-4">
       <span class="text-sm text-muted-foreground">Server</span>
       @if (health.isLoading()) {
         <span class="text-sm">Checking…</span>
