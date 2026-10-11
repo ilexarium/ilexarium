@@ -1,12 +1,13 @@
 import { Component, computed, input } from '@angular/core';
-import type { SystemSample } from '@homelab/shared';
+import type { SystemHistoryPoint, SystemSample } from '@homelab/shared';
 import { HlmCardImports } from '@ui/card';
 import { HlmProgressImports } from '@ui/progress';
+import { type ChartSeries, MetricChart } from '../../../shared/charts/metric-chart';
 import { formatPercent } from '../../../shared/format/format';
 
 @Component({
   selector: 'app-cpu-card',
-  imports: [HlmCardImports, HlmProgressImports],
+  imports: [HlmCardImports, HlmProgressImports, MetricChart],
   template: `
     <section hlmCard class="h-full" aria-labelledby="cpu-title">
       <div hlmCardHeader>
@@ -21,6 +22,7 @@ import { formatPercent } from '../../../shared/format/format';
         <p class="text-sm text-muted-foreground">
           Load {{ load() }} <span class="whitespace-nowrap">(1, 5, 15 min)</span>
         </p>
+        <app-metric-chart [series]="chart()" unit="percent" [max]="100" label="CPU usage" />
       </div>
     </section>
   `,
@@ -28,6 +30,11 @@ import { formatPercent } from '../../../shared/format/format';
 export class CpuCard {
   readonly cpu = input.required<SystemSample['cpu']>();
   readonly cores = input.required<number>();
+  readonly history = input.required<SystemHistoryPoint[]>();
+
+  protected readonly chart = computed<ChartSeries[]>(() => [
+    { name: 'CPU', points: this.history().map((p) => [p.at, p.cpuPercent]) },
+  ]);
 
   protected readonly usage = computed(() => formatPercent(this.cpu().usagePercent));
   protected readonly load = computed(() =>

@@ -90,6 +90,36 @@ describe('DashboardPage', () => {
     expect(card('storage').textContent).toContain('Almost full');
   });
 
+  it('shows the containers, and charts described for screen readers', async () => {
+    const { fixture, el, socket, card } = await render();
+    socket.receive({
+      event: 'system:snapshot',
+      data: {
+        ...snapshot,
+        history: [
+          {
+            at: 1,
+            cpuPercent: 12.4,
+            memoryUsedBytes: 2 * GB,
+            rxBytesPerSec: 1_200_000,
+            txBytesPerSec: 301_000,
+          },
+        ],
+      },
+    });
+    socket.receive({ event: 'containers:snapshot', data: { dockerAvailable: false } });
+    await fixture.whenStable();
+    expect(card('containers').textContent).toContain("Docker isn't reachable");
+    const charts = [...el.querySelectorAll('app-metric-chart [role="img"]')].map((c) =>
+      c.getAttribute('aria-label'),
+    );
+    expect(charts).toEqual([
+      'CPU usage, last 15 minutes: now CPU 12%',
+      'Memory in use, last 15 minutes: now In use 2.0 GB',
+      'Network traffic, last 15 minutes: now Receiving 1.2 MB/s, Sending 301 kB/s',
+    ]);
+  });
+
   it('follows live updates', async () => {
     const { fixture, socket, card } = await render();
     socket.receive({ event: 'system:snapshot', data: snapshot });

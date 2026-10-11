@@ -5,6 +5,7 @@ import { NetworkCard } from './network-card';
 async function render(interfaces: NetworkInterfaceStats[]) {
   const fixture = TestBed.createComponent(NetworkCard);
   fixture.componentRef.setInput('interfaces', interfaces);
+  fixture.componentRef.setInput('history', []);
   await fixture.whenStable();
   return fixture.nativeElement as HTMLElement;
 }

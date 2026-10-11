@@ -1,29 +1,36 @@
 import { Component, DestroyRef, inject } from '@angular/core';
 import { HlmSkeleton } from '@ui/skeleton';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
+import { ContainersTable } from '../containers-table/containers-table';
 import { CpuCard } from '../cpu-card/cpu-card';
 import { DiskList } from '../disk-list/disk-list';
 import { HostSummary } from '../host-summary/host-summary';
 import { MemoryCard } from '../memory-card/memory-card';
 import { NetworkCard } from '../network-card/network-card';
 
-/** The server at a glance, live: host, CPU, memory, network, storage. */
+/** The server at a glance, live: host, CPU, memory, network, storage, containers. */
 @Component({
   selector: 'app-dashboard-page',
-  imports: [CpuCard, DiskList, HostSummary, HlmSkeleton, MemoryCard, NetworkCard],
+  imports: [ContainersTable, CpuCard, DiskList, HostSummary, HlmSkeleton, MemoryCard, NetworkCard],
   template: `
     @if (store.system(); as system) {
       <div class="grid gap-4 md:gap-6">
         <app-host-summary [host]="system.host" [uptimeSeconds]="system.uptimeSeconds" />
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <app-cpu-card [cpu]="system.sample.cpu" [cores]="system.host.cpuCores" />
-          <app-memory-card [memory]="system.sample.memory" />
+          <app-cpu-card
+            [cpu]="system.sample.cpu"
+            [cores]="system.host.cpuCores"
+            [history]="system.history"
+          />
+          <app-memory-card [memory]="system.sample.memory" [history]="system.history" />
           <app-network-card
             [interfaces]="system.sample.network"
+            [history]="system.history"
             class="sm:col-span-2 xl:col-span-1"
           />
         </div>
         <app-disk-list [disks]="system.disks" />
+        <app-containers-table [containers]="store.containers()" [now]="system.sample.at" />
       </div>
     } @else {
       <div class="grid gap-4 md:gap-6" role="status" aria-label="Loading server data">

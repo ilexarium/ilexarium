@@ -1,13 +1,14 @@
 import { Component, computed, input } from '@angular/core';
-import type { NetworkInterfaceStats } from '@homelab/shared';
+import type { NetworkInterfaceStats, SystemHistoryPoint } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowDown, lucideArrowUp } from '@ng-icons/lucide';
 import { HlmCardImports } from '@ui/card';
+import { type ChartSeries, MetricChart } from '../../../shared/charts/metric-chart';
 import { formatRate } from '../../../shared/format/format';
 
 @Component({
   selector: 'app-network-card',
-  imports: [HlmCardImports, NgIcon],
+  imports: [HlmCardImports, MetricChart, NgIcon],
   providers: [provideIcons({ lucideArrowDown, lucideArrowUp })],
   template: `
     <section hlmCard class="h-full" aria-labelledby="network-title">
@@ -26,6 +27,7 @@ import { formatRate } from '../../../shared/format/format';
             <span class="sr-only">Sending </span>{{ total().tx }}
           </span>
         </p>
+        <app-metric-chart [series]="chart()" unit="rate" label="Network traffic" />
         @if (interfaces().length > 1) {
           <ul class="grid gap-1 text-sm text-muted-foreground">
             @for (iface of rows(); track iface.name) {
@@ -48,6 +50,12 @@ import { formatRate } from '../../../shared/format/format';
 })
 export class NetworkCard {
   readonly interfaces = input.required<NetworkInterfaceStats[]>();
+  readonly history = input.required<SystemHistoryPoint[]>();
+
+  protected readonly chart = computed<ChartSeries[]>(() => [
+    { name: 'Receiving', points: this.history().map((p) => [p.at, p.rxBytesPerSec]) },
+    { name: 'Sending', points: this.history().map((p) => [p.at, p.txBytesPerSec]) },
+  ]);
 
   protected readonly total = computed(() => {
     let rx = 0;
