@@ -1,5 +1,10 @@
 {
-  "app": {
-    "name": "Homelab"
+  "pages": {
+    "setup": "Set up",
+    "login": "Sign in",
+    "dashboard": "Dashboard",
+    "containers": "Containers",
+    "logs": "Logs · {{name}}",
+    "account": "Account"
   }
 }

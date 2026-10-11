@@ -12,7 +12,6 @@ import { type FakeSocket, fakeSockets } from '../../../core/realtime/testing';
 import { stubLocalStorage, stubScreenWidth } from '../../../layout/testing';
 import { QUIET_MS } from './log-stream';
 import { LogsPage } from './logs-page';
-import { logsPageTitle } from './logs-page-title';
 
 @Component({ template: '' })
 class Elsewhere {}
@@ -47,8 +46,8 @@ describe('LogsPage', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
-          { path: 'containers', title: 'Containers', component: Elsewhere },
-          { path: 'containers/:name/logs', title: logsPageTitle, component: LogsPage },
+          { path: 'containers', title: 'pages.containers', component: Elsewhere },
+          { path: 'containers/:name/logs', title: 'pages.logs', component: LogsPage },
         ]),
         { provide: TitleStrategy, useExisting: PageTitleStrategy },
         auth.provider,
