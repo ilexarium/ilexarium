@@ -1,7 +1,6 @@
 import { Logger } from '@nestjs/common';
 import type { DiskUsage, HostInfo, SystemUpdate } from '@homelab/shared';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
-import type { CpuTimes, MemoryInfo, NetCounters } from './proc-parsers.js';
 import {
   DISK_INTERVAL_MS,
   FIRST_SAMPLE_DELAY_MS,
@@ -10,6 +9,7 @@ import {
   SystemMetricsService,
 } from './system-metrics.service.js';
 import type { SystemReader } from './system-reader.js';
+import type { CpuTimes, MemoryInfo, NetCounters } from './system-metrics.model.js';
 
 const GiB = 1024 ** 3;
 const host: HostInfo = {

@@ -1,24 +1,9 @@
-import {
-  REALTIME_ERROR_CODES,
-  type RealtimeError,
-  type RealtimeTopic,
-  type ServerEventData,
-  type ServerMessage,
-} from '@homelab/shared';
+import { REALTIME_ERROR_CODES, type RealtimeError, type ServerMessage } from '@homelab/shared';
 import { WebSocket } from 'ws';
+import type { RealtimeClient } from './realtime.model.js';
 
 /** Above this much unsent data the client isn't keeping up: updates are skipped, not queued. */
 const MAX_BUFFERED_BYTES = 1024 * 1024;
-
-export type SnapshotData<T extends RealtimeTopic> = ServerEventData<`${T}:snapshot`>;
-export type UpdateData<T extends RealtimeTopic> = ServerEventData<`${T}:update`>;
-
-/** What sending needs from a socket — `ws`'s `WebSocket` fits; tests pass a fake. */
-export interface RealtimeClient {
-  readonly readyState: number;
-  readonly bufferedAmount: number;
-  send(data: string): void;
-}
 
 /** Sends one typed message; silently skipped if the socket is no longer open or is backed up. */
 export function sendMessage(client: RealtimeClient, message: ServerMessage): void {

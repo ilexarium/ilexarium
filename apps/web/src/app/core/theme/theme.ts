@@ -1,7 +1,5 @@
 import { computed, DestroyRef, DOCUMENT, effect, inject, Service, signal } from '@angular/core';
-
-/** `system` follows the device's light/dark setting, live. */
-export type ThemeChoice = 'light' | 'dark' | 'system';
+import type { ThemeChoice } from './theme.model';
 
 export const THEME_STORAGE_KEY = 'homelab.theme';
 const CHOICES: readonly ThemeChoice[] = ['light', 'dark', 'system'];

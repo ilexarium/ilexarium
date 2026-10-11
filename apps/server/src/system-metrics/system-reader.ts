@@ -3,17 +3,15 @@ import os from 'node:os';
 import { join } from 'node:path';
 import type { DiskUsage, HostInfo } from '@homelab/shared';
 import {
-  type CpuTimes,
   diskMounts,
   isShownInterface,
-  type MemoryInfo,
-  type NetCounters,
   parseCpuTimes,
   parseMeminfo,
   parseMounts,
   parseNetDev,
   parseOsRelease,
 } from './proc-parsers.js';
+import type { CpuTimes, MemoryInfo, NetCounters } from './system-metrics.model.js';
 
 /**
  * The only place system metrics are read: plain files under `/proc` and `/etc`, `statfs()` and

@@ -1,11 +1,6 @@
+import type { CpuTimes, MemoryInfo, Mount, NetCounters } from './system-metrics.model.js';
 // Pure parsers for the Linux files system metrics come from (see proc(5) and os-release(5)).
 // No file access here — `SystemReader` reads, these turn text into numbers.
-
-/** Cumulative CPU time since boot, in clock ticks, across all cores. */
-export interface CpuTimes {
-  idle: number;
-  total: number;
-}
 
 /**
  * The aggregate `cpu` line of `/proc/stat`: user nice system idle iowait irq softirq steal
@@ -33,13 +28,6 @@ export function cpuUsagePercent(previous: CpuTimes, current: CpuTimes): number {
   return Math.min(100, Math.max(0, (busy / total) * 100));
 }
 
-export interface MemoryInfo {
-  totalBytes: number;
-  availableBytes: number;
-  swapTotalBytes: number;
-  swapFreeBytes: number;
-}
-
 /** `/proc/meminfo`; values there are in kB (KiB). */
 export function parseMeminfo(meminfo: string): MemoryInfo {
   const kib = new Map<string, number>();
@@ -59,12 +47,6 @@ export function parseMeminfo(meminfo: string): MemoryInfo {
     swapTotalBytes: get('SwapTotal'),
     swapFreeBytes: get('SwapFree'),
   };
-}
-
-/** Cumulative bytes since the interface came up. */
-export interface NetCounters {
-  rxBytes: number;
-  txBytes: number;
 }
 
 /** `/proc/net/dev`: two header lines, then `name: rx_bytes … (8 rx fields) tx_bytes …`. */
@@ -95,12 +77,6 @@ export function isShownInterface(name: string): boolean {
 export function bytesPerSecond(previous: number, current: number, seconds: number): number {
   if (seconds <= 0 || current < previous) return 0;
   return (current - previous) / seconds;
-}
-
-export interface Mount {
-  device: string;
-  mount: string;
-  fsType: string;
 }
 
 /** Pseudo, in-memory and image filesystems: nothing a user would call a disk. */

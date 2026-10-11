@@ -3,13 +3,9 @@ import { provideRouter, Router } from '@angular/router';
 import type { ServerMessage, SystemUpdate } from '@homelab/shared';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
-import {
-  FIRST_RETRY_MS,
-  MAX_RETRY_MS,
-  RealtimeService,
-  type RealtimeStream,
-} from './realtime-service';
+import { FIRST_RETRY_MS, MAX_RETRY_MS, RealtimeService } from './realtime-service';
 import { fakeSockets } from './testing';
+import type { RealtimeStream } from './realtime.model';
 
 const update = {
   event: 'system:update',

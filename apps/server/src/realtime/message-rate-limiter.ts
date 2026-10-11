@@ -1,9 +1,4 @@
-/**
- * - `allowed`: within the limit.
- * - `limited`: over it — the message is answered with a `rate_limited` error.
- * - `abusive`: twice over it — the client ignores the errors, so the connection is closed.
- */
-export type RateDecision = 'allowed' | 'limited' | 'abusive';
+import type { RateDecision } from './realtime.model.js';
 
 /** One connection's messages in a sliding window. Refused messages count too. */
 export class MessageRateLimiter {

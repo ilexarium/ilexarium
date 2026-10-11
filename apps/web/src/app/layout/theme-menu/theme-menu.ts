@@ -3,7 +3,8 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideMoon, lucideSun } from '@ng-icons/lucide';
 import { HlmButton } from '@ui/button';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
-import { type ThemeChoice, ThemeService } from '../../core/theme/theme';
+import { ThemeService } from '../../core/theme/theme';
+import type { ThemeChoice } from '../../core/theme/theme.model';
 
 const OPTIONS: { value: ThemeChoice; label: string }[] = [
   { value: 'light', label: 'Light' },

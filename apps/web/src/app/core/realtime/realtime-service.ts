@@ -17,12 +17,7 @@ import {
 } from '@homelab/shared';
 import { AuthApi } from '../auth/auth-api';
 import { AuthStore } from '../auth/auth-store';
-
-/**
- * `offline`: not connected and not trying (signed out). `connecting`: the first attempt.
- * `live`: connected. `reconnecting`: the connection dropped; trying again.
- */
-export type ConnectionStatus = 'offline' | 'connecting' | 'live' | 'reconnecting';
+import type { ConnectionStatus, RealtimeStream } from './realtime.model';
 
 /** How sockets are made — tests swap in a fake. */
 export const WEB_SOCKET_FACTORY = new InjectionToken<(url: string) => WebSocket>(
@@ -37,19 +32,6 @@ export const FIRST_RETRY_MS = 1_000;
 export const MAX_RETRY_MS = 30_000;
 
 type Listener = (message: ServerMessage) => void;
-
-/**
- * A per-viewer stream (container logs), unlike a shared topic: it says what it wants itself.
- * `send` sends only while the socket is open.
- */
-export interface RealtimeStream {
-  /** The socket is live and the tab visible — (re)send the stream's request. Also after a reconnect. */
-  resume(send: (message: ClientMessage) => void): void;
-  /** The tab was hidden while the socket is open — close the stream on the server. */
-  pause(send: (message: ClientMessage) => void): void;
-  /** Every stream message (`logs:*`) — each stream picks its own — and every `error`. */
-  receive(message: ServerMessage): void;
-}
 
 /**
  * The app's one WebSocket (`/api/ws`). Features subscribe to topics; the service keeps the

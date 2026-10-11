@@ -1,14 +1,6 @@
 import { DestroyRef, DOCUMENT, inject, Service, signal } from '@angular/core';
 import { canDrawCharts } from './can-draw';
-
-/** The theme tokens charts use, as colours ECharts can work with. */
-export interface ChartColors {
-  series: string[];
-  text: string;
-  grid: string;
-  tooltipBackground: string;
-  tooltipText: string;
-}
+import type { ChartColors } from './charts.model';
 
 const SERIES_TOKENS = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5'];
 

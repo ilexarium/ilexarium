@@ -1,10 +1,6 @@
 import { Logger } from '@nestjs/common';
 import type { ContainerStats, ContainersUpdate } from '@homelab/shared';
-import type {
-  DockerContainer,
-  DockerContainerEvent,
-  DockerService,
-} from '../docker/docker.service.js';
+import type { DockerService } from '../docker/docker.service.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import {
   ContainersService,
@@ -13,6 +9,7 @@ import {
   PUBLISH_INTERVAL_MS,
   REFRESH_INTERVAL_MS,
 } from './containers.service.js';
+import type { DockerContainer, DockerContainerEvent } from '../docker/docker.model.js';
 
 /** A stream the test feeds; ends when its signal aborts (or `end()`), counting open ones. */
 class FakeStream<T> {

@@ -8,8 +8,10 @@ import {
   toContainerHistoryPoint,
 } from '@homelab/shared';
 import { RingBuffer } from '../common/ring-buffer.js';
-import { DockerService, type DockerContainer } from '../docker/docker.service.js';
-import { RealtimeSubscriptions, type TopicSource } from '../realtime/realtime-subscriptions.js';
+import { DockerService } from '../docker/docker.service.js';
+import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
+import type { DockerContainer } from '../docker/docker.model.js';
+import type { TopicSource } from '../realtime/realtime.model.js';
 
 export const PUBLISH_INTERVAL_MS = 2_000;
 /** Fallback when an event is missed (or the events stream is down). */

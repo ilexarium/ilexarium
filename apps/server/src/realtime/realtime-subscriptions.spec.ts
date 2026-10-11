@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import type { ServerMessage, SystemSnapshot, SystemUpdate } from '@homelab/shared';
 import { WebSocket } from 'ws';
-import type { RealtimeClient } from './realtime-messages.js';
-import { RealtimeSubscriptions, type TopicSource } from './realtime-subscriptions.js';
+import { RealtimeSubscriptions } from './realtime-subscriptions.js';
+import type { RealtimeClient, TopicSource } from './realtime.model.js';
 
 const update = { uptimeSeconds: 1 } as SystemUpdate;
 const snapshot = { uptimeSeconds: 0 } as SystemSnapshot;

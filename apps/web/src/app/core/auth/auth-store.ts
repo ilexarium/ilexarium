@@ -3,12 +3,7 @@ import { Router } from '@angular/router';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import type { PublicUser } from '@homelab/shared';
 import { AuthApi } from './auth-api';
-
-/**
- * `unknown`: not checked yet (startup, retry). `unreachable`: the server couldn't be asked —
- * never treated as signed out.
- */
-export type AuthStatus = 'unknown' | 'authenticated' | 'anonymous' | 'unreachable';
+import type { AuthStatus } from './auth.model';
 
 interface AuthState {
   user: PublicUser | null;

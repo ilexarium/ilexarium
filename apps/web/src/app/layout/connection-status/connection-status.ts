@@ -1,8 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
-import {
-  type ConnectionStatus as Status,
-  RealtimeService,
-} from '../../core/realtime/realtime-service';
+import { RealtimeService } from '../../core/realtime/realtime-service';
+import type { ConnectionStatus as Status } from '../../core/realtime/realtime.model';
 
 const LABELS: Record<Status, string> = {
   offline: 'Offline',

@@ -3,8 +3,9 @@ import type { NetworkInterfaceStats, SystemHistoryPoint } from '@homelab/shared'
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowDown, lucideArrowUp } from '@ng-icons/lucide';
 import { HlmCardImports } from '@ui/card';
-import { type ChartSeries, MetricChart } from '../../../shared/charts/metric-chart';
+import { MetricChart } from '../../../shared/charts/metric-chart';
 import { formatRate } from '../../../shared/format/format';
+import type { ChartSeries } from '../../../shared/charts/charts.model';
 
 @Component({
   selector: 'app-network-card',

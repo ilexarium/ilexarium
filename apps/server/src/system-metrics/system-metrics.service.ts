@@ -8,14 +8,11 @@ import {
   toSystemHistoryPoint,
 } from '@homelab/shared';
 import { RingBuffer } from '../common/ring-buffer.js';
-import { RealtimeSubscriptions, type TopicSource } from '../realtime/realtime-subscriptions.js';
-import {
-  bytesPerSecond,
-  type CpuTimes,
-  cpuUsagePercent,
-  type NetCounters,
-} from './proc-parsers.js';
+import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
+import { bytesPerSecond, cpuUsagePercent } from './proc-parsers.js';
 import { SystemReader } from './system-reader.js';
+import type { TopicSource } from '../realtime/realtime.model.js';
+import type { CpuTimes, NetCounters } from './system-metrics.model.js';
 
 export const SAMPLE_INTERVAL_MS = 2_000;
 /** The first sample needs two readings; this keeps a new dashboard's wait short. */

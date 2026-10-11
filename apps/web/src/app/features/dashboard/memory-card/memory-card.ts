@@ -2,8 +2,9 @@ import { Component, computed, input } from '@angular/core';
 import type { SystemHistoryPoint, SystemSample } from '@homelab/shared';
 import { HlmCardImports } from '@ui/card';
 import { HlmProgressImports } from '@ui/progress';
-import { type ChartSeries, MetricChart } from '../../../shared/charts/metric-chart';
+import { MetricChart } from '../../../shared/charts/metric-chart';
 import { formatBytes, formatPercent, percentOf } from '../../../shared/format/format';
+import type { ChartSeries } from '../../../shared/charts/charts.model';
 
 @Component({
   selector: 'app-memory-card',
