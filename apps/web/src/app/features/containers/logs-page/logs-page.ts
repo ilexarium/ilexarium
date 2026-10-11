@@ -34,50 +34,7 @@ interface Notice {
     // The viewport minus the top bar (3.5rem) and the page padding (1rem / 1.5rem each side).
     class: 'flex h-[calc(100dvh-5.5rem)] min-h-96 flex-col gap-3 md:h-[calc(100dvh-6.5rem)]',
   },
-  template: `
-    <a hlmBtn variant="ghost" size="sm" routerLink="/containers" class="-ms-2 self-start">
-      <ng-icon name="lucideArrowLeft" aria-hidden="true" />
-      Containers
-    </a>
-
-    @if (notice(); as notice) {
-      <div
-        hlmAlert
-        [variant]="notice.problem ? 'destructive' : 'default'"
-        [attr.role]="notice.problem ? 'alert' : 'status'"
-      >
-        <p hlmAlertTitle>{{ notice.title }}</p>
-        <div hlmAlertDescription>
-          <p>{{ notice.text }}</p>
-          @if (notice.retry) {
-            <button hlmBtn variant="outline" size="sm" class="mt-2" (click)="openLogs()">
-              {{ notice.retry }}
-            </button>
-          }
-        </div>
-      </div>
-    }
-
-    @switch (view()) {
-      @case ('loading') {
-        <div class="grid gap-2" role="status" aria-label="Loading logs">
-          <hlm-skeleton class="h-9 w-full" />
-          <hlm-skeleton class="h-64 w-full" />
-        </div>
-      }
-      @case ('empty') {
-        <div class="rounded-lg border border-dashed p-4 text-sm" role="status">
-          <p class="font-medium">No log output yet</p>
-          <p class="mt-1 text-muted-foreground">
-            New lines appear here as soon as the container writes them.
-          </p>
-        </div>
-      }
-      @case ('lines') {
-        <app-log-view class="min-h-0 flex-1" [entries]="logs.entries()" />
-      }
-    }
-  `,
+  templateUrl: './logs-page.html',
 })
 export class LogsPage {
   protected readonly logs = inject(LogStream);

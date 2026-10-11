@@ -22,20 +22,7 @@ const LABELS: Record<Status, string> = {
     class: 'flex items-center gap-2 text-sm text-muted-foreground',
     '[attr.data-status]': 'status()',
   },
-  template: `
-    <span
-      aria-hidden="true"
-      class="size-2 rounded-full"
-      [class]="
-        status() === 'live'
-          ? 'bg-emerald-500'
-          : status() === 'offline'
-            ? 'bg-muted-foreground'
-            : 'animate-pulse bg-amber-500'
-      "
-    ></span>
-    <span class="max-sm:sr-only">{{ label() }}</span>
-  `,
+  templateUrl: './connection-status.html',
 })
 export class ConnectionStatus {
   protected readonly status = inject(RealtimeService).status;

@@ -26,34 +26,7 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
   host: {
     class: 'sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4',
   },
-  template: `
-    <button hlmSidebarTrigger srOnlyText="Toggle navigation" class="-ms-1"></button>
-    <hlm-separator orientation="vertical" class="me-2 h-4" />
-    <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
-    <app-connection-status class="ms-auto" />
-    <app-theme-menu />
-    <button
-      hlmBtn
-      variant="ghost"
-      class="gap-2 px-2"
-      [hlmDropdownMenuTrigger]="userMenu"
-      align="end"
-      aria-label="Account menu"
-    >
-      <hlm-avatar class="size-7">
-        <span hlmAvatarFallback class="text-xs">{{ initials() }}</span>
-      </hlm-avatar>
-      <span class="hidden text-sm sm:inline">{{ auth.user()?.username }}</span>
-    </button>
-    <ng-template #userMenu>
-      <hlm-dropdown-menu class="w-48">
-        <div hlmDropdownMenuLabel>{{ auth.user()?.username }}</div>
-        <hlm-dropdown-menu-separator />
-        <a hlmDropdownMenuItem routerLink="/settings/account">Change password</a>
-        <button hlmDropdownMenuItem (click)="auth.logout()">Sign out</button>
-      </hlm-dropdown-menu>
-    </ng-template>
-  `,
+  templateUrl: './top-bar.html',
 })
 export class TopBar {
   protected readonly auth = inject(AuthStore);

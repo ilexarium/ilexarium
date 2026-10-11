@@ -6,7 +6,7 @@ import { ContainersTable } from '../../../shared/containers-table/containers-tab
 @Component({
   selector: 'app-containers-page',
   imports: [ContainersTable],
-  template: `<app-containers-table [containers]="store.containers()" />`,
+  templateUrl: './containers-page.html',
 })
 export class ContainersPage {
   protected readonly store = inject(MonitoringStore);

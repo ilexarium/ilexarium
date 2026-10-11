@@ -16,36 +16,7 @@ const OPTIONS: { value: ThemeChoice; label: string }[] = [
   selector: 'app-theme-menu',
   imports: [HlmButton, HlmDropdownMenuImports, NgIcon],
   providers: [provideIcons({ lucideMoon, lucideSun })],
-  template: `
-    <button
-      hlmBtn
-      variant="ghost"
-      size="icon"
-      [hlmDropdownMenuTrigger]="menu"
-      align="end"
-      [attr.aria-label]="label()"
-    >
-      <ng-icon [name]="theme.dark() ? 'lucideMoon' : 'lucideSun'" aria-hidden="true" />
-    </button>
-    <ng-template #menu>
-      <hlm-dropdown-menu class="w-40">
-        <div hlmDropdownMenuLabel>Theme</div>
-        <div hlmDropdownMenuGroup>
-          @for (option of options; track option.value) {
-            <button
-              hlmDropdownMenuRadio
-              [checked]="theme.choice() === option.value"
-              [keepOpen]="false"
-              (triggered)="theme.setChoice(option.value)"
-            >
-              <hlm-dropdown-menu-radio-indicator />
-              {{ option.label }}
-            </button>
-          }
-        </div>
-      </hlm-dropdown-menu>
-    </ng-template>
-  `,
+  templateUrl: './theme-menu.html',
 })
 export class ThemeMenu {
   protected readonly theme = inject(ThemeService);

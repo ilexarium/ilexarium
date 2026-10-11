@@ -35,19 +35,7 @@ const FORMATTERS: Record<ChartUnit, (value: number) => string> = {
   imports: [NgxEchartsDirective],
   providers: [provideEchartsCore({ echarts })],
   host: { class: 'block' },
-  template: `
-    <div role="img" [attr.aria-label]="description()" class="h-32 w-full">
-      @if (canDraw) {
-        <div
-          echarts
-          [options]="options()"
-          [autoResize]="true"
-          class="size-full"
-          aria-hidden="true"
-        ></div>
-      }
-    </div>
-  `,
+  templateUrl: './metric-chart.html',
 })
 export class MetricChart {
   readonly series = input.required<ChartSeries[]>();

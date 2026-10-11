@@ -9,15 +9,7 @@ import { TopBar } from '../top-bar/top-bar';
 @Component({
   selector: 'app-shell',
   imports: [RouterOutlet, HlmSidebarImports, AppSidebar, TopBar],
-  template: `
-    <div hlmSidebarWrapper>
-      <app-sidebar />
-      <main hlmSidebarInset>
-        <app-top-bar />
-        <div class="w-full max-w-6xl p-4 md:p-6"><router-outlet /></div>
-      </main>
-    </div>
-  `,
+  templateUrl: './shell.html',
 })
 export class Shell {
   constructor() {

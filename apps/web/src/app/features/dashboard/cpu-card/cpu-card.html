@@ -1,0 +1,16 @@
+<section hlmCard class="h-full" aria-labelledby="cpu-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="cpu-title">CPU</h2>
+    <p hlmCardDescription>{{ cores() }} {{ cores() === 1 ? 'core' : 'cores' }}</p>
+  </div>
+  <div hlmCardContent class="grid gap-3">
+    <p class="text-3xl font-semibold tabular-nums">{{ usage() }}</p>
+    <hlm-progress [value]="cpu().usagePercent" aria-label="CPU usage">
+      <hlm-progress-indicator />
+    </hlm-progress>
+    <p class="text-sm text-muted-foreground">
+      Load {{ load() }} <span class="whitespace-nowrap">(1, 5, 15 min)</span>
+    </p>
+    <app-metric-chart [series]="chart()" unit="percent" [max]="100" label="CPU usage" />
+  </div>
+</section>

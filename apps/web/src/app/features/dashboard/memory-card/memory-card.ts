@@ -8,28 +8,7 @@ import { formatBytes, formatPercent, percentOf } from '../../../shared/format/fo
 @Component({
   selector: 'app-memory-card',
   imports: [HlmCardImports, HlmProgressImports, MetricChart],
-  template: `
-    <section hlmCard class="h-full" aria-labelledby="memory-title">
-      <div hlmCardHeader>
-        <h2 hlmCardTitle id="memory-title">Memory</h2>
-        <p hlmCardDescription>{{ total() }} total</p>
-      </div>
-      <div hlmCardContent class="grid gap-3">
-        <p class="text-3xl font-semibold tabular-nums">{{ usedPercent() }}</p>
-        <hlm-progress [value]="usedValue()" aria-label="Memory in use">
-          <hlm-progress-indicator />
-        </hlm-progress>
-        <p class="text-sm text-muted-foreground">{{ used() }} in use</p>
-        <p class="text-sm text-muted-foreground">{{ swap() }}</p>
-        <app-metric-chart
-          [series]="chart()"
-          unit="bytes"
-          [max]="memory().totalBytes"
-          label="Memory in use"
-        />
-      </div>
-    </section>
-  `,
+  templateUrl: './memory-card.html',
 })
 export class MemoryCard {
   readonly memory = input.required<SystemSample['memory']>();

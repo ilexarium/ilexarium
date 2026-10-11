@@ -6,11 +6,7 @@ import { formatDuration } from '../../../shared/format/format';
 @Component({
   selector: 'app-host-summary',
   host: { class: 'block text-sm text-muted-foreground' },
-  template: `
-    <p>
-      <span class="font-medium text-foreground">{{ host().hostname }}</span> · {{ details() }}
-    </p>
-  `,
+  templateUrl: './host-summary.html',
 })
 export class HostSummary {
   readonly host = input.required<HostInfo>();

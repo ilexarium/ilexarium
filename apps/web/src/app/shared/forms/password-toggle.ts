@@ -8,20 +8,7 @@ import { HlmButton } from '@ui/button';
   selector: 'app-password-toggle',
   imports: [NgIcon, HlmButton],
   providers: [provideIcons({ lucideEye, lucideEyeOff })],
-  template: `
-    <button
-      hlmBtn
-      type="button"
-      variant="ghost"
-      size="icon"
-      class="absolute top-0 right-0"
-      [attr.aria-label]="visible() ? 'Hide passwords' : 'Show passwords'"
-      [attr.aria-pressed]="visible()"
-      (click)="visible.set(!visible())"
-    >
-      <ng-icon [name]="visible() ? 'lucideEyeOff' : 'lucideEye'" aria-hidden="true" />
-    </button>
-  `,
+  templateUrl: './password-toggle.html',
 })
 export class PasswordToggle {
   readonly visible = model(false);
