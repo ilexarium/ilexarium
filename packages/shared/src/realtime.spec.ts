@@ -82,6 +82,29 @@ describe('clientMessageSchema', () => {
     }
   });
 
+  it('accepts logs:open and logs:close', () => {
+    for (const message of [
+      { event: 'logs:open', data: { container: 'jellyfin' } },
+      {
+        event: 'logs:open',
+        data: { container: 'jellyfin', tail: 100, since: '2026-10-11T12:00:00.123456789Z' },
+      },
+      { event: 'logs:close', data: { container: 'jellyfin' } },
+    ]) {
+      expect(clientMessageSchema.safeParse(message).success, JSON.stringify(message)).toBe(true);
+    }
+  });
+
+  it('rejects log messages with a topic, or topic messages with a container', () => {
+    for (const message of [
+      { event: 'logs:open', data: { topic: 'system' } },
+      { event: 'logs:close', data: { container: '../x' } },
+      { event: 'subscribe', data: { container: 'jellyfin' } },
+    ]) {
+      expect(clientMessageSchema.safeParse(message).success, JSON.stringify(message)).toBe(false);
+    }
+  });
+
   it('rejects malformed messages', () => {
     for (const message of [
       null,
@@ -146,6 +169,19 @@ describe('serverMessageSchema', () => {
     }
   });
 
+  it('accepts logs:lines and logs:end', () => {
+    const at = '2026-10-11T12:00:00.123456789Z';
+    for (const message of [
+      {
+        event: 'logs:lines',
+        data: { container: 'jellyfin', lines: [{ at, stream: 'stderr', text: 'x' }], skipped: 3 },
+      },
+      { event: 'logs:end', data: { container: 'jellyfin', reason: 'not_found' } },
+    ]) {
+      expect(serverMessageSchema.safeParse(message).success, message.event).toBe(true);
+    }
+  });
+
   it('rejects unknown events', () => {
     expect(serverMessageSchema.safeParse({ event: 'logs:update', data: {} }).success).toBe(false);
   });
@@ -174,7 +210,7 @@ describe('serverMessageSchema', () => {
   });
 
   it('accepts the known error codes only', () => {
-    for (const code of ['invalid_message', 'rate_limited']) {
+    for (const code of ['invalid_message', 'rate_limited', 'too_many_streams']) {
       const message = { event: 'error', data: { code, message: 'x' } };
       expect(serverMessageSchema.safeParse(message).success, code).toBe(true);
     }

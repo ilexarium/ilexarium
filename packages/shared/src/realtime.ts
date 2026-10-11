@@ -5,6 +5,7 @@ import {
   systemSnapshotSchema,
   systemUpdateSchema,
 } from './monitoring.js';
+import { logsCloseSchema, logsEndSchema, logsLinesSchema, logsOpenSchema } from './logs.js';
 
 /** The app's single WebSocket, same origin as the API. */
 export const REALTIME_PATH = '/api/ws';
@@ -29,10 +30,12 @@ export type RealtimeTopic = z.infer<typeof realtimeTopicSchema>;
 export const topicRequestSchema = z.strictObject({ topic: realtimeTopicSchema });
 export type TopicRequest = z.infer<typeof topicRequestSchema>;
 
-export const clientMessageSchema = z.strictObject({
-  event: z.enum(['subscribe', 'unsubscribe']),
-  data: topicRequestSchema,
-});
+export const clientMessageSchema = z.discriminatedUnion('event', [
+  z.strictObject({ event: z.literal('subscribe'), data: topicRequestSchema }),
+  z.strictObject({ event: z.literal('unsubscribe'), data: topicRequestSchema }),
+  z.strictObject({ event: z.literal('logs:open'), data: logsOpenSchema }),
+  z.strictObject({ event: z.literal('logs:close'), data: logsCloseSchema }),
+]);
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
 
 // Server → client.
@@ -40,11 +43,17 @@ export type ClientMessage = z.infer<typeof clientMessageSchema>;
 export const REALTIME_ERROR_CODES = {
   invalidMessage: 'invalid_message',
   rateLimited: 'rate_limited',
+  /** A `logs:open` beyond `LOG_LIMITS.maxStreamsPerConnection`. */
+  tooManyStreams: 'too_many_streams',
 } as const;
 export type RealtimeErrorCode = (typeof REALTIME_ERROR_CODES)[keyof typeof REALTIME_ERROR_CODES];
 
 export const realtimeErrorSchema = z.object({
-  code: z.enum([REALTIME_ERROR_CODES.invalidMessage, REALTIME_ERROR_CODES.rateLimited]),
+  code: z.enum([
+    REALTIME_ERROR_CODES.invalidMessage,
+    REALTIME_ERROR_CODES.rateLimited,
+    REALTIME_ERROR_CODES.tooManyStreams,
+  ]),
   message: z.string(),
 });
 export type RealtimeError = z.infer<typeof realtimeErrorSchema>;
@@ -55,6 +64,8 @@ export const serverMessageSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('system:update'), data: systemUpdateSchema }),
   z.object({ event: z.literal('containers:snapshot'), data: containersSnapshotSchema }),
   z.object({ event: z.literal('containers:update'), data: containersUpdateSchema }),
+  z.object({ event: z.literal('logs:lines'), data: logsLinesSchema }),
+  z.object({ event: z.literal('logs:end'), data: logsEndSchema }),
   z.object({ event: z.literal('error'), data: realtimeErrorSchema }),
 ]);
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
