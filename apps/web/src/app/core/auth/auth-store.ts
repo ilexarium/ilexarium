@@ -48,6 +48,22 @@ export const AuthStore = signalStore(
       },
       /** The server says the session is missing or ended (a 401). */
       sessionEnded,
+      /**
+       * The session ended while the app was in use (an API 401, a WebSocket 4401): clear it and go
+       * to the login page, remembering where the user was. "Expired" only if they were signed in.
+       */
+      sessionExpired(): void {
+        const wasSignedIn = store.status() === 'authenticated';
+        sessionEnded();
+        if (!router.url.startsWith('/login')) {
+          void router.navigate(['/login'], {
+            queryParams: {
+              ...(router.url !== '/' && { returnUrl: router.url }),
+              ...(wasSignedIn && { reason: 'expired' }),
+            },
+          });
+        }
+      },
       async logout(): Promise<void> {
         try {
           await api.logout();

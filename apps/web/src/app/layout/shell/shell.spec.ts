@@ -5,6 +5,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
+import { fakeSockets } from '../../core/realtime/testing';
 import { stubLocalStorage, stubScreenWidth } from '../testing';
 import { Shell } from './shell';
 
@@ -13,6 +14,7 @@ class Page {}
 
 async function render(url = '/') {
   const fake = fakeAuthApi({ user: OWNER });
+  const sockets = fakeSockets();
   TestBed.configureTestingModule({
     providers: [
       provideRouter([
@@ -27,6 +29,7 @@ async function render(url = '/') {
       ]),
       { provide: TitleStrategy, useExisting: PageTitleStrategy },
       fake.provider,
+      sockets.provider,
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -35,6 +38,7 @@ async function render(url = '/') {
   return {
     harness,
     el,
+    sockets,
     navLink: (label: string) =>
       [...el.querySelectorAll<HTMLAnchorElement>('nav a')].find(
         (a) => a.textContent?.trim() === label,
@@ -82,6 +86,15 @@ describe('Shell (app layout)', () => {
     await harness.navigateByUrl('/settings/account');
     expect(el.querySelector('h1')!.textContent?.trim()).toBe('Account');
     expect(el.querySelectorAll('h1')).toHaveLength(1);
+  });
+
+  it('opens the app WebSocket and shows its status in the top bar', async () => {
+    const { harness, el, sockets } = await render();
+    expect(sockets.sockets).toHaveLength(1);
+    expect(el.querySelector('app-connection-status')!.textContent).toContain('Connecting');
+    sockets.latest().open();
+    await harness.fixture.whenStable();
+    expect(el.querySelector('app-connection-status')!.textContent).toContain('Live');
   });
 
   it('renders the routed page and the user menu', async () => {

@@ -7,8 +7,9 @@ import { HlmSeparator } from '@ui/separator';
 import { HlmSidebarTrigger } from '@ui/sidebar';
 import { AuthStore } from '../../core/auth/auth-store';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
+import { ConnectionStatus } from '../connection-status/connection-status';
 
-/** Sidebar toggle, the page title (the page's only h1) and the user menu. */
+/** Sidebar toggle, the page title (the page's only h1), the live-data status and the user menu. */
 @Component({
   selector: 'app-top-bar',
   imports: [
@@ -18,6 +19,7 @@ import { PageTitleStrategy } from '../../core/page-title/page-title';
     HlmDropdownMenuImports,
     HlmSeparator,
     HlmSidebarTrigger,
+    ConnectionStatus,
   ],
   host: {
     class: 'sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4',
@@ -26,10 +28,11 @@ import { PageTitleStrategy } from '../../core/page-title/page-title';
     <button hlmSidebarTrigger srOnlyText="Toggle navigation" class="-ms-1"></button>
     <hlm-separator orientation="vertical" class="me-2 h-4" />
     <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
+    <app-connection-status class="ms-auto" />
     <button
       hlmBtn
       variant="ghost"
-      class="ms-auto gap-2 px-2"
+      class="gap-2 px-2"
       [hlmDropdownMenuTrigger]="userMenu"
       align="end"
       aria-label="Account menu"
