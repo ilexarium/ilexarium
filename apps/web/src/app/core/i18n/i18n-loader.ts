@@ -5,11 +5,12 @@ import { from, map, type Observable } from 'rxjs';
 
 /**
  * The language files from `@homelab/i18n`, each its own lazy chunk — loaded only when that
- * language is used. A language joins here once its file exists (plan steps 5 and 6).
+ * language is used. A new language joins here with its file.
  */
 const FILES: Partial<Record<Language, () => Promise<{ default: Messages }>>> = {
   en: () => import('@homelab/i18n/en.json'),
   de: () => import('@homelab/i18n/de.json'),
+  ar: () => import('@homelab/i18n/ar.json'),
 };
 
 /** The languages there is a file for. */

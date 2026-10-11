@@ -23,6 +23,7 @@
         <input
           hlmInput
           id="username"
+          dir="ltr"
           [formField]="form.username"
           autocomplete="username"
           autocapitalize="none"
@@ -39,7 +40,8 @@
           <input
             hlmInput
             id="password"
-            class="pr-10"
+            dir="ltr"
+            class="pe-10"
             [type]="showPassword() ? 'text' : 'password'"
             [formField]="form.password"
             autocomplete="current-password"

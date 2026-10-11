@@ -49,6 +49,13 @@ describe('LoginPage', () => {
     expect(el.querySelector('#password')!.getAttribute('autocomplete')).toBe('current-password');
   });
 
+  it('keeps the username and password fields left to right in every language', async () => {
+    const { fixture } = await render();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('#username')!.getAttribute('dir')).toBe('ltr');
+    expect(el.querySelector('#password')!.getAttribute('dir')).toBe('ltr');
+  });
+
   it('signs in and returns to the (safe) return URL', async () => {
     const { fixture, api, navigate, store } = await render({
       query: { returnUrl: '/settings/account' },

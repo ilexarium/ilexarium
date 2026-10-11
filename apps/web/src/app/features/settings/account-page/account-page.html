@@ -22,7 +22,8 @@
           <input
             hlmInput
             id="currentPassword"
-            class="pr-10"
+            dir="ltr"
+            class="pe-10"
             [type]="showPasswords() ? 'text' : 'password'"
             [formField]="form.currentPassword"
             autocomplete="current-password"
@@ -39,6 +40,7 @@
         <input
           hlmInput
           id="newPassword"
+          dir="ltr"
           [type]="showPasswords() ? 'text' : 'password'"
           [formField]="form.newPassword"
           autocomplete="new-password"
@@ -56,6 +58,7 @@
         <input
           hlmInput
           id="confirmNewPassword"
+          dir="ltr"
           [type]="showPasswords() ? 'text' : 'password'"
           [formField]="form.confirmNewPassword"
           autocomplete="new-password"

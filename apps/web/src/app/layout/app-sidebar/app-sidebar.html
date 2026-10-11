@@ -1,5 +1,6 @@
 <hlm-sidebar
   collapsible="icon"
+  [side]="rtl() ? 'right' : 'left'"
   [srOnlySheetTitle]="'nav.sheetTitle' | translate"
   [srOnlySheetDescription]="'nav.sheetDescription' | translate"
 >
@@ -11,6 +12,7 @@
           size="lg"
           routerLink="/"
           [tooltip]="appName"
+          [tooltipPosition]="rtl() ? 'left' : 'right'"
           closeMobileSidebarOnClick
         >
           <span
@@ -42,6 +44,7 @@
                 ariaCurrentWhenActive="page"
                 [isActive]="active.isActive"
                 [tooltip]="item.label | translate"
+                [tooltipPosition]="rtl() ? 'left' : 'right'"
                 closeMobileSidebarOnClick
                 class="max-md:h-11"
               >

@@ -52,7 +52,7 @@ const sidebarMenuButtonVariants = cva(
   hostDirectives: [
     {
       directive: BrnTooltip,
-      inputs: ['brnTooltip: tooltip'],
+      inputs: ['brnTooltip: tooltip', 'position: tooltipPosition'],
     },
   ],
   host: {

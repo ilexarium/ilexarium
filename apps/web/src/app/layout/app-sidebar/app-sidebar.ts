@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideServer } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmSidebarImports } from '@ui/sidebar';
+import { LanguageService } from '../../core/i18n/language';
 import { APP_NAME } from '../../core/page-title/page-title';
 import { NAV_ICONS, NAVIGATION } from '../navigation';
 
@@ -20,4 +21,7 @@ import { NAV_ICONS, NAVIGATION } from '../navigation';
 export class AppSidebar {
   protected readonly appName = APP_NAME;
   protected readonly navigation = NAVIGATION;
+  /** Right to left: the sidebar sits on the right, its tooltips open to the left. */
+  private readonly language = inject(LanguageService);
+  protected readonly rtl = computed(() => this.language.dir() === 'rtl');
 }

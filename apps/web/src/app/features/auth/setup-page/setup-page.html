@@ -17,6 +17,7 @@
         <input
           hlmInput
           id="setupToken"
+          dir="ltr"
           class="font-mono"
           [formField]="form.setupToken"
           autocomplete="off"
@@ -37,6 +38,7 @@
         <input
           hlmInput
           id="username"
+          dir="ltr"
           [formField]="form.username"
           autocomplete="username"
           autocapitalize="none"
@@ -54,7 +56,8 @@
           <input
             hlmInput
             id="password"
-            class="pr-10"
+            dir="ltr"
+            class="pe-10"
             [type]="showPasswords() ? 'text' : 'password'"
             [formField]="form.password"
             autocomplete="new-password"
@@ -74,6 +77,7 @@
         <input
           hlmInput
           id="confirmPassword"
+          dir="ltr"
           [type]="showPasswords() ? 'text' : 'password'"
           [formField]="form.confirmPassword"
           autocomplete="new-password"
