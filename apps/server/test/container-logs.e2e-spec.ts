@@ -2,6 +2,7 @@ import { PasswordHasher } from '@nestjs/authentication';
 import type { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
+import { WS_CLOSE_CODES } from '@homelab/shared';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import type { Env } from '../src/config/env.schema.js';
@@ -149,6 +150,17 @@ describe('container log limits (e2e)', () => {
   afterEach(async () => {
     client.socket.terminate();
     await app.close();
+  });
+
+  it('closes the session’s log streams at once on sign-out', async () => {
+    client.send({ event: 'logs:open', data: { container: 'a' } });
+    client.send({ event: 'logs:open', data: { container: 'b' } });
+    await client.flush();
+    const streams = app.get(ContainerLogStreams);
+    expect(streams.openCount).toBe(2);
+    await client.signOut();
+    expect((await client.closed).code).toBe(WS_CLOSE_CODES.sessionEnded);
+    await vi.waitFor(() => expect(streams.openCount).toBe(0));
   });
 
   it('refuses a 4th open stream with too_many_streams; closing one makes room', async () => {

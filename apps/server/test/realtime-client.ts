@@ -16,6 +16,8 @@ export const testHasher = new PasswordHasher({ logN: 11 });
 export class Client {
   readonly messages: ServerMessage[] = [];
   readonly closed: Promise<{ code: number; reason: string }>;
+  /** Signs this socket's session out over HTTP (set by `connectSignedIn`). */
+  signOut: () => Promise<void> = () => Promise.reject(new Error('Not signed in'));
   private waiters: (() => void)[] = [];
 
   constructor(readonly socket: WebSocket) {
@@ -90,6 +92,13 @@ export async function connectSignedIn(app: NestExpressApplication): Promise<Clie
       origin: `http://${host}`,
     }),
   );
+  client.signOut = async () => {
+    await request(`http://${host}`)
+      .post('/api/auth/logout')
+      .set('Origin', `http://${host}`)
+      .set('Cookie', cookie)
+      .expect(204);
+  };
   await new Promise((resolve) => client.socket.once('open', resolve));
   return client;
 }

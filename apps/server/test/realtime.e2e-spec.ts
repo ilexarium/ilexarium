@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net';
-import { PasswordHasher } from '@nestjs/authentication';
+import { AuthenticationEvents, PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import {
@@ -311,6 +311,57 @@ describe('realtime WebSocket (e2e)', () => {
         .set('Cookie', cookie)
         .expect(204);
     }
+
+    /** Re-checks far apart, so a close can only come from the sign-out itself. */
+    async function withoutRecheck<T>(run: () => Promise<T>): Promise<T> {
+      const recheckMs = OPTIONS.sessionRecheckMs;
+      OPTIONS.sessionRecheckMs = 60_000; // read at admission: affects sockets opened in `run`
+      try {
+        return await run();
+      } finally {
+        OPTIONS.sessionRecheckMs = recheckMs;
+      }
+    }
+
+    it('closes every socket of the session at once on sign-out, and only those', async () => {
+      await withoutRecheck(async () => {
+        const [a, b] = [await connected(connect()), await connected(connect())];
+        const otherSession = await connected(connect({ withCookie: await login() }));
+        const before = Date.now();
+        await signOut();
+        expect((await a.closed).code).toBe(WS_CLOSE_CODES.sessionEnded);
+        expect((await b.closed).code).toBe(WS_CLOSE_CODES.sessionEnded);
+        expect(Date.now() - before).toBeLessThan(1000);
+        await otherSession.flush(); // still open and served
+      });
+    });
+
+    it('closes every socket of the user on a sign-out everywhere', async () => {
+      await withoutRecheck(async () => {
+        const [a, b] = [
+          await connected(connect()),
+          await connected(connect({ withCookie: await login() })),
+        ];
+        const owner = await app.get(UsersService).findByUsername('owner');
+        app
+          .get(AuthenticationEvents)
+          .emit({ type: 'sign-out', userId: owner!.id, everywhere: true });
+        expect((await a.closed).code).toBe(WS_CLOSE_CODES.sessionEnded);
+        expect((await b.closed).code).toBe(WS_CLOSE_CODES.sessionEnded);
+      });
+    });
+
+    it('ignores a sign-out of another user’s or a token family', async () => {
+      await withoutRecheck(async () => {
+        const client = await connected(connect());
+        const events = app.get(AuthenticationEvents);
+        events.emit({ type: 'sign-out', userId: 'someone-else', everywhere: true });
+        events.emit({ type: 'sign-out', userId: 'someone-else', tokenFamilyId: 'family' });
+        await new Promise((resolve) => setTimeout(resolve, 50)); // events arrive on the next tick
+        await client.flush();
+        expect(client.socket.readyState).toBe(WebSocket.OPEN);
+      });
+    });
 
     it('closes with 4401 on the next message after the session ends', async () => {
       const client = await connected(connect());
