@@ -4,11 +4,13 @@ import { authGuard, guestGuard, setupGuard } from './core/auth/auth-guards';
 export const routes: Routes = [
   {
     path: 'setup',
+    title: 'Set up',
     canActivate: [setupGuard],
     loadComponent: () => import('./features/auth/setup-page/setup-page').then((m) => m.SetupPage),
   },
   {
     path: 'login',
+    title: 'Sign in',
     canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/login-page/login-page').then((m) => m.LoginPage),
   },
@@ -19,11 +21,13 @@ export const routes: Routes = [
     children: [
       {
         path: '',
+        title: 'Dashboard',
         loadComponent: () =>
           import('./features/dashboard/dashboard-page/dashboard-page').then((m) => m.DashboardPage),
       },
       {
         path: 'settings/account',
+        title: 'Account',
         loadComponent: () =>
           import('./features/settings/account-page/account-page').then((m) => m.AccountPage),
       },
