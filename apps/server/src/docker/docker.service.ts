@@ -62,7 +62,11 @@ export class DockerService {
     });
   }
 
-  /** Every container (running or not), sorted by name. Rejects when Docker is not reachable. */
+  /**
+   * Every container (running or not), sorted by name. Rejects when Docker is not reachable.
+   * Inspect also returns each container's environment — often its secrets: only the fields
+   * below are kept, and environment values must never be passed on (to the browser or logs).
+   */
   async listContainers(): Promise<DockerContainer[]> {
     const summaries = await this.docker.listContainers({
       all: true,

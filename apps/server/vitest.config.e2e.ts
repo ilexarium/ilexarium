@@ -17,6 +17,8 @@ export default defineConfig({
       NODE_ENV: 'test',
       DATABASE_URL: testDatabaseUrl,
       SETUP_TOKEN_FILE: '.dev/setup-token.test',
+      // The dev Docker socket proxy (npm run db:up); tests needing it are skipped when it's down.
+      DOCKER_HOST: process.env.TEST_DOCKER_HOST ?? 'tcp://127.0.0.1:2375',
     },
     // One shared test database: run files one after another.
     fileParallelism: false,
