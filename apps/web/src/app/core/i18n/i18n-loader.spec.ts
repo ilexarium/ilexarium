@@ -14,6 +14,6 @@ describe('I18nLoader', () => {
   });
 
   it('offers the languages that have a file', () => {
-    expect(AVAILABLE_LANGUAGES).toEqual(['en', 'de']);
+    expect(AVAILABLE_LANGUAGES).toEqual(['en', 'de', 'ar']);
   });
 });

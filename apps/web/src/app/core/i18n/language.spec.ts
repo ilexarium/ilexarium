@@ -42,10 +42,17 @@ describe('LanguageService', () => {
     expect(create().language()).toBe('de');
   });
 
-  it('falls back to English for a browser language without a file', () => {
-    // ar.json joins in plan step 6.
-    restoreLanguages = stubBrowserLanguages(['ar-EG']);
+  it('falls back to English for a browser language we don’t have', () => {
+    restoreLanguages = stubBrowserLanguages(['fr-FR', 'es']);
     expect(create().language()).toBe('en');
+  });
+
+  it('starts right to left for an Arabic browser', () => {
+    restoreLanguages = stubBrowserLanguages(['ar-EG']);
+    const service = create();
+    expect(service.language()).toBe('ar');
+    expect(service.dir()).toBe('rtl');
+    expect(document.documentElement.dir).toBe('rtl');
   });
 
   it('starts with the remembered choice, over the browser’s language', () => {

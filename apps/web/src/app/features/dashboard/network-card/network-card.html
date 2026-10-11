@@ -24,7 +24,9 @@
       <ul class="grid gap-1 text-sm text-muted-foreground">
         @for (iface of rows(); track iface.name) {
           <li class="flex flex-wrap justify-between gap-x-3">
-            <span class="font-medium">{{ iface.name }}<span class="sr-only">: </span></span>
+            <span class="font-medium" dir="ltr"
+              >{{ iface.name }}<span class="sr-only">: </span></span
+            >
             <span class="tabular-nums">
               <span aria-hidden="true">↓ </span
               ><span class="sr-only">{{ 'dashboard.network.receivingInline' | translate }} </span

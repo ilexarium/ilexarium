@@ -150,6 +150,22 @@ describe('ContainersTable', () => {
     });
   });
 
+  it('keeps names, images and ports left to right, in the table and the cards', async () => {
+    const { el, cards } = await render(snapshot(web));
+    const ltr = (root: Element) =>
+      [...root.querySelectorAll('[dir="ltr"]')].map((node) => node.textContent!.trim());
+    expect(ltr(el.querySelector('tbody')!)).toEqual([
+      'jellyfin,',
+      'jellyfin/jellyfin:10.11',
+      '8096 → 8096/tcp, 1900/udp',
+    ]);
+    expect(ltr(cards()[0])).toEqual([
+      'jellyfin,',
+      'jellyfin/jellyfin:10.11',
+      '8096 → 8096/tcp, 1900/udp',
+    ]);
+  });
+
   it('flags an unhealthy container in words', async () => {
     const { el } = await render(snapshot(sick));
     const badge = el.querySelector('tbody [hlmBadge]')!;

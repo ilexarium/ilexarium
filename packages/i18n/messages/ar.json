@@ -1,0 +1,272 @@
+{
+  "pages": {
+    "setup": "الإعداد",
+    "login": "تسجيل الدخول",
+    "dashboard": "لوحة المعلومات",
+    "containers": "الحاويات",
+    "logs": "السجلات · {{name}}",
+    "account": "الحساب"
+  },
+  "app": {
+    "loading": "جارٍ التحميل…",
+    "unreachable": {
+      "title": "تعذّر الوصول إلى الخادم",
+      "text": "لم يستجب خادم {{app}}. ربما يكون قيد التشغيل الآن أو متوقفًا.",
+      "retry": "إعادة المحاولة"
+    }
+  },
+  "nav": {
+    "label": "القائمة الرئيسية",
+    "sheetTitle": "التنقل",
+    "sheetDescription": "صفحات التطبيق.",
+    "toggle": "إظهار التنقل أو إخفاؤه",
+    "dashboard": "لوحة المعلومات",
+    "containers": "الحاويات",
+    "settings": "الإعدادات",
+    "account": "الحساب"
+  },
+  "userMenu": {
+    "open": "قائمة الحساب",
+    "language": "اللغة",
+    "changePassword": "تغيير كلمة المرور",
+    "signOut": "تسجيل الخروج"
+  },
+  "connection": {
+    "offline": "غير متصل",
+    "connecting": "جارٍ الاتصال…",
+    "live": "مباشر",
+    "reconnecting": "جارٍ إعادة الاتصال…"
+  },
+  "theme": {
+    "title": "المظهر",
+    "current": "المظهر: {{choice}}",
+    "light": "فاتح",
+    "dark": "داكن",
+    "system": "حسب النظام"
+  },
+  "auth": {
+    "insecure": {
+      "title": "هذا الاتصال غير مشفّر",
+      "text": "افتح هذا التطبيق عبر HTTPS — مثلًا {{example}} باستخدام Tailscale. لا يمكن تسجيل الدخول عبر اتصال غير مشفّر."
+    },
+    "showPasswords": "إظهار كلمات المرور",
+    "hidePasswords": "إخفاء كلمات المرور",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "login": {
+      "description": "سجّل الدخول لإدارة خادمك.",
+      "expiredTitle": "انتهت جلستك",
+      "expiredText": "يُرجى تسجيل الدخول مرة أخرى.",
+      "submit": "تسجيل الدخول",
+      "submitting": "جارٍ تسجيل الدخول…"
+    },
+    "setup": {
+      "heading": "إعداد {{app}}",
+      "description": "أنشئ حساب المالك. ستحتاج إلى رمز الإعداد الذي طبعه برنامج التثبيت.",
+      "setupCode": "رمز الإعداد",
+      "setupCodeHelp": "يظهر في نهاية التثبيت. هل فقدته؟ نفّذ {{command}} على الخادم.",
+      "usernameHelp": "أحرف إنجليزية صغيرة وأرقام و«.» و«_» و«-».",
+      "passwordHelp": "{{passwordMin}} حرفًا على الأقل. بضع كلمات عشوائية تفي بالغرض.",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "submit": "إنشاء الحساب",
+      "submitting": "جارٍ إنشاء الحساب…"
+    }
+  },
+  "account": {
+    "title": "تغيير كلمة المرور",
+    "description": "ستبقى مسجّلًا الدخول هنا؛ وسيُسجَّل خروج الأجهزة الأخرى.",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "newPasswordHelp": "{{passwordMin}} حرفًا على الأقل.",
+    "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+    "submit": "تغيير كلمة المرور",
+    "submitting": "جارٍ التغيير…",
+    "changed": "تم تغيير كلمة المرور",
+    "changedText": "تم تسجيل خروج الأجهزة الأخرى."
+  },
+  "validation": {
+    "usernameRequired": "أدخل اسم المستخدم",
+    "usernameTooShort": "{{usernameMin}} أحرف على الأقل",
+    "usernameTooLong": "{{usernameMax}} حرفًا على الأكثر",
+    "usernameInvalid": "أحرف إنجليزية صغيرة وأرقام و«.» و«_» و«-» فقط",
+    "passwordRequired": "أدخل كلمة المرور",
+    "passwordTooShort": "{{passwordMin}} حرفًا على الأقل",
+    "passwordTooLong": "{{passwordMax}} حرفًا على الأكثر",
+    "setupCodeRequired": "أدخل رمز الإعداد",
+    "setupCodeInvalid": "هذا ليس رمز إعداد صالحًا",
+    "passwordsMismatch": "كلمتا المرور غير متطابقتين"
+  },
+  "errors": {
+    "network": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك وحاول مرة أخرى.",
+    "tooManyAttemptsIn_zero": "محاولات كثيرة جدًا. حاول مرة أخرى بعد {{count}} ثانية.",
+    "tooManyAttemptsIn_one": "محاولات كثيرة جدًا. حاول مرة أخرى بعد ثانية واحدة.",
+    "tooManyAttemptsIn_two": "محاولات كثيرة جدًا. حاول مرة أخرى بعد ثانيتين.",
+    "tooManyAttemptsIn_few": "محاولات كثيرة جدًا. حاول مرة أخرى بعد {{count}} ثوانٍ.",
+    "tooManyAttemptsIn_many": "محاولات كثيرة جدًا. حاول مرة أخرى بعد {{count}} ثانية.",
+    "tooManyAttemptsIn_other": "محاولات كثيرة جدًا. حاول مرة أخرى بعد {{count}} ثانية.",
+    "tooManyAttempts": "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.",
+    "server": "حدث خطأ ما ({{status}}).",
+    "invalid_credentials": "اسم المستخدم أو كلمة المرور غير صحيحة",
+    "invalid_setup_token": "رمز الإعداد هذا غير صالح",
+    "setup_not_available": "اكتمل الإعداد من قبل",
+    "wrong_password": "كلمة المرور الحالية غير صحيحة",
+    "too_many_attempts": "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا."
+  },
+  "format": {
+    "lessThanAMinute": "أقل من دقيقة"
+  },
+  "chart": {
+    "lastMinutes_zero": "{{label}}، آخر {{count}} دقيقة",
+    "lastMinutes_one": "{{label}}، آخر دقيقة",
+    "lastMinutes_two": "{{label}}، آخر دقيقتين",
+    "lastMinutes_few": "{{label}}، آخر {{count}} دقائق",
+    "lastMinutes_many": "{{label}}، آخر {{count}} دقيقة",
+    "lastMinutes_other": "{{label}}، آخر {{count}} دقيقة",
+    "now": "{{description}}: الآن {{values}}"
+  },
+  "dashboard": {
+    "loading": "جارٍ تحميل بيانات الخادم",
+    "host": {
+      "up": "يعمل منذ {{duration}}"
+    },
+    "cpu": {
+      "title": "المعالج",
+      "cores_zero": "{{count}} نواة",
+      "cores_one": "نواة واحدة",
+      "cores_two": "نواتان",
+      "cores_few": "{{count}} أنوية",
+      "cores_many": "{{count}} نواة",
+      "cores_other": "{{count}} نواة",
+      "usage": "استخدام المعالج",
+      "load": "الحِمل {{values}}",
+      "loadPeriods": "(1، 5، 15 دقيقة)"
+    },
+    "memory": {
+      "title": "الذاكرة",
+      "total": "الإجمالي {{size}}",
+      "inUse": "الذاكرة المستخدمة",
+      "series": "المستخدمة",
+      "used": "{{size}} مستخدمة",
+      "noSwap": "لا توجد ذاكرة تبديل",
+      "swap": "ذاكرة التبديل: {{used}} من {{total}}"
+    },
+    "network": {
+      "title": "الشبكة",
+      "description": "كل الواجهات",
+      "receiving": "الاستقبال",
+      "sending": "الإرسال",
+      "traffic": "حركة الشبكة",
+      "none": "لم يُعثر على واجهات شبكة.",
+      "receivingInline": "استقبال",
+      "sendingInline": "إرسال"
+    },
+    "storage": {
+      "title": "التخزين",
+      "description": "المساحة المستخدمة على كل قرص",
+      "none": "لم يُعثر على أقراص.",
+      "almostFull": "شبه ممتلئ",
+      "spaceUsedOn": "المساحة المستخدمة على {{mount}}",
+      "usage": "{{used}} من {{size}} مستخدمة ({{percent}}) · {{free}} متاحة"
+    }
+  },
+  "containers": {
+    "title": "الحاويات",
+    "loading": "جارٍ التحميل…",
+    "loadingLabel": "جارٍ تحميل الحاويات",
+    "dockerUnavailable": "تعذّر الوصول إلى Docker",
+    "running": "{{running}} من {{total}} قيد التشغيل",
+    "unreachable": {
+      "title": "تعذّر الوصول إلى Docker",
+      "text": "معلومات الحاويات غير متاحة الآن. تأكّد من أن Docker يعمل؛ ستتحدّث هذه الصفحة تلقائيًا عندها."
+    },
+    "none": "لا توجد حاويات بعد.",
+    "column": {
+      "name": "الاسم",
+      "state": "الحالة",
+      "cpu": "المعالج",
+      "memory": "الذاكرة",
+      "network": "الشبكة",
+      "diskIo": "قراءة/كتابة القرص",
+      "upFor": "يعمل منذ",
+      "ports": "المنافذ",
+      "actions": "الإجراءات"
+    },
+    "state": {
+      "running": "قيد التشغيل",
+      "created": "مُنشأة",
+      "restarting": "يُعاد تشغيلها",
+      "paused": "متوقفة مؤقتًا",
+      "removing": "تجري إزالتها",
+      "exited": "متوقفة",
+      "dead": "معطّلة"
+    },
+    "health": {
+      "healthy": "سليمة",
+      "unhealthy": "غير سليمة",
+      "starting": "قيد البدء"
+    },
+    "memoryValue": "{{used}} / {{limit}}",
+    "networkValue": "{{rx}} واردة، {{tx}} صادرة",
+    "diskValue": "{{read}} مقروءة، {{written}} مكتوبة",
+    "actionsFor": "إجراءات {{name}}",
+    "viewLogs": "عرض السجلات"
+  },
+  "logs": {
+    "loading": "جارٍ تحميل السجلات",
+    "empty": {
+      "title": "لا توجد مخرجات في السجل بعد",
+      "text": "تظهر الأسطر الجديدة هنا بمجرد أن تكتبها الحاوية."
+    },
+    "notice": {
+      "stopped": {
+        "title": "الحاوية متوقفة",
+        "text": "هذه سجلاتها حتى لحظة توقفها. شغّلها مرة أخرى لرؤية مخرجات جديدة.",
+        "retry": "المتابعة من جديد"
+      },
+      "removed": {
+        "title": "أُزيلت الحاوية",
+        "text": "لم تعد موجودة. تبقى الأسطر المحمّلة هنا حتى تغادر هذه الصفحة."
+      },
+      "notFound": {
+        "title": "الحاوية غير موجودة",
+        "text": "لا توجد حاوية باسم «{{name}}». ربما أُزيلت، أو أن الرابط قديم."
+      },
+      "unavailable": {
+        "title": "السجلات غير متاحة",
+        "text": "إعداد السجلات لهذه الحاوية («مشغّل السجلات»، مثل none أو syslog) لا يحفظ سجلات يمكن لـ Docker قراءتها."
+      },
+      "error": {
+        "title": "تعذّر الوصول إلى Docker",
+        "text": "تتعذّر قراءة السجلات الآن. تأكّد من أن Docker يعمل، ثم حاول مرة أخرى.",
+        "retry": "حاول مرة أخرى"
+      },
+      "refused": {
+        "title": "عدد كبير جدًا من عروض السجلات مفتوح",
+        "text": "تعرض علامة التبويب هذه بالفعل سجلات أقصى عدد ممكن من الحاويات في وقت واحد. أغلق أحدها، ثم حاول مرة أخرى.",
+        "retry": "حاول مرة أخرى"
+      }
+    },
+    "controls": "عناصر التحكم في السجل",
+    "filterLabel": "تصفية الأسطر",
+    "filterPlaceholder": "تصفية",
+    "pause": "إيقاف مؤقت",
+    "resume": "استئناف",
+    "timestamps": "الطوابع الزمنية",
+    "wrap": "التفاف الأسطر",
+    "lines": "أسطر السجل",
+    "skipped_zero": "تم تخطي {{count}} سطر (كثيرة جدًا دفعة واحدة)",
+    "skipped_one": "تم تخطي سطر واحد (كثيرة جدًا دفعة واحدة)",
+    "skipped_two": "تم تخطي سطرين (كثيرة جدًا دفعة واحدة)",
+    "skipped_few": "تم تخطي {{count}} أسطر (كثيرة جدًا دفعة واحدة)",
+    "skipped_many": "تم تخطي {{count}} سطرًا (كثيرة جدًا دفعة واحدة)",
+    "skipped_other": "تم تخطي {{count}} سطر (كثيرة جدًا دفعة واحدة)",
+    "noMatch": "لا توجد أسطر تطابق «{{filter}}».",
+    "matches_zero": "الأسطر المطابقة: {{shown}} من {{count}}",
+    "matches_one": "الأسطر المطابقة: {{shown}} من {{count}}",
+    "matches_two": "الأسطر المطابقة: {{shown}} من {{count}}",
+    "matches_few": "الأسطر المطابقة: {{shown}} من {{count}}",
+    "matches_many": "الأسطر المطابقة: {{shown}} من {{count}}",
+    "matches_other": "الأسطر المطابقة: {{shown}} من {{count}}",
+    "jumpToLatest": "الانتقال إلى الأحدث"
+  }
+}

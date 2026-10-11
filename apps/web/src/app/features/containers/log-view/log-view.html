@@ -14,6 +14,7 @@
       hlmInput
       id="log-filter"
       type="search"
+      dir="auto"
       class="w-full ps-8"
       [placeholder]="'logs.filterPlaceholder' | translate"
       autocomplete="off"
@@ -53,6 +54,7 @@
 <div class="relative flex min-h-0 flex-1 flex-col">
   <ol
     #box
+    dir="ltr"
     tabindex="0"
     [attr.aria-label]="'logs.lines' | translate"
     class="min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/40 py-2 font-mono text-xs leading-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"

@@ -6,6 +6,7 @@ import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
 import { fakeSockets } from '../../core/realtime/testing';
+import { LANGUAGE_STORAGE_KEY } from '../../core/i18n/language';
 import { stubLocalStorage, stubScreenWidth } from '../testing';
 import { Shell } from './shell';
 
@@ -183,6 +184,45 @@ describe('Shell (app layout)', () => {
         expect(document.querySelector('[data-mobile="true"][data-state="open"]')).toBeNull(),
       );
       expect(el.querySelector('h1')!.textContent?.trim()).toBe('Account');
+    });
+  });
+
+  describe('right to left (Arabic)', () => {
+    beforeEach(() => storage.storage.setItem(LANGUAGE_STORAGE_KEY, 'ar'));
+    afterEach(() => {
+      document.documentElement.dir = '';
+      document.documentElement.lang = '';
+    });
+
+    it('mirrors the layout on large screens: the sidebar sits on the right', async () => {
+      restoreScreen = stubScreenWidth(1280);
+      const { harness, el } = await render();
+      await harness.fixture.whenStable();
+      expect(document.documentElement.dir).toBe('rtl');
+      expect(el.querySelector('hlm-sidebar')!.getAttribute('data-side')).toBe('right');
+      // The sidebar icon points the other way too.
+      const icon = el.querySelector('button[hlmSidebarTrigger] ng-icon')!;
+      expect(icon.className).toContain('rtl:-scale-x-100');
+    });
+
+    it('slides the phone sheet in from the right', async () => {
+      restoreScreen = stubScreenWidth(400);
+      const { harness, trigger } = await render();
+      await harness.fixture.whenStable();
+      trigger().click();
+      await harness.fixture.whenStable();
+      const sheet = document.querySelector('hlm-sheet-content[data-side]');
+      expect(sheet?.getAttribute('data-side')).toBe('right');
+      document.querySelectorAll('.cdk-overlay-container').forEach((node) => node.remove());
+    });
+
+    it('stays left to right in English', async () => {
+      storage.storage.setItem(LANGUAGE_STORAGE_KEY, 'en');
+      restoreScreen = stubScreenWidth(1280);
+      const { harness, el } = await render();
+      await harness.fixture.whenStable();
+      expect(document.documentElement.dir).toBe('ltr');
+      expect(el.querySelector('hlm-sidebar')!.getAttribute('data-side')).toBe('left');
     });
   });
 });

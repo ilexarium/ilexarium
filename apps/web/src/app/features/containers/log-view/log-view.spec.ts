@@ -103,6 +103,12 @@ describe('LogView', () => {
     expect(lines()[2].textContent).toContain('1 line skipped');
   });
 
+  it('keeps log lines left to right, even in a right-to-left language', async () => {
+    const { box, el } = await render([entry('a')]);
+    expect(box.getAttribute('dir')).toBe('ltr');
+    expect(el.querySelector('#log-filter')!.getAttribute('dir')).toBe('auto');
+  });
+
   it('is a labelled, keyboard-scrollable box; lines skip rendering off screen', async () => {
     const { box, lines } = await render([entry('a')]);
     expect(box.getAttribute('aria-label')).toBe('Log lines');
