@@ -1,8 +1,7 @@
-import { Component } from '@angular/core';
-import { httpResource } from '@angular/common/http';
-import { RouterOutlet } from '@angular/router';
-import type { HealthResponse } from '@homelab/shared';
+import { Component, inject } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
 import { HlmButton } from '@ui/button';
+import { AuthStore } from './core/auth/auth-store';
 
 @Component({
   imports: [RouterOutlet, HlmButton],
@@ -10,5 +9,14 @@ import { HlmButton } from '@ui/button';
   templateUrl: './app.html',
 })
 export class App {
-  protected readonly health = httpResource<HealthResponse>(() => '/api/health');
+  protected readonly auth = inject(AuthStore);
+  private readonly router = inject(Router);
+
+  /** Ask the server again, then re-run the current navigation (guards included). */
+  protected async retry(): Promise<void> {
+    await this.auth.load();
+    if (this.auth.status() !== 'unreachable') {
+      await this.router.navigateByUrl(this.router.url, { onSameUrlNavigation: 'reload' });
+    }
+  }
 }
