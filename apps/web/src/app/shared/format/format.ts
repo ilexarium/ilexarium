@@ -62,3 +62,17 @@ export function formatDuration(seconds: number): string {
 export function percentOf(used: number, total: number): number {
   return total > 0 ? (used / total) * 100 : 0;
 }
+
+/**
+ * A log line's time in this device's time zone, to the millisecond: "2026-10-11 14:03:22.123".
+ * Takes Docker's timestamp (nanoseconds, UTC); the digits beyond milliseconds are dropped.
+ */
+export function formatLogTime(at: string): string {
+  const date = new Date(`${at.slice(0, 23)}Z`);
+  const pad = (value: number, length = 2) => String(value).padStart(length, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}` +
+    `.${pad(date.getMilliseconds(), 3)}`
+  );
+}
