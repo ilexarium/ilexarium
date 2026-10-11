@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AuthenticationModule, type SessionOptions } from '@nestjs/authentication';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuditModule } from '../audit/audit.module.js';
 import { UsersModule } from '../users/users.module.js';
+import { AuthController } from './auth.controller.js';
 import { AuthEventsAuditBridge } from './auth-events-audit.bridge.js';
+import { AuthService } from './auth.service.js';
+import { LoginThrottleService } from './login-throttle.service.js';
 import { PrismaSessionStore } from './prisma-session.store.js';
 import { SessionAuth } from './session-auth.provider.js';
 
@@ -16,17 +20,31 @@ const sessionMetadata: SessionOptions['metadata'] = (request) => ({
 
 /**
  * Wires @nestjs/authentication (see docs/plans/auth.md): cookie sessions only (`__Host-sid`,
- * HttpOnly, Secure, SameSite=Lax), package-default lifetimes, no access/refresh tokens.
- * Registers the global default-deny guard: every route needs a signed-in user unless @Public().
+ * HttpOnly, Secure, SameSite=Lax), package-default lifetimes, no access/refresh tokens,
+ * scrypt passwords with the package's defaults. Registers the global default-deny guard:
+ * every route needs a signed-in user unless @Public().
  */
 @Module({
   imports: [
     AuthenticationModule.forRoot({
       session: { absoluteTtl: '7d', idleTtl: '1d', metadata: sessionMetadata },
     }),
+    // Per-IP limit for /api/auth/*; password routes tighten it with @Throttle.
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: 60_000, limit: 30 }],
+      errorMessage: 'Too many requests. Try again later.',
+    }),
     UsersModule,
     AuditModule,
   ],
-  providers: [PrismaSessionStore, SessionAuth, AuthEventsAuditBridge],
+  controllers: [AuthController],
+  providers: [
+    PrismaSessionStore,
+    SessionAuth,
+    AuthEventsAuditBridge,
+    AuthService,
+    // Factory: its optional clock argument is for tests, not for injection.
+    { provide: LoginThrottleService, useFactory: () => new LoginThrottleService() },
+  ],
 })
 export class AuthModule {}

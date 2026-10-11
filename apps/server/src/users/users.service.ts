@@ -23,6 +23,10 @@ function normaliseUsername(username: string): string {
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async hasAnyUser(): Promise<boolean> {
+    return (await this.prisma.user.findFirst({ select: { id: true } })) !== null;
+  }
+
   async findById(id: string): Promise<PublicUser | null> {
     const user = await this.prisma.user.findUnique({ where: { id }, select: publicUserSelect });
     return user && toPublicUser(user);

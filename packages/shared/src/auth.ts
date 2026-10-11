@@ -114,6 +114,7 @@ export const AUTH_ERROR_CODES = {
   invalidSetupToken: 'invalid_setup_token',
   setupNotAvailable: 'setup_not_available',
   wrongPassword: 'wrong_password',
+  tooManyAttempts: 'too_many_attempts',
 } as const;
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
 
