@@ -1,0 +1,56 @@
+<app-auth-frame heading="Sign in" description="Sign in to manage your server.">
+  @if (!secure) {
+    <app-insecure-context-notice />
+  } @else {
+    <form [formRoot]="form" class="grid gap-5">
+      @if (expired) {
+        <div hlmAlert>
+          <p hlmAlertTitle>Your session expired</p>
+          <p hlmAlertDescription>Please sign in again.</p>
+        </div>
+      }
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error.message }}</p>
+        </div>
+      }
+
+      <div hlmField>
+        <label hlmFieldLabel for="username">Username</label>
+        <input
+          hlmInput
+          id="username"
+          [formField]="form.username"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+        />
+        @for (error of form.username().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <div hlmField>
+        <label hlmFieldLabel for="password">Password</label>
+        <div class="relative">
+          <input
+            hlmInput
+            id="password"
+            class="pr-10"
+            [type]="showPassword() ? 'text' : 'password'"
+            [formField]="form.password"
+            autocomplete="current-password"
+          />
+          <app-password-toggle [(visible)]="showPassword" />
+        </div>
+        @for (error of form.password().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <button hlmBtn type="submit" class="w-full" [disabled]="form().submitting()">
+        {{ form().submitting() ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+  }
+</app-auth-frame>

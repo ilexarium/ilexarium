@@ -1,0 +1,89 @@
+<app-auth-frame
+  heading="Set up Homelab"
+  description="Create the owner account. You'll need the setup code the installer printed."
+>
+  @if (!secure) {
+    <app-insecure-context-notice />
+  } @else {
+    <form [formRoot]="form" class="grid gap-5">
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error.message }}</p>
+        </div>
+      }
+
+      <div hlmField>
+        <label hlmFieldLabel for="setupToken">Setup code</label>
+        <input
+          hlmInput
+          id="setupToken"
+          class="font-mono"
+          [formField]="form.setupToken"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+        />
+        <p hlmFieldDescription>
+          Shown at the end of installation. Lost it? Run <code>sudo homelab-setup-code</code> on the
+          server.
+        </p>
+        @for (error of form.setupToken().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <div hlmField>
+        <label hlmFieldLabel for="username">Username</label>
+        <input
+          hlmInput
+          id="username"
+          [formField]="form.username"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+        />
+        <p hlmFieldDescription>Lowercase letters, digits, ".", "_" and "-".</p>
+        @for (error of form.username().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <div hlmField>
+        <label hlmFieldLabel for="password">Password</label>
+        <div class="relative">
+          <input
+            hlmInput
+            id="password"
+            class="pr-10"
+            [type]="showPasswords() ? 'text' : 'password'"
+            [formField]="form.password"
+            autocomplete="new-password"
+          />
+          <app-password-toggle [(visible)]="showPasswords" />
+        </div>
+        <p hlmFieldDescription>At least 12 characters. A few random words work well.</p>
+        @for (error of form.password().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <div hlmField>
+        <label hlmFieldLabel for="confirmPassword">Confirm password</label>
+        <input
+          hlmInput
+          id="confirmPassword"
+          [type]="showPasswords() ? 'text' : 'password'"
+          [formField]="form.confirmPassword"
+          autocomplete="new-password"
+        />
+        @for (error of form.confirmPassword().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <button hlmBtn type="submit" class="w-full" [disabled]="form().submitting()">
+        {{ form().submitting() ? 'Creating account…' : 'Create account' }}
+      </button>
+    </form>
+  }
+</app-auth-frame>

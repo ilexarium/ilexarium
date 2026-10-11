@@ -1,0 +1,71 @@
+<h1 class="text-2xl font-semibold">Account</h1>
+
+<section hlmCard class="mt-6 max-w-md">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle>Change password</h2>
+    <p hlmCardDescription>You'll stay signed in here; other devices are signed out.</p>
+  </div>
+  <div hlmCardContent>
+    <form [formRoot]="form" class="grid gap-5">
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error.message }}</p>
+        </div>
+      }
+
+      <!-- Lets password managers tie the new password to this account. -->
+      <input type="text" autocomplete="username" [value]="auth.user()?.username" hidden readonly />
+
+      <div hlmField>
+        <label hlmFieldLabel for="currentPassword">Current password</label>
+        <div class="relative">
+          <input
+            hlmInput
+            id="currentPassword"
+            class="pr-10"
+            [type]="showPasswords() ? 'text' : 'password'"
+            [formField]="form.currentPassword"
+            autocomplete="current-password"
+          />
+          <app-password-toggle [(visible)]="showPasswords" />
+        </div>
+        @for (error of form.currentPassword().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <div hlmField>
+        <label hlmFieldLabel for="newPassword">New password</label>
+        <input
+          hlmInput
+          id="newPassword"
+          [type]="showPasswords() ? 'text' : 'password'"
+          [formField]="form.newPassword"
+          autocomplete="new-password"
+        />
+        <p hlmFieldDescription>At least 12 characters.</p>
+        @for (error of form.newPassword().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <div hlmField>
+        <label hlmFieldLabel for="confirmNewPassword">Confirm new password</label>
+        <input
+          hlmInput
+          id="confirmNewPassword"
+          [type]="showPasswords() ? 'text' : 'password'"
+          [formField]="form.confirmNewPassword"
+          autocomplete="new-password"
+        />
+        @for (error of form.confirmNewPassword().errors(); track error) {
+          <hlm-field-error>{{ error.message }}</hlm-field-error>
+        }
+      </div>
+
+      <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
+        {{ form().submitting() ? 'Changing…' : 'Change password' }}
+      </button>
+    </form>
+  </div>
+</section>
