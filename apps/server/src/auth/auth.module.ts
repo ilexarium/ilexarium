@@ -9,6 +9,7 @@ import { AuthService } from './auth.service.js';
 import { LoginThrottleService } from './login-throttle.service.js';
 import { PrismaSessionStore } from './prisma-session.store.js';
 import { SessionAuth } from './session-auth.provider.js';
+import { SetupService } from './setup.service.js';
 
 const USER_AGENT_MAX_LENGTH = 256;
 
@@ -43,6 +44,7 @@ const sessionMetadata: SessionOptions['metadata'] = (request) => ({
     SessionAuth,
     AuthEventsAuditBridge,
     AuthService,
+    SetupService,
     // Factory: its optional clock argument is for tests, not for injection.
     { provide: LoginThrottleService, useFactory: () => new LoginThrottleService() },
   ],

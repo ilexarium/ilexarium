@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PasswordHasher, SessionService, SignInService } from '@nestjs/authentication';
 import {
   AUTH_ERROR_CODES,
@@ -6,15 +11,27 @@ import {
   type ChangePasswordRequest,
   type LoginRequest,
   type PublicUser,
+  type SetupRequest,
 } from '@homelab/shared';
 import { AuditService } from '../audit/audit.service.js';
 import { UsersService } from '../users/users.service.js';
 import { LoginThrottleService } from './login-throttle.service.js';
+import { SetupService } from './setup.service.js';
 
 /** Same response for an unknown username and a wrong password: no account enumeration. */
 const INVALID_CREDENTIALS: ApiErrorResponse = {
   message: 'Invalid username or password',
   code: AUTH_ERROR_CODES.invalidCredentials,
+};
+
+const SETUP_NOT_AVAILABLE: ApiErrorResponse = {
+  message: 'Setup has already been completed',
+  code: AUTH_ERROR_CODES.setupNotAvailable,
+};
+
+const INVALID_SETUP_TOKEN: ApiErrorResponse = {
+  message: 'This setup code is not valid',
+  code: AUTH_ERROR_CODES.invalidSetupToken,
 };
 
 /** A 400 on the field, never a 401: a 401 would make the web app sign the user out. */
@@ -38,7 +55,39 @@ export class AuthService {
     private readonly sessions: SessionService,
     private readonly throttle: LoginThrottleService,
     private readonly audit: AuditService,
+    private readonly setupToken: SetupService,
   ) {}
+
+  /**
+   * First-run setup: with the one-time setup token, creates the owner account and signs this
+   * browser in. Only while no user exists; concurrent attempts can't both succeed.
+   */
+  async setup({ setupToken, username, password }: SetupRequest, ip?: string): Promise<PublicUser> {
+    if (!this.setupToken.isPending()) throw new ForbiddenException(SETUP_NOT_AVAILABLE);
+    if (!this.setupToken.verify(setupToken)) {
+      await this.audit.tryRecord({
+        action: 'auth.setup',
+        outcome: 'failure',
+        username,
+        ip,
+        details: { reason: AUTH_ERROR_CODES.invalidSetupToken },
+      });
+      throw new ForbiddenException(INVALID_SETUP_TOKEN);
+    }
+    const passwordHash = await this.hasher.hash(password);
+    const user = await this.users.createFirstUser({ username, passwordHash });
+    if (!user) throw new ForbiddenException(SETUP_NOT_AVAILABLE); // lost a race
+    await this.setupToken.complete();
+    await this.audit.tryRecord({
+      action: 'auth.setup',
+      outcome: 'success',
+      userId: user.id,
+      username: user.username,
+      ip,
+    });
+    await this.signIn.signIn(user.id, { method: 'setup' });
+    return user;
+  }
 
   /**
    * Verifies the password and signs this browser in (the package sets the session cookie).

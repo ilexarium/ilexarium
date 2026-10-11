@@ -4,6 +4,7 @@ import type { AuditService } from '../audit/audit.service.js';
 import type { UsersService } from '../users/users.service.js';
 import { AuthService } from './auth.service.js';
 import { LoginThrottleService } from './login-throttle.service.js';
+import type { SetupService } from './setup.service.js';
 
 const user = { id: 'u1', username: 'owner', createdAt: '2026-10-11T00:00:00.000Z' };
 
@@ -29,6 +30,7 @@ function setup({ known = true, valid = true, needsRehash = false } = {}) {
     {} as SessionService,
     new LoginThrottleService(),
     audit as unknown as AuditService,
+    {} as SetupService,
   );
   return { service, users, hasher, signIn, audit };
 }

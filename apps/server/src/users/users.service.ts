@@ -10,6 +10,9 @@ export interface UserCredentials {
   passwordHash: string;
 }
 
+/** Arbitrary constant identifying the "create the first user" advisory lock. */
+const FIRST_USER_LOCK_KEY = 4_401_001;
+
 /** Usernames are stored lowercase; normalise here too so uniqueness never depends on the caller. */
 function normaliseUsername(username: string): string {
   return username.trim().toLowerCase();
@@ -53,6 +56,26 @@ export class UsersService {
       select: publicUserSelect,
     });
     return toPublicUser(user);
+  }
+
+  /**
+   * Creates the first (owner) account — only if no user exists yet. An advisory lock serialises
+   * concurrent attempts, so two simultaneous setups can never both create an owner.
+   * Resolves `null` when a user already exists.
+   */
+  async createFirstUser(input: {
+    username: string;
+    passwordHash: string;
+  }): Promise<PublicUser | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${FIRST_USER_LOCK_KEY})`;
+      if (await tx.user.findFirst({ select: { id: true } })) return null;
+      const user = await tx.user.create({
+        data: { username: normaliseUsername(input.username), passwordHash: input.passwordHash },
+        select: publicUserSelect,
+      });
+      return toPublicUser(user);
+    });
   }
 
   async updatePasswordHash(id: string, passwordHash: string): Promise<void> {

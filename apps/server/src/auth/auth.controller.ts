@@ -10,7 +10,7 @@ import {
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { AuthStatusResponse, MeResponse, PublicUser, UserResponse } from '@homelab/shared';
 import { UsersService } from '../users/users.service.js';
-import { ChangePasswordDto, LoginDto } from './auth.dto.js';
+import { ChangePasswordDto, LoginDto, SetupDto } from './auth.dto.js';
 import { AuthService } from './auth.service.js';
 import { TooManyAttemptsFilter } from './too-many-attempts.filter.js';
 
@@ -31,6 +31,14 @@ export class AuthController {
   @Get('status')
   async status(): Promise<AuthStatusResponse> {
     return { needsSetup: !(await this.users.hasAnyUser()) };
+  }
+
+  @Public()
+  @Post('setup')
+  @HttpCode(200)
+  @Throttle(PASSWORD_ROUTE_LIMIT)
+  async setup(@Body() body: SetupDto, @Ip() ip: string): Promise<UserResponse> {
+    return { user: await this.auth.setup(body, ip) };
   }
 
   @Public()

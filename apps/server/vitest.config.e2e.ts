@@ -13,7 +13,11 @@ export default defineConfig({
     // e2e tests and integration tests that need the real (test) database
     include: ['**/*.e2e-spec.ts', '**/*.int-spec.ts'],
     exclude: ['**/node_modules/**', 'dist/**', 'src/generated/**'],
-    env: { NODE_ENV: 'test', DATABASE_URL: testDatabaseUrl },
+    env: {
+      NODE_ENV: 'test',
+      DATABASE_URL: testDatabaseUrl,
+      SETUP_TOKEN_FILE: '.dev/setup-token.test',
+    },
     // One shared test database: run files one after another.
     fileParallelism: false,
   },
