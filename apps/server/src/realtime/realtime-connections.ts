@@ -82,7 +82,7 @@ export class RealtimeConnections implements OnModuleDestroy {
   }
 
   onModuleDestroy(): void {
-    for (const client of [...this.connections.keys()]) this.release(client);
+    for (const client of this.connections.keys()) this.release(client); // deleting while iterating a Map is safe
   }
 
   private async check(client: WebSocket, request: IncomingMessage): Promise<Connection | null> {

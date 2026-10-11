@@ -14,6 +14,10 @@
           {
             "name": "node:child_process",
             "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+          },
+          {
+            "name": "dockerode",
+            "message": "Only src/docker/ may talk to Docker (through DockerService, read-only). Docker access is root-equivalent."
           }
         ]
       }
@@ -23,7 +27,37 @@
     {
       "files": ["src/executor/**"],
       "rules": {
-        "no-restricted-imports": "off"
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "dockerode",
+                "message": "Only src/docker/ may talk to Docker (through DockerService, read-only). Docker access is root-equivalent."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/docker/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "child_process",
+                "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+              },
+              {
+                "name": "node:child_process",
+                "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+              }
+            ]
+          }
+        ]
       }
     }
   ],

@@ -22,6 +22,12 @@ export class RingBuffer<T> {
     }
   }
 
+  /** The newest item, if any. */
+  last(): T | undefined {
+    if (this.items.length === 0) return undefined;
+    return this.items[(this.start + this.items.length - 1) % this.items.length];
+  }
+
   /** Oldest first. */
   toArray(): T[] {
     return [...this.items.slice(this.start), ...this.items.slice(0, this.start)];

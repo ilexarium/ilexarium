@@ -16,6 +16,15 @@ describe('RingBuffer', () => {
     expect(buffer.size).toBe(3);
   });
 
+  it('knows its newest item, also after wrapping around', () => {
+    const buffer = new RingBuffer<number>(3);
+    expect(buffer.last()).toBeUndefined();
+    for (let i = 1; i <= 5; i++) {
+      buffer.push(i);
+      expect(buffer.last()).toBe(i);
+    }
+  });
+
   it('starts over after clear', () => {
     const buffer = new RingBuffer<number>(2);
     for (let i = 1; i <= 3; i++) buffer.push(i);
