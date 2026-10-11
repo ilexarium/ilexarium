@@ -1,0 +1,252 @@
+{
+  "pages": {
+    "setup": "Einrichten",
+    "login": "Anmelden",
+    "dashboard": "Übersicht",
+    "containers": "Container",
+    "logs": "Logs · {{name}}",
+    "account": "Konto"
+  },
+  "app": {
+    "loading": "Wird geladen …",
+    "unreachable": {
+      "title": "Server nicht erreichbar",
+      "text": "Der {{app}}-Server antwortet nicht. Vielleicht startet er gerade oder ist gestoppt.",
+      "retry": "Erneut versuchen"
+    }
+  },
+  "nav": {
+    "label": "Hauptmenü",
+    "sheetTitle": "Navigation",
+    "sheetDescription": "Die Seiten der App.",
+    "toggle": "Navigation ein- oder ausblenden",
+    "dashboard": "Übersicht",
+    "containers": "Container",
+    "settings": "Einstellungen",
+    "account": "Konto"
+  },
+  "userMenu": {
+    "open": "Kontomenü",
+    "language": "Sprache",
+    "changePassword": "Passwort ändern",
+    "signOut": "Abmelden"
+  },
+  "connection": {
+    "offline": "Offline",
+    "connecting": "Verbinden …",
+    "live": "Live",
+    "reconnecting": "Neu verbinden …"
+  },
+  "theme": {
+    "title": "Design",
+    "current": "Design: {{choice}}",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System"
+  },
+  "auth": {
+    "insecure": {
+      "title": "Diese Verbindung ist nicht verschlüsselt",
+      "text": "Öffne diese App über HTTPS – zum Beispiel {{example}} mit Tailscale. Über eine unverschlüsselte Verbindung ist keine Anmeldung möglich."
+    },
+    "showPasswords": "Passwörter anzeigen",
+    "hidePasswords": "Passwörter verbergen",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "login": {
+      "description": "Melde dich an, um deinen Server zu verwalten.",
+      "expiredTitle": "Deine Sitzung ist abgelaufen",
+      "expiredText": "Bitte melde dich erneut an.",
+      "submit": "Anmelden",
+      "submitting": "Anmeldung läuft …"
+    },
+    "setup": {
+      "heading": "{{app}} einrichten",
+      "description": "Lege das Konto des Besitzers an. Du brauchst den Einrichtungscode, den das Installationsprogramm ausgegeben hat.",
+      "setupCode": "Einrichtungscode",
+      "setupCodeHelp": "Wird am Ende der Installation angezeigt. Verloren? Führe {{command}} auf dem Server aus.",
+      "usernameHelp": "Kleinbuchstaben, Ziffern, „.“, „_“ und „-“.",
+      "passwordHelp": "Mindestens {{passwordMin}} Zeichen. Ein paar zufällige Wörter funktionieren gut.",
+      "confirmPassword": "Passwort bestätigen",
+      "submit": "Konto anlegen",
+      "submitting": "Konto wird angelegt …"
+    }
+  },
+  "account": {
+    "title": "Passwort ändern",
+    "description": "Hier bleibst du angemeldet; andere Geräte werden abgemeldet.",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort",
+    "newPasswordHelp": "Mindestens {{passwordMin}} Zeichen.",
+    "confirmNewPassword": "Neues Passwort bestätigen",
+    "submit": "Passwort ändern",
+    "submitting": "Wird geändert …",
+    "changed": "Passwort geändert",
+    "changedText": "Andere Geräte wurden abgemeldet."
+  },
+  "validation": {
+    "usernameRequired": "Gib deinen Benutzernamen ein",
+    "usernameTooShort": "Mindestens {{usernameMin}} Zeichen",
+    "usernameTooLong": "Höchstens {{usernameMax}} Zeichen",
+    "usernameInvalid": "Nur Kleinbuchstaben, Ziffern, „.“, „_“ und „-“",
+    "passwordRequired": "Gib dein Passwort ein",
+    "passwordTooShort": "Mindestens {{passwordMin}} Zeichen",
+    "passwordTooLong": "Höchstens {{passwordMax}} Zeichen",
+    "setupCodeRequired": "Gib den Einrichtungscode ein",
+    "setupCodeInvalid": "Das ist kein gültiger Einrichtungscode",
+    "passwordsMismatch": "Die Passwörter stimmen nicht überein"
+  },
+  "errors": {
+    "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
+    "tooManyAttemptsIn_one": "Zu viele Versuche. Versuche es in {{count}} Sekunde erneut.",
+    "tooManyAttemptsIn_other": "Zu viele Versuche. Versuche es in {{count}} Sekunden erneut.",
+    "tooManyAttempts": "Zu viele Versuche. Versuche es später erneut.",
+    "server": "Etwas ist schiefgelaufen ({{status}}).",
+    "invalid_credentials": "Benutzername oder Passwort ist falsch",
+    "invalid_setup_token": "Dieser Einrichtungscode ist ungültig",
+    "setup_not_available": "Die Einrichtung ist bereits abgeschlossen",
+    "wrong_password": "Das aktuelle Passwort ist falsch",
+    "too_many_attempts": "Zu viele Versuche. Versuche es später erneut."
+  },
+  "format": {
+    "lessThanAMinute": "weniger als eine Minute"
+  },
+  "chart": {
+    "lastMinutes_one": "{{label}}, letzte {{count}} Minute",
+    "lastMinutes_other": "{{label}}, letzte {{count}} Minuten",
+    "now": "{{description}}: jetzt {{values}}"
+  },
+  "dashboard": {
+    "loading": "Serverdaten werden geladen",
+    "host": {
+      "up": "läuft seit {{duration}}"
+    },
+    "cpu": {
+      "title": "CPU",
+      "cores_one": "{{count}} Kern",
+      "cores_other": "{{count}} Kerne",
+      "usage": "CPU-Auslastung",
+      "load": "Last {{values}}",
+      "loadPeriods": "(1, 5, 15 Min.)"
+    },
+    "memory": {
+      "title": "Arbeitsspeicher",
+      "total": "{{size}} insgesamt",
+      "inUse": "Belegter Arbeitsspeicher",
+      "series": "Belegt",
+      "used": "{{size}} belegt",
+      "noSwap": "Kein Swap",
+      "swap": "Swap: {{used}} von {{total}}"
+    },
+    "network": {
+      "title": "Netzwerk",
+      "description": "Alle Schnittstellen",
+      "receiving": "Empfangen",
+      "sending": "Senden",
+      "traffic": "Netzwerkverkehr",
+      "none": "Keine Netzwerkschnittstellen gefunden.",
+      "receivingInline": "empfangen",
+      "sendingInline": "senden"
+    },
+    "storage": {
+      "title": "Speicher",
+      "description": "Belegter Platz auf jedem Laufwerk",
+      "none": "Keine Laufwerke gefunden.",
+      "almostFull": "Fast voll",
+      "spaceUsedOn": "Belegter Platz auf {{mount}}",
+      "usage": "{{used}} von {{size}} belegt ({{percent}}) · {{free}} frei"
+    }
+  },
+  "containers": {
+    "title": "Container",
+    "loading": "Wird geladen …",
+    "loadingLabel": "Container werden geladen",
+    "dockerUnavailable": "Docker nicht erreichbar",
+    "running": "{{running}} von {{total}} laufen",
+    "unreachable": {
+      "title": "Docker ist nicht erreichbar",
+      "text": "Container-Informationen sind gerade nicht verfügbar. Prüfe, ob Docker läuft; diese Seite aktualisiert sich dann von selbst."
+    },
+    "none": "Noch keine Container.",
+    "column": {
+      "name": "Name",
+      "state": "Status",
+      "cpu": "CPU",
+      "memory": "Arbeitsspeicher",
+      "network": "Netzwerk",
+      "diskIo": "Laufwerk-E/A",
+      "upFor": "Läuft seit",
+      "ports": "Ports",
+      "actions": "Aktionen"
+    },
+    "state": {
+      "running": "Läuft",
+      "created": "Erstellt",
+      "restarting": "Startet neu",
+      "paused": "Pausiert",
+      "removing": "Wird entfernt",
+      "exited": "Gestoppt",
+      "dead": "Defekt"
+    },
+    "health": {
+      "healthy": "Gesund",
+      "unhealthy": "Fehlerhaft",
+      "starting": "Startet"
+    },
+    "memoryValue": "{{used}} / {{limit}}",
+    "networkValue": "{{rx}} empfangen, {{tx}} gesendet",
+    "diskValue": "{{read}} gelesen, {{written}} geschrieben",
+    "actionsFor": "Aktionen für {{name}}",
+    "viewLogs": "Logs anzeigen"
+  },
+  "logs": {
+    "loading": "Logs werden geladen",
+    "empty": {
+      "title": "Noch keine Log-Ausgabe",
+      "text": "Neue Zeilen erscheinen hier, sobald der Container sie schreibt."
+    },
+    "notice": {
+      "stopped": {
+        "title": "Container ist gestoppt",
+        "text": "Das sind seine Logs bis zum Stopp. Starte ihn erneut, um neue Ausgaben zu sehen.",
+        "retry": "Erneut verfolgen"
+      },
+      "removed": {
+        "title": "Container wurde entfernt",
+        "text": "Er existiert nicht mehr. Die bereits geladenen Zeilen bleiben hier, bis du die Seite verlässt."
+      },
+      "notFound": {
+        "title": "Container nicht gefunden",
+        "text": "Es gibt keinen Container namens „{{name}}“. Vielleicht wurde er entfernt, oder der Link ist veraltet."
+      },
+      "unavailable": {
+        "title": "Logs sind nicht verfügbar",
+        "text": "Die Log-Einstellung dieses Containers (sein „Log-Treiber“, zum Beispiel none oder syslog) speichert keine Logs, die Docker zurücklesen kann."
+      },
+      "error": {
+        "title": "Docker ist nicht erreichbar",
+        "text": "Die Logs können gerade nicht gelesen werden. Prüfe, ob Docker läuft, und versuche es erneut.",
+        "retry": "Erneut versuchen"
+      },
+      "refused": {
+        "title": "Zu viele Log-Ansichten offen",
+        "text": "Dieser Browser-Tab zeigt bereits die Logs von so vielen Containern, wie gleichzeitig möglich ist. Schließe eine Ansicht und versuche es erneut.",
+        "retry": "Erneut versuchen"
+      }
+    },
+    "controls": "Log-Steuerung",
+    "filterLabel": "Zeilen filtern",
+    "filterPlaceholder": "Filtern",
+    "pause": "Anhalten",
+    "resume": "Fortsetzen",
+    "timestamps": "Zeitstempel",
+    "wrap": "Zeilen umbrechen",
+    "lines": "Log-Zeilen",
+    "skipped_one": "{{count}} Zeile ausgelassen (zu viele auf einmal)",
+    "skipped_other": "{{count}} Zeilen ausgelassen (zu viele auf einmal)",
+    "noMatch": "Keine Zeile passt zu „{{filter}}“.",
+    "matches_one": "{{shown}} von {{count}} Zeile passt",
+    "matches_other": "{{shown}} von {{count}} Zeilen passen",
+    "jumpToLatest": "Zur neuesten Zeile"
+  }
+}

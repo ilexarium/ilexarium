@@ -37,10 +37,21 @@ describe('LanguageService', () => {
     expect(document.documentElement.dir).toBe('ltr');
   });
 
-  it('starts with the browser’s language only if there is a file for it', () => {
+  it('starts with the browser’s language if there is a file for it', () => {
     restoreLanguages = stubBrowserLanguages(['de-AT', 'en']);
-    // Only en.json exists so far (de and ar join in plan steps 5 and 6).
+    expect(create().language()).toBe('de');
+  });
+
+  it('falls back to English for a browser language without a file', () => {
+    // ar.json joins in plan step 6.
+    restoreLanguages = stubBrowserLanguages(['ar-EG']);
     expect(create().language()).toBe('en');
+  });
+
+  it('starts with the remembered choice, over the browser’s language', () => {
+    storage.storage.setItem(LANGUAGE_STORAGE_KEY, 'de');
+    restoreLanguages = stubBrowserLanguages(['en-US']);
+    expect(create().language()).toBe('de');
   });
 
   it('ignores a stored value that isn’t one of our languages', () => {

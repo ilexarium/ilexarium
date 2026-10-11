@@ -9,6 +9,7 @@ import { from, map, type Observable } from 'rxjs';
  */
 const FILES: Partial<Record<Language, () => Promise<{ default: Messages }>>> = {
   en: () => import('@homelab/i18n/en.json'),
+  de: () => import('@homelab/i18n/de.json'),
 };
 
 /** The languages there is a file for. */
