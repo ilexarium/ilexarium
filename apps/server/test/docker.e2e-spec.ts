@@ -1,7 +1,7 @@
 import type { ConfigService } from '@nestjs/config';
-import { containerSchema } from '@homelab/shared';
+import { containerSchema, logLineSchema, type LogLine } from '@homelab/shared';
 import type { Env } from '../src/config/env.schema.js';
-import { DockerService } from '../src/docker/docker.service.js';
+import { ContainerLogsError, DockerService } from '../src/docker/docker.service.js';
 import { proxyReachable } from './docker-proxy.js';
 
 // DockerService against real Docker, through the dev proxy (the app's only way in).
@@ -45,5 +45,55 @@ describe.skipIf(!reachable)('DockerService (e2e, real Docker through the proxy)'
     const next = events.next();
     setTimeout(() => controller.abort(), 200);
     await expect(next).rejects.toThrow(); // aborted while waiting: no event in 200 ms
+  });
+
+  describe('logs of the dev Postgres', () => {
+    const name = 'homelab-dev-postgres-1';
+
+    /** The first `count` lines, then aborts — and checks the stream really ends. */
+    async function first(options: { tail?: number; since?: string }, count: number) {
+      const controller = new AbortController();
+      const logs = docker.containerLogs(name, options, controller.signal);
+      const lines: LogLine[] = [];
+      while (lines.length < count) {
+        const next = await logs.next();
+        if (next.done) break;
+        lines.push(next.value);
+      }
+      controller.abort();
+      // Aborted: the follow stream closes instead of waiting for more output.
+      await expect(
+        Promise.race([
+          logs.next().then(
+            () => 'ended',
+            () => 'ended',
+          ),
+          new Promise((resolve) => setTimeout(() => resolve('still open'), 2000)),
+        ]),
+      ).resolves.toBe('ended');
+      return lines;
+    }
+
+    it('reads the last lines in the shared shape, oldest first', async () => {
+      const lines = await first({ tail: 3 }, 3);
+      expect(lines).toHaveLength(3); // Postgres logs at least its startup
+      for (const line of lines) expect(logLineSchema.parse(line)).toEqual(line);
+      expect([...lines].sort((a, b) => a.at.localeCompare(b.at))).toEqual(lines);
+    });
+
+    it('resumes after a given line without repeating it', async () => {
+      const lines = await first({ tail: 3 }, 3);
+      const resumed = await first({ since: lines[1].at }, 1);
+      expect(resumed[0]).toEqual(lines[2]);
+    });
+
+    it('reports an unknown container as not found', async () => {
+      const logs = docker.containerLogs(
+        'homelab-no-such-container',
+        {},
+        new AbortController().signal,
+      );
+      await expect(logs.next()).rejects.toEqual(new ContainerLogsError('not_found'));
+    });
   });
 });

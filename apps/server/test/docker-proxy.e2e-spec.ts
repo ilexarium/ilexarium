@@ -35,12 +35,14 @@ function rawStatuses(request: string): Promise<number[]> {
 
 describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
   let containerId: string;
+  let containerName: string;
 
   beforeAll(async () => {
     const res = await fetch(`${proxy.http}/containers/json?all=true`);
-    const containers = (await res.json()) as { Id: string }[];
+    const containers = (await res.json()) as { Id: string; Names: string[] }[];
     expect(containers.length).toBeGreaterThan(0); // at least the dev Postgres
     containerId = containers[0].Id;
+    containerName = containers[0].Names[0].replace(/^\//, '');
   });
 
   it('passes the allowed reads', async () => {
@@ -51,6 +53,9 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
       '/v1.47/containers/json',
       `/containers/${containerId}/json`,
       `/containers/${containerId}/stats?stream=false`,
+      `/containers/${containerId}/logs?stdout=1&stderr=1&tail=1`,
+      `/containers/${containerName}/logs?stdout=1&stderr=1&timestamps=1&tail=1`,
+      `/v1.47/containers/${containerName}/logs?stdout=1&tail=1`,
     ]) {
       expect(await status(path), path).toBe(200);
     }
@@ -62,6 +67,40 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
     const res = await fetch(`${proxy.http}/events`, { signal: controller.signal });
     expect(res.status).toBe(200);
     controller.abort();
+  });
+
+  it('streams logs (follow)', async () => {
+    const controller = new AbortController();
+    const res = await fetch(`${proxy.http}/containers/${containerName}/logs?stdout=1&follow=1`, {
+      signal: controller.signal,
+    });
+    expect(res.status).toBe(200);
+    controller.abort();
+  });
+
+  it('allows logs for reading only', async () => {
+    for (const method of ['POST', 'PUT', 'DELETE', 'HEAD']) {
+      expect(await status(`/containers/${containerId}/logs`, method), method).toBe(403);
+    }
+    // Neighbours of the logs path stay refused — attach would give the live input/output.
+    for (const path of [
+      `/containers/${containerId}/attach`,
+      `/containers/${containerId}/attach/ws`,
+      `/containers/${containerId}/logs/`,
+      `/containers/${containerId}/logs/x`,
+      `/containers/${containerId}/logsx`,
+      '/containers/logs',
+      `/containers/a/b/logs`,
+      `/containers/.${containerName}/logs`,
+      `/containers/${containerId}/LOGS`,
+    ]) {
+      expect(await status(path), path).toBe(403);
+    }
+    // A logs request asking to upgrade is still refused.
+    const statuses = await rawStatuses(
+      `GET /containers/${containerId}/logs HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n`,
+    );
+    expect(statuses).toEqual([403]);
   });
 
   it('refuses every write', async () => {
@@ -84,7 +123,6 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
     for (const path of [
       `/containers/${containerId}/export`,
       `/containers/${containerId}/archive?path=/etc`,
-      `/containers/${containerId}/logs`,
       `/containers/${containerId}/top`,
       `/containers/${containerId}/changes`,
       '/images/json',
