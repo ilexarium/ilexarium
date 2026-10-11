@@ -1,5 +1,6 @@
 import type { Routes } from '@angular/router';
 import { authGuard, guestGuard, setupGuard } from './core/auth/auth-guards';
+import { logsPageTitle } from './features/containers/logs-page/logs-page-title';
 
 export const routes: Routes = [
   {
@@ -32,6 +33,12 @@ export const routes: Routes = [
           import('./features/containers/containers-page/containers-page').then(
             (m) => m.ContainersPage,
           ),
+      },
+      {
+        path: 'containers/:name/logs',
+        title: logsPageTitle,
+        loadComponent: () =>
+          import('./features/containers/logs-page/logs-page').then((m) => m.LogsPage),
       },
       {
         path: 'settings/account',
