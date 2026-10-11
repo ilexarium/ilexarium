@@ -10,7 +10,8 @@ import { HlmBadgeImports } from '@ui/badge';
 import { HlmCardImports } from '@ui/card';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTableImports } from '@ui/table';
-import { formatBytes, formatDuration, formatPercent } from '../../../shared/format/format';
+import { formatBytes, formatDuration, formatPercent } from '../format/format';
+import { ContainerActions } from './container-actions';
 
 const STATE_LABELS: Record<ContainerState, string> = {
   running: 'Running',
@@ -54,12 +55,20 @@ interface Row {
 }
 
 /**
- * Every container with its state, health and live resource use. A table from large screens up;
- * a list of cards below, so nothing scrolls sideways on phones.
+ * Every container with its state, health and live resource use, and an actions menu per
+ * container. A table from large screens up; a list of cards below, so nothing scrolls sideways on
+ * phones. Shared by the dashboard and the Containers page.
  */
 @Component({
   selector: 'app-containers-table',
-  imports: [HlmBadgeImports, HlmCardImports, HlmSkeleton, HlmTableImports, NgTemplateOutlet],
+  imports: [
+    ContainerActions,
+    HlmBadgeImports,
+    HlmCardImports,
+    HlmSkeleton,
+    HlmTableImports,
+    NgTemplateOutlet,
+  ],
   template: `
     <section hlmCard aria-labelledby="containers-title">
       <div hlmCardHeader>
@@ -76,8 +85,8 @@ interface Row {
           <div role="alert" class="rounded-lg border border-dashed p-4 text-sm">
             <p class="font-medium">Docker isn't reachable</p>
             <p class="mt-1 text-muted-foreground">
-              Container information is unavailable right now. The server's own statistics above keep
-              working. Make sure Docker is running; this page updates by itself once it is.
+              Container information is unavailable right now. Make sure Docker is running; this page
+              updates by itself once it is.
             </p>
           </div>
         } @else if (rows().length === 0) {
@@ -96,6 +105,7 @@ interface Row {
                   <th hlmTh scope="col" class="text-end">Disk I/O</th>
                   <th hlmTh scope="col">Up for</th>
                   <th hlmTh scope="col">Ports</th>
+                  <th hlmTh scope="col" class="w-12"><span class="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody hlmTBody>
@@ -120,6 +130,9 @@ interface Row {
                     <td hlmTd class="text-end tabular-nums">{{ row.disk }}</td>
                     <td hlmTd>{{ row.uptime }}</td>
                     <td hlmTd class="text-xs">{{ row.ports }}</td>
+                    <td hlmTd class="text-end">
+                      <app-container-actions [name]="row.name" />
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -138,7 +151,10 @@ interface Row {
                       row.image
                     }}</span>
                   </span>
-                  <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
+                  <span class="flex items-center gap-1">
+                    <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
+                    <app-container-actions [name]="row.name" />
+                  </span>
                 </div>
                 <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
                   <div>
@@ -195,8 +211,21 @@ interface Row {
 export class ContainersTable {
   /** Null until the first snapshot. */
   readonly containers = input.required<ContainersSnapshot | null>();
-  /** "Now" for uptimes (the latest sample's time), so they move with the live data. */
-  readonly now = input.required<number>();
+  /**
+   * "Now" for uptimes (the dashboard passes the latest system sample's time), so they move with
+   * the live data. Without it: the newest stats frame's time, else this device's clock.
+   */
+  readonly now = input<number | null>(null);
+
+  private readonly clock = computed(() => {
+    const given = this.now();
+    if (given !== null) return given;
+    const snapshot = this.containers();
+    const times = snapshot?.dockerAvailable
+      ? snapshot.containers.flatMap((c) => (c.stats ? [c.stats.at] : []))
+      : [];
+    return times.length > 0 ? Math.max(...times) : Date.now();
+  });
 
   protected readonly dockerAvailable = computed(() => this.containers()?.dockerAvailable ?? false);
 
@@ -239,7 +268,7 @@ export class ContainersTable {
         : '—',
       uptime:
         container.state === 'running' && startedAt !== null
-          ? formatDuration((this.now() - startedAt) / 1000)
+          ? formatDuration((this.clock() - startedAt) / 1000)
           : '—',
       ports:
         container.ports

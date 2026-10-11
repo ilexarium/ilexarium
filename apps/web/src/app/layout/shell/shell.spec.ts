@@ -23,6 +23,8 @@ async function render(url = '/') {
           component: Shell,
           children: [
             { path: '', title: 'Dashboard', component: Page },
+            { path: 'containers', title: 'Containers', component: Page },
+            { path: 'containers/:name/logs', title: 'Logs', component: Page },
             { path: 'settings/account', title: 'Account', component: Page },
           ],
         },
@@ -66,8 +68,11 @@ describe('Shell (app layout)', () => {
     const nav = el.querySelector('nav')!;
     expect(nav.getAttribute('aria-label')).toBe('Main');
     expect(navLink('Dashboard')!.getAttribute('href')).toBe('/');
+    expect(navLink('Containers')!.getAttribute('href')).toBe('/containers');
     expect(navLink('Account')!.getAttribute('href')).toBe('/settings/account');
     expect(nav.textContent).toContain('Settings');
+    const order = [...nav.querySelectorAll('a')].map((a) => a.textContent!.trim());
+    expect(order).toEqual(['Dashboard', 'Containers', 'Account']);
   });
 
   it('marks only the current page, also for the dashboard at "/"', async () => {
@@ -77,6 +82,14 @@ describe('Shell (app layout)', () => {
 
     await harness.navigateByUrl('/settings/account');
     expect(navLink('Account')!.getAttribute('aria-current')).toBe('page');
+    expect(navLink('Dashboard')!.hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('keeps Containers marked on its sub-pages (a container’s logs)', async () => {
+    const { harness, navLink } = await render('/containers');
+    expect(navLink('Containers')!.getAttribute('aria-current')).toBe('page');
+    await harness.navigateByUrl('/containers/jellyfin/logs');
+    expect(navLink('Containers')!.getAttribute('aria-current')).toBe('page');
     expect(navLink('Dashboard')!.hasAttribute('aria-current')).toBe(false);
   });
 

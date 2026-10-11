@@ -1,4 +1,4 @@
-import { lucideKeyRound, lucideLayoutDashboard } from '@ng-icons/lucide';
+import { lucideBoxes, lucideKeyRound, lucideLayoutDashboard } from '@ng-icons/lucide';
 
 export interface NavItem {
   label: string;
@@ -17,11 +17,16 @@ export interface NavGroup {
 
 /** Existing pages only — each feature adds its own entry. */
 export const NAVIGATION: NavGroup[] = [
-  { items: [{ label: 'Dashboard', link: '/', icon: 'lucideLayoutDashboard', exact: true }] },
+  {
+    items: [
+      { label: 'Dashboard', link: '/', icon: 'lucideLayoutDashboard', exact: true },
+      { label: 'Containers', link: '/containers', icon: 'lucideBoxes' },
+    ],
+  },
   {
     label: 'Settings',
     items: [{ label: 'Account', link: '/settings/account', icon: 'lucideKeyRound' }],
   },
 ];
 
-export const NAV_ICONS = { lucideLayoutDashboard, lucideKeyRound };
+export const NAV_ICONS = { lucideLayoutDashboard, lucideBoxes, lucideKeyRound };

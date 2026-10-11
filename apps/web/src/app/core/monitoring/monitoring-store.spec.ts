@@ -169,7 +169,7 @@ describe('MonitoringStore', () => {
 
   it('fills from the snapshots, then applies updates, while watched', async () => {
     const { store, socket } = await setup();
-    const stop = store.watch();
+    const stop = store.watch(['system', 'containers']);
     expect(socket.sent).toEqual([
       { event: 'subscribe', data: { topic: 'system' } },
       { event: 'subscribe', data: { topic: 'containers' } },
@@ -191,9 +191,19 @@ describe('MonitoringStore', () => {
     ]);
   });
 
+  it('subscribes to the given topics only', async () => {
+    const { store, socket } = await setup();
+    const stop = store.watch(['containers']);
+    expect(socket.sent).toEqual([{ event: 'subscribe', data: { topic: 'containers' } }]);
+    socket.receive({ event: 'containers:snapshot', data: { dockerAvailable: false } });
+    expect(store.containers()).toEqual({ dockerAvailable: false });
+    stop();
+    expect(socket.sent.slice(1)).toEqual([{ event: 'unsubscribe', data: { topic: 'containers' } }]);
+  });
+
   it('ignores an update that arrives before its snapshot', async () => {
     const { store, socket } = await setup();
-    store.watch();
+    store.watch(['system', 'containers']);
     socket.receive({ event: 'system:update', data: systemUpdate(2000) });
     socket.receive({ event: 'containers:update', data: { dockerAvailable: true, containers: [] } });
     expect(store.system()).toBeNull();
@@ -202,7 +212,7 @@ describe('MonitoringStore', () => {
 
   it('keeps the last values after the page stops watching, and is reset on sign-out', async () => {
     const { store, socket } = await setup();
-    const stop = store.watch();
+    const stop = store.watch(['system', 'containers']);
     socket.receive({ event: 'system:snapshot', data: systemSnapshot(0) });
     stop();
     expect(store.system()).not.toBeNull();

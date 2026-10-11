@@ -26,6 +26,14 @@ export const routes: Routes = [
           import('./features/dashboard/dashboard-page/dashboard-page').then((m) => m.DashboardPage),
       },
       {
+        path: 'containers',
+        title: 'Containers',
+        loadComponent: () =>
+          import('./features/containers/containers-page/containers-page').then(
+            (m) => m.ContainersPage,
+          ),
+      },
+      {
         path: 'settings/account',
         title: 'Account',
         loadComponent: () =>
