@@ -3,7 +3,12 @@ import { provideRouter, Router } from '@angular/router';
 import type { ServerMessage, SystemUpdate } from '@homelab/shared';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
-import { FIRST_RETRY_MS, MAX_RETRY_MS, RealtimeService } from './realtime-service';
+import {
+  FIRST_RETRY_MS,
+  MAX_RETRY_MS,
+  RealtimeService,
+  type RealtimeStream,
+} from './realtime-service';
 import { fakeSockets } from './testing';
 
 const update = {
@@ -191,6 +196,95 @@ describe('RealtimeService', () => {
 
     setVisibility('visible');
     expect(latest().sent.slice(2)).toEqual([subscribe('system'), subscribe('containers')]);
+  });
+
+  describe('streams', () => {
+    /** Records what it is told; sends `logs:open` on resume, `logs:close` on pause. */
+    function fakeStream() {
+      const calls: string[] = [];
+      const received: ServerMessage[] = [];
+      const stream: RealtimeStream = {
+        resume: (send) => {
+          calls.push('resume');
+          send({ event: 'logs:open', data: { container: 'web', tail: 10 } });
+        },
+        pause: (send) => {
+          calls.push('pause');
+          send({ event: 'logs:close', data: { container: 'web' } });
+        },
+        receive: (message) => received.push(message),
+      };
+      return { stream, calls, received };
+    }
+    const logsOpen = { event: 'logs:open', data: { container: 'web', tail: 10 } };
+    const logsClose = { event: 'logs:close', data: { container: 'web' } };
+
+    it('resumes a stream once the socket is live, or at once if it already is', async () => {
+      const { realtime, latest } = await setup();
+      realtime.connect();
+      const early = fakeStream();
+      realtime.attach(early.stream);
+      expect(early.calls).toEqual([]); // not open yet: nothing can be sent
+      latest().open();
+      expect(early.calls).toEqual(['resume']);
+
+      const late = fakeStream();
+      realtime.attach(late.stream);
+      expect(late.calls).toEqual(['resume']);
+      expect(latest().sent).toEqual([logsOpen, logsOpen]);
+    });
+
+    it('resumes streams after a reconnect', async () => {
+      const { realtime, latest } = await setup();
+      realtime.connect();
+      latest().open();
+      const { stream, calls } = fakeStream();
+      realtime.attach(stream);
+      latest().serverClose(1006);
+      await vi.advanceTimersByTimeAsync(FIRST_RETRY_MS);
+      latest().open();
+      expect(calls).toEqual(['resume', 'resume']);
+      expect(latest().sent).toEqual([logsOpen]);
+    });
+
+    it('pauses streams while the tab is hidden, and resumes them when visible', async () => {
+      const { realtime, latest } = await setup();
+      realtime.connect();
+      latest().open();
+      const { stream, calls } = fakeStream();
+      realtime.attach(stream);
+      setVisibility('hidden');
+      setVisibility('visible');
+      expect(calls).toEqual(['resume', 'pause', 'resume']);
+      expect(latest().sent).toEqual([logsOpen, logsClose, logsOpen]);
+    });
+
+    it('gives streams the log messages and errors, not topic messages', async () => {
+      const { realtime, latest } = await setup();
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      realtime.connect();
+      latest().open();
+      const { stream, received } = fakeStream();
+      realtime.attach(stream);
+      const lines = { event: 'logs:lines', data: { container: 'web', lines: [] } };
+      const end = { event: 'logs:end', data: { container: 'web', reason: 'stopped' } };
+      const error = { event: 'error', data: { code: 'too_many_streams', message: 'x' } };
+      for (const message of [lines, update, end, error]) latest().receive(message);
+      expect(received).toEqual([lines, end, error]);
+    });
+
+    it('stops telling a detached stream anything', async () => {
+      const { realtime, latest } = await setup();
+      realtime.connect();
+      latest().open();
+      const { stream, calls, received } = fakeStream();
+      const detach = realtime.attach(stream);
+      detach();
+      latest().receive({ event: 'logs:end', data: { container: 'web', reason: 'stopped' } });
+      setVisibility('hidden');
+      expect(calls).toEqual(['resume']);
+      expect(received).toEqual([]);
+    });
   });
 
   it('closes the socket and stops reconnecting on sign-out', async () => {
