@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
+import { Public } from '@nestjs/authentication';
 import type { HealthResponse } from '@homelab/shared';
 
+@Public()
 @Controller('health')
 export class HealthController {
   @Get()
