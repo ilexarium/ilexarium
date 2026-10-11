@@ -6,5 +6,8 @@
     "containers": "Containers",
     "logs": "Logs · {{name}}",
     "account": "Account"
+  },
+  "userMenu": {
+    "language": "Language"
   }
 }
