@@ -125,6 +125,11 @@ describe('serverMessageSchema', () => {
     }
   });
 
+  it('accepts a host without a CPU model', () => {
+    const data = { ...systemSnapshot, host: { ...systemSnapshot.host, cpuModel: null } };
+    expect(serverMessageSchema.safeParse({ event: 'system:snapshot', data }).success).toBe(true);
+  });
+
   it('accepts "Docker not reachable" for containers', () => {
     for (const event of ['containers:snapshot', 'containers:update']) {
       const message = { event, data: { dockerAvailable: false } };

@@ -57,6 +57,8 @@ export class RealtimeSubscriptions implements OnModuleDestroy {
       if (subscribers.get(client) !== state) return;
       sendMessage(client, { event: `${topic}:snapshot`, data: snapshot } as ServerMessage);
     } catch (error) {
+      // A source may fail a snapshot it can no longer take because this client left — not an error.
+      if (subscribers.get(client) !== state) return;
       this.logger.error(`The "${topic}" snapshot failed`, (error as Error).stack);
     }
     state.ready = true;

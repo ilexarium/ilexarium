@@ -7,6 +7,7 @@ import { ConfigModule } from './config/config.module.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
+import { SystemMetricsModule } from './system-metrics/system-metrics.module.js';
 import { UsersModule } from './users/users.module.js';
 
 @Module({
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module.js';
     HealthModule,
     UsersModule,
     RealtimeModule,
+    SystemMetricsModule,
   ],
   providers: [{ provide: APP_PIPE, useClass: ZodValidationPipe }],
 })
