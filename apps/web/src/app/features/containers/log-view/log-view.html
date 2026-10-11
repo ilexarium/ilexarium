@@ -1,0 +1,98 @@
+<div class="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Log controls">
+  <div class="relative min-w-0 flex-1 basis-40">
+    <ng-icon
+      name="lucideSearch"
+      class="pointer-events-none absolute start-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+      aria-hidden="true"
+    />
+    <label for="log-filter" class="sr-only">Filter lines</label>
+    <input
+      hlmInput
+      id="log-filter"
+      type="search"
+      class="w-full ps-8"
+      placeholder="Filter"
+      autocomplete="off"
+      [value]="filter()"
+      (input)="filter.set($any($event.target).value)"
+    />
+  </div>
+  <button hlmBtn variant="outline" [attr.aria-pressed]="paused()" (click)="togglePause()">
+    <ng-icon [name]="paused() ? 'lucidePlay' : 'lucidePause'" aria-hidden="true" />
+    <span class="sr-only sm:not-sr-only">{{ paused() ? 'Resume' : 'Pause' }}</span>
+  </button>
+  <button
+    hlmBtn
+    variant="outline"
+    [attr.aria-pressed]="prefs.timestamps()"
+    (click)="prefs.setTimestamps(!prefs.timestamps())"
+  >
+    <ng-icon name="lucideClock" aria-hidden="true" />
+    <span class="sr-only sm:not-sr-only">Timestamps</span>
+  </button>
+  <button
+    hlmBtn
+    variant="outline"
+    [attr.aria-pressed]="prefs.wrap()"
+    (click)="prefs.setWrap(!prefs.wrap())"
+  >
+    <ng-icon name="lucideWrapText" aria-hidden="true" />
+    <span class="sr-only sm:not-sr-only">Wrap lines</span>
+  </button>
+</div>
+@if (filter()) {
+  <p class="text-xs text-muted-foreground">{{ matchSummary() }}</p>
+}
+
+<div class="relative flex min-h-0 flex-1 flex-col">
+  <ol
+    #box
+    tabindex="0"
+    aria-label="Log lines"
+    class="min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/40 py-2 font-mono text-xs leading-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    (scroll)="onScroll()"
+  >
+    @for (entry of visible(); track entry.id) {
+      @if (entry.kind === 'line') {
+        <li
+          class="flex min-w-full flex-col px-3 [contain-intrinsic-block-size:auto_1.25rem] [content-visibility:auto] sm:flex-row sm:gap-3"
+          [class]="{ 'w-max': !prefs.wrap(), 'bg-destructive/10': entry.stream === 'stderr' }"
+        >
+          @if (prefs.timestamps() || entry.stream === 'stderr') {
+            <span class="flex shrink-0 items-center gap-2">
+              @if (prefs.timestamps()) {
+                <time class="text-muted-foreground" [attr.datetime]="entry.at">{{
+                  entry.at | logTime
+                }}</time>
+              }
+              @if (entry.stream === 'stderr') {
+                <span class="inline-flex items-center gap-1 font-medium text-destructive">
+                  <ng-icon name="lucideTriangleAlert" aria-hidden="true" />stderr
+                </span>
+              }
+            </span>
+          }
+          <span
+            class="min-w-0"
+            [class]="prefs.wrap() ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'"
+            >{{ entry.text }}</span
+          >
+        </li>
+      } @else {
+        <li class="px-3 text-center text-muted-foreground italic">
+          {{ entry.count }} {{ entry.count === 1 ? 'line' : 'lines' }} skipped (too many at once)
+        </li>
+      }
+    } @empty {
+      @if (filter()) {
+        <li class="px-3 text-muted-foreground">No lines match “{{ filter() }}”.</li>
+      }
+    }
+  </ol>
+  @if (!pinned()) {
+    <button hlmBtn size="sm" class="absolute end-3 bottom-3 shadow-md" (click)="jumpToLatest()">
+      <ng-icon name="lucideArrowDownToLine" aria-hidden="true" />
+      Jump to latest
+    </button>
+  }
+</div>

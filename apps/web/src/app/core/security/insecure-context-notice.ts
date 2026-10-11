@@ -7,15 +7,7 @@ import { SECURE_CONTEXT } from './secure-context';
  */
 @Component({
   selector: 'app-insecure-context-notice',
-  template: `
-    <div role="alert" class="rounded-lg border border-destructive/50 p-4 text-sm">
-      <p class="font-medium text-destructive">This connection isn't encrypted</p>
-      <p class="mt-1 text-muted-foreground">
-        Open this app over HTTPS — for example <code>https://&lt;your-server&gt;.ts.net</code> with
-        Tailscale. Signing in isn't possible over an unencrypted connection.
-      </p>
-    </div>
-  `,
+  templateUrl: './insecure-context-notice.html',
 })
 export class InsecureContextNotice {}
 

@@ -14,26 +14,7 @@ import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
   selector: 'app-container-actions',
   imports: [HlmButton, HlmDropdownMenuImports, NgIcon],
   providers: [provideIcons({ lucideEllipsis, lucideScrollText })],
-  template: `
-    <button
-      hlmBtn
-      variant="ghost"
-      size="icon"
-      [hlmDropdownMenuTrigger]="menu"
-      align="end"
-      [attr.aria-label]="'Actions for ' + name()"
-    >
-      <ng-icon name="lucideEllipsis" aria-hidden="true" />
-    </button>
-    <ng-template #menu>
-      <hlm-dropdown-menu class="w-44">
-        <button hlmDropdownMenuItem (triggered)="viewLogs()">
-          <ng-icon name="lucideScrollText" aria-hidden="true" />
-          View logs
-        </button>
-      </hlm-dropdown-menu>
-    </ng-template>
-  `,
+  templateUrl: './container-actions.html',
 })
 export class ContainerActions {
   readonly name = input.required<string>();

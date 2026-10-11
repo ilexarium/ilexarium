@@ -1,0 +1,130 @@
+<section hlmCard aria-labelledby="containers-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="containers-title">Containers</h2>
+    <p hlmCardDescription>{{ summary() }}</p>
+  </div>
+  <div hlmCardContent>
+    @if (containers() === null) {
+      <div class="grid gap-2" role="status" aria-label="Loading containers">
+        <hlm-skeleton class="h-8 w-full" />
+        <hlm-skeleton class="h-8 w-full" />
+      </div>
+    } @else if (!dockerAvailable()) {
+      <div role="alert" class="rounded-lg border border-dashed p-4 text-sm">
+        <p class="font-medium">Docker isn't reachable</p>
+        <p class="mt-1 text-muted-foreground">
+          Container information is unavailable right now. Make sure Docker is running; this page
+          updates by itself once it is.
+        </p>
+      </div>
+    } @else if (rows().length === 0) {
+      <p class="text-sm text-muted-foreground">No containers yet.</p>
+    } @else {
+      <!-- Large screens: a table. -->
+      <div hlmTableContainer class="hidden lg:block">
+        <table hlmTable>
+          <thead hlmTHead>
+            <tr hlmTr>
+              <th hlmTh scope="col">Name</th>
+              <th hlmTh scope="col">State</th>
+              <th hlmTh scope="col" class="text-end">CPU</th>
+              <th hlmTh scope="col" class="text-end">Memory</th>
+              <th hlmTh scope="col" class="text-end">Network</th>
+              <th hlmTh scope="col" class="text-end">Disk I/O</th>
+              <th hlmTh scope="col">Up for</th>
+              <th hlmTh scope="col">Ports</th>
+              <th hlmTh scope="col" class="w-12"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody hlmTBody>
+            @for (row of rows(); track row.id) {
+              <tr hlmTr>
+                <th hlmTd scope="row" class="font-normal">
+                  <span class="block font-medium"
+                    >{{ row.name }}<span class="sr-only">, </span></span
+                  >
+                  <span
+                    class="block max-w-64 truncate text-xs text-muted-foreground"
+                    [title]="row.image"
+                    >{{ row.image }}</span
+                  >
+                </th>
+                <td hlmTd>
+                  <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
+                </td>
+                <td hlmTd class="text-end tabular-nums">{{ row.cpu }}</td>
+                <td hlmTd class="text-end tabular-nums">{{ row.memory }}</td>
+                <td hlmTd class="text-end tabular-nums">{{ row.network }}</td>
+                <td hlmTd class="text-end tabular-nums">{{ row.disk }}</td>
+                <td hlmTd>{{ row.uptime }}</td>
+                <td hlmTd class="text-xs">{{ row.ports }}</td>
+                <td hlmTd class="text-end">
+                  <app-container-actions [name]="row.name" />
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <!-- Phones and tablets: one card per container. -->
+      <ul class="grid gap-3 lg:hidden">
+        @for (row of rows(); track row.id) {
+          <li class="grid gap-2 rounded-lg border p-3">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <span class="min-w-0">
+                <span class="block font-medium break-all"
+                  >{{ row.name }}<span class="sr-only">, </span></span
+                >
+                <span class="block text-xs text-muted-foreground break-all">{{ row.image }}</span>
+              </span>
+              <span class="flex items-center gap-1">
+                <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
+                <app-container-actions [name]="row.name" />
+              </span>
+            </div>
+            <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
+              <div>
+                <dt class="text-muted-foreground">CPU</dt>
+                <dd class="tabular-nums">{{ row.cpu }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted-foreground">Memory</dt>
+                <dd class="tabular-nums">{{ row.memory }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted-foreground">Up for</dt>
+                <dd>{{ row.uptime }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted-foreground">Network</dt>
+                <dd class="tabular-nums">{{ row.network }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted-foreground">Disk I/O</dt>
+                <dd class="tabular-nums">{{ row.disk }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted-foreground">Ports</dt>
+                <dd class="break-all">{{ row.ports }}</dd>
+              </div>
+            </dl>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</section>
+
+<ng-template #state let-row>
+  <span class="flex flex-wrap items-center gap-2">
+    <span class="flex items-center gap-1.5 text-sm">
+      <span class="size-2 shrink-0 rounded-full" [class]="row.stateDot" aria-hidden="true"></span>
+      {{ row.stateLabel }}
+    </span>
+    @if (row.health; as health) {
+      <span hlmBadge [variant]="health.problem ? 'destructive' : 'outline'">{{
+        health.label
+      }}</span>
+    }
+  </span>
+</ng-template>
