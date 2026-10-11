@@ -4,14 +4,13 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import {
   REALTIME_PATH,
-  type ServerMessage,
   type SystemSnapshot,
   type SystemUpdate,
-  serverMessageSchema,
   WS_CLOSE_CODES,
 } from '@homelab/shared';
 import request from 'supertest';
 import { WebSocket } from 'ws';
+import { Client } from './realtime-client.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
@@ -22,6 +21,7 @@ import {
   REALTIME_OPTIONS,
   type RealtimeOptions,
 } from '../src/realtime/realtime.options.js';
+import { SystemMetricsService } from '../src/system-metrics/system-metrics.service.js';
 import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
 
@@ -66,7 +66,7 @@ const snapshot: SystemSnapshot = {
   history: [],
 };
 
-/** Stands in for system metrics (step 3): records whether it is collecting. */
+/** Stands in for `SystemMetricsService`: lets tests publish, and records whether it is collecting. */
 class FakeSystemSource implements TopicSource<'system'> {
   readonly topic = 'system';
   publish: ((update: SystemUpdate) => void) | null = null;
@@ -80,57 +80,6 @@ class FakeSystemSource implements TopicSource<'system'> {
   }
   stop(): void {
     this.publish = null;
-  }
-}
-
-/** A test client: everything received, and how it closed. */
-class Client {
-  readonly messages: ServerMessage[] = [];
-  readonly closed: Promise<{ code: number; reason: string }>;
-  private waiters: (() => void)[] = [];
-
-  constructor(readonly socket: WebSocket) {
-    socket.on('message', (raw) => {
-      // Every message the server sends must match the shared protocol.
-      this.messages.push(serverMessageSchema.parse(JSON.parse(raw.toString())));
-      for (const wake of this.waiters.splice(0)) wake();
-    });
-    this.closed = new Promise((resolve) =>
-      socket.on('close', (code, reason) => resolve({ code, reason: reason.toString() })),
-    );
-  }
-
-  get events(): string[] {
-    return this.messages.map((message) => message.event);
-  }
-
-  send(message: unknown): void {
-    this.socket.send(typeof message === 'string' ? message : JSON.stringify(message));
-  }
-
-  /** Resolves once `count` messages have arrived in total. */
-  async received(count: number): Promise<ServerMessage[]> {
-    while (this.messages.length < count) {
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(
-          () => reject(new Error(`Timed out at ${this.messages.length}/${count} messages`)),
-          2000,
-        );
-        this.waiters.push(() => {
-          clearTimeout(timer);
-          resolve();
-        });
-      });
-    }
-    return this.messages;
-  }
-
-  /** A round trip: by the time an `error` reply arrives, everything sent before was handled. */
-  async flush(): Promise<void> {
-    const count = this.messages.length;
-    this.send({ event: 'subscribe', data: { topic: 'nope' } });
-    await this.received(count + 1);
-    this.messages.pop();
   }
 }
 
@@ -182,12 +131,21 @@ describe('realtime WebSocket (e2e)', () => {
       .useValue(testHasher)
       .overrideProvider(REALTIME_OPTIONS)
       .useValue(OPTIONS)
+      // The fake stands in for the real system topic source, registering itself as it does.
+      .overrideProvider(SystemMetricsService)
+      .useFactory({
+        factory: (subscriptions: RealtimeSubscriptions) => {
+          const fake = new FakeSystemSource();
+          subscriptions.registerSource(fake);
+          return fake;
+        },
+        inject: [RealtimeSubscriptions],
+      })
       .compile();
     app = configureApp(moduleRef.createNestApplication<NestExpressApplication>());
     await app.listen(0, '127.0.0.1');
     host = `127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`;
-    source = new FakeSystemSource();
-    app.get(RealtimeSubscriptions).registerSource(source);
+    source = app.get<FakeSystemSource>(SystemMetricsService);
     await resetDatabase(app.get(PrismaService));
     await app.get(UsersService).create({
       username: 'owner',

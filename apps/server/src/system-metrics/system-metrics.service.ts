@@ -1,0 +1,178 @@
+import { Injectable, Logger } from '@nestjs/common';
+import {
+  type DiskUsage,
+  type HostInfo,
+  type SystemHistoryPoint,
+  type SystemSnapshot,
+  type SystemUpdate,
+  toSystemHistoryPoint,
+} from '@homelab/shared';
+import { RingBuffer } from '../common/ring-buffer.js';
+import { RealtimeSubscriptions, type TopicSource } from '../realtime/realtime-subscriptions.js';
+import {
+  bytesPerSecond,
+  type CpuTimes,
+  cpuUsagePercent,
+  type NetCounters,
+} from './proc-parsers.js';
+import { SystemReader } from './system-reader.js';
+
+export const SAMPLE_INTERVAL_MS = 2_000;
+/** The first sample needs two readings; this keeps a new dashboard's wait short. */
+export const FIRST_SAMPLE_DELAY_MS = 1_000;
+export const DISK_INTERVAL_MS = 30_000;
+export const HISTORY_WINDOW_MS = 15 * 60_000;
+
+/** The previous reading, which rates and CPU % are computed against. */
+interface Reading {
+  at: number;
+  cpu: CpuTimes;
+  net: Map<string, NetCounters>;
+}
+
+/** State of one collecting period, from `start()` to `stop()`. */
+interface Run {
+  publish: (update: SystemUpdate) => void;
+  timer: NodeJS.Timeout | null;
+  previous: Reading | null;
+  disks: DiskUsage[];
+  disksAt: number;
+  latest: SystemUpdate | null;
+  /** Snapshots waiting for the first sample. */
+  waiters: { resolve: (update: SystemUpdate) => void; reject: (error: Error) => void }[];
+}
+
+/**
+ * The `system` topic: samples CPU, memory and network every 2 s and disks every 30 s — only
+ * while someone is subscribed (`RealtimeSubscriptions` calls `start()`/`stop()`). Keeps the last
+ * 15 minutes of chart points; points from before a pause stay until they age out.
+ */
+@Injectable()
+export class SystemMetricsService implements TopicSource<'system'> {
+  readonly topic = 'system';
+  private readonly logger = new Logger(SystemMetricsService.name);
+  private readonly history = new RingBuffer<SystemHistoryPoint>(
+    HISTORY_WINDOW_MS / SAMPLE_INTERVAL_MS,
+  );
+  private hostInfo: Promise<HostInfo> | null = null;
+  private run: Run | null = null;
+
+  constructor(
+    private readonly reader: SystemReader,
+    subscriptions: RealtimeSubscriptions,
+  ) {
+    subscriptions.registerSource(this);
+  }
+
+  get collecting(): boolean {
+    return this.run !== null;
+  }
+
+  start(publish: (update: SystemUpdate) => void): void {
+    const run: Run = {
+      publish,
+      timer: null,
+      previous: null,
+      disks: [],
+      disksAt: -Infinity,
+      latest: null,
+      waiters: [],
+    };
+    this.run = run;
+    void this.tick(run); // the first reading: the baseline
+  }
+
+  stop(): void {
+    const run = this.run;
+    if (!run) return;
+    this.run = null;
+    if (run.timer) clearTimeout(run.timer);
+    for (const { reject } of run.waiters) reject(new Error('System metrics stopped'));
+  }
+
+  /** Waits for the first sample when collecting has only just started. */
+  async snapshot(): Promise<SystemSnapshot> {
+    const run = this.run;
+    if (!run) throw new Error('System metrics are not being collected');
+    const latest =
+      run.latest ??
+      (await new Promise<SystemUpdate>((resolve, reject) => run.waiters.push({ resolve, reject })));
+    const cutoff = Date.now() - HISTORY_WINDOW_MS;
+    return {
+      ...latest,
+      host: await this.host(),
+      history: this.history.toArray().filter((point) => point.at >= cutoff),
+    };
+  }
+
+  private host(): Promise<HostInfo> {
+    this.hostInfo ??= this.reader.hostInfo();
+    return this.hostInfo;
+  }
+
+  private async tick(run: Run): Promise<void> {
+    try {
+      const at = Date.now();
+      const [cpu, net, memory] = await Promise.all([
+        this.reader.cpuTimes(),
+        this.reader.netCounters(),
+        this.reader.memory(),
+      ]);
+      if (at - run.disksAt >= DISK_INTERVAL_MS) await this.refreshDisks(run, at);
+      if (run !== this.run) return;
+
+      const previous = run.previous;
+      run.previous = { at, cpu, net };
+      if (!previous) return;
+
+      const seconds = (at - previous.at) / 1000;
+      const update: SystemUpdate = {
+        uptimeSeconds: this.reader.uptimeSeconds(),
+        sample: {
+          at,
+          cpu: {
+            usagePercent: cpuUsagePercent(previous.cpu, cpu),
+            loadAverage: this.reader.loadAverage(),
+          },
+          memory: {
+            totalBytes: memory.totalBytes,
+            usedBytes: Math.max(0, memory.totalBytes - memory.availableBytes),
+            availableBytes: memory.availableBytes,
+            swapTotalBytes: memory.swapTotalBytes,
+            swapUsedBytes: Math.max(0, memory.swapTotalBytes - memory.swapFreeBytes),
+          },
+          network: [...net].map(([name, counters]) => {
+            const before = previous.net.get(name) ?? counters; // new interface: 0 until next time
+            return {
+              name,
+              rxBytesPerSec: bytesPerSecond(before.rxBytes, counters.rxBytes, seconds),
+              txBytesPerSec: bytesPerSecond(before.txBytes, counters.txBytes, seconds),
+            };
+          }),
+        },
+        disks: run.disks,
+      };
+      run.latest = update;
+      this.history.push(toSystemHistoryPoint(update.sample));
+      for (const { resolve } of run.waiters.splice(0)) resolve(update);
+      run.publish(update);
+    } catch (error) {
+      this.logger.error('Reading system metrics failed', (error as Error).stack);
+    } finally {
+      if (run === this.run) {
+        const delay = run.latest ? SAMPLE_INTERVAL_MS : FIRST_SAMPLE_DELAY_MS;
+        run.timer = setTimeout(() => void this.tick(run), delay);
+      }
+    }
+  }
+
+  /** On failure the previous list stays, and it is tried again next time. */
+  private async refreshDisks(run: Run, at: number): Promise<void> {
+    try {
+      run.disks = await this.reader.disks();
+      run.disksAt = at;
+    } catch (error) {
+      this.logger.error('Reading disk usage failed', (error as Error).stack);
+    }
+  }
+}

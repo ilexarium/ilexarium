@@ -16,7 +16,8 @@ export const hostInfoSchema = z.object({
   os: z.string(),
   kernel: z.string(),
   arch: z.string(),
-  cpuModel: z.string(),
+  /** Null where the kernel doesn't expose it (some ARM machines). */
+  cpuModel: z.string().nullable(),
   cpuCores: z.number().int().positive(),
 });
 export type HostInfo = z.infer<typeof hostInfoSchema>;
