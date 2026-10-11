@@ -11,6 +11,7 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth-interceptor';
 import { AuthStore } from './core/auth/auth-store';
 import { PageTitleStrategy } from './core/page-title/page-title';
+import { ThemeService } from './core/theme/theme';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -21,5 +22,7 @@ export const appConfig: ApplicationConfig = {
     provideSpartanHlm(),
     // Know who is signed in before the first route's guards run.
     provideAppInitializer(() => inject(AuthStore).load()),
+    // Light or dark on every page (login included), following the device until the user chooses.
+    provideAppInitializer(() => void inject(ThemeService)),
   ],
 };

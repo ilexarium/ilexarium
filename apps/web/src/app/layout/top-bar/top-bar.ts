@@ -8,8 +8,9 @@ import { HlmSidebarTrigger } from '@ui/sidebar';
 import { AuthStore } from '../../core/auth/auth-store';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
 import { ConnectionStatus } from '../connection-status/connection-status';
+import { ThemeMenu } from '../theme-menu/theme-menu';
 
-/** Sidebar toggle, the page title (the page's only h1), the live-data status and the user menu. */
+/** Sidebar toggle, the page title (the page's only h1), the live-data status, the theme switch and the user menu. */
 @Component({
   selector: 'app-top-bar',
   imports: [
@@ -20,6 +21,7 @@ import { ConnectionStatus } from '../connection-status/connection-status';
     HlmSeparator,
     HlmSidebarTrigger,
     ConnectionStatus,
+    ThemeMenu,
   ],
   host: {
     class: 'sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4',
@@ -29,6 +31,7 @@ import { ConnectionStatus } from '../connection-status/connection-status';
     <hlm-separator orientation="vertical" class="me-2 h-4" />
     <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
     <app-connection-status class="ms-auto" />
+    <app-theme-menu />
     <button
       hlmBtn
       variant="ghost"

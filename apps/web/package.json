@@ -36,6 +36,7 @@
     "@angular/compiler-cli": "^22.2.0",
     "@spartan-ng/cli": "^1.6.3",
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.19.2",
     "jsdom": "^30.0.0",
     "postcss": "^8.5.29",
     "tailwindcss": "^4.3.3",
