@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { applyTrustProxy } from './common/trust-proxy.js';
 import type { Env } from './config/env.schema.js';
 
@@ -13,6 +14,8 @@ export function configureApp(app: NestExpressApplication): NestExpressApplicatio
   applyTrustProxy(app, config.get('TRUST_PROXY', { infer: true }));
   // Refuses state-changing requests from other origins (with the session cookie's SameSite=Lax).
   app.enableCsrfProtection();
+  // Plain WebSockets (the `ws` library) for gateways, on the same HTTP server.
+  app.useWebSocketAdapter(new WsAdapter(app));
   app.enableShutdownHooks();
   return app;
 }
