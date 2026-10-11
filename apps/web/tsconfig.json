@@ -26,7 +26,9 @@
       "@ui/sidebar": ["./src/ui/sidebar/src/index.ts"],
       "@ui/sheet": ["./src/ui/sheet/src/index.ts"],
       "@ui/skeleton": ["./src/ui/skeleton/src/index.ts"],
-      "@ui/tooltip": ["./src/ui/tooltip/src/index.ts"]
+      "@ui/tooltip": ["./src/ui/tooltip/src/index.ts"],
+      "@ui/progress": ["./src/ui/progress/src/index.ts"],
+      "@ui/badge": ["./src/ui/badge/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

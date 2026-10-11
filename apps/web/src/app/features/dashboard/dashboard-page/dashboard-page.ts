@@ -1,27 +1,48 @@
-import { Component } from '@angular/core';
-import { httpResource } from '@angular/common/http';
-import type { HealthResponse } from '@homelab/shared';
-import { HlmButton } from '@ui/button';
+import { Component, DestroyRef, inject } from '@angular/core';
+import { HlmSkeleton } from '@ui/skeleton';
+import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
+import { CpuCard } from '../cpu-card/cpu-card';
+import { DiskList } from '../disk-list/disk-list';
+import { HostSummary } from '../host-summary/host-summary';
+import { MemoryCard } from '../memory-card/memory-card';
+import { NetworkCard } from '../network-card/network-card';
 
+/** The server at a glance, live: host, CPU, memory, network, storage. */
 @Component({
   selector: 'app-dashboard-page',
-  imports: [HlmButton],
+  imports: [CpuCard, DiskList, HostSummary, HlmSkeleton, MemoryCard, NetworkCard],
   template: `
-    <section class="flex items-center gap-4 rounded-lg border p-4">
-      <span class="text-sm text-muted-foreground">Server</span>
-      @if (health.isLoading()) {
-        <span class="text-sm">Checking…</span>
-      } @else if (health.error()) {
-        <span class="text-sm text-destructive">Unreachable</span>
-      } @else if (health.value(); as h) {
-        <span class="text-sm">{{ h.status }} · v{{ h.version }} · up {{ h.uptimeSeconds }}s</span>
-      }
-      <button hlmBtn variant="outline" size="sm" class="ml-auto" (click)="health.reload()">
-        Refresh
-      </button>
-    </section>
+    @if (store.system(); as system) {
+      <div class="grid gap-4 md:gap-6">
+        <app-host-summary [host]="system.host" [uptimeSeconds]="system.uptimeSeconds" />
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <app-cpu-card [cpu]="system.sample.cpu" [cores]="system.host.cpuCores" />
+          <app-memory-card [memory]="system.sample.memory" />
+          <app-network-card
+            [interfaces]="system.sample.network"
+            class="sm:col-span-2 xl:col-span-1"
+          />
+        </div>
+        <app-disk-list [disks]="system.disks" />
+      </div>
+    } @else {
+      <div class="grid gap-4 md:gap-6" role="status" aria-label="Loading server data">
+        <hlm-skeleton class="h-5 w-2/3" />
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          @for (card of [1, 2, 3]; track card) {
+            <hlm-skeleton class="h-44 rounded-xl" />
+          }
+        </div>
+        <hlm-skeleton class="h-48 rounded-xl" />
+      </div>
+    }
   `,
 })
 export class DashboardPage {
-  protected readonly health = httpResource<HealthResponse>(() => '/api/health');
+  protected readonly store = inject(MonitoringStore);
+
+  constructor() {
+    const stop = this.store.watch();
+    inject(DestroyRef).onDestroy(stop);
+  }
 }
