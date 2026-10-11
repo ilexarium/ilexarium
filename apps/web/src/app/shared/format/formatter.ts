@@ -4,8 +4,9 @@ import { Translator } from '../../core/i18n/translator';
 import { formatBytes, formatDuration, formatLogTime, formatPercent, formatRate } from './format';
 
 /**
- * The `format.ts` functions in the current language. Reads the language as a signal, so a
- * `computed()` built on it follows a language switch.
+ * The `format.ts` functions in the current language, always with Latin digits (the owner's
+ * decision: Arabic too shows 1,234, not ١٬٢٣٤ — `-u-nu-latn` makes it so in every browser). Reads
+ * the language as a signal, so a `computed()` built on it follows a language switch.
  */
 @Service()
 export class Formatter {
@@ -13,23 +14,24 @@ export class Formatter {
   private readonly translator = inject(Translator);
 
   bytes(bytes: number): string {
-    return formatBytes(bytes, this.language.language());
+    return formatBytes(bytes, this.locale());
   }
 
   rate(bytesPerSecond: number): string {
-    return formatRate(bytesPerSecond, this.language.language());
+    return formatRate(bytesPerSecond, this.locale());
   }
 
   percent(percent: number): string {
-    return formatPercent(percent, this.language.language());
+    return formatPercent(percent, this.locale());
   }
 
   duration(seconds: number): string {
-    return formatDuration(
-      seconds,
-      this.language.language(),
-      this.translator.t('format.lessThanAMinute'),
-    );
+    return formatDuration(seconds, this.locale(), this.translator.t('format.lessThanAMinute'));
+  }
+
+  /** The current language, with Latin digits. */
+  private locale(): string {
+    return `${this.language.language()}-u-nu-latn`;
   }
 
   /** Log times stay in one fixed, sortable form in every language (machine text). */
