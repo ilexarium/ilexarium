@@ -4,6 +4,7 @@ import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ZodValidationPipe } from './common/zod-validation.pipe.js';
 import { ConfigModule } from './config/config.module.js';
+import { ContainerActionsModule } from './container-actions/container-actions.module.js';
 import { ContainerLogsModule } from './container-logs/container-logs.module.js';
 import { ContainersModule } from './containers/containers.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -24,6 +25,7 @@ import { UsersModule } from './users/users.module.js';
     SystemMetricsModule,
     ContainersModule,
     ContainerLogsModule,
+    ContainerActionsModule,
   ],
   providers: [{ provide: APP_PIPE, useClass: ZodValidationPipe }],
 })

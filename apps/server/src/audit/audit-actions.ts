@@ -4,6 +4,9 @@ export const AUDIT_ACTIONS = [
   'auth.login',
   'auth.logout',
   'auth.password_change',
+  'container.start',
+  'container.stop',
+  'container.restart',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -106,7 +106,11 @@
     "invalid_setup_token": "Dieser Einrichtungscode ist ungültig",
     "setup_not_available": "Die Einrichtung ist bereits abgeschlossen",
     "wrong_password": "Das aktuelle Passwort ist falsch",
-    "too_many_attempts": "Zu viele Versuche. Versuche es später erneut."
+    "too_many_attempts": "Zu viele Versuche. Versuche es später erneut.",
+    "container_not_found": "Diesen Container gibt es nicht mehr.",
+    "container_protected": "Dieser Container gehört zur Plattform selbst und kann hier nicht gestoppt oder neu gestartet werden.",
+    "docker_unavailable": "Docker ist gerade nicht erreichbar. Prüfe, ob es läuft, und versuche es noch einmal.",
+    "action_failed": "Docker konnte das nicht ausführen. Die Logs des Containers verraten vielleicht, warum."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -197,7 +201,38 @@
     "networkValue": "{{rx}} empfangen, {{tx}} gesendet",
     "diskValue": "{{read}} gelesen, {{written}} geschrieben",
     "actionsFor": "Aktionen für {{name}}",
-    "viewLogs": "Logs anzeigen"
+    "viewLogs": "Logs anzeigen",
+    "action": {
+      "start": "Starten",
+      "stop": "Stoppen",
+      "restart": "Neu starten"
+    },
+    "confirm": {
+      "stop": {
+        "title": "{{name}} stoppen?",
+        "text": "Er ist nicht erreichbar, bis du ihn wieder startest."
+      },
+      "restart": {
+        "title": "{{name}} neu starten?",
+        "text": "Er ist kurz nicht erreichbar, während er neu startet."
+      },
+      "cancel": "Abbrechen"
+    },
+    "pending": {
+      "start": "Wird gestartet…",
+      "stop": "Wird gestoppt…",
+      "restart": "Wird neu gestartet…"
+    },
+    "done": {
+      "start": "{{name}} gestartet",
+      "stop": "{{name}} gestoppt",
+      "restart": "{{name}} neu gestartet"
+    },
+    "failed": {
+      "start": "{{name}} konnte nicht gestartet werden",
+      "stop": "{{name}} konnte nicht gestoppt werden",
+      "restart": "{{name}} konnte nicht neu gestartet werden"
+    }
   },
   "logs": {
     "loading": "Logs werden geladen",

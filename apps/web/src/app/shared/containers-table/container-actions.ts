@@ -1,27 +1,92 @@
-import { Component, inject, input } from '@angular/core';
+import { Component, computed, inject, input, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import type { ContainerAction, ContainerState } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideEllipsis, lucideScrollText } from '@ng-icons/lucide';
+import {
+  lucideEllipsis,
+  lucidePlay,
+  lucideRotateCw,
+  lucideScrollText,
+  lucideSquare,
+} from '@ng-icons/lucide';
+import { TranslatePipe } from '@ngx-translate/core';
+import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
-import { TranslatePipe } from '@ngx-translate/core';
+import { Translator } from '../../core/i18n/translator';
+import { ContainerActionRunner } from './container-action-runner';
+
+/** Actions that interrupt the container: they ask first. Starting interrupts nothing. */
+type ConfirmedAction = Exclude<ContainerAction, 'start'>;
+
+const ICONS: Record<ContainerAction, string> = {
+  start: 'lucidePlay',
+  stop: 'lucideSquare',
+  restart: 'lucideRotateCw',
+};
 
 /**
- * A container's actions: a "⋯" button opening a menu. View logs for now; later actions (restart,
- * …) go here. Items are buttons, not links — the menu handles Enter itself and would cancel a
- * link's navigation.
+ * A container's actions: a "⋯" button opening a menu — View logs, and what fits the state:
+ * Stop and Restart while running (after a confirmation), Start when stopped. Protected
+ * containers (the platform's own) only offer the logs. Items are buttons, not links — the menu
+ * handles Enter itself and would cancel a link's navigation.
  */
 @Component({
   selector: 'app-container-actions',
-  imports: [HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],
-  providers: [provideIcons({ lucideEllipsis, lucideScrollText })],
+  imports: [HlmAlertDialogImports, HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],
+  providers: [
+    provideIcons({ lucideEllipsis, lucidePlay, lucideRotateCw, lucideScrollText, lucideSquare }),
+  ],
   templateUrl: './container-actions.html',
 })
 export class ContainerActions {
   readonly name = input.required<string>();
+  readonly state = input.required<ContainerState>();
+  readonly protected = input(false);
+
   private readonly router = inject(Router);
+  private readonly runner = inject(ContainerActionRunner);
+  private readonly translator = inject(Translator);
+  private readonly dialog = viewChild.required(HlmAlertDialog);
+
+  protected readonly icons = ICONS;
+  protected readonly busy = computed(() => this.runner.pending().has(this.name()));
+
+  protected readonly actions = computed<ContainerAction[]>(() => {
+    if (this.protected() || this.busy()) return [];
+    switch (this.state()) {
+      case 'running':
+        return ['stop', 'restart'];
+      case 'exited':
+      case 'created':
+        return ['start'];
+      default:
+        return []; // paused, restarting, removing, dead: nothing to offer yet
+    }
+  });
+
+  /** The action waiting for confirmation in the dialog. */
+  protected readonly confirming = signal<ConfirmedAction>('stop');
+  /** The title around the name, which stays left to right in every language. */
+  protected readonly title = computed(() =>
+    this.translator.around(`containers.confirm.${this.confirming()}.title`, 'name'),
+  );
 
   protected viewLogs(): void {
     void this.router.navigate(['/containers', this.name(), 'logs']);
+  }
+
+  protected choose(action: ContainerAction): void {
+    if (action === 'start') {
+      void this.runner.run(this.name(), action);
+      return;
+    }
+    this.confirming.set(action);
+    this.dialog().open();
+  }
+
+  protected confirm(): void {
+    this.dialog().close();
+    void this.runner.run(this.name(), this.confirming());
   }
 }

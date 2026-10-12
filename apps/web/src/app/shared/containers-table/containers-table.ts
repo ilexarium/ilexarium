@@ -1,10 +1,13 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
 import type { Container, ContainersSnapshot, ContainerState } from '@homelab/shared';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucideLoaderCircle } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@ui/badge';
 import { HlmCardImports } from '@ui/card';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTableImports } from '@ui/table';
+import { ContainerActionRunner } from './container-action-runner';
 import { ContainerActions } from './container-actions';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Translator } from '../../core/i18n/translator';
@@ -24,7 +27,11 @@ interface Row {
   id: string;
   name: string;
   image: string;
+  state: ContainerState;
+  protected: boolean;
   stateLabel: string;
+  /** "Stopping…" while an action runs. */
+  pendingLabel: string | null;
   stateDot: string;
   health: { label: string; problem: boolean } | null;
   cpu: string;
@@ -48,9 +55,11 @@ interface Row {
     HlmCardImports,
     HlmSkeleton,
     HlmTableImports,
+    NgIcon,
     NgTemplateOutlet,
     TranslatePipe,
   ],
+  providers: [provideIcons({ lucideLoaderCircle })],
   templateUrl: './containers-table.html',
 })
 export class ContainersTable {
@@ -64,6 +73,7 @@ export class ContainersTable {
 
   private readonly translator = inject(Translator);
   private readonly formatter = inject(Formatter);
+  private readonly runner = inject(ContainerActionRunner);
 
   private readonly clock = computed(() => {
     const given = this.now();
@@ -96,11 +106,15 @@ export class ContainersTable {
     const t = this.translator.t.bind(this.translator);
     const format = this.formatter;
     const startedAt = container.startedAt ? Date.parse(container.startedAt) : null;
+    const pending = this.runner.pending().get(container.name);
     return {
       id: container.id,
       name: container.name,
       image: container.image,
+      state: container.state,
+      protected: container.protected,
       stateLabel: t(`containers.state.${container.state}`),
+      pendingLabel: pending ? t(`containers.pending.${pending}`) : null,
       stateDot: STATE_DOTS[container.state],
       health:
         container.health === 'none'
