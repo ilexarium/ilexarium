@@ -3,6 +3,12 @@ import type { Container } from '@homelab/shared';
 /** A container without its live stats. */
 export type DockerContainer = Omit<Container, 'stats'>;
 
+/**
+ * Why a container action failed: no such container; Docker answered with an error; Docker
+ * couldn't be reached (or didn't answer in time — the action may still have happened).
+ */
+export type ContainerActionFailure = 'not_found' | 'failed' | 'unavailable';
+
 /** A container event: something about it changed (started, died, became healthy, …). */
 export interface DockerContainerEvent {
   containerId: string;

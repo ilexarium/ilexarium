@@ -106,7 +106,11 @@
     "invalid_setup_token": "This setup code is not valid",
     "setup_not_available": "Setup has already been completed",
     "wrong_password": "Current password is incorrect",
-    "too_many_attempts": "Too many attempts. Try again later."
+    "too_many_attempts": "Too many attempts. Try again later.",
+    "container_not_found": "This container doesn't exist anymore.",
+    "container_protected": "This container is part of the platform itself and can't be stopped or restarted here.",
+    "docker_unavailable": "Docker isn't reachable right now. Make sure it's running and try again.",
+    "action_failed": "Docker couldn't do it. The container's logs may tell why."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -197,7 +201,38 @@
     "networkValue": "{{rx}} in, {{tx}} out",
     "diskValue": "{{read}} read, {{written}} written",
     "actionsFor": "Actions for {{name}}",
-    "viewLogs": "View logs"
+    "viewLogs": "View logs",
+    "action": {
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart"
+    },
+    "confirm": {
+      "stop": {
+        "title": "Stop {{name}}?",
+        "text": "It will be unreachable until you start it again."
+      },
+      "restart": {
+        "title": "Restart {{name}}?",
+        "text": "It will be unreachable for a moment while it restarts."
+      },
+      "cancel": "Cancel"
+    },
+    "pending": {
+      "start": "Starting…",
+      "stop": "Stopping…",
+      "restart": "Restarting…"
+    },
+    "done": {
+      "start": "{{name}} started",
+      "stop": "{{name}} stopped",
+      "restart": "{{name}} restarted"
+    },
+    "failed": {
+      "start": "Couldn't start {{name}}",
+      "stop": "Couldn't stop {{name}}",
+      "restart": "Couldn't restart {{name}}"
+    }
   },
   "logs": {
     "loading": "Loading logs",

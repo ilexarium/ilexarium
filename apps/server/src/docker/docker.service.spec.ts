@@ -35,7 +35,7 @@ const summaries = [
 const inspects: Record<string, object> = {
   [ID_B]: {
     Name: '/web',
-    Config: { Tty: false },
+    Config: { Tty: false, Labels: { 'homelab.protected': 'true' } },
     State: {
       Status: 'running',
       StartedAt: '2026-10-11T12:00:00.123456789Z',
@@ -44,7 +44,7 @@ const inspects: Record<string, object> = {
   },
   [ID_A]: {
     Name: '/app',
-    Config: { Tty: true },
+    Config: { Tty: true, Labels: { 'homelab.protected': 'yes' } },
     State: { Status: 'exited', StartedAt: '0001-01-01T00:00:00Z' },
   },
 };
@@ -273,6 +273,14 @@ describe('DockerService', () => {
     await expect(docker.containerState('../json')).rejects.toThrow(/Invalid container name/);
   });
 
+  it('tells whether a container is protected by name, and null for an unknown one', async () => {
+    expect(await docker.isProtected('web')).toBe(true);
+    expect(await docker.isProtected('app')).toBe(false); // only exactly "true" protects
+    expect(await docker.isProtected('silent')).toBe(false); // no labels at all
+    expect(await docker.isProtected('nope')).toBeNull();
+    await expect(docker.isProtected('../json')).rejects.toThrow(/Invalid container name/);
+  });
+
   it('tells an unknown container and an unreadable log driver apart', async () => {
     const signal = new AbortController().signal;
     await expect(take(docker.containerLogs('nope', {}, signal), 1)).rejects.toEqual(
@@ -327,6 +335,7 @@ describe('DockerService', () => {
       'containerLogs',
       'containerState',
       'containerStats',
+      'isProtected',
       'listContainers',
     ]);
   });

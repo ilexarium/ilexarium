@@ -4,6 +4,9 @@ import { proxy, proxyReachable } from './docker-proxy.js';
 
 // The allow-list in system/docker-socket-proxy/haproxy.cfg, against the running dev proxy and
 // the real Docker daemon behind it. Every refusal must come from the proxy (403), never Docker.
+// The write tests only ever touch the dev sandbox container.
+
+const SANDBOX = 'homelab-dev-sandbox-1';
 
 const reachable = await proxyReachable();
 if (!reachable) console.warn('Docker socket proxy not reachable — run `npm run db:up`. Skipping.');
@@ -37,12 +40,124 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
   let containerId: string;
   let containerName: string;
 
+  /** The dev sandbox (busybox, not protected): the only container these tests change. */
+  let sandbox: string;
+  let sandboxId: string;
+
   beforeAll(async () => {
     const res = await fetch(`${proxy.http}/containers/json?all=true`);
     const containers = (await res.json()) as { Id: string; Names: string[] }[];
     expect(containers.length).toBeGreaterThan(0); // at least the dev Postgres
     containerId = containers[0].Id;
     containerName = containers[0].Names[0].replace(/^\//, '');
+    const found = containers.find((c) => c.Names.includes(`/${SANDBOX}`));
+    expect(found, `${SANDBOX} — run npm run db:up`).toBeDefined();
+    sandbox = SANDBOX;
+    sandboxId = found!.Id;
+  });
+
+  afterAll(async () => {
+    // Leave the sandbox running, whatever happened above.
+    await status(`/containers/${SANDBOX}/start`, 'POST').catch(() => undefined);
+  });
+
+  it('passes the three container actions, by name and by ID', async () => {
+    expect(await status(`/containers/${sandbox}/stop`, 'POST')).toBe(204);
+    expect(await status(`/containers/${sandbox}/stop`, 'POST')).toBe(304); // Docker: already stopped
+    expect(await status(`/containers/${sandboxId}/start`, 'POST')).toBe(204);
+    expect(await status(`/v1.40/containers/${sandbox}/restart`, 'POST')).toBe(204);
+    expect(await status(`/v1.56/containers/${sandboxId}/restart`, 'POST')).toBe(204);
+    // An explicit empty body is no body.
+    expect(
+      await rawStatuses(
+        `POST /containers/${sandbox}/start HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\nConnection: close\r\n\r\n`,
+      ),
+    ).toEqual([304]); // already started
+  });
+
+  it('allows the actions for POST only', async () => {
+    for (const action of ['start', 'stop', 'restart']) {
+      for (const method of ['GET', 'HEAD', 'PUT', 'DELETE', 'PATCH']) {
+        const path = `/containers/${sandbox}/${action}`;
+        expect(await status(path, method), `${method} ${path}`).toBe(403);
+      }
+    }
+  });
+
+  it('refuses look-alikes of the action paths', async () => {
+    for (const path of [
+      `/containers/${sandbox}/start/`,
+      `/containers/${sandbox}/startx`,
+      `/containers/${sandbox}/stop/x`,
+      `/containers/${sandbox}/START`,
+      `/containers/${sandbox}/Restart`,
+      `/containers/a/${sandbox}/stop`,
+      `/containers/.${sandbox}/stop`,
+      `/containers/-${sandbox}/stop`,
+      `/containers/${sandbox}%2Fstop`,
+      '/containers/start',
+      '/containers//stop',
+      `//containers/${sandbox}/stop`,
+      `/v1.47/v1.47/containers/${sandbox}/stop`,
+    ]) {
+      expect(await status(path, 'POST'), path).toBe(403);
+    }
+    for (const path of [
+      `/containers/${sandbox}/x/../stop`,
+      `/containers/../containers/${sandbox}/stop`,
+    ]) {
+      expect(
+        await rawStatuses(`POST ${path} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`),
+        path,
+      ).toEqual([403]);
+    }
+  });
+
+  it('refuses the actions with a body', async () => {
+    // Old API versions let start carry host settings (mounts, privileges).
+    const settings = JSON.stringify({ Binds: ['/:/host'], Privileged: true });
+    for (const action of ['start', 'stop', 'restart']) {
+      const path = `/containers/${sandbox}/${action}`;
+      const res = await fetch(`${proxy.http}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: settings,
+        signal: AbortSignal.timeout(5000),
+      });
+      await res.body?.cancel();
+      expect(res.status, path).toBe(403);
+    }
+    const chunked = await rawStatuses(
+      `POST /containers/${sandbox}/start HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n` +
+        `Connection: close\r\n\r\n2\r\n{}\r\n0\r\n\r\n`,
+    );
+    expect(chunked).toEqual([403]);
+  });
+
+  it('refuses the actions with a query string', async () => {
+    for (const path of [
+      `/containers/${sandbox}/stop?t=0`,
+      `/containers/${sandbox}/stop?signal=SIGKILL`,
+      `/containers/${sandbox}/restart?t=0`,
+      `/containers/${sandbox}/start?detachKeys=ctrl-x`,
+      `/containers/${sandbox}/stop?`,
+    ]) {
+      expect(await status(path, 'POST'), path).toBe(403);
+    }
+  });
+
+  it('refuses the actions under old API versions', async () => {
+    for (const version of ['v1.0', 'v1.12', 'v1.24', 'v1.39', 'v1.4', 'v1.040', 'v2.0', 'v1.']) {
+      const path = `/${version}/containers/${sandbox}/start`;
+      expect(await status(path, 'POST'), path).toBe(403);
+    }
+  });
+
+  it('refuses an action asking to upgrade the connection', async () => {
+    const statuses = await rawStatuses(
+      `POST /containers/${sandbox}/start HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n`,
+    );
+    expect(statuses).toEqual([403]);
   });
 
   it('passes the allowed reads', async () => {
@@ -103,16 +218,22 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
     expect(statuses).toEqual([403]);
   });
 
-  it('refuses every write', async () => {
+  it('refuses every other write', async () => {
     for (const [method, path] of [
       ['POST', '/containers/create'],
-      ['POST', `/containers/${containerId}/stop`],
-      ['POST', `/containers/${containerId}/restart`],
-      ['POST', `/containers/${containerId}/exec`],
-      ['DELETE', `/containers/${containerId}`],
+      ['POST', `/containers/${sandbox}/exec`],
+      ['POST', `/containers/${sandbox}/kill`],
+      ['POST', `/containers/${sandbox}/pause`],
+      ['POST', `/containers/${sandbox}/unpause`],
+      ['POST', `/containers/${sandbox}/update`],
+      ['POST', `/containers/${sandbox}/rename?name=x`],
+      ['POST', `/containers/${sandbox}/attach`],
+      ['POST', `/containers/${sandbox}/wait`],
+      ['POST', '/containers/prune'],
+      ['DELETE', `/containers/${sandbox}`],
       ['POST', '/images/create'],
       ['POST', '/build'],
-      ['PUT', `/containers/${containerId}/archive?path=/tmp`],
+      ['PUT', `/containers/${sandbox}/archive?path=/tmp`],
       ['POST', '/v1.47/containers/create'],
     ]) {
       expect(await status(path, method), `${method} ${path}`).toBe(403);

@@ -14,6 +14,7 @@ import {
 import Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
 import { toContainerStats } from './container-stats.js';
+import { createDockerClient } from './docker-client.js';
 import { jsonLines } from './json-lines.js';
 import { logLines, normaliseTimestamp, toUnixSeconds } from './log-lines.js';
 import type { DockerContainer, DockerContainerEvent, RawContainerStats } from './docker.model.js';
@@ -47,8 +48,8 @@ const CONTAINER_EVENTS = [
 ];
 
 /**
- * The only way into Docker, and **read-only by construction**: list, inspect, stats, events and logs —
- * there is no method that changes anything. Docker access is root-equivalent (see CLAUDE.md);
+ * Reading from Docker, and **read-only by construction**: list, inspect, stats, events and logs —
+ * there is no method that changes anything (the three container actions are `DockerControl`'s). Docker access is root-equivalent (see CLAUDE.md);
  * the socket proxy enforces the same allow-list at the network level. Only `src/docker/` may
  * import `dockerode` (lint rule). Returns our own types, never Dockerode's.
  */
@@ -57,12 +58,7 @@ export class DockerService {
   private readonly docker: Dockerode;
 
   constructor(config: ConfigService<Env, true>) {
-    const url = new URL(config.get('DOCKER_HOST', { infer: true }));
-    this.docker = new Dockerode({
-      protocol: 'http',
-      host: url.hostname.replace(/^\[(.*)\]$/, '$1'), // IPv6 literal without brackets
-      port: Number(url.port || 2375),
-    });
+    this.docker = createDockerClient(config);
   }
 
   /**
@@ -120,6 +116,23 @@ export class DockerService {
         .getContainer(name)
         .inspect({ abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
       return toState(details.State.Status);
+    } catch (error) {
+      if ((error as { statusCode?: number } | null)?.statusCode === 404) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Whether a container is labelled `homelab.protected=true` (can't be stopped or restarted),
+   * by name; null if there is no such container.
+   */
+  async isProtected(name: string): Promise<boolean | null> {
+    if (!containerNameSchema.safeParse(name).success) throw new Error('Invalid container name');
+    try {
+      const details = await this.docker
+        .getContainer(name)
+        .inspect({ abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      return details.Config.Labels?.[PROTECTED_LABEL] === 'true';
     } catch (error) {
       if ((error as { statusCode?: number } | null)?.statusCode === 404) return null;
       throw error;

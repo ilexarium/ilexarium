@@ -14,5 +14,35 @@
       <ng-icon name="lucideScrollText" aria-hidden="true" />
       {{ 'containers.viewLogs' | translate }}
     </button>
+    @for (action of actions(); track action) {
+      <button hlmDropdownMenuItem (triggered)="choose(action)">
+        <ng-icon [name]="icons[action]" aria-hidden="true" />
+        {{ 'containers.action.' + action | translate }}
+      </button>
+    }
   </hlm-dropdown-menu>
 </ng-template>
+
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle>
+        {{ title()[0] }}<span dir="ltr">{{ name() }}</span
+        >{{ title()[1] }}
+      </h2>
+      <p hlmAlertDialogDescription>
+        {{ 'containers.confirm.' + confirming() + '.text' | translate }}
+      </p>
+    </hlm-alert-dialog-header>
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'containers.confirm.cancel' | translate }}</button>
+      <button
+        hlmAlertDialogAction
+        [variant]="confirming() === 'stop' ? 'destructive' : 'default'"
+        (click)="confirm()"
+      >
+        {{ 'containers.action.' + confirming() | translate }}
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

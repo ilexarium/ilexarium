@@ -30,7 +30,8 @@
       "@ui/tooltip": ["./src/ui/tooltip/src/index.ts"],
       "@ui/progress": ["./src/ui/progress/src/index.ts"],
       "@ui/badge": ["./src/ui/badge/src/index.ts"],
-      "@ui/table": ["./src/ui/table/src/index.ts"]
+      "@ui/table": ["./src/ui/table/src/index.ts"],
+      "@ui/alert-dialog": ["./src/ui/alert-dialog/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

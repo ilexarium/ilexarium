@@ -15,6 +15,9 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    labels:
+      # The app refuses to stop or restart it (its own database).
+      homelab.protected: 'true'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U homelab -d homelab']
       interval: 5s
@@ -36,10 +39,23 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - '127.0.0.1:2375:2375'
+    labels:
+      homelab.protected: 'true'
     read_only: true
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
     restart: unless-stopped
+
+  # Something to start, stop and restart: the container actions' e2e tests and trying the menu.
+  # Not protected. Does nothing; stops at once (SIGTERM ends the sleep).
+  sandbox:
+    image: busybox:1.37
+    command: ['sh', '-c', 'trap "exit 0" TERM; echo sandbox up; while true; do sleep 1; done']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    network_mode: none
+    restart: 'no'
 
 volumes:
   pgdata:

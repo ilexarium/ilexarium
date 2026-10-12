@@ -36,6 +36,8 @@ model Session {
 enum AuditOutcome {
   success
   failure
+  /// Recorded before a privileged action (fail closed); the outcome follows as a second entry.
+  requested
 }
 
 model AuditEvent {
