@@ -30,10 +30,22 @@ const CONTROL = /[\x00-\x08\x0a-\x1f\x7f-\x9f]/g;
  * Timestamps are normalised to 9 fraction digits, so they compare correctly as strings.
  */
 export function logLines(
-  body: AsyncIterable<Buffer>,
+  body: AsyncIterable<Buffer | string>,
   { tty }: { tty: boolean },
 ): AsyncGenerator<LogLine> {
-  return tty ? ttyLines(body) : multiplexedLines(body);
+  const bytes = byteChunks(body);
+  return tty ? ttyLines(bytes) : multiplexedLines(bytes);
+}
+
+/**
+ * The body's chunks as raw bytes. A Node stream gives text only once someone sets an encoding,
+ * which would break the binary frame headers — refused rather than misparsed.
+ */
+export async function* byteChunks(body: AsyncIterable<Buffer | string>): AsyncGenerator<Buffer> {
+  for await (const chunk of body) {
+    if (!Buffer.isBuffer(chunk)) throw new Error('Docker log stream delivered text, not bytes');
+    yield chunk;
+  }
 }
 
 /** Docker's timestamp with exactly 9 fraction digits, or null if it isn't one. */
