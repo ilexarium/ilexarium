@@ -160,6 +160,8 @@ export const containerSchema = z.object({
   /** ISO timestamp of the last start; null if it never started. */
   startedAt: z.iso.datetime().nullable(),
   ports: z.array(containerPortSchema),
+  /** Labelled `homelab.protected=true`: can't be stopped or restarted from the app. */
+  protected: z.boolean(),
   /** Null when not running, or before its first stats sample arrives. */
   stats: containerStatsSchema.nullable(),
 });

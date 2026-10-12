@@ -56,6 +56,7 @@ const container = (id: string, state: DockerContainer['state'] = 'running'): Doc
   health: 'none',
   startedAt: state === 'running' ? '2026-10-11T12:00:00.000Z' : null,
   ports: [],
+  protected: false,
 });
 
 const stats = (cpuPercent: number): ContainerStats => ({

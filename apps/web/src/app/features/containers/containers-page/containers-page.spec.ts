@@ -16,6 +16,7 @@ const stopped: Container = {
   health: 'none',
   startedAt: null,
   ports: [],
+  protected: false,
   stats: null,
 };
 

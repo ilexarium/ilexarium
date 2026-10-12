@@ -16,6 +16,7 @@ const web: Container = {
     { privatePort: 8096, publicPort: 8096, ip: '0.0.0.0', protocol: 'tcp' },
     { privatePort: 1900, protocol: 'udp' },
   ],
+  protected: false,
   stats: {
     at: NOW,
     cpuPercent: 12.4,
