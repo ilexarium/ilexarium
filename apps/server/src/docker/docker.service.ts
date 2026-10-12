@@ -105,7 +105,7 @@ export class DockerService {
     const stream = await this.docker
       .getContainer(id)
       .stats({ stream: true, abortSignal: signal } as { stream: true });
-    for await (const frame of jsonLines(stream as AsyncIterable<Buffer>)) {
+    for await (const frame of jsonLines(stream)) {
       yield toContainerStats(frame as RawContainerStats, Date.now());
     }
   }
@@ -141,14 +141,14 @@ export class DockerService {
     if (since !== undefined && !after) throw new Error('Invalid since timestamp');
 
     const container = this.docker.getContainer(name);
-    let body: AsyncIterable<Buffer>;
+    let body: AsyncIterable<Buffer | string>;
     let tty: boolean;
     try {
       const details = await container.inspect({
         abortSignal: AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
       });
       tty = details.Config.Tty;
-      body = (await container.logs({
+      body = await container.logs({
         follow: true,
         stdout: true,
         stderr: true,
@@ -156,7 +156,7 @@ export class DockerService {
         ...(tail !== undefined && { tail }),
         ...(after && { since: toUnixSeconds(after) }),
         abortSignal: signal,
-      })) as AsyncIterable<Buffer>;
+      });
     } catch (error) {
       throw toLogsError(error);
     }
@@ -173,7 +173,7 @@ export class DockerService {
       filters: { type: ['container'], event: CONTAINER_EVENTS },
       abortSignal: signal,
     } as Dockerode.GetEventsOptions);
-    for await (const event of jsonLines(stream as AsyncIterable<Buffer>)) {
+    for await (const event of jsonLines(stream)) {
       const { Action, Actor } = event as { Action?: string; Actor?: { ID?: string } };
       if (Action && Actor?.ID) yield { containerId: Actor.ID, action: Action };
     }

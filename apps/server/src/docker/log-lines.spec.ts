@@ -163,6 +163,21 @@ describe('logLines — multiplexed (no TTY)', () => {
   });
 });
 
+describe('byteChunks', () => {
+  it('passes bytes through', async () => {
+    const lines = await collect([frame(1, `${AT} ok\n`)], { tty: false });
+    expect(lines).toEqual([{ at: AT, stream: 'stdout', text: 'ok' }]);
+  });
+
+  it('refuses text chunks (a stream with an encoding set) instead of misparsing them', async () => {
+    async function* text() {
+      yield `${AT} hello\n`;
+    }
+    const lines = logLines(text(), { tty: true });
+    await expect(lines.next()).rejects.toThrow('Docker log stream delivered text, not bytes');
+  });
+});
+
 describe('logLines — TTY', () => {
   it('parses a real body: CRLF line ends, ANSI colours, no final newline', async () => {
     expect(await collect([tty], { tty: true })).toEqual(ttyLines);
