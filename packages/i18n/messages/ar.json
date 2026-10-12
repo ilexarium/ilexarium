@@ -209,9 +209,11 @@
       "unhealthy": "غير سليمة",
       "starting": "قيد البدء"
     },
-    "memoryValue": "{{used}} / {{limit}}",
-    "networkValue": "{{rx}} واردة، {{tx}} صادرة",
-    "diskValue": "{{read}} مقروءة، {{written}} مكتوبة",
+    "memoryOf": "من {{limit}}",
+    "networkIn": "{{rx}} واردة",
+    "networkOut": "{{tx}} صادرة",
+    "diskRead": "{{read}} مقروءة",
+    "diskWritten": "{{written}} مكتوبة",
     "actionsFor": "إجراءات {{name}}",
     "viewLogs": "عرض السجلات",
     "action": {

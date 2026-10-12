@@ -197,9 +197,11 @@
       "unhealthy": "Unhealthy",
       "starting": "Starting"
     },
-    "memoryValue": "{{used}} / {{limit}}",
-    "networkValue": "{{rx}} in, {{tx}} out",
-    "diskValue": "{{read}} read, {{written}} written",
+    "memoryOf": "of {{limit}}",
+    "networkIn": "{{rx}} in",
+    "networkOut": "{{tx}} out",
+    "diskRead": "{{read}} read",
+    "diskWritten": "{{written}} written",
     "actionsFor": "Actions for {{name}}",
     "viewLogs": "View logs",
     "action": {

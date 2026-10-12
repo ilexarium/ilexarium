@@ -21,24 +21,30 @@
     } @else if (rows().length === 0) {
       <p class="text-sm text-muted-foreground">{{ 'containers.none' | translate }}</p>
     } @else {
-      <!-- Large screens: a table. -->
-      <div hlmTableContainer class="hidden lg:block">
+      <!-- Extra-large screens: a table. -->
+      <div hlmTableContainer class="hidden xl:block">
         <table hlmTable>
           <thead hlmTHead>
             <tr hlmTr>
               <th hlmTh scope="col">{{ 'containers.column.name' | translate }}</th>
               <th hlmTh scope="col">{{ 'containers.column.state' | translate }}</th>
-              <th hlmTh scope="col" class="text-end">{{ 'containers.column.cpu' | translate }}</th>
-              <th hlmTh scope="col" class="text-end">
+              <!--
+                The live columns get a width, so the table doesn't shift when the stats replace the
+                dashes: the spare space goes to the columns without one (name, state, ports).
+              -->
+              <th hlmTh scope="col" class="w-14 text-end">
+                {{ 'containers.column.cpu' | translate }}
+              </th>
+              <th hlmTh scope="col" class="w-20 text-end">
                 {{ 'containers.column.memory' | translate }}
               </th>
-              <th hlmTh scope="col" class="text-end">
+              <th hlmTh scope="col" class="w-24 text-end">
                 {{ 'containers.column.network' | translate }}
               </th>
-              <th hlmTh scope="col" class="text-end">
+              <th hlmTh scope="col" class="w-28 text-end">
                 {{ 'containers.column.diskIo' | translate }}
               </th>
-              <th hlmTh scope="col">{{ 'containers.column.upFor' | translate }}</th>
+              <th hlmTh scope="col" class="w-20">{{ 'containers.column.upFor' | translate }}</th>
               <th hlmTh scope="col">{{ 'containers.column.ports' | translate }}</th>
               <th hlmTh scope="col" class="w-12">
                 <span class="sr-only">{{ 'containers.column.actions' | translate }}</span>
@@ -63,12 +69,26 @@
                   <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
                 </td>
                 <td hlmTd class="text-end tabular-nums">{{ row.cpu }}</td>
-                <td hlmTd class="text-end tabular-nums">{{ row.memory }}</td>
-                <td hlmTd class="text-end tabular-nums">{{ row.network }}</td>
-                <td hlmTd class="text-end tabular-nums">{{ row.disk }}</td>
-                <td hlmTd>{{ row.uptime }}</td>
+                <td hlmTd class="text-end tabular-nums">
+                  <span class="flex min-h-10 flex-col justify-center">
+                    <ng-container *ngTemplateOutlet="memory; context: { $implicit: row }" />
+                  </span>
+                </td>
+                <td hlmTd class="text-end tabular-nums">
+                  <span class="flex min-h-10 flex-col justify-center">
+                    <ng-container *ngTemplateOutlet="lines; context: { $implicit: row.network }" />
+                  </span>
+                </td>
+                <td hlmTd class="text-end tabular-nums">
+                  <span class="flex min-h-10 flex-col justify-center">
+                    <ng-container *ngTemplateOutlet="lines; context: { $implicit: row.disk }" />
+                  </span>
+                </td>
+                <td hlmTd class="whitespace-nowrap">{{ row.uptime }}</td>
                 <td hlmTd class="text-xs">
-                  <span dir="ltr">{{ row.ports }}</span>
+                  <span class="block" dir="ltr">
+                    <ng-container *ngTemplateOutlet="lines; context: { $implicit: row.ports }" />
+                  </span>
                 </td>
                 <td hlmTd class="text-end">
                   <app-container-actions
@@ -82,8 +102,8 @@
           </tbody>
         </table>
       </div>
-      <!-- Phones and tablets: one card per container. -->
-      <ul class="grid gap-3 lg:hidden">
+      <!-- Phones, tablets and laptops: one card per container. -->
+      <ul class="grid gap-3 xl:hidden">
         @for (row of rows(); track row.id) {
           <li class="grid gap-2 rounded-lg border p-3">
             <div class="flex flex-wrap items-start justify-between gap-2">
@@ -111,7 +131,11 @@
               </div>
               <div>
                 <dt class="text-muted-foreground">{{ 'containers.column.memory' | translate }}</dt>
-                <dd class="tabular-nums">{{ row.memory }}</dd>
+                <dd class="tabular-nums">
+                  <span class="block min-h-9">
+                    <ng-container *ngTemplateOutlet="memory; context: { $implicit: row }" />
+                  </span>
+                </dd>
               </div>
               <div>
                 <dt class="text-muted-foreground">{{ 'containers.column.upFor' | translate }}</dt>
@@ -119,15 +143,25 @@
               </div>
               <div>
                 <dt class="text-muted-foreground">{{ 'containers.column.network' | translate }}</dt>
-                <dd class="tabular-nums">{{ row.network }}</dd>
+                <dd class="tabular-nums">
+                  <span class="block min-h-10">
+                    <ng-container *ngTemplateOutlet="lines; context: { $implicit: row.network }" />
+                  </span>
+                </dd>
               </div>
               <div>
                 <dt class="text-muted-foreground">{{ 'containers.column.diskIo' | translate }}</dt>
-                <dd class="tabular-nums">{{ row.disk }}</dd>
+                <dd class="tabular-nums">
+                  <span class="block min-h-10">
+                    <ng-container *ngTemplateOutlet="lines; context: { $implicit: row.disk }" />
+                  </span>
+                </dd>
               </div>
               <div>
                 <dt class="text-muted-foreground">{{ 'containers.column.ports' | translate }}</dt>
-                <dd class="break-all" dir="ltr">{{ row.ports }}</dd>
+                <dd class="break-all" dir="ltr">
+                  <ng-container *ngTemplateOutlet="lines; context: { $implicit: row.ports }" />
+                </dd>
               </div>
             </dl>
           </li>
@@ -156,4 +190,25 @@
       }}</span>
     }
   </span>
+</ng-template>
+
+<!--
+  One value per line. Later lines start with a space, so read as text they stay apart.
+  Memory, network and disk are always two lines high where they're used (min-h-9/10), so nothing
+  grows when the stats arrive: centred in the table (like its other cells, so the dashes line up
+  with CPU's), at the top in the cards (like CPU there).
+-->
+<ng-template #lines let-lines>
+  @for (line of lines; track $index; let first = $first) {
+    <span class="block whitespace-nowrap">{{ first ? line : ' ' + line }}</span>
+  }
+</ng-template>
+
+<ng-template #memory let-row>
+  <span class="block whitespace-nowrap">{{ row.memory }}</span>
+  @if (row.memoryLimit) {
+    <span class="block text-xs whitespace-nowrap text-muted-foreground">{{
+      ' ' + row.memoryLimit
+    }}</span>
+  }
 </ng-template>
