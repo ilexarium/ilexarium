@@ -35,17 +35,20 @@ interface Row {
   stateDot: string;
   health: { label: string; problem: boolean } | null;
   cpu: string;
+  /** Used memory; the limit goes on a second, quieter line. */
   memory: string;
-  network: string;
-  disk: string;
+  memoryLimit: string | null;
+  /** One line per value (in/out, read/written, each port), so the columns stay narrow. */
+  network: string[];
+  disk: string[];
   uptime: string;
-  ports: string;
+  ports: string[];
 }
 
 /**
  * Every container with its state, health and live resource use, and an actions menu per
- * container. A table from large screens up; a list of cards below, so nothing scrolls sideways on
- * phones. Shared by the dashboard and the Containers page.
+ * container. A table from extra-large screens up (beside the sidebar it needs about 930 px); a
+ * list of cards below, so nothing scrolls sideways on phones and tablets. Shared by the dashboard and the Containers page.
  */
 @Component({
   selector: 'app-containers-table',
@@ -124,36 +127,33 @@ export class ContainersTable {
               problem: container.health === 'unhealthy',
             },
       cpu: stats ? format.percent(stats.cpuPercent) : '—',
-      memory: stats
-        ? t('containers.memoryValue', {
-            used: format.bytes(stats.memoryUsedBytes),
-            limit: format.bytes(stats.memoryLimitBytes),
-          })
-        : '—',
+      memory: stats ? format.bytes(stats.memoryUsedBytes) : '—',
+      memoryLimit: stats
+        ? t('containers.memoryOf', { limit: format.bytes(stats.memoryLimitBytes) })
+        : null,
       network: stats
-        ? t('containers.networkValue', {
-            rx: format.bytes(stats.netRxBytes),
-            tx: format.bytes(stats.netTxBytes),
-          })
-        : '—',
+        ? [
+            t('containers.networkIn', { rx: format.bytes(stats.netRxBytes) }),
+            t('containers.networkOut', { tx: format.bytes(stats.netTxBytes) }),
+          ]
+        : ['—'],
       disk: stats
-        ? t('containers.diskValue', {
-            read: format.bytes(stats.blockReadBytes),
-            written: format.bytes(stats.blockWriteBytes),
-          })
-        : '—',
+        ? [
+            t('containers.diskRead', { read: format.bytes(stats.blockReadBytes) }),
+            t('containers.diskWritten', { written: format.bytes(stats.blockWriteBytes) }),
+          ]
+        : ['—'],
       uptime:
         container.state === 'running' && startedAt !== null
           ? format.duration((this.clock() - startedAt) / 1000)
           : '—',
-      ports:
-        container.ports
-          .map((p) =>
+      ports: container.ports.length
+        ? container.ports.map((p) =>
             p.publicPort
               ? `${p.publicPort} → ${p.privatePort}/${p.protocol}`
               : `${p.privatePort}/${p.protocol}`,
           )
-          .join(', ') || '—',
+        : ['—'],
     };
   }
 }

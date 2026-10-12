@@ -101,11 +101,11 @@ describe('ContainersTable', () => {
         'jellyfin, jellyfin/jellyfin:10.11',
         'Running Healthy',
         '12%',
-        '512 MB / 8.0 GB',
-        '2.0 MB in, 1.0 MB out',
-        '3.0 MB read, 4.0 MB written',
+        '512 MB of 8.0 GB',
+        '2.0 MB in 1.0 MB out',
+        '3.0 MB read 4.0 MB written',
         '3 hours',
-        '8096 → 8096/tcp, 1900/udp',
+        '8096 → 8096/tcp 1900/udp',
         '', // the actions button: named by its aria-label
       ],
     ]);
@@ -298,12 +298,12 @@ describe('ContainersTable', () => {
     expect(ltr(el.querySelector('tbody')!)).toEqual([
       'jellyfin,',
       'jellyfin/jellyfin:10.11',
-      '8096 → 8096/tcp, 1900/udp',
+      '8096 → 8096/tcp 1900/udp',
     ]);
     expect(ltr(cards()[0])).toEqual([
       'jellyfin,',
       'jellyfin/jellyfin:10.11',
-      '8096 → 8096/tcp, 1900/udp',
+      '8096 → 8096/tcp 1900/udp',
     ]);
   });
 
@@ -319,10 +319,10 @@ describe('ContainersTable', () => {
     expect(el.querySelector('[hlmCardDescription]')!.textContent).toContain('2 of 3 running');
   });
 
-  it('has a card per container for phones and tablets, and a table for large screens', async () => {
+  it('has a card per container below extra-large screens, and a table from there up', async () => {
     const { el, cards } = await render(snapshot(web, stopped));
-    expect(el.querySelector('[hlmTableContainer]')!.className).toContain('hidden lg:block');
-    expect(el.querySelector('ul')!.className).toContain('lg:hidden');
+    expect(el.querySelector('[hlmTableContainer]')!.className).toContain('hidden xl:block');
+    expect(el.querySelector('ul')!.className).toContain('xl:hidden');
     expect(cards()).toHaveLength(2);
     const card = cards()[0];
     expect(card.textContent).toContain('jellyfin');

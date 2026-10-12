@@ -68,8 +68,8 @@ describe('ContainersPage', () => {
       });
       await fixture.whenStable();
       expect(el.querySelector('h1')).toBeNull();
-      // Phones get cards (the table is hidden below lg), each with the actions button.
-      const card = el.querySelector('ul.lg\\:hidden > li')!;
+      // Phones get cards (the table is hidden below xl), each with the actions button.
+      const card = el.querySelector('ul.xl\\:hidden > li')!;
       expect(card.querySelector('button[aria-label="Actions for old-app"]')).not.toBeNull();
     } finally {
       restore();

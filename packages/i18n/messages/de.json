@@ -197,9 +197,11 @@
       "unhealthy": "Fehlerhaft",
       "starting": "Startet"
     },
-    "memoryValue": "{{used}} / {{limit}}",
-    "networkValue": "{{rx}} empfangen, {{tx}} gesendet",
-    "diskValue": "{{read}} gelesen, {{written}} geschrieben",
+    "memoryOf": "von {{limit}}",
+    "networkIn": "{{rx}} empfangen",
+    "networkOut": "{{tx}} gesendet",
+    "diskRead": "{{read}} gelesen",
+    "diskWritten": "{{written}} geschrieben",
     "actionsFor": "Aktionen für {{name}}",
     "viewLogs": "Logs anzeigen",
     "action": {
