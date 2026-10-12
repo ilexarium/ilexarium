@@ -14,13 +14,21 @@ const summaries = [
     Names: ['/web'],
     Image: 'nginx:1.27',
     State: 'running',
+    Labels: { 'homelab.protected': 'true' },
     Ports: [
       { IP: '0.0.0.0', PrivatePort: 80, PublicPort: 8080, Type: 'tcp' },
       { IP: '::', PrivatePort: 80, PublicPort: 8080, Type: 'tcp' },
       { PrivatePort: 443, Type: 'tcp' },
     ],
   },
-  { Id: ID_A, Names: ['/app'], Image: 'app:latest', State: 'exited', Ports: [] },
+  {
+    Id: ID_A,
+    Names: ['/app'],
+    Image: 'app:latest',
+    State: 'exited',
+    Labels: { 'homelab.protected': 'yes' }, // only exactly "true" protects
+    Ports: [],
+  },
   { Id: ID_GONE, Names: ['/gone'], Image: 'x', State: 'running', Ports: [] },
 ];
 
@@ -165,6 +173,7 @@ describe('DockerService', () => {
         health: 'none',
         startedAt: null,
         ports: [],
+        protected: false,
       },
       {
         id: ID_B,
@@ -177,6 +186,7 @@ describe('DockerService', () => {
           { privatePort: 80, publicPort: 8080, ip: '0.0.0.0', protocol: 'tcp' },
           { privatePort: 443, protocol: 'tcp' },
         ],
+        protected: true,
       },
     ]);
     expect(fake.requests.map((r) => new URL(r.url, 'http://d').searchParams.get('all'))).toContain(

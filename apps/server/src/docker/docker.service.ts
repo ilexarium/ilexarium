@@ -9,6 +9,7 @@ import {
   type ContainerStats,
   containerNameSchema,
   type LogLine,
+  PROTECTED_LABEL,
 } from '@homelab/shared';
 import Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
@@ -89,6 +90,7 @@ export class DockerService {
             health: toHealth(details.State.Health?.Status),
             startedAt: startedAt && startedAt !== NEVER ? new Date(startedAt).toISOString() : null,
             ports: toPorts(summary.Ports),
+            protected: summary.Labels?.[PROTECTED_LABEL] === 'true',
           };
         } catch {
           return null; // removed between the list and the inspect

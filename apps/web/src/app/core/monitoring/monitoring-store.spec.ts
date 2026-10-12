@@ -69,6 +69,7 @@ const container = (id: string, containerStats: ContainerStats | null): Container
   health: 'none',
   startedAt: null,
   ports: [],
+  protected: false,
   stats: containerStats,
 });
 
