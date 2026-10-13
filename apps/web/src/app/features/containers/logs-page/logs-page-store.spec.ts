@@ -6,7 +6,7 @@ import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FIRST_RETRY_MS, RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
-import { LogStream, QUIET_MS } from './log-stream';
+import { LogsPageStore, QUIET_MS } from './logs-page-store';
 
 function line(i: number, stream: LogLine['stream'] = 'stdout'): LogLine {
   return { at: `2026-10-11T12:00:00.${String(i).padStart(9, '0')}Z`, stream, text: `line ${i}` };
@@ -20,10 +20,10 @@ const end = (container: string, reason: string) => ({
   data: { container, reason },
 });
 
-/** A page that provides its own stream, like the logs page will. */
-@Component({ selector: 'app-host', template: '', providers: [LogStream] })
+/** A page that provides its own store, like the logs page. */
+@Component({ selector: 'app-host', template: '', providers: [LogsPageStore] })
 class Host {
-  readonly logs = inject(LogStream);
+  readonly logs = inject(LogsPageStore);
 }
 
 function setVisibility(state: 'visible' | 'hidden') {
@@ -39,18 +39,18 @@ async function setup() {
       provideRouter([{ path: 'login', children: [] }]),
       auth.provider,
       sockets.provider,
-      LogStream,
+      LogsPageStore,
     ],
   });
   await TestBed.inject(AuthStore).load();
   TestBed.inject(RealtimeService).connect();
   sockets.latest().open();
-  const logs = TestBed.inject(LogStream);
+  const logs = TestBed.inject(LogsPageStore);
   TestBed.tick();
   return { logs, socket: () => sockets.latest() };
 }
 
-describe('LogStream', () => {
+describe('LogsPageStore', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => {
     vi.useRealTimers();
