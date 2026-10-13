@@ -18,7 +18,7 @@ const row = (id: string, change: Partial<ServiceJobRow> = {}): ServiceJobRow => 
   ...change,
 });
 
-// Saving a result needs the database (services.service.int-spec.ts); the slot and the output don't.
+// Saving a result needs the database (service-manager.int-spec.ts); the slot and the output don't.
 const jobs = () => new ServiceJobs({} as PrismaService, {} as DockerService);
 
 describe('ServiceJobs', () => {

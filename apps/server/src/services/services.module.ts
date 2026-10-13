@@ -9,12 +9,12 @@ import { ServiceJobs } from './service-jobs.js';
 import { ServiceSecrets } from './service-secrets.js';
 import { ServicesTopic } from './services-topic.js';
 import { ServicesController } from './services.controller.js';
-import { ServicesService } from './services.service.js';
+import { ServiceManager } from './service-manager.js';
 
 /** Installing and removing catalog services (docs/plans/service_deploys.md). */
 @Module({
   imports: [CatalogModule, DockerModule, ExecutorModule, HostModule, RealtimeModule, SecretsModule],
   controllers: [ServicesController],
-  providers: [ServicesService, ServiceJobs, ServiceSecrets, ServicesTopic],
+  providers: [ServiceManager, ServiceJobs, ServiceSecrets, ServicesTopic],
 })
 export class ServicesModule {}

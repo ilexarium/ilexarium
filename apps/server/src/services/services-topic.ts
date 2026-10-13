@@ -3,7 +3,7 @@ import type { ServicesList } from '@homelab/shared';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { ServiceJobs } from './service-jobs.js';
-import { ServicesService } from './services.service.js';
+import { ServiceManager } from './service-manager.js';
 
 /** Changes come in bursts (every output line): at most one update this often. */
 export const SERVICES_PUBLISH_MS = 250;
@@ -16,7 +16,7 @@ export class ServicesTopic implements TopicSource<'services'> {
   private timer: NodeJS.Timeout | null = null;
 
   constructor(
-    private readonly services: ServicesService,
+    private readonly services: ServiceManager,
     private readonly jobs: ServiceJobs,
     subscriptions: RealtimeSubscriptions,
   ) {

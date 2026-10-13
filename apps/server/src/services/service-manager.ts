@@ -48,7 +48,7 @@ const CLEAN_UP_AFTER: readonly ServiceErrorCode[] = [
  * `containers` topic (Compose project `hl-<id>`).
  */
 @Injectable()
-export class ServicesService {
+export class ServiceManager {
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,

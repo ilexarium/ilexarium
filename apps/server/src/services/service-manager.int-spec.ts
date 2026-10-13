@@ -21,7 +21,7 @@ import { SecretsService } from '../secrets/secrets.service.js';
 import { SystemReader } from '../host/system-reader.js';
 import { ServiceJobs } from './service-jobs.js';
 import { ServiceSecrets } from './service-secrets.js';
-import { ServicesService } from './services.service.js';
+import { ServiceManager } from './service-manager.js';
 
 const FIXTURES = fileURLToPath(new URL('../../test/fixtures/catalog', import.meta.url));
 
@@ -49,7 +49,7 @@ class FakeExecutor {
   }
 }
 
-describe('ServicesService (database)', () => {
+describe('ServiceManager (database)', () => {
   let prisma: PrismaService;
   let close: () => Promise<void>;
   let entry: CatalogEntry;
@@ -57,7 +57,7 @@ describe('ServicesService (database)', () => {
   let secrets: SecretsService;
   let executor: FakeExecutor;
   let containers: { composeProject: string; state: string }[];
-  let services: ServicesService;
+  let services: ServiceManager;
   let jobs: ServiceJobs;
   let user: PublicUser;
   const actor = () => ({ user, ip: '127.0.0.1' });
@@ -97,7 +97,7 @@ describe('ServicesService (database)', () => {
     jobs = new ServiceJobs(prisma, {
       listContainers: async () => containers,
     } as unknown as DockerService);
-    services = new ServicesService(
+    services = new ServiceManager(
       prisma,
       {
         get: (id: string) => (id === entry.meta.id ? entry : undefined),
