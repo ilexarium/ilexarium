@@ -1,4 +1,4 @@
-import { readFile, statfs } from 'node:fs/promises';
+import { readFile, stat, statfs } from 'node:fs/promises';
 import os from 'node:os';
 import { join } from 'node:path';
 import type { DiskUsage, HostInfo } from '@homelab/shared';
@@ -6,17 +6,18 @@ import {
   diskMounts,
   isShownInterface,
   parseCpuTimes,
+  parseListeningTcpPorts,
   parseMeminfo,
   parseMounts,
   parseNetDev,
   parseOsRelease,
 } from './proc-parsers.js';
-import type { CpuTimes, MemoryInfo, NetCounters } from './system-metrics.model.js';
+import type { CpuTimes, FolderState, MemoryInfo, NetCounters } from './host.model.js';
 
 /**
- * The only place system metrics are read: plain files under `/proc` and `/etc`, `statfs()` and
- * Node's `os` — no child processes, no privileges. Everything else works on what this returns,
- * so tests use a fake.
+ * The only place the host's state is read: plain files under `/proc` and `/etc`, folders,
+ * `statfs()` and Node's `os` — no child processes, no privileges. Everything else works on what
+ * this returns, so tests use a fake.
  */
 export class SystemReader {
   /** `root` is `/` on the host; container mode (later) points it at the host's mounted root. */
@@ -81,6 +82,28 @@ export class SystemReader {
       cpuModel: model && model.toLowerCase() !== 'unknown' ? model : null,
       cpuCores: os.availableParallelism(),
     };
+  }
+
+  /** TCP ports something listens on, IPv4 and IPv6 (`tcp6` is missing when IPv6 is off). */
+  async listeningTcpPorts(): Promise<Set<number>> {
+    const ports = new Set<number>();
+    for (const file of ['proc/net/tcp', 'proc/net/tcp6']) {
+      const text = await this.read(file).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return '';
+        throw error;
+      });
+      for (const port of parseListeningTcpPorts(text)) ports.add(port);
+    }
+    return ports;
+  }
+
+  /** What is at an absolute path, as far as the app's user may see. */
+  async folder(path: string): Promise<FolderState> {
+    try {
+      return (await stat(join(this.root, path))).isDirectory() ? 'folder' : 'other';
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'missing' : 'unreadable';
+    }
   }
 
   private read(path: string): Promise<string> {

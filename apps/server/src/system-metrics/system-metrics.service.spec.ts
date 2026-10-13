@@ -8,8 +8,8 @@ import {
   SAMPLE_INTERVAL_MS,
   SystemMetricsService,
 } from './system-metrics.service.js';
-import type { SystemReader } from './system-reader.js';
-import type { CpuTimes, MemoryInfo, NetCounters } from './system-metrics.model.js';
+import type { SystemReader } from '../host/system-reader.js';
+import type { CpuTimes, MemoryInfo, NetCounters } from '../host/host.model.js';
 
 const GiB = 1024 ** 3;
 const host: HostInfo = {

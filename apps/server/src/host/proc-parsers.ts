@@ -1,4 +1,4 @@
-import type { CpuTimes, MemoryInfo, Mount, NetCounters } from './system-metrics.model.js';
+import type { CpuTimes, MemoryInfo, Mount, NetCounters } from './host.model.js';
 // Pure parsers for the Linux files system metrics come from (see proc(5) and os-release(5)).
 // No file access here — `SystemReader` reads, these turn text into numbers.
 
@@ -145,4 +145,18 @@ export function parseOsRelease(osRelease: string): string | null {
     if (match) values.set(match[1], match[2].replace(/^(["'])(.*)\1$/, '$2'));
   }
   return values.get('PRETTY_NAME') || values.get('NAME') || null;
+}
+
+/**
+ * TCP ports something listens on, from `/proc/net/tcp` or `tcp6`: each line's `local_address` is
+ * `ADDR:PORT` in hex, and state `0A` is LISTEN.
+ */
+export function parseListeningTcpPorts(netTcp: string): Set<number> {
+  const ports = new Set<number>();
+  for (const line of netTcp.split('\n').slice(1)) {
+    const columns = line.trim().split(/\s+/);
+    const port = columns[1]?.split(':')[1];
+    if (columns[3] === '0A' && port) ports.add(parseInt(port, 16));
+  }
+  return ports;
 }
