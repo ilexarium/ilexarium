@@ -23,14 +23,14 @@ import type {
 } from '@homelab/shared';
 import type { Response } from 'express';
 import { CatalogIdParamsDto, DeployDto, ServiceIdParamsDto } from './services.dto.js';
-import { ServicesService } from './services.service.js';
+import { ServiceManager } from './service-manager.js';
 
 /** Per IP, for installs and removals only (slow and rare); reads aren't limited — pages poll them. */
 const CHANGE_LIMIT = { default: { limit: 10, ttl: 60_000 } };
 
 @Controller()
 export class ServicesController {
-  constructor(private readonly services: ServicesService) {}
+  constructor(private readonly services: ServiceManager) {}
 
   @Get('catalog')
   catalog(): Promise<CatalogEntrySummary[]> {

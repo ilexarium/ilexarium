@@ -1,7 +1,7 @@
 import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import { SERVICES_PUBLISH_MS, ServicesTopic } from './services-topic.js';
 import type { ServiceJobs } from './service-jobs.js';
-import type { ServicesService } from './services.service.js';
+import type { ServiceManager } from './service-manager.js';
 
 describe('ServicesTopic', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -18,7 +18,7 @@ describe('ServicesTopic', () => {
     };
     const subscriptions = { registerSource: vi.fn() };
     const topic = new ServicesTopic(
-      services as unknown as ServicesService,
+      services as unknown as ServiceManager,
       jobs as unknown as ServiceJobs,
       subscriptions as unknown as RealtimeSubscriptions,
     );
