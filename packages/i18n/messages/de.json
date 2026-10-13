@@ -5,7 +5,9 @@
     "dashboard": "Übersicht",
     "containers": "Container",
     "logs": "Logs · {{name}}",
-    "account": "Konto"
+    "account": "Konto",
+    "services": "Dienste",
+    "installService": "Dienst installieren"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -23,7 +25,8 @@
     "dashboard": "Übersicht",
     "containers": "Container",
     "settings": "Einstellungen",
-    "account": "Konto"
+    "account": "Konto",
+    "services": "Dienste"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -94,7 +97,22 @@
     "passwordTooLong": "Höchstens {{passwordMax}} Zeichen",
     "setupCodeRequired": "Gib den Einrichtungscode ein",
     "setupCodeInvalid": "Das ist kein gültiger Einrichtungscode",
-    "passwordsMismatch": "Die Passwörter stimmen nicht überein"
+    "passwordsMismatch": "Die Passwörter stimmen nicht überein",
+    "portInvalid": "Gib eine Portnummer ein",
+    "portRange": "Ein Port von {{portMin}} bis {{portMax}}",
+    "pathRequired": "Gib einen Ordner ein",
+    "pathInvalid": "Ein vollständiger Ordnerpfad, z. B. /srv/homelab/music",
+    "textRequired": "Gib einen Wert ein",
+    "textTooLong": "Höchstens {{textMax}} Zeichen",
+    "text": {
+      "username": "Nur Kleinbuchstaben, Ziffern, „.“, „_“ und „-“",
+      "timezone": "Eine Zeitzone wie Europe/Berlin"
+    },
+    "secretTooShort": "Mindestens {{secretMin}} Zeichen",
+    "secretTooLong": "Höchstens {{secretMax}} Zeichen",
+    "secretInvalid": "Eine Zeile, keine Steuerzeichen",
+    "optionInvalid": "Wähle eine der Optionen",
+    "catalogIdInvalid": "Kein Katalogeintrag"
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -110,7 +128,23 @@
     "container_not_found": "Diesen Container gibt es nicht mehr.",
     "container_protected": "Dieser Container gehört zur Plattform selbst und kann hier nicht gestoppt oder neu gestartet werden.",
     "docker_unavailable": "Docker ist gerade nicht erreichbar. Prüfe, ob es läuft, und versuche es noch einmal.",
-    "action_failed": "Docker konnte das nicht ausführen. Die Logs des Containers verraten vielleicht, warum."
+    "action_failed": "Docker konnte das nicht ausführen. Die Logs des Containers verraten vielleicht, warum.",
+    "catalog_entry_not_found": "Diesen Dienst gibt es im Katalog nicht.",
+    "service_not_found": "Diesen Dienst gibt es nicht mehr.",
+    "service_already_installed": "Dieser Dienst ist bereits installiert.",
+    "service_not_installed": "Dieser Dienst ist nicht installiert.",
+    "busy": "Gerade läuft eine andere Installation oder Entfernung. Versuche es, wenn sie fertig ist.",
+    "port_in_use": "Dieser Port wird bereits verwendet.",
+    "port_reserved": "Dieser Port ist für das System reserviert.",
+    "path_not_allowed": "Dieser Ordner liegt nicht in einem erlaubten Bereich.",
+    "path_not_found": "Diesen Ordner gibt es nicht.",
+    "invalid_values": "Einige Einstellungen sind ungültig.",
+    "policy_violation": "Das Rezept dieses Dienstes wurde von den Sicherheitsprüfungen abgelehnt.",
+    "compose_failed": "Der Dienst konnte nicht gestartet werden. Die Ausgabe zeigt, warum.",
+    "executor_unavailable": "Dieser Server ist noch nicht für die Installation von Diensten eingerichtet.",
+    "timed_out": "Das hat zu lange gedauert und wurde abgebrochen.",
+    "interrupted": "Die App wurde neu gestartet, während das lief.",
+    "audit_unavailable": "Es wurde nichts getan: Die Aktion konnte nicht im Audit-Log festgehalten werden."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -285,5 +319,123 @@
     "matches_one": "{{shown}} von {{count}} Zeile passt",
     "matches_other": "{{shown}} von {{count}} Zeilen passen",
     "jumpToLatest": "Zur neuesten Zeile"
+  },
+  "catalog": {
+    "navidrome": {
+      "description": "Dein eigener Musik-Streaming-Server: Spiele deine Musiksammlung im Browser oder mit jeder Subsonic-App auf dem Handy ab.",
+      "fields": {
+        "WEB_PORT": {
+          "label": "Web-Port",
+          "help": "Der Port, unter dem sich die Webseite von Navidrome öffnet."
+        },
+        "MUSIC_DIR": {
+          "label": "Musikordner",
+          "help": "Wo deine Musik liegt. Navidrome liest sie nur und ändert oder löscht nie Dateien."
+        },
+        "DATA_DIR": {
+          "label": "Datenordner",
+          "help": "Wo Navidrome seine Datenbank, Playlists und Cover speichert."
+        }
+      }
+    },
+    "immich": {
+      "description": "Sichere und durchsuche deine Fotos und Videos – mit automatischem Upload vom Handy, Alben, Gesichtern und Suche.",
+      "fields": {
+        "WEB_PORT": {
+          "label": "Web-Port",
+          "help": "Der Port, mit dem sich die Webseite und die Handy-App von Immich verbinden."
+        },
+        "UPLOAD_DIR": {
+          "label": "Ordner der Fotobibliothek",
+          "help": "Wo Immich deine Fotos und Videos speichert. Immich verwaltet diesen Ordner: Füge Fotos in Immich hinzu und lösche sie dort, nicht hier."
+        },
+        "TZ": {
+          "label": "Zeitzone",
+          "help": "Für Zeitangaben in den Logs, z. B. Europe/Berlin."
+        }
+      }
+    }
+  },
+  "services": {
+    "installed": {
+      "title": "Installiert",
+      "none": "Noch nichts installiert. Wähle unten einen Dienst aus dem Katalog.",
+      "loading": "Installierte Dienste werden geladen"
+    },
+    "catalog": {
+      "title": "Katalog",
+      "description": "Geprüfte Dienste, die du mit einem Klick installieren kannst.",
+      "failed": "Der Katalog konnte nicht geladen werden. Versuche es gleich noch einmal.",
+      "loading": "Katalog wird geladen"
+    },
+    "category": {
+      "media": "Medien",
+      "photos": "Fotos",
+      "productivity": "Produktivität",
+      "monitoring": "Überwachung",
+      "network": "Netzwerk",
+      "tools": "Werkzeuge"
+    },
+    "status": {
+      "installing": "Wird installiert…",
+      "installed": "Installiert",
+      "failed": "Fehlgeschlagen",
+      "removing": "Wird entfernt…",
+      "removed": "Entfernt"
+    },
+    "runtime": {
+      "running": "Läuft",
+      "partial": "Läuft teilweise",
+      "stopped": "Gestoppt",
+      "unhealthy": "Fehlerhaft"
+    },
+    "phase": {
+      "deploy": {
+        "pulling": "Herunterladen",
+        "starting": "Starten",
+        "done": "Bereit"
+      },
+      "remove": {
+        "removing": "Entfernen",
+        "done": "Fertig"
+      }
+    },
+    "job": {
+      "output": "Ausgabe",
+      "omitted": "Nicht angezeigte frühere Zeilen: {{count}}"
+    },
+    "install": "Installieren",
+    "installLabel": "{{name}} installieren",
+    "reinstall": "Erneut installieren",
+    "reinstallLabel": "{{name}} erneut installieren",
+    "open": "Öffnen",
+    "openLabel": "{{name}} in neuem Tab öffnen",
+    "retry": "Erneut versuchen",
+    "remove": {
+      "action": "Entfernen",
+      "title": "{{name}} entfernen?",
+      "text": "Seine Container werden gelöscht. Seine Daten und Einstellungen bleiben erhalten, sodass du ihn später erneut installieren kannst.",
+      "cancel": "Abbrechen",
+      "confirm": "Entfernen",
+      "failed": "{{name}} konnte nicht entfernt werden"
+    },
+    "back": "Zurück zu den Diensten",
+    "notFound": "Diesen Dienst gibt es im Katalog nicht.",
+    "form": {
+      "advanced": "Erweiterte Einstellungen",
+      "duration": "Bei der Installation werden die Images heruntergeladen und der Dienst gestartet. Das kann einige Minuten dauern; du kannst es auf der Dienste-Seite verfolgen.",
+      "submit": "Installieren",
+      "submitting": "Wird gestartet…",
+      "secretKept": "Leer lassen, um das bisherige zu behalten"
+    },
+    "access": {
+      "title": "{{name}} wird Folgendes können:",
+      "port": "Port {{port}} verwenden",
+      "read": "Lesen",
+      "write": "Lesen und ändern",
+      "volumes": "Eigene Daten in Docker-Volumes speichern",
+      "generatedSecrets": "Für ihn erzeugte Passwörter verwenden – verschlüsselt gespeichert und nie angezeigt",
+      "images": "Er führt diese Images aus:"
+    }
   }
 }

@@ -14,7 +14,7 @@ const summaries = [
     Names: ['/web'],
     Image: 'nginx:1.27',
     State: 'running',
-    Labels: { 'homelab.protected': 'true' },
+    Labels: { 'homelab.protected': 'true', 'com.docker.compose.project': 'hl-web' },
     Ports: [
       { IP: '0.0.0.0', PrivatePort: 80, PublicPort: 8080, Type: 'tcp' },
       { IP: '::', PrivatePort: 80, PublicPort: 8080, Type: 'tcp' },
@@ -174,6 +174,7 @@ describe('DockerService', () => {
         startedAt: null,
         ports: [],
         protected: false,
+        composeProject: null,
       },
       {
         id: ID_B,
@@ -187,6 +188,7 @@ describe('DockerService', () => {
           { privatePort: 443, protocol: 'tcp' },
         ],
         protected: true,
+        composeProject: 'hl-web',
       },
     ]);
     expect(fake.requests.map((r) => new URL(r.url, 'http://d').searchParams.get('all'))).toContain(

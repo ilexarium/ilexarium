@@ -49,13 +49,37 @@ export const envSchema = z
         error: 'Must be a tcp:// or http:// URL of the Docker socket proxy',
       })
       .default('tcp://127.0.0.1:2375'),
+    /** The key that encrypts services' secrets (32 random bytes, base64). Created in development. */
+    MASTER_KEY_FILE: z.string().trim().min(1).optional(),
+    /**
+     * The deploy wrapper's config (root-owned in production): the catalog folder, storage roots
+     * and reserved ports — the app reads the same file, so the two never disagree.
+     */
+    WRAPPER_CONFIG_FILE: z.string().trim().min(1).optional(),
+    /**
+     * How the executor runs the root wrapper: `sudo` (production) or `direct` — the wrapper from
+     * the repo, as the current user, for development and tests. Never `direct` in production.
+     */
+    EXECUTOR_MODE: z.enum(['sudo', 'direct']).optional(),
   })
-  .transform((env) => ({
-    ...env,
-    SETUP_TOKEN_FILE:
-      env.SETUP_TOKEN_FILE ??
-      (env.NODE_ENV === 'production' ? '/var/lib/homelab/setup-token' : '.dev/setup-token'),
-  }));
+  .transform((env) => {
+    const production = env.NODE_ENV === 'production';
+    return {
+      ...env,
+      SETUP_TOKEN_FILE:
+        env.SETUP_TOKEN_FILE ?? (production ? '/var/lib/homelab/setup-token' : '.dev/setup-token'),
+      MASTER_KEY_FILE:
+        env.MASTER_KEY_FILE ?? (production ? '/etc/homelab/master.key' : '.dev/master.key'),
+      WRAPPER_CONFIG_FILE:
+        env.WRAPPER_CONFIG_FILE ??
+        (production ? '/etc/homelab/wrappers.json' : '.dev/wrappers.json'),
+      EXECUTOR_MODE: env.EXECUTOR_MODE ?? (production ? 'sudo' : 'direct'),
+    };
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || env.EXECUTOR_MODE === 'sudo', {
+    path: ['EXECUTOR_MODE'],
+    error: 'Must be "sudo" in production: "direct" runs the wrapper without sudo',
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

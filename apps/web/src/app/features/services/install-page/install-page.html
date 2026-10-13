@@ -1,0 +1,16 @@
+<div class="grid max-w-2xl gap-4">
+  <a hlmBtn variant="link" class="justify-self-start px-0" routerLink="/services">
+    {{ 'services.back' | translate }}
+  </a>
+  @if (store.details(); as details) {
+    <app-install-form [details]="details" />
+  } @else if (store.problem(); as problem) {
+    <p role="alert" class="text-sm text-destructive">
+      {{ (problem === 'notFound' ? 'services.notFound' : 'services.catalog.failed') | translate }}
+    </p>
+  } @else {
+    <div role="status" [attr.aria-label]="'services.catalog.loading' | translate">
+      <hlm-skeleton class="h-64 w-full" />
+    </div>
+  }
+</div>

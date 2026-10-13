@@ -1,0 +1,82 @@
+<article hlmCard class="h-full gap-4">
+  <div hlmCardHeader class="flex flex-row items-start gap-3">
+    <img [src]="iconUrl()" alt="" width="40" height="40" class="size-10 shrink-0 rounded-lg" />
+    <div class="grid min-w-0 flex-1 gap-1">
+      <h3 hlmCardTitle>{{ service().name }}</h3>
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        @switch (service().status) {
+          @case ('installed') {
+            @if (runtime(); as state) {
+              <span hlmBadge [variant]="state === 'running' ? 'outline' : 'destructive'">{{
+                'services.runtime.' + state | translate
+              }}</span>
+            } @else {
+              <span hlmBadge variant="outline">{{ 'services.status.installed' | translate }}</span>
+            }
+          }
+          @case ('failed') {
+            <span hlmBadge variant="destructive">{{ 'services.status.failed' | translate }}</span>
+          }
+          @default {
+            <span class="flex items-center gap-1.5" role="status">
+              <ng-icon name="lucideLoaderCircle" class="size-3.5 animate-spin" aria-hidden="true" />
+              {{ 'services.status.' + service().status | translate }}
+            </span>
+          }
+        }
+        @if (service().webPort !== null) {
+          <span class="text-muted-foreground" dir="ltr">:{{ service().webPort }}</span>
+        }
+      </div>
+    </div>
+  </div>
+
+  @if (job(); as job) {
+    <div hlmCardContent>
+      <app-job-progress [job]="job" />
+    </div>
+  }
+
+  <div hlmCardFooter class="mt-auto flex min-h-9 flex-wrap gap-2">
+    @if (openUrl(); as url) {
+      <a
+        hlmBtn
+        [href]="url"
+        target="_blank"
+        rel="noopener noreferrer"
+        [attr.aria-label]="'services.openLabel' | translate: { name: service().name }"
+      >
+        <ng-icon name="lucideExternalLink" aria-hidden="true" />
+        {{ 'services.open' | translate }}
+      </a>
+    }
+    @if (service().status === 'failed') {
+      <a hlmBtn variant="outline" [routerLink]="['/services/install', service().catalogId]">
+        {{ 'services.retry' | translate }}
+      </a>
+    }
+    @if (canRemove()) {
+      <button hlmBtn variant="ghost" (click)="confirmRemove()">
+        <ng-icon name="lucideTrash2" aria-hidden="true" />
+        {{ 'services.remove.action' | translate }}
+      </button>
+    }
+  </div>
+</article>
+
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle>
+        {{ 'services.remove.title' | translate: { name: service().name } }}
+      </h2>
+      <p hlmAlertDialogDescription>{{ 'services.remove.text' | translate }}</p>
+    </hlm-alert-dialog-header>
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'services.remove.cancel' | translate }}</button>
+      <button hlmAlertDialogAction variant="destructive" (click)="confirmed()">
+        {{ 'services.remove.confirm' | translate }}
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

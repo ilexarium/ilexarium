@@ -1,0 +1,129 @@
+<section hlmCard>
+  <div hlmCardHeader>
+    <h2 hlmCardTitle>{{ details().meta.name }}</h2>
+    <p hlmCardDescription>{{ 'catalog.' + id() + '.description' | translate }}</p>
+  </div>
+  <div hlmCardContent>
+    <form [formRoot]="form" class="grid gap-5">
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error | errorText }}</p>
+        </div>
+      }
+
+      @for (f of mainFields(); track f.key) {
+        <ng-container *ngTemplateOutlet="fieldTemplate; context: { $implicit: f }" />
+      }
+
+      @if (advancedFields().length > 0) {
+        <details class="grid gap-5 rounded-md border p-3" [open]="advancedOpen()">
+          <summary class="cursor-pointer text-sm font-medium select-none">
+            {{ 'services.form.advanced' | translate }}
+          </summary>
+          <div class="mt-4 grid gap-5">
+            @for (f of advancedFields(); track f.key) {
+              <ng-container *ngTemplateOutlet="fieldTemplate; context: { $implicit: f }" />
+            }
+          </div>
+        </details>
+      }
+
+      <section aria-labelledby="access-title" class="grid gap-2 rounded-md bg-muted p-4 text-sm">
+        <h3 id="access-title" class="font-medium">
+          {{ 'services.access.title' | translate: { name: details().meta.name } }}
+        </h3>
+        <ul class="grid list-disc gap-1 ps-5">
+          @for (item of access(); track $index) {
+            <li>
+              {{ item.key | translate: item.params }}
+              @if (item.ltr !== null && item.key !== 'services.access.port') {
+                <code class="break-all" dir="ltr">{{ item.ltr }}</code>
+              }
+            </li>
+          }
+        </ul>
+        <p class="text-muted-foreground">{{ 'services.access.images' | translate }}</p>
+        <ul class="grid gap-1 ps-5">
+          @for (image of details().images; track image) {
+            <li>
+              <code class="text-xs break-all" dir="ltr">{{ image }}</code>
+            </li>
+          }
+        </ul>
+        <p class="text-muted-foreground">{{ 'services.form.duration' | translate }}</p>
+      </section>
+
+      <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
+        {{
+          (form().submitting() ? 'services.form.submitting' : 'services.form.submit') | translate
+        }}
+      </button>
+    </form>
+  </div>
+</section>
+
+<ng-template #fieldTemplate let-f>
+  <div hlmField>
+    @let label = 'catalog.' + id() + '.fields.' + f.key + '.label' | translate;
+    @switch (f.type) {
+      @case ('boolean') {
+        <label class="flex items-center gap-2 text-sm font-medium" [for]="f.key">
+          <input type="checkbox" class="size-4" [id]="f.key" [formField]="booleanField(f.key)" />
+          {{ label }}
+        </label>
+      }
+      @default {
+        <label hlmFieldLabel [for]="f.key">{{ label }}</label>
+        @switch (f.type) {
+          @case ('port') {
+            <input
+              hlmInput
+              type="number"
+              inputmode="numeric"
+              dir="ltr"
+              class="max-w-40"
+              [id]="f.key"
+              [formField]="numberField(f.key)"
+            />
+          }
+          @case ('secret') {
+            <div class="relative">
+              <input
+                hlmInput
+                dir="ltr"
+                class="pe-10"
+                autocomplete="new-password"
+                [id]="f.key"
+                [type]="showSecrets() ? 'text' : 'password'"
+                [attr.placeholder]="kept(f) ? ('services.form.secretKept' | translate) : null"
+                [formField]="textField(f.key)"
+              />
+              <app-password-toggle [(visible)]="showSecrets" />
+            </div>
+          }
+          @case ('enum') {
+            <select hlmInput dir="ltr" [id]="f.key" [formField]="textField(f.key)">
+              @for (option of f.options; track option) {
+                <option [value]="option">{{ option }}</option>
+              }
+            </select>
+          }
+          @default {
+            <input
+              hlmInput
+              type="text"
+              dir="ltr"
+              spellcheck="false"
+              [id]="f.key"
+              [formField]="textField(f.key)"
+            />
+          }
+        }
+      }
+    }
+    <p hlmFieldDescription>{{ 'catalog.' + id() + '.fields.' + f.key + '.help' | translate }}</p>
+    @for (error of field(f.key)().errors(); track error) {
+      <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+    }
+  </div>
+</ng-template>

@@ -10,6 +10,7 @@ import { ContainersModule } from './containers/containers.module.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
+import { ServicesModule } from './services/services.module.js';
 import { SystemMetricsModule } from './system-metrics/system-metrics.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module.js';
     ContainersModule,
     ContainerLogsModule,
     ContainerActionsModule,
+    ServicesModule,
   ],
   providers: [{ provide: APP_PIPE, useClass: ZodValidationPipe }],
 })

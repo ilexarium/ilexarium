@@ -17,6 +17,7 @@ const stopped: Container = {
   startedAt: null,
   ports: [],
   protected: false,
+  composeProject: null,
   stats: null,
 };
 

@@ -70,6 +70,7 @@ const container = (id: string, containerStats: ContainerStats | null): Container
   startedAt: null,
   ports: [],
   protected: false,
+  composeProject: null,
   stats: containerStats,
 });
 

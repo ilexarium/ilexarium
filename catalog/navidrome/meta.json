@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "navidrome",
+  "version": "1",
+  "name": "Navidrome",
+  "category": "media",
+  "website": "https://www.navidrome.org",
+  "webPort": "WEB_PORT",
+  "dataOwner": { "uid": 1000, "gid": 1000 },
+  "fields": [
+    { "key": "WEB_PORT", "type": "port", "default": 4533 },
+    {
+      "key": "MUSIC_DIR",
+      "type": "path",
+      "default": "/srv/homelab/navidrome/music",
+      "access": "read"
+    },
+    {
+      "key": "DATA_DIR",
+      "type": "path",
+      "default": "/srv/homelab/navidrome/data",
+      "access": "write",
+      "advanced": true
+    }
+  ]
+}

@@ -16,6 +16,8 @@ model User {
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
   sessions     Session[]
+  services     Service[]
+  serviceJobs  ServiceJob[]
 }
 
 /// Mirrors @nestjs/authentication's SessionRecord. Times come from the package's clock, never DB defaults.
@@ -53,4 +55,71 @@ model AuditEvent {
 
   @@index([at])
   @@index([userId])
+}
+
+/// A catalog service installed on this machine (docs/plans/service_deploys.md). One per catalog
+/// entry. Kept as `removed` after a removal: its settings and secrets serve a reinstall, which
+/// must reuse them (its data was set up with them).
+model Service {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  catalogId      String          @unique
+  catalogVersion String
+  status         ServiceStatus
+  /// The non-secret values it was installed with.
+  settings       Json
+  secrets        ServiceSecret[]
+  jobs           ServiceJob[]
+  createdById    String?         @db.Uuid
+  createdBy      User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+}
+
+enum ServiceStatus {
+  installing
+  installed
+  failed
+  removing
+  removed
+}
+
+/// A secret value of a service, encrypted (AES-256-GCM, bound to service id and key).
+model ServiceSecret {
+  serviceId String  @db.Uuid
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  key       String
+  value     Bytes
+
+  @@id([serviceId, key])
+}
+
+/// One install or removal: its progress and output (secrets masked, at most 256 KB).
+model ServiceJob {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  serviceId   String     @db.Uuid
+  service     Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  kind        JobKind
+  status      JobStatus
+  phase       String?
+  errorCode   String?
+  errorField  String?
+  output      String     @default("")
+  startedById String?    @db.Uuid
+  startedBy   User?      @relation(fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt   DateTime   @default(now()) @db.Timestamptz(3)
+  finishedAt  DateTime?  @db.Timestamptz(3)
+
+  @@index([serviceId, startedAt])
+}
+
+enum JobKind {
+  deploy
+  remove
+}
+
+enum JobStatus {
+  running
+  succeeded
+  failed
+  interrupted
 }

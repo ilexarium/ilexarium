@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CATALOG_LIMITS } from './catalog.js';
 
 export const USERNAME_MIN_LENGTH = 3;
 export const USERNAME_MAX_LENGTH = 32;
@@ -17,6 +18,11 @@ export const VALIDATION_LIMITS = {
   usernameMax: USERNAME_MAX_LENGTH,
   passwordMin: PASSWORD_MIN_LENGTH,
   passwordMax: PASSWORD_MAX_LENGTH,
+  portMin: CATALOG_LIMITS.portMin,
+  portMax: CATALOG_LIMITS.portMax,
+  secretMin: CATALOG_LIMITS.secretMin,
+  secretMax: CATALOG_LIMITS.secretMax,
+  textMax: CATALOG_LIMITS.textMax,
 } as const;
 
 /** Username when choosing one (setup). Normalised to lowercase before the checks run. */

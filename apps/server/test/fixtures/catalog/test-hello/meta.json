@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "test-hello",
+  "version": "1",
+  "name": "Test Hello",
+  "category": "tools",
+  "website": "https://example.org",
+  "webPort": "WEB_PORT",
+  "dataOwner": { "uid": 0, "gid": 0 },
+  "fields": [
+    { "key": "WEB_PORT", "type": "port", "default": 18080 },
+    {
+      "key": "SITE_DIR",
+      "type": "path",
+      "default": "/srv/homelab/test-hello/site",
+      "access": "read"
+    },
+    { "key": "TOKEN", "type": "generatedSecret" }
+  ]
+}

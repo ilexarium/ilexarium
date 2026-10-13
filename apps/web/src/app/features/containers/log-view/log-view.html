@@ -64,7 +64,7 @@
       @if (entry.kind === 'line') {
         <li
           class="flex min-w-full flex-col px-3 [contain-intrinsic-block-size:auto_1.25rem] [content-visibility:auto] sm:flex-row sm:gap-3"
-          [class]="{ 'w-max': !prefs.wrap(), 'bg-destructive/10': entry.stream === 'stderr' }"
+          [class]="{ 'w-max': !prefs.wrap() }"
         >
           @if (prefs.timestamps() || entry.stream === 'stderr') {
             <span class="flex shrink-0 items-center gap-2">

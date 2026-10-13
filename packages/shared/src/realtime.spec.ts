@@ -51,6 +51,7 @@ const container: Container = {
   startedAt: '2026-10-11T12:00:00.000Z',
   ports: [{ privatePort: 8096, publicPort: 8096, ip: '0.0.0.0', protocol: 'tcp' }],
   protected: false,
+  composeProject: null,
   stats: {
     at: 1_791_720_000_000,
     cpuPercent: 150,

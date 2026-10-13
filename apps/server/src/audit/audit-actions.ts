@@ -7,6 +7,8 @@ export const AUDIT_ACTIONS = [
   'container.start',
   'container.stop',
   'container.restart',
+  'service.deploy',
+  'service.remove',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
