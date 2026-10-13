@@ -1,12 +1,13 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { SERVICE_ERROR_CODES, type ServiceErrorCode } from '@homelab/shared';
 import type { WrapperConfig } from '../executor/executor.model.js';
+import type { FolderState } from '../host/host.model.js';
 
 /**
  * The app's friendly pre-checks of ports and folders, so the form can show "port in use" on the
- * right field before anything runs. The root wrapper checks the same things again, for real —
- * these only read files (no commands) and may be wrong in edge cases; the wrapper decides.
+ * right field before anything runs. Decisions only: what the host looks like comes from the
+ * `SystemReader` (`host/`). The root wrapper checks the same things again, for real — these may be
+ * wrong in edge cases; the wrapper decides.
  */
 
 /** Never mounted, whatever the config says (the wrapper keeps the same list). */
@@ -30,19 +31,6 @@ const DENIED_PATHS = [
 
 const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
 
-/** TCP ports something listens on (IPv4 and IPv6), from /proc/net. */
-export function listeningPorts(): Set<number> {
-  const ports = new Set<number>();
-  for (const file of ['/proc/net/tcp', '/proc/net/tcp6']) {
-    if (!existsSync(file)) continue;
-    for (const line of readFileSync(file, 'utf8').split('\n').slice(1)) {
-      const columns = line.trim().split(/\s+/);
-      if (columns[3] === '0A') ports.add(parseInt(columns[1].split(':')[1], 16));
-    }
-  }
-  return ports;
-}
-
 export function checkPort(
   port: number,
   config: WrapperConfig,
@@ -53,28 +41,34 @@ export function checkPort(
   return null;
 }
 
-/** Inside a storage root, not a system or platform folder, and existing — or the service's own (created on deploy). */
+/** Where a folder may be: inside a storage root, never a system or platform folder (nor containing one). */
+export function folderAllowed(path: string, config: WrapperConfig): boolean {
+  return (
+    path !== '/' &&
+    config.storageRoots.some((root) => inside(path, root)) &&
+    !DENIED_PATHS.some((denied) => inside(path, denied) || inside(denied, path)) &&
+    !config.protectedPaths.some((p) => inside(path, p) || inside(p, path))
+  );
+}
+
+/** A folder inside the service's own area (`<serviceRoot>/<id>/…`): created on deploy if missing. */
+export function inServiceArea(path: string, catalogId: string, config: WrapperConfig): boolean {
+  const own = join(config.serviceRoot, catalogId);
+  return inside(path, own) && path !== own;
+}
+
+/** The pre-check's answer for a folder, given what is there (`SystemReader.folder`). */
 export function checkFolder(
   path: string,
   catalogId: string,
   config: WrapperConfig,
+  state: FolderState,
 ): ServiceErrorCode | null {
-  const allowed =
-    path !== '/' &&
-    config.storageRoots.some((root) => inside(path, root)) &&
-    !DENIED_PATHS.some((denied) => inside(path, denied) || inside(denied, path)) &&
-    !config.protectedPaths.some((p) => inside(path, p) || inside(p, path));
-  if (!allowed) return SERVICE_ERROR_CODES.pathNotAllowed;
-  const own = join(config.serviceRoot, catalogId);
-  if (inside(path, own) && path !== own) return null;
-  try {
-    return statSync(path).isDirectory() ? null : SERVICE_ERROR_CODES.pathNotFound;
-  } catch (error) {
-    // Not readable by the app (e.g. another user's folder): leave it to the wrapper.
-    return (error as NodeJS.ErrnoException).code === 'ENOENT'
-      ? SERVICE_ERROR_CODES.pathNotFound
-      : null;
-  }
+  if (!folderAllowed(path, config)) return SERVICE_ERROR_CODES.pathNotAllowed;
+  if (inServiceArea(path, catalogId, config)) return null;
+  // Not readable by the app (e.g. another user's folder): leave it to the wrapper.
+  if (state === 'folder' || state === 'unreadable') return null;
+  return SERVICE_ERROR_CODES.pathNotFound;
 }
 
 /** A folder default written for /srv/homelab, moved to this machine's service root. */

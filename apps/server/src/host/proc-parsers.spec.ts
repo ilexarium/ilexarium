@@ -4,6 +4,7 @@ import {
   diskMounts,
   isShownInterface,
   parseCpuTimes,
+  parseListeningTcpPorts,
   parseMeminfo,
   parseMounts,
   parseNetDev,
@@ -182,5 +183,23 @@ describe('parseOsRelease', () => {
 
   it('is null when neither is there', () => {
     expect(parseOsRelease('ID=custom\n')).toBeNull();
+  });
+});
+
+describe('parseListeningTcpPorts', () => {
+  it('finds the listening ports (state 0A), IPv4 and IPv6, and nothing else', () => {
+    const tcp = [
+      '  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode',
+      '   0: 0100007F:0BB8 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1001        0 1',
+      '   1: 00000000:0016 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 2',
+      '   2: 0100007F:0BB8 0100007F:D431 01 00000000:00000000 00:00000000 00000000  1001        0 3',
+    ].join('\n');
+    expect(parseListeningTcpPorts(tcp)).toEqual(new Set([3000, 22]));
+    const tcp6 = [
+      '  sl  local_address                         remote_address                        st',
+      '   0: 00000000000000000000000000000000:11C1 00000000000000000000000000000000:0000 0A',
+    ].join('\n');
+    expect(parseListeningTcpPorts(tcp6)).toEqual(new Set([4545]));
+    expect(parseListeningTcpPorts('')).toEqual(new Set());
   });
 });

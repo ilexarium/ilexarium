@@ -18,6 +18,9 @@ import type { WrapperConfigService } from '../executor/wrapper-config.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SecretsService } from '../secrets/secrets.service.js';
+import { SystemReader } from '../host/system-reader.js';
+import { ServiceJobs } from './service-jobs.js';
+import { ServiceSecrets } from './service-secrets.js';
 import { ServicesService } from './services.service.js';
 
 const FIXTURES = fileURLToPath(new URL('../../test/fixtures/catalog', import.meta.url));
@@ -55,6 +58,7 @@ describe('ServicesService (database)', () => {
   let executor: FakeExecutor;
   let containers: { composeProject: string; state: string }[];
   let services: ServicesService;
+  let jobs: ServiceJobs;
   let user: PublicUser;
   const actor = () => ({ user, ip: '127.0.0.1' });
 
@@ -90,6 +94,9 @@ describe('ServicesService (database)', () => {
         dockerBin: '/usr/bin/docker',
       },
     } as unknown as WrapperConfigService;
+    jobs = new ServiceJobs(prisma, {
+      listContainers: async () => containers,
+    } as unknown as DockerService);
     services = new ServicesService(
       prisma,
       {
@@ -97,9 +104,10 @@ describe('ServicesService (database)', () => {
         list: () => [entry],
       } as unknown as CatalogService,
       executor as unknown as ExecutorService,
-      secrets,
+      jobs,
+      new ServiceSecrets(secrets),
       wrapperConfig,
-      { listContainers: async () => containers } as unknown as DockerService,
+      new SystemReader(),
     );
   });
 
@@ -271,7 +279,7 @@ describe('ServicesService (database)', () => {
         data: { serviceId: service.id, kind, status: 'running' },
       });
       containers = [...running];
-      await services.onApplicationBootstrap();
+      await jobs.onApplicationBootstrap();
       expect(await prisma.serviceJob.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({
         status: 'interrupted',
         errorCode: 'interrupted',

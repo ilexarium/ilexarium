@@ -1,3 +1,4 @@
+import { createServer, type AddressInfo } from 'node:net';
 import { diskUsageSchema, hostInfoSchema } from '@homelab/shared';
 import { SystemReader } from './system-reader.js';
 
@@ -28,6 +29,23 @@ describe('SystemReader (this machine)', () => {
   it('reads host info in the shared shape', async () => {
     const host = await reader.hostInfo();
     expect(hostInfoSchema.parse(host)).toEqual(host);
+  });
+
+  it('reads the listening TCP ports (a port it opens itself among them)', async () => {
+    const server = createServer();
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const { port } = server.address() as AddressInfo;
+      expect((await reader.listeningTcpPorts()).has(port)).toBe(true);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('tells a folder, something else and nothing apart', async () => {
+    expect(await reader.folder('/proc')).toBe('folder');
+    expect(await reader.folder('/proc/meminfo')).toBe('other');
+    expect(await reader.folder('/no/such/folder')).toBe('missing');
   });
 
   it('fails clearly when the files are not there', async () => {

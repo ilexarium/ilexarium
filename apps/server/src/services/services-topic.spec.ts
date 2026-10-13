@@ -1,5 +1,6 @@
 import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import { SERVICES_PUBLISH_MS, ServicesTopic } from './services-topic.js';
+import type { ServiceJobs } from './service-jobs.js';
 import type { ServicesService } from './services.service.js';
 
 describe('ServicesTopic', () => {
@@ -8,8 +9,8 @@ describe('ServicesTopic', () => {
 
   function setup() {
     let listener: (() => void) | null = null;
-    const services = {
-      list: vi.fn(async () => []),
+    const services = { list: vi.fn(async () => []) };
+    const jobs = {
       onChange: vi.fn((l: () => void) => {
         listener = l;
         return () => (listener = null);
@@ -18,6 +19,7 @@ describe('ServicesTopic', () => {
     const subscriptions = { registerSource: vi.fn() };
     const topic = new ServicesTopic(
       services as unknown as ServicesService,
+      jobs as unknown as ServiceJobs,
       subscriptions as unknown as RealtimeSubscriptions,
     );
     return { topic, services, subscriptions, change: () => listener?.() };
