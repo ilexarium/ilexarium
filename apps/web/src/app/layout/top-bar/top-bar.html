@@ -1,46 +1,42 @@
 <button hlmSidebarTrigger [srOnlyText]="'nav.toggle' | translate" class="-ms-1"></button>
-<hlm-separator orientation="vertical" class="me-2 h-4" />
+<hlm-separator orientation="vertical" class="me-2" />
 <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
 <app-connection-status class="ms-auto" />
 <app-theme-menu />
 <button
-  hlmBtn
-  variant="ghost"
-  class="gap-2 px-2"
-  [hlmDropdownMenuTrigger]="userMenu"
-  align="end"
-  [attr.aria-label]="'userMenu.open' | translate"
+    hlmBtn
+    variant="ghost"
+    class="gap-2 px-2"
+    [hlmDropdownMenuTrigger]="userMenu"
+    align="end"
+    [attr.aria-label]="'userMenu.open' | translate"
 >
-  <hlm-avatar class="size-7">
-    <span hlmAvatarFallback class="text-xs">{{ initials() }}</span>
-  </hlm-avatar>
-  <span class="hidden text-sm sm:inline">{{ auth.user()?.username }}</span>
+    <hlm-avatar class="size-7">
+        <span hlmAvatarFallback class="text-xs">{{ initials() }}</span>
+    </hlm-avatar>
+    <span class="hidden text-sm sm:inline">{{ auth.user()?.username }}</span>
 </button>
 <ng-template #userMenu>
-  <hlm-dropdown-menu class="w-48">
-    <div hlmDropdownMenuLabel>{{ auth.user()?.username }}</div>
-    <hlm-dropdown-menu-separator />
-    <div hlmDropdownMenuLabel>{{ 'userMenu.language' | translate }}</div>
-    <div hlmDropdownMenuGroup>
-      @for (language of languages.available; track language) {
-        <button
-          hlmDropdownMenuRadio
-          [checked]="languages.language() === language"
-          [keepOpen]="false"
-          [attr.lang]="language"
-          (triggered)="languages.setLanguage(language)"
-        >
-          <hlm-dropdown-menu-radio-indicator />
-          {{ names[language] }}
-        </button>
-      }
-    </div>
-    <hlm-dropdown-menu-separator />
-    <a hlmDropdownMenuItem routerLink="/settings/account">{{
-      'userMenu.changePassword' | translate
-    }}</a>
-    <button hlmDropdownMenuItem (click)="auth.logout()">
-      {{ 'userMenu.signOut' | translate }}
-    </button>
-  </hlm-dropdown-menu>
+    <hlm-dropdown-menu class="w-48">
+        <div hlmDropdownMenuLabel>{{ auth.user()?.username }}</div>
+        <hlm-dropdown-menu-separator />
+        <div hlmDropdownMenuLabel>{{ 'userMenu.language' | translate }}</div>
+        <div hlmDropdownMenuGroup>
+            @for (language of languages.available; track language) {
+            <button
+                hlmDropdownMenuRadio
+                [checked]="languages.language() === language"
+                [keepOpen]="false"
+                [attr.lang]="language"
+                (triggered)="languages.setLanguage(language)"
+            >
+                <hlm-dropdown-menu-radio-indicator />
+                {{ names[language] }}
+            </button>
+            }
+        </div>
+        <hlm-dropdown-menu-separator />
+        <a hlmDropdownMenuItem routerLink="/settings/account">{{ 'userMenu.changePassword' | translate }}</a>
+        <button hlmDropdownMenuItem (click)="auth.logout()">{{ 'userMenu.signOut' | translate }}</button>
+    </hlm-dropdown-menu>
 </ng-template>

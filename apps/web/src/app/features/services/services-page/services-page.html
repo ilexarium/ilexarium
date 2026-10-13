@@ -1,0 +1,50 @@
+<div class="grid gap-8">
+  <section aria-labelledby="installed-title" class="grid gap-4">
+    <h2 id="installed-title" class="text-lg font-semibold">
+      {{ 'services.installed.title' | translate }}
+    </h2>
+    @if (store.installed(); as services) {
+      @if (services.length === 0) {
+        <p class="text-sm text-muted-foreground">{{ 'services.installed.none' | translate }}</p>
+      } @else {
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          @for (service of services; track service.id) {
+            <app-installed-service
+              [service]="service"
+              [runtime]="store.runtimes().get(service.catalogId) ?? null"
+              (remove)="store.remove(service)"
+            />
+          }
+        </div>
+      }
+    } @else {
+      <div role="status" [attr.aria-label]="'services.installed.loading' | translate">
+        <hlm-skeleton class="h-32 w-full max-w-md" />
+      </div>
+    }
+  </section>
+
+  <section aria-labelledby="catalog-title" class="grid gap-4">
+    <div class="grid gap-1">
+      <h2 id="catalog-title" class="text-lg font-semibold">
+        {{ 'services.catalog.title' | translate }}
+      </h2>
+      <p class="text-sm text-muted-foreground">{{ 'services.catalog.description' | translate }}</p>
+    </div>
+    @if (store.catalog(); as entries) {
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        @for (entry of entries; track entry.id) {
+          <app-catalog-card [entry]="entry" [status]="store.statuses().get(entry.id) ?? null" />
+        }
+      </div>
+    } @else if (store.catalogFailed()) {
+      <p role="alert" class="text-sm text-destructive">
+        {{ 'services.catalog.failed' | translate }}
+      </p>
+    } @else {
+      <div role="status" [attr.aria-label]="'services.catalog.loading' | translate">
+        <hlm-skeleton class="h-40 w-full max-w-md" />
+      </div>
+    }
+  </section>
+</div>

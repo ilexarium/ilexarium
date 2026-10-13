@@ -1,0 +1,43 @@
+<div class="grid gap-3">
+  <ol class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+    @for (step of steps(); track step.phase) {
+      <li
+        class="flex items-center gap-1.5"
+        [class.text-muted-foreground]="step.state === 'waiting'"
+        [class.text-destructive]="step.state === 'failed'"
+        [attr.aria-current]="step.state === 'current' ? 'step' : null"
+      >
+        <ng-icon
+          [name]="icons[step.state]"
+          class="size-4 shrink-0"
+          [class.animate-spin]="step.state === 'current'"
+          aria-hidden="true"
+        />
+        {{ 'services.phase.' + job().kind + '.' + step.phase | translate }}
+      </li>
+    }
+  </ol>
+
+  @if (job().status === 'failed' || job().status === 'interrupted') {
+    <p role="alert" class="text-sm text-destructive">
+      {{ 'errors.' + (job().errorCode ?? 'compose_failed') | translate }}
+    </p>
+  }
+
+  @if (job().output.length > 0) {
+    <details class="rounded-md border text-sm" [open]="job().status === 'failed'">
+      <summary class="cursor-pointer px-3 py-2 select-none">
+        {{ 'services.job.output' | translate }}
+      </summary>
+      @if (job().omitted > 0) {
+        <p class="px-3 text-xs text-muted-foreground">
+          {{ 'services.job.omitted' | translate: { count: job().omitted } }}
+        </p>
+      }
+      <pre
+        class="max-h-64 overflow-auto px-3 pb-3 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all"
+        dir="ltr"
+        >{{ job().output.join('\n') }}</pre>
+    </details>
+  }
+</div>

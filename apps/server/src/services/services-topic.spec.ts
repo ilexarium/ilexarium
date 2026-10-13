@@ -1,0 +1,53 @@
+import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
+import { SERVICES_PUBLISH_MS, ServicesTopic } from './services-topic.js';
+import type { ServicesService } from './services.service.js';
+
+describe('ServicesTopic', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  function setup() {
+    let listener: (() => void) | null = null;
+    const services = {
+      list: vi.fn(async () => []),
+      onChange: vi.fn((l: () => void) => {
+        listener = l;
+        return () => (listener = null);
+      }),
+    };
+    const subscriptions = { registerSource: vi.fn() };
+    const topic = new ServicesTopic(
+      services as unknown as ServicesService,
+      subscriptions as unknown as RealtimeSubscriptions,
+    );
+    return { topic, services, subscriptions, change: () => listener?.() };
+  }
+
+  it('registers itself as the services topic', () => {
+    const { topic, subscriptions } = setup();
+    expect(subscriptions.registerSource).toHaveBeenCalledWith(topic);
+    expect(topic.topic).toBe('services');
+  });
+
+  it('publishes a burst of changes (every output line) as one update', async () => {
+    const { topic, services, change } = setup();
+    const publish = vi.fn();
+    topic.start(publish);
+    for (let i = 0; i < 20; i++) change();
+    await vi.advanceTimersByTimeAsync(SERVICES_PUBLISH_MS);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledWith({ services: [] });
+    expect(services.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops listening when stopped', async () => {
+    const { topic, change } = setup();
+    const publish = vi.fn();
+    topic.start(publish);
+    change();
+    topic.stop();
+    change();
+    await vi.advanceTimersByTimeAsync(SERVICES_PUBLISH_MS * 2);
+    expect(publish).not.toHaveBeenCalled();
+  });
+});

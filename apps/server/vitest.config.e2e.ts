@@ -17,6 +17,9 @@ export default defineConfig({
       NODE_ENV: 'test',
       DATABASE_URL: testDatabaseUrl,
       SETUP_TOKEN_FILE: '.dev/setup-token.test',
+      // Created with development defaults if missing; test/services.e2e-spec.ts writes its own.
+      WRAPPER_CONFIG_FILE: '.dev/wrappers.test.json',
+      MASTER_KEY_FILE: '.dev/master.test.key',
       // The dev Docker socket proxy (npm run db:up); tests needing it are skipped when it's down.
       DOCKER_HOST: process.env.TEST_DOCKER_HOST ?? 'tcp://127.0.0.1:2375',
     },

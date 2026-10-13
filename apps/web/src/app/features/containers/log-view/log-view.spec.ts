@@ -94,6 +94,8 @@ describe('LogView', () => {
     const { lines } = await render([entry('fine'), entry('broken', 'stderr')]);
     expect(lines()[0].textContent).not.toContain('stderr');
     expect(lines()[1].textContent).toContain('stderr');
+    // The channel, not an error: no tinted line (many services log everything to stderr).
+    expect(lines()[1].className).not.toContain('destructive');
     expect(lines()[1].querySelector('ng-icon[name="lucideTriangleAlert"]')).not.toBeNull();
   });
 

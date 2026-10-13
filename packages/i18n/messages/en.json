@@ -5,7 +5,9 @@
     "dashboard": "Dashboard",
     "containers": "Containers",
     "logs": "Logs · {{name}}",
-    "account": "Account"
+    "account": "Account",
+    "services": "Services",
+    "installService": "Install a service"
   },
   "app": {
     "loading": "Loading…",
@@ -23,7 +25,8 @@
     "dashboard": "Dashboard",
     "containers": "Containers",
     "settings": "Settings",
-    "account": "Account"
+    "account": "Account",
+    "services": "Services"
   },
   "userMenu": {
     "open": "Account menu",
@@ -94,7 +97,22 @@
     "passwordTooLong": "At most {{passwordMax}} characters",
     "setupCodeRequired": "Enter the setup code",
     "setupCodeInvalid": "This is not a valid setup code",
-    "passwordsMismatch": "Passwords do not match"
+    "passwordsMismatch": "Passwords do not match",
+    "portInvalid": "Enter a port number",
+    "portRange": "A port from {{portMin}} to {{portMax}}",
+    "pathRequired": "Enter a folder",
+    "pathInvalid": "A full folder path, like /srv/homelab/music",
+    "textRequired": "Enter a value",
+    "textTooLong": "At most {{textMax}} characters",
+    "text": {
+      "username": "Only lowercase letters, digits, \".\", \"_\" and \"-\"",
+      "timezone": "A time zone like Europe/Berlin"
+    },
+    "secretTooShort": "At least {{secretMin}} characters",
+    "secretTooLong": "At most {{secretMax}} characters",
+    "secretInvalid": "One line, no control characters",
+    "optionInvalid": "Choose one of the options",
+    "catalogIdInvalid": "Not a catalog entry"
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -110,7 +128,23 @@
     "container_not_found": "This container doesn't exist anymore.",
     "container_protected": "This container is part of the platform itself and can't be stopped or restarted here.",
     "docker_unavailable": "Docker isn't reachable right now. Make sure it's running and try again.",
-    "action_failed": "Docker couldn't do it. The container's logs may tell why."
+    "action_failed": "Docker couldn't do it. The container's logs may tell why.",
+    "catalog_entry_not_found": "This service isn't in the catalog.",
+    "service_not_found": "This service doesn't exist anymore.",
+    "service_already_installed": "This service is already installed.",
+    "service_not_installed": "This service isn't installed.",
+    "busy": "Another install or removal is running. Try again when it has finished.",
+    "port_in_use": "This port is already in use.",
+    "port_reserved": "This port is reserved for the system.",
+    "path_not_allowed": "This folder is not in an allowed area.",
+    "path_not_found": "This folder doesn't exist.",
+    "invalid_values": "Some settings are not valid.",
+    "policy_violation": "This service's recipe was refused by the safety checks.",
+    "compose_failed": "The service could not be started. The output shows why.",
+    "executor_unavailable": "This server isn't set up for installing services yet.",
+    "timed_out": "This took too long and was stopped.",
+    "interrupted": "The app restarted while this was running.",
+    "audit_unavailable": "Nothing was done: the action couldn't be recorded in the audit log."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -285,5 +319,123 @@
     "matches_one": "{{shown}} of {{count}} line matches",
     "matches_other": "{{shown}} of {{count}} lines match",
     "jumpToLatest": "Jump to latest"
+  },
+  "catalog": {
+    "navidrome": {
+      "description": "Your own music streaming server: play your music collection in the browser or with any Subsonic app on your phone.",
+      "fields": {
+        "WEB_PORT": {
+          "label": "Web port",
+          "help": "The port Navidrome's web page opens on."
+        },
+        "MUSIC_DIR": {
+          "label": "Music folder",
+          "help": "Where your music is. Navidrome only reads it, it never changes or deletes files."
+        },
+        "DATA_DIR": {
+          "label": "Data folder",
+          "help": "Where Navidrome keeps its database, playlists and covers."
+        }
+      }
+    },
+    "immich": {
+      "description": "Back up and browse your photos and videos, with automatic upload from your phone, albums, faces and search.",
+      "fields": {
+        "WEB_PORT": {
+          "label": "Web port",
+          "help": "The port Immich's web page and phone app connect to."
+        },
+        "UPLOAD_DIR": {
+          "label": "Photo library folder",
+          "help": "Where Immich stores your photos and videos. Immich manages this folder: add and delete photos in Immich, not here."
+        },
+        "TZ": {
+          "label": "Time zone",
+          "help": "For dates in the logs, e.g. Europe/Berlin."
+        }
+      }
+    }
+  },
+  "services": {
+    "installed": {
+      "title": "Installed",
+      "none": "Nothing installed yet. Pick a service from the catalog below.",
+      "loading": "Loading installed services"
+    },
+    "catalog": {
+      "title": "Catalog",
+      "description": "Reviewed services you can install with one click.",
+      "failed": "The catalog couldn't be loaded. Try again in a moment.",
+      "loading": "Loading the catalog"
+    },
+    "category": {
+      "media": "Media",
+      "photos": "Photos",
+      "productivity": "Productivity",
+      "monitoring": "Monitoring",
+      "network": "Network",
+      "tools": "Tools"
+    },
+    "status": {
+      "installing": "Installing…",
+      "installed": "Installed",
+      "failed": "Failed",
+      "removing": "Removing…",
+      "removed": "Removed"
+    },
+    "runtime": {
+      "running": "Running",
+      "partial": "Partly running",
+      "stopped": "Stopped",
+      "unhealthy": "Unhealthy"
+    },
+    "phase": {
+      "deploy": {
+        "pulling": "Downloading",
+        "starting": "Starting",
+        "done": "Ready"
+      },
+      "remove": {
+        "removing": "Removing",
+        "done": "Done"
+      }
+    },
+    "job": {
+      "output": "Output",
+      "omitted": "Earlier lines not shown: {{count}}"
+    },
+    "install": "Install",
+    "installLabel": "Install {{name}}",
+    "reinstall": "Install again",
+    "reinstallLabel": "Install {{name}} again",
+    "open": "Open",
+    "openLabel": "Open {{name}} in a new tab",
+    "retry": "Try again",
+    "remove": {
+      "action": "Remove",
+      "title": "Remove {{name}}?",
+      "text": "Its containers are deleted. Its data and settings are kept, so you can install it again later.",
+      "cancel": "Cancel",
+      "confirm": "Remove",
+      "failed": "Couldn't remove {{name}}"
+    },
+    "back": "Back to services",
+    "notFound": "This service isn't in the catalog.",
+    "form": {
+      "advanced": "Advanced settings",
+      "duration": "Installing downloads the images and starts the service. This can take a few minutes; you can follow it on the services page.",
+      "submit": "Install",
+      "submitting": "Starting…",
+      "secretKept": "Leave empty to keep the current one"
+    },
+    "access": {
+      "title": "{{name}} will be able to:",
+      "port": "Use port {{port}}",
+      "read": "Read",
+      "write": "Read and change",
+      "volumes": "Keep its own data in Docker volumes",
+      "generatedSecrets": "Use passwords made for it, stored encrypted and never shown",
+      "images": "It runs these images:"
+    }
   }
 }

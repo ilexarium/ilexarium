@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "immich",
+  "version": "1",
+  "name": "Immich",
+  "category": "photos",
+  "website": "https://immich.app",
+  "webPort": "WEB_PORT",
+  "dataOwner": { "uid": 0, "gid": 0 },
+  "fields": [
+    { "key": "WEB_PORT", "type": "port", "default": 2283 },
+    {
+      "key": "UPLOAD_DIR",
+      "type": "path",
+      "default": "/srv/homelab/immich/library",
+      "access": "write"
+    },
+    { "key": "TZ", "type": "text", "pattern": "timezone", "default": "UTC", "advanced": true },
+    { "key": "DB_PASSWORD", "type": "generatedSecret" }
+  ]
+}

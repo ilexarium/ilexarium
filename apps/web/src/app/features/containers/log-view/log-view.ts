@@ -46,7 +46,9 @@ export class LogTimePipe implements PipeTransform {
  * - **Following:** keeps the newest line in view while at the bottom. Scrolling up stops it and
  *   offers **Jump to latest**; **Pause** stops it explicitly.
  * - **Filter:** case-insensitive, over the lines loaded.
- * - **stderr** lines carry an icon and the word "stderr", not colour alone.
+ * - **stderr** lines carry an icon and the word "stderr", not colour alone. The line itself isn't
+ *   tinted: many services (Navidrome, most Go and Python programs) write all their logs to
+ *   stderr, so it marks the channel, not an error.
  * - **Timestamps** (local time) and **wrap** are toggles, remembered per browser. Without wrap,
  *   long lines scroll sideways inside the log box — never the page.
  *

@@ -20,6 +20,7 @@ const web: Container = {
     { privatePort: 1900, protocol: 'udp' },
   ],
   protected: false,
+  composeProject: null,
   stats: {
     at: NOW,
     cpuPercent: 12.4,

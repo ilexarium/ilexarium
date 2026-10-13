@@ -70,10 +70,11 @@ describe('Shell (app layout)', () => {
     expect(nav.getAttribute('aria-label')).toBe('Main');
     expect(navLink('Dashboard')!.getAttribute('href')).toBe('/');
     expect(navLink('Containers')!.getAttribute('href')).toBe('/containers');
+    expect(navLink('Services')!.getAttribute('href')).toBe('/services');
     expect(navLink('Account')!.getAttribute('href')).toBe('/settings/account');
     expect(nav.textContent).toContain('Settings');
     const order = [...nav.querySelectorAll('a')].map((a) => a.textContent!.trim());
-    expect(order).toEqual(['Dashboard', 'Containers', 'Account']);
+    expect(order).toEqual(['Dashboard', 'Containers', 'Services', 'Account']);
   });
 
   it('marks only the current page, also for the dashboard at "/"', async () => {

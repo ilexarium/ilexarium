@@ -1,10 +1,26 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import type { FieldTree, TreeValidationResult, ValidationError } from '@angular/forms/signals';
-import { apiErrorResponseSchema, AUTH_ERROR_CODES } from '@homelab/shared';
+import { apiErrorResponseSchema, AUTH_ERROR_CODES, SERVICE_ERROR_CODES } from '@homelab/shared';
 import type { FormError } from './forms.model';
 
 /** Server codes with their own text (`errors.<code>` in en.json); others show the server's text. */
-export const TRANSLATED_ERROR_CODES: readonly string[] = Object.values(AUTH_ERROR_CODES);
+export const TRANSLATED_ERROR_CODES: readonly string[] = [
+  ...Object.values(AUTH_ERROR_CODES),
+  ...Object.values(SERVICE_ERROR_CODES),
+];
+
+/**
+ * A failed API call in words, for a toast: `[key, params]` for the `Translator`. Network trouble,
+ * a rate limit, a known code — or "something went wrong (status)".
+ */
+export function apiErrorText(error: unknown): [string, Record<string, unknown>?] {
+  if (!(error instanceof HttpErrorResponse) || error.status === 0) return ['errors.network'];
+  if (error.status === 429) return ['errors.tooManyAttempts'];
+  const code = apiErrorResponseSchema.safeParse(error.error).data?.code;
+  return code && TRANSLATED_ERROR_CODES.includes(code)
+    ? [`errors.${code}`]
+    : ['errors.server', { status: error.status }];
+}
 
 /** The field tree at a dotted path (`currentPassword`, `a.b`), if the form has it. */
 function fieldAt(form: FieldTree<unknown>, path: string): FieldTree<unknown> | undefined {

@@ -29,6 +29,28 @@ describe('validateEnv', () => {
     );
   });
 
+  it('uses development paths and the direct executor outside production', () => {
+    expect(validateEnv(base)).toMatchObject({
+      MASTER_KEY_FILE: '.dev/master.key',
+      WRAPPER_CONFIG_FILE: '.dev/wrappers.json',
+      EXECUTOR_MODE: 'direct',
+    });
+  });
+
+  it('uses the installed files and sudo in production', () => {
+    expect(validateEnv({ ...base, NODE_ENV: 'production' })).toMatchObject({
+      MASTER_KEY_FILE: '/etc/homelab/master.key',
+      WRAPPER_CONFIG_FILE: '/etc/homelab/wrappers.json',
+      EXECUTOR_MODE: 'sudo',
+    });
+  });
+
+  it('never runs the wrapper without sudo in production', () => {
+    expect(() => validateEnv({ ...base, NODE_ENV: 'production', EXECUTOR_MODE: 'direct' })).toThrow(
+      /EXECUTOR_MODE/,
+    );
+  });
+
   it('keeps an explicit setup-token path', () => {
     expect(validateEnv({ ...base, SETUP_TOKEN_FILE: '/tmp/token' }).SETUP_TOKEN_FILE).toBe(
       '/tmp/token',

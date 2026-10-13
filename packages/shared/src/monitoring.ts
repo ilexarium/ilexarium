@@ -162,6 +162,8 @@ export const containerSchema = z.object({
   ports: z.array(containerPortSchema),
   /** Labelled `homelab.protected=true`: can't be stopped or restarted from the app. */
   protected: z.boolean(),
+  /** Compose's project label (`hl-<catalog id>` for an installed service); null outside Compose. */
+  composeProject: z.string().nullable(),
   /** Null when not running, or before its first stats sample arrives. */
   stats: containerStatsSchema.nullable(),
 });

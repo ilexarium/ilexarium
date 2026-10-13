@@ -1,0 +1,196 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { ConfigService } from '@nestjs/config';
+import type { JobPhase, PublicUser } from '@homelab/shared';
+import type { AuditService } from '../audit/audit.service.js';
+import type { AuditEntry } from '../audit/audit.model.js';
+import type { Env } from '../config/env.schema.js';
+import type { ComposeRequest } from './executor.model.js';
+import { ExecutorService } from './executor.service.js';
+import type { WrapperAction, WrapperCommand } from './wrapper-command.js';
+import type { WrapperConfigService } from './wrapper-config.js';
+
+const USER: PublicUser = { id: 'u1', username: 'owner', createdAt: '2026-10-12T00:00:00.000Z' };
+
+/**
+ * A stand-in for the wrapper: records its arguments, environment and stdin, then prints the
+ * lines of script.json and exits with its code (after `sleep` ms).
+ */
+const FAKE_WRAPPER = `
+const fs = require('node:fs');
+const path = require('node:path');
+const dir = path.dirname(process.argv[1]);
+const stdin = fs.readFileSync(0, 'utf8');
+fs.writeFileSync(path.join(dir, 'record.json'), JSON.stringify({ args: process.argv.slice(2), env: process.env, stdin }));
+const script = JSON.parse(fs.readFileSync(path.join(dir, 'script.json'), 'utf8'));
+if (script.sleep) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, script.sleep);
+for (const line of script.lines) process.stdout.write(line + '\\n');
+process.exit(script.exit ?? 0);
+`;
+
+let dir: string;
+let audit: { record: ReturnType<typeof vi.fn>; tryRecord: ReturnType<typeof vi.fn> };
+let entries: AuditEntry[];
+
+class TestExecutor extends ExecutorService {
+  file = process.execPath;
+  override timeoutMs = 10_000;
+  protected override command(action: WrapperAction, catalogId: string): WrapperCommand {
+    return {
+      file: this.file,
+      args: [join(dir, 'wrapper.cjs'), action, catalogId],
+      env: { PATH: '/usr/bin:/bin' },
+    };
+  }
+}
+
+function executor(): TestExecutor {
+  const config = { get: () => 'direct' } as unknown as ConfigService<Env, true>;
+  const wrapperConfig = { file: '/unused' } as unknown as WrapperConfigService;
+  return new TestExecutor(config, audit as unknown as AuditService, wrapperConfig);
+}
+
+function script(lines: string[], exit = 0, sleep = 0) {
+  writeFileSync(join(dir, 'script.json'), JSON.stringify({ lines, exit, sleep }));
+}
+
+function record(): { args: string[]; env: Record<string, string>; stdin: string } {
+  return JSON.parse(readFileSync(join(dir, 'record.json'), 'utf8'));
+}
+
+function request(change: Partial<ComposeRequest> = {}) {
+  const phases: JobPhase[] = [];
+  const output: string[] = [];
+  const req: ComposeRequest = {
+    catalogId: 'immich',
+    serviceId: 's1',
+    values: { WEB_PORT: 2283, DB_PASSWORD: 'Secret0Secret0Secret0' },
+    secrets: ['Secret0Secret0Secret0'],
+    fields: ['WEB_PORT', 'UPLOAD_DIR', 'DB_PASSWORD'],
+    actor: { user: USER, ip: '127.0.0.1' },
+    audit: { settings: { WEB_PORT: 2283 } },
+    onPhase: (phase) => phases.push(phase),
+    onOutput: (line) => output.push(line),
+    ...change,
+  };
+  return { req, phases, output };
+}
+
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'executor-'));
+  writeFileSync(join(dir, 'wrapper.cjs'), FAKE_WRAPPER);
+  entries = [];
+  audit = {
+    record: vi.fn(async (entry: AuditEntry) => void entries.push(entry)),
+    tryRecord: vi.fn(async (entry: AuditEntry) => void entries.push(entry)),
+  };
+});
+
+afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+describe('ExecutorService', () => {
+  it('runs the wrapper with the values on stdin — never in its arguments — and reports phases and output', async () => {
+    script(['@@phase pulling', '> Pulling immich-server', '@@phase starting', '@@phase done']);
+    const { req, phases, output } = request();
+    expect(await executor().composeUp(req)).toEqual({ ok: true });
+    const { args, stdin } = record();
+    expect(args).toEqual(['up', 'immich']);
+    expect(JSON.parse(stdin)).toEqual({ WEB_PORT: 2283, DB_PASSWORD: 'Secret0Secret0Secret0' });
+    expect(phases).toEqual(['pulling', 'starting', 'done']);
+    expect(output).toEqual(['Pulling immich-server']);
+  });
+
+  it('gives down nothing on stdin', async () => {
+    script(['@@phase removing', '@@phase done']);
+    const { req } = request({ values: undefined });
+    expect(await executor().composeDown(req)).toEqual({ ok: true });
+    expect(record()).toMatchObject({ args: ['down', 'immich'], stdin: '' });
+  });
+
+  it('masks every secret in the output', async () => {
+    script([
+      '> error: password Secret0Secret0Secret0 refused',
+      '@@info DB_PASSWORD=Secret0Secret0Secret0',
+    ]);
+    const { req, output } = request();
+    await executor().composeUp(req);
+    expect(output).toEqual(['error: password •••• refused', 'DB_PASSWORD=••••']);
+  });
+
+  it('records the request first, then the outcome (never secrets)', async () => {
+    script(['@@phase done']);
+    await executor().composeUp(request().req);
+    expect(entries.map((e) => [e.action, e.outcome])).toEqual([
+      ['service.deploy', 'requested'],
+      ['service.deploy', 'success'],
+    ]);
+    expect(audit.record).toHaveBeenCalledTimes(1); // the request: the call that fails closed
+    expect(entries[0]).toMatchObject({
+      userId: 'u1',
+      username: 'owner',
+      ip: '127.0.0.1',
+      details: { catalogId: 'immich', serviceId: 's1', settings: { WEB_PORT: 2283 } },
+    });
+    expect(JSON.stringify(entries)).not.toContain('Secret0');
+  });
+
+  it('runs nothing when the request can’t be recorded', async () => {
+    script(['@@phase done']);
+    audit.record.mockRejectedValueOnce(new Error('database down'));
+    await expect(executor().composeUp(request().req)).rejects.toThrow('database down');
+    expect(existsSync(join(dir, 'record.json'))).toBe(false);
+  });
+
+  it.each([
+    [['@@error code=port_in_use field=WEB_PORT'], 2, { code: 'port_in_use', field: 'WEB_PORT' }],
+    [
+      ['@@error code=path_not_allowed field=UPLOAD_DIR'],
+      2,
+      { code: 'path_not_allowed', field: 'UPLOAD_DIR' },
+    ],
+    [['@@error code=busy'], 3, { code: 'busy', field: null }],
+    [['@@error code=policy_violation'], 4, { code: 'policy_violation', field: null }],
+    [
+      ['@@phase starting', '@@error code=compose_failed'],
+      5,
+      { code: 'compose_failed', field: null },
+    ],
+    // A field the entry doesn't have is dropped, never passed on.
+    [['@@error code=invalid_values field=NOT_A_FIELD'], 2, { code: 'invalid_values', field: null }],
+    // Codes we don't know are a setup problem, never success.
+    [['@@error code=setup'], 6, { code: 'executor_unavailable', field: null }],
+    [['@@error code=constructor'], 6, { code: 'executor_unavailable', field: null }],
+    [['@@error code=to_string'], 6, { code: 'executor_unavailable', field: null }],
+    // No marker at all: the wrapper never ran (e.g. sudo: a password is required).
+    [['sudo: a password is required'], 1, { code: 'executor_unavailable', field: null }],
+    [['@@phase pulling'], 1, { code: 'compose_failed', field: null }],
+  ])('turns %j (exit %i) into a typed failure', async (lines, exit, failure) => {
+    script(lines, exit);
+    const outcome = await executor().composeUp(request().req);
+    expect(outcome).toEqual({ ok: false, ...failure });
+    expect(entries.at(-1)).toMatchObject({ outcome: 'failure', details: { reason: failure.code } });
+  });
+
+  it('reports a wrapper that can’t be started as unavailable', async () => {
+    script([]);
+    const ex = executor();
+    ex.file = join(dir, 'no-such-program');
+    expect(await ex.composeUp(request().req)).toEqual({
+      ok: false,
+      code: 'executor_unavailable',
+      field: null,
+    });
+  });
+
+  it('stops the wrapper when it takes too long', async () => {
+    script(['@@phase pulling'], 0, 5000);
+    const ex = executor();
+    ex.timeoutMs = 300;
+    expect(await ex.composeUp(request().req)).toEqual({
+      ok: false,
+      code: 'timed_out',
+      field: null,
+    });
+  });
+});

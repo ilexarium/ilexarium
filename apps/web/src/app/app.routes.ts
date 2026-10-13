@@ -40,6 +40,18 @@ export const routes: Routes = [
           import('./features/containers/logs-page/logs-page').then((m) => m.LogsPage),
       },
       {
+        path: 'services',
+        title: 'pages.services',
+        loadComponent: () =>
+          import('./features/services/services-page/services-page').then((m) => m.ServicesPage),
+      },
+      {
+        path: 'services/install/:id',
+        title: 'pages.installService',
+        loadComponent: () =>
+          import('./features/services/install-page/install-page').then((m) => m.InstallPage),
+      },
+      {
         path: 'settings/account',
         title: 'pages.account',
         loadComponent: () =>

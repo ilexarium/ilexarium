@@ -29,6 +29,8 @@ export class ContainerLogsError extends Error {
 
 /** Requests that answer at once; streams have no timeout (they end with their abort signal). */
 const REQUEST_TIMEOUT_MS = 5_000;
+/** Set by Compose on every container it creates: the project's name. */
+const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project';
 /** Docker's zero time: a container that never started. */
 const NEVER = '0001-01-01T00:00:00Z';
 /** The events that can change what the containers table shows. */
@@ -87,6 +89,7 @@ export class DockerService {
             startedAt: startedAt && startedAt !== NEVER ? new Date(startedAt).toISOString() : null,
             ports: toPorts(summary.Ports),
             protected: summary.Labels?.[PROTECTED_LABEL] === 'true',
+            composeProject: summary.Labels?.[COMPOSE_PROJECT_LABEL] ?? null,
           };
         } catch {
           return null; // removed between the list and the inspect
