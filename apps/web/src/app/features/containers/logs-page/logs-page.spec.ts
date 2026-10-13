@@ -10,7 +10,7 @@ import { PageTitleStrategy } from '../../../core/page-title/page-title';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { type FakeSocket, fakeSockets } from '../../../core/realtime/testing';
 import { stubLocalStorage, stubScreenWidth } from '../../../layout/testing';
-import { QUIET_MS } from './log-stream';
+import { QUIET_MS } from './logs-page-store';
 import { LogsPage } from './logs-page';
 
 @Component({ template: '' })

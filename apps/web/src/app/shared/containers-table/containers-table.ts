@@ -1,13 +1,18 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, input } from '@angular/core';
-import type { Container, ContainersSnapshot, ContainerState } from '@homelab/shared';
+import { Component, computed, inject, input, output } from '@angular/core';
+import type {
+  Container,
+  ContainerAction,
+  ContainersSnapshot,
+  ContainerState,
+} from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideLoaderCircle } from '@ng-icons/lucide';
 import { HlmBadgeImports } from '@ui/badge';
 import { HlmCardImports } from '@ui/card';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTableImports } from '@ui/table';
-import { ContainerActionRunner } from './container-action-runner';
+import type { ContainerActionRequest } from '../../core/containers/containers.model';
 import { ContainerActions } from './container-actions';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Translator } from '../../core/i18n/translator';
@@ -73,10 +78,13 @@ export class ContainersTable {
    * the live data. Without it: the newest stats frame's time, else this device's clock.
    */
   readonly now = input<number | null>(null);
+  /** The action in progress for each container name (from the page's store). */
+  readonly pending = input<ReadonlyMap<string, ContainerAction>>(new Map());
+  /** A chosen container action — the page's store runs it. */
+  readonly action = output<ContainerActionRequest>();
 
   private readonly translator = inject(Translator);
   private readonly formatter = inject(Formatter);
-  private readonly runner = inject(ContainerActionRunner);
 
   private readonly clock = computed(() => {
     const given = this.now();
@@ -109,7 +117,7 @@ export class ContainersTable {
     const t = this.translator.t.bind(this.translator);
     const format = this.formatter;
     const startedAt = container.startedAt ? Date.parse(container.startedAt) : null;
-    const pending = this.runner.pending().get(container.name);
+    const pending = this.pending().get(container.name);
     return {
       id: container.id,
       name: container.name,

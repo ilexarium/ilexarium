@@ -9,7 +9,7 @@ import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
 import { map } from 'rxjs';
 import { LogView } from '../log-view/log-view';
-import { LogStream } from './log-stream';
+import { LogsPageStore } from './logs-page-store';
 import { TranslatePipe } from '@ngx-translate/core';
 
 interface Notice {
@@ -31,7 +31,7 @@ interface Notice {
 @Component({
   selector: 'app-logs-page',
   imports: [HlmAlertImports, HlmButton, HlmSkeleton, LogView, NgIcon, RouterLink, TranslatePipe],
-  providers: [LogStream, provideIcons({ lucideArrowLeft })],
+  providers: [LogsPageStore, provideIcons({ lucideArrowLeft })],
   host: {
     // The viewport minus the top bar (3.5rem) and the page padding (1rem / 1.5rem each side).
     class: 'flex h-[calc(100dvh-5.5rem)] min-h-96 flex-col gap-3 md:h-[calc(100dvh-6.5rem)]',
@@ -39,7 +39,7 @@ interface Notice {
   templateUrl: './logs-page.html',
 })
 export class LogsPage {
-  protected readonly logs = inject(LogStream);
+  protected readonly logs = inject(LogsPageStore);
   protected readonly name = toSignal(
     inject(ActivatedRoute).paramMap.pipe(map((params) => params.get('name') ?? '')),
     { requireSync: true },

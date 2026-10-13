@@ -6,8 +6,6 @@ import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
-import { AuthApi } from '../../../core/auth/auth-api';
-import { AuthStore } from '../../../core/auth/auth-store';
 import { safeReturnUrl } from '../../../core/auth/return-url';
 import { InsecureContextNotice } from '../../../core/security/insecure-context-notice';
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
@@ -16,6 +14,7 @@ import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { AuthFrame } from '../auth-frame/auth-frame';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
+import { LoginPageStore } from './login-page-store';
 
 @Component({
   selector: 'app-login-page',
@@ -32,11 +31,11 @@ import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
     PasswordToggle,
     TranslatePipe,
   ],
+  providers: [LoginPageStore],
   templateUrl: './login-page.html',
 })
 export class LoginPage {
-  private readonly api = inject(AuthApi);
-  private readonly auth = inject(AuthStore);
+  private readonly store = inject(LoginPageStore);
   private readonly router = inject(Router);
   private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
 
@@ -52,8 +51,7 @@ export class LoginPage {
       submission: {
         action: async (field) => {
           try {
-            const { user } = await this.api.login(field().value());
-            this.auth.signedIn(user);
+            await this.store.login(field().value());
             await this.router.navigateByUrl(safeReturnUrl(this.query.get('returnUrl')));
             return undefined;
           } catch (error) {

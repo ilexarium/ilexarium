@@ -15,7 +15,12 @@
       />
     </div>
     <app-disk-list [disks]="system.disks" />
-    <app-containers-table [containers]="store.containers()" [now]="system.sample.at" />
+    <app-containers-table
+      [containers]="store.containers()"
+      [now]="system.sample.at"
+      [pending]="store.pending()"
+      (action)="store.act($event)"
+    />
   </div>
 } @else {
   <div

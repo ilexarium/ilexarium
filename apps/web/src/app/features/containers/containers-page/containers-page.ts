@@ -1,18 +1,14 @@
-import { Component, DestroyRef, inject } from '@angular/core';
-import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
+import { Component, inject } from '@angular/core';
 import { ContainersTable } from '../../../shared/containers-table/containers-table';
+import { ContainersPageStore } from './containers-page-store';
 
-/** Every container, running or stopped, with an actions menu each (View logs, …). */
+/** Every container, running or stopped, with an actions menu each (View logs, …). UI only. */
 @Component({
   selector: 'app-containers-page',
   imports: [ContainersTable],
+  providers: [ContainersPageStore],
   templateUrl: './containers-page.html',
 })
 export class ContainersPage {
-  protected readonly store = inject(MonitoringStore);
-
-  constructor() {
-    const stop = this.store.watch(['containers']);
-    inject(DestroyRef).onDestroy(stop);
-  }
+  protected readonly store = inject(ContainersPageStore);
 }

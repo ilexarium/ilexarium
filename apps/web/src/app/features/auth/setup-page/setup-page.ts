@@ -6,8 +6,6 @@ import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
-import { AuthApi } from '../../../core/auth/auth-api';
-import { AuthStore } from '../../../core/auth/auth-store';
 import { InsecureContextNotice } from '../../../core/security/insecure-context-notice';
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
@@ -18,6 +16,7 @@ import { VALIDATION_LIMITS } from '@homelab/shared';
 import { Translator } from '../../../core/i18n/translator';
 import { APP_NAME } from '../../../core/page-title/page-title';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
+import { SetupPageStore } from './setup-page-store';
 
 /**
  * Reads the setup code from the installer's link (`/setup#token=…`) and removes it from the
@@ -51,11 +50,11 @@ function takeTokenFromFragment(document: Document): string {
     PasswordToggle,
     TranslatePipe,
   ],
+  providers: [SetupPageStore],
   templateUrl: './setup-page.html',
 })
 export class SetupPage {
-  private readonly api = inject(AuthApi);
-  private readonly auth = inject(AuthStore);
+  private readonly store = inject(SetupPageStore);
   private readonly router = inject(Router);
 
   protected readonly secure = inject(SECURE_CONTEXT);
@@ -82,8 +81,7 @@ export class SetupPage {
         action: async (field) => {
           const { setupToken, username, password } = field().value();
           try {
-            const { user } = await this.api.setup({ setupToken, username, password });
-            this.auth.signedIn(user);
+            await this.store.setup({ setupToken, username, password });
             await this.router.navigateByUrl('/');
             return undefined;
           } catch (error) {

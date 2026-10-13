@@ -1,11 +1,17 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import type { FieldTree, TreeValidationResult, ValidationError } from '@angular/forms/signals';
-import { apiErrorResponseSchema, AUTH_ERROR_CODES, SERVICE_ERROR_CODES } from '@homelab/shared';
+import {
+  apiErrorResponseSchema,
+  AUTH_ERROR_CODES,
+  CONTAINER_ACTION_ERROR_CODES,
+  SERVICE_ERROR_CODES,
+} from '@homelab/shared';
 import type { FormError } from './forms.model';
 
 /** Server codes with their own text (`errors.<code>` in en.json); others show the server's text. */
 export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(AUTH_ERROR_CODES),
+  ...Object.values(CONTAINER_ACTION_ERROR_CODES),
   ...Object.values(SERVICE_ERROR_CODES),
 ];
 

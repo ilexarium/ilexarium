@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal, viewChild } from '@angular/core';
+import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import type { ContainerAction, ContainerState } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -14,7 +14,6 @@ import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
 import { Translator } from '../../core/i18n/translator';
-import { ContainerActionRunner } from './container-action-runner';
 
 /** Actions that interrupt the container: they ask first. Starting interrupts nothing. */
 type ConfirmedAction = Exclude<ContainerAction, 'start'>;
@@ -45,12 +44,14 @@ export class ContainerActions {
   readonly protected = input(false);
 
   private readonly router = inject(Router);
-  private readonly runner = inject(ContainerActionRunner);
+  /** An action is running for this container (no other is offered meanwhile). */
+  readonly busy = input(false);
+  /** The chosen action — after the confirmation where one is asked. */
+  readonly action = output<ContainerAction>();
   private readonly translator = inject(Translator);
   private readonly dialog = viewChild.required(HlmAlertDialog);
 
   protected readonly icons = ICONS;
-  protected readonly busy = computed(() => this.runner.pending().has(this.name()));
 
   protected readonly actions = computed<ContainerAction[]>(() => {
     if (this.protected() || this.busy()) return [];
@@ -78,7 +79,7 @@ export class ContainerActions {
 
   protected choose(action: ContainerAction): void {
     if (action === 'start') {
-      void this.runner.run(this.name(), action);
+      this.action.emit(action);
       return;
     }
     this.confirming.set(action);
@@ -87,6 +88,6 @@ export class ContainerActions {
 
   protected confirm(): void {
     this.dialog().close();
-    void this.runner.run(this.name(), this.confirming());
+    this.action.emit(this.confirming());
   }
 }

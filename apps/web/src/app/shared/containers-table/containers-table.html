@@ -95,6 +95,8 @@
                     [name]="row.name"
                     [state]="row.state"
                     [protected]="row.protected"
+                    [busy]="row.pendingLabel !== null"
+                    (action)="action.emit({ name: row.name, action: $event })"
                   />
                 </td>
               </tr>
@@ -121,6 +123,8 @@
                   [name]="row.name"
                   [state]="row.state"
                   [protected]="row.protected"
+                  [busy]="row.pendingLabel !== null"
+                  (action)="action.emit({ name: row.name, action: $event })"
                 />
               </span>
             </div>

@@ -5,6 +5,7 @@ import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
+import { ContainersApi } from '../../../core/containers/containers-api';
 import { stubScreenWidth } from '../../../layout/testing';
 import { ContainersPage } from './containers-page';
 
@@ -24,8 +25,14 @@ const stopped: Container = {
 async function render() {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
+  const api = { act: vi.fn(async () => null) };
   TestBed.configureTestingModule({
-    providers: [provideRouter([]), auth.provider, sockets.provider],
+    providers: [
+      provideRouter([]),
+      auth.provider,
+      sockets.provider,
+      { provide: ContainersApi, useValue: api },
+    ],
   });
   await TestBed.inject(AuthStore).load();
   TestBed.inject(RealtimeService).connect();
@@ -33,7 +40,7 @@ async function render() {
   socket.open();
   const fixture = TestBed.createComponent(ContainersPage);
   await fixture.whenStable();
-  return { fixture, el: fixture.nativeElement as HTMLElement, socket };
+  return { fixture, el: fixture.nativeElement as HTMLElement, socket, api };
 }
 
 describe('ContainersPage', () => {
@@ -42,6 +49,22 @@ describe('ContainersPage', () => {
     expect(socket.sent).toEqual([{ event: 'subscribe', data: { topic: 'containers' } }]);
     fixture.destroy();
     expect(socket.sent.at(-1)).toEqual({ event: 'unsubscribe', data: { topic: 'containers' } });
+  });
+
+  it('runs the action chosen in the table through the actions store', async () => {
+    const { fixture, el, socket, api } = await render();
+    socket.receive({
+      event: 'containers:snapshot',
+      data: { dockerAvailable: true, containers: [stopped], history: {} },
+    });
+    await fixture.whenStable();
+    el.querySelector<HTMLButtonElement>('button[aria-label="Actions for old-app"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="menuitem"]')).not.toBeNull());
+    const start = [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(
+      (item) => item.textContent!.trim() === 'Start',
+    )!;
+    start.click();
+    await vi.waitFor(() => expect(api.act).toHaveBeenCalledWith('old-app', 'start'));
   });
 
   it('shows a loading state, then every container — stopped ones too — with its actions', async () => {
