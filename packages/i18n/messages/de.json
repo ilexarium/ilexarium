@@ -7,7 +7,8 @@
     "logs": "Logs · {{name}}",
     "account": "Konto",
     "services": "Dienste",
-    "installService": "Dienst installieren"
+    "installService": "Dienst installieren",
+    "backups": "Backups"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -26,7 +27,9 @@
     "containers": "Container",
     "settings": "Einstellungen",
     "account": "Konto",
-    "services": "Dienste"
+    "services": "Dienste",
+    "backups": "Backups",
+    "attention": "(braucht Aufmerksamkeit)"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -112,7 +115,14 @@
     "secretTooLong": "Höchstens {{secretMax}} Zeichen",
     "secretInvalid": "Eine Zeile, keine Steuerzeichen",
     "optionInvalid": "Wähle eine der Optionen",
-    "catalogIdInvalid": "Kein Katalogeintrag"
+    "catalogIdInvalid": "Kein Katalogeintrag",
+    "backupTimeInvalid": "Eine Uhrzeit wie 03:00",
+    "backupKeepInvalid": "Eine ganze Zahl",
+    "backupKeepDailyRange": "Von {{backupDailyMin}} bis {{backupDailyMax}}",
+    "backupKeepWeeklyRange": "Von 0 bis {{backupWeeklyMax}}",
+    "backupKeepMonthlyRange": "Von 0 bis {{backupMonthlyMax}}",
+    "backupDestinationRequired": "Wähle ein Laufwerk",
+    "backupDestinationInvalid": "Ein unter /mnt oder /media eingehängtes Laufwerk"
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -133,7 +143,7 @@
     "service_not_found": "Diesen Dienst gibt es nicht mehr.",
     "service_already_installed": "Dieser Dienst ist bereits installiert.",
     "service_not_installed": "Dieser Dienst ist nicht installiert.",
-    "busy": "Gerade läuft eine andere Installation oder Entfernung. Versuche es, wenn sie fertig ist.",
+    "busy": "Ein anderer Vorgang (eine Installation, ein Backup oder eine Wiederherstellung) läuft. Versuche es erneut, wenn er fertig ist.",
     "port_in_use": "Dieser Port wird bereits verwendet.",
     "port_reserved": "Dieser Port ist für das System reserviert.",
     "path_not_allowed": "Dieser Ordner liegt nicht in einem erlaubten Bereich.",
@@ -144,7 +154,30 @@
     "executor_unavailable": "Dieser Server ist noch nicht für die Installation von Diensten eingerichtet.",
     "timed_out": "Das hat zu lange gedauert und wurde abgebrochen.",
     "interrupted": "Die App wurde neu gestartet, während das lief.",
-    "audit_unavailable": "Es wurde nichts getan: Die Aktion konnte nicht im Audit-Log festgehalten werden."
+    "audit_unavailable": "Es wurde nichts getan: Die Aktion konnte nicht im Audit-Log festgehalten werden.",
+    "destination_unavailable": "Das Backup-Laufwerk ist nicht angeschlossen (oder nicht eingehängt). Es wurde nichts geschrieben.",
+    "destination_not_allowed": "Wähle eines der aufgeführten Laufwerke: ein unter /mnt oder /media eingehängtes Laufwerk.",
+    "repository_mismatch": "Die Backups auf diesem Laufwerk sind nicht die hier eingerichteten. Es wurde nichts geschrieben.",
+    "repository_exists": "Dieses Laufwerk hat schon einen Backup-Ordner, der nicht hier eingerichtet wurde.",
+    "passphrase_invalid": "Die Backup-Passphrase auf diesem Server fehlt oder ist falsch.",
+    "disk_full": "Das Backup-Laufwerk ist voll.",
+    "source_missing": "Ein zu sichernder Ordner fehlt.",
+    "service_not_stopped": "Der Dienst konnte für sein Backup nicht gestoppt werden und wurde daher nicht gesichert.",
+    "service_not_restarted": "Der Dienst ist nach seinem Backup nicht wieder gestartet. Starte ihn auf der Seite „Container“.",
+    "dump_failed": "Die Datenbank der App konnte nicht gesichert werden.",
+    "repository_damaged": "Die Prüfung hat Schäden in den Backups gefunden.",
+    "borg_failed": "Das Backup-Programm hat einen Fehler gemeldet. Die Ausgabe enthält die Einzelheiten.",
+    "backups_not_configured": "Backups sind noch nicht eingerichtet.",
+    "backups_already_configured": "Backups sind bereits eingerichtet.",
+    "backup_item_not_found": "Das ist nicht (mehr) in den Backups.",
+    "backup_item_exists": "Das wird bereits gesichert.",
+    "backup_item_fixed": "Diese App selbst wird immer gesichert.",
+    "backup_archive_not_found": "Dieses Backup gibt es nicht (mehr).",
+    "backup_restore_not_found": "Für diese Wiederherstellung gibt es nichts zu löschen.",
+    "service_not_backed_up": "Dieser Dienst kann nicht gesichert werden.",
+    "paths_changed": "Der Dienst nutzt inzwischen andere Ordner. Stelle stattdessen in einen neuen Ordner wieder her.",
+    "invalid_plan": "Das Backup-Programm hat diese Änderung abgelehnt. Es wurde nichts geändert.",
+    "backup_set_aside_kept": "Eine Wiederherstellung bewahrt noch die vorherige Version davon auf. Lösche zuerst diese (bei der Wiederherstellung), dann die Backups."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -353,6 +386,9 @@
           "label": "Zeitzone",
           "help": "Für Zeitangaben in den Logs, z. B. Europe/Berlin."
         }
+      },
+      "backup": {
+        "restoreNote": "Deine Fotos und Videos sind zurück. Alben, Personen und Immichs übrige Daten liegen in seiner Datenbank: Ihre letzte Sicherung kam mit den Fotos zurück — stelle sie in Immich wieder her (Immichs Dokumentation erklärt, wie)."
       }
     }
   },
@@ -398,6 +434,12 @@
       "remove": {
         "removing": "Entfernen",
         "done": "Fertig"
+      },
+      "restore": {
+        "stopping": "Wird gestoppt",
+        "restoring": "Wird wiederhergestellt",
+        "starting": "Wird gestartet",
+        "done": "Wiederhergestellt"
       }
     },
     "job": {
@@ -426,7 +468,9 @@
       "duration": "Bei der Installation werden die Images heruntergeladen und der Dienst gestartet. Das kann einige Minuten dauern; du kannst es auf der Dienste-Seite verfolgen.",
       "submit": "Installieren",
       "submitting": "Wird gestartet…",
-      "secretKept": "Leer lassen, um das bisherige zu behalten"
+      "secretKept": "Leer lassen, um das bisherige zu behalten",
+      "includeInBackups": "In Backups aufnehmen",
+      "includeInBackupsHelp": "Seine Ordner werden beim nächsten Backup gesichert."
     },
     "access": {
       "title": "{{name}} wird Folgendes können:",
@@ -436,6 +480,213 @@
       "volumes": "Eigene Daten in Docker-Volumes speichern",
       "generatedSecrets": "Für ihn erzeugte Passwörter verwenden – verschlüsselt gespeichert und nie angezeigt",
       "images": "Er führt diese Images aus:"
+    },
+    "backup": {
+      "ok": "Vor {{time}} gesichert",
+      "failed": "Backup fehlgeschlagen",
+      "never": "Noch nicht gesichert",
+      "none": "Nicht gesichert"
+    }
+  },
+  "backups": {
+    "loading": "Backups werden geladen",
+    "failed": "Die Backups konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+    "notice": {
+      "open": "Backups öffnen"
+    },
+    "setup": {
+      "title": "Backups einrichten",
+      "text": "Die Daten deiner Dienste, ausgewählte Ordner und diese App werden jeden Tag gesichert – verschlüsselt, und nur Änderungen belegen Platz. Backups laufen auch, wenn diese App nicht läuft.",
+      "disk": "1. Das Backup-Laufwerk",
+      "noDisk": "Unter /mnt oder /media ist kein Laufwerk eingehängt. Schließe eine USB-Festplatte oder ein zweites Laufwerk an, hänge es dort ein und lade diese Seite neu.",
+      "diskSpace": "{{free}} frei von {{total}} ({{filesystem}})",
+      "unsupported": "Das Format dieses Laufwerks kann nicht für Backups genutzt werden.",
+      "sameDisk": "Das ist dasselbe Laufwerk wie deine Daten: Fällt es aus, sind auch die Backups weg. Ein eigenes Laufwerk ist sicherer.",
+      "hasRepository": "Es enthält bereits einen Backup-Ordner.",
+      "when": "2. Wann, und wie lange sie aufbewahrt werden",
+      "what": "3. Was gesichert wird",
+      "removeFolder": "{{path}} entfernen",
+      "submit": "Backups einrichten",
+      "submitting": "Wird eingerichtet …",
+      "done": "Backups sind eingerichtet. Das erste läuft zur gewählten Zeit – oder starte es jetzt."
+    },
+    "schedule": {
+      "frequency": "Sichern",
+      "time": "Um",
+      "daily": "Jeden Tag",
+      "every12h": "Alle 12 Stunden",
+      "every6h": "Alle 6 Stunden"
+    },
+    "retention": {
+      "title": "Aufbewahrte Backups",
+      "advanced": "Ändern, wie viele aufbewahrt werden",
+      "summary": "Bewahrt {{daily}} Tage lang ein Backup pro Tag auf, {{weekly}} Wochen lang eines pro Woche und {{monthly}} Monate lang eines pro Monat.",
+      "daily": "Tage",
+      "weekly": "Wochen",
+      "monthly": "Monate"
+    },
+    "passphrase": {
+      "title": "Deine Backup-Passphrase",
+      "firstText": "Schreibe diese sechs Wörter jetzt auf oder speichere sie in deinem Passwortmanager. Ohne sie lassen sich deine Backups auf einem anderen Rechner nicht öffnen.",
+      "text": "Bewahre diese sechs Wörter sicher auf: Sie öffnen deine Backups.",
+      "words": "Die Passphrase, Wort für Wort",
+      "keep": "Bewahre sie getrennt von diesem Server auf: Geht der Server verloren, bringen diese Passphrase und das Backup-Laufwerk alles zurück.",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "copyFailed": "Kopieren ist fehlgeschlagen. Markiere die Wörter und kopiere sie selbst.",
+      "saved": "Ich habe sie gespeichert",
+      "again": "Passphrase erneut anzeigen",
+      "againHint": "Passphrase verloren? Mit deinem Passwort kannst du sie erneut sehen.",
+      "againTitle": "Passphrase anzeigen",
+      "againText": "Gib dein Passwort ein, um die Backup-Passphrase zu sehen.",
+      "password": "Passwort",
+      "cancel": "Abbrechen",
+      "show": "Anzeigen"
+    },
+    "overview": {
+      "title": "Backups",
+      "lastSuccess": "Alles vor {{time}} gesichert",
+      "never": "Noch ist nicht alles gesichert",
+      "next": "nächstes: {{time}}",
+      "runNow": "Jetzt sichern",
+      "disk": "Laufwerk:",
+      "space": "{{free}} frei von {{total}}",
+      "used": "{{percent}} % des Laufwerks belegt",
+      "checkOk": "Letzte Prüfung: keine Probleme ({{time}})",
+      "checkFailed": "Letzte Prüfung hat Probleme gefunden ({{time}})"
+    },
+    "running": {
+      "scheduled": "Geplantes Backup läuft: {{done}} von {{total}} fertig",
+      "manual": "Wird gesichert: {{done}} von {{total}} fertig",
+      "progress": "{{done}} von {{total}} fertig",
+      "output": "Ausgabe"
+    },
+    "phase": {
+      "dumping": "Datenbank wird gesichert",
+      "stopping": "wird gestoppt",
+      "archiving": "wird kopiert",
+      "starting": "wird wieder gestartet",
+      "pruning": "alte Backups werden entfernt"
+    },
+    "status": {
+      "ok": "OK",
+      "warning": "OK, mit Warnungen",
+      "failed": "Fehlgeschlagen",
+      "running": "Läuft"
+    },
+    "warning": {
+      "serviceNotRestarted": {
+        "title": "Ein Dienst ist nicht wieder gestartet",
+        "text": "Er wurde für sein Backup gestoppt und ist nicht wieder gestartet. Starte ihn auf der Seite „Container“."
+      },
+      "repositoryDamaged": {
+        "title": "Die Backups sind beschädigt",
+        "text": "Die letzte Prüfung hat Schäden auf dem Backup-Laufwerk gefunden. Sichere jetzt; passiert das wieder, fällt das Laufwerk womöglich aus."
+      },
+      "lastRunFailed": {
+        "title": "Das letzte Backup ist fehlgeschlagen",
+        "text": "Etwas wurde nicht gesichert. Unten siehst du, was passiert ist."
+      },
+      "noRecentBackup": {
+        "title": "Seit über zwei Tagen kein Backup",
+        "text": "Etwas wurde länger nicht gesichert. Prüfe, ob das Backup-Laufwerk angeschlossen ist."
+      },
+      "destinationUnavailable": {
+        "title": "Das Backup-Laufwerk ist nicht angeschlossen",
+        "text": "Schließe es an (und hänge es ein), damit Backups laufen können."
+      },
+      "lowSpace": {
+        "title": "Das Backup-Laufwerk ist fast voll",
+        "text": "Bewahre weniger Backups auf oder nutze ein größeres Laufwerk."
+      }
+    },
+    "items": {
+      "title": "Was gesichert wird",
+      "platform": "Diese App: ihre Einstellungen, ihre Datenbank und ihre Schlüssel",
+      "platformShort": "Diese App",
+      "platformHelp": "Wird immer gesichert – mit deiner Passphrase bringt es diese App auf einem neuen Rechner zurück.",
+      "lastSuccess": "Vor {{time}} gesichert",
+      "never": "Noch nicht gesichert",
+      "warnings_one": "{{count}} Warnung",
+      "warnings_other": "{{count}} Warnungen",
+      "actionsFor": "Aktionen für {{name}}",
+      "runNow": "Jetzt sichern",
+      "restore": "Wiederherstellen …",
+      "remove": "Aus den Backups entfernen",
+      "folders": "Gesicherte Ordner",
+      "addService": "{{name}} sichern",
+      "addFolder": "Ordner hinzufügen",
+      "addFailed": "Konnte nicht zu den Backups hinzugefügt werden",
+      "foldersFailed": "Die Ordner konnten nicht geändert werden",
+      "removeFailed": "Konnte nicht aus den Backups entfernt werden",
+      "deleteFailed": "Die Backups konnten nicht gelöscht werden",
+      "removedTitle": "Nicht mehr gesichert",
+      "removedText": "Ihre Backups bleiben erhalten, bis du sie löschst.",
+      "deleteBackups": "Backups löschen"
+    },
+    "remove": {
+      "title": "{{name}} nicht mehr sichern?",
+      "text": "Die vorhandenen Backups bleiben erhalten, du kannst sie also weiterhin wiederherstellen.",
+      "alsoDelete": "Auch die Backups löschen (kann nicht rückgängig gemacht werden)",
+      "deleteTitle": "Die Backups von {{name}} löschen?",
+      "deleteText": "Alle Backups werden vom Laufwerk gelöscht. Das kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "confirm": "Entfernen",
+      "confirmDelete": "Backups löschen"
+    },
+    "folders": {
+      "title": "Ordner wählen",
+      "text": "Ordner im Dienstspeicher und Benutzerordner können gesichert werden.",
+      "up": "Nach oben",
+      "empty": "Keine Ordner darin.",
+      "unreadable": "Diese App darf nicht hineinschauen, der Ordner kann aber trotzdem gesichert werden.",
+      "choose": "Diesen Ordner wählen",
+      "cancel": "Abbrechen",
+      "failed": "Der Ordner konnte nicht geöffnet werden"
+    },
+    "restore": {
+      "title": "Wiederherstellen",
+      "text": "Wähle ein Backup und wohin es soll.",
+      "none": "Davon gibt es noch keine Backups.",
+      "which": "Backup",
+      "where": "Wiederherstellen nach",
+      "inPlace": "An den alten Ort",
+      "inPlaceText": "Der Dienst wird gestoppt, seine aktuellen Ordner werden beiseitegelegt (bis du sie löschst), das Backup wird zurückgeschrieben und der Dienst wieder gestartet.",
+      "newFolder": "In einen neuen Ordner",
+      "newFolderText": "In einen neuen Ordner unter /srv/homelab/restores. Sonst ändert sich nichts.",
+      "reinstall": "Installiere den Dienst danach erneut – seine bisherigen Einstellungen sind eingetragen.",
+      "cancel": "Abbrechen",
+      "confirm": "Wiederherstellen",
+      "confirmInPlace": "Am alten Ort wiederherstellen",
+      "started": "Wird wiederhergestellt. Du kannst es auf dieser Seite verfolgen.",
+      "failed": "Die Wiederherstellung konnte nicht gestartet werden",
+      "latest": "Wiederherstellung:",
+      "succeeded": "Wiederhergestellt.",
+      "wentTo": "Wiederhergestellt nach",
+      "setAside": "Die vorherige Version liegt hier, bis du sie löschst:",
+      "discard": "Vorherige Version löschen",
+      "discarded": "Die vorherige Version wurde gelöscht.",
+      "discardFailed": "Die vorherige Version konnte nicht gelöscht werden"
+    },
+    "history": {
+      "title": "Verlauf",
+      "none": "Es sind noch keine Backups gelaufen.",
+      "scheduled": "Geplant",
+      "manual": "Von Hand gestartet",
+      "added": "{{size}} hinzugekommen",
+      "gone": "Entfernter Eintrag"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "disk": "Backup-Laufwerk",
+      "newDisk": "Ein anderes Laufwerk beginnt einen neuen Satz Backups. Die Backups auf dem alten Laufwerk bleiben dort.",
+      "save": "Speichern",
+      "saving": "Wird gespeichert …",
+      "saved": "Gespeichert."
+    },
+    "run": {
+      "started": "Backup gestartet. Du kannst es auf dieser Seite verfolgen.",
+      "failed": "Das Backup konnte nicht gestartet werden"
     }
   }
 }

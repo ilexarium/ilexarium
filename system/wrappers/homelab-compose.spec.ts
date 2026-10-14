@@ -10,6 +10,7 @@ import {
   rmSync,
   statSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer, type Server } from 'node:net';
@@ -412,6 +413,16 @@ describe('homelab-compose checks every value', () => {
     },
   );
 
+  it('refuses the backup restore area (restored platform secrets live there)', async () => {
+    // Whatever the configured storage: the production restore area is refused as such.
+    writeConfig({ storageRoots: [storage, '/srv/homelab'] });
+    expectRefused(
+      await up(values({ MEDIA_DIR: '/srv/homelab/restores/0193a000-20261014-030000' })),
+      'path_not_allowed',
+      'MEDIA_DIR',
+    );
+  });
+
   it('refuses a folder of the platform itself', async () => {
     mkdirSync(join(storage, 'platform', 'keys'), { recursive: true });
     expectRefused(
@@ -582,6 +593,15 @@ describe('homelab-compose failures, down and the lock', () => {
     expect((await up()).code).toBe(0);
   });
 
+  it('never takes over a lock being written, only one long dead', async () => {
+    mkdirSync(join(dir, 'run'), { recursive: true });
+    writeFileSync(lockFile, ''); // an older writer between creating and writing it
+    expectRefused(await up(), 'busy', undefined, 3);
+    const old = new Date(Date.now() - 120_000);
+    utimesSync(lockFile, old, old);
+    expect((await up()).code).toBe(0);
+  });
+
   it('stops Compose and releases the lock on SIGTERM', async () => {
     writeFileSync(join(dir, 'sleep-pull.txt'), '5000');
     const child = spawn(process.execPath, [WRAPPER, 'up', 'demo'], {
@@ -606,12 +626,13 @@ describe('the sudoers drop-in', () => {
     },
   );
 
-  it('allows exactly the wrapper, by absolute path — no wildcards, no other commands', () => {
+  it('allows exactly the wrappers, by absolute path — no wildcards, no other commands', () => {
     const rules = readFileSync(SUDOERS, 'utf8')
       .split('\n')
       .filter((line) => line.trim() && !line.startsWith('#') && !line.startsWith('Defaults'));
     expect(rules).toEqual([
       'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-compose.mts',
+      'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-backup.mts',
     ]);
     expect(readFileSync(SUDOERS, 'utf8')).toContain('Defaults:homelab env_reset, !env_keep');
   });

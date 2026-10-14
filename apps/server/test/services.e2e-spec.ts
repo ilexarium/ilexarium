@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { InstalledService, ServiceJob } from '@homelab/shared';
+import type { InstalledService, Job } from '@homelab/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -52,9 +52,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
   }
 
   /** Waits until the service's latest job has finished; returns it. */
-  async function settled(
-    timeoutMs = 180_000,
-  ): Promise<{ service?: InstalledService; job: ServiceJob }> {
+  async function settled(timeoutMs = 180_000): Promise<{ service?: InstalledService; job: Job }> {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
       const res = await api().get('/catalog/test-hello').expect(200);
@@ -65,7 +63,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
     const jobs = await app
       .get(PrismaService)
       .serviceJob.findMany({ orderBy: { startedAt: 'desc' }, take: 1 });
-    const job = (await api().get(`/services/jobs/${jobs[0].id}`).expect(200)).body as ServiceJob;
+    const job = (await api().get(`/services/jobs/${jobs[0].id}`).expect(200)).body as Job;
     return { service: await service(), job };
   }
 
@@ -149,7 +147,15 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
   it('lists the catalog and suggests values for this machine', async () => {
     const list = await api().get('/catalog').expect(200);
     expect(list.body).toEqual([
-      { id: 'test-hello', name: 'Test Hello', category: 'tools', status: null },
+      {
+        id: 'test-hello',
+        name: 'Test Hello',
+        category: 'tools',
+        status: null,
+        // The test recipe has no backup section.
+        backupFolders: [],
+        backupRestoreNote: false,
+      },
     ]);
     const details = await api().get('/catalog/test-hello').expect(200);
     expect(details.body.suggested.SITE_DIR).toBe(join(storage, 'test-hello', 'site'));

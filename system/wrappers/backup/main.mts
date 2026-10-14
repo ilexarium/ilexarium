@@ -1,0 +1,99 @@
+// backup/main.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+//
+// The actions, and which one runs.
+
+import { randomUUID } from 'node:crypto';
+import { check } from './check.mts';
+import { loadConfig, pathsFor } from './config.mts';
+import { configure } from './configure.mts';
+import { init } from './init.mts';
+import { MAX_INPUT_BYTES, parseInput, requireNoInput } from './input.mts';
+import { forget, passphrase } from './maintenance.mts';
+import { setRestoreArea } from './places.mts';
+import { UUID } from './plan.mts';
+import { stopping, stopRunning } from './programs.mts';
+import { discard, restore } from './restore.mts';
+import { run } from './run.mts';
+import { emit, finish, Refusal } from '../lib/output.mts';
+import { readInput } from '../lib/startup.mts';
+
+export const ACTIONS = new Set([
+  'configure',
+  'init',
+  'run',
+  'run-scheduled',
+  'check-scheduled',
+  'restore',
+  'discard',
+  'forget',
+  'passphrase',
+]);
+
+export function checkStartup(): string {
+  if (process.env['NODE_OPTIONS'] !== undefined || process.execArgv.length > 0) {
+    throw new Refusal('invalid_request', 'Node was started with options', 6);
+  }
+  const args = process.argv.slice(2);
+  if (args.length !== 1 || !ACTIONS.has(args[0])) {
+    throw new Refusal('invalid_request', `usage: homelab-backup ${[...ACTIONS].join('|')}`);
+  }
+  return args[0];
+}
+
+export async function main(): Promise<number> {
+  process.umask(0o077);
+  const action = checkStartup();
+  const config = loadConfig();
+  const paths = pathsFor(config);
+  setRestoreArea(paths.restores);
+  const input = readInput(MAX_INPUT_BYTES, 'invalid_request');
+
+  // A stop (the timer's service stopped, the app's timeout): finish the current step's cleanup —
+  // a stopped service is always started again — then end.
+  process.on('SIGTERM', stopRunning);
+  process.on('SIGINT', stopRunning);
+
+  switch (action) {
+    case 'configure':
+      await configure(config, paths, input);
+      emit('@@phase done');
+      return 0;
+    case 'init':
+      await init(config, paths, input);
+      return 0;
+    case 'run': {
+      const { runId, itemId } = parseInput(input, ['runId'], ['itemId']);
+      if (typeof runId !== 'string' || !UUID.test(runId))
+        throw new Refusal('invalid_request', 'runId');
+      if (itemId !== undefined && (typeof itemId !== 'string' || !UUID.test(itemId))) {
+        throw new Refusal('invalid_request', 'itemId');
+      }
+      return run(config, paths, 'manual', runId, (itemId as string | undefined) ?? null);
+    }
+    case 'run-scheduled':
+      requireNoInput(input);
+      return run(config, paths, 'scheduled', randomUUID(), null);
+    case 'check-scheduled':
+      requireNoInput(input);
+      return check(config, paths);
+    case 'restore':
+      await restore(config, paths, input);
+      return 0;
+    case 'discard':
+      await discard(config, paths, input);
+      return 0;
+    case 'forget':
+      await forget(config, paths, input);
+      return 0;
+    case 'passphrase':
+      requireNoInput(input);
+      passphrase(paths);
+      return 0;
+  }
+  throw new Refusal('invalid_request', 'unknown action');
+}
+
+/** Called by the entry (homelab-backup.mts) once it checked these modules. */
+export function start(): void {
+  finish(main, () => stopping);
+}

@@ -8,7 +8,7 @@ import type { AuditEntry } from '../audit/audit.model.js';
 import type { Env } from '../config/env.schema.js';
 import type { ComposeRequest } from './executor.model.js';
 import { ExecutorService } from './executor.service.js';
-import type { WrapperAction, WrapperCommand } from './wrapper-command.js';
+import type { BackupWrapperAction, WrapperAction, WrapperCommand } from './wrapper-command.js';
 import type { WrapperConfigService } from './wrapper-config.js';
 
 const USER: PublicUser = { id: 'u1', username: 'owner', createdAt: '2026-10-12T00:00:00.000Z' };
@@ -40,6 +40,13 @@ class TestExecutor extends ExecutorService {
     return {
       file: this.file,
       args: [join(dir, 'wrapper.cjs'), action, catalogId],
+      env: { PATH: '/usr/bin:/bin' },
+    };
+  }
+  protected override backupCommand(action: BackupWrapperAction): WrapperCommand {
+    return {
+      file: this.file,
+      args: [join(dir, 'wrapper.cjs'), action],
       env: { PATH: '/usr/bin:/bin' },
     };
   }
@@ -192,5 +199,138 @@ describe('ExecutorService', () => {
       code: 'timed_out',
       field: null,
     });
+  });
+});
+
+describe('ExecutorService backups', () => {
+  const actor = { user: USER, ip: '127.0.0.1' };
+
+  it('sends the input on stdin, the action as the only argument, and reads the result', async () => {
+    script(['@@result {"repositoryId":"abc","created":true}']);
+    expect(await executor().backupInit('/mnt/usb', actor)).toEqual({
+      ok: true,
+      result: { repositoryId: 'abc', created: true },
+    });
+    expect(record()).toMatchObject({ args: ['init'], stdin: '{"destination":"/mnt/usb"}' });
+    expect(entries.map((e) => [e.action, e.outcome])).toEqual([
+      ['backup.init', 'requested'],
+      ['backup.init', 'success'],
+    ]);
+  });
+
+  it('hands the passphrase to the caller only — never to output or the audit log', async () => {
+    script(['@@result {"passphrase":"alpha beta gamma delta epsilon zeta"}']);
+    const outcome = await executor().backupPassphrase(actor, 'show');
+    expect(outcome).toEqual({
+      ok: true,
+      result: { passphrase: 'alpha beta gamma delta epsilon zeta' },
+    });
+    expect(record().stdin).toBe('');
+    expect(JSON.stringify(entries)).not.toContain('alpha');
+  });
+
+  it('never passes a result line to the job output', async () => {
+    script([
+      '@@phase restoring',
+      '> extracting',
+      '@@result {"targetPath":null,"setAside":["/srv/x.before-restore-20261014-030000"]}',
+      '@@phase done',
+    ]);
+    const phases: string[] = [];
+    const output: string[] = [];
+    const outcome = await executor().backupRestore(
+      { restoreId: 'r', itemId: 'i', archive: 'a', target: 'inPlace' },
+      actor,
+      { onPhase: (p) => phases.push(p), onOutput: (l) => output.push(l) },
+    );
+    expect(outcome).toEqual({
+      ok: true,
+      result: { targetPath: null, setAside: ['/srv/x.before-restore-20261014-030000'] },
+    });
+    expect(phases).toEqual(['restoring', 'done']);
+    expect(output).toEqual(['extracting']);
+  });
+
+  it('reads a result longer than an output line, whole', async () => {
+    const setAside = Array.from(
+      { length: 60 },
+      (_, i) =>
+        `/srv/homelab/${'a-rather-long-folder-name-'.repeat(4)}${i}.before-restore-20261014-030000`,
+    );
+    const line = `@@result ${JSON.stringify({ targetPath: null, setAside })}`;
+    expect(line.length).toBeGreaterThan(4096);
+    script([line, '@@phase done']);
+    const outcome = await executor().backupRestore(
+      { restoreId: 'r', itemId: 'i', archive: 'a', target: 'inPlace' },
+      actor,
+      { onPhase: () => undefined, onOutput: () => undefined },
+    );
+    expect(outcome).toEqual({ ok: true, result: { targetPath: null, setAside } });
+  });
+
+  it('counts a run that happened as done, even with failed items (the results file has them)', async () => {
+    script(['@@result {"runId":"r1","status":"failed","errorCode":null}'], 5);
+    expect(await executor().backupRun({ runId: 'r1' }, actor)).toEqual({
+      ok: true,
+      result: { status: 'failed', errorCode: null },
+    });
+  });
+
+  it('maps refusals, keeping a result that was still printed', async () => {
+    script(
+      [
+        '@@result {"targetPath":null,"setAside":["/srv/a.before-restore-20261014-030000"]}',
+        '@@error code=service_not_restarted',
+      ],
+      5,
+    );
+    const outcome = await executor().backupRestore(
+      { restoreId: 'r', itemId: 'i', archive: 'a', target: 'inPlace' },
+      actor,
+      { onPhase: () => undefined, onOutput: () => undefined },
+    );
+    expect(outcome).toEqual({
+      ok: false,
+      code: 'service_not_restarted',
+      result: { targetPath: null, setAside: ['/srv/a.before-restore-20261014-030000'] },
+    });
+    script(['@@error code=destination_unavailable'], 5);
+    expect(await executor().backupRun({ runId: 'r1' }, actor)).toMatchObject({
+      ok: false,
+      code: 'destination_unavailable',
+    });
+    script(['@@error code=constructor'], 2);
+    expect(await executor().backupForget('i', actor)).toMatchObject({
+      ok: false,
+      code: 'executor_unavailable',
+    });
+  });
+
+  it('counts an action without a result as done when it exits 0', async () => {
+    script(['@@phase done']);
+    expect(await executor().backupDiscard('/srv/x.before-restore-20261014-030000', actor)).toEqual({
+      ok: true,
+      result: null,
+    });
+    script(['@@phase done'], 0);
+    // An action that must print a result and didn't: not done.
+    expect(await executor().backupPassphrase(actor, 'show')).toMatchObject({ ok: false });
+  });
+
+  it('does nothing when the audit log can’t record the request', async () => {
+    script(['@@phase done']);
+    audit.record.mockRejectedValueOnce(new Error('no audit table'));
+    await expect(
+      executor().backupConfigure(
+        {
+          destination: '/mnt/x',
+          schedule: { frequency: 'daily', time: '03:00' },
+          retention: { daily: 7, weekly: 4, monthly: 6 },
+          items: [],
+        },
+        actor,
+      ),
+    ).rejects.toThrow();
+    expect(existsSync(join(dir, 'record.json'))).toBe(false);
   });
 });

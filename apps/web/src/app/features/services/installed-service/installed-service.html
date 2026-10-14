@@ -27,6 +27,29 @@
         @if (service().webPort !== null) {
           <span class="text-muted-foreground" dir="ltr">:{{ service().webPort }}</span>
         }
+        @if (backup(); as backup) {
+          <a
+            routerLink="/backups"
+            class="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            [class.text-destructive]="backup.state === 'failed'"
+            [class.text-muted-foreground]="backup.state !== 'failed'"
+          >
+            @switch (backup.state) {
+              @case ('ok') {
+                {{ 'services.backup.ok' | translate: { time: format.ago(backup.at) } }}
+              }
+              @case ('failed') {
+                {{ 'services.backup.failed' | translate }}
+              }
+              @case ('never') {
+                {{ 'services.backup.never' | translate }}
+              }
+              @default {
+                {{ 'services.backup.none' | translate }}
+              }
+            }
+          </a>
+        }
       </div>
     </div>
   </div>

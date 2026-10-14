@@ -1,25 +1,21 @@
-import { ConflictException, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
-import {
-  type JobPhase,
-  SERVICE_ERROR_CODES,
-  type ServiceJob,
-  serviceProject,
-} from '@homelab/shared';
+import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
+import { type Job, type JobPhase, SERVICE_ERROR_CODES, serviceProject } from '@homelab/shared';
 import { DockerService } from '../docker/docker.service.js';
 import type { ComposeOutcome } from '../executor/executor.model.js';
 import type { ServiceJob as ServiceJobRow } from '../generated/prisma/client.js';
+import { jobView, LiveJob } from '../jobs/live-job.js';
+import { OperationSlot } from '../jobs/operation-slot.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { ActiveJob } from './services.model.js';
 
-/** Output kept per job (the end matters most when something failed). */
-const MAX_OUTPUT_BYTES = 256 * 1024;
 const JOBS_KEPT = 20;
 
 /**
- * Running install and removal jobs: one at a time, platform-wide (the wrapper's lock enforces the
- * same as root); the running job's phase and output, live; saving its result; keeping the last 20
- * per service; and, after a restart, marking jobs that were running as interrupted and reading
- * their services' state back from Docker. Every change goes to listeners (the `services` topic).
+ * Running install and removal jobs: in the one slot for privileged operations (`OperationSlot`,
+ * shared with backups; the wrappers' lock enforces the same as root); the running job's phase and
+ * output, live; saving its result; keeping the last 20 per service; and, after a restart, marking
+ * jobs that were running as interrupted and reading their services' state back from Docker. Every
+ * change goes to listeners (the `services` topic).
  */
 @Injectable()
 export class ServiceJobs implements OnApplicationBootstrap {
@@ -30,6 +26,7 @@ export class ServiceJobs implements OnApplicationBootstrap {
   constructor(
     private readonly prisma: PrismaService,
     private readonly docker: DockerService,
+    private readonly slot: OperationSlot,
   ) {}
 
   /** Called on every change (job phase, output, status). Returns the unsubscribe. */
@@ -53,7 +50,9 @@ export class ServiceJobs implements OnApplicationBootstrap {
           finishedAt: new Date(),
         },
       });
-      const status = await this.statusFromDocker(job.service.catalogId, job.kind);
+      // Service jobs are installs and removals (restores have their own table).
+      const kind = job.kind === 'remove' ? 'remove' : 'deploy';
+      const status = await this.statusFromDocker(job.service.catalogId, kind);
       await this.prisma.service.update({ where: { id: job.serviceId }, data: { status } });
       this.logger.warn(
         `Job ${job.id} (${job.kind} ${job.service.catalogId}) was interrupted; service is ${status}`,
@@ -65,30 +64,21 @@ export class ServiceJobs implements OnApplicationBootstrap {
    * Takes the one slot, before any await — so two requests can't both pass. `start` once the
    * job's row exists; `release` if the request fails before that.
    */
-  claim(): { start: (id: string, serviceId: string) => void; release: () => void } {
-    if (this.active) {
-      throw new ConflictException({
-        message: 'Another install or removal is running',
-        code: SERVICE_ERROR_CODES.busy,
-      });
-    }
-    const job: ActiveJob = {
-      id: null,
-      serviceId: null,
-      phase: null,
-      lines: [],
-      bytes: 0,
-      omitted: 0,
-    };
+  claim(kind: 'deploy' | 'remove'): {
+    start: (id: string, serviceId: string) => void;
+    release: () => void;
+  } {
+    const job: ActiveJob = { live: new LiveJob(), serviceId: null, release: this.slot.claim(kind) };
     this.active = job;
     return {
       start: (id, serviceId) => {
-        job.id = id;
+        job.live.id = id;
         job.serviceId = serviceId;
         this.notify();
       },
       release: () => {
         if (this.active === job) this.active = null;
+        job.release();
       },
     };
   }
@@ -97,7 +87,7 @@ export class ServiceJobs implements OnApplicationBootstrap {
   callbacks(): { onPhase: (phase: JobPhase) => void; onOutput: (line: string) => void } {
     return {
       onPhase: (phase) => {
-        if (this.active) this.active.phase = phase;
+        if (this.active) this.active.live.phase = phase;
         this.notify();
       },
       onOutput: (line) => this.appendOutput(line),
@@ -106,14 +96,8 @@ export class ServiceJobs implements OnApplicationBootstrap {
 
   /** One line of the running job's output; at most 256 KB kept, the oldest dropped first. */
   appendOutput(line: string): void {
-    const job = this.active;
-    if (!job) return;
-    job.lines.push(line);
-    job.bytes += Buffer.byteLength(line) + 1;
-    while (job.bytes > MAX_OUTPUT_BYTES && job.lines.length > 1) {
-      job.bytes -= Buffer.byteLength(job.lines.shift()!) + 1;
-      job.omitted++;
-    }
+    if (!this.active) return;
+    this.active.live.append(line);
     this.notify();
   }
 
@@ -130,21 +114,18 @@ export class ServiceJobs implements OnApplicationBootstrap {
   /** Saves the running job's result and its service's new status, then frees the slot. */
   async finish(outcome: ComposeOutcome, status: 'installed' | 'failed' | 'removed'): Promise<void> {
     const job = this.active;
-    if (!job?.id) return;
+    if (!job?.live.id) return;
+    const { live } = job;
     try {
-      const output = [
-        ...(job.omitted > 0 ? [`[… ${job.omitted} earlier lines not kept]`] : []),
-        ...job.lines,
-      ].join('\n');
       await this.prisma.$transaction([
         this.prisma.serviceJob.update({
-          where: { id: job.id },
+          where: { id: live.id! },
           data: {
             status: outcome.ok ? 'succeeded' : 'failed',
-            phase: job.phase,
+            phase: live.phase,
             errorCode: outcome.ok ? null : outcome.code,
             errorField: outcome.ok ? null : outcome.field,
-            output,
+            output: live.savedOutput(),
             finishedAt: new Date(),
           },
         }),
@@ -152,30 +133,17 @@ export class ServiceJobs implements OnApplicationBootstrap {
       ]);
       await this.prune(job.serviceId!);
     } catch (failure) {
-      this.logger.error(`Could not save the result of job ${job.id}`, failure);
+      this.logger.error(`Could not save the result of job ${live.id}`, failure);
     } finally {
       this.active = null;
+      job.release();
       this.notify();
     }
   }
 
   /** A job as the API and the topic show it — live from memory while it runs; the last `lastLines` lines if given. */
-  view(job: ServiceJobRow, lastLines?: number): ServiceJob {
-    const live = this.active?.id === job.id ? this.active : null;
-    const lines = live ? live.lines : job.output ? job.output.split('\n') : [];
-    const shown = lastLines === undefined ? lines : lines.slice(-lastLines);
-    return {
-      id: job.id,
-      kind: job.kind,
-      status: job.status,
-      phase: ((live ? live.phase : job.phase) ?? null) as JobPhase | null,
-      errorCode: job.errorCode,
-      errorField: job.errorField,
-      startedAt: job.startedAt.toISOString(),
-      finishedAt: job.finishedAt?.toISOString() ?? null,
-      output: shown,
-      omitted: lines.length - shown.length + (live ? live.omitted : 0),
-    };
+  view(job: ServiceJobRow, lastLines?: number): Job {
+    return jobView(job, this.active?.live ?? null, lastLines);
   }
 
   private async prune(serviceId: string): Promise<void> {

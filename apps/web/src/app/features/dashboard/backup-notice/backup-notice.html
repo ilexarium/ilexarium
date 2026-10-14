@@ -1,0 +1,12 @@
+@if (warnings()[0]; as warning) {
+  <div hlmAlert variant="destructive" role="alert">
+    <ng-icon name="lucideTriangleAlert" aria-hidden="true" />
+    <h2 hlmAlertTitle>{{ 'backups.warning.' + warning + '.title' | translate }}</h2>
+    <div hlmAlertDescription class="grid gap-2">
+      <p>{{ 'backups.warning.' + warning + '.text' | translate }}</p>
+      <a hlmBtn variant="outline" size="sm" class="justify-self-start" routerLink="/backups">
+        {{ 'backups.notice.open' | translate }}
+      </a>
+    </div>
+  </div>
+}

@@ -1,0 +1,109 @@
+<section hlmCard aria-labelledby="settings-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="settings-title">{{ 'backups.settings.title' | translate }}</h2>
+  </div>
+  <div hlmCardContent class="grid gap-6">
+    <form [formRoot]="form" class="grid gap-5">
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error | errorText }}</p>
+        </div>
+      }
+      <div class="flex flex-wrap gap-4">
+        <div hlmField class="w-full sm:w-56">
+          <label hlmFieldLabel for="settings-frequency">{{
+            'backups.schedule.frequency' | translate
+          }}</label>
+          <hlm-select [formField]="form.schedule.frequency" [itemToString]="frequencyLabel">
+            <hlm-select-trigger buttonId="settings-frequency" class="w-full"
+              ><hlm-select-value
+            /></hlm-select-trigger>
+            <hlm-select-content *hlmSelectPortal>
+              @for (frequency of frequencies; track frequency) {
+                <hlm-select-item [value]="frequency">{{
+                  'backups.schedule.' + frequency | translate
+                }}</hlm-select-item>
+              }
+            </hlm-select-content>
+          </hlm-select>
+        </div>
+        <div hlmField class="w-32">
+          <label hlmFieldLabel for="settings-time">{{ 'backups.schedule.time' | translate }}</label>
+          <input
+            hlmInput
+            id="settings-time"
+            type="time"
+            dir="ltr"
+            [formField]="form.schedule.time"
+          />
+          @for (error of form.schedule.time().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+      </div>
+
+      <fieldset class="flex flex-wrap gap-4">
+        <legend class="mb-2 text-sm font-medium">
+          {{ 'backups.retention.title' | translate }}
+        </legend>
+        @for (part of keepParts; track part) {
+          <div hlmField class="w-32">
+            <label hlmFieldLabel [for]="'settings-keep-' + part">{{
+              'backups.retention.' + part | translate
+            }}</label>
+            <input
+              hlmInput
+              type="number"
+              inputmode="numeric"
+              dir="ltr"
+              [id]="'settings-keep-' + part"
+              [formField]="keep(part)"
+            />
+            @for (error of keep(part)().errors(); track error) {
+              <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+            }
+          </div>
+        }
+      </fieldset>
+
+      <div hlmField class="max-w-md">
+        <label hlmFieldLabel for="settings-disk">{{ 'backups.settings.disk' | translate }}</label>
+        <!-- Paths are machine text: left to right. -->
+        <hlm-select [formField]="form.destination" dir="ltr">
+          <hlm-select-trigger buttonId="settings-disk" class="w-full"
+            ><hlm-select-value
+          /></hlm-select-trigger>
+          <hlm-select-content *hlmSelectPortal>
+            @for (disk of disks(); track disk) {
+              <hlm-select-item [value]="disk">{{ disk }}</hlm-select-item>
+            }
+          </hlm-select-content>
+        </hlm-select>
+        @if (diskChanged()) {
+          <p hlmFieldDescription class="text-amber-700 dark:text-amber-400">
+            {{ 'backups.settings.newDisk' | translate }}
+          </p>
+        }
+        @for (error of form.destination().errors(); track error) {
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+        }
+      </div>
+
+      <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
+        {{
+          (form().submitting() ? 'backups.settings.saving' : 'backups.settings.save') | translate
+        }}
+      </button>
+    </form>
+
+    <div class="grid gap-2 border-t pt-4">
+      <p class="text-sm text-muted-foreground">{{ 'backups.passphrase.againHint' | translate }}</p>
+      <button hlmBtn variant="outline" class="justify-self-start" (click)="showPassphrase()">
+        <ng-icon name="lucideKeyRound" aria-hidden="true" />
+        {{ 'backups.passphrase.again' | translate }}
+      </button>
+    </div>
+  </div>
+</section>
+
+<app-passphrase-dialog />

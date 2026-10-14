@@ -48,5 +48,7 @@ const sessionMetadata: SessionOptions['metadata'] = (request) => ({
     // Factory: its optional clock argument is for tests, not for injection.
     { provide: LoginThrottleService, useFactory: () => new LoginThrottleService() },
   ],
+  // Other features ask for the password again before something sensitive (the backup passphrase).
+  exports: [AuthService],
 })
 export class AuthModule {}

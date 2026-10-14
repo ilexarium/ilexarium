@@ -80,7 +80,25 @@ describe('the catalog', () => {
           expect(keys.has(key), key).toBe(true);
         }
       }
+      if (entry.backup?.restoreNote) {
+        const key = `catalog.${entry.id}.backup.restoreNote`;
+        expect(keys.has(key), key).toBe(true);
+      }
     }
+  });
+
+  it('backs up Immich live without the folders it rebuilds, and stops Navidrome', async () => {
+    const entries = await loadCatalog(CATALOG_DIR);
+    const backup = (id: string) => entries.find((entry) => entry.meta.id === id)!.meta.backup;
+    expect(backup('immich')).toEqual({
+      folders: [{ field: 'UPLOAD_DIR', skip: ['thumbs', 'encoded-video'] }],
+      mode: 'live',
+      restoreNote: true,
+    });
+    expect(backup('navidrome')).toEqual({
+      folders: [{ field: 'DATA_DIR' }, { field: 'MUSIC_DIR' }],
+      mode: 'stop',
+    });
   });
 });
 

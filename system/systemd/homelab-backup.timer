@@ -1,0 +1,16 @@
+# /etc/systemd/system/homelab-backup.timer — REVIEW-REQUIRED (system/CLAUDE.md).
+# When backups run. The schedule the user chose replaces OnCalendar through a drop-in that
+# `homelab-backup configure` writes (homelab-backup.timer.d/schedule.conf); the line below is the
+# default (daily at 03:00). Enabled by `configure` once a plan exists.
+
+[Unit]
+Description=Homelab backups on schedule
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+# Missed while the machine was off: run soon after it starts.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

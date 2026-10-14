@@ -1,5 +1,8 @@
 @if (store.system(); as system) {
   <div class="grid gap-4 md:gap-6">
+    @if (store.backupWarnings().length > 0) {
+      <app-backup-notice [warnings]="store.backupWarnings()" />
+    }
     <app-host-summary [host]="system.host" [uptimeSeconds]="system.uptimeSeconds" />
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <app-cpu-card

@@ -4,6 +4,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideServer } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmSidebarImports } from '@ui/sidebar';
+import { BackupsStore } from '../../core/backups/backups-store';
 import { LanguageService } from '../../core/i18n/language';
 import { APP_NAME } from '../../core/page-title/page-title';
 import { NAV_ICONS, NAVIGATION } from '../navigation';
@@ -24,4 +25,7 @@ export class AppSidebar {
   /** Right to left: the sidebar sits on the right, its tooltips open to the left. */
   private readonly language = inject(LanguageService);
   protected readonly rtl = computed(() => this.language.dir() === 'rtl');
+  private readonly backups = inject(BackupsStore);
+  /** Parts of the app that need attention: a badge beside their entry. */
+  protected readonly attention = computed(() => ({ backups: this.backups.warnings().length }));
 }

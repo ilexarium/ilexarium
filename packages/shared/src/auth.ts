@@ -23,6 +23,11 @@ export const VALIDATION_LIMITS = {
   secretMin: CATALOG_LIMITS.secretMin,
   secretMax: CATALOG_LIMITS.secretMax,
   textMax: CATALOG_LIMITS.textMax,
+  // Backups (`BACKUP_LIMITS`; written out here, as backups.ts imports this file).
+  backupDailyMin: 1,
+  backupDailyMax: 365,
+  backupWeeklyMax: 104,
+  backupMonthlyMax: 120,
 } as const;
 
 /** Username when choosing one (setup). Normalised to lowercase before the checks run. */

@@ -22,5 +22,9 @@
       "access": "write",
       "advanced": true
     }
-  ]
+  ],
+  "backup": {
+    "folders": [{ "field": "DATA_DIR" }, { "field": "MUSIC_DIR" }],
+    "mode": "stop"
+  }
 }

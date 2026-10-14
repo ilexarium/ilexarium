@@ -3,6 +3,7 @@ import type { FieldTree, TreeValidationResult, ValidationError } from '@angular/
 import {
   apiErrorResponseSchema,
   AUTH_ERROR_CODES,
+  BACKUP_ERROR_CODES,
   CONTAINER_ACTION_ERROR_CODES,
   SERVICE_ERROR_CODES,
 } from '@homelab/shared';
@@ -13,6 +14,7 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(AUTH_ERROR_CODES),
   ...Object.values(CONTAINER_ACTION_ERROR_CODES),
   ...Object.values(SERVICE_ERROR_CODES),
+  ...Object.values(BACKUP_ERROR_CODES),
 ];
 
 /**
