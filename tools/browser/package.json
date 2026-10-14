@@ -1,0 +1,9 @@
+{
+  "name": "homelab-browser-check",
+  "private": true,
+  "description": "Headless Chromium (Playwright) to see the app in a real browser. Its own package, not an npm workspace: none of it ships.",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}
