@@ -1,11 +1,9 @@
 import en from '@homelab/i18n/en.json';
 import {
-  type MissingTranslationHandler,
+  MissingTranslationHandler,
   type MissingTranslationHandlerParams,
-  provideMissingTranslationHandler,
-  provideTranslateLoader,
   provideTranslateService,
-  type TranslateLoader,
+  TranslateLoader,
   type TranslationObject,
 } from '@ngx-translate/core';
 import { type Observable, of } from 'rxjs';
@@ -29,7 +27,11 @@ export function provideTestTranslations() {
   return provideTranslateService({
     lang: 'en',
     fallbackLang: 'en',
-    loader: provideTranslateLoader(EnglishLoader),
-    missingTranslationHandler: provideMissingTranslationHandler(FailOnMissingTranslation),
+    // Plain providers, like the app's (app.config.ts says why).
+    loader: { provide: TranslateLoader, useClass: EnglishLoader },
+    missingTranslationHandler: {
+      provide: MissingTranslationHandler,
+      useClass: FailOnMissingTranslation,
+    },
   });
 }

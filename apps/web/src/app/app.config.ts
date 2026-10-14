@@ -7,9 +7,9 @@ import {
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideRouter, TitleStrategy } from '@angular/router';
 import {
-  provideMissingTranslationHandler,
-  provideTranslateLoader,
+  MissingTranslationHandler,
   provideTranslateService,
+  TranslateLoader,
 } from '@ngx-translate/core';
 import { provideSpartanHlm } from '@ui/utils';
 import { routes } from './app.routes';
@@ -30,8 +30,14 @@ export const appConfig: ApplicationConfig = {
     provideSpartanHlm(),
     provideTranslateService({
       fallbackLang: 'en',
-      loader: provideTranslateLoader(I18nLoader),
-      missingTranslationHandler: provideMissingTranslationHandler(WarnOnMissingTranslation),
+      // Plain providers, not provideTranslateLoader(I18nLoader): that helper tells a class from a
+      // factory by its source text starting with "class " — minified, it's "class{", so the
+      // production build called the class as a function and the app never started.
+      loader: { provide: TranslateLoader, useClass: I18nLoader },
+      missingTranslationHandler: {
+        provide: MissingTranslationHandler,
+        useClass: WarnOnMissingTranslation,
+      },
     }),
     // The language's texts before the first page renders: no keys flash on screen.
     provideAppInitializer(() => inject(LanguageService).init()),
