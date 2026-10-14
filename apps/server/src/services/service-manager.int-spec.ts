@@ -7,6 +7,7 @@ import { Test } from '@nestjs/testing';
 import type { PublicUser } from '@homelab/shared';
 import { resetDatabase } from '../../test/database.js';
 import { loadCatalog } from '../catalog/catalog-loader.js';
+import type { BackupManager } from '../backups/backup-manager.js';
 import type { CatalogService } from '../catalog/catalog.service.js';
 import type { CatalogEntry } from '../catalog/catalog.model.js';
 import { ConfigModule } from '../config/config.module.js';
@@ -15,6 +16,7 @@ import type { DockerService } from '../docker/docker.service.js';
 import type { ComposeOutcome, ComposeRequest } from '../executor/executor.model.js';
 import type { ExecutorService } from '../executor/executor.service.js';
 import type { WrapperConfigService } from '../executor/wrapper-config.js';
+import { OperationSlot } from '../jobs/operation-slot.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SecretsService } from '../secrets/secrets.service.js';
@@ -56,6 +58,7 @@ describe('ServiceManager (database)', () => {
   let dir: string;
   let secrets: SecretsService;
   let executor: FakeExecutor;
+  let backups: { includeInstalledService: ReturnType<typeof vi.fn> };
   let containers: { composeProject: string; state: string }[];
   let services: ServiceManager;
   let jobs: ServiceJobs;
@@ -83,6 +86,7 @@ describe('ServiceManager (database)', () => {
     secrets = new SecretsService(config);
     await secrets.onModuleInit();
     executor = new FakeExecutor();
+    backups = { includeInstalledService: vi.fn(async () => undefined) };
     containers = [];
     const wrapperConfig = {
       config: {
@@ -94,9 +98,11 @@ describe('ServiceManager (database)', () => {
         dockerBin: '/usr/bin/docker',
       },
     } as unknown as WrapperConfigService;
-    jobs = new ServiceJobs(prisma, {
-      listContainers: async () => containers,
-    } as unknown as DockerService);
+    jobs = new ServiceJobs(
+      prisma,
+      { listContainers: async () => containers } as unknown as DockerService,
+      new OperationSlot(),
+    );
     services = new ServiceManager(
       prisma,
       {
@@ -108,6 +114,7 @@ describe('ServiceManager (database)', () => {
       new ServiceSecrets(secrets),
       wrapperConfig,
       new SystemReader(),
+      backups as unknown as BackupManager,
     );
   });
 

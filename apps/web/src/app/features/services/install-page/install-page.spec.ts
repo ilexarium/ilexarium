@@ -4,6 +4,8 @@ import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angul
 import type { CatalogEntryDetails } from '@homelab/shared';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject } from 'rxjs';
+import { signal } from '@angular/core';
+import { BackupsStore } from '../../../core/backups/backups-store';
 import { ServicesApi } from '../../../core/services/services-api';
 import { submit, textOf } from '../../../shared/forms/testing';
 import { InstallPage } from './install-page';
@@ -59,7 +61,7 @@ const DEMO_TEXTS = {
   },
 };
 
-async function render(entry: CatalogEntryDetails = details) {
+async function render(entry: CatalogEntryDetails = details, backupsConfigured = false) {
   const api = {
     details: vi.fn(async () => entry),
     deploy: vi.fn(async () => ({ serviceId: 'x', jobId: 'y' })),
@@ -68,6 +70,7 @@ async function render(entry: CatalogEntryDetails = details) {
     providers: [
       provideRouter([{ path: '**', children: [] }]),
       { provide: ServicesApi, useValue: api },
+      { provide: BackupsStore, useValue: { configured: signal(backupsConfigured) } },
       {
         provide: ActivatedRoute,
         useValue: { paramMap: new BehaviorSubject(convertToParamMap({ id: entry.meta.id })) },
@@ -99,7 +102,8 @@ describe('InstallPage', () => {
     expect(el.querySelector('#DB_PASSWORD')).toBeNull(); // generated: never asked
     const advanced = el.querySelector('details')!;
     expect(advanced.open).toBe(false);
-    expect(advanced.querySelector('select#LOG_LEVEL')).not.toBeNull();
+    // A themed select (its options drawn by us, never the browser's own white list).
+    expect(advanced.querySelector('button#LOG_LEVEL')!.textContent).toContain('info');
     expect(advanced.querySelector<HTMLInputElement>('input#TELEMETRY')!.type).toBe('checkbox');
     // Machine text stays left to right.
     for (const id of ['WEB_PORT', 'MEDIA_DIR', 'ADMIN_PASSWORD'])
@@ -207,5 +211,58 @@ describe('InstallPage', () => {
       await fixture.whenStable();
       expect(textOf(fixture)).toContain("This service isn't in the catalog.");
     });
+  });
+
+  describe('Include in backups', () => {
+    const backedUp: CatalogEntryDetails = {
+      ...details,
+      meta: { ...details.meta, backup: { folders: [{ field: 'DATA_DIR' }], mode: 'stop' } },
+    };
+    const checkbox = (el: HTMLElement) =>
+      [...el.querySelectorAll('label')]
+        .find((l) => l.textContent?.includes('Include in backups'))
+        ?.querySelector('input');
+
+    it('is offered, ticked, once backups are set up and the recipe can be backed up', async () => {
+      const { el, api, fixture, set } = await render(backedUp, true);
+      expect(checkbox(el)!.checked).toBe(true);
+      await set('ADMIN_PASSWORD', 'correct horse battery');
+      await submit(fixture);
+      await vi.waitFor(() => expect(api.deploy).toHaveBeenCalled());
+      expect(api.deploy).toHaveBeenCalledWith(expect.objectContaining({ includeInBackups: true }));
+    });
+
+    it('can be left out', async () => {
+      const { el, api, fixture, set } = await render(backedUp, true);
+      checkbox(el)!.click();
+      await set('ADMIN_PASSWORD', 'correct horse battery');
+      await submit(fixture);
+      await vi.waitFor(() => expect(api.deploy).toHaveBeenCalled());
+      expect(api.deploy).toHaveBeenCalledWith(expect.objectContaining({ includeInBackups: false }));
+    });
+
+    it('is not offered before backups are set up, or for a recipe without a backup', async () => {
+      expect(checkbox((await render(backedUp, false)).el)).toBeUndefined();
+      TestBed.resetTestingModule();
+      expect(checkbox((await render(details, true)).el)).toBeUndefined();
+    });
+  });
+
+  it('takes an option chosen in the select', async () => {
+    const { el, api, fixture, set } = await render();
+    await set('ADMIN_PASSWORD', 'correct horse battery');
+    el.querySelector<HTMLButtonElement>('button#LOG_LEVEL')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="option"]')).not.toBeNull());
+    const debug = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (o) => o.textContent?.trim() === 'debug',
+    )!;
+    debug.click();
+    await fixture.whenStable();
+    expect(el.querySelector('button#LOG_LEVEL')!.textContent).toContain('debug');
+    await submit(fixture);
+    await vi.waitFor(() => expect(api.deploy).toHaveBeenCalled());
+    expect(api.deploy).toHaveBeenCalledWith(
+      expect.objectContaining({ values: expect.objectContaining({ LOG_LEVEL: 'debug' }) }),
+    );
   });
 });

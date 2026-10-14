@@ -10,14 +10,16 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid(7)) @db.Uuid
-  username     String    @unique // stored lowercase
-  passwordHash String // self-describing ($scrypt$…); never leaves the server
-  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
-  sessions     Session[]
-  services     Service[]
-  serviceJobs  ServiceJob[]
+  id             String          @id @default(uuid(7)) @db.Uuid
+  username       String          @unique // stored lowercase
+  passwordHash   String // self-describing ($scrypt$…); never leaves the server
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+  sessions       Session[]
+  services       Service[]
+  serviceJobs    ServiceJob[]
+  backupRuns     BackupRun[]
+  backupRestores BackupRestore[]
 }
 
 /// Mirrors @nestjs/authentication's SessionRecord. Times come from the package's clock, never DB defaults.
@@ -69,6 +71,7 @@ model Service {
   settings       Json
   secrets        ServiceSecret[]
   jobs           ServiceJob[]
+  backupItems    BackupItem[]
   createdById    String?         @db.Uuid
   createdBy      User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now()) @db.Timestamptz(3)
@@ -95,19 +98,19 @@ model ServiceSecret {
 
 /// One install or removal: its progress and output (secrets masked, at most 256 KB).
 model ServiceJob {
-  id          String     @id @default(uuid(7)) @db.Uuid
-  serviceId   String     @db.Uuid
-  service     Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid(7)) @db.Uuid
+  serviceId   String    @db.Uuid
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   kind        JobKind
   status      JobStatus
   phase       String?
   errorCode   String?
   errorField  String?
-  output      String     @default("")
-  startedById String?    @db.Uuid
-  startedBy   User?      @relation(fields: [startedById], references: [id], onDelete: SetNull)
-  startedAt   DateTime   @default(now()) @db.Timestamptz(3)
-  finishedAt  DateTime?  @db.Timestamptz(3)
+  output      String    @default("")
+  startedById String?   @db.Uuid
+  startedBy   User?     @relation(fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt   DateTime  @default(now()) @db.Timestamptz(3)
+  finishedAt  DateTime? @db.Timestamptz(3)
 
   @@index([serviceId, startedAt])
 }
@@ -115,6 +118,7 @@ model ServiceJob {
 enum JobKind {
   deploy
   remove
+  restore
 }
 
 enum JobStatus {
@@ -122,4 +126,143 @@ enum JobStatus {
   succeeded
   failed
   interrupted
+}
+
+/// The backup plan (docs/plans/backups.md): one row, once set up. The app's source of truth;
+/// every change goes to the backup wrapper's `configure`, which writes the timer's copy.
+model BackupPlan {
+  id           Int      @id @default(1)
+  /// The chosen disk's mount point; the repository is <destination>/homelab-backups.
+  destination  String
+  repositoryId String
+  /// { frequency, time }
+  schedule     Json
+  /// { daily, weekly, monthly }
+  retention    Json
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+}
+
+/// What is backed up: the platform (always), an installed service, or a folder.
+model BackupItem {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  kind           BackupItemKind
+  serviceId      String?            @db.Uuid
+  service        Service?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  path           String?
+  /// A service's folder fields switched off by the user.
+  excludedFields String[]           @default([])
+  /// Removed from the plan: not backed up any more; its archives stay until deleted.
+  removedAt      DateTime?          @db.Timestamptz(3)
+  /// Its archives after the latest run's pruning (from the wrapper's results — no listing call).
+  archives       String[]           @default([])
+  archivesAt     DateTime?          @db.Timestamptz(3)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  results        BackupItemResult[]
+  restores       BackupRestore[]
+
+  @@index([serviceId])
+}
+
+enum BackupItemKind {
+  platform
+  service
+  folder
+}
+
+/// One backup run, scheduled or manual, imported from the wrapper's results file (or started here).
+model BackupRun {
+  /// The wrapper's run id (scheduled) or ours (manual: we start it with this id).
+  id          String             @id @db.Uuid
+  trigger     BackupTrigger
+  /// One item ("Back up now" on it), or null for all.
+  itemId      String?            @db.Uuid
+  status      BackupRunStatus
+  errorCode   String?
+  output      String             @default("")
+  startedById String?            @db.Uuid
+  startedBy   User?              @relation(fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt   DateTime           @db.Timestamptz(3)
+  finishedAt  DateTime?          @db.Timestamptz(3)
+  items       BackupItemResult[]
+
+  @@index([startedAt])
+}
+
+enum BackupTrigger {
+  scheduled
+  manual
+}
+
+enum BackupRunStatus {
+  running
+  ok
+  warning
+  failed
+}
+
+enum BackupStatus {
+  ok
+  warning
+  failed
+}
+
+/// An item's part of a run.
+model BackupItemResult {
+  runId         String       @db.Uuid
+  run           BackupRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  itemId        String       @db.Uuid
+  item          BackupItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  status        BackupStatus
+  errorCode     String?
+  archive       String?
+  originalBytes BigInt?
+  addedBytes    BigInt?
+  warnings      String[]     @default([])
+
+  @@id([runId, itemId])
+  @@index([itemId])
+}
+
+/// A repository check (weekly; monthly with all data read back), from the results file.
+model BackupCheck {
+  id         String       @id @db.Uuid
+  full       Boolean
+  status     BackupStatus
+  errorCode  String?
+  startedAt  DateTime     @db.Timestamptz(3)
+  finishedAt DateTime     @db.Timestamptz(3)
+
+  @@index([finishedAt])
+}
+
+/// A restore of one archive: a job (progress and output, at most 256 KB).
+model BackupRestore {
+  id                String              @id @default(uuid(7)) @db.Uuid
+  itemId            String              @db.Uuid
+  item              BackupItem          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  archive           String
+  target            BackupRestoreTarget
+  /// newFolder: where it went.
+  targetPath        String?
+  /// inPlace: the folders set aside (the way back), until "Delete previous version".
+  setAside          String[]            @default([])
+  setAsideDeletedAt DateTime?           @db.Timestamptz(3)
+  kind              JobKind             @default(restore)
+  status            JobStatus
+  phase             String?
+  errorCode         String?
+  errorField        String?
+  output            String              @default("")
+  startedById       String?             @db.Uuid
+  startedBy         User?               @relation(fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt         DateTime            @default(now()) @db.Timestamptz(3)
+  finishedAt        DateTime?           @db.Timestamptz(3)
+
+  @@index([startedAt])
+}
+
+enum BackupRestoreTarget {
+  inPlace
+  newFolder
 }

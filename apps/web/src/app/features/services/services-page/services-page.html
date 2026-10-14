@@ -12,6 +12,7 @@
             <app-installed-service
               [service]="service"
               [runtime]="store.runtimes().get(service.catalogId) ?? null"
+              [backup]="store.backups().get(service.id) ?? null"
               (remove)="store.remove(service)"
             />
           }

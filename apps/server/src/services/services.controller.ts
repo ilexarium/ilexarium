@@ -18,7 +18,7 @@ import type {
   DeployResponse,
   PublicUser,
   RemoveResponse,
-  ServiceJob,
+  Job,
   ServicesList,
 } from '@homelab/shared';
 import type { Response } from 'express';
@@ -87,7 +87,7 @@ export class ServicesController {
   }
 
   @Get('services/jobs/:id')
-  job(@Param() { id }: ServiceIdParamsDto): Promise<ServiceJob> {
+  job(@Param() { id }: ServiceIdParamsDto): Promise<Job> {
     return this.services.job(id);
   }
 }

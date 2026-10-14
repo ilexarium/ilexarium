@@ -1,0 +1,48 @@
+<section hlmCard aria-labelledby="restore-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="restore-title">
+      {{ 'backups.restore.latest' | translate }}
+      <span [attr.dir]="label().ltr ? 'ltr' : null" class="break-all">{{ label().text }}</span>
+    </h2>
+  </div>
+  <div hlmCardContent class="grid gap-3">
+    @if (restore().job.status !== 'succeeded') {
+      <app-job-progress [job]="restore().job" [phases]="phases()" />
+    } @else {
+      <p class="text-sm">{{ 'backups.restore.succeeded' | translate }}</p>
+    }
+    @if (restore().targetPath; as path) {
+      <p class="text-sm">
+        {{ 'backups.restore.wentTo' | translate }}
+        <code class="break-all" dir="ltr">{{ path }}</code>
+      </p>
+    }
+    @if (restore().job.status === 'succeeded' && note(); as key) {
+      <div hlmAlert role="note">
+        <p hlmAlertDescription>{{ key | translate }}</p>
+      </div>
+    }
+    @if (restore().setAside.length > 0 && !restore().setAsideDeleted) {
+      <div class="grid gap-2 rounded-md border p-3 text-sm">
+        <p>{{ 'backups.restore.setAside' | translate }}</p>
+        <ul class="grid gap-1">
+          @for (path of restore().setAside; track path) {
+            <li>
+              <code class="break-all" dir="ltr">{{ path }}</code>
+            </li>
+          }
+        </ul>
+        <button
+          hlmBtn
+          variant="outline"
+          size="sm"
+          class="justify-self-start"
+          [disabled]="pending() || restore().job.status === 'running'"
+          (click)="discard.emit()"
+        >
+          {{ 'backups.restore.discard' | translate }}
+        </button>
+      </div>
+    }
+  </div>
+</section>

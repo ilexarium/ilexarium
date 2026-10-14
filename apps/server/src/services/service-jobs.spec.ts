@@ -1,6 +1,7 @@
 import type { DockerService } from '../docker/docker.service.js';
 import type { ServiceJob as ServiceJobRow } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { OperationSlot } from '../jobs/operation-slot.js';
 import { ServiceJobs } from './service-jobs.js';
 
 const row = (id: string, change: Partial<ServiceJobRow> = {}): ServiceJobRow => ({
@@ -19,22 +20,32 @@ const row = (id: string, change: Partial<ServiceJobRow> = {}): ServiceJobRow => 
 });
 
 // Saving a result needs the database (service-manager.int-spec.ts); the slot and the output don't.
-const jobs = () => new ServiceJobs({} as PrismaService, {} as DockerService);
+const jobs = (slot = new OperationSlot()) =>
+  new ServiceJobs({} as PrismaService, {} as DockerService, slot);
 
 describe('ServiceJobs', () => {
   it('runs one job at a time, and frees the slot of a request that failed before starting', () => {
     const service = jobs();
-    const first = service.claim();
-    expect(() => service.claim()).toThrow(expect.objectContaining({ status: 409 }));
+    const first = service.claim('deploy');
+    expect(() => service.claim('deploy')).toThrow(expect.objectContaining({ status: 409 }));
     first.release();
-    expect(() => service.claim()).not.toThrow();
+    expect(() => service.claim('deploy')).not.toThrow();
+  });
+
+  it('shares the slot with backups: busy while a restore or a backup run holds it', () => {
+    const slot = new OperationSlot();
+    const release = slot.claim('restore');
+    expect(() => jobs(slot).claim('deploy')).toThrow(expect.objectContaining({ status: 409 }));
+    release();
+    slot.followExternal(() => 'backup');
+    expect(() => jobs(slot).claim('remove')).toThrow(expect.objectContaining({ status: 409 }));
   });
 
   it('shows the running job live from memory: phase and the last lines', () => {
     const service = jobs();
     const changes = vi.fn();
     service.onChange(changes);
-    service.claim().start('j1', 's1');
+    service.claim('deploy').start('j1', 's1');
     const { onPhase, onOutput } = service.callbacks();
     onPhase('pulling');
     for (let i = 1; i <= 60; i++) onOutput(`line ${i}`);
@@ -48,7 +59,7 @@ describe('ServiceJobs', () => {
 
   it('keeps at most 256 KB of output, dropping the oldest lines', () => {
     const service = jobs();
-    service.claim().start('j1', 's1');
+    service.claim('deploy').start('j1', 's1');
     const line = 'x'.repeat(1023); // 1 KB with its newline
     for (let i = 0; i < 300; i++) service.appendOutput(line);
     const view = service.view(row('j1'));

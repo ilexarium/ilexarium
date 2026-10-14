@@ -1,0 +1,215 @@
+<section hlmCard class="max-w-3xl">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle>{{ 'backups.setup.title' | translate }}</h2>
+    <p hlmCardDescription>{{ 'backups.setup.text' | translate }}</p>
+  </div>
+  <div hlmCardContent>
+    <form [formRoot]="form" class="grid gap-8">
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error | errorText }}</p>
+        </div>
+      }
+
+      <fieldset class="grid gap-3">
+        <legend class="mb-2 font-medium">{{ 'backups.setup.disk' | translate }}</legend>
+        @if (destinations(); as disks) {
+          @if (disks.length === 0) {
+            <div hlmAlert role="status">
+              <p hlmAlertDescription>{{ 'backups.setup.noDisk' | translate }}</p>
+            </div>
+          }
+          @for (disk of disks; track disk.mountPoint) {
+            <label
+              class="flex cursor-pointer items-start gap-3 rounded-md border p-3 has-checked:border-primary has-disabled:cursor-not-allowed has-disabled:opacity-60"
+            >
+              <input
+                type="radio"
+                name="destination"
+                class="mt-1 size-4"
+                [value]="disk.mountPoint"
+                [disabled]="!disk.supported"
+                [checked]="form.destination().value() === disk.mountPoint"
+                (change)="form.destination().value.set(disk.mountPoint)"
+              />
+              <span class="grid gap-1 text-sm">
+                <span class="flex items-center gap-2 font-medium">
+                  <ng-icon name="lucideHardDrive" class="shrink-0" aria-hidden="true" />
+                  <code class="break-all" dir="ltr">{{ disk.mountPoint }}</code>
+                </span>
+                <span class="text-muted-foreground">
+                  {{
+                    'backups.setup.diskSpace'
+                      | translate
+                        : {
+                            free: format.bytes(disk.freeBytes),
+                            total: format.bytes(disk.totalBytes),
+                            filesystem: disk.filesystem,
+                          }
+                  }}
+                </span>
+                @if (!disk.supported) {
+                  <span class="text-destructive">{{
+                    'backups.setup.unsupported' | translate
+                  }}</span>
+                }
+                @if (disk.sameDiskAsData) {
+                  <span class="text-amber-700 dark:text-amber-400">{{
+                    'backups.setup.sameDisk' | translate
+                  }}</span>
+                }
+                @if (disk.hasRepository) {
+                  <span class="text-muted-foreground">{{
+                    'backups.setup.hasRepository' | translate
+                  }}</span>
+                }
+              </span>
+            </label>
+          }
+          <!-- After "Set up backups" (it marks every field touched), and one message is enough. -->
+          @if (form.destination().touched() && form.destination().errors()[0]; as error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        } @else {
+          <p class="text-sm text-muted-foreground" role="status">
+            {{ 'backups.loading' | translate }}
+          </p>
+        }
+      </fieldset>
+
+      <fieldset class="grid gap-4">
+        <legend class="mb-2 font-medium">{{ 'backups.setup.when' | translate }}</legend>
+        <div class="flex flex-wrap gap-4">
+          <div hlmField class="w-full sm:w-56">
+            <label hlmFieldLabel for="frequency">{{
+              'backups.schedule.frequency' | translate
+            }}</label>
+            <hlm-select [formField]="form.schedule.frequency" [itemToString]="frequencyLabel">
+              <hlm-select-trigger buttonId="frequency" class="w-full"
+                ><hlm-select-value
+              /></hlm-select-trigger>
+              <hlm-select-content *hlmSelectPortal>
+                @for (frequency of frequencies; track frequency) {
+                  <hlm-select-item [value]="frequency">{{
+                    'backups.schedule.' + frequency | translate
+                  }}</hlm-select-item>
+                }
+              </hlm-select-content>
+            </hlm-select>
+          </div>
+          <div hlmField class="w-32">
+            <label hlmFieldLabel for="time">{{ 'backups.schedule.time' | translate }}</label>
+            <input hlmInput id="time" type="time" dir="ltr" [formField]="form.schedule.time" />
+            @for (error of form.schedule.time().errors(); track error) {
+              <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+            }
+          </div>
+        </div>
+        <p class="text-sm text-muted-foreground">
+          {{ 'backups.retention.summary' | translate: form.retention().value() }}
+        </p>
+        <details class="rounded-md border p-3">
+          <summary class="cursor-pointer text-sm font-medium select-none">
+            {{ 'backups.retention.advanced' | translate }}
+          </summary>
+          <div class="mt-4 flex flex-wrap gap-4">
+            @for (part of keepParts; track part) {
+              <div hlmField class="w-32">
+                <label hlmFieldLabel [for]="'keep-' + part">{{
+                  'backups.retention.' + part | translate
+                }}</label>
+                <input
+                  hlmInput
+                  type="number"
+                  inputmode="numeric"
+                  dir="ltr"
+                  [id]="'keep-' + part"
+                  [formField]="keep(part)"
+                />
+                @for (error of keep(part)().errors(); track error) {
+                  <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+                }
+              </div>
+            }
+          </div>
+        </details>
+      </fieldset>
+
+      <fieldset class="grid gap-3">
+        <legend class="mb-2 font-medium">{{ 'backups.setup.what' | translate }}</legend>
+        <p class="text-sm">{{ 'backups.items.platform' | translate }}</p>
+        <p class="-mt-2 text-sm text-muted-foreground">
+          {{ 'backups.items.platformHelp' | translate }}
+        </p>
+        @for (service of services(); track service.id) {
+          <div class="grid gap-2 rounded-md border p-3">
+            <label class="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                class="size-4"
+                [checked]="!skippedServices().includes(service.id)"
+                (change)="toggleService(service.id, checked($event))"
+              />
+              {{ service.name }}
+            </label>
+            @if (service.folders.length > 1 && !skippedServices().includes(service.id)) {
+              <div class="grid gap-1 ps-6">
+                @for (field of service.folders; track field) {
+                  <label class="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      class="size-4"
+                      [checked]="!(excluded()[service.id] ?? []).includes(field)"
+                      [disabled]="lastFolder(service, field)"
+                      (change)="toggleFolder(service, field, checked($event))"
+                    />
+                    {{ 'catalog.' + service.catalogId + '.fields.' + field + '.label' | translate }}
+                  </label>
+                }
+              </div>
+            }
+          </div>
+        }
+        @for (path of folders(); track path) {
+          <div class="flex items-center gap-2 rounded-md border p-3 text-sm">
+            <code class="min-w-0 flex-1 break-all" dir="ltr">{{ path }}</code>
+            <button
+              hlmBtn
+              type="button"
+              variant="ghost"
+              size="icon"
+              [attr.aria-label]="'backups.setup.removeFolder' | translate: { path }"
+              (click)="removeFolder(path)"
+            >
+              <ng-icon name="lucideTrash2" aria-hidden="true" />
+            </button>
+          </div>
+        }
+        <button
+          hlmBtn
+          type="button"
+          variant="outline"
+          class="justify-self-start"
+          (click)="openPicker()"
+        >
+          <ng-icon name="lucideFolderPlus" aria-hidden="true" />
+          {{ 'backups.items.addFolder' | translate }}
+        </button>
+      </fieldset>
+
+      <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
+        {{
+          (form().submitting() ? 'backups.setup.submitting' : 'backups.setup.submit') | translate
+        }}
+      </button>
+    </form>
+  </div>
+</section>
+
+<app-folder-picker
+  [open]="pickerOpen()"
+  [listing]="folderListing()"
+  (browse)="browse.emit($event)"
+  (choose)="chooseFolder($event)"
+  (cancel)="closePicker()"
+/>

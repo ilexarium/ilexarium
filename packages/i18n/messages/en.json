@@ -7,7 +7,8 @@
     "logs": "Logs · {{name}}",
     "account": "Account",
     "services": "Services",
-    "installService": "Install a service"
+    "installService": "Install a service",
+    "backups": "Backups"
   },
   "app": {
     "loading": "Loading…",
@@ -26,7 +27,9 @@
     "containers": "Containers",
     "settings": "Settings",
     "account": "Account",
-    "services": "Services"
+    "services": "Services",
+    "backups": "Backups",
+    "attention": "(needs attention)"
   },
   "userMenu": {
     "open": "Account menu",
@@ -112,7 +115,14 @@
     "secretTooLong": "At most {{secretMax}} characters",
     "secretInvalid": "One line, no control characters",
     "optionInvalid": "Choose one of the options",
-    "catalogIdInvalid": "Not a catalog entry"
+    "catalogIdInvalid": "Not a catalog entry",
+    "backupTimeInvalid": "A time like 03:00",
+    "backupKeepInvalid": "A whole number",
+    "backupKeepDailyRange": "From {{backupDailyMin}} to {{backupDailyMax}}",
+    "backupKeepWeeklyRange": "From 0 to {{backupWeeklyMax}}",
+    "backupKeepMonthlyRange": "From 0 to {{backupMonthlyMax}}",
+    "backupDestinationRequired": "Choose a disk",
+    "backupDestinationInvalid": "A disk mounted under /mnt or /media"
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -133,7 +143,7 @@
     "service_not_found": "This service doesn't exist anymore.",
     "service_already_installed": "This service is already installed.",
     "service_not_installed": "This service isn't installed.",
-    "busy": "Another install or removal is running. Try again when it has finished.",
+    "busy": "Another operation (an install, a backup or a restore) is running. Try again when it has finished.",
     "port_in_use": "This port is already in use.",
     "port_reserved": "This port is reserved for the system.",
     "path_not_allowed": "This folder is not in an allowed area.",
@@ -144,7 +154,30 @@
     "executor_unavailable": "This server isn't set up for installing services yet.",
     "timed_out": "This took too long and was stopped.",
     "interrupted": "The app restarted while this was running.",
-    "audit_unavailable": "Nothing was done: the action couldn't be recorded in the audit log."
+    "audit_unavailable": "Nothing was done: the action couldn't be recorded in the audit log.",
+    "destination_unavailable": "The backup disk isn't connected (or isn't mounted). Nothing was written.",
+    "destination_not_allowed": "Choose one of the disks listed: a disk mounted under /mnt or /media.",
+    "repository_mismatch": "The backups on this disk aren't the ones set up here. Nothing was written.",
+    "repository_exists": "This disk already has a backup folder that wasn't set up here.",
+    "passphrase_invalid": "The backup passphrase on this server is missing or wrong.",
+    "disk_full": "The backup disk is full.",
+    "source_missing": "A folder to back up is missing.",
+    "service_not_stopped": "The service couldn't be stopped for its backup, so it wasn't backed up.",
+    "service_not_restarted": "The service didn't start again after its backup. Start it on the Containers page.",
+    "dump_failed": "The app's database couldn't be saved.",
+    "repository_damaged": "The check found damage in the backups.",
+    "borg_failed": "The backup program reported an error. Its output has the details.",
+    "backups_not_configured": "Backups aren't set up yet.",
+    "backups_already_configured": "Backups are set up already.",
+    "backup_item_not_found": "That is not in the backups (any more).",
+    "backup_item_exists": "That is backed up already.",
+    "backup_item_fixed": "This app itself is always backed up.",
+    "backup_archive_not_found": "That backup doesn't exist (any more).",
+    "backup_restore_not_found": "There is nothing to delete for this restore.",
+    "service_not_backed_up": "This service can't be backed up.",
+    "paths_changed": "The service uses other folders now. Restore to a new folder instead.",
+    "invalid_plan": "The backup program refused this change. Nothing was changed.",
+    "backup_set_aside_kept": "A restore still keeps the previous version of this. Delete that first (on the restore), then its backups."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -353,6 +386,9 @@
           "label": "Time zone",
           "help": "For dates in the logs, e.g. Europe/Berlin."
         }
+      },
+      "backup": {
+        "restoreNote": "Your photos and videos are back. Albums, people and Immich's other data live in its database: its latest database backup came back with the photos — restore it in Immich (Immich's documentation explains how)."
       }
     }
   },
@@ -398,6 +434,12 @@
       "remove": {
         "removing": "Removing",
         "done": "Done"
+      },
+      "restore": {
+        "stopping": "Stopping",
+        "restoring": "Restoring",
+        "starting": "Starting",
+        "done": "Restored"
       }
     },
     "job": {
@@ -426,7 +468,9 @@
       "duration": "Installing downloads the images and starts the service. This can take a few minutes; you can follow it on the services page.",
       "submit": "Install",
       "submitting": "Starting…",
-      "secretKept": "Leave empty to keep the current one"
+      "secretKept": "Leave empty to keep the current one",
+      "includeInBackups": "Include in backups",
+      "includeInBackupsHelp": "Its folders are backed up with the next backup."
     },
     "access": {
       "title": "{{name}} will be able to:",
@@ -436,6 +480,213 @@
       "volumes": "Keep its own data in Docker volumes",
       "generatedSecrets": "Use passwords made for it, stored encrypted and never shown",
       "images": "It runs these images:"
+    },
+    "backup": {
+      "ok": "Backed up {{time}} ago",
+      "failed": "Backup failed",
+      "never": "Not backed up yet",
+      "none": "Not backed up"
+    }
+  },
+  "backups": {
+    "loading": "Loading backups",
+    "failed": "The backups couldn't be loaded. Reload the page to try again.",
+    "notice": {
+      "open": "Open backups"
+    },
+    "setup": {
+      "title": "Set up backups",
+      "text": "Your services' data, chosen folders and this app are backed up every day — encrypted, and only changes take space. Backups run even when this app is down.",
+      "disk": "1. The backup disk",
+      "noDisk": "No disk is mounted under /mnt or /media. Connect a USB disk or a second drive and mount it there, then reload this page.",
+      "diskSpace": "{{free}} free of {{total}} ({{filesystem}})",
+      "unsupported": "This disk's format can't be used for backups.",
+      "sameDisk": "This is the same disk as your data: if it breaks, the backups are gone too. A separate disk is safer.",
+      "hasRepository": "It already holds a backup folder.",
+      "when": "2. When, and how long they're kept",
+      "what": "3. What is backed up",
+      "removeFolder": "Remove {{path}}",
+      "submit": "Set up backups",
+      "submitting": "Setting up…",
+      "done": "Backups are set up. The first one runs at the time you chose — or start it now."
+    },
+    "schedule": {
+      "frequency": "Back up",
+      "time": "At",
+      "daily": "Every day",
+      "every12h": "Every 12 hours",
+      "every6h": "Every 6 hours"
+    },
+    "retention": {
+      "title": "Backups kept",
+      "advanced": "Change how many are kept",
+      "summary": "Keeps one backup a day for {{daily}} days, one a week for {{weekly}} weeks and one a month for {{monthly}} months.",
+      "daily": "Days",
+      "weekly": "Weeks",
+      "monthly": "Months"
+    },
+    "passphrase": {
+      "title": "Your backup passphrase",
+      "firstText": "Write these six words down now, or save them in your password manager. Without them, your backups can't be opened on another machine.",
+      "text": "Keep these six words safe: they open your backups.",
+      "words": "The passphrase, word by word",
+      "keep": "Keep it apart from this server: if the server is lost, this passphrase and the backup disk bring everything back.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyFailed": "Couldn't copy. Select the words and copy them yourself.",
+      "saved": "I've saved it",
+      "again": "Show the passphrase again",
+      "againHint": "Lost the passphrase? You can see it again with your password.",
+      "againTitle": "Show the passphrase",
+      "againText": "Enter your password to see the backup passphrase.",
+      "password": "Password",
+      "cancel": "Cancel",
+      "show": "Show"
+    },
+    "overview": {
+      "title": "Backups",
+      "lastSuccess": "Everything backed up {{time}} ago",
+      "never": "Not everything is backed up yet",
+      "next": "next: {{time}}",
+      "runNow": "Back up now",
+      "disk": "Disk:",
+      "space": "{{free}} free of {{total}}",
+      "used": "{{percent}}% of the disk used",
+      "checkOk": "Last check: no problems ({{time}})",
+      "checkFailed": "Last check found problems ({{time}})"
+    },
+    "running": {
+      "scheduled": "Scheduled backup running: {{done}} of {{total}} done",
+      "manual": "Backing up: {{done}} of {{total}} done",
+      "progress": "{{done}} of {{total}} done",
+      "output": "Output"
+    },
+    "phase": {
+      "dumping": "saving the database",
+      "stopping": "stopping it",
+      "archiving": "copying",
+      "starting": "starting it again",
+      "pruning": "removing old backups"
+    },
+    "status": {
+      "ok": "OK",
+      "warning": "OK, with warnings",
+      "failed": "Failed",
+      "running": "Running"
+    },
+    "warning": {
+      "serviceNotRestarted": {
+        "title": "A service didn't start again",
+        "text": "It was stopped for its backup and didn't start again. Start it on the Containers page."
+      },
+      "repositoryDamaged": {
+        "title": "The backups are damaged",
+        "text": "The last check found damage on the backup disk. Back up now; if it keeps happening, the disk may be failing."
+      },
+      "lastRunFailed": {
+        "title": "The last backup failed",
+        "text": "Something wasn't backed up. See what happened below."
+      },
+      "noRecentBackup": {
+        "title": "No backup for more than two days",
+        "text": "Something hasn't been backed up for a while. Check that the backup disk is connected."
+      },
+      "destinationUnavailable": {
+        "title": "The backup disk isn't connected",
+        "text": "Connect it (and mount it) so backups can run."
+      },
+      "lowSpace": {
+        "title": "The backup disk is almost full",
+        "text": "Keep fewer backups, or use a bigger disk."
+      }
+    },
+    "items": {
+      "title": "What's backed up",
+      "platform": "This app: its settings, its database and its keys",
+      "platformShort": "This app",
+      "platformHelp": "Always backed up — with your passphrase, it brings this app back on a new machine.",
+      "lastSuccess": "Backed up {{time}} ago",
+      "never": "Not backed up yet",
+      "warnings_one": "{{count}} warning",
+      "warnings_other": "{{count}} warnings",
+      "actionsFor": "Actions for {{name}}",
+      "runNow": "Back up now",
+      "restore": "Restore…",
+      "remove": "Remove from backups",
+      "folders": "Folders backed up",
+      "addService": "Back up {{name}}",
+      "addFolder": "Add a folder",
+      "addFailed": "Couldn't add it to the backups",
+      "foldersFailed": "Couldn't change its folders",
+      "removeFailed": "Couldn't remove it from the backups",
+      "deleteFailed": "Couldn't delete its backups",
+      "removedTitle": "No longer backed up",
+      "removedText": "Their backups are kept until you delete them.",
+      "deleteBackups": "Delete backups"
+    },
+    "remove": {
+      "title": "Stop backing up {{name}}?",
+      "text": "Its existing backups are kept, so you can still restore them.",
+      "alsoDelete": "Also delete its backups (this can't be undone)",
+      "deleteTitle": "Delete the backups of {{name}}?",
+      "deleteText": "All its backups are deleted from the disk. This can't be undone.",
+      "cancel": "Cancel",
+      "confirm": "Remove",
+      "confirmDelete": "Delete backups"
+    },
+    "folders": {
+      "title": "Choose a folder",
+      "text": "Folders in the service storage and home folders can be backed up.",
+      "up": "Up",
+      "empty": "No folders inside.",
+      "unreadable": "This app may not look inside, but the folder can still be backed up.",
+      "choose": "Choose this folder",
+      "cancel": "Cancel",
+      "failed": "Couldn't open the folder"
+    },
+    "restore": {
+      "title": "Restore",
+      "text": "Choose a backup and where it goes.",
+      "none": "There are no backups of this yet.",
+      "which": "Backup",
+      "where": "Restore to",
+      "inPlace": "Back in place",
+      "inPlaceText": "The service is stopped, its current folders are set aside (kept until you delete them), the backup is put back, and the service starts again.",
+      "newFolder": "A new folder",
+      "newFolderText": "Into a new folder under /srv/homelab/restores. Nothing else changes.",
+      "reinstall": "Then install the service again — its previous settings are filled in.",
+      "cancel": "Cancel",
+      "confirm": "Restore",
+      "confirmInPlace": "Restore in place",
+      "started": "Restoring. You can follow it on this page.",
+      "failed": "Couldn't start the restore",
+      "latest": "Restore:",
+      "succeeded": "Restored.",
+      "wentTo": "Restored to",
+      "setAside": "The previous version is kept here until you delete it:",
+      "discard": "Delete previous version",
+      "discarded": "The previous version was deleted.",
+      "discardFailed": "Couldn't delete the previous version"
+    },
+    "history": {
+      "title": "History",
+      "none": "No backups have run yet.",
+      "scheduled": "Scheduled",
+      "manual": "Started by hand",
+      "added": "{{size}} added",
+      "gone": "Removed item"
+    },
+    "settings": {
+      "title": "Settings",
+      "disk": "Backup disk",
+      "newDisk": "Another disk starts a new set of backups. The backups on the old disk stay there.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved."
+    },
+    "run": {
+      "started": "Backup started. You can follow it on this page.",
+      "failed": "Couldn't start the backup"
     }
   }
 }

@@ -2,6 +2,7 @@ import {
   cleanLine,
   LineSplitter,
   MAX_LINE_LENGTH,
+  MAX_PENDING_LENGTH,
   maskSecrets,
   parseWrapperLine,
 } from './wrapper-output.js';
@@ -20,8 +21,14 @@ describe('LineSplitter', () => {
 
   it('gives up on a line that never ends instead of keeping it growing', () => {
     const splitter = new LineSplitter();
-    const lines = splitter.push(Buffer.from('x'.repeat(MAX_LINE_LENGTH * 3)));
+    const lines = splitter.push(Buffer.from('x'.repeat(MAX_PENDING_LENGTH + 1)));
     expect(lines).toHaveLength(1);
+  });
+
+  it('keeps a long line whole while it is still coming (a large result)', () => {
+    const splitter = new LineSplitter();
+    expect(splitter.push(Buffer.from('y'.repeat(MAX_LINE_LENGTH * 3)))).toEqual([]);
+    expect(splitter.push(Buffer.from('\n'))).toEqual(['y'.repeat(MAX_LINE_LENGTH * 3)]);
   });
 });
 
@@ -73,6 +80,17 @@ describe('parseWrapperLine', () => {
       text: 'Pulling immich-server',
     });
     expect(parseWrapperLine('> @@phase done')).toEqual({ type: 'output', text: '@@phase done' });
+    expect(parseWrapperLine('> @@result {"passphrase":"x"}')).toEqual({
+      type: 'output',
+      text: '@@result {"passphrase":"x"}',
+    });
+  });
+
+  it('reads a result: one JSON object', () => {
+    expect(parseWrapperLine('@@result {"runId":"r1","status":"ok"}')).toEqual({
+      type: 'result',
+      value: { runId: 'r1', status: 'ok' },
+    });
   });
 
   it.each([
@@ -82,6 +100,9 @@ describe('parseWrapperLine', () => {
     '@@error code=busy; rm -rf /',
     '@@error code=busy field=lower',
     '@@error code=busy field=WEB_PORT extra',
+    '@@result not json',
+    '@@result [1,2]',
+    '@@result null',
   ])('treats a malformed marker as plain output: %j', (line) => {
     expect(parseWrapperLine(line)).toEqual({ type: 'output', text: line });
   });

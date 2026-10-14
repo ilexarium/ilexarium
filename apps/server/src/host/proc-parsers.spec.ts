@@ -6,6 +6,7 @@ import {
   parseCpuTimes,
   parseListeningTcpPorts,
   parseMeminfo,
+  parseMountInfo,
   parseMounts,
   parseNetDev,
   parseOsRelease,
@@ -166,6 +167,22 @@ describe('parseMounts and diskMounts', () => {
       { device: '/dev/vda1', mount: '/boot', fsType: 'vfat' },
       { device: '/dev/sdb1', mount: '/mnt/media files', fsType: 'ext4' },
       { device: 'tank/data', mount: '/tank/data', fsType: 'zfs' },
+    ]);
+  });
+});
+
+describe('parseMountInfo', () => {
+  it('reads mount points, their types and devices, unescaping spaces', () => {
+    const text = [
+      '22 1 259:2 / / rw,relatime shared:1 - ext4 /dev/nvme0n1p2 rw',
+      '95 22 8:17 / /media/alice/My\\040Disk rw,nosuid shared:50 - exfat /dev/sdb1 rw,uid=1000',
+      '96 22 0:45 / /run/user/1000 rw shared:60 - tmpfs tmpfs rw',
+      'garbage',
+    ].join('\n');
+    expect(parseMountInfo(text)).toEqual([
+      { mount: '/', device: '259:2', fsType: 'ext4', source: '/dev/nvme0n1p2' },
+      { mount: '/media/alice/My Disk', device: '8:17', fsType: 'exfat', source: '/dev/sdb1' },
+      { mount: '/run/user/1000', device: '0:45', fsType: 'tmpfs', source: 'tmpfs' },
     ]);
   });
 });

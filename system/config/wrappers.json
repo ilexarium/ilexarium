@@ -3,6 +3,24 @@
   "storageRoots": ["/srv/homelab"],
   "serviceRoot": "/srv/homelab",
   "reservedPorts": [22, 53, 3000, 2375, 5432, 41641],
-  "protectedPaths": ["/opt/homelab", "/etc/homelab", "/var/lib/homelab"],
-  "dockerBin": "/usr/bin/docker"
+  "protectedPaths": ["/opt/homelab", "/etc/homelab", "/var/lib/homelab", "/srv/homelab/restores"],
+  "dockerBin": "/usr/bin/docker",
+  "backup": {
+    "borgBin": "/usr/bin/borg",
+    "systemctlBin": "/usr/bin/systemctl",
+    "appUid": 990,
+    "appGid": 990,
+    "platform": {
+      "container": "homelab-postgres-1",
+      "database": "homelab",
+      "user": "homelab",
+      "files": [
+        "/etc/homelab/master.key",
+        "/etc/homelab/wrappers.json",
+        "/etc/homelab/backup.json",
+        "/etc/homelab/backup-repository.json",
+        "/etc/systemd/system/homelab-backup.timer.d/schedule.conf"
+      ]
+    }
+  }
 }
