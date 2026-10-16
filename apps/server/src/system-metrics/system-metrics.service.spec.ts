@@ -10,6 +10,7 @@ import {
 } from './system-metrics.service.js';
 import type { SystemReader } from '../host/system-reader.js';
 import type { CpuTimes, MemoryInfo, NetCounters } from '../host/host.model.js';
+import type { Subscription } from 'rxjs';
 
 const GiB = 1024 ** 3;
 const host: HostInfo = {
@@ -81,7 +82,10 @@ describe('SystemMetricsService', () => {
   let reader: FakeReader;
   let service: SystemMetricsService;
   let published: SystemUpdate[];
-  const start = () => service.start((update) => published.push(update));
+  let subscription: Subscription | undefined;
+  const start = () =>
+    (subscription = service.updates$.subscribe((update) => published.push(update)));
+  const stop = () => subscription?.unsubscribe();
 
   beforeEach(() => {
     vi.useFakeTimers({ now: new Date('2026-10-11T12:00:00Z') });
@@ -94,7 +98,7 @@ describe('SystemMetricsService', () => {
   });
 
   afterEach(() => {
-    service.stop();
+    stop();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -160,14 +164,15 @@ describe('SystemMetricsService', () => {
     expect(reader.diskReads).toBe(2);
   });
 
-  it('stops reading on stop', async () => {
+  it('stops reading when unsubscribed, leaving no timers', async () => {
     start();
     await vi.advanceTimersByTimeAsync(FIRST_SAMPLE_DELAY_MS);
-    service.stop();
+    stop();
     const readings = reader.readings;
     await vi.advanceTimersByTimeAsync(10 * SAMPLE_INTERVAL_MS);
     expect(reader.readings).toBe(readings);
     expect(service.collecting).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('drops a reading that finishes after stop', async () => {
@@ -180,7 +185,7 @@ describe('SystemMetricsService', () => {
       return cpuTimes();
     });
     await vi.advanceTimersByTimeAsync(1);
-    service.stop();
+    stop();
     release();
     await vi.advanceTimersByTimeAsync(10 * SAMPLE_INTERVAL_MS);
     expect(published).toHaveLength(0);
@@ -217,7 +222,7 @@ describe('SystemMetricsService', () => {
     it('fails when stopped before the first sample, and when not collecting', async () => {
       start();
       const snapshot = service.snapshot();
-      service.stop();
+      stop();
       await expect(snapshot).rejects.toThrow(/stopped/);
       await expect(service.snapshot()).rejects.toThrow(/not being collected/);
     });
@@ -225,14 +230,14 @@ describe('SystemMetricsService', () => {
     it('keeps history across a pause, until it is 15 minutes old', async () => {
       start();
       await vi.advanceTimersByTimeAsync(FIRST_SAMPLE_DELAY_MS + SAMPLE_INTERVAL_MS);
-      service.stop();
+      stop();
       await vi.advanceTimersByTimeAsync(5 * 60_000);
 
       start();
       await vi.advanceTimersByTimeAsync(FIRST_SAMPLE_DELAY_MS);
       expect((await service.snapshot()).history).toHaveLength(3);
 
-      service.stop();
+      stop();
       await vi.advanceTimersByTimeAsync(HISTORY_WINDOW_MS);
       start();
       await vi.advanceTimersByTimeAsync(FIRST_SAMPLE_DELAY_MS);
