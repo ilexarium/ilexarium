@@ -44,9 +44,9 @@ describe('wrapperCommand', () => {
   });
 
   it('runs the backup wrapper the same way: through sudo -n, its action the only argument', () => {
-    expect(backupWrapperCommand('sudo', 'run')).toEqual({
+    expect(backupWrapperCommand('sudo', 'start')).toEqual({
       file: '/usr/bin/sudo',
-      args: ['-n', INSTALLED_BACKUP_WRAPPER, 'run'],
+      args: ['-n', INSTALLED_BACKUP_WRAPPER, 'start'],
       env: { PATH: '/usr/sbin:/usr/bin:/sbin:/bin', LANG: 'C.UTF-8' },
     });
     expect(INSTALLED_BACKUP_WRAPPER).toBe('/opt/homelab/libexec/homelab-backup.mts');

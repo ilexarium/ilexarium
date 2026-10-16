@@ -34,7 +34,7 @@ import { cleanLine, LineSplitter, maskSecrets, parseWrapperLine } from './wrappe
 
 /** Pulling Immich's images can take long; past this, the wrapper is told to stop. */
 export const OPERATION_TIMEOUT_MS = 30 * 60_000;
-/** A first backup of a big photo library takes hours; a restore of one too. */
+/** A restore of a big photo library takes hours; deleting its archives can take long too. */
 export const BACKUP_TIMEOUT_MS = 24 * 60 * 60_000;
 /** Setting up, changing the plan, reading the passphrase: quick. */
 const BACKUP_TASK_TIMEOUT_MS = 5 * 60_000;
@@ -161,25 +161,17 @@ export class ExecutorService {
   }
 
   /**
-   * "Back up now": runs until the run is done (hours, for a first backup). The wrapper writes its
-   * progress and results to its files; the outcome only says whether it ran.
+   * "Back up now": has systemd start the run as its own unit and returns at once — the run isn't
+   * the app's child, so it goes on if the app stops. Its progress and result come back through
+   * the wrapper's files, like a scheduled run's.
    */
-  backupRun(
+  backupStart(
     input: { runId: string; itemId?: string },
     actor: ExecutorActor,
-  ): Promise<BackupOutcome<{ status: string; errorCode: string | null }>> {
-    return this.runBackup('run', 'backup.run', actor, input, {
+  ): Promise<BackupOutcome<null>> {
+    return this.runBackup('start', 'backup.run', actor, input, {
       audit: { ...input },
-      timeoutMs: BACKUP_TIMEOUT_MS,
-      // A run that happened (some items may have failed) prints its summary.
-      read: (result) =>
-        typeof result?.['status'] === 'string'
-          ? {
-              status: result['status'],
-              errorCode: typeof result['errorCode'] === 'string' ? result['errorCode'] : null,
-            }
-          : undefined,
-      resultMeansRan: true,
+      read: () => null,
     });
   }
 
@@ -339,8 +331,6 @@ export class ExecutorService {
       read: (result: Record<string, unknown> | undefined) => T | undefined;
       timeoutMs?: number;
       callbacks?: JobCallbacks;
-      /** A printed result means the operation ran, whatever the exit code (a run with failed items). */
-      resultMeansRan?: boolean;
     },
   ): Promise<BackupOutcome<T>> {
     const entry = {
@@ -363,7 +353,7 @@ export class ExecutorService {
     });
     // `undefined`: the result it should have printed is missing; `null`: none is expected.
     const value = options.read(raw.results.at(-1));
-    const outcome = this.backupOutcome(raw, value, options.resultMeansRan === true);
+    const outcome = this.backupOutcome(raw, value);
     await this.audit.tryRecord({
       ...entry,
       outcome: outcome.ok ? 'success' : 'failure',
@@ -372,16 +362,12 @@ export class ExecutorService {
     return outcome;
   }
 
-  private backupOutcome<T>(
-    raw: RawRun,
-    value: T | undefined,
-    resultMeansRan: boolean,
-  ): BackupOutcome<T> {
+  private backupOutcome<T>(raw: RawRun, value: T | undefined): BackupOutcome<T> {
     const result = value ?? null;
     const fail = (code: BackupErrorCode): BackupOutcome<T> => ({ ok: false, code, result });
     if (raw.notStarted) return fail(BACKUP_ERROR_CODES.executorUnavailable);
     if (raw.timedOut) return fail(BACKUP_ERROR_CODES.timedOut);
-    if (value !== undefined && (raw.exitCode === 0 || (resultMeansRan && value !== null))) {
+    if (value !== undefined && raw.exitCode === 0) {
       return { ok: true, result: value };
     }
     if (raw.lastError) {

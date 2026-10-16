@@ -1,10 +1,13 @@
 #!/usr/bin/env -S -i /usr/bin/node
 // homelab-backup — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root: through sudo (the app) and
-// from systemd timers (scheduled runs and checks).
+// from systemd units (scheduled runs and checks, and "Back up now" runs).
 //
 //   homelab-backup configure         the plan as JSON on stdin → /etc/homelab/backup.json + timer
 //   homelab-backup init              {"destination"} on stdin → creates the repository (+ passphrase)
-//   homelab-backup run               {"runId", "itemId"?} on stdin → "Back up now"
+//   homelab-backup start             {"runId", "itemId"?} on stdin → "Back up now": starts
+//                                    homelab-backup-now@<runId>[_<itemId>].service, returns at once
+//   homelab-backup run-requested <instance>
+//                                    nothing on stdin (homelab-backup-now@.service runs it)
 //   homelab-backup run-scheduled     nothing on stdin (homelab-backup.service)
 //   homelab-backup check-scheduled   nothing on stdin (homelab-backup-check.service)
 //   homelab-backup restore           {"restoreId", "itemId", "archive", "target"} on stdin

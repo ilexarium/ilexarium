@@ -1,6 +1,7 @@
 // backup/run.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
 //
-// `run`: back up every item of the plan (or one), each into its own archive.
+// `run-requested` and `run-scheduled`: back up every item of the plan (or one), each into its own
+// archive.
 
 import { closeSync, existsSync, mkdirSync, openSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -42,28 +43,35 @@ export async function run(
   onlyItem: string | null,
 ): Promise<number> {
   const startedAt = new Date().toISOString();
+  // A run refused before it starts is recorded all the same: nobody waits on this program's
+  // output (a timer or "Back up now" started it), so the app learns it only from runs.jsonl.
+  const refused = (error: unknown): unknown => {
+    if (!(error instanceof Refusal)) return error;
+    prepareState(config, paths);
+    appendResult(config, paths, {
+      type: 'run',
+      runId,
+      trigger,
+      itemId: onlyItem,
+      status: 'failed',
+      errorCode: error.code,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      items: [],
+      output: [
+        error.code === 'busy'
+          ? 'Another operation held the lock; this run was skipped.'
+          : oneLine(error.message),
+      ],
+    });
+    return error;
+  };
   let release: () => void;
   try {
+    // A scheduled run waits a while for another operation (an install, a long check).
     release = await takeLock(paths, trigger === 'scheduled');
   } catch (error) {
-    // Waited the whole while for another operation (an install, a long check): recorded, so the
-    // app shows it at once instead of only after two days without a backup.
-    if (error instanceof Refusal && error.code === 'busy' && trigger === 'scheduled') {
-      prepareState(config, paths);
-      appendResult(config, paths, {
-        type: 'run',
-        runId,
-        trigger,
-        itemId: onlyItem,
-        status: 'failed',
-        errorCode: 'busy',
-        startedAt,
-        finishedAt: new Date().toISOString(),
-        items: [],
-        output: ['Another operation held the lock; this run was skipped until the next time.'],
-      });
-    }
-    throw error;
+    throw refused(error);
   }
   // The plan as it is now — read only once the lock is ours (it may have changed meanwhile).
   let plan: Plan;
@@ -77,8 +85,11 @@ export async function run(
       throw new Refusal('item_not_found', 'no such item in the plan');
     }
   } catch (error) {
-    release();
-    throw error;
+    try {
+      throw refused(error);
+    } finally {
+      release();
+    }
   }
   const output: string[] = [];
   const results: ItemResult[] = [];

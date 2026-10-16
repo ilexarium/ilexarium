@@ -67,6 +67,12 @@ const RUNS_SHOWN = 50;
 const RESTORES_SHOWN = 20;
 /** Results looked at per item for "last backed up" (a day's runs every 6 hours, and then some). */
 const RESULTS_PER_ITEM = 30;
+/**
+ * "Back up now" keeps the one-operation slot until its run shows in the progress file (or has a
+ * result): then the follower holds it, like for a scheduled run. Seconds, normally.
+ */
+export const HANDOVER_MS = 30_000;
+const HANDOVER_POLL_MS = 200;
 
 const itemInclude = {
   service: { select: { catalogId: true, status: true, settings: true } },
@@ -400,7 +406,10 @@ export class BackupManager {
 
   // Runs.
 
-  /** "Back up now": everything or one item. Runs on; its progress arrives through the topic. */
+  /**
+   * "Back up now": everything or one item. systemd runs it as its own unit (it goes on if the app
+   * stops); its progress and result arrive through the wrapper's files, like a scheduled run's.
+   */
   async runNow(request: BackupRunRequest, actor: ExecutorActor): Promise<{ runId: string }> {
     await this.requirePlan();
     if (request.itemId) {
@@ -413,6 +422,7 @@ export class BackupManager {
     }
     const release = this.slot.claim('backup');
     const runId = randomUUID();
+    let handedOver = false;
     try {
       await this.prisma.backupRun.create({
         data: {
@@ -424,13 +434,25 @@ export class BackupManager {
           startedById: actor.user.id,
         },
       });
-    } catch (failure) {
-      release();
-      throw failure;
+      const outcome = await this.callRaw(() =>
+        this.executor.backupStart(
+          { runId, ...(request.itemId ? { itemId: request.itemId } : {}) },
+          actor,
+        ),
+      );
+      if (!outcome.ok) {
+        // Nothing started: no run to show (the audit log has the request and why it failed).
+        await this.prisma.backupRun.delete({ where: { id: runId } });
+        throw backupError(outcome.code);
+      }
+      handedOver = true;
+      void this.handOver(runId)
+        .catch((failure: unknown) => this.logger.error(`Following run ${runId} failed`, failure))
+        .finally(release);
+    } finally {
+      if (!handedOver) release();
     }
-    void this.executeRun(runId, request.itemId, actor)
-      .catch((failure: unknown) => this.logger.error(`Back up now (run ${runId}) failed`, failure))
-      .finally(release);
+    this.notify();
     return { runId };
   }
 
@@ -617,24 +639,21 @@ export class BackupManager {
 
   // Inside.
 
-  private async executeRun(
-    runId: string,
-    itemId: string | undefined,
-    actor: ExecutorActor,
-  ): Promise<void> {
-    const outcome = await this.callRaw(() =>
-      this.executor.backupRun({ runId, ...(itemId ? { itemId } : {}) }, actor),
-    );
-    // The results file has the run (the importer fills in its items); only a run that never
-    // started is recorded here.
-    await this.results.import();
-    if (!outcome.ok) {
-      await this.prisma.backupRun.updateMany({
-        where: { id: runId, finishedAt: null },
-        data: { status: 'failed', errorCode: outcome.code, finishedAt: new Date() },
+  /** Waits until the started run shows in the progress file, or has finished (refused at once). */
+  private async handOver(runId: string): Promise<void> {
+    const deadline = Date.now() + HANDOVER_MS;
+    while (Date.now() < deadline) {
+      await this.progress.refresh();
+      if (this.progress.followedRunId() === runId) return;
+      await this.results.import();
+      const run = await this.prisma.backupRun.findUnique({
+        where: { id: runId },
+        select: { finishedAt: true },
       });
-      this.notify();
+      if (!run || run.finishedAt) return;
+      await new Promise((resolve) => setTimeout(resolve, HANDOVER_POLL_MS));
     }
+    this.logger.warn(`Backup run ${runId} hasn't started after ${HANDOVER_MS / 1000} s`);
   }
 
   private async executeRestore(

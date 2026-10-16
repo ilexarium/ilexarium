@@ -123,6 +123,11 @@ export class BackupProgressFollower implements OnModuleInit {
     return run.progress;
   }
 
+  /** The run the progress file is about (running, finished or crashed), or null. */
+  followedRunId(): string | null {
+    return this.run?.progress.runId ?? null;
+  }
+
   /** Called when the progress changes. Returns the unsubscribe. */
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
