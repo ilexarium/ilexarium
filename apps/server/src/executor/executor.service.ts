@@ -4,6 +4,8 @@ import { spawn } from 'node:child_process';
 import {
   BACKUP_ERROR_CODES,
   type BackupErrorCode,
+  DISK_ERROR_CODES,
+  type DiskErrorCode,
   SERVICE_ERROR_CODES,
   type ServiceErrorCode,
 } from '@homelab/shared';
@@ -15,6 +17,7 @@ import type {
   BackupRestoreInput,
   ComposeOutcome,
   ComposeRequest,
+  DiskOutcome,
   ExecutorActor,
   JobCallbacks,
   WrapperBackupPlan,
@@ -23,8 +26,11 @@ import { WrapperConfigService } from './wrapper-config.js';
 import {
   type BackupWrapperAction,
   backupWrapperCommand,
+  type DiskWrapperAction,
+  diskWrapperCommand,
   type ExecutorMode,
   REPO_BACKUP_WRAPPER,
+  REPO_DISK_WRAPPER,
   REPO_WRAPPER,
   type WrapperAction,
   type WrapperCommand,
@@ -76,6 +82,14 @@ const BACKUP_WRAPPER_CODES: Record<string, BackupErrorCode> = {
   not_found: BACKUP_ERROR_CODES.restoreNotFound,
   invalid_plan: BACKUP_ERROR_CODES.invalidPlan,
 };
+
+/** The disk wrapper's `@@error` codes → ours (the same words). */
+const DISK_WRAPPER_CODES: Record<string, DiskErrorCode> = Object.fromEntries(
+  Object.values(DISK_ERROR_CODES).map((code) => [code, code]),
+);
+
+/** Mounting waits for systemd; a slow USB disk takes seconds. */
+const DISK_TIMEOUT_MS = 2 * 60_000;
 
 /** What one wrapper run printed and how it ended, before it means anything. */
 interface RawRun {
@@ -241,6 +255,26 @@ export class ExecutorService {
     });
   }
 
+  // Disks. Each rejects only if the audit log can't record the request (then nothing ran).
+
+  /** Mounts a disk at /mnt/<name>, kept after a restart (the wrapper checks it all again). */
+  diskMount(
+    input: { uuid: string; name: string },
+    actor: ExecutorActor,
+  ): Promise<DiskOutcome<{ mountPoint: string }>> {
+    return this.runDisk('mount', 'disk.mount', actor, input, (result) =>
+      typeof result?.['mountPoint'] === 'string' ? { mountPoint: result['mountPoint'] } : undefined,
+    );
+  }
+
+  /** Unmounts a disk mounted here, and forgets it. */
+  diskUnmount(name: string, actor: ExecutorActor): Promise<DiskOutcome<null>> {
+    return this.runDisk('unmount', 'disk.unmount', actor, { name }, () => null);
+  }
+
+  /** How long mounting or unmounting may take; tests shorten it. */
+  protected diskTimeoutMs = DISK_TIMEOUT_MS;
+
   /** How long one operation may take before the wrapper is told to stop; tests shorten it. */
   protected timeoutMs = OPERATION_TIMEOUT_MS;
 
@@ -256,6 +290,14 @@ export class ExecutorService {
   protected backupCommand(action: BackupWrapperAction): WrapperCommand {
     return backupWrapperCommand(this.mode, action, {
       wrapper: REPO_BACKUP_WRAPPER,
+      configFile: this.wrapperConfig.file,
+    });
+  }
+
+  /** The disk wrapper's command for one call; tests replace the wrapper. */
+  protected diskCommand(action: DiskWrapperAction): WrapperCommand {
+    return diskWrapperCommand(this.mode, action, {
+      wrapper: REPO_DISK_WRAPPER,
       configFile: this.wrapperConfig.file,
     });
   }
@@ -388,10 +430,60 @@ export class ExecutorService {
     );
   }
 
+  private async runDisk<T>(
+    action: DiskWrapperAction,
+    auditAction: AuditAction,
+    actor: ExecutorActor,
+    input: Record<string, string>,
+    read: (result: Record<string, unknown> | undefined) => T | undefined,
+  ): Promise<DiskOutcome<T>> {
+    const entry = {
+      action: auditAction,
+      userId: actor.user.id,
+      username: actor.user.username,
+      ip: actor.ip,
+    };
+    // Fail closed: no record, no action.
+    await this.audit.record({ ...entry, outcome: 'requested', details: input });
+    const raw = await this.spawnRaw(this.diskCommand(action), 'disk', {
+      stdin: JSON.stringify(input),
+      timeoutMs: this.diskTimeoutMs,
+    });
+    const outcome = this.diskOutcome(raw, read(raw.results.at(-1)));
+    await this.audit.tryRecord({
+      ...entry,
+      outcome: outcome.ok ? 'success' : 'failure',
+      details: outcome.ok ? input : { ...input, reason: outcome.code },
+    });
+    return outcome;
+  }
+
+  private diskOutcome<T>(raw: RawRun, value: T | undefined): DiskOutcome<T> {
+    const fail = (code: DiskErrorCode): DiskOutcome<T> => ({ ok: false, code });
+    if (raw.notStarted) return fail(DISK_ERROR_CODES.executorUnavailable);
+    if (raw.timedOut) return fail(DISK_ERROR_CODES.timedOut);
+    if (value !== undefined && raw.exitCode === 0) return { ok: true, result: value };
+    if (raw.lastError) {
+      const known = Object.hasOwn(DISK_WRAPPER_CODES, raw.lastError.code)
+        ? DISK_WRAPPER_CODES[raw.lastError.code]
+        : undefined;
+      if (!known) {
+        this.logger.error(
+          `The disk wrapper refused: ${raw.lastError.code} (${raw.lastInfo ?? ''})`,
+        );
+      }
+      return fail(known ?? DISK_ERROR_CODES.executorUnavailable);
+    }
+    if (!raw.sawMarker) this.logger.error(`The disk wrapper did not run (exit ${raw.exitCode})`);
+    return fail(
+      raw.sawMarker ? DISK_ERROR_CODES.mountFailed : DISK_ERROR_CODES.executorUnavailable,
+    );
+  }
+
   /** Runs one wrapper call: stdin in, markers and output (cleaned, masked) out. Never rejects. */
   private spawnRaw(
     { file, args, env }: WrapperCommand,
-    name: 'deploy' | 'backup',
+    name: 'deploy' | 'backup' | 'disk',
     options: SpawnOptions,
   ): Promise<RawRun> {
     return new Promise((resolve) => {

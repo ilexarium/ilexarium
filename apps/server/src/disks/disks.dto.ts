@@ -1,0 +1,5 @@
+import { diskMountRequestSchema, diskNameParamsSchema } from '@homelab/shared';
+import { zodDto } from '../common/zod-dto.js';
+
+export class DiskMountDto extends zodDto(diskMountRequestSchema) {}
+export class DiskNameParamsDto extends zodDto(diskNameParamsSchema) {}

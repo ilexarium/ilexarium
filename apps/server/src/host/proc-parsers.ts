@@ -184,3 +184,37 @@ export function parseListeningTcpPorts(netTcp: string): Set<number> {
   }
   return ports;
 }
+
+/** udev's database entry of a device (`/run/udev/data/b<major>:<minor>`): its `E:` properties. */
+export function parseUdevData(data: string): Map<string, string> {
+  const properties = new Map<string, string>();
+  for (const line of data.split('\n')) {
+    const match = /^E:([A-Z0-9_]+)=(.*)$/.exec(line);
+    if (match) properties.set(match[1], match[2]);
+  }
+  return properties;
+}
+
+/** `/proc/swaps`: the kernel names of the devices used as swap (files left out). */
+export function parseSwaps(swaps: string): string[] {
+  return swaps
+    .split('\n')
+    .slice(1)
+    .map((line) => line.trim().split(/\s+/)[0] ?? '')
+    .filter((file) => file.startsWith('/dev/'))
+    .map((file) => file.slice(file.lastIndexOf('/') + 1));
+}
+
+/** The first line of every mount unit the disk wrapper writes. */
+export const DISK_UNIT_MARKER = '# Managed by homelab (homelab-disk).';
+
+/** A mount unit the disk wrapper wrote: its disk (by UUID) and folder; null for anyone else's. */
+export function parseDiskUnit(unit: string): { uuid: string | null; where: string } | null {
+  if (!unit.startsWith(`${DISK_UNIT_MARKER}\n`)) return null;
+  const value = (key: string) => new RegExp(`^${key}=(.*)$`, 'm').exec(unit)?.[1] ?? null;
+  const where = value('Where');
+  if (!where) return null;
+  const what = value('What');
+  const uuid = what?.startsWith('/dev/disk/by-uuid/') ? what.slice(18) : null;
+  return { uuid, where };
+}

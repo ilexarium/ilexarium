@@ -1,5 +1,6 @@
 import type {
   BackupErrorCode,
+  DiskErrorCode,
   BackupRestoreTarget,
   BackupRetention,
   BackupSchedule,
@@ -22,6 +23,14 @@ export interface WrapperConfig {
   home?: string;
   /** The backup wrapper's part; missing until the installer (or development) adds it. */
   backup?: WrapperBackupConfig;
+  /** The disk wrapper's part; missing until the installer (or development) adds it. */
+  disk?: WrapperDiskConfig;
+}
+
+export interface WrapperDiskConfig {
+  systemctlBin?: string;
+  /** Development only: a pretend host (sys, run/udev, dev, proc), the mount root, the unit folder. */
+  dev?: { root: string; mountRoot: string; unitDir: string; backupPlan: string };
 }
 
 export interface WrapperBackupConfig {
@@ -103,3 +112,5 @@ export interface JobCallbacks {
 /** A backup wrapper call's outcome: its result (`@@result`), or why it failed — with a result it still printed. */
 export type BackupOutcome<T> =
   { ok: true; result: T } | { ok: false; code: BackupErrorCode; result: T | null };
+
+export type DiskOutcome<T> = { ok: true; result: T } | { ok: false; code: DiskErrorCode };

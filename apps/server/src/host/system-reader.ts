@@ -11,9 +11,13 @@ import {
   parseMountInfo,
   parseMounts,
   parseNetDev,
+  parseDiskUnit,
   parseOsRelease,
+  parseSwaps,
+  parseUdevData,
 } from './proc-parsers.js';
 import type {
+  BlockDevice,
   CpuTimes,
   FolderState,
   MemoryInfo,
@@ -31,6 +35,11 @@ import type {
 export class SystemReader {
   /** `root` is `/` on the host; container mode (later) points it at the host's mounted root. */
   constructor(private readonly root = '/') {}
+
+  /** A reader of another root below this one (development: the disk wrapper's pretend host). */
+  within(root: string): SystemReader {
+    return root === '/' ? this : new SystemReader(join(this.root, root));
+  }
 
   async cpuTimes(): Promise<CpuTimes> {
     return parseCpuTimes(await this.read('proc/stat'));
@@ -155,6 +164,86 @@ export class SystemReader {
         .sort((a, b) => a.localeCompare(b))
         .slice(0, limit)
         .map((name) => ({ name, path: path === '/' ? `/${name}` : `${path}/${name}` }));
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Block devices (disks and partitions) from /sys/class/block, with their filesystem, UUID and
+   * label from udev's database — memory, loop and optical devices left out.
+   */
+  async blockDevices(): Promise<BlockDevice[]> {
+    const root = 'sys/class/block';
+    const names = ((await this.list(root)) ?? []).filter(
+      (name) => /^[a-z][a-z0-9-]{1,31}$/.test(name) && !/^(loop|ram|zram|sr|fd)\d/.test(name),
+    );
+    const devices = new Map<string, BlockDevice>();
+    for (const name of names) {
+      const dir = `${root}/${name}`;
+      const number = (await this.readOptional(`${dir}/dev`))?.trim();
+      if (!number || !/^\d+:\d+$/.test(number)) continue;
+      const udev = parseUdevData((await this.readOptional(`run/udev/data/b${number}`)) ?? '');
+      const sectors = Number((await this.readOptional(`${dir}/size`))?.trim() ?? 0);
+      devices.set(name, {
+        name,
+        number,
+        partition: (await this.readOptional(`${dir}/partition`)) !== null,
+        disk: name,
+        partitions: [],
+        holders: (await this.list(`${dir}/holders`)) ?? [],
+        slaves: (await this.list(`${dir}/slaves`)) ?? [],
+        sizeBytes: Number.isFinite(sectors) ? sectors * 512 : 0,
+        removable: (await this.readOptional(`${dir}/removable`))?.trim() === '1',
+        model: (await this.readOptional(`${dir}/device/model`))?.trim() || null,
+        fsType: udev.get('ID_FS_TYPE') || null,
+        uuid: udev.get('ID_FS_UUID') || null,
+        label: udev.get('ID_FS_LABEL') || null,
+      });
+    }
+    // A partition's disk: the disk whose folder holds a folder of the partition's name.
+    for (const disk of devices.values()) {
+      if (disk.partition) continue;
+      for (const entry of (await this.list(`${root}/${disk.name}`)) ?? []) {
+        const part = devices.get(entry);
+        if (!part?.partition) continue;
+        part.disk = disk.name;
+        disk.partitions.push(part.name);
+      }
+      disk.partitions.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    }
+    return [...devices.values()];
+  }
+
+  /** The devices used as swap, by kernel name. */
+  async swaps(): Promise<string[]> {
+    return parseSwaps((await this.readOptional('proc/swaps')) ?? '');
+  }
+
+  /** The mount units the disk wrapper wrote in `unitDir` (an absolute path). */
+  async diskUnits(
+    unitDir: string,
+  ): Promise<{ name: string; uuid: string | null; where: string }[]> {
+    const units = [];
+    for (const file of (await this.list(unitDir)) ?? []) {
+      if (!file.startsWith('mnt-') || !file.endsWith('.mount')) continue;
+      const unit = parseDiskUnit((await this.readOptional(`${unitDir}/${file}`)) ?? '');
+      if (unit) units.push({ name: unit.where.slice(unit.where.lastIndexOf('/') + 1), ...unit });
+    }
+    return units;
+  }
+
+  private async readOptional(path: string): Promise<string | null> {
+    try {
+      return await this.read(path);
+    } catch {
+      return null;
+    }
+  }
+
+  private async list(path: string): Promise<string[] | null> {
+    try {
+      return await readdir(join(this.root, path));
     } catch {
       return null;
     }

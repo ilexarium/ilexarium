@@ -17,6 +17,8 @@ export const AUDIT_ACTIONS = [
   'backup.discard',
   'backup.forget',
   'backup.passphrase',
+  'disk.mount',
+  'disk.unmount',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

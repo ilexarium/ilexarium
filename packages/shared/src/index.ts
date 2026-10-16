@@ -2,6 +2,7 @@ export * from './auth.js';
 export * from './backups.js';
 export * from './catalog.js';
 export * from './containers.js';
+export * from './disks.js';
 export * from './health.js';
 export * from './jobs.js';
 export * from './logs.js';

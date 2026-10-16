@@ -28,6 +28,8 @@ export const VALIDATION_LIMITS = {
   backupDailyMax: 365,
   backupWeeklyMax: 104,
   backupMonthlyMax: 120,
+  // Disks (`DISK_NAME_MAX` in disks.ts).
+  diskNameMax: 32,
 } as const;
 
 /** Username when choosing one (setup). Normalised to lowercase before the checks run. */
