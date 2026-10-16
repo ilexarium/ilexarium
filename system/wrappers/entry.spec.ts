@@ -35,8 +35,8 @@ function start(entry: string) {
   return { code: result.status, out: result.stdout.toString() };
 }
 
-describe.each(['homelab-backup.mts', 'homelab-compose.mts'])('%s', (entry) => {
-  const area = entry === 'homelab-backup.mts' ? 'backup' : 'compose';
+describe.each(['homelab-backup.mts', 'homelab-compose.mts', 'homelab-disk.mts'])('%s', (entry) => {
+  const area = entry.slice('homelab-'.length, -'.mts'.length);
 
   it('loads its modules when only their owner can change them', () => {
     // Past the module check: the program itself answers (no config, or not an action of it).
