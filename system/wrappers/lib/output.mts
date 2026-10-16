@@ -18,8 +18,21 @@ export class Refusal extends Error {
   }
 }
 
+/** Set once nobody reads the output any more (the app stopped): the work goes on without it. */
+let readerGone = false;
+
+/**
+ * Writes one line of output. If the reader is gone (EPIPE), the rest is dropped instead of
+ * crashing: the wrapper must still finish what it started — a restore starts its service again.
+ */
 export function emit(line: string): void {
-  writeSync(1, `${line}\n`);
+  if (readerGone) return;
+  try {
+    writeSync(1, `${line}\n`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EPIPE') throw error;
+    readerGone = true;
+  }
 }
 
 export const oneLine = (text: string) => text.replace(/[\r\n]+/g, ' ');
