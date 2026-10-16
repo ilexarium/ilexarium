@@ -7,7 +7,7 @@ import {
   from,
   interval,
   merge,
-  type Subscription,
+  type Observable,
   switchMap,
 } from 'rxjs';
 import { OperationSlot } from '../jobs/operation-slot.js';
@@ -32,46 +32,38 @@ const REFRESH_MS = 60_000;
 @Injectable()
 export class BackupsTopic implements TopicSource<'backups'> {
   readonly topic = 'backups';
-  private subscription: Subscription | null = null;
+
+  /** While subscribed: at most one snapshot every 500 ms, after any change, and now and then. */
+  readonly updates$: Observable<BackupsStatus>;
 
   constructor(
     private readonly statusReader: BackupStatusReader,
-    private readonly plans: BackupPlanManager,
-    private readonly runs: BackupRuns,
-    private readonly progress: BackupProgressFollower,
-    private readonly results: BackupResults,
-    private readonly restores: BackupRestores,
-    private readonly slot: OperationSlot,
+    plans: BackupPlanManager,
+    runs: BackupRuns,
+    progress: BackupProgressFollower,
+    results: BackupResults,
+    restores: BackupRestores,
+    slot: OperationSlot,
     subscriptions: RealtimeSubscriptions,
   ) {
+    this.updates$ = merge(
+      plans.changes$,
+      runs.changes$,
+      progress.changes$,
+      results.changes$,
+      restores.changes$,
+      slot.changes$,
+      interval(REFRESH_MS),
+    ).pipe(
+      // The first change opens a window; at its end, one snapshot of everything.
+      auditTime(BACKUPS_PUBLISH_MS),
+      // A newer snapshot replaces one still being taken; a failed one waits for the next change.
+      switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
+    );
     subscriptions.registerSource(this);
   }
 
   snapshot(): Promise<BackupsStatus> {
     return this.statusReader.status();
-  }
-
-  start(publish: (update: BackupsStatus) => void): void {
-    this.subscription = merge(
-      this.plans.changes$,
-      this.runs.changes$,
-      this.progress.changes$,
-      this.results.changes$,
-      this.restores.changes$,
-      this.slot.changes$,
-      interval(REFRESH_MS),
-    )
-      .pipe(
-        // The first change opens a window; at its end, one snapshot of everything.
-        auditTime(BACKUPS_PUBLISH_MS),
-        // A newer snapshot replaces one still being taken; a failed one waits for the next change.
-        switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
-      )
-      .subscribe(publish);
-  }
-
-  stop(): void {
-    this.subscription?.unsubscribe();
-    this.subscription = null;
   }
 }

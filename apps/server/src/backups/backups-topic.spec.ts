@@ -33,8 +33,8 @@ function setUp() {
     { registerSource: () => undefined } as unknown as RealtimeSubscriptions,
   );
   const publish = vi.fn();
-  topic.start(publish);
-  return { topic, changes, status, slot, publish };
+  const subscription = topic.updates$.subscribe(publish);
+  return { changes, status, slot, publish, stop: () => subscription.unsubscribe() };
 }
 
 beforeEach(() => vi.useFakeTimers());
@@ -42,7 +42,7 @@ afterEach(() => vi.useRealTimers());
 
 describe('BackupsTopic', () => {
   it('publishes one snapshot for a burst of changes, from any source', async () => {
-    const { topic, changes, slot, publish } = setUp();
+    const { stop, changes, slot, publish } = setUp();
     changes.progress.next();
     changes.progress.next();
     changes.results.next();
@@ -52,11 +52,11 @@ describe('BackupsTopic', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(publish).toHaveBeenCalledTimes(1);
     expect(publish).toHaveBeenCalledWith(STATUS);
-    topic.stop();
+    stop();
   });
 
   it('goes on after a snapshot failed: the next change publishes', async () => {
-    const { topic, changes, status, publish } = setUp();
+    const { stop, changes, status, publish } = setUp();
     status.mockRejectedValueOnce(new Error('database away'));
     changes.plans.next();
     await vi.advanceTimersByTimeAsync(BACKUPS_PUBLISH_MS);
@@ -64,20 +64,20 @@ describe('BackupsTopic', () => {
     changes.plans.next();
     await vi.advanceTimersByTimeAsync(BACKUPS_PUBLISH_MS);
     expect(publish).toHaveBeenCalledTimes(1);
-    topic.stop();
+    stop();
   });
 
   it('publishes now and then without a change ("last backed up" ages)', async () => {
-    const { topic, publish } = setUp();
+    const { stop, publish } = setUp();
     await vi.advanceTimersByTimeAsync(60_000 + BACKUPS_PUBLISH_MS);
     expect(publish).toHaveBeenCalledTimes(1);
-    topic.stop();
+    stop();
   });
 
   it('leaves nothing behind when stopped: no timers, no more publishing', async () => {
-    const { topic, changes, slot, publish } = setUp();
+    const { stop, changes, slot, publish } = setUp();
     changes.runs.next();
-    topic.stop();
+    stop();
     expect(vi.getTimerCount()).toBe(0);
     changes.runs.next();
     slot.claim('backup');

@@ -30,7 +30,7 @@ describe('ServicesTopic', () => {
   it('publishes a burst of changes (every output line) as one update', async () => {
     const { topic, services, change } = setup();
     const publish = vi.fn();
-    topic.start(publish);
+    topic.updates$.subscribe(publish);
     for (let i = 0; i < 20; i++) change();
     await vi.advanceTimersByTimeAsync(SERVICES_PUBLISH_MS);
     expect(publish).toHaveBeenCalledTimes(1);
@@ -38,13 +38,14 @@ describe('ServicesTopic', () => {
     expect(services.list).toHaveBeenCalledTimes(1);
   });
 
-  it('stops listening when stopped', async () => {
+  it('stops listening when unsubscribed, leaving no timers', async () => {
     const { topic, change } = setup();
     const publish = vi.fn();
-    topic.start(publish);
+    const subscription = topic.updates$.subscribe(publish);
     change();
-    topic.stop();
+    subscription.unsubscribe();
     change();
+    expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(SERVICES_PUBLISH_MS * 2);
     expect(publish).not.toHaveBeenCalled();
   });

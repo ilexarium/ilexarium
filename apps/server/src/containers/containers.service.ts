@@ -7,6 +7,7 @@ import {
   type ContainerStats,
   toContainerHistoryPoint,
 } from '@homelab/shared';
+import { Observable } from 'rxjs';
 import { RingBuffer } from '../common/ring-buffer.js';
 import { DockerService } from '../docker/docker.service.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
@@ -51,6 +52,12 @@ export class ContainersService implements TopicSource<'containers'> {
   private readonly logger = new Logger(ContainersService.name);
   private readonly history = new Map<string, RingBuffer<ContainerHistoryPoint>>();
   private run: Run | null = null;
+
+  /** While subscribed: collecting (moved onto RxJS in its own step). */
+  readonly updates$ = new Observable<ContainersUpdate>((subscriber) => {
+    this.start((update) => subscriber.next(update));
+    return () => this.stop();
+  });
 
   constructor(
     private readonly docker: DockerService,
