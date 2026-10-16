@@ -1,10 +1,11 @@
-import { Injectable, type OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import {
   BACKUP_LIMITS,
   BACKUP_PHASES,
   type BackupPhase,
   type BackupProgress,
 } from '@homelab/shared';
+import { catchError, EMPTY, exhaustMap, from, Observable, Subject, type Subscription } from 'rxjs';
 import { OperationSlot } from '../jobs/operation-slot.js';
 import {
   BackupFiles,
@@ -91,7 +92,11 @@ export function applyEvent(run: FollowedRun | null, event: ProgressEvent): Follo
  * slot while a run goes on, so nothing else starts meanwhile.
  */
 @Injectable()
-export class BackupProgressFollower implements OnModuleInit {
+export class BackupProgressFollower implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(BackupProgressFollower.name);
+  private readonly changed = new Subject<void>();
+  private readonly interrupted = new Subject<FollowedRun>();
+  private following: Subscription | null = null;
   private run: FollowedRun | null = null;
   private offset = 0;
   /** Which file `offset` is in (each run writes a new one). */
@@ -99,8 +104,11 @@ export class BackupProgressFollower implements OnModuleInit {
   private reading: Promise<void> | null = null;
   private wasRunning = false;
   private readonly reportedInterrupted = new Set<string>();
-  private readonly listeners = new Set<() => void>();
-  private readonly interruptedListeners = new Set<(run: FollowedRun) => void>();
+
+  /** The progress changed: new events, or the run stopped running. */
+  readonly changes$: Observable<void> = this.changed.asObservable();
+  /** Once for each run that ended without finishing (its process died). */
+  readonly interrupted$: Observable<FollowedRun> = this.interrupted.asObservable();
 
   constructor(
     private readonly files: BackupFiles,
@@ -110,8 +118,24 @@ export class BackupProgressFollower implements OnModuleInit {
   }
 
   onModuleInit(): void {
-    this.files.onChange(() => void this.refresh());
+    // A read at a time: notices during a read are covered by it or by the next notice.
+    this.following = this.files.changes$
+      .pipe(
+        exhaustMap(() =>
+          from(this.refresh()).pipe(
+            catchError((error: unknown) => {
+              this.logger.error('Could not read the backup progress', error);
+              return EMPTY;
+            }),
+          ),
+        ),
+      )
+      .subscribe();
     void this.refresh();
+  }
+
+  onModuleDestroy(): void {
+    this.following?.unsubscribe();
   }
 
   /** The run in progress, or null. */
@@ -126,18 +150,6 @@ export class BackupProgressFollower implements OnModuleInit {
   /** The run the progress file is about (running, finished or crashed), or null. */
   followedRunId(): string | null {
     return this.run?.progress.runId ?? null;
-  }
-
-  /** Called when the progress changes. Returns the unsubscribe. */
-  onChange(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  /** Called once for a run that ended without finishing (its process died). */
-  onInterrupted(listener: (run: FollowedRun) => void): () => void {
-    this.interruptedListeners.add(listener);
-    return () => this.interruptedListeners.delete(listener);
   }
 
   /** Reads what's new (one read at a time). */
@@ -169,8 +181,8 @@ export class BackupProgressFollower implements OnModuleInit {
     const run = this.run;
     if (run && !run.finished && !running && !this.reportedInterrupted.has(run.progress.runId)) {
       this.reportedInterrupted.add(run.progress.runId);
-      for (const listener of this.interruptedListeners) listener(run);
+      this.interrupted.next(run);
     }
-    if (changed) for (const listener of this.listeners) listener();
+    if (changed) this.changed.next();
   }
 }

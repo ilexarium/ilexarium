@@ -1,3 +1,4 @@
+import { NEVER } from 'rxjs';
 import { OperationSlot } from '../jobs/operation-slot.js';
 import type { BackupFiles } from './backup-files.js';
 import { BackupProgressFollower } from './backup-progress.js';
@@ -17,7 +18,7 @@ function fakeFiles() {
       size: text.length,
       file: String(file),
     }),
-    onChange: () => () => undefined,
+    changes$: NEVER,
   } as unknown as BackupFiles;
   return {
     files,
@@ -93,7 +94,7 @@ describe('BackupProgressFollower', () => {
     const { files, write } = fakeFiles();
     const follower = new BackupProgressFollower(files, new OperationSlot());
     const interrupted = vi.fn();
-    follower.onInterrupted(interrupted);
+    follower.interrupted$.subscribe(interrupted);
     write(runEvent(DEAD_PID));
     await follower.refresh();
     await follower.refresh();

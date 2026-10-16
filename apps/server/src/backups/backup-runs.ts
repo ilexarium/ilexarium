@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { BACKUP_ERROR_CODES, type BackupRun, type BackupRunRequest } from '@homelab/shared';
+import { Observable, Subject } from 'rxjs';
 import type { ExecutorActor } from '../executor/executor.model.js';
 import { ExecutorService } from '../executor/executor.service.js';
 import { OperationSlot } from '../jobs/operation-slot.js';
@@ -26,7 +27,7 @@ const HANDOVER_POLL_MS = 200;
 @Injectable()
 export class BackupRuns {
   private readonly logger = new Logger(BackupRuns.name);
-  private readonly listeners = new Set<() => void>();
+  private readonly changed = new Subject<void>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -36,11 +37,8 @@ export class BackupRuns {
     private readonly results: BackupResults,
   ) {}
 
-  /** Called when a run was started. Returns the unsubscribe. */
-  onChange(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
+  /** A run was started. */
+  readonly changes$: Observable<void> = this.changed.asObservable();
 
   /**
    * "Back up now": everything or one item. systemd runs it as its own unit (it goes on if the app
@@ -125,6 +123,6 @@ export class BackupRuns {
   }
 
   private notify(): void {
-    for (const listener of this.listeners) listener();
+    this.changed.next();
   }
 }

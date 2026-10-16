@@ -17,6 +17,7 @@ import {
   type BackupSchedule,
   type BackupSetupRequest,
 } from '@homelab/shared';
+import { Observable, Subject } from 'rxjs';
 import { AuthService } from '../auth/auth.service.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import type {
@@ -46,7 +47,7 @@ export class BackupPlanManager {
   private readonly logger = new Logger(BackupPlanManager.name);
   /** Plan changes one after another: each writes the whole plan. */
   private planChange: Promise<unknown> = Promise.resolve();
-  private readonly listeners = new Set<() => void>();
+  private readonly changed = new Subject<void>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -57,11 +58,8 @@ export class BackupPlanManager {
     private readonly auth: AuthService,
   ) {}
 
-  /** Called when the plan or its items change. Returns the unsubscribe. */
-  onChange(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
+  /** The plan or its items changed. */
+  readonly changes$: Observable<void> = this.changed.asObservable();
 
   async plan(): Promise<BackupPlan | null> {
     const plan = await this.prisma.backupPlan.findUnique({ where: { id: 1 } });
@@ -402,6 +400,6 @@ export class BackupPlanManager {
   }
 
   private notify(): void {
-    for (const listener of this.listeners) listener();
+    this.changed.next();
   }
 }
