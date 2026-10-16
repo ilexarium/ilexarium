@@ -7,20 +7,21 @@ import { check } from './check.mts';
 import { loadConfig, pathsFor } from './config.mts';
 import { configure } from './configure.mts';
 import { init } from './init.mts';
-import { MAX_INPUT_BYTES, parseInput, requireNoInput } from './input.mts';
+import { MAX_INPUT_BYTES, requireNoInput } from './input.mts';
 import { forget, passphrase } from './maintenance.mts';
 import { setRestoreArea } from './places.mts';
-import { UUID } from './plan.mts';
 import { stopping, stopRunning } from './programs.mts';
 import { discard, restore } from './restore.mts';
 import { run } from './run.mts';
+import { parseInstance, start as startRun } from './start.mts';
 import { emit, finish, Refusal } from '../lib/output.mts';
 import { readInput } from '../lib/startup.mts';
 
 export const ACTIONS = new Set([
   'configure',
   'init',
-  'run',
+  'start',
+  'run-requested',
   'run-scheduled',
   'check-scheduled',
   'restore',
@@ -29,20 +30,22 @@ export const ACTIONS = new Set([
   'passphrase',
 ]);
 
-export function checkStartup(): string {
+/** The action, and for `run-requested` its unit instance (the one action with an argument). */
+export function checkStartup(): { action: string; instance: string | null } {
   if (process.env['NODE_OPTIONS'] !== undefined || process.execArgv.length > 0) {
     throw new Refusal('invalid_request', 'Node was started with options', 6);
   }
   const args = process.argv.slice(2);
-  if (args.length !== 1 || !ACTIONS.has(args[0])) {
+  const expected = args[0] === 'run-requested' ? 2 : 1;
+  if (args.length !== expected || !ACTIONS.has(args[0])) {
     throw new Refusal('invalid_request', `usage: homelab-backup ${[...ACTIONS].join('|')}`);
   }
-  return args[0];
+  return { action: args[0], instance: args[1] ?? null };
 }
 
 export async function main(): Promise<number> {
   process.umask(0o077);
-  const action = checkStartup();
+  const { action, instance } = checkStartup();
   const config = loadConfig();
   const paths = pathsFor(config);
   setRestoreArea(paths.restores);
@@ -61,14 +64,15 @@ export async function main(): Promise<number> {
     case 'init':
       await init(config, paths, input);
       return 0;
-    case 'run': {
-      const { runId, itemId } = parseInput(input, ['runId'], ['itemId']);
-      if (typeof runId !== 'string' || !UUID.test(runId))
-        throw new Refusal('invalid_request', 'runId');
-      if (itemId !== undefined && (typeof itemId !== 'string' || !UUID.test(itemId))) {
-        throw new Refusal('invalid_request', 'itemId');
-      }
-      return run(config, paths, 'manual', runId, (itemId as string | undefined) ?? null);
+    case 'start':
+      await startRun(config, paths, input);
+      emit(`@@result ${JSON.stringify({ started: true })}`);
+      return 0;
+    case 'run-requested': {
+      // Started by homelab-backup-now@<instance>.service (or, in development, by `start`).
+      requireNoInput(input);
+      const request = parseInstance(instance!);
+      return run(config, paths, 'manual', request.runId, request.itemId);
     }
     case 'run-scheduled':
       requireNoInput(input);

@@ -2,7 +2,12 @@ import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common'
 import { AuditService } from '../audit/audit.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { BackupFiles, type WrapperItemResult, type WrapperRunResult } from './backup-files.js';
+import {
+  BackupFiles,
+  type WrapperItemResult,
+  type WrapperResult,
+  type WrapperRunResult,
+} from './backup-files.js';
 import { BackupProgressFollower } from './backup-progress.js';
 import type { FollowedRun } from './backups.model.js';
 
@@ -10,10 +15,17 @@ import type { FollowedRun } from './backups.model.js';
 export const RUNS_KEPT = 500;
 
 /**
+ * A "Back up now" run that hasn't shown up by then never started (systemd couldn't run the
+ * wrapper): recorded as failed. A run that started shows within seconds — it doesn't wait.
+ */
+export const START_GRACE_MS = 2 * 60_000;
+
+/**
  * Brings the wrapper's results into the app's history: each run (scheduled or manual) and each
  * repository check from runs.jsonl, at startup and whenever it changes — and runs that crashed,
  * from the progress follower. Items' archive lists come from here (the wrapper reports what each
- * item has after pruning). Scheduled runs are audited as "system".
+ * item has after pruning). Each run's outcome is audited: scheduled ones as "system", "Back up
+ * now" as the user who started it (the executor audited the start).
  */
 @Injectable()
 export class BackupResults implements OnApplicationBootstrap {
@@ -26,7 +38,7 @@ export class BackupResults implements OnApplicationBootstrap {
     private readonly prisma: PrismaService,
     private readonly files: BackupFiles,
     private readonly audit: AuditService,
-    progress: BackupProgressFollower,
+    private readonly progress: BackupProgressFollower,
   ) {
     // Listening from the start: the follower may find a crashed run during startup (its
     // onModuleInit), before this service's bootstrap — and it reports each run only once.
@@ -64,6 +76,11 @@ export class BackupResults implements OnApplicationBootstrap {
 
   private async importOnce(): Promise<void> {
     const results = await this.files.results();
+    await this.importResults(results);
+    await this.recordNotStarted(results);
+  }
+
+  private async importResults(results: WrapperResult[]): Promise<void> {
     if (results.length === 0) return;
     const runIds = results.filter((r) => r.type === 'run').map((r) => r.runId);
     const checkIds = results.filter((r) => r.type === 'check').map((r) => r.checkId);
@@ -104,7 +121,7 @@ export class BackupResults implements OnApplicationBootstrap {
   private async importRun(result: WrapperRunResult): Promise<void> {
     const existing = await this.prisma.backupRun.findUnique({
       where: { id: result.runId },
-      select: { id: true },
+      select: { finishedAt: true, startedById: true, startedBy: { select: { username: true } } },
     });
     const data = {
       trigger: result.trigger,
@@ -124,19 +141,23 @@ export class BackupResults implements OnApplicationBootstrap {
       });
       await this.saveItemResults(tx, result.runId, result.items, new Date(result.finishedAt));
     });
-    if (!existing && result.trigger === 'scheduled') {
-      await this.audit.tryRecord({
-        action: 'backup.run',
-        outcome: result.status === 'failed' ? 'failure' : 'success',
-        username: 'system',
-        details: {
-          runId: result.runId,
-          trigger: 'scheduled',
-          status: result.status,
-          ...(result.errorCode ? { reason: result.errorCode } : {}),
-        },
-      });
-    }
+    // Audited once: a scheduled run when it first arrives; "Back up now" when the run the app
+    // started (its row, waiting for this result) ends — as the user who started it.
+    const manual = result.trigger === 'manual';
+    if (manual ? !existing || existing.finishedAt : existing) return;
+    await this.audit.tryRecord({
+      action: 'backup.run',
+      outcome: result.status === 'failed' ? 'failure' : 'success',
+      ...(manual
+        ? { userId: existing!.startedById ?? undefined, username: existing!.startedBy?.username }
+        : { username: 'system' }),
+      details: {
+        runId: result.runId,
+        trigger: result.trigger,
+        status: result.status,
+        ...(result.errorCode ? { reason: result.errorCode } : {}),
+      },
+    });
   }
 
   /** Item results of a run, for items that still exist; their archive lists if newer. */
@@ -213,6 +234,28 @@ export class BackupResults implements OnApplicationBootstrap {
     } catch (error) {
       this.logger.error('Could not record an interrupted backup run', error);
     }
+  }
+
+  /** "Back up now" runs that never showed up — not in the progress file, no result: failed. */
+  private async recordNotStarted(results: WrapperResult[]): Promise<void> {
+    const stale = await this.prisma.backupRun.findMany({
+      where: {
+        trigger: 'manual',
+        finishedAt: null,
+        startedAt: { lt: new Date(Date.now() - START_GRACE_MS) },
+      },
+      select: { id: true },
+    });
+    const reported = new Set(results.filter((r) => r.type === 'run').map((r) => r.runId));
+    const followed = this.progress.followedRunId();
+    const never = stale.filter((run) => run.id !== followed && !reported.has(run.id));
+    if (never.length === 0) return;
+    await this.prisma.backupRun.updateMany({
+      where: { id: { in: never.map((run) => run.id) }, finishedAt: null },
+      data: { status: 'failed', errorCode: 'interrupted', finishedAt: new Date() },
+    });
+    this.logger.warn(`${never.length} backup run(s) started with "Back up now" never ran`);
+    this.notify();
   }
 
   private async prune(): Promise<void> {

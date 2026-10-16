@@ -268,11 +268,16 @@ describe('ExecutorService backups', () => {
     expect(outcome).toEqual({ ok: true, result: { targetPath: null, setAside } });
   });
 
-  it('counts a run that happened as done, even with failed items (the results file has them)', async () => {
-    script(['@@result {"runId":"r1","status":"failed","errorCode":null}'], 5);
-    expect(await executor().backupRun({ runId: 'r1' }, actor)).toEqual({
+  it('starts "Back up now" and returns at once: the run is systemd\'s, not a child of the app', async () => {
+    script(['@@result {"started":true}']);
+    expect(await executor().backupStart({ runId: 'r1', itemId: 'i1' }, actor)).toEqual({
       ok: true,
-      result: { status: 'failed', errorCode: null },
+      result: null,
+    });
+    script(['@@error code=item_not_found'], 2);
+    expect(await executor().backupStart({ runId: 'r1' }, actor)).toMatchObject({
+      ok: false,
+      code: 'backup_item_not_found',
     });
   });
 
@@ -295,7 +300,7 @@ describe('ExecutorService backups', () => {
       result: { targetPath: null, setAside: ['/srv/a.before-restore-20261014-030000'] },
     });
     script(['@@error code=destination_unavailable'], 5);
-    expect(await executor().backupRun({ runId: 'r1' }, actor)).toMatchObject({
+    expect(await executor().backupInit('/mnt/usb', actor)).toMatchObject({
       ok: false,
       code: 'destination_unavailable',
     });

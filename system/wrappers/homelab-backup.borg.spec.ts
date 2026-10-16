@@ -31,11 +31,11 @@ let destination: string;
 let dev: string;
 
 function wrapper(
-  action: string,
+  action: string | string[],
   input: unknown = '',
 ): Promise<{ code: number | null; out: string; result: any }> {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [WRAPPER, action], {
+    const child = spawn(process.execPath, [WRAPPER, ...[action].flat()], {
       env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
     });
     let out = '';
@@ -140,11 +140,11 @@ describe.skipIf(!BORG)('homelab-backup with the real Borg', () => {
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   it('backs everything up, skipping what the recipe says; pruning keeps one a day', async () => {
-    const first = await wrapper('run', { runId: '55555555-5555-4555-8555-555555555551' });
+    const first = await wrapper(['run-requested', '55555555-5555-4555-8555-555555555551']);
     expect(first.code, first.out).toBe(0);
     await new Promise((resolve) => setTimeout(resolve, 1100)); // a new archive name (one per second)
     writeFileSync(join(storage, 'demo', 'data', 'db.sqlite'), 'version 2');
-    const second = await wrapper('run', { runId: '55555555-5555-4555-8555-555555555552' });
+    const second = await wrapper(['run-requested', '55555555-5555-4555-8555-555555555552']);
     expect(second.code, second.out).toBe(0);
     const items = runs()[1].items;
     expect(items.map((i: any) => i.status)).toEqual(['ok', 'ok', 'ok']);
@@ -223,10 +223,10 @@ describe.skipIf(!BORG)('homelab-backup with the real Borg', () => {
     const saved = readFileSync(file, 'utf8');
     chmodSync(file, 0o600);
     writeFileSync(file, 'wrong words\n');
-    const result = await wrapper('run', {
-      runId: '55555555-5555-4555-8555-555555555553',
-      itemId: FOLDER,
-    });
+    const result = await wrapper([
+      'run-requested',
+      `55555555-5555-4555-8555-555555555553_${FOLDER}`,
+    ]);
     expect(result.code).toBe(5);
     expect(runs().at(-1)).toMatchObject({
       status: 'failed',

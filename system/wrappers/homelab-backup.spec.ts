@@ -125,9 +125,9 @@ interface Run {
   result: Record<string, any> | null;
 }
 
-function wrapper(action: string, input: unknown = ''): Promise<Run> {
+function wrapper(action: string | string[], input: unknown = ''): Promise<Run> {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [WRAPPER, action], {
+    const child = spawn(process.execPath, [WRAPPER, ...[action].flat()], {
       env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
     });
     let out = '';
@@ -147,8 +147,22 @@ function wrapper(action: string, input: unknown = ''): Promise<Run> {
   });
 }
 
+/** "Back up now" as its unit runs it: `run-requested <runId>[_<itemId>]`, in the foreground. */
+function runNow(request: { runId: string; itemId?: string }): Promise<Run> {
+  const instance = request.itemId ? `${request.runId}_${request.itemId}` : request.runId;
+  return wrapper(['run-requested', instance]);
+}
+
+/** The config with a (fake) systemctl, as in production. */
+function useSystemctl() {
+  const file = join(dir, 'wrappers.json');
+  const config = JSON.parse(readFileSync(file, 'utf8'));
+  config.backup.systemctlBin = join(dir, 'systemctl');
+  writeFileSync(file, JSON.stringify(config));
+}
+
 function calls(
-  name: 'borg' | 'docker',
+  name: 'borg' | 'docker' | 'systemctl',
 ): { args: string[]; env: Record<string, string>; cwd: string }[] {
   const file = join(dir, `${name}-calls.jsonl`);
   if (!existsSync(file)) return [];
@@ -208,7 +222,7 @@ beforeEach(() => {
     mkdirSync(join(dir, 'catalog', id), { recursive: true });
     writeFileSync(join(dir, 'catalog', id, 'meta.json'), JSON.stringify(meta));
   }
-  for (const fake of ['borg', 'docker']) {
+  for (const fake of ['borg', 'docker', 'systemctl']) {
     const source = readFileSync(join(FAKES, `fake-${fake}.cjs`), 'utf8');
     writeFileSync(join(dir, fake), `#!${process.execPath}\n${source}`, { mode: 0o755 });
   }
@@ -224,16 +238,12 @@ describe('homelab-backup starts safely', () => {
     expect(readFileSync(WRAPPER, 'utf8').split('\n')[0]).toBe('#!/usr/bin/env -S -i /usr/bin/node');
   });
 
-  it('takes exactly one known action', async () => {
+  it('takes exactly one known action (and run-requested its instance)', async () => {
     expectRefused(await wrapper('backup'), 'invalid_request');
-    const extra = await new Promise<number | null>((resolve) => {
-      const child = spawn(process.execPath, [WRAPPER, 'run', 'x'], {
-        env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
-      });
-      child.stdin.end();
-      child.on('close', resolve);
-    });
-    expect(extra).toBe(2);
+    expectRefused(await wrapper('run'), 'invalid_request');
+    expectRefused(await wrapper(['passphrase', 'x']), 'invalid_request');
+    expectRefused(await wrapper('run-requested'), 'invalid_request');
+    expectRefused(await wrapper(['run-requested', RUN, 'x']), 'invalid_request');
   });
 
   it('refuses input for actions that take none', async () => {
@@ -400,7 +410,7 @@ describe('homelab-backup init', () => {
       join(other, 'homelab-backups'),
     ]);
     // The plan still names the first disk (its change never happened): runs still work there.
-    expect((await wrapper('run', { runId: RUN, itemId: FOLDER })).code).toBe(0);
+    expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
   });
 
   it('reads the first version’s repository file', async () => {
@@ -410,7 +420,7 @@ describe('homelab-backup init', () => {
       join(dev, 'backup-repository.json'),
       JSON.stringify({ path: repo, id: 'a'.repeat(64) }),
     );
-    expect((await wrapper('run', { runId: RUN, itemId: FOLDER })).code).toBe(0);
+    expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
   });
 
   it('never shows the passphrase: not in arguments, environment or output', async () => {
@@ -470,7 +480,7 @@ describe('homelab-backup run', () => {
   beforeEach(() => setUp());
 
   it('backs up the platform, then services, then folders — one archive each', async () => {
-    const result = await wrapper('run', { runId: RUN });
+    const result = await runNow({ runId: RUN });
     expect(result.code, result.lines.join('\n')).toBe(0);
     const creates = calls('borg').filter((c) => c.args[0] === 'create');
     const archive = (args: string[]) => args.find((a) => a.includes('::'))!.split('::')[1];
@@ -487,7 +497,7 @@ describe('homelab-backup run', () => {
   });
 
   it('dumps the database inside its container, without sessions, and removes the dump afterwards', async () => {
-    await wrapper('run', { runId: RUN });
+    await runNow({ runId: RUN });
     expect(calls('docker')[0].args).toEqual([
       'exec',
       'homelab-postgres-1',
@@ -505,7 +515,7 @@ describe('homelab-backup run', () => {
   });
 
   it('skips what the recipe says, by full path, never as a pattern', async () => {
-    await wrapper('run', { runId: RUN });
+    await runNow({ runId: RUN });
     const creates = calls('borg').filter((c) => c.args[0] === 'create');
     const demo = creates[1].args;
     expect(demo).toEqual([
@@ -524,7 +534,7 @@ describe('homelab-backup run', () => {
   });
 
   it('stops a `stop` service around its archive, and only that one', async () => {
-    await wrapper('run', { runId: RUN });
+    await runNow({ runId: RUN });
     const compose = calls('docker')
       .filter((c) => c.args[0] === 'compose')
       .map((c) => c.args.slice(2).join(' '));
@@ -534,7 +544,7 @@ describe('homelab-backup run', () => {
 
   it('starts a stopped service again even when its archive fails', async () => {
     writeFileSync(join(dir, 'exit-create.txt'), '2');
-    const result = await wrapper('run', { runId: RUN });
+    const result = await runNow({ runId: RUN });
     expect(result.code).toBe(5);
     const compose = calls('docker')
       .filter((c) => c.args[0] === 'compose')
@@ -545,12 +555,12 @@ describe('homelab-backup run', () => {
 
   it('retries starting a service, and reports one that did not start as the most serious failure', async () => {
     writeFileSync(join(dir, 'start-fails.txt'), '2');
-    expect((await wrapper('run', { runId: RUN })).code).toBe(0);
+    expect((await runNow({ runId: RUN })).code).toBe(0);
     rmSync(join(dir, 'archives.json'));
 
     writeFileSync(join(dir, 'running.txt'), 'hl-demo');
     writeFileSync(join(dir, 'start-fails.txt'), '3');
-    const result = await wrapper('run', { runId: RUN });
+    const result = await runNow({ runId: RUN });
     expect(result.code).toBe(5);
     const demo = results()
       .at(-1)!
@@ -562,7 +572,7 @@ describe('homelab-backup run', () => {
 
   it('leaves a stopped service alone (it was not running)', async () => {
     writeFileSync(join(dir, 'running.txt'), '');
-    await wrapper('run', { runId: RUN });
+    await runNow({ runId: RUN });
     const compose = calls('docker')
       .filter((c) => c.args[0] === 'compose')
       .map((c) => c.args[3]);
@@ -570,7 +580,7 @@ describe('homelab-backup run', () => {
   });
 
   it('records results: per item, with sizes and the archives left after pruning', async () => {
-    await wrapper('run', { runId: RUN });
+    await runNow({ runId: RUN });
     const [run] = results();
     expect(run).toMatchObject({
       type: 'run',
@@ -593,7 +603,7 @@ describe('homelab-backup run', () => {
   });
 
   it('prunes each item by its own archives, with the plan’s retention', async () => {
-    await wrapper('run', { runId: RUN, itemId: FOLDER });
+    await runNow({ runId: RUN, itemId: FOLDER });
     const prune = calls('borg').find((c) => c.args[0] === 'prune')!;
     expect(prune.args).toEqual([
       'prune',
@@ -612,19 +622,19 @@ describe('homelab-backup run', () => {
 
   it('keeps the last four of the day when running every 6 hours', async () => {
     await wrapper('configure', plan({ schedule: { frequency: 'every6h', time: '03:00' } }));
-    await wrapper('run', { runId: RUN, itemId: FOLDER });
+    await runNow({ runId: RUN, itemId: FOLDER });
     expect(calls('borg').find((c) => c.args[0] === 'prune')!.args).toContain('--keep-hourly');
   });
 
   it('backs up one item when asked to', async () => {
-    await wrapper('run', { runId: RUN, itemId: FOLDER });
+    await runNow({ runId: RUN, itemId: FOLDER });
     expect(borgCommands()).toEqual(['create', 'prune', 'list', 'compact']);
     expect(results()[0]).toMatchObject({ itemId: FOLDER });
-    expectRefused(await wrapper('run', { runId: RUN, itemId: RESTORE }), 'item_not_found');
+    expectRefused(await runNow({ runId: RUN, itemId: RESTORE }), 'item_not_found');
   });
 
   it('writes live progress: the run, each item’s phases and result, the end', async () => {
-    await wrapper('run', { runId: RUN, itemId: SERVICE });
+    await runNow({ runId: RUN, itemId: SERVICE });
     const events = progress();
     expect(events[0]).toMatchObject({
       type: 'run',
@@ -652,7 +662,7 @@ describe('homelab-backup run', () => {
     };
     writeFileSync(join(dir, 'logs-create.jsonl'), JSON.stringify(warning));
     writeFileSync(join(dir, 'exit-create.txt'), '1');
-    const result = await wrapper('run', { runId: RUN, itemId: FOLDER });
+    const result = await runNow({ runId: RUN, itemId: FOLDER });
     expect(result.code).toBe(0);
     expect(results()[0]).toMatchObject({ status: 'warning' });
     expect(results()[0].items[0]).toMatchObject({
@@ -663,7 +673,7 @@ describe('homelab-backup run', () => {
 
   it('fails one item whose folder is missing, and goes on with the others', async () => {
     rmSync(join(storage, 'docs'), { recursive: true });
-    const result = await wrapper('run', { runId: RUN });
+    const result = await runNow({ runId: RUN });
     expect(result.code).toBe(5);
     const run = results()[0];
     expect(run.status).toBe('failed');
@@ -678,7 +688,7 @@ describe('homelab-backup run', () => {
   it('refuses a source swapped for a symlink', async () => {
     rmSync(join(storage, 'docs'), { recursive: true });
     symlinkSync('/etc', join(storage, 'docs'));
-    await wrapper('run', { runId: RUN, itemId: FOLDER });
+    await runNow({ runId: RUN, itemId: FOLDER });
     expect(results()[0].items[0]).toMatchObject({ status: 'failed', errorCode: 'source_missing' });
     expect(borgCommands()).not.toContain('create');
   });
@@ -692,13 +702,13 @@ describe('homelab-backup run', () => {
     };
     writeFileSync(join(dir, 'logs-create.jsonl'), JSON.stringify(full));
     writeFileSync(join(dir, 'exit-create.txt'), '2');
-    await wrapper('run', { runId: RUN, itemId: FOLDER });
+    await runNow({ runId: RUN, itemId: FOLDER });
     expect(results()[0].items[0]).toMatchObject({ status: 'failed', errorCode: 'disk_full' });
   });
 
   it('writes nothing when the disk is not mounted', async () => {
     writeMounts([]);
-    const result = await wrapper('run', { runId: RUN });
+    const result = await runNow({ runId: RUN });
     expect(result.code).toBe(5);
     expect(result.markers.at(-1)).toBe('@@error code=destination_unavailable');
     expect(calls('borg')).toEqual([]);
@@ -715,25 +725,21 @@ describe('homelab-backup run', () => {
       join(destination, 'homelab-backups', 'config'),
       `[repository]\nid = ${'b'.repeat(64)}\n`,
     );
-    expect((await wrapper('run', { runId: RUN })).markers.at(-1)).toBe(
-      '@@error code=repository_mismatch',
-    );
+    expect((await runNow({ runId: RUN })).markers.at(-1)).toBe('@@error code=repository_mismatch');
     rmSync(join(destination, 'homelab-backups'), { recursive: true });
-    expect((await wrapper('run', { runId: RUN })).markers.at(-1)).toBe(
-      '@@error code=repository_mismatch',
-    );
+    expect((await runNow({ runId: RUN })).markers.at(-1)).toBe('@@error code=repository_mismatch');
     expect(calls('borg')).toEqual([]);
   });
 
   it('fails the run when the passphrase file is missing', async () => {
     rmSync(join(dev, 'backup.passphrase'), { force: true });
-    const result = await wrapper('run', { runId: RUN });
+    const result = await runNow({ runId: RUN });
     expect(result.markers.at(-1)).toBe('@@error code=passphrase_invalid');
     expect(calls('borg')).toEqual([]);
   });
 
   it('never puts the passphrase in arguments, the environment, output or results', async () => {
-    const result = await wrapper('run', { runId: RUN });
+    const result = await runNow({ runId: RUN });
     const secret = passphrase();
     expect(result.lines.join('\n')).not.toContain(secret);
     expect(JSON.stringify(calls('borg'))).not.toContain(secret);
@@ -743,7 +749,7 @@ describe('homelab-backup run', () => {
   });
 
   it('gives Borg a clean environment', async () => {
-    await wrapper('run', { runId: RUN, itemId: FOLDER });
+    await runNow({ runId: RUN, itemId: FOLDER });
     expect(calls('borg')[0].env).toEqual({
       PATH: '/usr/sbin:/usr/bin:/sbin:/bin',
       HOME: dir,
@@ -763,14 +769,22 @@ describe('homelab-backup run', () => {
   it('runs one operation at a time: a manual run is refused, a scheduled one waits, then gives up — recorded', async () => {
     mkdirSync(join(dir, 'run'), { recursive: true });
     writeFileSync(join(dir, 'run', 'compose.lock'), String(process.pid));
-    expectRefused(await wrapper('run', { runId: RUN }), 'busy', 3);
-    expect(results()).toEqual([]);
+    expectRefused(await runNow({ runId: RUN }), 'busy', 3);
+    // Nobody waits on a "Back up now" run's output: the refusal shows in the app through the file.
+    expect(results()).toEqual([
+      expect.objectContaining({
+        runId: RUN,
+        trigger: 'manual',
+        status: 'failed',
+        errorCode: 'busy',
+      }),
+    ]);
     const started = Date.now();
     expectRefused(await wrapper('run-scheduled'), 'busy', 3);
     expect(Date.now() - started).toBeGreaterThanOrEqual(250);
     expect(calls('borg')).toEqual([]);
     // The skipped scheduled run shows in the app at once.
-    expect(results()).toEqual([
+    expect(results().slice(1)).toEqual([
       expect.objectContaining({
         type: 'run',
         trigger: 'scheduled',
@@ -797,15 +811,15 @@ describe('homelab-backup run', () => {
     mkdirSync(join(dir, 'run'), { recursive: true });
     const lock = join(dir, 'run', 'compose.lock');
     writeFileSync(lock, ''); // an older writer between creating and writing it
-    expectRefused(await wrapper('run', { runId: RUN }), 'busy', 3);
+    expectRefused(await runNow({ runId: RUN }), 'busy', 3);
     const old = new Date(Date.now() - 120_000);
     utimesSync(lock, old, old);
-    expect((await wrapper('run', { runId: RUN, itemId: FOLDER })).code).toBe(0);
+    expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
   });
 
   it('leaves no partial database dump behind when the dump fails', async () => {
     writeFileSync(join(dir, 'exit-exec.txt'), '1');
-    await wrapper('run', { runId: RUN, itemId: PLATFORM });
+    await runNow({ runId: RUN, itemId: PLATFORM });
     expect(results()[0].items[0]).toMatchObject({ status: 'failed', errorCode: 'dump_failed' });
     expect(existsSync(join(dev, 'state', 'platform'))).toBe(false);
   });
@@ -816,16 +830,24 @@ describe('homelab-backup run', () => {
     expect(results()[0].runId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it('refuses bad run input', async () => {
-    expectRefused(await wrapper('run', { runId: 'x' }), 'invalid_request');
-    expectRefused(await wrapper('run', { runId: RUN, itemId: '../x' }), 'invalid_request');
-    expectRefused(await wrapper('run', { runId: RUN, extra: 1 }), 'invalid_request');
+  it('refuses a bad instance (from systemd, still checked) and any input', async () => {
+    for (const instance of [
+      'x',
+      `${RUN}_../x`,
+      `${RUN}_`,
+      `${RUN}_${FOLDER}_${FOLDER}`,
+      `${RUN} `,
+    ]) {
+      expectRefused(await wrapper(['run-requested', instance]), 'invalid_request');
+    }
+    expectRefused(await wrapper(['run-requested', RUN], '{}'), 'invalid_request');
+    expect(calls('borg')).toEqual([]);
   });
 
   it('skips removed items', async () => {
     const items = plan().items.map((i: any) => (i.id === FOLDER ? { ...i, removed: true } : i));
     await wrapper('configure', plan({ items }));
-    await wrapper('run', { runId: RUN });
+    await runNow({ runId: RUN });
     expect(results()[0].items.map((i: any) => i.itemId)).toEqual([PLATFORM, SERVICE, LIVE]);
   });
 });
@@ -836,7 +858,7 @@ describe('homelab-backup restore', () => {
 
   beforeEach(async () => {
     await setUp();
-    expect((await wrapper('run', { runId: RUN })).code).toBe(0);
+    expect((await runNow({ runId: RUN })).code).toBe(0);
     const items = results()[0].items;
     archive = items.find((i: any) => i.itemId === SERVICE).archive;
     folderArchive = items.find((i: any) => i.itemId === FOLDER).archive;
@@ -947,7 +969,7 @@ describe('homelab-backup restore', () => {
 describe('homelab-backup discard, forget and passphrase', () => {
   beforeEach(async () => {
     await setUp();
-    await wrapper('run', { runId: RUN });
+    await runNow({ runId: RUN });
   });
 
   it('discard deletes a folder a restore set aside — and nothing else', async () => {
@@ -1027,5 +1049,71 @@ describe('homelab-backup and the restore area', () => {
       const items = [plan().items[0], { id: RUN, kind: 'folder', path }];
       expectRefused(await wrapper('configure', plan({ items })), 'invalid_plan');
     }
+  });
+});
+
+describe('homelab-backup start ("Back up now")', () => {
+  const unitCalls = () => calls('systemctl').filter((c) => c.args[0] === 'start');
+
+  it('starts the run as its own systemd unit and returns at once', async () => {
+    useSystemctl();
+    await setUp();
+    const result = await wrapper('start', { runId: RUN, itemId: FOLDER });
+    expect(result.code, result.lines.join('\n')).toBe(0);
+    expect(result.result).toEqual({ started: true });
+    expect(unitCalls().map((c) => c.args)).toEqual([
+      ['start', '--no-block', `homelab-backup-now@${RUN}_${FOLDER}.service`],
+    ]);
+    expect(Object.keys(unitCalls()[0].env).sort()).toEqual(['HOME', 'PATH']);
+    await wrapper('start', { runId: RUN });
+    expect(unitCalls().at(-1)!.args[2]).toBe(`homelab-backup-now@${RUN}.service`);
+    // systemd runs it, not this call.
+    expect(calls('borg')).toEqual([]);
+  });
+
+  it('refuses at once what would refuse the run: no plan, an unknown or removed item, bad input', async () => {
+    useSystemctl();
+    expectRefused(await wrapper('start', { runId: RUN }), 'not_configured', 6);
+    await setUp();
+    expectRefused(await wrapper('start', { runId: RUN, itemId: RESTORE }), 'item_not_found');
+    const items = plan().items.map((i: any) => (i.id === FOLDER ? { ...i, removed: true } : i));
+    await wrapper('configure', plan({ items }));
+    expectRefused(await wrapper('start', { runId: RUN, itemId: FOLDER }), 'item_not_found');
+    expectRefused(await wrapper('start', { runId: 'x' }), 'invalid_request');
+    expectRefused(await wrapper('start', { runId: RUN, itemId: '../x' }), 'invalid_request');
+    expectRefused(await wrapper('start', { runId: RUN, extra: 1 }), 'invalid_request');
+    expectRefused(await wrapper('start', 'nope'), 'invalid_request');
+    expect(unitCalls()).toEqual([]);
+  });
+
+  it('reports systemd refusing to start it', async () => {
+    useSystemctl();
+    await setUp();
+    writeFileSync(join(dir, 'exit-systemctl.txt'), '1');
+    expectRefused(await wrapper('start', { runId: RUN }), 'setup', 6);
+  });
+
+  it('in development (no systemd), runs it detached: it finishes after the caller is gone', async () => {
+    await setUp();
+    const result = await wrapper('start', { runId: RUN, itemId: FOLDER });
+    expect(result.code, result.lines.join('\n')).toBe(0);
+    const deadline = Date.now() + 20_000;
+    while (!results().some((r) => r.runId === RUN) && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(results().find((r) => r.runId === RUN)).toMatchObject({
+      trigger: 'manual',
+      itemId: FOLDER,
+      status: 'ok',
+    });
+    expect(readFileSync(join(dev, 'state', 'requested-run.log'), 'utf8')).toContain('@@result');
+  });
+
+  it('records a run whose item was removed after it was started', async () => {
+    await setUp();
+    expectRefused(await runNow({ runId: RUN, itemId: RESTORE }), 'item_not_found');
+    expect(results()).toEqual([
+      expect.objectContaining({ runId: RUN, status: 'failed', errorCode: 'item_not_found' }),
+    ]);
   });
 });

@@ -16,9 +16,12 @@ const PATH = '/usr/sbin:/usr/bin:/sbin:/bin';
 
 export type ExecutorMode = 'sudo' | 'direct';
 export type WrapperAction = 'up' | 'down';
-/** The backup wrapper's actions the app may call (the timers call `run-scheduled`, `check-scheduled`). */
+/**
+ * The backup wrapper's actions the app may call. Runs are systemd's: `start` has systemd start
+ * "Back up now" (`run-requested`); the timers call `run-scheduled`, `check-scheduled`.
+ */
 export type BackupWrapperAction =
-  'configure' | 'init' | 'run' | 'restore' | 'discard' | 'forget' | 'passphrase';
+  'configure' | 'init' | 'start' | 'restore' | 'discard' | 'forget' | 'passphrase';
 
 export interface WrapperCommand {
   file: string;
