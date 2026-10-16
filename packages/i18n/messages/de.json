@@ -8,7 +8,8 @@
     "account": "Konto",
     "services": "Dienste",
     "installService": "Dienst installieren",
-    "backups": "Backups"
+    "backups": "Backups",
+    "disks": "Laufwerke"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -29,7 +30,9 @@
     "account": "Konto",
     "services": "Dienste",
     "backups": "Backups",
-    "attention": "(braucht Aufmerksamkeit)"
+    "attention": "(braucht Aufmerksamkeit)",
+    "disks": "Laufwerke",
+    "storage": "Speicher"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -122,7 +125,10 @@
     "backupKeepWeeklyRange": "Von 0 bis {{backupWeeklyMax}}",
     "backupKeepMonthlyRange": "Von 0 bis {{backupMonthlyMax}}",
     "backupDestinationRequired": "Wähle ein Laufwerk",
-    "backupDestinationInvalid": "Ein unter /mnt oder /media eingehängtes Laufwerk"
+    "backupDestinationInvalid": "Ein unter /mnt oder /media eingehängtes Laufwerk",
+    "diskNameRequired": "Gib einen Namen ein.",
+    "diskNameInvalid": "Verwende bis zu {{diskNameMax}} Kleinbuchstaben, Ziffern und Bindestriche, beginnend mit einem Buchstaben oder einer Ziffer.",
+    "diskUuidInvalid": "Dieses Laufwerk lässt sich nicht über seine ID benennen."
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -143,7 +149,7 @@
     "service_not_found": "Diesen Dienst gibt es nicht mehr.",
     "service_already_installed": "Dieser Dienst ist bereits installiert.",
     "service_not_installed": "Dieser Dienst ist nicht installiert.",
-    "busy": "Ein anderer Vorgang (eine Installation, ein Backup oder eine Wiederherstellung) läuft. Versuche es erneut, wenn er fertig ist.",
+    "busy": "Ein anderer Vorgang (eine Installation, ein Backup, eine Wiederherstellung oder das Einbinden eines Laufwerks) läuft. Versuche es erneut, wenn er fertig ist.",
     "port_in_use": "Dieser Port wird bereits verwendet.",
     "port_reserved": "Dieser Port ist für das System reserviert.",
     "path_not_allowed": "Dieser Ordner liegt nicht in einem erlaubten Bereich.",
@@ -151,7 +157,7 @@
     "invalid_values": "Einige Einstellungen sind ungültig.",
     "policy_violation": "Das Rezept dieses Dienstes wurde von den Sicherheitsprüfungen abgelehnt.",
     "compose_failed": "Der Dienst konnte nicht gestartet werden. Die Ausgabe zeigt, warum.",
-    "executor_unavailable": "Dieser Server ist noch nicht für die Installation von Diensten eingerichtet.",
+    "executor_unavailable": "Dieser Server ist dafür noch nicht eingerichtet.",
     "timed_out": "Das hat zu lange gedauert und wurde abgebrochen.",
     "interrupted": "Die App wurde neu gestartet, während das lief.",
     "audit_unavailable": "Es wurde nichts getan: Die Aktion konnte nicht im Audit-Log festgehalten werden.",
@@ -177,7 +183,19 @@
     "service_not_backed_up": "Dieser Dienst kann nicht gesichert werden.",
     "paths_changed": "Der Dienst nutzt inzwischen andere Ordner. Stelle stattdessen in einen neuen Ordner wieder her.",
     "invalid_plan": "Das Backup-Programm hat diese Änderung abgelehnt. Es wurde nichts geändert.",
-    "backup_set_aside_kept": "Eine Wiederherstellung bewahrt noch die vorherige Version davon auf. Lösche zuerst diese (bei der Wiederherstellung), dann die Backups."
+    "backup_set_aside_kept": "Eine Wiederherstellung bewahrt noch die vorherige Version davon auf. Lösche zuerst diese (bei der Wiederherstellung), dann die Backups.",
+    "invalid_request": "Die Anfrage war ungültig.",
+    "disk_not_found": "Dieses Laufwerk ist nicht mehr angeschlossen.",
+    "disk_in_use": "Dieses Laufwerk wird verwendet: bereits eingebunden, als Auslagerungsspeicher oder als Teil eines anderen Geräts.",
+    "system_disk": "Das System läuft von diesem Laufwerk: Es wird hier nicht verändert.",
+    "unsupported_filesystem": "Das Format dieses Laufwerks kann hier nicht eingebunden werden (ext4, XFS, Btrfs und exFAT schon).",
+    "name_taken": "Dieser Name wird bereits verwendet. Wähle einen anderen.",
+    "not_managed": "Dieses Laufwerk wurde nicht hier eingebunden und wird daher auch nicht hier ausgehängt.",
+    "used_for_backups": "Auf diesem Laufwerk liegen die Backups. Wähle zuerst ein anderes Backup-Laufwerk.",
+    "disk_busy": "Dateien auf diesem Laufwerk sind geöffnet. Schließe sie oder beende, was sie verwendet, und versuche es erneut.",
+    "mount_failed": "Das Laufwerk konnte nicht eingebunden werden. Es wurde nichts geändert.",
+    "unmount_failed": "Das Laufwerk konnte nicht ausgehängt werden.",
+    "duplicate_uuid": "Ein anderes Laufwerk hat dieselbe Kennung (ein kopiertes Laufwerk?). Ziehe eines von beiden ab, um dieses einzubinden."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -498,7 +516,7 @@
       "title": "Backups einrichten",
       "text": "Die Daten deiner Dienste, ausgewählte Ordner und diese App werden jeden Tag gesichert – verschlüsselt, und nur Änderungen belegen Platz. Backups laufen auch, wenn diese App nicht läuft.",
       "disk": "1. Das Backup-Laufwerk",
-      "noDisk": "Unter /mnt oder /media ist kein Laufwerk eingehängt. Schließe eine USB-Festplatte oder ein zweites Laufwerk an, hänge es dort ein und lade diese Seite neu.",
+      "noDisk": "Unter /mnt oder /media ist kein Laufwerk eingebunden. Schließe ein USB-Laufwerk oder eine zweite Festplatte an und binde sie auf der Seite „Laufwerke“ ein.",
       "diskSpace": "{{free}} frei von {{total}} ({{filesystem}})",
       "unsupported": "Das Format dieses Laufwerks kann nicht für Backups genutzt werden.",
       "sameDisk": "Das ist dasselbe Laufwerk wie deine Daten: Fällt es aus, sind auch die Backups weg. Ein eigenes Laufwerk ist sicherer.",
@@ -508,7 +526,8 @@
       "removeFolder": "{{path}} entfernen",
       "submit": "Backups einrichten",
       "submitting": "Wird eingerichtet …",
-      "done": "Backups sind eingerichtet. Das erste läuft zur gewählten Zeit – oder starte es jetzt."
+      "done": "Backups sind eingerichtet. Das erste läuft zur gewählten Zeit – oder starte es jetzt.",
+      "mountDisk": "Laufwerk einbinden"
     },
     "schedule": {
       "frequency": "Sichern",
@@ -688,5 +707,58 @@
       "started": "Backup gestartet. Du kannst es auf dieser Seite verfolgen.",
       "failed": "Das Backup konnte nicht gestartet werden"
     }
+  },
+  "disks": {
+    "intro": "Die an diesen Rechner angeschlossenen Laufwerke. Binde eines ein, um es zu verwenden – zum Beispiel für Backups. Es bleibt nach einem Neustart eingebunden.",
+    "failed": "Die Laufwerke konnten nicht gelesen werden.",
+    "loading": "Laufwerke werden geladen",
+    "system": "Systemlaufwerk",
+    "systemHelp": "Das System läuft von diesem Laufwerk. Hier wird daran nichts verändert.",
+    "removable": "Wechselbar",
+    "unnamed": "Laufwerk {{device}}",
+    "noPartitions": "Keine Partitionen oder Formatierung gefunden.",
+    "noLabel": "Ohne Namen",
+    "state": {
+      "mounted": "Eingebunden",
+      "available": "Nicht eingebunden",
+      "system": "System",
+      "inUse": "In Verwendung",
+      "unsupported": "Nicht unterstützt"
+    },
+    "inUseHelp": "Als Auslagerungsspeicher verwendet oder Teil von RAID, LVM oder Verschlüsselung.",
+    "unsupportedHelp": "Hier lassen sich nur ext4, XFS, Btrfs und exFAT einbinden.",
+    "mountedAt": "Eingebunden unter",
+    "mountedElsewhere": "Vom System eingebunden, nicht hier: Es wird hier nicht ausgehängt.",
+    "usedForBackups": "Hier liegen die Backups",
+    "mount": "Einbinden",
+    "unmount": "Aushängen",
+    "actionsFor": "{{name}} einbinden oder aushängen",
+    "disconnectedTitle": "Nicht angeschlossen",
+    "disconnectedText": "Früher hier eingebunden. Jedes wird wieder eingebunden, sobald sein Laufwerk angeschlossen ist.",
+    "forget": "Vergessen",
+    "mountDialog": {
+      "title": "{{name}} einbinden",
+      "text": "Wähle einen Namen für seinen Ordner.",
+      "name": "Name",
+      "path": "Es liegt dann unter",
+      "kept": "Es bleibt nach einem Neustart eingebunden. Ist das Laufwerk dann nicht angeschlossen, startet der Rechner wie gewohnt.",
+      "cancel": "Abbrechen",
+      "confirm": "Einbinden"
+    },
+    "unmountDialog": {
+      "title": "Dieses Laufwerk aushängen?",
+      "text": "Seine Dateien bleiben auf dem Laufwerk. Danach kann es sicher abgezogen werden. Schließe vorher alles, was es verwendet.",
+      "forgetTitle": "Dieses Laufwerk vergessen?",
+      "forgetText": "Es wird nicht mehr eingebunden, wenn es angeschlossen wird. Seine Dateien bleiben auf dem Laufwerk.",
+      "cancel": "Abbrechen",
+      "confirm": "Aushängen",
+      "confirmForget": "Vergessen"
+    },
+    "mounted": "{{path}} ist eingebunden.",
+    "unmounted": "Das Laufwerk ist ausgehängt. Es kann jetzt abgezogen werden.",
+    "forgotten": "Das Laufwerk ist vergessen.",
+    "mountFailed": "Das Laufwerk konnte nicht eingebunden werden.",
+    "unmountFailed": "Das Laufwerk konnte nicht ausgehängt werden.",
+    "duplicateUuid": "Ein anderes Laufwerk hat dieselbe Kennung (ein kopiertes Laufwerk?): Nach einem Neustart könnte jedes von beiden eingebunden werden. Ziehe eines davon ab."
   }
 }

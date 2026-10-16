@@ -11,6 +11,11 @@ export const INSTALLED_BACKUP_WRAPPER = '/opt/homelab/libexec/homelab-backup.mts
 export const REPO_BACKUP_WRAPPER = fileURLToPath(
   new URL('../../../../system/wrappers/homelab-backup.mts', import.meta.url),
 );
+/** The disk wrapper, installed (the sudoers rule names it) and in this repository. */
+export const INSTALLED_DISK_WRAPPER = '/opt/homelab/libexec/homelab-disk.mts';
+export const REPO_DISK_WRAPPER = fileURLToPath(
+  new URL('../../../../system/wrappers/homelab-disk.mts', import.meta.url),
+);
 const SUDO = '/usr/bin/sudo';
 const PATH = '/usr/sbin:/usr/bin:/sbin:/bin';
 
@@ -22,6 +27,9 @@ export type WrapperAction = 'up' | 'down';
  */
 export type BackupWrapperAction =
   'configure' | 'init' | 'start' | 'restore' | 'discard' | 'forget' | 'passphrase';
+
+/** The disk wrapper's actions. */
+export type DiskWrapperAction = 'mount' | 'unmount';
 
 export interface WrapperCommand {
   file: string;
@@ -68,6 +76,26 @@ export function backupWrapperCommand(
     return {
       file: SUDO,
       args: ['-n', INSTALLED_BACKUP_WRAPPER, action],
+      env: { PATH, LANG: 'C.UTF-8' },
+    };
+  }
+  return {
+    file: process.execPath,
+    args: [direct.wrapper, action],
+    env: { PATH, LANG: 'C.UTF-8', HOMELAB_WRAPPER_CONFIG: direct.configFile },
+  };
+}
+
+/** The same for the disk wrapper: its one argument is the action; the values on stdin. */
+export function diskWrapperCommand(
+  mode: ExecutorMode,
+  action: DiskWrapperAction,
+  direct: { wrapper: string; configFile: string } = { wrapper: REPO_DISK_WRAPPER, configFile: '' },
+): WrapperCommand {
+  if (mode === 'sudo') {
+    return {
+      file: SUDO,
+      args: ['-n', INSTALLED_DISK_WRAPPER, action],
       env: { PATH, LANG: 'C.UTF-8' },
     };
   }

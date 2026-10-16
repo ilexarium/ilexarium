@@ -8,7 +8,8 @@
     "account": "Account",
     "services": "Services",
     "installService": "Install a service",
-    "backups": "Backups"
+    "backups": "Backups",
+    "disks": "Disks"
   },
   "app": {
     "loading": "Loading…",
@@ -29,7 +30,9 @@
     "account": "Account",
     "services": "Services",
     "backups": "Backups",
-    "attention": "(needs attention)"
+    "attention": "(needs attention)",
+    "disks": "Disks",
+    "storage": "Storage"
   },
   "userMenu": {
     "open": "Account menu",
@@ -122,7 +125,10 @@
     "backupKeepWeeklyRange": "From 0 to {{backupWeeklyMax}}",
     "backupKeepMonthlyRange": "From 0 to {{backupMonthlyMax}}",
     "backupDestinationRequired": "Choose a disk",
-    "backupDestinationInvalid": "A disk mounted under /mnt or /media"
+    "backupDestinationInvalid": "A disk mounted under /mnt or /media",
+    "diskNameRequired": "Enter a name.",
+    "diskNameInvalid": "Use up to {{diskNameMax}} lowercase letters, digits and dashes, starting with a letter or digit.",
+    "diskUuidInvalid": "This disk can't be named by its ID."
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -143,7 +149,7 @@
     "service_not_found": "This service doesn't exist anymore.",
     "service_already_installed": "This service is already installed.",
     "service_not_installed": "This service isn't installed.",
-    "busy": "Another operation (an install, a backup or a restore) is running. Try again when it has finished.",
+    "busy": "Another operation (an install, a backup, a restore or a disk being mounted) is running. Try again when it has finished.",
     "port_in_use": "This port is already in use.",
     "port_reserved": "This port is reserved for the system.",
     "path_not_allowed": "This folder is not in an allowed area.",
@@ -151,7 +157,7 @@
     "invalid_values": "Some settings are not valid.",
     "policy_violation": "This service's recipe was refused by the safety checks.",
     "compose_failed": "The service could not be started. The output shows why.",
-    "executor_unavailable": "This server isn't set up for installing services yet.",
+    "executor_unavailable": "This server isn't set up for this yet.",
     "timed_out": "This took too long and was stopped.",
     "interrupted": "The app restarted while this was running.",
     "audit_unavailable": "Nothing was done: the action couldn't be recorded in the audit log.",
@@ -177,7 +183,19 @@
     "service_not_backed_up": "This service can't be backed up.",
     "paths_changed": "The service uses other folders now. Restore to a new folder instead.",
     "invalid_plan": "The backup program refused this change. Nothing was changed.",
-    "backup_set_aside_kept": "A restore still keeps the previous version of this. Delete that first (on the restore), then its backups."
+    "backup_set_aside_kept": "A restore still keeps the previous version of this. Delete that first (on the restore), then its backups.",
+    "invalid_request": "The request wasn't valid.",
+    "disk_not_found": "This disk isn't connected any more.",
+    "disk_in_use": "This disk is in use: mounted already, swap, or part of another device.",
+    "system_disk": "The system runs from this disk: it isn't changed here.",
+    "unsupported_filesystem": "This disk's format can't be mounted here (ext4, XFS, Btrfs and exFAT can).",
+    "name_taken": "This name is in use. Choose another.",
+    "not_managed": "This disk wasn't mounted here, so it isn't unmounted here either.",
+    "used_for_backups": "Backups are kept on this disk. Choose another backup disk first.",
+    "disk_busy": "Files on this disk are open. Close them, or stop what uses them, and try again.",
+    "mount_failed": "The disk could not be mounted. Nothing was changed.",
+    "unmount_failed": "The disk could not be unmounted.",
+    "duplicate_uuid": "Another disk has the same ID (a copied disk?). Unplug one of them to mount this one."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -498,7 +516,7 @@
       "title": "Set up backups",
       "text": "Your services' data, chosen folders and this app are backed up every day — encrypted, and only changes take space. Backups run even when this app is down.",
       "disk": "1. The backup disk",
-      "noDisk": "No disk is mounted under /mnt or /media. Connect a USB disk or a second drive and mount it there, then reload this page.",
+      "noDisk": "No disk is mounted under /mnt or /media. Connect a USB disk or a second drive and mount it on the Disks page.",
       "diskSpace": "{{free}} free of {{total}} ({{filesystem}})",
       "unsupported": "This disk's format can't be used for backups.",
       "sameDisk": "This is the same disk as your data: if it breaks, the backups are gone too. A separate disk is safer.",
@@ -508,7 +526,8 @@
       "removeFolder": "Remove {{path}}",
       "submit": "Set up backups",
       "submitting": "Setting up…",
-      "done": "Backups are set up. The first one runs at the time you chose — or start it now."
+      "done": "Backups are set up. The first one runs at the time you chose — or start it now.",
+      "mountDisk": "Mount a disk"
     },
     "schedule": {
       "frequency": "Back up",
@@ -688,5 +707,58 @@
       "started": "Backup started. You can follow it on this page.",
       "failed": "Couldn't start the backup"
     }
+  },
+  "disks": {
+    "intro": "The disks connected to this machine. Mount one to use it — for backups, for example. It stays mounted after a restart.",
+    "failed": "The disks could not be read.",
+    "loading": "Loading the disks",
+    "system": "System disk",
+    "systemHelp": "The system runs from this disk. Nothing on it is changed here.",
+    "removable": "Removable",
+    "unnamed": "Disk {{device}}",
+    "noPartitions": "No partitions or format found.",
+    "noLabel": "No name",
+    "state": {
+      "mounted": "Mounted",
+      "available": "Not mounted",
+      "system": "System",
+      "inUse": "In use",
+      "unsupported": "Not supported"
+    },
+    "inUseHelp": "Used as swap, or part of RAID, LVM or encryption.",
+    "unsupportedHelp": "Only ext4, XFS, Btrfs and exFAT can be mounted here.",
+    "mountedAt": "Mounted at",
+    "mountedElsewhere": "Mounted by the system, not here: it isn't unmounted here.",
+    "usedForBackups": "Backups are kept here",
+    "mount": "Mount",
+    "unmount": "Unmount",
+    "actionsFor": "Mount or unmount {{name}}",
+    "disconnectedTitle": "Not connected",
+    "disconnectedText": "Mounted here before. Each is mounted again when its disk is connected.",
+    "forget": "Forget",
+    "mountDialog": {
+      "title": "Mount {{name}}",
+      "text": "Choose a name for its folder.",
+      "name": "Name",
+      "path": "It will be at",
+      "kept": "It stays mounted after a restart. If the disk isn't connected then, the machine starts as usual.",
+      "cancel": "Cancel",
+      "confirm": "Mount"
+    },
+    "unmountDialog": {
+      "title": "Unmount this disk?",
+      "text": "Its files stay on the disk. Afterwards it can be unplugged safely. Close anything that uses it first.",
+      "forgetTitle": "Forget this disk?",
+      "forgetText": "It isn't mounted again when it's connected. Its files stay on the disk.",
+      "cancel": "Cancel",
+      "confirm": "Unmount",
+      "confirmForget": "Forget"
+    },
+    "mounted": "{{path}} is mounted.",
+    "unmounted": "The disk is unmounted. It can be unplugged now.",
+    "forgotten": "The disk is forgotten.",
+    "mountFailed": "The disk could not be mounted.",
+    "unmountFailed": "The disk could not be unmounted.",
+    "duplicateUuid": "Another disk has the same ID (a copied disk?): either one could be mounted after a restart. Unplug one of them."
   }
 }

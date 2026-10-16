@@ -7,6 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import type { Env } from '../config/env.schema.js';
+import { withDevelopmentDisks } from './development-disks.js';
 import type { WrapperBackupConfig, WrapperConfig } from './executor.model.js';
 
 const absolute = z.string().startsWith('/');
@@ -31,6 +32,12 @@ const backupConfigSchema = z.object({
     })
     .optional(),
 });
+const diskConfigSchema = z.object({
+  systemctlBin: absolute.optional(),
+  dev: z
+    .object({ root: absolute, mountRoot: absolute, unitDir: absolute, backupPlan: absolute })
+    .optional(),
+});
 const wrapperConfigSchema = z.object({
   catalogDir: absolute,
   storageRoots: z.array(absolute).min(1),
@@ -41,6 +48,7 @@ const wrapperConfigSchema = z.object({
   lockFile: absolute.optional(),
   home: absolute.optional(),
   backup: backupConfigSchema.optional(),
+  disk: diskConfigSchema.optional(),
 });
 
 const REPO_CATALOG = fileURLToPath(new URL('../../../../catalog', import.meta.url));
@@ -84,6 +92,12 @@ export class WrapperConfigService implements OnModuleInit {
       this.loaded = { ...this.loaded, backup: await this.developmentBackupConfig() };
       await writeFile(this.file, `${JSON.stringify(this.loaded, null, 2)}\n`, { mode: 0o600 });
       this.logger.warn(`Added a development backup config to ${this.file}`);
+    }
+    // And their disks: a pretend host with pretend disks.
+    if (!this.production && !this.loaded.disk && this.loaded.backup?.dev) {
+      this.loaded = await withDevelopmentDisks(this.loaded, this.loaded.backup);
+      await writeFile(this.file, `${JSON.stringify(this.loaded, null, 2)}\n`, { mode: 0o600 });
+      this.logger.warn(`Added a development disk config (pretend disks) to ${this.file}`);
     }
   }
 

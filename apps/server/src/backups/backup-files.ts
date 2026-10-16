@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { watch } from 'node:fs';
 import { open, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { interval, map, merge, Observable, retry, share } from 'rxjs';
+import { interval, map, merge, type Observable, share } from 'rxjs';
 import { z } from 'zod';
+import { watchFolder } from '../common/watch-folder.js';
 import { WrapperConfigService } from '../executor/wrapper-config.js';
 import { stateDir } from './backup-paths.js';
 
@@ -115,7 +115,10 @@ export class BackupFiles {
   readonly changes$: Observable<void>;
 
   constructor(private readonly wrapperConfig: WrapperConfigService) {
-    this.changes$ = merge(this.watchFolder(), interval(BACKUP_FILES_POLL_MS)).pipe(
+    this.changes$ = merge(
+      watchFolder(() => this.dir, BACKUP_FILES_POLL_MS),
+      interval(BACKUP_FILES_POLL_MS),
+    ).pipe(
       map(() => undefined),
       share(),
     );
@@ -176,14 +179,5 @@ export class BackupFiles {
       }
       return { text: '', size: 0, file: null };
     }
-  }
-
-  /** A change notice for each change in the folder; tried again after a poll while it's missing. */
-  private watchFolder(): Observable<void> {
-    return new Observable<void>((subscriber) => {
-      const watcher = watch(this.dir, { persistent: false }, () => subscriber.next());
-      watcher.on('error', (error) => subscriber.error(error));
-      return () => watcher.close();
-    }).pipe(retry({ delay: BACKUP_FILES_POLL_MS }));
   }
 }

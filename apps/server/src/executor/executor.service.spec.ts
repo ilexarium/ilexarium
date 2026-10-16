@@ -8,7 +8,12 @@ import type { AuditEntry } from '../audit/audit.model.js';
 import type { Env } from '../config/env.schema.js';
 import type { ComposeRequest } from './executor.model.js';
 import { ExecutorService } from './executor.service.js';
-import type { BackupWrapperAction, WrapperAction, WrapperCommand } from './wrapper-command.js';
+import type {
+  BackupWrapperAction,
+  DiskWrapperAction,
+  WrapperAction,
+  WrapperCommand,
+} from './wrapper-command.js';
 import type { WrapperConfigService } from './wrapper-config.js';
 
 const USER: PublicUser = { id: 'u1', username: 'owner', createdAt: '2026-10-12T00:00:00.000Z' };
@@ -44,6 +49,14 @@ class TestExecutor extends ExecutorService {
     };
   }
   protected override backupCommand(action: BackupWrapperAction): WrapperCommand {
+    return {
+      file: this.file,
+      args: [join(dir, 'wrapper.cjs'), action],
+      env: { PATH: '/usr/bin:/bin' },
+    };
+  }
+  override diskTimeoutMs = 10_000;
+  protected override diskCommand(action: DiskWrapperAction): WrapperCommand {
     return {
       file: this.file,
       args: [join(dir, 'wrapper.cjs'), action],
@@ -336,6 +349,67 @@ describe('ExecutorService backups', () => {
         actor,
       ),
     ).rejects.toThrow();
+    expect(existsSync(join(dir, 'record.json'))).toBe(false);
+  });
+});
+
+describe('ExecutorService disks', () => {
+  const actor = { user: USER, ip: '127.0.0.1' };
+
+  it('mounts: the values on stdin, the action the only argument, audited before and after', async () => {
+    script(['@@phase mounting', '@@result {"mountPoint":"/mnt/photos"}']);
+    expect(await executor().diskMount({ uuid: '4E21-9A07', name: 'photos' }, actor)).toEqual({
+      ok: true,
+      result: { mountPoint: '/mnt/photos' },
+    });
+    expect(record()).toMatchObject({
+      args: ['mount'],
+      stdin: '{"uuid":"4E21-9A07","name":"photos"}',
+    });
+    expect(entries.map((e) => [e.action, e.outcome, e.details])).toEqual([
+      ['disk.mount', 'requested', { uuid: '4E21-9A07', name: 'photos' }],
+      ['disk.mount', 'success', { uuid: '4E21-9A07', name: 'photos' }],
+    ]);
+  });
+
+  it('unmounts, and maps the wrapper’s refusals — an unknown one as unavailable', async () => {
+    script(['@@phase done']);
+    expect(await executor().diskUnmount('photos', actor)).toEqual({ ok: true, result: null });
+    expect(record()).toMatchObject({ args: ['unmount'], stdin: '{"name":"photos"}' });
+
+    script(['@@error code=disk_busy'], 3);
+    expect(await executor().diskUnmount('photos', actor)).toEqual({ ok: false, code: 'disk_busy' });
+    expect(entries.at(-1)).toMatchObject({
+      action: 'disk.unmount',
+      outcome: 'failure',
+      details: { name: 'photos', reason: 'disk_busy' },
+    });
+    script(['@@error code=constructor'], 2);
+    expect(await executor().diskUnmount('photos', actor)).toEqual({
+      ok: false,
+      code: 'executor_unavailable',
+    });
+    // A mount that printed no result isn't done, whatever its exit code.
+    script(['@@phase mounting']);
+    expect(await executor().diskMount({ uuid: 'u', name: 'x' }, actor)).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it('stops a mount that takes too long', async () => {
+    script(['@@phase mounting'], 0, 2_000);
+    const slow = executor();
+    (slow as unknown as { diskTimeoutMs: number }).diskTimeoutMs = 100;
+    expect(await slow.diskMount({ uuid: 'u', name: 'x' }, actor)).toEqual({
+      ok: false,
+      code: 'timed_out',
+    });
+  });
+
+  it('does nothing when the audit log can’t record the request', async () => {
+    script(['@@phase done']);
+    audit.record.mockRejectedValueOnce(new Error('no audit table'));
+    await expect(executor().diskUnmount('photos', actor)).rejects.toThrow();
     expect(existsSync(join(dir, 'record.json'))).toBe(false);
   });
 });

@@ -46,3 +46,23 @@ export interface Subfolder {
 
 /** What is at a path: a folder, something else, nothing — or the app may not look (another user's). */
 export type FolderState = 'folder' | 'other' | 'missing' | 'unreadable';
+
+/** A block device from /sys/class/block (a disk or a partition), with what udev knows of it. */
+export interface BlockDevice {
+  name: string;
+  /** `major:minor`. */
+  number: string;
+  partition: boolean;
+  /** The disk it's on (itself for a disk). */
+  disk: string;
+  /** A disk's partitions, in order (empty for a partition). */
+  partitions: string[];
+  holders: string[];
+  slaves: string[];
+  sizeBytes: number;
+  removable: boolean;
+  model: string | null;
+  fsType: string | null;
+  uuid: string | null;
+  label: string | null;
+}
