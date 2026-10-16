@@ -1,4 +1,5 @@
 import type { AuditService } from '../audit/audit.service.js';
+import { NEVER } from 'rxjs';
 import { OperationSlot } from '../jobs/operation-slot.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { BackupFiles } from './backup-files.js';
@@ -25,7 +26,7 @@ describe('BackupResults', () => {
         size: text.length,
         file: '1',
       }),
-      onChange: () => () => undefined,
+      changes$: NEVER,
       results: async () => [],
     } as unknown as BackupFiles;
     const upsert = vi.fn(async () => undefined);
@@ -50,7 +51,7 @@ describe('BackupResults', () => {
   function setUp(results: unknown[], row: Record<string, unknown> | null) {
     const files = {
       progressFrom: async () => ({ text: '', size: 0, file: null }),
-      onChange: () => () => undefined,
+      changes$: NEVER,
       results: async () => results,
     } as unknown as BackupFiles;
     const tryRecord = vi.fn(async () => undefined);

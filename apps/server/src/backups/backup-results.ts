@@ -1,4 +1,10 @@
-import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  type OnApplicationBootstrap,
+  type OnModuleDestroy,
+} from '@nestjs/common';
+import { Observable, Subject, Subscription } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -28,11 +34,15 @@ export const START_GRACE_MS = 2 * 60_000;
  * now" as the user who started it (the executor audited the start).
  */
 @Injectable()
-export class BackupResults implements OnApplicationBootstrap {
+export class BackupResults implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(BackupResults.name);
   private importing: Promise<void> | null = null;
   private again = false;
-  private readonly listeners = new Set<() => void>();
+  private readonly changed = new Subject<void>();
+  private readonly subscriptions = new Subscription();
+
+  /** New results were imported. */
+  readonly changes$: Observable<void> = this.changed.asObservable();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -42,18 +52,19 @@ export class BackupResults implements OnApplicationBootstrap {
   ) {
     // Listening from the start: the follower may find a crashed run during startup (its
     // onModuleInit), before this service's bootstrap — and it reports each run only once.
-    progress.onInterrupted((run) => void this.recordInterrupted(run));
+    this.subscriptions.add(
+      progress.interrupted$.subscribe((run) => void this.recordInterrupted(run)),
+    );
   }
 
   onApplicationBootstrap(): void {
-    this.files.onChange(() => void this.import());
+    // `import` never fails, and runs once more for notices that arrive while it imports.
+    this.subscriptions.add(this.files.changes$.subscribe(() => void this.import()));
     void this.import();
   }
 
-  /** Called after new results were imported. Returns the unsubscribe. */
-  onChange(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+  onModuleDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   /** Imports what's new (one import at a time; a request meanwhile runs once more after it). */
@@ -270,6 +281,6 @@ export class BackupResults implements OnApplicationBootstrap {
   }
 
   private notify(): void {
-    for (const listener of this.listeners) listener();
+    this.changed.next();
   }
 }

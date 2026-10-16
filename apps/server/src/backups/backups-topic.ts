@@ -1,5 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import type { BackupsStatus } from '@homelab/shared';
+import {
+  auditTime,
+  catchError,
+  EMPTY,
+  from,
+  interval,
+  merge,
+  type Observable,
+  switchMap,
+} from 'rxjs';
 import { OperationSlot } from '../jobs/operation-slot.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
@@ -22,51 +32,38 @@ const REFRESH_MS = 60_000;
 @Injectable()
 export class BackupsTopic implements TopicSource<'backups'> {
   readonly topic = 'backups';
-  private unsubscribers: (() => void)[] = [];
-  private timer: NodeJS.Timeout | null = null;
-  private refresh: NodeJS.Timeout | null = null;
+
+  /** While subscribed: at most one snapshot every 500 ms, after any change, and now and then. */
+  readonly updates$: Observable<BackupsStatus>;
 
   constructor(
     private readonly statusReader: BackupStatusReader,
-    private readonly plans: BackupPlanManager,
-    private readonly runs: BackupRuns,
-    private readonly progress: BackupProgressFollower,
-    private readonly results: BackupResults,
-    private readonly restores: BackupRestores,
-    private readonly slot: OperationSlot,
+    plans: BackupPlanManager,
+    runs: BackupRuns,
+    progress: BackupProgressFollower,
+    results: BackupResults,
+    restores: BackupRestores,
+    slot: OperationSlot,
     subscriptions: RealtimeSubscriptions,
   ) {
+    this.updates$ = merge(
+      plans.changes$,
+      runs.changes$,
+      progress.changes$,
+      results.changes$,
+      restores.changes$,
+      slot.changes$,
+      interval(REFRESH_MS),
+    ).pipe(
+      // The first change opens a window; at its end, one snapshot of everything.
+      auditTime(BACKUPS_PUBLISH_MS),
+      // A newer snapshot replaces one still being taken; a failed one waits for the next change.
+      switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
+    );
     subscriptions.registerSource(this);
   }
 
   snapshot(): Promise<BackupsStatus> {
     return this.statusReader.status();
-  }
-
-  start(publish: (update: BackupsStatus) => void): void {
-    const changed = () => {
-      this.timer ??= setTimeout(() => {
-        this.timer = null;
-        void this.snapshot().then(publish, () => undefined);
-      }, BACKUPS_PUBLISH_MS);
-    };
-    this.unsubscribers = [
-      this.plans.onChange(changed),
-      this.runs.onChange(changed),
-      this.progress.onChange(changed),
-      this.results.onChange(changed),
-      this.restores.onChange(changed),
-      this.slot.onChange(changed),
-    ];
-    this.refresh = setInterval(changed, REFRESH_MS);
-  }
-
-  stop(): void {
-    for (const unsubscribe of this.unsubscribers) unsubscribe();
-    this.unsubscribers = [];
-    if (this.timer) clearTimeout(this.timer);
-    if (this.refresh) clearInterval(this.refresh);
-    this.timer = null;
-    this.refresh = null;
   }
 }

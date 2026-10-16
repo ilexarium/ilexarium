@@ -30,7 +30,7 @@ describe('OperationSlot', () => {
   it('tells listeners when it is taken and freed', () => {
     const slot = new OperationSlot();
     const listener = vi.fn();
-    slot.onChange(listener);
+    slot.changes$.subscribe(listener);
     slot.claim('remove')();
     expect(listener).toHaveBeenCalledTimes(2);
   });

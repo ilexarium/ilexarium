@@ -24,6 +24,7 @@ import { SystemMetricsService } from '../src/system-metrics/system-metrics.servi
 import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
 import type { RealtimeOptions, TopicSource } from '../src/realtime/realtime.model.js';
+import { Observable } from 'rxjs';
 
 const PASSWORD = 'correct horse battery';
 const testHasher = new PasswordHasher({ logN: 11 });
@@ -74,13 +75,11 @@ class FakeSystemSource implements TopicSource<'system'> {
   async snapshot(): Promise<SystemSnapshot> {
     return snapshot;
   }
-  start(publish: (update: SystemUpdate) => void): void {
+  readonly updates$ = new Observable<SystemUpdate>((subscriber) => {
     this.starts++;
-    this.publish = publish;
-  }
-  stop(): void {
-    this.publish = null;
-  }
+    this.publish = (update) => subscriber.next(update);
+    return () => (this.publish = null);
+  });
 }
 
 describe('realtime WebSocket (e2e)', () => {
