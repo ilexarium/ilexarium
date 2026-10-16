@@ -11,6 +11,7 @@ import {
   type BackupRestoreRequest,
   type JobPhase,
 } from '@homelab/shared';
+import { Observable, Subject } from 'rxjs';
 import type { BackupOutcome, ExecutorActor } from '../executor/executor.model.js';
 import { ExecutorService } from '../executor/executor.service.js';
 import type { BackupRestore as BackupRestoreRow } from '../generated/prisma/client.js';
@@ -33,7 +34,7 @@ const RESTORES_SHOWN = 20;
 export class BackupRestores implements OnApplicationBootstrap {
   private readonly logger = new Logger(BackupRestores.name);
   private active: { live: LiveJob; release: () => void } | null = null;
-  private readonly listeners = new Set<() => void>();
+  private readonly changed = new Subject<void>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -54,11 +55,8 @@ export class BackupRestores implements OnApplicationBootstrap {
       this.logger.warn(`${stale.count} restore(s) were interrupted by a restart`);
   }
 
-  /** Called on every change. Returns the unsubscribe. */
-  onChange(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
+  /** A restore started, moved on or ended; a set-aside folder was deleted. */
+  readonly changes$: Observable<void> = this.changed.asObservable();
 
   async restore(
     request: BackupRestoreRequest,
@@ -226,7 +224,7 @@ export class BackupRestores implements OnApplicationBootstrap {
   }
 
   private notify(): void {
-    for (const listener of this.listeners) listener();
+    this.changed.next();
   }
 
   /** Old restores go — but never one whose set-aside folders are still there (the list of them). */
