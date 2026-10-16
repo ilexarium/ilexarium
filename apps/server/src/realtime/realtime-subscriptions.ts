@@ -1,7 +1,11 @@
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import type { RealtimeTopic, ServerMessage } from '@homelab/shared';
+import { retry, type Subscription, timer } from 'rxjs';
 import { sendMessage } from './realtime-messages.js';
 import type { RealtimeClient, TopicSource, UpdateData } from './realtime.model.js';
+
+/** A source whose updates failed is subscribed again after this long. */
+export const SOURCE_RETRY_MS = 5_000;
 
 /**
  * Who is subscribed to which topic, and the only place topic sources are started and stopped:
@@ -13,6 +17,8 @@ export class RealtimeSubscriptions implements OnModuleDestroy {
   private readonly sources = new Map<RealtimeTopic, TopicSource>();
   /** Per topic: each subscriber, and whether it has had its snapshot (`ready`) yet. */
   private readonly subscribers = new Map<RealtimeTopic, Map<RealtimeClient, { ready: boolean }>>();
+  /** The sources being collected: their `updates$` subscriptions. */
+  private readonly running = new Map<RealtimeTopic, Subscription>();
 
   /** Called by each source on startup (like the auth package's `registerProvider`). */
   registerSource<T extends RealtimeTopic>(source: TopicSource<T>): void {
@@ -65,11 +71,8 @@ export class RealtimeSubscriptions implements OnModuleDestroy {
   }
 
   onModuleDestroy(): void {
-    for (const [topic, subscribers] of this.subscribers) {
-      const source = this.sources.get(topic);
-      if (subscribers.size > 0 && source) this.stop(source);
-      subscribers.clear();
-    }
+    for (const subscribers of this.subscribers.values()) subscribers.clear();
+    for (const source of this.sources.values()) this.stop(source);
   }
 
   private subscribersOf(topic: RealtimeTopic): Map<RealtimeClient, { ready: boolean }> {
@@ -89,18 +92,22 @@ export class RealtimeSubscriptions implements OnModuleDestroy {
   }
 
   private start(source: TopicSource): void {
-    try {
-      source.start((update) => this.publish(source.topic, update));
-    } catch (error) {
-      this.logger.error(`Starting the "${source.topic}" source failed`, (error as Error).stack);
-    }
+    const subscription = source.updates$
+      .pipe(
+        // Sources catch their own errors; one that slips through restarts the source.
+        retry({
+          delay: (error: unknown) => {
+            this.logger.error(`The "${source.topic}" source failed`, (error as Error)?.stack);
+            return timer(SOURCE_RETRY_MS);
+          },
+        }),
+      )
+      .subscribe((update) => this.publish(source.topic, update));
+    this.running.set(source.topic, subscription);
   }
 
   private stop(source: TopicSource): void {
-    try {
-      source.stop();
-    } catch (error) {
-      this.logger.error(`Stopping the "${source.topic}" source failed`, (error as Error).stack);
-    }
+    this.running.get(source.topic)?.unsubscribe();
+    this.running.delete(source.topic);
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { ServicesList } from '@homelab/shared';
+import { auditTime, catchError, EMPTY, from, type Observable, switchMap } from 'rxjs';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { ServiceJobs } from './service-jobs.js';
@@ -12,34 +13,23 @@ export const SERVICES_PUBLISH_MS = 250;
 @Injectable()
 export class ServicesTopic implements TopicSource<'services'> {
   readonly topic = 'services';
-  private unsubscribe: (() => void) | null = null;
-  private timer: NodeJS.Timeout | null = null;
+
+  /** While subscribed: at most one list every 250 ms, after any change of a job. */
+  readonly updates$: Observable<ServicesList>;
 
   constructor(
     private readonly services: ServiceManager,
-    private readonly jobs: ServiceJobs,
+    jobs: ServiceJobs,
     subscriptions: RealtimeSubscriptions,
   ) {
+    this.updates$ = jobs.changes$.pipe(
+      auditTime(SERVICES_PUBLISH_MS),
+      switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
+    );
     subscriptions.registerSource(this);
   }
 
   async snapshot(): Promise<ServicesList> {
     return { services: await this.services.list() };
-  }
-
-  start(publish: (update: ServicesList) => void): void {
-    this.unsubscribe = this.jobs.onChange(() => {
-      this.timer ??= setTimeout(() => {
-        this.timer = null;
-        void this.snapshot().then(publish, () => undefined);
-      }, SERVICES_PUBLISH_MS);
-    });
-  }
-
-  stop(): void {
-    this.unsubscribe?.();
-    this.unsubscribe = null;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
   }
 }

@@ -1,6 +1,8 @@
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { WsAdapter } from '@nestjs/platform-ws';
+import { config as rxjsConfig } from 'rxjs';
 import { applyTrustProxy } from './common/trust-proxy.js';
 import type { Env } from './config/env.schema.js';
 
@@ -10,6 +12,13 @@ import type { Env } from './config/env.schema.js';
  */
 export function configureApp(app: NestExpressApplication): NestExpressApplication {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
+  // An error that reached a stream's end: logged — RxJS would otherwise throw it later, outside
+  // any handler, and stop the server. (Streams catch their own errors; this is the safety net.)
+  rxjsConfig.onUnhandledError = (error: unknown) =>
+    new Logger('RxJS').error(
+      'Unhandled error in a stream',
+      error instanceof Error ? error.stack : error,
+    );
   app.setGlobalPrefix('api');
   applyTrustProxy(app, config.get('TRUST_PROXY', { infer: true }));
   // Refuses state-changing requests from other origins (with the session cookie's SameSite=Lax).

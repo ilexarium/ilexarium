@@ -44,7 +44,7 @@ describe('ServiceJobs', () => {
   it('shows the running job live from memory: phase and the last lines', () => {
     const service = jobs();
     const changes = vi.fn();
-    service.onChange(changes);
+    service.changes$.subscribe(changes);
     service.claim('deploy').start('j1', 's1');
     const { onPhase, onOutput } = service.callbacks();
     onPhase('pulling');

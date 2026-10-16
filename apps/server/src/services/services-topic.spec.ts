@@ -1,3 +1,4 @@
+import { Subject } from 'rxjs';
 import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import { SERVICES_PUBLISH_MS, ServicesTopic } from './services-topic.js';
 import type { ServiceJobs } from './service-jobs.js';
@@ -8,21 +9,16 @@ describe('ServicesTopic', () => {
   afterEach(() => vi.useRealTimers());
 
   function setup() {
-    let listener: (() => void) | null = null;
+    const changes = new Subject<void>();
     const services = { list: vi.fn(async () => []) };
-    const jobs = {
-      onChange: vi.fn((l: () => void) => {
-        listener = l;
-        return () => (listener = null);
-      }),
-    };
+    const jobs = { changes$: changes };
     const subscriptions = { registerSource: vi.fn() };
     const topic = new ServicesTopic(
       services as unknown as ServiceManager,
       jobs as unknown as ServiceJobs,
       subscriptions as unknown as RealtimeSubscriptions,
     );
-    return { topic, services, subscriptions, change: () => listener?.() };
+    return { topic, services, subscriptions, change: () => changes.next() };
   }
 
   it('registers itself as the services topic', () => {
@@ -34,7 +30,7 @@ describe('ServicesTopic', () => {
   it('publishes a burst of changes (every output line) as one update', async () => {
     const { topic, services, change } = setup();
     const publish = vi.fn();
-    topic.start(publish);
+    topic.updates$.subscribe(publish);
     for (let i = 0; i < 20; i++) change();
     await vi.advanceTimersByTimeAsync(SERVICES_PUBLISH_MS);
     expect(publish).toHaveBeenCalledTimes(1);
@@ -42,13 +38,14 @@ describe('ServicesTopic', () => {
     expect(services.list).toHaveBeenCalledTimes(1);
   });
 
-  it('stops listening when stopped', async () => {
+  it('stops listening when unsubscribed, leaving no timers', async () => {
     const { topic, change } = setup();
     const publish = vi.fn();
-    topic.start(publish);
+    const subscription = topic.updates$.subscribe(publish);
     change();
-    topic.stop();
+    subscription.unsubscribe();
     change();
+    expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(SERVICES_PUBLISH_MS * 2);
     expect(publish).not.toHaveBeenCalled();
   });

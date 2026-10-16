@@ -1,7 +1,8 @@
-import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
-import { type FSWatcher, watch } from 'node:fs';
+import { Injectable, Logger } from '@nestjs/common';
+import { watch } from 'node:fs';
 import { open, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { interval, map, merge, Observable, retry, share } from 'rxjs';
 import { z } from 'zod';
 import { WrapperConfigService } from '../executor/wrapper-config.js';
 import { stateDir } from './backup-paths.js';
@@ -100,17 +101,25 @@ export function parseLines<T>(
 /**
  * The backup wrapper's files the app reads — the only way results and progress reach it (the
  * wrapper never talks to the app, so backups work while it's down): `runs.jsonl` (each finished
- * run and check) and `current.jsonl` (the running run, event by event). Watched, with a poll as a
- * fallback.
+ * run and check) and `current.jsonl` (the running run, event by event).
  */
 @Injectable()
-export class BackupFiles implements OnModuleDestroy {
+export class BackupFiles {
   private readonly logger = new Logger(BackupFiles.name);
-  private watcher: FSWatcher | null = null;
-  private timer: NodeJS.Timeout | null = null;
-  private readonly listeners = new Set<() => void>();
 
-  constructor(private readonly wrapperConfig: WrapperConfigService) {}
+  /**
+   * The files may have changed: a watch on their folder, and a poll as a fallback (fs.watch can
+   * miss some; the folder appears with the first run — until then the poll does the work).
+   * Watching starts with the first subscriber and stops after the last.
+   */
+  readonly changes$: Observable<void>;
+
+  constructor(private readonly wrapperConfig: WrapperConfigService) {
+    this.changes$ = merge(this.watchFolder(), interval(BACKUP_FILES_POLL_MS)).pipe(
+      map(() => undefined),
+      share(),
+    );
+  }
 
   get dir(): string {
     return stateDir(this.wrapperConfig.config);
@@ -169,44 +178,12 @@ export class BackupFiles implements OnModuleDestroy {
     }
   }
 
-  /** Called when the files may have changed. Returns the unsubscribe. */
-  onChange(listener: () => void): () => void {
-    this.listeners.add(listener);
-    this.startWatching();
-    return () => this.listeners.delete(listener);
-  }
-
-  onModuleDestroy(): void {
-    this.watcher?.close();
-    this.watcher = null;
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
-  }
-
-  private startWatching(): void {
-    this.timer ??= setInterval(() => {
-      this.tryWatch();
-      this.notify();
-    }, BACKUP_FILES_POLL_MS);
-    this.timer.unref();
-    this.tryWatch();
-  }
-
-  /** The folder appears with the first run: until then the poll does the work. */
-  private tryWatch(): void {
-    if (this.watcher) return;
-    try {
-      this.watcher = watch(this.dir, { persistent: false }, () => this.notify());
-      this.watcher.on('error', () => {
-        this.watcher?.close();
-        this.watcher = null;
-      });
-    } catch {
-      this.watcher = null;
-    }
-  }
-
-  private notify(): void {
-    for (const listener of this.listeners) listener();
+  /** A change notice for each change in the folder; tried again after a poll while it's missing. */
+  private watchFolder(): Observable<void> {
+    return new Observable<void>((subscriber) => {
+      const watcher = watch(this.dir, { persistent: false }, () => subscriber.next());
+      watcher.on('error', (error) => subscriber.error(error));
+      return () => watcher.close();
+    }).pipe(retry({ delay: BACKUP_FILES_POLL_MS }));
   }
 }
