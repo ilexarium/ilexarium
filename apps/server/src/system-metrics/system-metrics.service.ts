@@ -7,7 +7,17 @@ import {
   type SystemUpdate,
   toSystemHistoryPoint,
 } from '@homelab/shared';
-import { Observable } from 'rxjs';
+import {
+  defer,
+  filter,
+  finalize,
+  firstValueFrom,
+  type Observable,
+  ReplaySubject,
+  repeat,
+  share,
+  timer,
+} from 'rxjs';
 import { RingBuffer } from '../common/ring-buffer.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import { bytesPerSecond, cpuUsagePercent } from '../host/proc-parsers.js';
@@ -28,22 +38,20 @@ interface Reading {
   net: Map<string, NetCounters>;
 }
 
-/** State of one collecting period, from `start()` to `stop()`. */
+/** State of one collecting period: while `updates$` is subscribed. */
 interface Run {
-  publish: (update: SystemUpdate) => void;
-  timer: NodeJS.Timeout | null;
   previous: Reading | null;
   disks: DiskUsage[];
   disksAt: number;
   latest: SystemUpdate | null;
-  /** Snapshots waiting for the first sample. */
-  waiters: { resolve: (update: SystemUpdate) => void; reject: (error: Error) => void }[];
+  /** The first sample, for snapshots taken before it; fails when collecting stops first. */
+  first$: ReplaySubject<SystemUpdate>;
 }
 
 /**
  * The `system` topic: samples CPU, memory and network every 2 s and disks every 30 s — only
- * while someone is subscribed (`RealtimeSubscriptions` calls `start()`/`stop()`). Keeps the last
- * 15 minutes of chart points; points from before a pause stay until they age out.
+ * while someone is subscribed (the registry subscribes to `updates$`). Keeps the last 15 minutes
+ * of chart points; points from before a pause stay until they age out.
  */
 @Injectable()
 export class SystemMetricsService implements TopicSource<'system'> {
@@ -55,11 +63,18 @@ export class SystemMetricsService implements TopicSource<'system'> {
   private hostInfo: Promise<HostInfo> | null = null;
   private run: Run | null = null;
 
-  /** While subscribed: collecting (moved onto RxJS in its own step). */
-  readonly updates$ = new Observable<SystemUpdate>((subscriber) => {
-    this.start((update) => subscriber.next(update));
-    return () => this.stop();
-  });
+  /**
+   * While subscribed: a baseline reading at once, the first sample 1 s later, then a sample 2 s
+   * after each reading ends (never two at a time).
+   */
+  readonly updates$: Observable<SystemUpdate> = defer(() => {
+    const run = this.begin();
+    return defer(() => this.read(run)).pipe(
+      repeat({ delay: () => timer(run.latest ? SAMPLE_INTERVAL_MS : FIRST_SAMPLE_DELAY_MS) }),
+      filter((update): update is SystemUpdate => update !== null),
+      finalize(() => this.end(run)),
+    );
+  }).pipe(share());
 
   constructor(
     private readonly reader: SystemReader,
@@ -72,35 +87,11 @@ export class SystemMetricsService implements TopicSource<'system'> {
     return this.run !== null;
   }
 
-  start(publish: (update: SystemUpdate) => void): void {
-    const run: Run = {
-      publish,
-      timer: null,
-      previous: null,
-      disks: [],
-      disksAt: -Infinity,
-      latest: null,
-      waiters: [],
-    };
-    this.run = run;
-    void this.tick(run); // the first reading: the baseline
-  }
-
-  stop(): void {
-    const run = this.run;
-    if (!run) return;
-    this.run = null;
-    if (run.timer) clearTimeout(run.timer);
-    for (const { reject } of run.waiters) reject(new Error('System metrics stopped'));
-  }
-
   /** Waits for the first sample when collecting has only just started. */
   async snapshot(): Promise<SystemSnapshot> {
     const run = this.run;
     if (!run) throw new Error('System metrics are not being collected');
-    const latest =
-      run.latest ??
-      (await new Promise<SystemUpdate>((resolve, reject) => run.waiters.push({ resolve, reject })));
+    const latest = run.latest ?? (await firstValueFrom(run.first$));
     const cutoff = Date.now() - HISTORY_WINDOW_MS;
     return {
       ...latest,
@@ -114,7 +105,25 @@ export class SystemMetricsService implements TopicSource<'system'> {
     return this.hostInfo;
   }
 
-  private async tick(run: Run): Promise<void> {
+  private begin(): Run {
+    const run: Run = {
+      previous: null,
+      disks: [],
+      disksAt: -Infinity,
+      latest: null,
+      first$: new ReplaySubject(1),
+    };
+    this.run = run;
+    return run;
+  }
+
+  private end(run: Run): void {
+    if (this.run === run) this.run = null;
+    run.first$.error(new Error('System metrics stopped'));
+  }
+
+  /** One reading: the update, or null for the baseline, a failed reading or one after the end. */
+  private async read(run: Run): Promise<SystemUpdate | null> {
     try {
       const at = Date.now();
       const [cpu, net, memory] = await Promise.all([
@@ -123,11 +132,11 @@ export class SystemMetricsService implements TopicSource<'system'> {
         this.reader.memory(),
       ]);
       if (at - run.disksAt >= DISK_INTERVAL_MS) await this.refreshDisks(run, at);
-      if (run !== this.run) return;
+      if (run !== this.run) return null;
 
       const previous = run.previous;
       run.previous = { at, cpu, net };
-      if (!previous) return;
+      if (!previous) return null;
 
       const seconds = (at - previous.at) / 1000;
       const update: SystemUpdate = {
@@ -158,15 +167,11 @@ export class SystemMetricsService implements TopicSource<'system'> {
       };
       run.latest = update;
       this.history.push(toSystemHistoryPoint(update.sample));
-      for (const { resolve } of run.waiters.splice(0)) resolve(update);
-      run.publish(update);
+      run.first$.next(update);
+      return update;
     } catch (error) {
       this.logger.error('Reading system metrics failed', (error as Error).stack);
-    } finally {
-      if (run === this.run) {
-        const delay = run.latest ? SAMPLE_INTERVAL_MS : FIRST_SAMPLE_DELAY_MS;
-        run.timer = setTimeout(() => void this.tick(run), delay);
-      }
+      return null;
     }
   }
 
