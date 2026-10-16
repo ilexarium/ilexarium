@@ -2,6 +2,7 @@ import {
   lucideArchive,
   lucideBlocks,
   lucideBoxes,
+  lucideHardDrive,
   lucideKeyRound,
   lucideLayoutDashboard,
 } from '@ng-icons/lucide';
@@ -18,6 +19,10 @@ export const NAVIGATION: NavGroup[] = [
     ],
   },
   {
+    label: 'nav.storage',
+    items: [{ label: 'nav.disks', link: '/disks', icon: 'lucideHardDrive' }],
+  },
+  {
     label: 'nav.settings',
     items: [{ label: 'nav.account', link: '/settings/account', icon: 'lucideKeyRound' }],
   },
@@ -28,5 +33,6 @@ export const NAV_ICONS = {
   lucideBoxes,
   lucideBlocks,
   lucideArchive,
+  lucideHardDrive,
   lucideKeyRound,
 };

@@ -1,0 +1,100 @@
+<section hlmCard [attr.aria-labelledby]="'disk-' + disk().device">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle [id]="'disk-' + disk().device" class="flex flex-wrap items-center gap-2">
+      <ng-icon
+        [name]="disk().removable ? 'lucideUsb' : 'lucideHardDrive'"
+        class="text-muted-foreground"
+        aria-hidden="true"
+      />
+      <span class="min-w-0 break-words">{{ name() }}</span>
+      @if (disk().system) {
+        <span hlmBadge variant="secondary">
+          <ng-icon name="lucideLock" aria-hidden="true" />
+          {{ 'disks.system' | translate }}
+        </span>
+      } @else if (disk().removable) {
+        <span hlmBadge variant="outline">{{ 'disks.removable' | translate }}</span>
+      }
+    </h2>
+    <p hlmCardDescription>
+      <span dir="ltr">{{ disk().device }}</span> · {{ format.bytes(disk().sizeBytes) }}
+    </p>
+  </div>
+  <div hlmCardContent class="grid gap-3">
+    @if (disk().system) {
+      <p class="text-sm text-muted-foreground">{{ 'disks.systemHelp' | translate }}</p>
+    }
+    @if (disk().partitions.length === 0) {
+      <p class="text-sm text-muted-foreground">{{ 'disks.noPartitions' | translate }}</p>
+    }
+    <ul class="grid gap-3">
+      @for (partition of disk().partitions; track partition.device) {
+        <li class="grid gap-2 rounded-md border p-3">
+          <div class="flex flex-wrap items-start gap-2">
+            <div class="grid min-w-0 flex-1 gap-1">
+              <p class="font-medium break-words">{{ label(partition) }}</p>
+              <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <span hlmBadge [variant]="partition.state === 'mounted' ? 'default' : 'outline'">{{
+                  'disks.state.' + partition.state | translate
+                }}</span>
+                <span dir="ltr">{{ partition.device }}</span>
+                @if (partition.fsType) {
+                  <span aria-hidden="true">·</span>
+                  <span dir="ltr">{{ partition.fsType }}</span>
+                }
+                <span aria-hidden="true">·</span>
+                <span>{{ format.bytes(partition.sizeBytes) }}</span>
+              </p>
+            </div>
+            @if (partition.state === 'available' && !disk().system && !partition.duplicateUuid) {
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                [attr.aria-label]="'disks.actionsFor' | translate: { name: label(partition) }"
+                (click)="askMount(partition)"
+              >
+                {{ 'disks.mount' | translate }}
+              </button>
+            } @else if (partition.managedName && partition.state === 'mounted') {
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                [disabled]="partition.usedForBackups || pending().includes(partition.managedName)"
+                [attr.aria-label]="'disks.actionsFor' | translate: { name: label(partition) }"
+                (click)="askUnmount(partition)"
+              >
+                {{ 'disks.unmount' | translate }}
+              </button>
+            }
+          </div>
+          @if (partition.mountPoint) {
+            <p class="text-sm">
+              {{ 'disks.mountedAt' | translate }}
+              <code class="break-all" dir="ltr">{{ partition.mountPoint }}</code>
+            </p>
+          }
+          @if (partition.duplicateUuid) {
+            <p class="text-sm text-amber-700 dark:text-amber-400">
+              {{ 'disks.duplicateUuid' | translate }}
+            </p>
+          }
+          @if (partition.usedForBackups) {
+            <p class="flex items-center gap-1 text-sm text-muted-foreground">
+              <ng-icon name="lucideArchive" aria-hidden="true" />
+              {{ 'disks.usedForBackups' | translate }}
+            </p>
+          }
+          @if (partition.state === 'mounted' && !partition.managedName && !disk().system) {
+            <p class="text-sm text-muted-foreground">{{ 'disks.mountedElsewhere' | translate }}</p>
+          } @else if (partition.state === 'inUse') {
+            <p class="text-sm text-muted-foreground">{{ 'disks.inUseHelp' | translate }}</p>
+          } @else if (partition.state === 'unsupported') {
+            <p class="text-sm text-muted-foreground">{{ 'disks.unsupportedHelp' | translate }}</p>
+          }
+        </li>
+      }
+    </ul>
+  </div>
+</section>

@@ -74,7 +74,8 @@ describe('Shell (app layout)', () => {
     expect(navLink('Account')!.getAttribute('href')).toBe('/settings/account');
     expect(nav.textContent).toContain('Settings');
     const order = [...nav.querySelectorAll('a')].map((a) => a.textContent!.trim());
-    expect(order).toEqual(['Dashboard', 'Containers', 'Services', 'Backups', 'Account']);
+    expect(order).toEqual(['Dashboard', 'Containers', 'Services', 'Backups', 'Disks', 'Account']);
+    expect(nav.textContent).toContain('Storage');
   });
 
   it('marks only the current page, also for the dashboard at "/"', async () => {

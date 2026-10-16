@@ -70,6 +70,10 @@
           @if (form.destination().touched() && form.destination().errors()[0]; as error) {
             <hlm-field-error>{{ error | errorText }}</hlm-field-error>
           }
+          <a hlmBtn variant="outline" size="sm" class="justify-self-start" routerLink="/disks">
+            <ng-icon name="lucideHardDrive" aria-hidden="true" />
+            {{ 'backups.setup.mountDisk' | translate }}
+          </a>
         } @else {
           <p class="text-sm text-muted-foreground" role="status">
             {{ 'backups.loading' | translate }}

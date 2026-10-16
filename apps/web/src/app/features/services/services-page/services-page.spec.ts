@@ -267,7 +267,7 @@ describe('ServicesPage', () => {
     await vi.waitFor(() => expect(error).toHaveBeenCalled());
     expect(error).toHaveBeenCalledWith("Couldn't remove Immich", {
       description:
-        'Another operation (an install, a backup or a restore) is running. Try again when it has finished.',
+        'Another operation (an install, a backup, a restore or a disk being mounted) is running. Try again when it has finished.',
     });
   });
 

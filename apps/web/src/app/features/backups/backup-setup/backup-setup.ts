@@ -11,6 +11,7 @@ import {
 } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideFolderPlus, lucideHardDrive, lucideTrash2 } from '@ng-icons/lucide';
+import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -46,6 +47,7 @@ import { FolderPicker } from '../folder-picker/folder-picker';
     HlmInput,
     HlmSelectImports,
     NgIcon,
+    RouterLink,
     TranslatePipe,
   ],
   providers: [provideIcons({ lucideFolderPlus, lucideHardDrive, lucideTrash2 })],

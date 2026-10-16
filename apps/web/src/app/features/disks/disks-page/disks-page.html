@@ -1,0 +1,51 @@
+@if (store.status(); as status) {
+  <div class="grid grid-cols-1 gap-4 md:gap-6">
+    <p class="text-sm text-muted-foreground">{{ 'disks.intro' | translate }}</p>
+    @for (disk of status.disks; track disk.device) {
+      <app-disk-card
+        [disk]="disk"
+        [pending]="store.pending()"
+        (mount)="openMount($event)"
+        (unmount)="openUnmount($event)"
+      />
+    }
+    @if (status.disconnected.length > 0) {
+      <section hlmCard aria-labelledby="disconnected-title">
+        <div hlmCardHeader>
+          <h2 hlmCardTitle id="disconnected-title">
+            {{ 'disks.disconnectedTitle' | translate }}
+          </h2>
+          <p hlmCardDescription>{{ 'disks.disconnectedText' | translate }}</p>
+        </div>
+        <div hlmCardContent>
+          <ul class="grid gap-2">
+            @for (disk of status.disconnected; track disk.name) {
+              <li class="flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm">
+                <code class="min-w-0 flex-1 break-all" dir="ltr">{{ disk.mountPoint }}</code>
+                <button
+                  hlmBtn
+                  variant="ghost"
+                  size="sm"
+                  [disabled]="disk.usedForBackups || store.pending().includes(disk.name)"
+                  (click)="forget(disk)"
+                >
+                  {{ 'disks.forget' | translate }}
+                </button>
+              </li>
+            }
+          </ul>
+        </div>
+      </section>
+    }
+  </div>
+} @else if (store.failed()) {
+  <p role="alert" class="text-sm text-destructive">{{ 'disks.failed' | translate }}</p>
+} @else {
+  <div class="grid gap-4" role="status" [attr.aria-label]="'disks.loading' | translate">
+    <hlm-skeleton class="h-40 w-full max-w-3xl rounded-xl" />
+    <hlm-skeleton class="h-40 w-full max-w-3xl rounded-xl" />
+  </div>
+}
+
+<app-mount-dialog />
+<app-unmount-dialog (confirm)="unmount($event)" />
