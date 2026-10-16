@@ -33,7 +33,11 @@ import type {
   PublicUser,
 } from '@homelab/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
-import { BackupManager } from './backup-manager.js';
+import { BackupChecks } from './backup-checks.js';
+import { BackupPlanManager } from './backup-plan-manager.js';
+import { BackupRestores } from './backup-restores.js';
+import { BackupRuns } from './backup-runs.js';
+import { BackupStatusReader } from './backup-status-reader.js';
 import {
   BackupFoldersQueryDto,
   BackupItemDeleteQueryDto,
@@ -58,26 +62,32 @@ const PASSPHRASE_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 @Controller('backups')
 @UseFilters(TooManyAttemptsFilter)
 export class BackupsController {
-  constructor(private readonly backups: BackupManager) {}
+  constructor(
+    private readonly plans: BackupPlanManager,
+    private readonly checks: BackupChecks,
+    private readonly runsService: BackupRuns,
+    private readonly restoresService: BackupRestores,
+    private readonly statusReader: BackupStatusReader,
+  ) {}
 
   @Get('status')
   status(): Promise<BackupsStatus> {
-    return this.backups.status();
+    return this.statusReader.status();
   }
 
   @Get('destinations')
   async destinations(): Promise<BackupDestinationsResponse> {
-    return { destinations: await this.backups.destinations() };
+    return { destinations: await this.checks.destinations() };
   }
 
   @Get('folders')
   folders(@Query() { path }: BackupFoldersQueryDto): Promise<BackupFoldersResponse> {
-    return this.backups.folders(path);
+    return this.checks.folders(path);
   }
 
   @Get('plan')
   async plan(): Promise<BackupPlanResponse> {
-    return { plan: await this.backups.plan() };
+    return { plan: await this.plans.plan() };
   }
 
   /** Setting up: the repository and its passphrase, shown once in the response. */
@@ -89,7 +99,7 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupPassphraseResponse> {
-    return this.backups.setup(body, { user, ip });
+    return this.plans.setup(body, { user, ip });
   }
 
   @Put('plan')
@@ -100,7 +110,7 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupPlan> {
-    return this.backups.updatePlan(body, { user, ip });
+    return this.plans.updatePlan(body, { user, ip });
   }
 
   @Post('items')
@@ -111,7 +121,7 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupItem> {
-    return this.backups.addItem(item, { user, ip });
+    return this.plans.addItem(item, { user, ip });
   }
 
   @Patch('items/:id')
@@ -123,7 +133,7 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupItem> {
-    return this.backups.updateItem(id, excludedFields, { user, ip });
+    return this.plans.updateItem(id, excludedFields, { user, ip });
   }
 
   /** Out of the plan; `?archives=delete` (confirmed in the browser) also deletes its backups. */
@@ -137,12 +147,12 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.backups.removeItem(id, archives === 'delete', { user, ip });
+    return this.plans.removeItem(id, archives === 'delete', { user, ip });
   }
 
   @Get('items/:id/archives')
   async archives(@Param() { id }: BackupItemIdParamsDto): Promise<BackupArchivesResponse> {
-    return { archives: await this.backups.archives(id) };
+    return { archives: await this.plans.archives(id) };
   }
 
   /** 202: "Back up now" runs on; its progress arrives through the `backups` topic. */
@@ -155,17 +165,17 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupRunStartedResponse> {
-    return this.backups.runNow(body, { user, ip });
+    return this.runsService.runNow(body, { user, ip });
   }
 
   @Get('runs')
   async runs(): Promise<BackupRunsResponse> {
-    return { runs: await this.backups.runs() };
+    return { runs: await this.runsService.runs() };
   }
 
   @Get('runs/:id/output')
   runOutput(@Param() { id }: BackupRunIdParamsDto): Promise<BackupRunOutputResponse> {
-    return this.backups.runOutput(id);
+    return this.runsService.runOutput(id);
   }
 
   /** 202: the restore runs on as a job; its progress arrives through the `backups` topic. */
@@ -178,17 +188,17 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupRestoreStartedResponse> {
-    return this.backups.restore(body, { user, ip });
+    return this.restoresService.restore(body, { user, ip });
   }
 
   @Get('restores')
   async restores(): Promise<BackupRestoresResponse> {
-    return { restores: await this.backups.restores() };
+    return { restores: await this.restoresService.restores() };
   }
 
   @Get('restores/:id')
   restoreJob(@Param() { id }: BackupRestoreIdParamsDto): Promise<BackupRestore> {
-    return this.backups.restoreJob(id);
+    return this.restoresService.restoreJob(id);
   }
 
   /** "Delete previous version": the folders a restore in place set aside. */
@@ -200,7 +210,7 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupRestore> {
-    return this.backups.discardPrevious(id, { user, ip });
+    return this.restoresService.discardPrevious(id, { user, ip });
   }
 
   /** "Show again": the app password first. */
@@ -213,6 +223,6 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupPassphraseResponse> {
-    return this.backups.passphrase(password, { user, ip });
+    return this.plans.passphrase(password, { user, ip });
   }
 }

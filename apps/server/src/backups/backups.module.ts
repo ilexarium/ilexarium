@@ -7,14 +7,17 @@ import { HostModule } from '../host/host.module.js';
 import { JobsModule } from '../jobs/jobs.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
 import { BackupFiles } from './backup-files.js';
-import { BackupManager } from './backup-manager.js';
+import { BackupChecks } from './backup-checks.js';
+import { BackupPlanManager } from './backup-plan-manager.js';
 import { BackupProgressFollower } from './backup-progress.js';
 import { BackupRestores } from './backup-restores.js';
 import { BackupResults } from './backup-results.js';
+import { BackupRuns } from './backup-runs.js';
+import { BackupStatusReader } from './backup-status-reader.js';
 import { BackupsController } from './backups.controller.js';
 import { BackupsTopic } from './backups-topic.js';
 
-/** Automated backups (docs/plans/backups.md). Services use `BackupManager` for "Include in backups". */
+/** Automated backups (docs/plans/backups.md). Services use `BackupPlanManager` for "Include in backups". */
 @Module({
   imports: [
     AuditModule,
@@ -27,13 +30,16 @@ import { BackupsTopic } from './backups-topic.js';
   ],
   controllers: [BackupsController],
   providers: [
+    BackupChecks,
     BackupFiles,
-    BackupManager,
+    BackupPlanManager,
     BackupProgressFollower,
     BackupRestores,
     BackupResults,
+    BackupRuns,
+    BackupStatusReader,
     BackupsTopic,
   ],
-  exports: [BackupManager],
+  exports: [BackupPlanManager],
 })
 export class BackupsModule {}

@@ -3,10 +3,12 @@ import type { BackupsStatus } from '@homelab/shared';
 import { OperationSlot } from '../jobs/operation-slot.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
-import { BackupManager } from './backup-manager.js';
+import { BackupPlanManager } from './backup-plan-manager.js';
 import { BackupProgressFollower } from './backup-progress.js';
 import { BackupRestores } from './backup-restores.js';
 import { BackupResults } from './backup-results.js';
+import { BackupRuns } from './backup-runs.js';
+import { BackupStatusReader } from './backup-status-reader.js';
 
 /** Changes come in bursts (progress lines, restore output): at most one update this often. */
 export const BACKUPS_PUBLISH_MS = 500;
@@ -25,7 +27,9 @@ export class BackupsTopic implements TopicSource<'backups'> {
   private refresh: NodeJS.Timeout | null = null;
 
   constructor(
-    private readonly backups: BackupManager,
+    private readonly statusReader: BackupStatusReader,
+    private readonly plans: BackupPlanManager,
+    private readonly runs: BackupRuns,
     private readonly progress: BackupProgressFollower,
     private readonly results: BackupResults,
     private readonly restores: BackupRestores,
@@ -36,7 +40,7 @@ export class BackupsTopic implements TopicSource<'backups'> {
   }
 
   snapshot(): Promise<BackupsStatus> {
-    return this.backups.status();
+    return this.statusReader.status();
   }
 
   start(publish: (update: BackupsStatus) => void): void {
@@ -47,7 +51,8 @@ export class BackupsTopic implements TopicSource<'backups'> {
       }, BACKUPS_PUBLISH_MS);
     };
     this.unsubscribers = [
-      this.backups.onChange(changed),
+      this.plans.onChange(changed),
+      this.runs.onChange(changed),
       this.progress.onChange(changed),
       this.results.onChange(changed),
       this.restores.onChange(changed),
