@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import type { SystemSnapshot, SystemUpdate } from '@homelab/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
+import { BackupsStore } from '../../../core/backups/backups-store';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
 import { DashboardPage } from './dashboard-page';
@@ -132,6 +133,33 @@ describe('DashboardPage', () => {
     });
     await fixture.whenStable();
     expect(card('cpu').textContent).toContain('87%');
+  });
+
+  it('shows the backups’ most serious problem, with a way to the Backups page', async () => {
+    const { fixture, el, socket } = await render();
+    TestBed.inject(BackupsStore).watch();
+    socket.receive({ event: 'system:snapshot', data: snapshot });
+    await fixture.whenStable();
+    expect(el.querySelector('app-backup-notice')).toBeNull();
+    socket.receive({
+      event: 'backups:update',
+      data: {
+        configured: true,
+        warnings: ['destinationUnavailable', 'noRecentBackup'],
+        lastSuccessAt: null,
+        nextRunAt: null,
+        running: null,
+        lastRun: null,
+        items: [],
+        restore: null,
+        lastCheck: null,
+      },
+    });
+    await fixture.whenStable();
+    const notice = el.querySelector('app-backup-notice')!;
+    expect(notice.textContent).toContain("The backup disk isn't connected");
+    expect(notice.textContent).not.toContain('more than two days');
+    expect(notice.querySelector('a')!.getAttribute('href')).toBe('/backups');
   });
 
   it('stops the live data when left', async () => {

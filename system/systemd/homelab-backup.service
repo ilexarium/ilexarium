@@ -1,0 +1,29 @@
+# /etc/systemd/system/homelab-backup.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# A scheduled backup run, started by homelab-backup.timer: the root wrapper directly, never
+# through the app — backups work even when the app is down. Its progress and results go to
+# /var/lib/homelab/backups/{current,runs}.jsonl, which the app reads. Design: docs/plans/backups.md.
+
+[Unit]
+Description=Homelab backup run
+After=docker.service local-fs.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/homelab/libexec/homelab-backup.mts run-scheduled
+# Backups yield to everything else.
+Nice=10
+IOSchedulingClass=idle
+# A first backup of a big photo library takes long; stopping it starts stopped services again.
+TimeoutStartSec=24h
+TimeoutStopSec=5min
+KillMode=mixed
+# It reads everything (it's a backup) but writes only its state, the lock and the backup disk.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes

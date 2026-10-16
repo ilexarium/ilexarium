@@ -23,4 +23,13 @@ describe('Formatter', () => {
       expect(text, text).not.toMatch(/[٠-٩۰-۹]/); // Arabic-Indic digits
     }
   });
+
+  it('keeps a number with its unit left to right inside Arabic sentences ("6.2 GB", not "GB 6.2")', async () => {
+    const format = TestBed.inject(Formatter);
+    expect(format.bytes(1_234_000_000)).not.toMatch(/[\u2066\u2069]/);
+    await TestBed.inject(LanguageService).setLanguage('ar');
+    expect(format.bytes(1_234_000_000)).toMatch(/^\u2066.*GB\u2069$/);
+    expect(format.rate(1_200)).toMatch(/^\u2066.*\u2069$/);
+    expect(format.percent(42)).toMatch(/^\u2066.*\u2069$/);
+  });
 });

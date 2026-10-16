@@ -16,10 +16,11 @@ import {
   type RemoveResponse,
   SERVICE_ERROR_CODES,
   type ServiceErrorCode,
-  type ServiceJob,
+  type Job,
   TEXT_PATTERNS,
   valuesSchema,
 } from '@homelab/shared';
+import { BackupPlanManager } from '../backups/backup-plan-manager.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import type { CatalogEntry } from '../catalog/catalog.model.js';
 import type { ExecutorActor } from '../executor/executor.model.js';
@@ -57,6 +58,7 @@ export class ServiceManager {
     private readonly serviceSecrets: ServiceSecrets,
     private readonly wrapperConfig: WrapperConfigService,
     private readonly host: SystemReader,
+    private readonly backups: BackupPlanManager,
   ) {}
 
   // Catalog.
@@ -71,6 +73,8 @@ export class ServiceManager {
       name: meta.name,
       category: meta.category,
       status: status.get(meta.id) ?? null,
+      backupFolders: meta.backup?.folders.map((f) => f.field) ?? [],
+      backupRestoreNote: meta.backup?.restoreNote === true,
     }));
   }
 
@@ -135,7 +139,7 @@ export class ServiceManager {
     });
   }
 
-  async job(id: string): Promise<ServiceJob> {
+  async job(id: string): Promise<Job> {
     const job = await this.prisma.serviceJob.findUnique({ where: { id } });
     if (!job)
       throw new NotFoundException(error('No such job', SERVICE_ERROR_CODES.serviceNotFound));
@@ -143,11 +147,11 @@ export class ServiceManager {
   }
 
   async deploy(
-    { catalogId, values }: DeployRequest,
+    { catalogId, values, includeInBackups }: DeployRequest,
     actor: ExecutorActor,
   ): Promise<DeployResponse> {
     const entry = this.requireEntry(catalogId);
-    const claim = this.jobs.claim();
+    const claim = this.jobs.claim('deploy');
     try {
       const existing = await this.prisma.service.findUnique({
         where: { catalogId },
@@ -208,7 +212,12 @@ export class ServiceManager {
       // Always true today (an installed service can't be deployed again, see above). Kept for a
       // later "change settings" or update: a failed deploy must not remove a running service.
       const firstInstall = !existing || existing.status !== 'installed';
-      void this.runDeploy(entry, service.id, settings, secretValues, actor, firstInstall);
+      void this.runDeploy(entry, service.id, settings, secretValues, actor, firstInstall).then(
+        (installed) => {
+          if (installed && includeInBackups)
+            void this.backups.includeInstalledService(service.id, actor);
+        },
+      );
       return { serviceId: service.id, jobId: job.id };
     } catch (failure) {
       claim.release();
@@ -224,7 +233,7 @@ export class ServiceManager {
       throw new ConflictException(error('Not installed', SERVICE_ERROR_CODES.notInstalled));
     }
     const entry = this.requireEntry(service.catalogId);
-    const claim = this.jobs.claim();
+    const claim = this.jobs.claim('remove');
     try {
       const job = await this.prisma.$transaction(async (tx) => {
         await tx.service.update({ where: { id: serviceId }, data: { status: 'removing' } });
@@ -250,7 +259,7 @@ export class ServiceManager {
     secretValues: Record<string, string>,
     actor: ExecutorActor,
     firstInstall: boolean,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const secrets = Object.values(secretValues);
     const outcome = await this.jobs.execute(() =>
       this.executor.composeUp({
@@ -275,6 +284,7 @@ export class ServiceManager {
       );
     }
     await this.jobs.finish(outcome, outcome.ok ? 'installed' : 'failed');
+    return outcome.ok;
   }
 
   private async runRemove(

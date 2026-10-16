@@ -20,6 +20,9 @@ export const CATALOG_LIMITS = {
   generatedSecretLength: 32,
   textMax: 128,
   pathMax: 1024,
+  /** Names skipped inside one backed-up folder. */
+  maxBackupSkips: 20,
+  backupSkipMax: 255,
 } as const;
 
 export const CATALOG_CATEGORIES = [
@@ -134,6 +137,48 @@ export const isUserField = (field: CatalogField): field is UserField =>
 export const isSecretField = (field: CatalogField): boolean =>
   field.type === 'secret' || field.type === 'generatedSecret';
 
+// Backups.
+
+/**
+ * How a service's data stays consistent while it is copied: `live` (copied while it runs — its
+ * data is safe to read then, e.g. it writes its own database dumps) or `stop` (stopped briefly,
+ * started again afterwards). Declared by the recipe, never coded per service.
+ */
+export const BACKUP_MODES = ['live', 'stop'] as const;
+export const backupModeSchema = z.enum(BACKUP_MODES);
+export type BackupMode = z.infer<typeof backupModeSchema>;
+
+/**
+ * A name skipped inside a backed-up folder (e.g. a cache the service rebuilds): one plain name —
+ * no "/", no "." or "..", no wildcards, no leading "-" (it must never read as a pattern or an option).
+ */
+export const BACKUP_SKIP_PATTERN = /^(?!-)(?!\.{1,2}$)[^/\x00-\x1f\x7f*?[\]\\]+$/;
+
+export const backupSkipSchema = z
+  .string()
+  .max(CATALOG_LIMITS.backupSkipMax)
+  .regex(BACKUP_SKIP_PATTERN, 'not a plain name');
+
+/**
+ * What a recipe's backup covers: some of its folder fields (named volumes are never backed up —
+ * important data must be in folder fields). Design: docs/plans/backups.md, section 2.
+ */
+export const catalogBackupSchema = z.strictObject({
+  folders: z
+    .array(
+      z.strictObject({
+        field: z.string().regex(FIELD_KEY_PATTERN),
+        skip: z.array(backupSkipSchema).max(CATALOG_LIMITS.maxBackupSkips).optional(),
+      }),
+    )
+    .min(1)
+    .max(CATALOG_LIMITS.maxFields),
+  mode: backupModeSchema,
+  /** After a restore, show `catalog.<id>.backup.restoreNote` (e.g. "restore the database in …"). */
+  restoreNote: z.boolean().optional(),
+});
+export type CatalogBackup = z.infer<typeof catalogBackupSchema>;
+
 // Entries.
 
 export const catalogMetaSchema = z
@@ -154,6 +199,8 @@ export const catalogMetaSchema = z
       gid: z.number().int().min(0).max(65535),
     }),
     fields: z.array(catalogFieldSchema).min(1).max(CATALOG_LIMITS.maxFields),
+    /** Without it, the service can't be backed up. */
+    backup: catalogBackupSchema.optional(),
   })
   .superRefine((meta, ctx) => {
     const keys = meta.fields.map((field) => field.key);
@@ -172,6 +219,32 @@ export const catalogMetaSchema = z
         if (!TEXT_PATTERNS[field.pattern].test(field.default)) {
           ctx.addIssue({ code: 'custom', path: ['fields', i, 'default'], message: 'no match' });
         }
+      }
+    });
+    const backupFields = meta.backup?.folders.map((folder) => folder.field) ?? [];
+    if (new Set(backupFields).size !== backupFields.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['backup', 'folders'],
+        message: 'fields must be unique',
+      });
+    }
+    meta.backup?.folders.forEach((folder, i) => {
+      const field = meta.fields.find((f) => f.key === folder.field);
+      if (field?.type !== 'path') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['backup', 'folders', i, 'field'],
+          message: 'must name a folder field',
+        });
+      }
+      const skips = folder.skip ?? [];
+      if (new Set(skips).size !== skips.length) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['backup', 'folders', i, 'skip'],
+          message: 'not unique',
+        });
       }
     });
   });

@@ -1,0 +1,100 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal class="max-h-[90dvh] overflow-y-auto">
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle>
+        {{ 'backups.restore.title' | translate }}
+        <span [attr.dir]="label().ltr ? 'ltr' : null" class="break-all">{{ label().text }}</span>
+      </h2>
+      <p hlmAlertDialogDescription>{{ 'backups.restore.text' | translate }}</p>
+    </hlm-alert-dialog-header>
+
+    @if (archives(); as list) {
+      @if (list.length === 0) {
+        <p class="text-sm text-muted-foreground">{{ 'backups.restore.none' | translate }}</p>
+      } @else {
+        <fieldset class="grid gap-1">
+          <legend class="mb-1 text-sm font-medium">
+            {{ 'backups.restore.which' | translate }}
+          </legend>
+          <div class="grid max-h-48 gap-1 overflow-y-auto">
+            @for (archive of list; track archive.name) {
+              <label class="flex min-h-9 items-center gap-2 rounded-md px-2 text-sm hover:bg-muted">
+                <input
+                  type="radio"
+                  name="archive"
+                  class="size-4"
+                  [value]="archive.name"
+                  [checked]="chosen() === archive.name"
+                  (change)="choose($event)"
+                />
+                {{ format.dateTime(archive.createdAt) }}
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <fieldset class="grid gap-2">
+          <legend class="mb-1 text-sm font-medium">
+            {{ 'backups.restore.where' | translate }}
+          </legend>
+          @if (inPlaceAllowed()) {
+            <label class="flex items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name="target"
+                class="mt-0.5 size-4"
+                [checked]="target() === 'inPlace'"
+                (change)="setTarget('inPlace')"
+              />
+              <span class="grid gap-0.5">
+                <span class="font-medium">{{ 'backups.restore.inPlace' | translate }}</span>
+                <span class="text-muted-foreground">{{
+                  'backups.restore.inPlaceText' | translate
+                }}</span>
+              </span>
+            </label>
+          }
+          <label class="flex items-start gap-2 text-sm">
+            <input
+              type="radio"
+              name="target"
+              class="mt-0.5 size-4"
+              [checked]="target() === 'newFolder'"
+              (change)="setTarget('newFolder')"
+            />
+            <span class="grid gap-0.5">
+              <span class="font-medium">{{ 'backups.restore.newFolder' | translate }}</span>
+              <span class="text-muted-foreground">{{
+                'backups.restore.newFolderText' | translate
+              }}</span>
+            </span>
+          </label>
+          @if (row()?.item?.removed && target() === 'inPlace') {
+            <p class="text-sm text-muted-foreground">
+              {{ 'backups.restore.reinstall' | translate }}
+            </p>
+          }
+        </fieldset>
+      }
+    } @else {
+      <div role="status" [attr.aria-label]="'backups.loading' | translate">
+        <hlm-skeleton class="h-32 w-full" />
+      </div>
+    }
+
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'backups.restore.cancel' | translate }}</button>
+      <button
+        hlmAlertDialogAction
+        [variant]="target() === 'inPlace' ? 'destructive' : 'default'"
+        [disabled]="!chosen()"
+        (click)="confirmed()"
+      >
+        {{
+          (target() === 'inPlace' ? 'backups.restore.confirmInPlace' : 'backups.restore.confirm')
+            | translate
+        }}
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

@@ -99,6 +99,53 @@ describe('catalogMetaSchema', () => {
   });
 });
 
+describe('catalogMetaSchema backup', () => {
+  const backup = {
+    folders: [{ field: 'DATA_DIR', skip: ['cache', 'thumbs', '.trash', 'a b', 'ü'] }],
+    mode: 'stop',
+    restoreNote: true,
+  };
+
+  it('accepts folder fields with plain skip names', () => {
+    expect(catalogMetaSchema.safeParse({ ...meta, backup }).success).toBe(true);
+    const live = { folders: [{ field: 'DATA_DIR' }], mode: 'live' };
+    expect(catalogMetaSchema.safeParse({ ...meta, backup: live }).success).toBe(true);
+  });
+
+  it.each([
+    ['no folders', { ...backup, folders: [] }],
+    ['a field that does not exist', { ...backup, folders: [{ field: 'NOPE' }] }],
+    ['a field that is not a folder', { ...backup, folders: [{ field: 'WEB_PORT' }] }],
+    ['a folder twice', { ...backup, folders: [{ field: 'DATA_DIR' }, { field: 'DATA_DIR' }] }],
+    ['an unknown mode', { ...backup, mode: 'snapshot' }],
+    ['an unknown property', { ...backup, hooks: ['pg_dump'] }],
+    ['a skip twice', { ...backup, folders: [{ field: 'DATA_DIR', skip: ['a', 'a'] }] }],
+  ])('refuses %s', (_, change) => {
+    expect(catalogMetaSchema.safeParse({ ...meta, backup: change }).success).toBe(false);
+  });
+
+  it.each([
+    '',
+    '.',
+    '..',
+    'a/b',
+    '/etc',
+    '../x',
+    '-x',
+    '--exclude',
+    '*',
+    'a?',
+    '[ab]',
+    'a\\b',
+    'a\nb',
+  ])('refuses the skip %j', (skip) => {
+    const folders = [{ field: 'DATA_DIR', skip: [skip] }];
+    expect(catalogMetaSchema.safeParse({ ...meta, backup: { ...backup, folders } }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe('valuesSchema', () => {
   it('accepts good values, and nothing for the generated secret', () => {
     expect(valuesSchema(meta).parse(good)).toEqual(good);

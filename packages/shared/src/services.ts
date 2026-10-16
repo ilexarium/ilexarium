@@ -5,6 +5,7 @@ import {
   catalogMetaSchema,
   FIELD_KEY_PATTERN,
 } from './catalog.js';
+import { jobSchema } from './jobs.js';
 
 /**
  * Installing and removing catalog services: `POST /api/services` (202 + a job), `DELETE
@@ -37,6 +38,10 @@ export const catalogEntrySummarySchema = z.object({
   category: catalogCategorySchema,
   /** Null if it was never installed. */
   status: serviceStatusSchema.nullable(),
+  /** The folder fields its recipe backs up (empty: it can't be backed up). */
+  backupFolders: z.array(z.string()),
+  /** After a restore, show `catalog.<id>.backup.restoreNote`. */
+  backupRestoreNote: z.boolean(),
 });
 export type CatalogEntrySummary = z.infer<typeof catalogEntrySummarySchema>;
 
@@ -61,6 +66,8 @@ export type CatalogEntryDetails = z.infer<typeof catalogEntryDetailsSchema>;
 export const deployRequestSchema = z.strictObject({
   catalogId: z.string().regex(CATALOG_ID_PATTERN, 'validation.catalogIdInvalid'),
   values: fieldValuesSchema,
+  /** Add it to the backup plan ("Include in backups", only offered when a plan exists). */
+  includeInBackups: z.boolean().optional(),
 });
 export type DeployRequest = z.infer<typeof deployRequestSchema>;
 
@@ -79,19 +86,6 @@ export const removeResponseSchema = z.object({ jobId: z.uuid() });
 export type RemoveResponse = z.infer<typeof removeResponseSchema>;
 
 // Jobs.
-
-export const JOB_KINDS = ['deploy', 'remove'] as const;
-export const jobKindSchema = z.enum(JOB_KINDS);
-export type JobKind = z.infer<typeof jobKindSchema>;
-
-export const JOB_STATUSES = ['running', 'succeeded', 'failed', 'interrupted'] as const;
-export const jobStatusSchema = z.enum(JOB_STATUSES);
-export type JobStatus = z.infer<typeof jobStatusSchema>;
-
-/** What the wrapper announces (`@@phase …`): downloading, starting (incl. health), removing, done. */
-export const JOB_PHASES = ['pulling', 'starting', 'removing', 'done'] as const;
-export const jobPhaseSchema = z.enum(JOB_PHASES);
-export type JobPhase = z.infer<typeof jobPhaseSchema>;
 
 export const SERVICE_ERROR_CODES = {
   catalogEntryNotFound: 'catalog_entry_not_found',
@@ -120,24 +114,6 @@ export const SERVICE_ERROR_CODES = {
 } as const;
 export type ServiceErrorCode = (typeof SERVICE_ERROR_CODES)[keyof typeof SERVICE_ERROR_CODES];
 
-export const serviceJobSchema = z.object({
-  id: z.uuid(),
-  kind: jobKindSchema,
-  status: jobStatusSchema,
-  /** Null until the wrapper announces one. */
-  phase: jobPhaseSchema.nullable(),
-  errorCode: z.string().nullable(),
-  /** The field a failure is about (e.g. a port that turned out to be taken). */
-  errorField: z.string().nullable(),
-  startedAt: z.iso.datetime(),
-  finishedAt: z.iso.datetime().nullable(),
-  /** Output lines, oldest first, secrets masked: the last 50 in the topic, all in `GET /api/services/jobs/:id`. */
-  output: z.array(z.string()),
-  /** Lines before `output` that aren't included. */
-  omitted: z.number().int().nonnegative(),
-});
-export type ServiceJob = z.infer<typeof serviceJobSchema>;
-
 // Installed services.
 
 export const installedServiceSchema = z.object({
@@ -150,7 +126,7 @@ export const installedServiceSchema = z.object({
   /** The port of its web page (the "Open" link). */
   webPort: z.number().int().nullable(),
   /** Its latest job, if any. */
-  job: serviceJobSchema.nullable(),
+  job: jobSchema.nullable(),
   updatedAt: z.iso.datetime(),
 });
 export type InstalledService = z.infer<typeof installedServiceSchema>;

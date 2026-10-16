@@ -1,0 +1,112 @@
+<section hlmCard aria-labelledby="overview-title">
+  <div hlmCardHeader class="flex flex-row flex-wrap items-start justify-between gap-3">
+    <div class="grid gap-1">
+      <h2 hlmCardTitle id="overview-title">{{ 'backups.overview.title' | translate }}</h2>
+      <p hlmCardDescription>
+        @if (status().lastSuccessAt; as at) {
+          {{ 'backups.overview.lastSuccess' | translate: { time: format.ago(at) } }}
+        } @else {
+          {{ 'backups.overview.never' | translate }}
+        }
+        @if (status().nextRunAt; as next) {
+          · {{ 'backups.overview.next' | translate: { time: format.dateTime(next) } }}
+        }
+      </p>
+    </div>
+    <button hlmBtn [disabled]="pending() || running() !== null" (click)="runNow.emit()">
+      @if (pending() || running()) {
+        <ng-icon name="lucideLoaderCircle" class="animate-spin" aria-hidden="true" />
+      } @else {
+        <ng-icon name="lucidePlay" aria-hidden="true" />
+      }
+      {{ 'backups.overview.runNow' | translate }}
+    </button>
+  </div>
+
+  <div hlmCardContent class="grid gap-4">
+    @for (warning of status().warnings; track warning) {
+      <div hlmAlert variant="destructive" role="alert">
+        <ng-icon name="lucideTriangleAlert" aria-hidden="true" />
+        <h3 hlmAlertTitle>{{ 'backups.warning.' + warning + '.title' | translate }}</h3>
+        <p hlmAlertDescription>{{ 'backups.warning.' + warning + '.text' | translate }}</p>
+      </div>
+    }
+
+    @if (running(); as run) {
+      <div class="grid gap-2 rounded-md border p-3" role="status" aria-live="polite">
+        <p class="text-sm font-medium">
+          {{
+            (run.trigger === 'scheduled' ? 'backups.running.scheduled' : 'backups.running.manual')
+              | translate: { done: done(), total: total() }
+          }}
+        </p>
+        <hlm-progress
+          [value]="done()"
+          [max]="total()"
+          [attr.aria-label]="
+            'backups.running.progress' | translate: { done: done(), total: total() }
+          "
+        >
+          <hlm-progress-indicator />
+        </hlm-progress>
+        @if (current(); as item) {
+          <p class="text-sm text-muted-foreground">
+            @let label = labels().get(item.itemId);
+            <span [attr.dir]="label?.ltr ? 'ltr' : null">{{ label?.text }}</span>
+            @if (item.phase) {
+              — {{ 'backups.phase.' + item.phase | translate }}
+            }
+          </p>
+        }
+        @if (run.output.length > 0) {
+          <details>
+            <summary class="cursor-pointer text-sm select-none">
+              {{ 'backups.running.output' | translate }}
+            </summary>
+            <pre
+              class="mt-2 max-h-60 overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap"
+              dir="ltr"
+              >{{ run.output.join('\n') }}</pre>
+          </details>
+        }
+      </div>
+    }
+
+    <div class="grid gap-1 text-sm">
+      <p>
+        {{ 'backups.overview.disk' | translate }}
+        <code class="break-all" dir="ltr">{{ destinationPath() }}</code>
+      </p>
+      @if (destination(); as disk) {
+        <p class="text-muted-foreground">
+          {{
+            'backups.overview.space'
+              | translate
+                : { free: format.bytes(disk.freeBytes), total: format.bytes(disk.totalBytes) }
+          }}
+        </p>
+        <hlm-progress
+          class="max-w-sm"
+          [value]="usedPercent()"
+          [attr.aria-label]="'backups.overview.used' | translate: { percent: usedPercent() }"
+        >
+          <hlm-progress-indicator />
+        </hlm-progress>
+      }
+      @if (status().lastCheck; as check) {
+        <p class="flex items-center gap-1.5 text-muted-foreground">
+          <ng-icon
+            [name]="check.status === 'failed' ? 'lucideCircleX' : 'lucideCircleCheck'"
+            aria-hidden="true"
+          />
+          {{
+            (check.status === 'failed'
+              ? 'backups.overview.checkFailed'
+              : 'backups.overview.checkOk'
+            ) | translate: { time: format.dateTime(check.at) }
+          }}
+        </p>
+      }
+    </div>
+  </div>
+</section>

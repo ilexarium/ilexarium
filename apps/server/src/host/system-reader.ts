@@ -1,4 +1,4 @@
-import { readFile, stat, statfs } from 'node:fs/promises';
+import { readdir, readFile, stat, statfs } from 'node:fs/promises';
 import os from 'node:os';
 import { join } from 'node:path';
 import type { DiskUsage, HostInfo } from '@homelab/shared';
@@ -8,11 +8,20 @@ import {
   parseCpuTimes,
   parseListeningTcpPorts,
   parseMeminfo,
+  parseMountInfo,
   parseMounts,
   parseNetDev,
   parseOsRelease,
 } from './proc-parsers.js';
-import type { CpuTimes, FolderState, MemoryInfo, NetCounters } from './host.model.js';
+import type {
+  CpuTimes,
+  FolderState,
+  MemoryInfo,
+  MountPoint,
+  NetCounters,
+  Space,
+  Subfolder,
+} from './host.model.js';
 
 /**
  * The only place the host's state is read: plain files under `/proc` and `/etc`, folders,
@@ -103,6 +112,51 @@ export class SystemReader {
       return (await stat(join(this.root, path))).isDirectory() ? 'folder' : 'other';
     } catch (error) {
       return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'missing' : 'unreadable';
+    }
+  }
+
+  /**
+   * Every mount point, from /proc/self/mountinfo — or, in development, the pretend mount table
+   * the backup wrapper is configured with (an absolute path).
+   */
+  async mountPoints(file = 'proc/self/mountinfo'): Promise<MountPoint[]> {
+    return parseMountInfo(await this.read(file));
+  }
+
+  /** Size and free space of the file system holding `path`; null if it can't be measured. */
+  async space(path: string): Promise<Space | null> {
+    try {
+      const { blocks, bavail, bsize } = await statfs(join(this.root, path));
+      return { totalBytes: blocks * bsize, freeBytes: bavail * bsize };
+    } catch {
+      return null;
+    }
+  }
+
+  /** The device a path is on (to tell whether two folders share a disk); null if unreadable. */
+  async device(path: string): Promise<number | null> {
+    try {
+      return (await stat(join(this.root, path))).dev;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * The folders directly inside `path` (not symlinks), by name, at most `limit`; null when the
+   * app's user may not look (another user's home) or it isn't a folder.
+   */
+  async subfolders(path: string, limit = 500): Promise<Subfolder[] | null> {
+    try {
+      const entries = await readdir(join(this.root, path), { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort((a, b) => a.localeCompare(b))
+        .slice(0, limit)
+        .map((name) => ({ name, path: path === '/' ? `/${name}` : `${path}/${name}` }));
+    } catch {
+      return null;
     }
   }
 

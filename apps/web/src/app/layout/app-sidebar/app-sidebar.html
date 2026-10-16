@@ -48,9 +48,26 @@
                 closeMobileSidebarOnClick
                 class="max-md:h-11"
               >
-                <ng-icon [name]="item.icon" aria-hidden="true" />
+                <span class="relative flex">
+                  <ng-icon [name]="item.icon" aria-hidden="true" />
+                  @if (item.attention && attention()[item.attention] > 0) {
+                    <!-- Seen also when the sidebar shows icons only. -->
+                    <span
+                      class="absolute -end-1 -top-1 size-2 rounded-full bg-destructive"
+                      aria-hidden="true"
+                    ></span>
+                  }
+                </span>
                 <span>{{ item.label | translate }}</span>
+                @if (item.attention && attention()[item.attention] > 0) {
+                  <span class="sr-only">{{ 'nav.attention' | translate }}</span>
+                }
               </a>
+              @if (item.attention && attention()[item.attention] > 0) {
+                <div hlmSidebarMenuBadge class="text-destructive" aria-hidden="true">
+                  {{ attention()[item.attention] }}
+                </div>
+              }
             </li>
           }
         </ul>

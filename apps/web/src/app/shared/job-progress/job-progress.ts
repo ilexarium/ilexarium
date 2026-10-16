@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import type { JobPhase, ServiceJob } from '@homelab/shared';
+import type { JobPhase, Job } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideCircleCheck,
@@ -11,9 +11,10 @@ import { TranslatePipe } from '@ngx-translate/core';
 
 type StepState = 'done' | 'current' | 'failed' | 'waiting';
 
-const STEPS: Record<ServiceJob['kind'], JobPhase[]> = {
+const STEPS: Record<Job['kind'], JobPhase[]> = {
   deploy: ['pulling', 'starting', 'done'],
   remove: ['removing', 'done'],
+  restore: ['stopping', 'restoring', 'starting', 'done'],
 };
 
 /**
@@ -29,11 +30,13 @@ const STEPS: Record<ServiceJob['kind'], JobPhase[]> = {
   templateUrl: './job-progress.html',
 })
 export class JobProgress {
-  readonly job = input.required<ServiceJob>();
+  readonly job = input.required<Job>();
+  /** The steps of this job, when not every one of its kind applies (a restore to a new folder). */
+  readonly phases = input<JobPhase[] | null>(null);
 
   protected readonly steps = computed(() => {
     const job = this.job();
-    const steps = STEPS[job.kind];
+    const steps = this.phases() ?? STEPS[job.kind];
     const reached = job.phase ? steps.indexOf(job.phase) : -1;
     return steps.map((phase, i): { phase: JobPhase; state: StepState } => {
       if (job.status === 'succeeded') return { phase, state: 'done' };

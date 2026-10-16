@@ -52,6 +52,12 @@ export const routes: Routes = [
           import('./features/services/install-page/install-page').then((m) => m.InstallPage),
       },
       {
+        path: 'backups',
+        title: 'pages.backups',
+        loadComponent: () =>
+          import('./features/backups/backups-page/backups-page').then((m) => m.BackupsPage),
+      },
+      {
         path: 'settings/account',
         title: 'pages.account',
         loadComponent: () =>

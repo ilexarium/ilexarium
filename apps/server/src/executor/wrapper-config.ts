@@ -7,9 +7,30 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import type { Env } from '../config/env.schema.js';
-import type { WrapperConfig } from './executor.model.js';
+import type { WrapperBackupConfig, WrapperConfig } from './executor.model.js';
 
 const absolute = z.string().startsWith('/');
+const backupConfigSchema = z.object({
+  borgBin: absolute,
+  systemctlBin: absolute.optional(),
+  appUid: z.number().int().optional(),
+  appGid: z.number().int().optional(),
+  platform: z.object({
+    container: z.string().min(1),
+    database: z.string().min(1),
+    user: z.string().min(1),
+    files: z.array(absolute),
+  }),
+  dev: z
+    .object({
+      dir: absolute,
+      destinationRoots: z.array(absolute),
+      mountInfo: absolute,
+      lockWaitMs: z.number().int().optional(),
+      retryDelayMs: z.number().int().optional(),
+    })
+    .optional(),
+});
 const wrapperConfigSchema = z.object({
   catalogDir: absolute,
   storageRoots: z.array(absolute).min(1),
@@ -19,6 +40,7 @@ const wrapperConfigSchema = z.object({
   dockerBin: absolute,
   lockFile: absolute.optional(),
   home: absolute.optional(),
+  backup: backupConfigSchema.optional(),
 });
 
 const REPO_CATALOG = fileURLToPath(new URL('../../../../catalog', import.meta.url));
@@ -57,6 +79,41 @@ export class WrapperConfigService implements OnModuleInit {
     const parsed = wrapperConfigSchema.safeParse(JSON.parse(await readFile(this.file, 'utf8')));
     if (!parsed.success) throw new Error(`Invalid ${this.file}: ${z.prettifyError(parsed.error)}`);
     this.loaded = parsed.data;
+    // A development config from before backups: add their part.
+    if (!this.production && !this.loaded.backup) {
+      this.loaded = { ...this.loaded, backup: await this.developmentBackupConfig() };
+      await writeFile(this.file, `${JSON.stringify(this.loaded, null, 2)}\n`, { mode: 0o600 });
+      this.logger.warn(`Added a development backup config to ${this.file}`);
+    }
+  }
+
+  /**
+   * Development backups: the real Borg, the dev database's container, and a pretend USB disk —
+   * the folder .dev/mnt/usb, listed as mounted in .dev/backup/mountinfo (the wrapper only
+   * accepts mount points; in production it reads /proc/self/mountinfo).
+   */
+  private async developmentBackupConfig(): Promise<WrapperBackupConfig> {
+    const dev = dirname(this.file);
+    const backupDir = resolve(dev, 'backup');
+    const mnt = resolve(dev, 'mnt');
+    const disk = resolve(mnt, 'usb');
+    await mkdir(disk, { recursive: true, mode: 0o755 });
+    await mkdir(backupDir, { recursive: true, mode: 0o700 });
+    const mountInfo = resolve(backupDir, 'mountinfo');
+    await writeFile(
+      mountInfo,
+      `900 1 0:99 / ${disk.replace(/ /g, '\\040')} rw - ext4 /dev/sdz1 rw\n`,
+    );
+    return {
+      borgBin: ['/usr/bin/borg', '/usr/local/bin/borg'].find(existsSync) ?? '/usr/bin/borg',
+      platform: {
+        container: 'homelab-dev-postgres-1',
+        database: 'homelab',
+        user: 'homelab',
+        files: [this.file],
+      },
+      dev: { dir: backupDir, destinationRoots: [mnt], mountInfo },
+    };
   }
 
   private async createDevelopmentConfig(): Promise<void> {

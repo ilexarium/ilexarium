@@ -1,0 +1,65 @@
+<!-- The dialog follows `open` through its own state input (never opened from an effect: an
+     effect calling it would track the dialog's own signals and reopen it while it closes). -->
+<hlm-alert-dialog [state]="open() ? 'open' : 'closed'" (closed)="closed()">
+  <hlm-alert-dialog-content *hlmAlertDialogPortal class="max-h-[90dvh] overflow-y-auto">
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle>{{ 'backups.folders.title' | translate }}</h2>
+      <p hlmAlertDialogDescription>{{ 'backups.folders.text' | translate }}</p>
+    </hlm-alert-dialog-header>
+
+    @if (listing(); as place) {
+      <div class="grid gap-2">
+        @if (place.path) {
+          <p class="text-sm">
+            <code class="break-all" dir="ltr">{{ place.path }}</code>
+          </p>
+          <button
+            hlmBtn
+            variant="ghost"
+            size="sm"
+            class="justify-self-start"
+            (click)="browse.emit(place.parent ?? undefined)"
+          >
+            <ng-icon name="lucideCornerLeftUp" aria-hidden="true" />
+            {{ 'backups.folders.up' | translate }}
+          </button>
+        }
+        @if (!place.readable) {
+          <p class="text-sm text-muted-foreground">
+            {{ 'backups.folders.unreadable' | translate }}
+          </p>
+        } @else if (place.folders.length === 0) {
+          <p class="text-sm text-muted-foreground">{{ 'backups.folders.empty' | translate }}</p>
+        } @else {
+          <ul class="grid max-h-72 gap-1 overflow-y-auto">
+            @for (folder of place.folders; track folder.path) {
+              <li>
+                <button
+                  type="button"
+                  class="flex min-h-10 w-full items-center gap-2 rounded-md px-2 text-start text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50"
+                  [disabled]="!folder.allowed"
+                  (click)="browse.emit(folder.path)"
+                >
+                  <ng-icon name="lucideFolder" aria-hidden="true" class="shrink-0" />
+                  <span class="break-all" dir="ltr">{{ folder.name }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>{{ 'backups.folders.cancel' | translate }}</button>
+        @if (place.path) {
+          <button hlmBtn (click)="choose.emit(place.path)">
+            {{ 'backups.folders.choose' | translate }}
+          </button>
+        }
+      </hlm-alert-dialog-footer>
+    } @else {
+      <div role="status" [attr.aria-label]="'backups.loading' | translate">
+        <hlm-skeleton class="h-40 w-full" />
+      </div>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

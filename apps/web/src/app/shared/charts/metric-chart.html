@@ -1,10 +1,11 @@
-<div role="img" [attr.aria-label]="description()" class="h-32 w-full" dir="ltr">
+<!-- The chart is placed absolutely, so its drawn size never holds its card wider: it follows the card. -->
+<div role="img" [attr.aria-label]="description()" class="relative h-32 w-full" dir="ltr">
   @if (canDraw) {
     <div
       echarts
       [options]="options()"
       [autoResize]="true"
-      class="size-full"
+      class="absolute inset-0"
       aria-hidden="true"
     ></div>
   }
