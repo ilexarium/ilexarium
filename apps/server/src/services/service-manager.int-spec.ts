@@ -7,7 +7,7 @@ import { Test } from '@nestjs/testing';
 import type { PublicUser } from '@homelab/shared';
 import { resetDatabase } from '../../test/database.js';
 import { loadCatalog } from '../catalog/catalog-loader.js';
-import type { BackupManager } from '../backups/backup-manager.js';
+import type { BackupPlanManager } from '../backups/backup-plan-manager.js';
 import type { CatalogService } from '../catalog/catalog.service.js';
 import type { CatalogEntry } from '../catalog/catalog.model.js';
 import { ConfigModule } from '../config/config.module.js';
@@ -114,7 +114,7 @@ describe('ServiceManager (database)', () => {
       new ServiceSecrets(secrets),
       wrapperConfig,
       new SystemReader(),
-      backups as unknown as BackupManager,
+      backups as unknown as BackupPlanManager,
     );
   });
 
