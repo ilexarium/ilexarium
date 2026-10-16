@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import type { ContainerStats, ContainersUpdate } from '@homelab/shared';
+import type { Subscription } from 'rxjs';
 import type { DockerService } from '../docker/docker.service.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import {
@@ -101,7 +102,10 @@ describe('ContainersService', () => {
   let docker: FakeDocker;
   let service: ContainersService;
   let published: ContainersUpdate[];
-  const start = () => service.start((update) => published.push(update));
+  let subscription: Subscription | undefined;
+  const start = () =>
+    (subscription = service.updates$.subscribe((update) => published.push(update)));
+  const stop = () => subscription?.unsubscribe();
   const latest = () => published.at(-1)!;
   const containersOf = (update: ContainersUpdate) =>
     update.dockerAvailable ? update.containers : [];
@@ -118,7 +122,7 @@ describe('ContainersService', () => {
   });
 
   afterEach(() => {
-    service.stop();
+    stop();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -234,13 +238,14 @@ describe('ContainersService', () => {
     expect(service.openStreams).toBe(3);
   });
 
-  it('closes every stream on stop and asks Docker nothing more', async () => {
+  it('closes every stream when unsubscribed, leaving no timers, and asks Docker nothing more', async () => {
     start();
     await vi.advanceTimersByTimeAsync(0);
-    service.stop();
+    stop();
     await vi.advanceTimersByTimeAsync(0);
     expect(FakeStream.open).toBe(0);
     expect(service.openStreams).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
     const calls = docker.listCalls;
     await vi.advanceTimersByTimeAsync(3 * REFRESH_INTERVAL_MS);
     expect(docker.listCalls).toBe(calls);
@@ -254,7 +259,7 @@ describe('ContainersService', () => {
     );
     start();
     const snapshot = service.snapshot();
-    service.stop();
+    stop();
     release();
     await expect(snapshot).rejects.toThrow(/stopped/);
     await expect(service.snapshot()).rejects.toThrow(/not being monitored/);

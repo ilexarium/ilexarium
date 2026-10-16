@@ -7,7 +7,25 @@ import {
   type ContainerStats,
   toContainerHistoryPoint,
 } from '@homelab/shared';
-import { Observable } from 'rxjs';
+import {
+  auditTime,
+  defer,
+  filter,
+  finalize,
+  firstValueFrom,
+  ignoreElements,
+  interval,
+  map,
+  merge,
+  type Observable,
+  of,
+  ReplaySubject,
+  share,
+  Subject,
+  type Subscription,
+  tap,
+} from 'rxjs';
+import { fromAbortable } from '../common/from-abortable.js';
 import { RingBuffer } from '../common/ring-buffer.js';
 import { DockerService } from '../docker/docker.service.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
@@ -22,22 +40,21 @@ export const EVENT_DEBOUNCE_MS = 250;
 export const HISTORY_WINDOW_MS = 15 * 60_000;
 const HISTORY_CAPACITY = HISTORY_WINDOW_MS / PUBLISH_INTERVAL_MS;
 
-/** State of one collecting period, from `start()` to `stop()`. */
+/** State of one collecting period: while `updates$` is subscribed. */
 interface Run {
-  publish: (update: ContainersUpdate) => void;
   /** `null` until the first refresh has answered. */
   dockerAvailable: boolean | null;
   containers: DockerContainer[];
   stats: Map<string, ContainerStats>;
   /** One open stats stream per running container. */
-  statsStreams: Map<string, AbortController>;
-  events: AbortController | null;
+  statsStreams: Map<string, Subscription>;
+  events: Subscription | null;
+  /** A notice for each Docker event (the events stream is reopened at refreshes). */
+  eventNotices: Subject<void>;
   refreshing: Promise<void> | null;
   refreshAgain: boolean;
-  timers: NodeJS.Timeout[];
-  debounce: NodeJS.Timeout | null;
-  /** Snapshots waiting for the first refresh. */
-  waiters: { resolve: () => void; reject: (error: Error) => void }[];
+  /** The first refresh answered, for snapshots taken before it; fails when collecting stops first. */
+  answered$: ReplaySubject<void>;
 }
 
 /**
@@ -53,11 +70,27 @@ export class ContainersService implements TopicSource<'containers'> {
   private readonly history = new Map<string, RingBuffer<ContainerHistoryPoint>>();
   private run: Run | null = null;
 
-  /** While subscribed: collecting (moved onto RxJS in its own step). */
-  readonly updates$ = new Observable<ContainersUpdate>((subscriber) => {
-    this.start((update) => subscriber.next(update));
-    return () => this.stop();
-  });
+  /**
+   * While subscribed: refreshes the list at once, every 10 s and after a burst of Docker events,
+   * and publishes every 2 s.
+   */
+  readonly updates$: Observable<ContainersUpdate> = defer(() => {
+    const run = this.begin();
+    const refreshes$ = merge(
+      of(undefined),
+      interval(REFRESH_INTERVAL_MS),
+      // Events come in bursts (stop → die → stop): one refresh for the burst.
+      run.eventNotices.pipe(auditTime(EVENT_DEBOUNCE_MS)),
+    ).pipe(
+      tap(() => void this.refresh(run)),
+      ignoreElements(),
+    );
+    const publishes$ = interval(PUBLISH_INTERVAL_MS).pipe(
+      map(() => this.update(run)),
+      filter((update): update is ContainersUpdate => update !== null),
+    );
+    return merge(refreshes$, publishes$).pipe(finalize(() => this.end(run)));
+  }).pipe(share());
 
   constructor(
     private readonly docker: DockerService,
@@ -76,45 +109,11 @@ export class ContainersService implements TopicSource<'containers'> {
     return this.run.statsStreams.size + (this.run.events ? 1 : 0);
   }
 
-  start(publish: (update: ContainersUpdate) => void): void {
-    const run: Run = {
-      publish,
-      dockerAvailable: null,
-      containers: [],
-      stats: new Map(),
-      statsStreams: new Map(),
-      events: null,
-      refreshing: null,
-      refreshAgain: false,
-      timers: [],
-      debounce: null,
-      waiters: [],
-    };
-    this.run = run;
-    run.timers.push(
-      setInterval(() => void this.refresh(run), REFRESH_INTERVAL_MS),
-      setInterval(() => this.publishUpdate(run), PUBLISH_INTERVAL_MS),
-    );
-    void this.refresh(run);
-  }
-
-  stop(): void {
-    const run = this.run;
-    if (!run) return;
-    this.run = null;
-    for (const timer of run.timers) clearInterval(timer);
-    if (run.debounce) clearTimeout(run.debounce);
-    this.closeStreams(run);
-    for (const { reject } of run.waiters) reject(new Error('Container monitoring stopped'));
-  }
-
   /** Waits for the first refresh when collecting has only just started. */
   async snapshot(): Promise<ContainersSnapshot> {
     const run = this.run;
     if (!run) throw new Error('Containers are not being monitored');
-    if (run.dockerAvailable === null) {
-      await new Promise<void>((resolve, reject) => run.waiters.push({ resolve, reject }));
-    }
+    if (run.dockerAvailable === null) await firstValueFrom(run.answered$);
     if (!run.dockerAvailable) return { dockerAvailable: false };
     const cutoff = Date.now() - HISTORY_WINDOW_MS;
     const history: Record<string, ContainerHistoryPoint[]> = {};
@@ -128,6 +127,28 @@ export class ContainersService implements TopicSource<'containers'> {
     return { dockerAvailable: true, containers: this.withStats(run), history };
   }
 
+  private begin(): Run {
+    const run: Run = {
+      dockerAvailable: null,
+      containers: [],
+      stats: new Map(),
+      statsStreams: new Map(),
+      events: null,
+      eventNotices: new Subject(),
+      refreshing: null,
+      refreshAgain: false,
+      answered$: new ReplaySubject(1),
+    };
+    this.run = run;
+    return run;
+  }
+
+  private end(run: Run): void {
+    if (this.run === run) this.run = null;
+    this.closeStreams(run);
+    run.answered$.error(new Error('Container monitoring stopped'));
+  }
+
   /** One refresh at a time; a request during one runs once more after it. */
   private refresh(run: Run): Promise<void> {
     if (run.refreshing) {
@@ -135,11 +156,16 @@ export class ContainersService implements TopicSource<'containers'> {
       return run.refreshing;
     }
     run.refreshing = (async () => {
-      do {
-        run.refreshAgain = false;
-        await this.refreshOnce(run);
-      } while (run.refreshAgain && run === this.run);
-      run.refreshing = null;
+      try {
+        do {
+          run.refreshAgain = false;
+          await this.refreshOnce(run);
+        } while (run.refreshAgain && run === this.run);
+      } catch (error) {
+        this.logger.error('Refreshing the containers failed', (error as Error).stack);
+      } finally {
+        run.refreshing = null;
+      }
     })();
     return run.refreshing;
   }
@@ -167,15 +193,15 @@ export class ContainersService implements TopicSource<'containers'> {
       if (!run.events) this.openEvents(run);
       this.dropRemovedHistory(containers);
     }
-    for (const { resolve } of run.waiters.splice(0)) resolve();
+    run.answered$.next();
   }
 
   /** A stats stream for every running container, and none for anything else. */
   private syncStatsStreams(run: Run): void {
     const running = new Set(run.containers.filter((c) => c.state === 'running').map((c) => c.id));
-    for (const [id, controller] of run.statsStreams) {
+    for (const [id, stream] of run.statsStreams) {
       if (running.has(id)) continue;
-      controller.abort();
+      stream.unsubscribe();
       run.statsStreams.delete(id);
       run.stats.delete(id);
     }
@@ -185,70 +211,46 @@ export class ContainersService implements TopicSource<'containers'> {
   }
 
   private openStats(run: Run, id: string): void {
-    const controller = new AbortController();
-    run.statsStreams.set(id, controller);
-    void (async () => {
-      try {
-        for await (const stats of this.docker.containerStats(id, controller.signal)) {
-          if (controller.signal.aborted) break;
-          run.stats.set(id, stats);
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          this.logger.debug(`Stats stream for ${id} ended: ${(error as Error).message}`);
-        }
-      } finally {
-        // Ended by itself (container stopped, Docker restarted): the next refresh decides.
-        if (run.statsStreams.get(id) === controller) run.statsStreams.delete(id);
-      }
-    })();
+    const stream = fromAbortable((signal) => this.docker.containerStats(id, signal)).subscribe({
+      next: (stats) => run.stats.set(id, stats),
+      error: (error: unknown) =>
+        this.logger.debug(`Stats stream for ${id} ended: ${(error as Error).message}`),
+    });
+    run.statsStreams.set(id, stream);
+    // Ended by itself (container stopped, Docker restarted): the next refresh decides.
+    stream.add(() => {
+      if (run.statsStreams.get(id) === stream) run.statsStreams.delete(id);
+    });
   }
 
   private openEvents(run: Run): void {
-    const controller = new AbortController();
-    run.events = controller;
-    void (async () => {
-      try {
-        for await (const _event of this.docker.containerEvents(controller.signal)) {
-          if (controller.signal.aborted) break;
-          this.scheduleRefresh(run);
-        }
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          this.logger.debug(`Docker events stream ended: ${(error as Error).message}`);
-        }
-      } finally {
-        if (run.events === controller) run.events = null; // reopened at the next refresh
-      }
-    })();
-  }
-
-  private scheduleRefresh(run: Run): void {
-    if (run.debounce || run !== this.run) return;
-    run.debounce = setTimeout(() => {
-      run.debounce = null;
-      void this.refresh(run);
-    }, EVENT_DEBOUNCE_MS);
+    const events = fromAbortable((signal) => this.docker.containerEvents(signal)).subscribe({
+      next: () => run.eventNotices.next(),
+      error: (error: unknown) =>
+        this.logger.debug(`Docker events stream ended: ${(error as Error).message}`),
+    });
+    run.events = events;
+    events.add(() => {
+      if (run.events === events) run.events = null; // reopened at the next refresh
+    });
   }
 
   private closeStreams(run: Run): void {
-    for (const controller of run.statsStreams.values()) controller.abort();
+    for (const stream of run.statsStreams.values()) stream.unsubscribe();
     run.statsStreams.clear();
-    run.events?.abort();
+    run.events?.unsubscribe();
     run.events = null;
   }
 
-  private publishUpdate(run: Run): void {
-    if (run.dockerAvailable === null) return;
-    if (!run.dockerAvailable) {
-      run.publish({ dockerAvailable: false });
-      return;
-    }
+  /** The update to publish — none until the first refresh has answered. */
+  private update(run: Run): ContainersUpdate | null {
+    if (run.dockerAvailable === null) return null;
+    if (!run.dockerAvailable) return { dockerAvailable: false };
     const containers = this.withStats(run);
     for (const { id, stats } of containers) {
       if (stats) this.recordHistory(id, stats);
     }
-    run.publish({ dockerAvailable: true, containers });
+    return { dockerAvailable: true, containers };
   }
 
   private withStats(run: Run): Container[] {
