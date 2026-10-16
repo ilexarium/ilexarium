@@ -5,6 +5,7 @@ import {
   AUTH_ERROR_CODES,
   BACKUP_ERROR_CODES,
   CONTAINER_ACTION_ERROR_CODES,
+  DISK_ERROR_CODES,
   SERVICE_ERROR_CODES,
 } from '@homelab/shared';
 import type { FormError } from './forms.model';
@@ -15,6 +16,7 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(CONTAINER_ACTION_ERROR_CODES),
   ...Object.values(SERVICE_ERROR_CODES),
   ...Object.values(BACKUP_ERROR_CODES),
+  ...Object.values(DISK_ERROR_CODES),
 ];
 
 /**

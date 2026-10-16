@@ -1,0 +1,32 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @if (target(); as target) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle>
+          {{
+            (target.connected ? 'disks.unmountDialog.title' : 'disks.unmountDialog.forgetTitle')
+              | translate
+          }}
+        </h2>
+        <p hlmAlertDialogDescription>
+          <code class="break-all" dir="ltr">{{ target.mountPoint }}</code>
+        </p>
+        <p hlmAlertDialogDescription>
+          {{
+            (target.connected ? 'disks.unmountDialog.text' : 'disks.unmountDialog.forgetText')
+              | translate
+          }}
+        </p>
+      </hlm-alert-dialog-header>
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>{{ 'disks.unmountDialog.cancel' | translate }}</button>
+        <button hlmAlertDialogAction (click)="confirmed()">
+          {{
+            (target.connected ? 'disks.unmountDialog.confirm' : 'disks.unmountDialog.confirmForget')
+              | translate
+          }}
+        </button>
+      </hlm-alert-dialog-footer>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>
