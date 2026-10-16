@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { ServicesList } from '@homelab/shared';
-import { auditTime, catchError, EMPTY, from, type Subscription, switchMap } from 'rxjs';
+import { auditTime, catchError, EMPTY, from, type Observable, switchMap } from 'rxjs';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { ServiceJobs } from './service-jobs.js';
@@ -13,31 +13,23 @@ export const SERVICES_PUBLISH_MS = 250;
 @Injectable()
 export class ServicesTopic implements TopicSource<'services'> {
   readonly topic = 'services';
-  private subscription: Subscription | null = null;
+
+  /** While subscribed: at most one list every 250 ms, after any change of a job. */
+  readonly updates$: Observable<ServicesList>;
 
   constructor(
     private readonly services: ServiceManager,
-    private readonly jobs: ServiceJobs,
+    jobs: ServiceJobs,
     subscriptions: RealtimeSubscriptions,
   ) {
+    this.updates$ = jobs.changes$.pipe(
+      auditTime(SERVICES_PUBLISH_MS),
+      switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
+    );
     subscriptions.registerSource(this);
   }
 
   async snapshot(): Promise<ServicesList> {
     return { services: await this.services.list() };
-  }
-
-  start(publish: (update: ServicesList) => void): void {
-    this.subscription = this.jobs.changes$
-      .pipe(
-        auditTime(SERVICES_PUBLISH_MS),
-        switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
-      )
-      .subscribe(publish);
-  }
-
-  stop(): void {
-    this.subscription?.unsubscribe();
-    this.subscription = null;
   }
 }

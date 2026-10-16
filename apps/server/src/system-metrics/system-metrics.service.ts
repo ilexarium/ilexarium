@@ -7,6 +7,7 @@ import {
   type SystemUpdate,
   toSystemHistoryPoint,
 } from '@homelab/shared';
+import { Observable } from 'rxjs';
 import { RingBuffer } from '../common/ring-buffer.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import { bytesPerSecond, cpuUsagePercent } from '../host/proc-parsers.js';
@@ -53,6 +54,12 @@ export class SystemMetricsService implements TopicSource<'system'> {
   );
   private hostInfo: Promise<HostInfo> | null = null;
   private run: Run | null = null;
+
+  /** While subscribed: collecting (moved onto RxJS in its own step). */
+  readonly updates$ = new Observable<SystemUpdate>((subscriber) => {
+    this.start((update) => subscriber.next(update));
+    return () => this.stop();
+  });
 
   constructor(
     private readonly reader: SystemReader,

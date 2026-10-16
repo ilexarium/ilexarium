@@ -1,4 +1,5 @@
 import type { LogsClose, LogsOpen, RealtimeTopic, ServerEventData } from '@homelab/shared';
+import type { Observable } from 'rxjs';
 import type { MessageRateLimiter } from './message-rate-limiter.js';
 
 export interface Connection {
@@ -19,16 +20,16 @@ export interface RealtimeOptions {
 }
 
 /**
- * Where a topic's data comes from (system metrics, Docker). Collects only between `start()` and
- * `stop()`, which the registry calls when the first client subscribes and the last one leaves.
+ * Where a topic's data comes from (system metrics, Docker, backups). Collects only while
+ * `updates$` is subscribed: the registry subscribes when the first client subscribes (before that
+ * client's snapshot) and unsubscribes when the last one leaves.
  */
 export interface TopicSource<T extends RealtimeTopic = RealtimeTopic> {
   readonly topic: T;
   /** Current values plus history — sent to each new subscriber. */
   snapshot(): Promise<SnapshotData<T>>;
-  /** Start collecting; call `publish` with every update until `stop()`. */
-  start(publish: (update: UpdateData<T>) => void): void;
-  stop(): void;
+  /** Every update, while subscribed. Catches its own errors (one that slips through restarts it). */
+  readonly updates$: Observable<UpdateData<T>>;
 }
 
 /**

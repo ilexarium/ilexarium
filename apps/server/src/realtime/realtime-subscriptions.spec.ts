@@ -1,7 +1,8 @@
 import { Logger } from '@nestjs/common';
 import type { ServerMessage, SystemSnapshot, SystemUpdate } from '@homelab/shared';
+import { Observable } from 'rxjs';
 import { WebSocket } from 'ws';
-import { RealtimeSubscriptions } from './realtime-subscriptions.js';
+import { RealtimeSubscriptions, SOURCE_RETRY_MS } from './realtime-subscriptions.js';
 import type { RealtimeClient, TopicSource } from './realtime.model.js';
 
 const update = { uptimeSeconds: 1 } as SystemUpdate;
@@ -25,14 +26,16 @@ class FakeSource implements TopicSource<'system'> {
   starts = 0;
   stops = 0;
   snapshot = vi.fn(async (): Promise<SystemSnapshot> => snapshot);
-  start(publish: (update: SystemUpdate) => void): void {
+  readonly updates$ = new Observable<SystemUpdate>((subscriber) => {
     this.starts++;
-    this.publish = publish;
-  }
-  stop(): void {
-    this.stops++;
-    this.publish = null;
-  }
+    this.publish = (update) => subscriber.next(update);
+    this.fail = (error) => subscriber.error(error);
+    return () => {
+      this.stops++;
+      this.publish = null;
+    };
+  });
+  fail: ((error: Error) => void) | null = null;
   get collecting(): boolean {
     return this.publish !== null;
   }
@@ -158,6 +161,20 @@ describe('RealtimeSubscriptions', () => {
 
   it('refuses a second source for the same topic', () => {
     expect(() => subscriptions.registerSource(new FakeSource())).toThrow(/already registered/);
+  });
+
+  it('restarts a source whose updates failed', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const client = new FakeClient();
+    await subscriptions.subscribe(client, 'system');
+    source.fail!(new Error('boom'));
+    expect(source.collecting).toBe(false);
+    await vi.advanceTimersByTimeAsync(SOURCE_RETRY_MS);
+    expect(source.starts).toBe(2);
+    source.publish!(update);
+    expect(client.events).toEqual(['system:snapshot', 'system:update']);
+    vi.useRealTimers();
   });
 
   it('stops running sources on shutdown', async () => {
