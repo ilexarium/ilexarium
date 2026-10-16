@@ -5,7 +5,6 @@ import {
   catchError,
   EMPTY,
   from,
-  fromEventPattern,
   interval,
   merge,
   type Subscription,
@@ -53,17 +52,13 @@ export class BackupsTopic implements TopicSource<'backups'> {
   }
 
   start(publish: (update: BackupsStatus) => void): void {
-    const slotChanges$ = fromEventPattern<void>(
-      (handler) => this.slot.onChange(handler),
-      (_handler, unsubscribe: () => void) => unsubscribe(),
-    );
     this.subscription = merge(
       this.plans.changes$,
       this.runs.changes$,
       this.progress.changes$,
       this.results.changes$,
       this.restores.changes$,
-      slotChanges$,
+      this.slot.changes$,
       interval(REFRESH_MS),
     )
       .pipe(

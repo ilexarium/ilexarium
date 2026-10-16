@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { type Job, type JobPhase, SERVICE_ERROR_CODES, serviceProject } from '@homelab/shared';
+import { type Observable, Subject } from 'rxjs';
 import { DockerService } from '../docker/docker.service.js';
 import type { ComposeOutcome } from '../executor/executor.model.js';
 import type { ServiceJob as ServiceJobRow } from '../generated/prisma/client.js';
@@ -15,25 +16,22 @@ const JOBS_KEPT = 20;
  * shared with backups; the wrappers' lock enforces the same as root); the running job's phase and
  * output, live; saving its result; keeping the last 20 per service; and, after a restart, marking
  * jobs that were running as interrupted and reading their services' state back from Docker. Every
- * change goes to listeners (the `services` topic).
+ * change goes out on `changes$` (the `services` topic).
  */
 @Injectable()
 export class ServiceJobs implements OnApplicationBootstrap {
   private readonly logger = new Logger(ServiceJobs.name);
   private active: ActiveJob | null = null;
-  private readonly listeners = new Set<() => void>();
+  private readonly changed = new Subject<void>();
+
+  /** Every change: job phase, output, status. */
+  readonly changes$: Observable<void> = this.changed.asObservable();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly docker: DockerService,
     private readonly slot: OperationSlot,
   ) {}
-
-  /** Called on every change (job phase, output, status). Returns the unsubscribe. */
-  onChange(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
 
   /** Jobs the app was running when it stopped are `interrupted`; their services are read back from Docker. */
   async onApplicationBootstrap(): Promise<void> {
@@ -177,6 +175,6 @@ export class ServiceJobs implements OnApplicationBootstrap {
   }
 
   private notify(): void {
-    for (const listener of this.listeners) listener();
+    this.changed.next();
   }
 }

@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { SERVICE_ERROR_CODES } from '@homelab/shared';
+import { type Observable, Subject } from 'rxjs';
 import type { OperationKind } from './jobs.model.js';
 
 /**
@@ -12,7 +13,10 @@ import type { OperationKind } from './jobs.model.js';
 export class OperationSlot {
   private claimed: OperationKind | null = null;
   private external: () => OperationKind | null = () => null;
-  private readonly listeners = new Set<() => void>();
+  private readonly changed = new Subject<void>();
+
+  /** The slot was taken or freed. */
+  readonly changes$: Observable<void> = this.changed.asObservable();
 
   /** What's running now, or null. */
   current(): OperationKind | null {
@@ -47,13 +51,7 @@ export class OperationSlot {
     this.external = source;
   }
 
-  /** Called when the slot is taken or freed. Returns the unsubscribe. */
-  onChange(listener: () => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  notify(): void {
-    for (const listener of this.listeners) listener();
+  private notify(): void {
+    this.changed.next();
   }
 }
