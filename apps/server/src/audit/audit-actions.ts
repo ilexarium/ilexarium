@@ -4,11 +4,19 @@ export const AUDIT_ACTIONS = [
   'auth.login',
   'auth.logout',
   'auth.password_change',
+  'auth.password_confirm',
   'container.start',
   'container.stop',
   'container.restart',
   'service.deploy',
   'service.remove',
+  'backup.configure',
+  'backup.init',
+  'backup.run',
+  'backup.restore',
+  'backup.discard',
+  'backup.forget',
+  'backup.passphrase',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

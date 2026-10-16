@@ -46,6 +46,14 @@ const WRONG_CURRENT_PASSWORD: ApiErrorResponse = {
   ],
 };
 
+/** The same for confirming the password before something sensitive ("Show again"). */
+const WRONG_PASSWORD: ApiErrorResponse = {
+  message: 'Validation failed',
+  errors: [
+    { field: 'password', code: AUTH_ERROR_CODES.wrongPassword, message: 'Password is incorrect' },
+  ],
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -155,5 +163,27 @@ export class AuthService {
       username: user.username,
       ip,
     });
+  }
+
+  /**
+   * The signed-in user's password, asked again before something sensitive (showing the backup
+   * passphrase). Throttled like sign-in; a wrong one is a 400 on the field (never a 401).
+   */
+  async confirmPassword(user: PublicUser, password: string, ip?: string): Promise<void> {
+    this.throttle.assertAllowed(user.username);
+    const credentials = await this.users.findCredentials(user.username);
+    if (!credentials || !(await this.hasher.verify(password, credentials.passwordHash))) {
+      this.throttle.recordFailure(user.username);
+      await this.audit.tryRecord({
+        action: 'auth.password_confirm',
+        outcome: 'failure',
+        userId: user.id,
+        username: user.username,
+        ip,
+        details: { reason: AUTH_ERROR_CODES.wrongPassword },
+      });
+      throw new BadRequestException(WRONG_PASSWORD);
+    }
+    this.throttle.reset(user.username);
   }
 }

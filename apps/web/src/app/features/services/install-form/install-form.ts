@@ -32,6 +32,7 @@ import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
+import { HlmSelectImports } from '@ui/select';
 import { InstallPageStore } from '../install-page/install-page-store';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
@@ -63,6 +64,7 @@ interface AccessItem {
     HlmCardImports,
     HlmFieldImports,
     HlmInput,
+    HlmSelectImports,
     NgTemplateOutlet,
     PasswordToggle,
     TranslatePipe,
@@ -78,6 +80,9 @@ export class InstallForm implements OnInit {
   private readonly injector = inject(Injector);
 
   protected readonly showSecrets = signal(false);
+  /** "Include in backups" (ticked; only shown when a backup plan exists). */
+  protected readonly includeInBackups = signal(true);
+  protected readonly canIncludeInBackups = this.store.canIncludeInBackups;
   protected model!: WritableSignal<FieldValues>;
   protected form!: FieldTree<FieldValues>;
 
@@ -103,7 +108,7 @@ export class InstallForm implements OnInit {
       submission: {
         action: async (tree) => {
           try {
-            await this.store.deploy(tree().value());
+            await this.store.deploy(tree().value(), this.includeInBackups());
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }
@@ -130,6 +135,10 @@ export class InstallForm implements OnInit {
 
   protected booleanField(key: string): FieldTree<boolean> {
     return this.form[key] as unknown as FieldTree<boolean>;
+  }
+
+  protected setIncludeInBackups(event: Event): void {
+    this.includeInBackups.set((event.target as HTMLInputElement).checked);
   }
 
   protected kept(field: UserField): boolean {

@@ -1,4 +1,9 @@
-import { INSTALLED_WRAPPER, wrapperCommand } from './wrapper-command.js';
+import {
+  backupWrapperCommand,
+  INSTALLED_BACKUP_WRAPPER,
+  INSTALLED_WRAPPER,
+  wrapperCommand,
+} from './wrapper-command.js';
 
 describe('wrapperCommand', () => {
   it('runs the installed wrapper through sudo -n, with a fixed small environment', () => {
@@ -36,5 +41,28 @@ describe('wrapperCommand', () => {
     } finally {
       delete process.env['DATABASE_URL_PROBE'];
     }
+  });
+
+  it('runs the backup wrapper the same way: through sudo -n, its action the only argument', () => {
+    expect(backupWrapperCommand('sudo', 'start')).toEqual({
+      file: '/usr/bin/sudo',
+      args: ['-n', INSTALLED_BACKUP_WRAPPER, 'start'],
+      env: { PATH: '/usr/sbin:/usr/bin:/sbin:/bin', LANG: 'C.UTF-8' },
+    });
+    expect(INSTALLED_BACKUP_WRAPPER).toBe('/opt/homelab/libexec/homelab-backup.mts');
+    expect(
+      backupWrapperCommand('direct', 'passphrase', {
+        wrapper: '/repo/b.mts',
+        configFile: '/c.json',
+      }),
+    ).toEqual({
+      file: process.execPath,
+      args: ['/repo/b.mts', 'passphrase'],
+      env: {
+        PATH: '/usr/sbin:/usr/bin:/sbin:/bin',
+        LANG: 'C.UTF-8',
+        HOMELAB_WRAPPER_CONFIG: '/c.json',
+      },
+    });
   });
 });

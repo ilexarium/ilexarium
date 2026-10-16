@@ -6,6 +6,8 @@ export interface NavItem {
   icon: string;
   /** Active only on this exact URL (for `/`, which every URL starts with). */
   exact?: boolean;
+  /** Shows a badge when this part of the app needs attention. */
+  attention?: 'backups';
 }
 
 export interface NavGroup {

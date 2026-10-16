@@ -94,3 +94,10 @@ export function formatLogTime(at: string): string {
     `.${pad(date.getMilliseconds(), 3)}`
   );
 }
+
+/** A moment as date and time, in the language's own way (e.g. "14 Oct 2026, 03:00"). */
+export function formatDateTime(at: string, locale = 'en'): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(at),
+  );
+}

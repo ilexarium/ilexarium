@@ -1,0 +1,35 @@
+<section hlmCard class="max-w-3xl border-primary" aria-labelledby="passphrase-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="passphrase-title" class="flex items-center gap-2">
+      <ng-icon name="lucideKeyRound" aria-hidden="true" />
+      {{ 'backups.passphrase.title' | translate }}
+    </h2>
+    <p hlmCardDescription>
+      {{ (first() ? 'backups.passphrase.firstText' : 'backups.passphrase.text') | translate }}
+    </p>
+  </div>
+  <div hlmCardContent class="grid gap-4">
+    <ol
+      class="grid grid-cols-2 gap-2 sm:grid-cols-3"
+      dir="ltr"
+      [attr.aria-label]="'backups.passphrase.words' | translate"
+    >
+      @for (word of words(); track $index) {
+        <li class="flex items-baseline gap-2 rounded-md bg-muted px-3 py-2 font-mono text-base">
+          <span class="text-xs text-muted-foreground">{{ $index + 1 }}</span>
+          <span class="break-all">{{ word }}</span>
+        </li>
+      }
+    </ol>
+    <div hlmAlert role="note">
+      <p hlmAlertDescription>{{ 'backups.passphrase.keep' | translate }}</p>
+    </div>
+  </div>
+  <div hlmCardFooter class="flex flex-wrap gap-2">
+    <button hlmBtn variant="outline" (click)="copy()">
+      <ng-icon [name]="copied() ? 'lucideCheck' : 'lucideCopy'" aria-hidden="true" />
+      {{ (copied() ? 'backups.passphrase.copied' : 'backups.passphrase.copy') | translate }}
+    </button>
+    <button hlmBtn (click)="saved.emit()">{{ 'backups.passphrase.saved' | translate }}</button>
+  </div>
+</section>

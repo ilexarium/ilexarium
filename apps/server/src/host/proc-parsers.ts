@@ -1,4 +1,4 @@
-import type { CpuTimes, MemoryInfo, Mount, NetCounters } from './host.model.js';
+import type { CpuTimes, MemoryInfo, Mount, MountPoint, NetCounters } from './host.model.js';
 // Pure parsers for the Linux files system metrics come from (see proc(5) and os-release(5)).
 // No file access here — `SystemReader` reads, these turn text into numbers.
 
@@ -124,6 +124,30 @@ export function parseMounts(mounts: string): Mount[] {
       mount: unescape(mount),
       fsType,
     }));
+}
+
+/**
+ * `/proc/self/mountinfo`: every mount point with its file system type and device (`major:minor`).
+ * Unlike /proc/self/mounts it names bind mounts' roots and is what the backup wrapper reads.
+ */
+export function parseMountInfo(mountInfo: string): MountPoint[] {
+  const unescape = (field: string) =>
+    field.replace(/\\([0-7]{3})/g, (_, octal: string) => String.fromCharCode(parseInt(octal, 8)));
+  const points: MountPoint[] = [];
+  for (const line of mountInfo.split('\n')) {
+    const [before, after] = line.split(' - ');
+    if (!after) continue;
+    const fields = before.split(' ');
+    const [fsType, source] = after.split(' ');
+    if (fields.length < 5 || !fsType) continue;
+    points.push({
+      mount: unescape(fields[4]),
+      device: fields[2],
+      fsType,
+      source: unescape(source ?? ''),
+    });
+  }
+  return points;
 }
 
 /** Real local filesystems, one per device (the first mount of a device — usually the main one). */

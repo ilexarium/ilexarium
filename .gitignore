@@ -37,3 +37,6 @@ apps/server/src/generated/
 
 # Local dev state (setup token file, …)
 .dev/
+
+# The browser check (tools/browser/): its build, state (a test master key and passphrase), logs, screenshots
+tools/browser/run/

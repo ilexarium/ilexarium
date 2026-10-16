@@ -1,10 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { CatalogEntrySummary, Container, InstalledService, ServiceJob } from '@homelab/shared';
+import type { CatalogEntrySummary, Container, InstalledService, Job } from '@homelab/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
+import { BackupsStore } from '../../../core/backups/backups-store';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
 import { ServicesApi } from '../../../core/services/services-api';
@@ -14,11 +15,25 @@ import { ServicesPage } from './services-page';
 const SERVICE_ID = '0193a000-0000-7000-8000-0000000000aa';
 
 const catalog: CatalogEntrySummary[] = [
-  { id: 'immich', name: 'Immich', category: 'photos', status: 'installed' },
-  { id: 'navidrome', name: 'Navidrome', category: 'media', status: null },
+  {
+    id: 'immich',
+    name: 'Immich',
+    category: 'photos',
+    status: 'installed',
+    backupFolders: ['UPLOAD_DIR'],
+    backupRestoreNote: true,
+  },
+  {
+    id: 'navidrome',
+    name: 'Navidrome',
+    category: 'media',
+    status: null,
+    backupFolders: ['DATA_DIR', 'MUSIC_DIR'],
+    backupRestoreNote: false,
+  },
 ];
 
-const job = (change: Partial<ServiceJob> = {}): ServiceJob => ({
+const job = (change: Partial<Job> = {}): Job => ({
   id: '0193a000-0000-7000-8000-000000000001',
   kind: 'deploy',
   status: 'running',
@@ -95,6 +110,45 @@ const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]')
 
 describe('ServicesPage', () => {
   afterEach(() => vi.restoreAllMocks());
+
+  it('says on each card whether it is backed up, once backups are set up', async () => {
+    const { el, fixture, socket, services } = await render();
+    TestBed.inject(BackupsStore).watch();
+    await services([immich()]);
+    const card = () => el.querySelector('app-installed-service')!;
+    expect(card().textContent).not.toContain('backed up');
+    const status = (items: object[]) => ({
+      event: 'backups:update',
+      data: {
+        configured: true,
+        warnings: [],
+        lastSuccessAt: null,
+        nextRunAt: null,
+        running: null,
+        lastRun: null,
+        items,
+        restore: null,
+        lastCheck: null,
+      },
+    });
+    socket.receive(status([]));
+    await fixture.whenStable();
+    expect(card().textContent).toContain('Not backed up');
+    socket.receive(
+      status([
+        {
+          id: '0193a000-0000-7000-8000-0000000000c1',
+          kind: 'service',
+          serviceId: SERVICE_ID,
+          lastSuccessAt: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+          lastStatus: 'ok',
+        },
+      ]),
+    );
+    await fixture.whenStable();
+    expect(card().textContent).toContain('Backed up 3 hours ago');
+    expect(card().querySelector('a[href="/backups"]')).not.toBeNull();
+  });
 
   it('follows the services and containers topics until it is left', async () => {
     const { fixture, socket } = await render();
@@ -212,7 +266,8 @@ describe('ServicesPage', () => {
       .click();
     await vi.waitFor(() => expect(error).toHaveBeenCalled());
     expect(error).toHaveBeenCalledWith("Couldn't remove Immich", {
-      description: 'Another install or removal is running. Try again when it has finished.',
+      description:
+        'Another operation (an install, a backup or a restore) is running. Try again when it has finished.',
     });
   });
 

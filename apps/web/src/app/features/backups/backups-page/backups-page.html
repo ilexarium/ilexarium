@@ -1,0 +1,74 @@
+@if (!store.loaded()) {
+  <div class="grid gap-4" role="status" [attr.aria-label]="'backups.loading' | translate">
+    <hlm-skeleton class="h-40 w-full max-w-3xl rounded-xl" />
+    <hlm-skeleton class="h-64 w-full max-w-3xl rounded-xl" />
+  </div>
+} @else if (store.failed()) {
+  <p role="alert" class="text-sm text-destructive">{{ 'backups.failed' | translate }}</p>
+} @else if (store.plan(); as plan) {
+  <div class="grid grid-cols-1 gap-4 md:gap-6">
+    @if (store.passphrase(); as passphrase) {
+      <app-passphrase-card
+        [passphrase]="passphrase"
+        [first]="store.passphraseFirst()"
+        (saved)="store.hidePassphrase()"
+      />
+    }
+    @if (store.status(); as status) {
+      <app-backup-overview
+        [status]="status"
+        [destination]="plan.destinationStatus"
+        [destinationPath]="plan.destination"
+        [labels]="labels()"
+        [pending]="store.pending().includes('run')"
+        (runNow)="store.runNow()"
+      />
+    }
+    @if (restore(); as latest) {
+      <app-restore-status
+        [restore]="latest"
+        [label]="labels().get(latest.itemId) ?? { text: '', ltr: false }"
+        [note]="restoreNote()"
+        [pending]="store.pending().includes('discard:' + latest.id)"
+        (discard)="store.discardPrevious(latest.id)"
+      />
+    }
+    <app-backup-items
+      [active]="store.rows().active"
+      [removed]="store.rows().removed"
+      [addable]="store.addable()"
+      [labels]="labels()"
+      [pending]="store.pending()"
+      [running]="store.running() !== null"
+      [folderListing]="store.folders()"
+      (runNow)="store.runNow($event)"
+      (restore)="openRestore($event)"
+      (setFolders)="store.setFolders($event.itemId, $event.excludedFields)"
+      (remove)="store.removeItem($event.itemId, $event.deleteArchives)"
+      (addService)="store.addService($event)"
+      (addFolder)="store.addFolder($event)"
+      (browse)="store.browse($event)"
+      (closeBrowser)="store.closeBrowser()"
+    />
+    <app-backup-history
+      [runs]="store.runs()"
+      [outputs]="store.outputs()"
+      [labels]="labels()"
+      (openOutput)="store.loadOutput($event)"
+    />
+    <app-backup-settings [plan]="plan" [destinations]="store.destinations()" />
+  </div>
+  <app-restore-dialog
+    [archives]="store.archives()?.list ?? null"
+    [labels]="labels()"
+    (restore)="store.restore($event)"
+  />
+} @else {
+  <app-backup-setup
+    [destinations]="store.destinations()"
+    [services]="store.backupable()"
+    [folderListing]="store.folders()"
+    (browse)="store.browse($event)"
+    (closeBrowser)="store.closeBrowser()"
+  />
+}

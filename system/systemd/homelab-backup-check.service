@@ -1,0 +1,22 @@
+# /etc/systemd/system/homelab-backup-check.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# A repository check (`borg check`; the first of each month also reads all data back), started by
+# homelab-backup-check.timer. Its result goes to /var/lib/homelab/backups/runs.jsonl.
+
+[Unit]
+Description=Homelab backup repository check
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/homelab/libexec/homelab-backup.mts check-scheduled
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=24h
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes

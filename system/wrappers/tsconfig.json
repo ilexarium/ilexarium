@@ -1,0 +1,18 @@
+{
+  // Type checking only (editors, `npx tsc -p system/wrappers`): Node runs the wrappers' .mts
+  // directly, stripping the types — nothing here is compiled or installed as code.
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "ES2023",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["**/*.mts", "**/*.ts"]
+}

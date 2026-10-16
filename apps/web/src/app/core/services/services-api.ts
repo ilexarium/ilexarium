@@ -6,7 +6,7 @@ import type {
   DeployRequest,
   DeployResponse,
   RemoveResponse,
-  ServiceJob,
+  Job,
 } from '@homelab/shared';
 import { firstValueFrom } from 'rxjs';
 
@@ -41,9 +41,7 @@ export class ServicesApi {
     );
   }
 
-  job(jobId: string): Promise<ServiceJob> {
-    return firstValueFrom(
-      this.http.get<ServiceJob>(`/api/services/jobs/${encodeURIComponent(jobId)}`),
-    );
+  job(jobId: string): Promise<Job> {
+    return firstValueFrom(this.http.get<Job>(`/api/services/jobs/${encodeURIComponent(jobId)}`));
   }
 }

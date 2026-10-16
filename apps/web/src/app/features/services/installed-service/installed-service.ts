@@ -9,8 +9,9 @@ import { HlmBadgeImports } from '@ui/badge';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { catalogIconUrl } from '../../../core/services/services-api';
-import { JobProgress } from '../job-progress/job-progress';
-import type { ServiceRuntime } from '../services.model';
+import { JobProgress } from '../../../shared/job-progress/job-progress';
+import { Formatter } from '../../../shared/format/formatter';
+import type { ServiceBackup, ServiceRuntime } from '../services.model';
 
 /**
  * One installed service: its state, an Open link to its web page, Remove (after a confirmation —
@@ -38,11 +39,14 @@ export class InstalledServiceCard {
   readonly service = input.required<InstalledService>();
   /** Null while the containers aren't known yet (or Docker isn't reachable). */
   readonly runtime = input<ServiceRuntime | null>(null);
+  /** Null until backups are set up (then every service has a state). */
+  readonly backup = input<ServiceBackup | null>(null);
 
   /** Remove was confirmed. */
   readonly remove = output<void>();
 
   private readonly location = inject(DOCUMENT).location;
+  protected readonly format = inject(Formatter);
   private readonly dialog = viewChild.required(HlmAlertDialog);
 
   protected readonly iconUrl = computed(() => catalogIconUrl(this.service().catalogId));

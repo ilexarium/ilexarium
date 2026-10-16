@@ -1,17 +1,26 @@
 import { computed, inject } from '@angular/core';
 import { signalStore, withComputed, withHooks, withMethods } from '@ngrx/signals';
+import { BackupsStore } from '../../../core/backups/backups-store';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import type { ContainerActionRequest } from '../../../core/containers/containers.model';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 
 /**
  * The dashboard's data, provided by the page and gone with it: the host and every container,
- * live (the `system` and `containers` topics while the page is open), and container actions.
+ * live (the `system` and `containers` topics while the page is open), container actions, and
+ * the backups' warnings.
  */
 export const DashboardPageStore = signalStore(
   withComputed(
-    (_, monitoring = inject(MonitoringStore), actions = inject(ContainerActionsStore)) => ({
+    (
+      _,
+      monitoring = inject(MonitoringStore),
+      actions = inject(ContainerActionsStore),
+      backups = inject(BackupsStore),
+    ) => ({
       system: computed(() => monitoring.system()),
+      /** What needs attention in the backups (the shell follows their status all along). */
+      backupWarnings: computed(() => backups.warnings()),
       containers: computed(() => monitoring.containers()),
       pending: computed(() => actions.pending()),
     }),
