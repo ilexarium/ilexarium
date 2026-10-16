@@ -2,8 +2,8 @@
   <div hlmCardHeader>
     <h2 hlmCardTitle id="settings-title">{{ 'backups.settings.title' | translate }}</h2>
   </div>
-  <div hlmCardContent class="grid gap-6">
-    <form [formRoot]="form" class="grid gap-5">
+  <div hlmCardContent class="grid grid-cols-1 gap-6">
+    <form [formRoot]="form" class="grid grid-cols-1 gap-5">
       @for (error of form().errors(); track error) {
         <div hlmAlert variant="destructive" role="alert">
           <p hlmAlertDescription>{{ error | errorText }}</p>
@@ -66,12 +66,12 @@
         }
       </fieldset>
 
-      <div hlmField class="max-w-md">
+      <div hlmField class="min-w-0 max-w-md">
         <label hlmFieldLabel for="settings-disk">{{ 'backups.settings.disk' | translate }}</label>
         <!-- Paths are machine text: left to right. -->
         <hlm-select [formField]="form.destination" dir="ltr">
-          <hlm-select-trigger buttonId="settings-disk" class="w-full"
-            ><hlm-select-value
+          <hlm-select-trigger buttonId="settings-disk" class="w-full min-w-0"
+            ><hlm-select-value class="min-w-0 truncate"
           /></hlm-select-trigger>
           <hlm-select-content *hlmSelectPortal>
             @for (disk of disks(); track disk) {

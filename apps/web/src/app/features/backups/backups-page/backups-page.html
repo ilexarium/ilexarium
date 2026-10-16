@@ -6,7 +6,7 @@
 } @else if (store.failed()) {
   <p role="alert" class="text-sm text-destructive">{{ 'backups.failed' | translate }}</p>
 } @else if (store.plan(); as plan) {
-  <div class="grid gap-4 md:gap-6">
+  <div class="grid grid-cols-1 gap-4 md:gap-6">
     @if (store.passphrase(); as passphrase) {
       <app-passphrase-card
         [passphrase]="passphrase"
