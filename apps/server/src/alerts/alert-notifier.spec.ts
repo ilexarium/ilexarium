@@ -41,7 +41,7 @@ describe('AlertNotifier', () => {
     const records = {
       events$: events.asObservable(),
       markSent: async (id: string) => void marked.push(id),
-      dueReminders: async () => reminders,
+      dueReminders: async () => reminders.filter((a) => !marked.includes(a.id)),
     } as unknown as AlertRecords;
     const channels = {
       enabled: async () => enabled,
@@ -112,6 +112,39 @@ describe('AlertNotifier', () => {
     expect(sent[10].body).toContain('- svc-10 has stopped');
     expect(sent[10].body).toContain('- svc-12 has stopped');
     expect(sent[10].severity).toBe('critical');
+  });
+
+  it('counts a held message as sent only once it has gone out', async () => {
+    for (let i = 0; i < 11; i++) {
+      events.next({ type: 'opened', alert: alert(`svc-${i}`) });
+      await settle();
+    }
+    expect(marked).not.toContain('id-svc-10');
+    await vi.advanceTimersByTimeAsync(3_600_000);
+    expect(marked).toContain('id-svc-10');
+  });
+
+  it('drops held messages if every channel is switched off meanwhile, not marking them sent', async () => {
+    for (let i = 0; i < 11; i++) {
+      events.next({ type: 'opened', alert: alert(`svc-${i}`) });
+      await settle();
+    }
+    enabled = [];
+    await vi.advanceTimersByTimeAsync(3_600_000);
+    expect(sent).toHaveLength(10);
+    expect(marked).not.toContain('id-svc-10');
+  });
+
+  it('doesn’t remind of an alert whose message is still held', async () => {
+    for (let i = 0; i < 11; i++) {
+      events.next({ type: 'opened', alert: alert(`svc-${i}`) });
+      await settle();
+    }
+    reminders = [alert('svc-10')];
+    await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS);
+    // Not held a second time: when the hour allows, only its own message goes.
+    await vi.advanceTimersByTimeAsync(3_600_000);
+    expect(sent.slice(10).map((m) => m.title)).toEqual(['svc-10 has stopped']);
   });
 
   it('tries a failed delivery once more after a minute, then leaves it', async () => {

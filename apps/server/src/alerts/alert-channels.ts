@@ -41,7 +41,8 @@ interface EmailSecrets {
   password: string | null;
 }
 interface NtfySecrets {
-  topicUrl: string;
+  /** Null: saved switched off before a topic was ever entered. */
+  topicUrl: string | null;
   token: string | null;
 }
 
@@ -161,8 +162,8 @@ export class AlertChannels {
   async updateNtfy(update: NtfyChannelUpdate, actor: ChannelActor): Promise<void> {
     const existing = await this.prisma.alertChannel.findUnique({ where: { kind: 'ntfy' } });
     const stored = existing ? this.decrypt<NtfySecrets>(existing) : null;
-    const topicUrl = update.topicUrl ?? stored?.topicUrl;
-    if (!topicUrl) {
+    const topicUrl = update.topicUrl ?? stored?.topicUrl ?? null;
+    if (update.enabled && !topicUrl) {
       throw failure(ALERT_ERROR_CODES.topicRequired, 'Enter the topic URL', 'topicUrl');
     }
     if (update.topicUrl) {

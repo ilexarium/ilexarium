@@ -27,7 +27,8 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   private readonly host = hostname();
   /** When the messages of the last hour were sent. */
   private sentAt: number[] = [];
-  private held: AlertMessage[] = [];
+  /** Messages over the hour's limit, and the alerts they're for (marked sent once they go). */
+  private held: { message: AlertMessage; alertId: string | null }[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private readonly retries = new Set<NodeJS.Timeout>();
   private readonly subscriptions: Subscription[] = [];
@@ -78,16 +79,18 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   async handle(event: AlertEvent): Promise<void> {
     // Out of memory is a one-off event: its closing an hour later is no news.
     if (event.type === 'closed' && event.alert.kind === 'outOfMemory') return;
-    const sent = await this.send(this.message(event));
-    if (sent && event.type !== 'closed') await this.records.markSent(event.alert.id, new Date());
+    await this.send(this.message(event), event.type === 'closed' ? null : event.alert.id);
   }
 
-  /** Critical alerts still open and not acknowledged a day after their last message. */
+  /**
+   * Critical alerts still open and not acknowledged a day after their last message — or never
+   * sent (no channel was switched on when they opened).
+   */
   async remind(): Promise<void> {
+    const waiting = new Set(this.held.map((h) => h.alertId));
     for (const alert of await this.records.dueReminders(new Date())) {
-      if (await this.send(this.message({ type: 'reminder', alert }))) {
-        await this.records.markSent(alert.id, new Date());
-      }
+      if (waiting.has(alert.id)) continue;
+      await this.send(this.message({ type: 'reminder', alert }), alert.id);
     }
   }
 
@@ -99,17 +102,20 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** Sends now, or holds it when the hour's 10 are used. False when no channel is switched on. */
-  private async send(message: AlertMessage): Promise<boolean> {
+  /**
+   * Sends now, or holds it when the hour's 10 are used; nothing without a channel switched on.
+   * The alert counts as sent (`lastSentAt`) only once its message has gone out.
+   */
+  private async send(message: AlertMessage, alertId: string | null): Promise<void> {
     const channels = await this.channels.enabled();
-    if (channels.length === 0) return false;
+    if (channels.length === 0) return;
     if (!this.takeSlot()) {
-      this.held.push(message);
+      this.held.push({ message, alertId });
       this.scheduleFlush();
-      return true;
+      return;
     }
     await this.deliver(channels, message);
-    return true;
+    if (alertId) await this.records.markSent(alertId, new Date());
   }
 
   private async deliver(channels: ChannelConfig[], message: AlertMessage): Promise<void> {
@@ -154,8 +160,15 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     }
     const held = this.held;
     this.held = [];
+    // Switched off meanwhile: dropped, not counted as sent (critical ones are reminded later).
     const channels = await this.channels.enabled();
     if (channels.length === 0) return;
-    await this.deliver(channels, held.length === 1 ? held[0] : groupedMessage(held, this.host));
+    const messages = held.map((h) => h.message);
+    await this.deliver(
+      channels,
+      messages.length === 1 ? messages[0] : groupedMessage(messages, this.host),
+    );
+    const now = new Date();
+    for (const { alertId } of held) if (alertId) await this.records.markSent(alertId, now);
   }
 }

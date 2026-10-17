@@ -108,7 +108,7 @@ describe('TopBar alerts bell', () => {
 
   it('shows how many alerts are open, red when one is critical', async () => {
     const { fixture, bell } = await render();
-    TestBed.inject(AlertsStore).update(
+    TestBed.inject(AlertsStore).fill(
       alertsStatus({ open: [testAlert({ severity: 'warning' }), testAlert()] }),
     );
     await fixture.whenStable();

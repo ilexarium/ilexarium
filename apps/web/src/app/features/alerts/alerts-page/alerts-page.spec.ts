@@ -20,7 +20,7 @@ async function render(start: AlertsStatus | null) {
     providers: [provideRouter([]), auth.provider, { provide: AlertsApi, useValue: api }],
   });
   await TestBed.inject(AuthStore).load();
-  if (start) TestBed.inject(AlertsStore).update(start);
+  if (start) TestBed.inject(AlertsStore).fill(start);
   else api.status.mockReturnValue(new Promise(() => undefined)); // never answers
   const fixture = TestBed.createComponent(AlertsPage);
   await fixture.whenStable();
@@ -84,24 +84,33 @@ describe('AlertsPage', () => {
     expect(section('alerts-closed').textContent).toContain('Nothing in the last 7 days.');
   });
 
-  it('acknowledges an alert, and shows who did', async () => {
+  it('acknowledges an alert, and shows who did at once', async () => {
     const alert = testAlert();
-    const { fixture, el, api } = await render(alertsStatus({ open: [alert] }));
-    api.status.mockResolvedValue(
-      alertsStatus({
-        open: [{ ...alert, acknowledgedAt: '2026-10-17T12:30:00.000Z', acknowledgedBy: 'owner' }],
-      }),
-    );
-    const button = [...el.querySelectorAll('button')].find((b) =>
-      b.textContent!.includes('Acknowledge'),
-    )!;
-    button.click();
+    const other = testAlert({ subject: 'hl-jellyfin-1', serviceName: 'Jellyfin' });
+    const { fixture, el, api } = await render(alertsStatus({ open: [alert, other] }));
+    api.status.mockClear();
+    const card = (name: string) =>
+      [...el.querySelectorAll('app-alert-card')].find((c) => c.textContent!.includes(name))!;
+    card('Immich')
+      .querySelectorAll('button')
+      .forEach((b) => b.textContent!.includes('Acknowledge') && b.click());
     await fixture.whenStable();
     expect(api.acknowledge).toHaveBeenCalledWith(alert.id);
-    expect(el.textContent).toContain('Acknowledged by owner');
-    expect(
-      [...el.querySelectorAll('button')].some((b) => b.textContent!.includes('Acknowledge')),
-    ).toBe(false);
+    // Shown from here; no second request whose older answer could undo the topic's news.
+    expect(api.status).not.toHaveBeenCalled();
+    expect(card('Immich').textContent).toContain('Acknowledged by owner');
+    expect(card('Immich').querySelector('button')).toBeNull();
+    expect(card('Jellyfin').textContent).toContain('Acknowledge');
+  });
+
+  it('a late answer of its first load doesn’t replace what the topic said meanwhile', async () => {
+    const { fixture, el, api } = await render(null);
+    const store = TestBed.inject(AlertsStore);
+    store.fill(alertsStatus({ open: [testAlert()] })); // the topic
+    store.fill(alertsStatus()); // the slower HTTP answer
+    await fixture.whenStable();
+    expect(api.status).toHaveBeenCalled();
+    expect(el.textContent).toContain('Immich has stopped');
   });
 
   it('reports a failed acknowledgement in a toast', async () => {

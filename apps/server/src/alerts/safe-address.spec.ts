@@ -15,6 +15,15 @@ describe('classify', () => {
     ['224.0.0.1', 'refused'],
     ['255.255.255.255', 'refused'],
     ['::ffff:169.254.169.254', 'refused'],
+    ['::ffff:a9fe:a9fe', 'refused'],
+    ['0:0:0:0:0:ffff:a9fe:a9fe', 'refused'],
+    ['::a9fe:a9fe', 'refused'],
+    ['::169.254.169.254', 'refused'],
+    ['::ffff:0:a9fe:a9fe', 'refused'],
+    ['64:ff9b::a9fe:a9fe', 'refused'],
+    ['64:ff9b:1::a9fe:a9fe', 'refused'],
+    ['::ffff:7f00:1', 'loopback'],
+    ['::ffff:c0a8:10a', 'private'],
     ['127.0.0.1', 'loopback'],
     ['::1', 'loopback'],
     ['::ffff:127.0.0.1', 'loopback'],
@@ -46,6 +55,12 @@ describe('checkTarget', () => {
         problem: 'addressRefused',
       });
     }
+  });
+
+  it('refuses link-local addresses in a URL’s IPv6 form (the URL parser writes it in hex)', async () => {
+    const host = new URL('http://[::ffff:169.254.169.254]/t').hostname;
+    expect(host).toBe('[::ffff:a9fe:a9fe]');
+    await expect(check(host, 80, true)).rejects.toMatchObject({ problem: 'addressRefused' });
   });
 
   it('refuses link-local addresses (cloud metadata), typed or resolved', async () => {

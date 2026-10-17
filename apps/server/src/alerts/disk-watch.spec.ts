@@ -35,6 +35,19 @@ describe('DiskWatch', () => {
     expect(watch.update([disk('/', 98)], 5 * MINUTE)[0].severity).toBe('critical');
   });
 
+  it('stays critical down to 95 %, so hovering at 97 % doesn’t flip it', () => {
+    const watch = new DiskWatch();
+    watch.update([disk('/', 98)], 0);
+    const severity = (percent: number, at: number) =>
+      watch.update([disk('/', percent)], at)[0].severity;
+    expect(severity(97, 5 * MINUTE)).toBe('critical');
+    expect(severity(96, 6 * MINUTE)).toBe('critical');
+    expect(severity(97, 7 * MINUTE)).toBe('critical');
+    expect(severity(95, 8 * MINUTE)).toBe('critical');
+    expect(severity(94, 9 * MINUTE)).toBe('warning');
+    expect(severity(96, 10 * MINUTE)).toBe('warning');
+  });
+
   it('stays open down to 85 % and closes below it', () => {
     const watch = new DiskWatch();
     watch.update([disk('/', 95)], 0);

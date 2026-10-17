@@ -3,6 +3,7 @@ import { patchState, signalStore, withHooks, withMethods, withState } from '@ngr
 import { toast } from '@spartan-ng/brain/sonner';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
+import { AuthStore } from '../../../core/auth/auth-store';
 import { Translator } from '../../../core/i18n/translator';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
 
@@ -23,11 +24,12 @@ export const AlertsPageStore = signalStore(
       store,
       api = inject(AlertsApi),
       alerts = inject(AlertsStore),
+      auth = inject(AuthStore),
       translator = inject(Translator),
     ) => ({
       async load(): Promise<void> {
         try {
-          alerts.update(await api.status());
+          alerts.fill(await api.status());
         } catch {
           // The topic brings them when it can; the page shows its loading state until then.
         }
@@ -38,7 +40,7 @@ export const AlertsPageStore = signalStore(
         patchState(store, { pending: [...store.pending(), id] });
         try {
           await api.acknowledge(id);
-          alerts.update(await api.status());
+          alerts.acknowledged(id, auth.user()?.username ?? '', new Date().toISOString());
         } catch (error) {
           toast.error(translator.t('alerts.acknowledgeFailed'), {
             description: translator.t(...apiErrorText(error)),

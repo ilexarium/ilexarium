@@ -52,6 +52,8 @@ const PRUNE_MS = 3_600_000;
 const BACKUP_SETTLE_MS = 1_000;
 
 const COMPOSE_PREFIX = 'hl-';
+/** The Docker events the rules use. */
+const HANDLED_ACTIONS = new Set(['die', 'start', 'oom', 'health_status']);
 const BACKUP_CRITICAL = new Set<BackupWarning>([
   'serviceNotRestarted',
   'repositoryDamaged',
@@ -173,14 +175,17 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private async onEvent(event: DockerContainerEvent): Promise<void> {
-    if (!event.name) return;
+    // Taken when it happened, not after the lookup below.
+    const now = Date.now();
+    const onPurpose = this.slot.current() !== null;
+    const [action, status] = event.action.split(':').map((part) => part.trim());
+    // Only these say anything to the rules: no database lookup for the rest (create, stop, …).
+    if (!event.name || !HANDLED_ACTIONS.has(action)) return;
     const catalogId = await this.watchedCatalogId(event);
     if (catalogId === undefined) return;
-    const now = Date.now();
-    const [action, status] = event.action.split(':').map((part) => part.trim());
     switch (action) {
       case 'die':
-        if (this.slot.current() !== null) {
+        if (onPurpose) {
           this.containers.stoppedOnPurpose(event.name, catalogId, now);
         } else this.containers.died(event.name, catalogId, now);
         break;
@@ -218,6 +223,7 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
 
   private async listContainers(): Promise<void> {
     const takenAt = Date.now();
+    const onPurpose = this.slot.current() !== null;
     const [list, services] = await Promise.all([
       this.docker.listContainers(),
       this.prisma.service.findMany({ where: { status: 'installed' }, select: { catalogId: true } }),
@@ -237,7 +243,8 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
         health: container.health,
       });
     }
-    this.containers.seen(watched, takenAt);
+    // Stopped while an operation ran (when the list was asked for): not counted.
+    this.containers.seen(watched, takenAt, onPurpose || this.slot.current() !== null);
   }
 
   private async checkDiskUsage(): Promise<void> {

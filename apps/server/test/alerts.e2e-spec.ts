@@ -274,6 +274,14 @@ describe('alerts (e2e)', () => {
       .put('/alerts/channels/ntfy', { enabled: true, topicUrl: 'https://user:pw@ntfy.sh/t' })
       .expect(400);
     await api().put('/alerts/channels/ntfy', { enabled: true }).expect(400);
+    // Switched off, no topic yet: saved as off.
+    await api().put('/alerts/channels/ntfy', { enabled: false }).expect(204);
+    expect(((await api().get('/alerts/channels')).body as AlertChannelsResponse).ntfy).toEqual({
+      enabled: false,
+      topicSet: false,
+      tokenSet: false,
+      lastFailure: null,
+    });
     await api()
       .put('/alerts/channels/email', emailSettings({ to: 'not an address' }))
       .expect(400);
