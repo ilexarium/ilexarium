@@ -10,16 +10,22 @@ export function usedPercent(disk: Pick<DiskUsage, 'sizeBytes' | 'usedBytes'>): n
 
 /**
  * The "disk filling up" rule (docs/plans/health_alerts.md): above 90 % for 5 minutes opens it —
- * critical above 97 % — and it closes below 85 % (so a disk at 90 % doesn't open and close all
- * day). A disk no longer mounted closes it (a disk mounted here has "disk missing" for that).
+ * critical from 97 %, a warning again below 95 % — and it closes below 85 % (so a disk at 90 %
+ * doesn't open and close all day, nor one at 97 % send a message each time it crosses). A disk no longer mounted closes it (a disk mounted here has "disk missing" for that).
  */
 export class DiskWatch {
   /** Mount point → when it went above the threshold. */
   private readonly fullSince = new Map<string, number>();
   private readonly open = new Set<string>();
+  /** Mount points whose alert is critical. */
+  private readonly critical = new Set<string>();
 
   restore(open: OpenAlert[]): void {
-    for (const alert of open) if (alert.kind === 'diskFull') this.open.add(alert.subject);
+    for (const alert of open) {
+      if (alert.kind !== 'diskFull') continue;
+      this.open.add(alert.subject);
+      if (alert.severity === 'critical') this.critical.add(alert.subject);
+    }
   }
 
   /** The latest usage of every disk: the alerts that should be open now. */
@@ -29,6 +35,7 @@ export class DiskWatch {
     for (const mount of [...this.open, ...this.fullSince.keys()]) {
       if (!mounted.has(mount)) {
         this.open.delete(mount);
+        this.critical.delete(mount);
         this.fullSince.delete(mount);
       }
     }
@@ -41,14 +48,18 @@ export class DiskWatch {
         this.fullSince.delete(disk.mount);
         if (percent < ALERT_LIMITS.diskClearPercent) this.open.delete(disk.mount);
       }
-      if (this.open.has(disk.mount)) {
-        found.push({
-          kind: 'diskFull',
-          subject: disk.mount,
-          severity: percent >= ALERT_LIMITS.diskCriticalPercent ? 'critical' : 'warning',
-          details: { percent },
-        });
+      if (!this.open.has(disk.mount)) {
+        this.critical.delete(disk.mount);
+        continue;
       }
+      if (percent >= ALERT_LIMITS.diskCriticalPercent) this.critical.add(disk.mount);
+      else if (percent < ALERT_LIMITS.diskCriticalClearPercent) this.critical.delete(disk.mount);
+      found.push({
+        kind: 'diskFull',
+        subject: disk.mount,
+        severity: this.critical.has(disk.mount) ? 'critical' : 'warning',
+        details: { percent },
+      });
     }
     return found;
   }

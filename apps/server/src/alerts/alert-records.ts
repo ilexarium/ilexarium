@@ -14,6 +14,8 @@ import type { AlertCondition, AlertDetails, AlertEvent, OpenAlert } from './aler
 /** Closed alerts shown on the Alerts page. */
 const CLOSED_SHOWN_DAYS = 7;
 const CLOSED_SHOWN_MAX = 50;
+/** A critical alert never sent is sent as a reminder after this long. */
+export const NEVER_SENT_AFTER_MS = 15 * 60_000;
 const SEVERITY_RANK: Record<AlertSeverity, number> = { warning: 0, critical: 1 };
 
 const key = (kind: string, subject: string) => `${kind}\u0000${subject}`;
@@ -102,15 +104,20 @@ export class AlertRecords implements OnModuleInit {
     });
   }
 
-  /** Critical alerts open and not acknowledged, last sent more than a day ago: reminded once a day. */
+  /**
+   * Critical alerts open and not acknowledged: last sent more than a day ago (reminded once a day),
+   * or never sent and open for a while (no channel was switched on when they opened; the wait
+   * leaves the opening message time to go first).
+   */
   async dueReminders(now: Date): Promise<OpenAlert[]> {
     await this.load();
     return [...this.openAlerts.values()].filter(
       (alert) =>
         alert.severity === 'critical' &&
         !alert.acknowledgedAt &&
-        alert.lastSentAt !== null &&
-        now.getTime() - alert.lastSentAt.getTime() >= 86_400_000,
+        (alert.lastSentAt === null
+          ? now.getTime() - alert.openedAt.getTime() >= NEVER_SENT_AFTER_MS
+          : now.getTime() - alert.lastSentAt.getTime() >= 86_400_000),
     );
   }
 

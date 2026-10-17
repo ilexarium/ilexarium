@@ -33,6 +33,8 @@ interface ContainerState {
   expectedUntil: number;
   /** When an event last said something about it: a list taken before that is older news. */
   eventAt: number;
+  /** Stopped or restarted from the app, and not started since: a list showing it stopped is no news. */
+  appStopped: boolean;
 }
 
 /**
@@ -68,7 +70,9 @@ export class ContainerWatch {
 
   /** The app is about to stop or restart it. */
   expect(name: string, now: number): void {
-    this.state(name, null).expectedUntil = now + EXPECTED_FOR_MS;
+    const state = this.state(name, null);
+    state.expectedUntil = now + EXPECTED_FOR_MS;
+    state.appStopped = true;
   }
 
   /** It stopped (`die`). Counts unless the app stopped it. */
@@ -91,11 +95,14 @@ export class ContainerWatch {
     state.unhealthySince = null;
   }
 
+  /** It runs (again): the app's stop or restart is over — a death from now on counts. */
   started(name: string, catalogId: string | null, now: number): void {
     const state = this.state(name, catalogId);
     state.eventAt = now;
     state.running = true;
     state.diedAt = null;
+    state.expectedUntil = 0;
+    state.appStopped = false;
   }
 
   outOfMemory(name: string, catalogId: string | null, now: number): void {
@@ -113,9 +120,12 @@ export class ContainerWatch {
   /**
    * A list of the containers watched, asked for at `takenAt`: their states — except of those an
    * event has said something about since (the list is older news). One no longer there
-   * (removed) is forgotten, and its alerts close.
+   * (removed) is forgotten, and its alerts close. One last seen running and now stopped died —
+   * its `die` event was missed (the events stream reconnecting) — unless the app stopped it or
+   * `onPurpose` (an install, removal, restore or backup running). One already stopped when first
+   * seen isn't counted: nothing tells whether it crashed or was stopped on purpose.
    */
-  seen(list: WatchedContainer[], takenAt: number): void {
+  seen(list: WatchedContainer[], takenAt: number, onPurpose = false): void {
     const names = new Set(list.map((c) => c.name));
     for (const [name, state] of this.containers) {
       // Kept while the app's own stop is expected, or after news newer than the list.
@@ -127,8 +137,12 @@ export class ContainerWatch {
       const state = this.state(container.name, container.catalogId);
       state.catalogId = container.catalogId;
       if (state.eventAt > takenAt) continue;
+      if (container.running) {
+        if (state.running !== true) this.started(container.name, container.catalogId, takenAt);
+      } else if (state.running === true && !state.appStopped && !onPurpose) {
+        state.diedAt ??= takenAt;
+      }
       state.running = container.running;
-      if (container.running) state.diedAt = null;
       const health = container.running ? container.health : 'none';
       state.health = health;
       if (health !== 'unhealthy') state.unhealthySince = null;
@@ -176,6 +190,7 @@ export class ContainerWatch {
         outOfMemoryAt: null,
         expectedUntil: 0,
         eventAt: 0,
+        appStopped: false,
       };
       this.containers.set(name, state);
     }

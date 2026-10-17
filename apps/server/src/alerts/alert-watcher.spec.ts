@@ -76,6 +76,7 @@ describe('AlertWatcher', () => {
   let warnings: BackupWarning[];
   let backupChanges: Subject<void>;
   let open: Map<string, AlertCondition[]>;
+  let findUnique: ReturnType<typeof vi.fn>;
   let watcher: AlertWatcher;
 
   /** The conditions last reported for a kind, as `kind:subject:severity`. */
@@ -112,10 +113,12 @@ describe('AlertWatcher', () => {
       containerEvents: (signal: AbortSignal) => feed.events(signal),
       listContainers: async () => list,
     } as unknown as DockerService;
+    findUnique = vi.fn(async ({ where }: { where: { catalogId: string } }) =>
+      installed.has(where.catalogId) ? { status: 'installed' } : { status: 'removing' },
+    );
     const prisma = {
       service: {
-        findUnique: async ({ where }: { where: { catalogId: string } }) =>
-          installed.has(where.catalogId) ? { status: 'installed' } : { status: 'removing' },
+        findUnique,
         findMany: async () => [...installed].map((catalogId) => ({ catalogId })),
       },
     } as unknown as PrismaService;
@@ -162,6 +165,23 @@ describe('AlertWatcher', () => {
     list = [container('immich', 'exited')];
     await vi.advanceTimersByTimeAsync(5 * 60_000);
     expect(openNow()).toEqual([]);
+  });
+
+  it('opens "service down" for a container the list shows stopped, its death missed', async () => {
+    list = [container('immich', 'exited')];
+    await vi.advanceTimersByTimeAsync(30_000 + DOWN_AFTER_MS + CONTAINER_TICK_MS);
+    expect(openNow()).toEqual(['serviceDown:immich:critical']);
+  });
+
+  it('asks the database only for the events the rules use', async () => {
+    findUnique.mockClear();
+    for (const action of ['create', 'stop', 'kill', 'destroy', 'restart'])
+      feed.push('immich', action);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(findUnique).not.toHaveBeenCalled();
+    feed.push('immich', 'die');
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(findUnique).toHaveBeenCalledTimes(1);
   });
 
   it('doesn’t count anything stopping while an install, removal, restore or backup runs', async () => {

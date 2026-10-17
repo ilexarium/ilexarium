@@ -42,6 +42,8 @@ export const ALERT_LIMITS = {
   outOfMemoryHours: 1,
   diskFullPercent: 90,
   diskCriticalPercent: 97,
+  /** A critical full disk is a warning again below this (so 96–97 % doesn't flip it every minute). */
+  diskCriticalClearPercent: 95,
   /** A full disk's alert closes below this. */
   diskClearPercent: 85,
   diskFullMinutes: 5,

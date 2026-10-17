@@ -3,7 +3,7 @@ import { resetDatabase } from '../../test/database.js';
 import { ConfigModule } from '../config/config.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AlertRecords } from './alert-records.js';
+import { AlertRecords, NEVER_SENT_AFTER_MS } from './alert-records.js';
 import type { AlertCondition, AlertEvent } from './alerts.model.js';
 
 const down = (subject: string, catalogId = subject): AlertCondition => ({
@@ -142,6 +142,14 @@ describe('AlertRecords (database)', () => {
     await records.acknowledge(jellyfin.id, OWNER);
     expect((await records.dueReminders(now)).map((a) => a.subject)).toEqual(['immich']);
     expect(await records.dueReminders(new Date(now.getTime() - 1_000))).toEqual([]);
+  });
+
+  it('reminds of a critical alert never sent (no channel then), once it’s been open a while', async () => {
+    await records.reconcile(['serviceDown'], [down('immich')]);
+    const now = new Date();
+    expect(await records.dueReminders(now)).toEqual([]);
+    const later = new Date(now.getTime() + NEVER_SENT_AFTER_MS);
+    expect((await records.dueReminders(later)).map((a) => a.subject)).toEqual(['immich']);
   });
 
   it('deletes alerts closed more than 30 days ago', async () => {

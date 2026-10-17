@@ -38,6 +38,14 @@ describe('ContainerWatch', () => {
       expect(kinds(watch, 10 * MINUTE)).toEqual([]);
     });
 
+    it('counts a crash soon after a restart from the app (it ran again in between)', () => {
+      watch.expect('immich', 0);
+      watch.died('immich', 'immich', 1_000);
+      watch.started('immich', 'immich', 2_000);
+      watch.died('immich', 'immich', 20_000);
+      expect(kinds(watch, 20_000 + DOWN_AFTER_MS)).toEqual(['serviceDown:immich:critical']);
+    });
+
     it('counts a death once the app’s stop is no longer expected', () => {
       watch.expect('immich', 0);
       watch.died('immich', 'immich', EXPECTED_FOR_MS);
@@ -62,9 +70,33 @@ describe('ContainerWatch', () => {
       expect(kinds(watch, 1_000 + DOWN_AFTER_MS)).toEqual([]);
     });
 
-    it('a list showing it stopped doesn’t open one by itself', () => {
-      watch.seen([{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }], 0);
+    it('a list showing stopped what ran before: its death was missed — it counts', () => {
+      watch.seen([{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }], MINUTE);
+      expect(kinds(watch, MINUTE + DOWN_AFTER_MS)).toEqual(['serviceDown:immich:critical']);
+    });
+
+    it('a list showing it stopped doesn’t count when the app stopped it, or on purpose', () => {
+      watch.expect('immich', 0);
+      watch.seen(
+        [{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }],
+        5 * MINUTE,
+      );
       expect(kinds(watch, 10 * MINUTE)).toEqual([]);
+
+      const other = new ContainerWatch();
+      other.seen([{ name: 'immich', catalogId: 'immich', running: true, health: 'none' }], 0);
+      other.seen(
+        [{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }],
+        MINUTE,
+        true,
+      );
+      expect(kinds(other, 10 * MINUTE)).toEqual([]);
+    });
+
+    it('a container already stopped when first seen doesn’t count (crash or on purpose: unknown)', () => {
+      const fresh = new ContainerWatch();
+      fresh.seen([{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }], 0);
+      expect(kinds(fresh, 10 * MINUTE)).toEqual([]);
     });
 
     it('forgets a container no longer listed (removed): its alerts close', () => {

@@ -44,9 +44,23 @@ export const AlertsStore = signalStore(
       });
     },
 
-    /** A newer status from the server (after acknowledging, before the topic says so). */
-    update(status: AlertsStatus): void {
-      patchState(store, { status });
+    /** The status from `GET /api/alerts`: only until the topic has answered (its news is newer). */
+    fill(status: AlertsStatus): void {
+      if (!store.status()) patchState(store, { status });
+    },
+
+    /** Acknowledged here: shown at once; the topic's next update says the same. */
+    acknowledged(id: string, by: string, at: string): void {
+      const status = store.status();
+      if (!status) return;
+      patchState(store, {
+        status: {
+          ...status,
+          open: status.open.map((alert) =>
+            alert.id === id ? { ...alert, acknowledgedAt: at, acknowledgedBy: by } : alert,
+          ),
+        },
+      });
     },
   })),
   withHooks((store, auth = inject(AuthStore)) => ({

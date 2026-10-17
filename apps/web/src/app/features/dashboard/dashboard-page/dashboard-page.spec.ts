@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Alert, SystemSnapshot, SystemUpdate } from '@homelab/shared';
+import type { SystemSnapshot, SystemUpdate } from '@homelab/shared';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
+import { alertsStatus, testAlert } from '../../../core/alerts/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
@@ -141,27 +142,12 @@ describe('DashboardPage', () => {
     socket.receive({ event: 'system:snapshot', data: snapshot });
     await fixture.whenStable();
     expect(el.querySelector('app-alerts-notice')).toBeNull();
-    const alert = (id: string, overrides: Partial<Alert>): Alert => ({
-      id,
-      kind: 'serviceDown',
-      subject: 'hl-immich-server-1',
-      severity: 'critical',
-      catalogId: 'immich',
-      serviceName: 'Immich',
-      percent: null,
-      warning: null,
-      openedAt: '2026-10-17T12:00:00.000Z',
-      closedAt: null,
-      acknowledgedAt: null,
-      acknowledgedBy: null,
-      ...overrides,
-    });
     socket.receive({
       event: 'alerts:update',
-      data: {
+      data: alertsStatus({
         open: [
-          alert('0199f000-0000-7000-8000-00000000000a', {}),
-          alert('0199f000-0000-7000-8000-00000000000b', {
+          testAlert(),
+          testAlert({
             kind: 'backup',
             subject: 'destinationUnavailable',
             severity: 'warning',
@@ -169,7 +155,7 @@ describe('DashboardPage', () => {
             serviceName: null,
             warning: 'destinationUnavailable',
           }),
-          alert('0199f000-0000-7000-8000-00000000000c', {
+          testAlert({
             kind: 'diskFull',
             subject: '/mnt/usb',
             severity: 'warning',
@@ -177,7 +163,7 @@ describe('DashboardPage', () => {
             serviceName: null,
             percent: 93,
           }),
-          alert('0199f000-0000-7000-8000-00000000000d', {
+          testAlert({
             kind: 'diskMissing',
             subject: '/mnt/old',
             severity: 'warning',
@@ -185,9 +171,7 @@ describe('DashboardPage', () => {
             serviceName: null,
           }),
         ],
-        closed: [],
-        deliveryFailure: null,
-      },
+      }),
     });
     await fixture.whenStable();
     const notice = el.querySelector('app-alerts-notice')!;
