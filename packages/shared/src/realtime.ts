@@ -9,6 +9,7 @@ import { logsCloseSchema, logsEndSchema, logsLinesSchema, logsOpenSchema } from 
 import { servicesListSchema } from './services.js';
 import { backupsStatusSchema } from './backups.js';
 import { disksStatusSchema } from './disks.js';
+import { alertsStatusSchema } from './alerts.js';
 
 /** The app's single WebSocket, same origin as the API. */
 export const REALTIME_PATH = '/api/ws';
@@ -21,7 +22,14 @@ export const WS_CLOSE_CODES = {
   sessionEnded: 4401,
 } as const;
 
-export const REALTIME_TOPICS = ['system', 'containers', 'services', 'backups', 'disks'] as const;
+export const REALTIME_TOPICS = [
+  'system',
+  'containers',
+  'services',
+  'backups',
+  'disks',
+  'alerts',
+] as const;
 export const realtimeTopicSchema = z.enum(REALTIME_TOPICS);
 export type RealtimeTopic = z.infer<typeof realtimeTopicSchema>;
 
@@ -73,6 +81,8 @@ export const serverMessageSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('backups:update'), data: backupsStatusSchema }),
   z.object({ event: z.literal('disks:snapshot'), data: disksStatusSchema }),
   z.object({ event: z.literal('disks:update'), data: disksStatusSchema }),
+  z.object({ event: z.literal('alerts:snapshot'), data: alertsStatusSchema }),
+  z.object({ event: z.literal('alerts:update'), data: alertsStatusSchema }),
   z.object({ event: z.literal('logs:lines'), data: logsLinesSchema }),
   z.object({ event: z.literal('logs:end'), data: logsEndSchema }),
   z.object({ event: z.literal('error'), data: realtimeErrorSchema }),

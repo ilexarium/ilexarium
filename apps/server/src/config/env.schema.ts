@@ -61,6 +61,11 @@ export const envSchema = z
      * the repo, as the current user, for development and tests. Never `direct` in production.
      */
     EXECUTOR_MODE: z.enum(['sudo', 'direct']).optional(),
+    /**
+     * The health alerts' watcher (docs/plans/health_alerts.md) runs all the time; `off` only for
+     * tests that open and close alerts themselves.
+     */
+    ALERTS_WATCH: z.enum(['on', 'off']).default('on'),
   })
   .transform((env) => {
     const production = env.NODE_ENV === 'production';

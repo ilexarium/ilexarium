@@ -1,7 +1,13 @@
-import type { PublicUser } from '@homelab/shared';
+import type { ContainerAction, PublicUser } from '@homelab/shared';
 
 /** Who asks for an action, for the audit log. */
 export interface ContainerActionActor {
   user: PublicUser;
   ip?: string;
+}
+
+/** An action about to be done to a container. */
+export interface ContainerActionRequest {
+  action: ContainerAction;
+  name: string;
 }

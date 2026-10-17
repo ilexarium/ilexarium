@@ -126,7 +126,20 @@ class FakeDocker {
       res.on('close', () => this.openStreams.delete(res));
       if (path === '/events') {
         res.write(
-          JSON.stringify({ Type: 'container', Action: 'start', Actor: { ID: ID_B } }) + '\n',
+          JSON.stringify({
+            Type: 'container',
+            Action: 'start',
+            Actor: {
+              ID: ID_B,
+              Attributes: {
+                name: 'web',
+                image: 'nginx',
+                'com.docker.compose.project': 'hl-web',
+                'homelab.protected': 'true',
+                SECRET_LOOKING_LABEL: 'kept out',
+              },
+            },
+          }) + '\n',
         );
         res.write(JSON.stringify({ Type: 'container', Action: 'die', Actor: { ID: ID_A } }) + '\n');
       } else {
@@ -214,8 +227,14 @@ describe('DockerService', () => {
   it('streams container events with a container filter, until aborted', async () => {
     const controller = new AbortController();
     expect(await take(docker.containerEvents(controller.signal), 2)).toEqual([
-      { containerId: ID_B, action: 'start' },
-      { containerId: ID_A, action: 'die' },
+      {
+        containerId: ID_B,
+        action: 'start',
+        name: 'web',
+        composeProject: 'hl-web',
+        protected: true,
+      },
+      { containerId: ID_A, action: 'die', name: null, composeProject: null, protected: false },
     ]);
     const events = fake.requests.find((r) => r.url.startsWith('/events'))!;
     const filters = JSON.parse(new URL(events.url, 'http://d').searchParams.get('filters')!);

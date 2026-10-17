@@ -187,7 +187,13 @@ describe('ContainersService', () => {
     const calls = docker.listCalls;
     docker.containers[0] = container('web', 'exited');
     for (const action of ['kill', 'die', 'stop'])
-      docker.events.push({ containerId: 'web', action });
+      docker.events.push({
+        containerId: 'web',
+        action,
+        name: 'web',
+        composeProject: null,
+        protected: false,
+      });
     await vi.advanceTimersByTimeAsync(EVENT_DEBOUNCE_MS);
     expect(docker.listCalls).toBe(calls + 1);
     await vi.advanceTimersByTimeAsync(PUBLISH_INTERVAL_MS);

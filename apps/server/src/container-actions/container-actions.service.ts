@@ -12,12 +12,13 @@ import {
   type ContainerActionErrorCode,
   PROTECTED_ACTIONS,
 } from '@homelab/shared';
+import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditEntry } from '../audit/audit.model.js';
 import { ContainerActionError, DockerControl } from '../docker/docker-control.js';
 import { DockerService } from '../docker/docker.service.js';
 import type { ContainerActionFailure } from '../docker/docker.model.js';
-import type { ContainerActionActor } from './container-actions.model.js';
+import type { ContainerActionActor, ContainerActionRequest } from './container-actions.model.js';
 
 const FAILURE_CODES: Record<ContainerActionFailure, ContainerActionErrorCode> = {
   not_found: CONTAINER_ACTION_ERROR_CODES.notFound,
@@ -46,6 +47,14 @@ function error(message: string, code: ContainerActionErrorCode): ApiErrorRespons
  */
 @Injectable()
 export class ContainerActionsService {
+  private readonly requested = new Subject<ContainerActionRequest>();
+
+  /**
+   * An action is about to happen (recorded, not yet done) — so the health alerts don't count a
+   * container stopped or restarted from the app as one that stopped by itself.
+   */
+  readonly requests$: Observable<ContainerActionRequest> = this.requested.asObservable();
+
   constructor(
     private readonly docker: DockerService,
     private readonly control: DockerControl,
@@ -72,6 +81,7 @@ export class ContainerActionsService {
 
     // Throws if it can't be written: then nothing happens.
     await this.audit.record(entry('requested'));
+    this.requested.next({ action, name });
 
     try {
       await this.control[action](name);
