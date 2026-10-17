@@ -279,14 +279,22 @@ export function parseCmdline(cmdline: string): string {
 }
 
 /**
+ * Container cgroups whose ID isn't known: Kubernetes pods, LXC, systemd-nspawn machines, a
+ * container scope — but not the daemons' own services (`docker.service`, `containerd.service`).
+ */
+const CONTAINER_CGROUP =
+  /\/kubepods\b|\/lxc[./]|\/machine\.slice\/|(?:docker|libpod)-[^/\s]*\.scope/;
+
+/**
  * The container a process runs in, from `/proc/<pid>/cgroup`: Docker's ID (cgroup v2
  * `…/docker-<id>.scope`, v1 `/docker/<id>`), Podman's (`libpod-<id>`), containerd's — or `''`
- * for a container whose ID isn't there; null outside containers.
+ * for a container whose ID isn't there; null outside containers (the Docker and containerd
+ * daemons themselves too).
  */
 export function parseContainerId(cgroup: string): string | null {
   const id = /(?:docker|libpod|containerd)[-/]([0-9a-f]{64})/.exec(cgroup);
   if (id) return id[1];
-  return /\/(?:docker|libpod|kubepods|containerd|lxc)\b/.test(cgroup) ? '' : null;
+  return CONTAINER_CGROUP.test(cgroup) ? '' : null;
 }
 
 /** `/etc/passwd`: uid → account name. */

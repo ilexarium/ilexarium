@@ -27,8 +27,6 @@ export interface ProcessInfo {
   flags: number;
   /** Real, effective, saved and file-system uid. */
   uids: number[];
-  /** Real gid. */
-  gid: number;
   /** In a container (by its cgroup). */
   inContainer: boolean;
 }

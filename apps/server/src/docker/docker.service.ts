@@ -101,6 +101,26 @@ export class DockerService {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  /**
+   * Every container's name and Compose project, by full ID — one request, no inspect (the
+   * process list names the containers processes run in).
+   */
+  async containerNames(): Promise<Map<string, { name: string; composeProject: string | null }>> {
+    const summaries = await this.docker.listContainers({
+      all: true,
+      abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    return new Map(
+      summaries.map((summary) => [
+        summary.Id,
+        {
+          name: (summary.Names[0] ?? summary.Id.slice(0, 12)).replace(/^\//, ''),
+          composeProject: summary.Labels?.[COMPOSE_PROJECT_LABEL] ?? null,
+        },
+      ]),
+    );
+  }
+
   /** Live stats of a running container, about one per second, until `signal` aborts. */
   async *containerStats(id: string, signal: AbortSignal): AsyncGenerator<ContainerStats> {
     const stream = await this.docker

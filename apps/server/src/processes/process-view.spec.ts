@@ -1,5 +1,6 @@
 import type { RawProcess } from '../host/host.model.js';
-import { isEndable, processKey, toProcess } from './process-view.js';
+import { processKey } from '@homelab/shared';
+import { isEndable, toProcess } from './process-view.js';
 import type { ProcessContext } from './processes.model.js';
 
 const APP = 990;
@@ -78,6 +79,14 @@ describe('toProcess', () => {
     expect(toProcess(raw({ uids: [109, 109, 109, 109] }), context())).toMatchObject({
       system: true,
       user: null,
+    });
+  });
+
+  it('follows the configured people’s range for both “system” and “endable”', () => {
+    const rules = { appUid: APP, minUid: 500 };
+    expect(toProcess(raw({ uids: [600, 600, 600, 600] }), context({ rules }))).toMatchObject({
+      system: false,
+      endable: true,
     });
   });
 

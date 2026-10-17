@@ -8,6 +8,7 @@ import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { ProcessesApi } from '../../../core/processes/processes-api';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
+import { stubScreenWidth } from '../../../layout/testing';
 import { ProcessesPage } from './processes-page';
 
 const proc = (change: Partial<Process>): Process => ({
@@ -105,7 +106,12 @@ async function render() {
 }
 
 describe('ProcessesPage', () => {
-  afterEach(() => document.querySelectorAll('.cdk-overlay-container').forEach((e) => e.remove()));
+  let restoreScreen: (() => void) | null = null;
+  afterEach(() => {
+    restoreScreen?.();
+    restoreScreen = null;
+    document.querySelectorAll('.cdk-overlay-container').forEach((e) => e.remove());
+  });
 
   it('follows the processes topic, with a loading state until the first list', async () => {
     const { el, socket, fixture } = await render();
@@ -255,10 +261,12 @@ describe('ProcessesPage', () => {
     expect(el.textContent).toContain('the list is incomplete');
   });
 
-  it('shows one card per process for smaller screens, with the same details and actions', async () => {
+  it('shows one card per process on smaller screens (no table), with the same details and actions', async () => {
+    restoreScreen = stubScreenWidth(375);
     const { el, push } = await render();
     await push(update([PYTHON, IMMICH]));
-    const cards = el.querySelectorAll('ul.xl\\:hidden > li');
+    expect(el.querySelector('table')).toBeNull();
+    const cards = el.querySelectorAll('app-process-list ul > li');
     expect(cards).toHaveLength(2);
     expect(cards[0].textContent).toContain('python3');
     expect(cards[0].textContent).toContain('anna');

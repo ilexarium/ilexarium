@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { ProcessesUpdate } from '@homelab/shared';
+import { type ProcessesUpdate, processKey } from '@homelab/shared';
 import {
   defer,
   filter,
@@ -16,12 +16,12 @@ import { WrapperConfigService } from '../executor/wrapper-config.js';
 import { SystemReader } from '../host/system-reader.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
-import { endRules, processKey, toProcess } from './process-view.js';
+import { endRules, toProcess } from './process-view.js';
 import type { ContainerName } from './processes.model.js';
 
 export const PROCESSES_INTERVAL_MS = 2_000;
-/** The containers' names are looked up again this often (they rarely change). */
-export const CONTAINER_NAMES_MS = 10_000;
+/** Containers' names and the accounts are looked up again this often (they rarely change). */
+export const NAMES_MS = 10_000;
 const COMPOSE_PREFIX = 'hl-';
 
 /** State of one collecting period: while `updates$` is subscribed. */
@@ -31,6 +31,8 @@ interface Run {
   previousTicks: Map<string, number>;
   latest: ProcessesUpdate | null;
   first$: ReplaySubject<ProcessesUpdate>;
+  /** Fixed until the machine restarts: read once per run. */
+  bootTime: number | null | undefined;
 }
 
 /**
@@ -45,8 +47,9 @@ export class ProcessesTopic implements TopicSource<'processes'> {
   private readonly logger = new Logger(ProcessesTopic.name);
   private run: Run | null = null;
   private containers = new Map<string, ContainerName>();
-  private containersAt = -Infinity;
-  private refreshingContainers: Promise<void> | null = null;
+  private users = new Map<number, string>();
+  private namesAt = -Infinity;
+  private refreshingNames: Promise<void> | null = null;
 
   /** While subscribed: a reading at once, then one 2 s after each reading ends. */
   readonly updates$: Observable<ProcessesUpdate> = defer(() => {
@@ -80,6 +83,7 @@ export class ProcessesTopic implements TopicSource<'processes'> {
       previousTicks: new Map(),
       latest: null,
       first$: new ReplaySubject(1),
+      bootTime: undefined,
     };
     this.run = run;
     return run;
@@ -93,19 +97,22 @@ export class ProcessesTopic implements TopicSource<'processes'> {
   /** One reading, or null for a failed one or one after the end. */
   private async read(run: Run): Promise<ProcessesUpdate | null> {
     try {
-      if (Date.now() - this.containersAt >= CONTAINER_NAMES_MS) void this.refreshContainers();
-      const [raw, cpu, memory, users, bootTime, partial] = await Promise.all([
+      // The first reading waits for the names; later ones use what's known meanwhile.
+      if (Date.now() - this.namesAt >= NAMES_MS) {
+        const refresh = this.refreshNames();
+        if (this.namesAt === -Infinity) await refresh;
+      }
+      run.bootTime ??= await this.reader.bootTime();
+      const [raw, cpu, memory, partial] = await Promise.all([
         this.reader.processes(),
         this.reader.cpuTimes(),
         this.reader.memory(),
-        this.reader.users(),
-        this.reader.bootTime(),
         this.reader.procHidden(),
       ]);
       if (run !== this.run) return null;
       const context = {
-        users,
-        bootTime,
+        users: this.users,
+        bootTime: run.bootTime,
         memoryTotalBytes: memory.totalBytes,
         cpuTotalTicks: run.previousTotal === null ? 0 : cpu.total - run.previousTotal,
         previousTicks: run.previousTicks,
@@ -127,29 +134,33 @@ export class ProcessesTopic implements TopicSource<'processes'> {
     }
   }
 
-  /** Docker's containers by full ID; a failure keeps the names known so far. */
-  private refreshContainers(): Promise<void> {
-    this.refreshingContainers ??= (async () => {
+  /**
+   * Docker's containers by full ID, and the accounts' names; a failure keeps what's known so far
+   * (processes in containers show without a name while Docker can't be reached).
+   */
+  private refreshNames(): Promise<void> {
+    this.refreshingNames ??= (async () => {
       try {
-        const list = await this.docker.listContainers();
+        this.users = await this.reader.users();
+        const names = await this.docker.containerNames();
         this.containers = new Map(
-          list.map((container) => [
-            container.id,
+          [...names].map(([id, { name, composeProject }]) => [
+            id,
             {
-              name: container.name,
-              catalogId: container.composeProject?.startsWith(COMPOSE_PREFIX)
-                ? container.composeProject.slice(COMPOSE_PREFIX.length)
+              name,
+              catalogId: composeProject?.startsWith(COMPOSE_PREFIX)
+                ? composeProject.slice(COMPOSE_PREFIX.length)
                 : null,
             },
           ]),
         );
       } catch {
-        // Docker not reachable: processes in containers show without a name.
+        // Kept as they were.
       } finally {
-        this.containersAt = Date.now();
-        this.refreshingContainers = null;
+        this.namesAt = Date.now();
+        this.refreshingNames = null;
       }
     })();
-    return this.refreshingContainers;
+    return this.refreshingNames;
   }
 }

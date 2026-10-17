@@ -74,6 +74,9 @@ export const processSchema = z.object({
 });
 export type Process = z.infer<typeof processSchema>;
 
+/** A process's identity across readings: a PID used again later has another start time. */
+export const processKey = (p: { pid: number; startTicks: string }) => `${p.pid}:${p.startTicks}`;
+
 /** The `processes` topic's snapshot and updates: every process, every 2 s. */
 export const processesUpdateSchema = z.object({
   processes: z.array(processSchema),

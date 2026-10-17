@@ -10,8 +10,13 @@ import type { ProcessInfo } from './model.mts';
 /** PF_KTHREAD in /proc/<pid>/stat's flags (field 9): a kernel thread. */
 export const PF_KTHREAD = 0x0020_0000;
 
-/** Container runtimes' names in a cgroup path (Docker, Podman, containerd, Kubernetes, LXC). */
-const CONTAINER_CGROUP = /(?:^|[/:-])(?:docker|libpod|containerd|kubepods|lxc)(?:[/.-]|$)/m;
+/**
+ * A container's cgroup: Docker's (`/docker/<id>`, `docker-<id>.scope`, rootless too), Podman's,
+ * containerd's (Kubernetes), LXC's, systemd-nspawn's — not the daemons' own services
+ * (`docker.service`, `containerd.service`).
+ */
+const CONTAINER_CGROUP =
+  /\/docker\/|(?:docker|libpod|cri-containerd)-[^/\s]*\.scope|\/kubepods\b|\/lxc[./]|\/machine\.slice\//m;
 
 function readOptional(path: string): string | null {
   try {
@@ -43,13 +48,11 @@ export function readProcess(proc: string, pid: number): ProcessInfo | null {
   const flags = Number(field(9));
   if (!/^\d+$/.test(startTicks) || !Number.isInteger(flags)) return null;
   const uids = /^Uid:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*$/m.exec(status);
-  const gid = /^Gid:\s+(\d+)\s/m.exec(status);
-  if (!uids || !gid) return null;
+  if (!uids) return null;
   return {
     startTicks,
     flags,
     uids: uids.slice(1, 5).map(Number),
-    gid: Number(gid[1]),
     inContainer: CONTAINER_CGROUP.test(cgroup),
   };
 }
