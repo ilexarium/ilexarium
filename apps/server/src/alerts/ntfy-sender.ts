@@ -1,14 +1,11 @@
-import { request as httpRequest, type IncomingMessage } from 'node:http';
-import { request as httpsRequest } from 'node:https';
 import type { LookupFunction } from 'node:net';
+import { Agent, fetch } from 'undici';
 import { DeliveryError } from './alerts.model.js';
 import type { AlertMessage, ChannelConfig, ChannelSender } from './alerts.model.js';
 import { checkTarget, type Lookup } from './safe-address.js';
 
 /** No answer within this long: given up. */
 export const SEND_TIMEOUT_MS = 10_000;
-/** Of the answer, at most this much is read (only its status matters). */
-const MAX_RESPONSE_BYTES = 16 * 1024;
 
 /** ntfy's priorities: 4 high, 3 default, 2 low. */
 const PRIORITY: Record<AlertMessage['severity'], number> = { critical: 4, warning: 3, resolved: 2 };
@@ -23,8 +20,9 @@ type NtfyConfig = Extract<ChannelConfig, { kind: 'ntfy' }>;
 /**
  * Sends to an ntfy topic (docs/plans/health_alerts.md): one JSON POST to the server
  * (`{ topic, title, message, priority, tags }` — JSON so any text fits), the token as
- * `Authorization: Bearer`. The address is checked first and connected to as checked; redirects
- * are never followed; 10 s at most; the answer's body is barely read.
+ * `Authorization: Bearer`. The address is checked first and connected to as checked (undici's
+ * `fetch` with a pinned lookup); redirects are never followed; 10 s at most; the answer's body is
+ * never read.
  */
 export class NtfySender implements ChannelSender<NtfyConfig> {
   readonly channel = 'ntfy';
@@ -59,36 +57,29 @@ export class NtfySender implements ChannelSender<NtfyConfig> {
       if (options.all) callback(null, [{ address: target.address, family: target.family }]);
       else callback(null, target.address, target.family);
     };
-    const status = await new Promise<number>((resolve, reject) => {
-      const req = (secure ? httpsRequest : httpRequest)(
-        {
-          protocol: url.protocol,
-          host: url.hostname.replace(/^\[(.*)\]$/, '$1'),
-          port,
-          path: url.pathname.slice(0, slash + 1),
-          method: 'POST',
-          lookup: pinned,
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(body),
-            ...(config.token && { Authorization: `Bearer ${config.token}` }),
-          },
-          signal: AbortSignal.timeout(this.timeoutMs),
-          agent: false,
+    // `fetch` would resolve the name again; this agent connects only to the address checked.
+    const dispatcher = new Agent({ connect: { lookup: pinned } });
+    let status: number;
+    try {
+      const response = await fetch(url.origin + url.pathname.slice(0, slash + 1), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.token && { Authorization: `Bearer ${config.token}` }),
         },
-        (res: IncomingMessage) => {
-          let read = 0;
-          res.on('data', (chunk: Buffer) => {
-            read += chunk.length;
-            if (read > MAX_RESPONSE_BYTES) res.destroy();
-          });
-          res.on('close', () => resolve(res.statusCode ?? 0));
-          res.on('error', () => resolve(res.statusCode ?? 0));
-        },
-      );
-      req.on('error', (error: NodeJS.ErrnoException) => reject(toDeliveryError(error)));
-      req.end(body);
-    });
+        body,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(this.timeoutMs),
+        dispatcher,
+      });
+      status = response.status;
+      // Only the status matters: the answer itself is never read.
+      await response.body?.cancel();
+    } catch (error) {
+      throw toDeliveryError(error as Error);
+    } finally {
+      void dispatcher.destroy().catch(() => undefined);
+    }
     if (status >= 200 && status < 300) return;
     if (status === 401 || status === 403) throw new DeliveryError('loginRefused');
     // A redirect isn't followed; a wrong topic or server answers 4xx.
@@ -98,8 +89,13 @@ export class NtfySender implements ChannelSender<NtfyConfig> {
   }
 }
 
-function toDeliveryError(error: NodeJS.ErrnoException): DeliveryError {
-  if (error.name === 'AbortError' || error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
+/** `fetch` fails with a TypeError whose `cause` is the network's own error; a timeout as itself. */
+function toDeliveryError(thrown: Error): DeliveryError {
+  if (thrown.name === 'TimeoutError' || thrown.name === 'AbortError') {
+    return new DeliveryError('timedOut');
+  }
+  const error = (thrown.cause ?? thrown) as NodeJS.ErrnoException;
+  if (error.code === 'ETIMEDOUT' || error.code === 'UND_ERR_CONNECT_TIMEOUT') {
     return new DeliveryError('timedOut');
   }
   if (error.code?.startsWith('ERR_TLS') || /certificate|SSL|TLS/i.test(error.message)) {
