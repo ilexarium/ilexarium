@@ -22,6 +22,9 @@ export default defineConfig({
       MASTER_KEY_FILE: '.dev/master.test.key',
       // The dev Docker socket proxy (npm run db:up); tests needing it are skipped when it's down.
       DOCKER_HOST: process.env.TEST_DOCKER_HOST ?? 'tcp://127.0.0.1:2375',
+      // The health alerts' watcher would write alerts while tests empty the tables; its rules
+      // have unit tests (src/alerts/*.spec.ts).
+      ALERTS_WATCH: 'off',
     },
     // One shared test database: run files one after another.
     fileParallelism: false,

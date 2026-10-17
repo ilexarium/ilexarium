@@ -266,3 +266,47 @@ enum BackupRestoreTarget {
   inPlace
   newFolder
 }
+
+enum AlertSeverity {
+  warning
+  critical
+}
+
+/// A health alert (docs/plans/health_alerts.md): opened when a problem starts, closed by itself
+/// when it's gone. One open alert per kind and subject (the watcher writes them one at a time).
+/// Closed alerts are kept 30 days.
+model Alert {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  /// `ALERT_KINDS` in @homelab/shared.
+  kind             String
+  /// The container's name, the mount point or the backup warning.
+  subject          String
+  severity         AlertSeverity
+  /// { catalogId?, percent? } — never logs, values or secrets.
+  details          Json          @default("{}")
+  openedAt         DateTime      @default(now()) @db.Timestamptz(3)
+  closedAt         DateTime?     @db.Timestamptz(3)
+  acknowledgedAt   DateTime?     @db.Timestamptz(3)
+  /// No relation to User, like the audit log; the username is a snapshot.
+  acknowledgedById String?       @db.Uuid
+  acknowledgedBy   String?
+  /// When it was last sent (opened, or the daily reminder of a critical one).
+  lastSentAt       DateTime?     @db.Timestamptz(3)
+
+  @@index([kind, subject, closedAt])
+  @@index([closedAt])
+}
+
+/// A way alerts are sent besides the app: `email` or `ntfy`. Secrets (the ntfy topic URL and
+/// token, the mail password) are one encrypted JSON value (SecretsService, bound to the channel).
+model AlertChannel {
+  kind          String    @id
+  enabled       Boolean
+  /// Not secret: the mail server, port, user name, sender and recipient.
+  settings      Json      @default("{}")
+  secrets       Bytes?
+  /// The last message that couldn't be sent; cleared when one is.
+  lastProblem   String?
+  lastProblemAt DateTime? @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+}

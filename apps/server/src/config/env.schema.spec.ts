@@ -11,6 +11,7 @@ describe('validateEnv', () => {
       PORT: 3000,
       SETUP_TOKEN_FILE: '.dev/setup-token',
       DOCKER_HOST: 'tcp://127.0.0.1:2375',
+      ALERTS_WATCH: 'on',
     });
   });
 

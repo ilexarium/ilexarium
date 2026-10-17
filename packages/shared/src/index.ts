@@ -1,3 +1,4 @@
+export * from './alerts.js';
 export * from './auth.js';
 export * from './backups.js';
 export * from './catalog.js';

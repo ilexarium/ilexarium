@@ -19,6 +19,8 @@ export const AUDIT_ACTIONS = [
   'backup.passphrase',
   'disk.mount',
   'disk.unmount',
+  'alerts.channel.update',
+  'alerts.channel.test',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -9,10 +9,18 @@ export type DockerContainer = Omit<Container, 'stats'>;
  */
 export type ContainerActionFailure = 'not_found' | 'failed' | 'unavailable';
 
-/** A container event: something about it changed (started, died, became healthy, …). */
+/**
+ * A container event: something about it changed (started, died, became healthy, …). `action` is
+ * Docker's, e.g. `die` or `health_status: unhealthy`. Only these attributes are kept (Docker sends
+ * every label).
+ */
 export interface DockerContainerEvent {
   containerId: string;
   action: string;
+  /** The container's name, without Docker's leading `/`; null if Docker left it out. */
+  name: string | null;
+  composeProject: string | null;
+  protected: boolean;
 }
 
 /**

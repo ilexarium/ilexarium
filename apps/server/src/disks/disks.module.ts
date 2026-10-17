@@ -12,5 +12,6 @@ import { DisksTopic } from './disks-topic.js';
   imports: [ExecutorModule, HostModule, JobsModule, RealtimeModule],
   controllers: [DisksController],
   providers: [DiskManager, DisksTopic],
+  exports: [DiskManager],
 })
 export class DisksModule {}

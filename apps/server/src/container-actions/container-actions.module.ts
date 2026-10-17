@@ -9,5 +9,6 @@ import { ContainerActionsService } from './container-actions.service.js';
   imports: [DockerModule, AuditModule],
   controllers: [ContainerActionsController],
   providers: [ContainerActionsService],
+  exports: [ContainerActionsService],
 })
 export class ContainerActionsModule {}

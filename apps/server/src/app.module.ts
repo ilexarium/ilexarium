@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_PIPE } from '@nestjs/core';
+import { AlertsModule } from './alerts/alerts.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BackupsModule } from './backups/backups.module.js';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module.js';
     ServicesModule,
     BackupsModule,
     DisksModule,
+    AlertsModule,
   ],
   providers: [{ provide: APP_PIPE, useClass: ZodValidationPipe }],
 })

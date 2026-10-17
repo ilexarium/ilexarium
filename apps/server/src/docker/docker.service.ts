@@ -192,8 +192,19 @@ export class DockerService {
       abortSignal: signal,
     } as Dockerode.GetEventsOptions);
     for await (const event of jsonLines(stream)) {
-      const { Action, Actor } = event as { Action?: string; Actor?: { ID?: string } };
-      if (Action && Actor?.ID) yield { containerId: Actor.ID, action: Action };
+      const { Action, Actor } = event as {
+        Action?: string;
+        Actor?: { ID?: string; Attributes?: Record<string, string> };
+      };
+      if (!Action || !Actor?.ID) continue;
+      const attributes = Actor.Attributes ?? {};
+      yield {
+        containerId: Actor.ID,
+        action: Action,
+        name: attributes.name?.replace(/^\//, '') || null,
+        composeProject: attributes[COMPOSE_PROJECT_LABEL] ?? null,
+        protected: attributes[PROTECTED_LABEL] === 'true',
+      };
     }
   }
 }

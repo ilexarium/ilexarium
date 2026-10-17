@@ -17,7 +17,10 @@ import { BackupStatusReader } from './backup-status-reader.js';
 import { BackupsController } from './backups.controller.js';
 import { BackupsTopic } from './backups-topic.js';
 
-/** Automated backups (docs/plans/backups.md). Services use `BackupPlanManager` for "Include in backups". */
+/**
+ * Automated backups (docs/plans/backups.md). Services use `BackupPlanManager` for "Include in
+ * backups"; the health alerts read the status and follow its changes.
+ */
 @Module({
   imports: [
     AuditModule,
@@ -40,6 +43,6 @@ import { BackupsTopic } from './backups-topic.js';
     BackupStatusReader,
     BackupsTopic,
   ],
-  exports: [BackupPlanManager],
+  exports: [BackupPlanManager, BackupResults, BackupRuns, BackupStatusReader],
 })
 export class BackupsModule {}
