@@ -62,6 +62,8 @@ export const alertSchema = z.object({
   severity: alertSeveritySchema,
   /** The catalog entry the container belongs to; null for the platform's own containers. */
   catalogId: z.string().nullable(),
+  /** That entry's name (a product name, the same in every language). */
+  serviceName: z.string().nullable(),
   /** `diskFull`: how full the disk was, last seen. */
   percent: z.number().min(0).max(100).nullable(),
   /** `backup`: which warning. */
@@ -213,6 +215,8 @@ export const ntfyTopicUrlSchema = z
   .max(ALERT_SETTINGS_LIMITS.urlMax, 'validation.urlInvalid')
   .pipe(z.url({ protocol: /^https?$/, error: 'validation.urlInvalid' }))
   .refine((value) => {
+    // Runs even when the URL check above failed: then there's nothing more to say.
+    if (!URL.canParse(value)) return true;
     const url = new URL(value);
     return (
       !url.username && !url.password && !url.search && !url.hash && NTFY_TOPIC.test(url.pathname)

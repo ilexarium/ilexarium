@@ -32,4 +32,11 @@ describe('Formatter', () => {
     expect(format.rate(1_200)).toMatch(/^\u2066.*\u2069$/);
     expect(format.percent(42)).toMatch(/^\u2066.*\u2069$/);
   });
+
+  it('keeps machine text left to right inside Arabic sentences ("/mnt/usb", not "mnt/usb/")', async () => {
+    const format = TestBed.inject(Formatter);
+    expect(format.machine('/mnt/usb')).toBe('/mnt/usb');
+    await TestBed.inject(LanguageService).setLanguage('ar');
+    expect(format.machine('/mnt/usb')).toBe('\u2066/mnt/usb\u2069');
+  });
 });

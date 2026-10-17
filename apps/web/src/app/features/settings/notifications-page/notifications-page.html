@@ -1,0 +1,16 @@
+<div class="grid max-w-2xl gap-6">
+  <p class="text-sm text-muted-foreground">{{ 'notifications.description' | translate }}</p>
+  @if (store.channels(); as channels) {
+    <app-ntfy-form [settings]="channels.ntfy" />
+    <app-email-form [settings]="channels.email" />
+  } @else if (store.failed()) {
+    <p role="alert" class="text-sm text-destructive">
+      {{ 'notifications.loadFailed' | translate }}
+    </p>
+  } @else {
+    <div class="grid gap-6" role="status" [attr.aria-label]="'notifications.loading' | translate">
+      <hlm-skeleton class="h-64 rounded-xl" />
+      <hlm-skeleton class="h-96 rounded-xl" />
+    </div>
+  }
+</div>

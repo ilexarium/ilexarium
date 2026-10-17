@@ -1,5 +1,7 @@
 import {
   lucideArchive,
+  lucideBell,
+  lucideBellRing,
   lucideBlocks,
   lucideBoxes,
   lucideHardDrive,
@@ -16,6 +18,7 @@ export const NAVIGATION: NavGroup[] = [
       { label: 'nav.containers', link: '/containers', icon: 'lucideBoxes' },
       { label: 'nav.services', link: '/services', icon: 'lucideBlocks' },
       { label: 'nav.backups', link: '/backups', icon: 'lucideArchive', attention: 'backups' },
+      { label: 'nav.alerts', link: '/alerts', icon: 'lucideBell', attention: 'alerts' },
     ],
   },
   {
@@ -24,7 +27,10 @@ export const NAVIGATION: NavGroup[] = [
   },
   {
     label: 'nav.settings',
-    items: [{ label: 'nav.account', link: '/settings/account', icon: 'lucideKeyRound' }],
+    items: [
+      { label: 'nav.account', link: '/settings/account', icon: 'lucideKeyRound' },
+      { label: 'nav.notifications', link: '/settings/notifications', icon: 'lucideBellRing' },
+    ],
   },
 ];
 
@@ -33,6 +39,8 @@ export const NAV_ICONS = {
   lucideBoxes,
   lucideBlocks,
   lucideArchive,
+  lucideBell,
+  lucideBellRing,
   lucideHardDrive,
   lucideKeyRound,
 };

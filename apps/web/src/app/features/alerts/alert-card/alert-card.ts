@@ -1,0 +1,35 @@
+import { Component, computed, inject, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import type { Alert } from '@homelab/shared';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert } from '@ng-icons/lucide';
+import { TranslatePipe } from '@ngx-translate/core';
+import { HlmBadge } from '@ui/badge';
+import { HlmButton } from '@ui/button';
+import { alertLink, alertText, alertTitle } from '../../../core/alerts/alert-wording';
+import { Formatter } from '../../../shared/format/formatter';
+
+/** One alert: what happened, since when, where to look; an open one can be acknowledged. */
+@Component({
+  selector: 'app-alert-card',
+  imports: [HlmBadge, HlmButton, NgIcon, RouterLink, TranslatePipe],
+  providers: [provideIcons({ lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert })],
+  host: { class: 'block' },
+  templateUrl: './alert-card.html',
+})
+export class AlertCard {
+  readonly alert = input.required<Alert>();
+  /** Being acknowledged. */
+  readonly pending = input(false);
+  readonly acknowledge = output<string>();
+
+  protected readonly format = inject(Formatter);
+  protected readonly title = computed(() => alertTitle(this.alert(), this.format));
+  protected readonly text = computed(() => alertText(this.alert()));
+  protected readonly link = computed(() => alertLink(this.alert()));
+  protected readonly icon = computed(() => {
+    const alert = this.alert();
+    if (alert.closedAt) return 'lucideCircleCheck';
+    return alert.severity === 'critical' ? 'lucideCircleAlert' : 'lucideTriangleAlert';
+  });
+}

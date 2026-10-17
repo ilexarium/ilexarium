@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import type { FieldTree, TreeValidationResult, ValidationError } from '@angular/forms/signals';
 import {
+  ALERT_ERROR_CODES,
   apiErrorResponseSchema,
   AUTH_ERROR_CODES,
   BACKUP_ERROR_CODES,
@@ -17,6 +18,7 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(SERVICE_ERROR_CODES),
   ...Object.values(BACKUP_ERROR_CODES),
   ...Object.values(DISK_ERROR_CODES),
+  ...Object.values(ALERT_ERROR_CODES),
 ];
 
 /**

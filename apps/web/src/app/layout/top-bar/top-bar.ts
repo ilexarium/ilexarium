@@ -1,5 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucideBell } from '@ng-icons/lucide';
 import { LANGUAGE_NAMES } from '@homelab/i18n';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAvatarImports } from '@ui/avatar';
@@ -7,15 +9,18 @@ import { HlmButton } from '@ui/button';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
 import { HlmSeparator } from '@ui/separator';
 import { HlmSidebarTrigger } from '@ui/sidebar';
+import { AlertsStore } from '../../core/alerts/alerts-store';
 import { AuthStore } from '../../core/auth/auth-store';
+import { PluralPipe } from '../../core/i18n/plural-pipe';
 import { LanguageService } from '../../core/i18n/language';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
 import { ConnectionStatus } from '../connection-status/connection-status';
 import { ThemeMenu } from '../theme-menu/theme-menu';
 
 /**
- * Sidebar toggle, the page title (the page's only h1), the live-data status, the theme switch and
- * the user menu (language, change password, sign out).
+ * Sidebar toggle, the page title (the page's only h1), the live-data status, the alerts' bell
+ * (open alerts, a link to the Alerts page), the theme switch and the user menu (language, change
+ * password, sign out).
  */
 @Component({
   selector: 'app-top-bar',
@@ -27,9 +32,12 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
     HlmSeparator,
     HlmSidebarTrigger,
     ConnectionStatus,
+    NgIcon,
+    PluralPipe,
     ThemeMenu,
     TranslatePipe,
   ],
+  providers: [provideIcons({ lucideBell })],
   host: {
     class: 'sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4',
   },
@@ -37,6 +45,11 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
 })
 export class TopBar {
   protected readonly auth = inject(AuthStore);
+  private readonly alerts = inject(AlertsStore);
+  protected readonly openAlerts = computed(() => this.alerts.open().length);
+  protected readonly critical = computed(() =>
+    this.alerts.open().some((alert) => alert.severity === 'critical'),
+  );
   protected readonly languages = inject(LanguageService);
   /** Each language in itself — the same in every interface language. */
   protected readonly names = LANGUAGE_NAMES;

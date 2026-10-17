@@ -119,7 +119,12 @@ describe('alerts (e2e)', () => {
     await records.reconcile(['backup'], []);
     const status = (await api().get('/alerts').expect(200)).body as AlertsStatus;
     expect(status.open).toEqual([
-      expect.objectContaining({ kind: 'serviceDown', catalogId: 'immich', acknowledgedAt: null }),
+      expect.objectContaining({
+        kind: 'serviceDown',
+        catalogId: 'immich',
+        serviceName: 'Immich',
+        acknowledgedAt: null,
+      }),
     ]);
     expect(status.closed).toEqual([
       expect.objectContaining({ kind: 'backup', warning: 'lowSpace' }),

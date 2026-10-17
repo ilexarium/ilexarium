@@ -4,6 +4,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideServer } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmSidebarImports } from '@ui/sidebar';
+import { AlertsStore } from '../../core/alerts/alerts-store';
 import { BackupsStore } from '../../core/backups/backups-store';
 import { LanguageService } from '../../core/i18n/language';
 import { APP_NAME } from '../../core/page-title/page-title';
@@ -26,6 +27,10 @@ export class AppSidebar {
   private readonly language = inject(LanguageService);
   protected readonly rtl = computed(() => this.language.dir() === 'rtl');
   private readonly backups = inject(BackupsStore);
+  private readonly alerts = inject(AlertsStore);
   /** Parts of the app that need attention: a badge beside their entry. */
-  protected readonly attention = computed(() => ({ backups: this.backups.warnings().length }));
+  protected readonly attention = computed(() => ({
+    backups: this.backups.warnings().length,
+    alerts: this.alerts.open().length,
+  }));
 }

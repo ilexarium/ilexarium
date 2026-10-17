@@ -1,0 +1,68 @@
+<article
+  class="grid gap-3 rounded-lg border p-4 sm:grid-cols-[auto_1fr_auto] sm:items-start"
+  [class.border-destructive]="!alert().closedAt && alert().severity === 'critical'"
+  [attr.aria-labelledby]="'alert-' + alert().id"
+>
+  <ng-icon
+    [name]="icon()"
+    class="size-5"
+    [class]="
+      alert().closedAt
+        ? 'text-muted-foreground'
+        : alert().severity === 'critical'
+          ? 'text-destructive'
+          : 'text-amber-700 dark:text-amber-400'
+    "
+    aria-hidden="true"
+  />
+  <div class="grid min-w-0 gap-1">
+    <h3 [id]="'alert-' + alert().id" class="flex flex-wrap items-center gap-2 font-medium">
+      <span class="min-w-0 break-words">{{ title()[0] | translate: title()[1] }}</span>
+      @if (!alert().closedAt) {
+        <span hlmBadge [variant]="alert().severity === 'critical' ? 'destructive' : 'outline'">{{
+          'alerts.severity.' + alert().severity | translate
+        }}</span>
+      }
+    </h3>
+    @if (!alert().closedAt) {
+      <p class="text-sm">{{ text()[0] | translate }}</p>
+    }
+    <p class="text-sm text-muted-foreground">
+      @if (alert().closedAt; as closedAt) {
+        {{
+          'alerts.resolved'
+            | translate: { from: format.dateTime(alert().openedAt), to: format.dateTime(closedAt) }
+        }}
+      } @else {
+        {{ 'alerts.since' | translate: { time: format.dateTime(alert().openedAt) } }}
+      }
+      @if (alert().kind !== 'backup') {
+        · <span dir="ltr">{{ alert().subject }}</span>
+      }
+    </p>
+    @if (alert().acknowledgedBy && !alert().closedAt) {
+      <p class="text-sm text-muted-foreground">
+        {{ 'alerts.acknowledged' | translate: { name: alert().acknowledgedBy } }}
+      </p>
+    }
+  </div>
+  @if (!alert().closedAt) {
+    <div class="flex flex-wrap gap-2 sm:justify-end">
+      <a hlmBtn variant="outline" size="sm" [routerLink]="link().link">{{
+        link().label | translate
+      }}</a>
+      @if (!alert().acknowledgedAt) {
+        <button
+          hlmBtn
+          variant="secondary"
+          size="sm"
+          [disabled]="pending()"
+          [attr.title]="'alerts.acknowledgeHelp' | translate"
+          (click)="acknowledge.emit(alert().id)"
+        >
+          {{ 'alerts.acknowledge' | translate }}
+        </button>
+      }
+    </div>
+  }
+</article>

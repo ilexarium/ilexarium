@@ -47,6 +47,14 @@ export class Formatter {
   }
 
   /**
+   * Machine text (a path, a container's name) inside a translated sentence, kept left to right:
+   * without the isolate, Arabic text shows "/mnt/usb" as "mnt/usb/".
+   */
+  machine(text: string): string {
+    return this.ltr(text);
+  }
+
+  /**
    * A number with its unit ("6.2 GB") kept left to right inside a right-to-left sentence: without
    * the isolate, Arabic text shows "GB 6.2". Only in right-to-left languages (left to right it
    * changes nothing).

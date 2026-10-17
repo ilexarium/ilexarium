@@ -1,0 +1,19 @@
+@if (alerts().length > 0) {
+  <div hlmAlert [variant]="critical() ? 'destructive' : 'default'" role="alert">
+    <ng-icon name="lucideTriangleAlert" aria-hidden="true" />
+    <h2 hlmAlertTitle>{{ 'alerts.notice.title' | plural: alerts().length }}</h2>
+    <div hlmAlertDescription class="grid gap-2">
+      <ul class="grid gap-1">
+        @for (alert of shown(); track alert.id) {
+          <li class="break-words">{{ alert.title[0] | translate: alert.title[1] }}</li>
+        }
+      </ul>
+      @if (more() > 0) {
+        <p>{{ 'alerts.notice.more' | plural: more() }}</p>
+      }
+      <a hlmBtn variant="outline" size="sm" class="justify-self-start" routerLink="/alerts">
+        {{ 'alerts.notice.open' | translate }}
+      </a>
+    </div>
+  </div>
+}

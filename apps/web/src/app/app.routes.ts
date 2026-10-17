@@ -64,6 +64,20 @@ export const routes: Routes = [
           import('./features/disks/disks-page/disks-page').then((m) => m.DisksPage),
       },
       {
+        path: 'alerts',
+        title: 'pages.alerts',
+        loadComponent: () =>
+          import('./features/alerts/alerts-page/alerts-page').then((m) => m.AlertsPage),
+      },
+      {
+        path: 'settings/notifications',
+        title: 'pages.notifications',
+        loadComponent: () =>
+          import('./features/settings/notifications-page/notifications-page').then(
+            (m) => m.NotificationsPage,
+          ),
+      },
+      {
         path: 'settings/account',
         title: 'pages.account',
         loadComponent: () =>

@@ -1,0 +1,55 @@
+@if (alerts.loaded()) {
+  <div class="grid gap-6">
+    @if (deliveryText(); as text) {
+      <div hlmAlert variant="destructive" role="alert">
+        <ng-icon name="lucideMailWarning" aria-hidden="true" />
+        <h2 hlmAlertTitle>{{ 'alerts.delivery.title' | translate }}</h2>
+        <div hlmAlertDescription class="grid gap-2">
+          <p>{{ text }}</p>
+          <a
+            hlmBtn
+            variant="outline"
+            size="sm"
+            class="justify-self-start"
+            routerLink="/settings/notifications"
+            >{{ 'alerts.delivery.settings' | translate }}</a
+          >
+        </div>
+      </div>
+    }
+
+    <section class="grid gap-3" aria-labelledby="alerts-open">
+      <h2 id="alerts-open" class="text-lg font-semibold">{{ 'alerts.open' | translate }}</h2>
+      @for (alert of alerts.open(); track alert.id) {
+        <app-alert-card
+          [alert]="alert"
+          [pending]="store.pending().includes(alert.id)"
+          (acknowledge)="store.acknowledge($event)"
+        />
+      } @empty {
+        <p class="text-sm text-muted-foreground">{{ 'alerts.noneOpen' | translate }}</p>
+      }
+    </section>
+
+    <section class="grid gap-3" aria-labelledby="alerts-closed">
+      <h2 id="alerts-closed" class="text-lg font-semibold">{{ 'alerts.closed' | translate }}</h2>
+      @for (alert of alerts.closed(); track alert.id) {
+        <app-alert-card [alert]="alert" />
+      } @empty {
+        <p class="text-sm text-muted-foreground">{{ 'alerts.noneClosed' | translate }}</p>
+      }
+    </section>
+
+    <p class="text-sm">
+      <a class="underline underline-offset-4" routerLink="/settings/notifications">{{
+        'alerts.settingsLink' | translate
+      }}</a>
+    </p>
+  </div>
+} @else {
+  <div class="grid gap-3" role="status" [attr.aria-label]="'alerts.loading' | translate">
+    <hlm-skeleton class="h-6 w-40" />
+    <hlm-skeleton class="h-24 rounded-lg" />
+    <hlm-skeleton class="h-24 rounded-lg" />
+  </div>
+}

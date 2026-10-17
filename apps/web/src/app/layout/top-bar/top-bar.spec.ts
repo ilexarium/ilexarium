@@ -2,6 +2,8 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Language } from '@homelab/i18n';
+import { AlertsStore } from '../../core/alerts/alerts-store';
+import { alertsStatus, testAlert } from '../../core/alerts/testing';
 import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
 import { LanguageService } from '../../core/i18n/language';
@@ -83,5 +85,36 @@ describe('TopBar user menu', () => {
       item.textContent!.trim(),
     );
     expect(items).toEqual(['Change password', 'Sign out']);
+  });
+});
+
+describe('TopBar alerts bell', () => {
+  async function render() {
+    const auth = fakeAuthApi({ user: OWNER });
+    TestBed.configureTestingModule({ providers: [provideRouter([]), auth.provider] });
+    await TestBed.inject(AuthStore).load();
+    const fixture = TestBed.createComponent(TopBar);
+    await fixture.whenStable();
+    const bell = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/alerts"]')!;
+    return { fixture, bell };
+  }
+
+  it('links to the Alerts page, with no count while all is well', async () => {
+    const { bell } = await render();
+    expect(bell().getAttribute('aria-label')).toBe('Alerts');
+    expect(bell().textContent!.trim()).toBe('');
+  });
+
+  it('shows how many alerts are open, red when one is critical', async () => {
+    const { fixture, bell } = await render();
+    TestBed.inject(AlertsStore).update(
+      alertsStatus({ open: [testAlert({ severity: 'warning' }), testAlert()] }),
+    );
+    await fixture.whenStable();
+    expect(bell().getAttribute('aria-label')).toBe('Alerts: 2 open');
+    const badge = bell().querySelector('span')!;
+    expect(badge.textContent!.trim()).toBe('2');
+    expect(badge.classList).toContain('bg-destructive');
   });
 });

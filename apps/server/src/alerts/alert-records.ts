@@ -75,16 +75,18 @@ export class AlertRecords implements OnModuleInit {
   /** Acknowledges an open alert (no more reminders); false if there's no such open alert. */
   acknowledge(id: string, user: { id: string; username: string }): Promise<boolean> {
     return this.serially(async () => {
-      const entry = [...this.openAlerts.entries()].find(([, alert]) => alert.id === id);
-      if (!entry) return false;
-      const [mapKey, alert] = entry;
-      if (alert.acknowledgedAt) return true;
+      // The table decides (not the copy kept here): an open alert, acknowledged or not yet.
       const acknowledgedAt = new Date();
-      await this.prisma.alert.update({
-        where: { id },
+      const { count } = await this.prisma.alert.updateMany({
+        where: { id, closedAt: null, acknowledgedAt: null },
         data: { acknowledgedAt, acknowledgedById: user.id, acknowledgedBy: user.username },
       });
-      this.openAlerts.set(mapKey, { ...alert, acknowledgedAt });
+      if (count === 0) {
+        return (await this.prisma.alert.count({ where: { id, closedAt: null } })) > 0;
+      }
+      for (const [mapKey, alert] of this.openAlerts) {
+        if (alert.id === id) this.openAlerts.set(mapKey, { ...alert, acknowledgedAt });
+      }
       this.changed.next();
       return true;
     });
@@ -119,7 +121,10 @@ export class AlertRecords implements OnModuleInit {
   }
 
   /** Open alerts (critical first, newest first) and recently closed ones. */
-  async view(now = new Date()): Promise<{ open: Alert[]; closed: Alert[] }> {
+  async view(
+    serviceName: (catalogId: string) => string | null = () => null,
+    now = new Date(),
+  ): Promise<{ open: Alert[]; closed: Alert[] }> {
     const since = new Date(now.getTime() - CLOSED_SHOWN_DAYS * 86_400_000);
     const [open, closed] = await Promise.all([
       this.prisma.alert.findMany({ where: { closedAt: null }, orderBy: { openedAt: 'desc' } }),
@@ -130,7 +135,8 @@ export class AlertRecords implements OnModuleInit {
       }),
     ]);
     open.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
-    return { open: open.map(toView), closed: closed.map(toView) };
+    const view = (row: AlertRow) => toView(row, serviceName);
+    return { open: open.map(view), closed: closed.map(view) };
   }
 
   private async create(id: string, condition: AlertCondition, now: Date): Promise<void> {
@@ -205,7 +211,7 @@ function toOpen(row: AlertRow): OpenAlert {
   };
 }
 
-function toView(row: AlertRow): Alert {
+function toView(row: AlertRow, serviceName: (catalogId: string) => string | null): Alert {
   const details = (row.details ?? {}) as AlertDetails;
   return {
     id: row.id,
@@ -213,6 +219,7 @@ function toView(row: AlertRow): Alert {
     subject: row.subject,
     severity: row.severity,
     catalogId: details.catalogId ?? null,
+    serviceName: details.catalogId ? serviceName(details.catalogId) : null,
     percent: details.percent ?? null,
     warning: row.kind === 'backup' ? (row.subject as BackupWarning) : null,
     openedAt: row.openedAt.toISOString(),
