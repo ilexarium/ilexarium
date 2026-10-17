@@ -1,4 +1,5 @@
 import {
+  lucideActivity,
   lucideArchive,
   lucideBell,
   lucideBellRing,
@@ -26,6 +27,10 @@ export const NAVIGATION: NavGroup[] = [
     items: [{ label: 'nav.disks', link: '/disks', icon: 'lucideHardDrive' }],
   },
   {
+    label: 'nav.system',
+    items: [{ label: 'nav.processes', link: '/system/processes', icon: 'lucideActivity' }],
+  },
+  {
     label: 'nav.settings',
     items: [
       { label: 'nav.account', link: '/settings/account', icon: 'lucideKeyRound' },
@@ -35,6 +40,7 @@ export const NAVIGATION: NavGroup[] = [
 ];
 
 export const NAV_ICONS = {
+  lucideActivity,
   lucideLayoutDashboard,
   lucideBoxes,
   lucideBlocks,

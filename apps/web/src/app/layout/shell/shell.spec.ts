@@ -81,6 +81,7 @@ describe('Shell (app layout)', () => {
       'Backups',
       'Alerts',
       'Disks',
+      'Processes',
       'Account',
       'Notifications',
     ]);

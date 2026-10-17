@@ -11,7 +11,8 @@
     "backups": "Backups",
     "disks": "Laufwerke",
     "alerts": "Warnungen",
-    "notifications": "Benachrichtigungen"
+    "notifications": "Benachrichtigungen",
+    "processes": "Prozesse"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -36,7 +37,9 @@
     "disks": "Laufwerke",
     "storage": "Speicher",
     "alerts": "Warnungen",
-    "notifications": "Benachrichtigungen"
+    "notifications": "Benachrichtigungen",
+    "system": "System",
+    "processes": "Prozesse"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -213,7 +216,10 @@
     "channel_not_configured": "Speichere zuerst die Einstellungen.",
     "address_refused": "An diese Adresse sendet die App nie: nicht an die eigenen Ports der Plattform, nicht an Link-Local-Adressen, und unverschlüsseltes http:// nur im eigenen Netzwerk.",
     "topic_required": "Gib die Topic-URL ein.",
-    "password_required": "Gib das Passwort ein."
+    "password_required": "Gib das Passwort ein.",
+    "process_not_found": "Dieser Prozess läuft nicht mehr.",
+    "process_protected": "Hier lassen sich nur die eigenen Prozesse von Personen beenden – nicht die des Systems, eines Dienstes oder der App.",
+    "signal_failed": "Das Signal konnte nicht gesendet werden."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -884,5 +890,71 @@
     "testSent": "Testnachricht gesendet",
     "testFailed": "Die Testnachricht konnte nicht gesendet werden",
     "lastFailure": "Die letzte Nachricht konnte nicht gesendet werden ({{time}}). {{problem}}"
+  },
+  "processes": {
+    "loading": "Prozesse werden geladen",
+    "count_one": "{{count}} Prozess",
+    "count_other": "{{count}} Prozesse",
+    "search": "Prozesse durchsuchen",
+    "searchPlaceholder": "Name, Befehl oder Benutzer",
+    "sortBy": "Sortieren nach",
+    "sort": {
+      "cpu": "CPU",
+      "memory": "Arbeitsspeicher",
+      "name": "Name",
+      "pid": "PID"
+    },
+    "showSystem": "Systemprozesse anzeigen",
+    "pause": "Anhalten",
+    "resume": "Fortsetzen",
+    "paused": "Angehalten: Die Liste wird nicht aktualisiert.",
+    "partial": "Dieser Rechner verbirgt die Prozesse anderer Benutzer vor der App, daher ist die Liste unvollständig.",
+    "none": "Keine passenden Prozesse.",
+    "column": {
+      "name": "Prozess",
+      "pid": "PID",
+      "user": "Benutzer",
+      "cpu": "CPU",
+      "memory": "Speicher",
+      "state": "Zustand",
+      "started": "Gestartet",
+      "actions": "Aktionen"
+    },
+    "state": {
+      "running": "Läuft",
+      "sleeping": "Schläft",
+      "waiting": "Wartet",
+      "zombie": "Zombie",
+      "stopped": "Angehalten",
+      "idle": "Untätig",
+      "other": "Anderer"
+    },
+    "kernel": "Kernel-Thread",
+    "container": "Container {{name}}",
+    "unknownContainer": "In einem Container",
+    "commandLine": "Befehlszeile",
+    "startedAgo": "vor {{duration}}",
+    "unknownUser": "UID {{uid}}",
+    "end": "Beenden",
+    "force": "Erzwingen",
+    "endFor": "{{name}} (PID {{pid}}) beenden",
+    "forceFor": "Beenden von {{name}} (PID {{pid}}) erzwingen",
+    "toContainers": "Container",
+    "toContainersFor": "{{name}} auf der Seite Container stoppen",
+    "stillRunning": "Läuft noch, obwohl er zum Beenden aufgefordert wurde.",
+    "endDialog": {
+      "title": "{{name}} beenden?",
+      "details": "PID {{pid}} · Benutzer {{user}}",
+      "text": "Er wird gebeten, sich zu beenden, und kann vorher noch fertig werden und speichern.",
+      "forceTitle": "Beenden von {{name}} erzwingen?",
+      "forceText": "Er hat sich auf die Aufforderung nicht beendet. Erzwingen beendet ihn sofort: Was er nicht gespeichert hat, geht verloren.",
+      "cancel": "Abbrechen",
+      "confirm": "Prozess beenden",
+      "confirmForce": "Erzwingen"
+    },
+    "ended": "{{name}} wurde zum Beenden aufgefordert",
+    "forced": "{{name}} wurde zwangsweise beendet",
+    "endFailed": "Der Prozess konnte nicht beendet werden",
+    "showAll": "Alle anzeigen ({{count}})"
   }
 }

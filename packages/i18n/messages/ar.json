@@ -11,7 +11,8 @@
     "backups": "النسخ الاحتياطية",
     "disks": "الأقراص",
     "alerts": "التنبيهات",
-    "notifications": "الإشعارات"
+    "notifications": "الإشعارات",
+    "processes": "العمليات"
   },
   "app": {
     "loading": "جارٍ التحميل…",
@@ -36,7 +37,9 @@
     "disks": "الأقراص",
     "storage": "التخزين",
     "alerts": "التنبيهات",
-    "notifications": "الإشعارات"
+    "notifications": "الإشعارات",
+    "system": "النظام",
+    "processes": "العمليات"
   },
   "userMenu": {
     "open": "قائمة الحساب",
@@ -217,7 +220,10 @@
     "channel_not_configured": "احفظ الإعدادات أولًا.",
     "address_refused": "لا يرسل التطبيق إلى هذا العنوان أبدًا: لا إلى منافذ المنصة نفسها، ولا إلى عناوين link-local، ولا يُسمح بـ http:// غير المشفّر إلا داخل شبكتك.",
     "topic_required": "أدخل رابط الموضوع.",
-    "password_required": "أدخل كلمة المرور."
+    "password_required": "أدخل كلمة المرور.",
+    "process_not_found": "لم تعد هذه العملية تعمل.",
+    "process_protected": "لا يمكن هنا إنهاء إلا عمليات الأشخاص أنفسهم، لا عمليات النظام أو الخدمات أو التطبيق.",
+    "signal_failed": "تعذّر إرسال الإشارة إلى العملية."
   },
   "format": {
     "lessThanAMinute": "أقل من دقيقة"
@@ -920,5 +926,75 @@
     "testSent": "أُرسلت رسالة التجربة",
     "testFailed": "تعذّر إرسال رسالة التجربة",
     "lastFailure": "تعذّر إرسال آخر رسالة ({{time}}). {{problem}}"
+  },
+  "processes": {
+    "loading": "جارٍ تحميل العمليات",
+    "search": "البحث في العمليات",
+    "searchPlaceholder": "الاسم أو الأمر أو المستخدم",
+    "sortBy": "الترتيب حسب",
+    "sort": {
+      "cpu": "المعالج",
+      "memory": "الذاكرة",
+      "name": "الاسم",
+      "pid": "PID"
+    },
+    "showSystem": "إظهار عمليات النظام",
+    "pause": "إيقاف مؤقت",
+    "resume": "متابعة",
+    "paused": "متوقفة مؤقتًا: القائمة لا تتحدّث.",
+    "partial": "يخفي هذا الجهاز عمليات المستخدمين الآخرين عن التطبيق، لذا القائمة غير كاملة.",
+    "none": "لا توجد عمليات مطابقة.",
+    "column": {
+      "name": "العملية",
+      "pid": "PID",
+      "user": "المستخدم",
+      "cpu": "المعالج",
+      "memory": "الذاكرة",
+      "state": "الحالة",
+      "started": "بدأت",
+      "actions": "الإجراءات"
+    },
+    "state": {
+      "running": "تعمل",
+      "sleeping": "نائمة",
+      "waiting": "تنتظر",
+      "zombie": "زومبي",
+      "stopped": "متوقفة",
+      "idle": "خاملة",
+      "other": "أخرى"
+    },
+    "kernel": "خيط نواة",
+    "container": "الحاوية {{name}}",
+    "unknownContainer": "داخل حاوية",
+    "commandLine": "سطر الأوامر",
+    "startedAgo": "منذ {{duration}}",
+    "unknownUser": "uid {{uid}}",
+    "end": "إنهاء",
+    "force": "إنهاء قسري",
+    "endFor": "إنهاء {{name}} (PID {{pid}})",
+    "forceFor": "إنهاء {{name}} (PID {{pid}}) قسريًا",
+    "toContainers": "الحاويات",
+    "toContainersFor": "أوقف {{name}} من صفحة الحاويات",
+    "stillRunning": "ما زالت تعمل بعد طلب إيقافها.",
+    "endDialog": {
+      "title": "إنهاء {{name}}؟",
+      "details": "PID {{pid}} · المستخدم {{user}}",
+      "text": "يُطلب منها التوقف، فتستطيع إنهاء عملها وحفظه أولًا.",
+      "forceTitle": "إنهاء {{name}} قسريًا؟",
+      "forceText": "لم تتوقف عند طلب ذلك. الإنهاء القسري يوقفها فورًا: ما لم تحفظه يضيع.",
+      "cancel": "إلغاء",
+      "confirm": "إنهاء العملية",
+      "confirmForce": "إنهاء قسري"
+    },
+    "ended": "طُلب من {{name}} التوقف",
+    "forced": "أُنهيت {{name}} قسريًا",
+    "endFailed": "تعذّر إنهاء العملية",
+    "count_zero": "لا توجد عمليات",
+    "count_one": "عملية واحدة",
+    "count_two": "عمليتان",
+    "count_few": "{{count}} عمليات",
+    "count_many": "{{count}} عملية",
+    "count_other": "{{count}} عملية",
+    "showAll": "عرض الكل ({{count}})"
   }
 }

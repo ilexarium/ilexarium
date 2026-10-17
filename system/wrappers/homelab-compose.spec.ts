@@ -634,6 +634,7 @@ describe('the sudoers drop-in', () => {
       'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-compose.mts',
       'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-backup.mts',
       'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-disk.mts',
+      'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-process.mts',
     ]);
     expect(readFileSync(SUDOERS, 'utf8')).toContain('Defaults:homelab env_reset, !env_keep');
   });

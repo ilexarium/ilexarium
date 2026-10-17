@@ -1,0 +1,41 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @if (request(); as request) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle>
+          {{
+            (request.signal === 'KILL'
+              ? 'processes.endDialog.forceTitle'
+              : 'processes.endDialog.title'
+            ) | translate: { name: request.process.name }
+          }}
+        </h2>
+        <p hlmAlertDialogDescription>
+          {{
+            'processes.endDialog.details'
+              | translate: { pid: request.process.pid, user: user(request) }
+          }}
+        </p>
+        <p hlmAlertDialogDescription>
+          {{
+            (request.signal === 'KILL'
+              ? 'processes.endDialog.forceText'
+              : 'processes.endDialog.text'
+            ) | translate
+          }}
+        </p>
+      </hlm-alert-dialog-header>
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>{{ 'processes.endDialog.cancel' | translate }}</button>
+        <button hlmAlertDialogAction (click)="confirmed()">
+          {{
+            (request.signal === 'KILL'
+              ? 'processes.endDialog.confirmForce'
+              : 'processes.endDialog.confirm'
+            ) | translate
+          }}
+        </button>
+      </hlm-alert-dialog-footer>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

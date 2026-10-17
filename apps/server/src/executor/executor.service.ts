@@ -6,6 +6,9 @@ import {
   type BackupErrorCode,
   DISK_ERROR_CODES,
   type DiskErrorCode,
+  PROCESS_ERROR_CODES,
+  type ProcessErrorCode,
+  type ProcessSignalRequest,
   SERVICE_ERROR_CODES,
   type ServiceErrorCode,
 } from '@homelab/shared';
@@ -20,6 +23,7 @@ import type {
   DiskOutcome,
   ExecutorActor,
   JobCallbacks,
+  ProcessOutcome,
   WrapperBackupPlan,
 } from './executor.model.js';
 import { WrapperConfigService } from './wrapper-config.js';
@@ -29,8 +33,10 @@ import {
   type DiskWrapperAction,
   diskWrapperCommand,
   type ExecutorMode,
+  processWrapperCommand,
   REPO_BACKUP_WRAPPER,
   REPO_DISK_WRAPPER,
+  REPO_PROCESS_WRAPPER,
   REPO_WRAPPER,
   type WrapperAction,
   type WrapperCommand,
@@ -87,6 +93,14 @@ const BACKUP_WRAPPER_CODES: Record<string, BackupErrorCode> = {
 const DISK_WRAPPER_CODES: Record<string, DiskErrorCode> = Object.fromEntries(
   Object.values(DISK_ERROR_CODES).map((code) => [code, code]),
 );
+
+/** The process wrapper's `@@error` codes → ours (the same words). */
+const PROCESS_WRAPPER_CODES: Record<string, ProcessErrorCode> = Object.fromEntries(
+  Object.values(PROCESS_ERROR_CODES).map((code) => [code, code]),
+);
+
+/** Sending a signal is instant; this only covers a stuck start. */
+const PROCESS_TIMEOUT_MS = 30_000;
 
 /** Mounting waits for systemd; a slow USB disk takes seconds. */
 const DISK_TIMEOUT_MS = 2 * 60_000;
@@ -272,6 +286,45 @@ export class ExecutorService {
     return this.runDisk('unmount', 'disk.unmount', actor, { name }, () => null);
   }
 
+  // Processes. Rejects only if the audit log can't record the request (then nothing ran).
+
+  /**
+   * Ends a person's process (TERM) or forces it (KILL), through the process wrapper — which reads
+   * the process again, refuses anything but a person's, and signals it as that person.
+   * `audit` names it in the log: never its command line (it may hold passwords).
+   */
+  async processSignal(
+    request: ProcessSignalRequest,
+    audit: { name: string; user: string | null },
+    actor: ExecutorActor,
+  ): Promise<ProcessOutcome> {
+    const entry = {
+      action: 'process.end' as const,
+      userId: actor.user.id,
+      username: actor.user.username,
+      ip: actor.ip,
+    };
+    const details = {
+      pid: request.pid,
+      name: audit.name,
+      user: audit.user ?? '',
+      signal: request.signal,
+    };
+    // Fail closed: no record, no action.
+    await this.audit.record({ ...entry, outcome: 'requested', details });
+    const raw = await this.spawnRaw(this.processCommand(), 'process', {
+      stdin: JSON.stringify(request),
+      timeoutMs: PROCESS_TIMEOUT_MS,
+    });
+    const outcome = this.processOutcome(raw);
+    await this.audit.tryRecord({
+      ...entry,
+      outcome: outcome.ok ? 'success' : 'failure',
+      details: outcome.ok ? details : { ...details, reason: outcome.code },
+    });
+    return outcome;
+  }
+
   /** How long mounting or unmounting may take; tests shorten it. */
   protected diskTimeoutMs = DISK_TIMEOUT_MS;
 
@@ -290,6 +343,14 @@ export class ExecutorService {
   protected backupCommand(action: BackupWrapperAction): WrapperCommand {
     return backupWrapperCommand(this.mode, action, {
       wrapper: REPO_BACKUP_WRAPPER,
+      configFile: this.wrapperConfig.file,
+    });
+  }
+
+  /** The process wrapper's command; tests replace the wrapper. */
+  protected processCommand(): WrapperCommand {
+    return processWrapperCommand(this.mode, {
+      wrapper: REPO_PROCESS_WRAPPER,
       configFile: this.wrapperConfig.file,
     });
   }
@@ -480,10 +541,32 @@ export class ExecutorService {
     );
   }
 
+  private processOutcome(raw: RawRun): ProcessOutcome {
+    const fail = (code: ProcessErrorCode): ProcessOutcome => ({ ok: false, code });
+    if (raw.notStarted) return fail(PROCESS_ERROR_CODES.executorUnavailable);
+    if (raw.timedOut) return fail(PROCESS_ERROR_CODES.timedOut);
+    if (raw.exitCode === 0 && raw.results.at(-1)?.['signalled'] === true) return { ok: true };
+    if (raw.lastError) {
+      const known = Object.hasOwn(PROCESS_WRAPPER_CODES, raw.lastError.code)
+        ? PROCESS_WRAPPER_CODES[raw.lastError.code]
+        : undefined;
+      if (!known) {
+        this.logger.error(
+          `The process wrapper refused: ${raw.lastError.code} (${raw.lastInfo ?? ''})`,
+        );
+      }
+      return fail(known ?? PROCESS_ERROR_CODES.executorUnavailable);
+    }
+    if (!raw.sawMarker) this.logger.error(`The process wrapper did not run (exit ${raw.exitCode})`);
+    return fail(
+      raw.sawMarker ? PROCESS_ERROR_CODES.signalFailed : PROCESS_ERROR_CODES.executorUnavailable,
+    );
+  }
+
   /** Runs one wrapper call: stdin in, markers and output (cleaned, masked) out. Never rejects. */
   private spawnRaw(
     { file, args, env }: WrapperCommand,
-    name: 'deploy' | 'backup' | 'disk',
+    name: 'deploy' | 'backup' | 'disk' | 'process',
     options: SpawnOptions,
   ): Promise<RawRun> {
     return new Promise((resolve) => {

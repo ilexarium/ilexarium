@@ -8,5 +8,6 @@ export * from './health.js';
 export * from './jobs.js';
 export * from './logs.js';
 export * from './monitoring.js';
+export * from './processes.js';
 export * from './realtime.js';
 export * from './services.js';

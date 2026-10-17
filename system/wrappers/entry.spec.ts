@@ -35,7 +35,12 @@ function start(entry: string) {
   return { code: result.status, out: result.stdout.toString() };
 }
 
-describe.each(['homelab-backup.mts', 'homelab-compose.mts', 'homelab-disk.mts'])('%s', (entry) => {
+describe.each([
+  'homelab-backup.mts',
+  'homelab-compose.mts',
+  'homelab-disk.mts',
+  'homelab-process.mts',
+])('%s', (entry) => {
   const area = entry.slice('homelab-'.length, -'.mts'.length);
 
   it('loads its modules when only their owner can change them', () => {
