@@ -55,6 +55,13 @@ class TestExecutor extends ExecutorService {
       env: { PATH: '/usr/bin:/bin' },
     };
   }
+  protected override processCommand(): WrapperCommand {
+    return {
+      file: this.file,
+      args: [join(dir, 'wrapper.cjs'), 'signal'],
+      env: { PATH: '/usr/bin:/bin' },
+    };
+  }
   override diskTimeoutMs = 10_000;
   protected override diskCommand(action: DiskWrapperAction): WrapperCommand {
     return {
@@ -410,6 +417,60 @@ describe('ExecutorService disks', () => {
     script(['@@phase done']);
     audit.record.mockRejectedValueOnce(new Error('no audit table'));
     await expect(executor().diskUnmount('photos', actor)).rejects.toThrow();
+    expect(existsSync(join(dir, 'record.json'))).toBe(false);
+  });
+});
+
+describe('ExecutorService processes', () => {
+  const actor = { user: USER, ip: '127.0.0.1' };
+  const request = { pid: 4312, startTicks: '5000', signal: 'TERM' as const };
+  const names = { name: 'python3', user: 'anna' };
+
+  it('signals: the request on stdin, `signal` the only argument, audited without the command line', async () => {
+    script(['@@result {"signalled":true}']);
+    expect(await executor().processSignal(request, names, actor)).toEqual({ ok: true });
+    expect(record()).toMatchObject({
+      args: ['signal'],
+      stdin: '{"pid":4312,"startTicks":"5000","signal":"TERM"}',
+    });
+    const details = { pid: 4312, name: 'python3', user: 'anna', signal: 'TERM' };
+    expect(entries.map((e) => [e.action, e.outcome, e.details])).toEqual([
+      ['process.end', 'requested', details],
+      ['process.end', 'success', details],
+    ]);
+  });
+
+  it('maps the wrapper’s refusals; an unknown one, or no result, is no success', async () => {
+    script(['@@error code=process_protected'], 2);
+    expect(await executor().processSignal(request, names, actor)).toEqual({
+      ok: false,
+      code: 'process_protected',
+    });
+    expect(entries.at(-1)).toMatchObject({
+      outcome: 'failure',
+      details: { pid: 4312, reason: 'process_protected' },
+    });
+    script(['@@error code=process_not_found'], 2);
+    expect(await executor().processSignal(request, names, actor)).toEqual({
+      ok: false,
+      code: 'process_not_found',
+    });
+    script(['@@error code=whatever'], 2);
+    expect(await executor().processSignal(request, names, actor)).toEqual({
+      ok: false,
+      code: 'executor_unavailable',
+    });
+    script([], 0);
+    expect(await executor().processSignal(request, names, actor)).toEqual({
+      ok: false,
+      code: 'executor_unavailable',
+    });
+  });
+
+  it('does nothing when the audit log can’t record the request', async () => {
+    script(['@@result {"signalled":true}']);
+    audit.record.mockRejectedValueOnce(new Error('no audit table'));
+    await expect(executor().processSignal(request, names, actor)).rejects.toThrow();
     expect(existsSync(join(dir, 'record.json'))).toBe(false);
   });
 });

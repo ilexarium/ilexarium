@@ -16,6 +16,11 @@ export const INSTALLED_DISK_WRAPPER = '/opt/homelab/libexec/homelab-disk.mts';
 export const REPO_DISK_WRAPPER = fileURLToPath(
   new URL('../../../../system/wrappers/homelab-disk.mts', import.meta.url),
 );
+/** The process wrapper, installed (the sudoers rule names it) and in this repository. */
+export const INSTALLED_PROCESS_WRAPPER = '/opt/homelab/libexec/homelab-process.mts';
+export const REPO_PROCESS_WRAPPER = fileURLToPath(
+  new URL('../../../../system/wrappers/homelab-process.mts', import.meta.url),
+);
 const SUDO = '/usr/bin/sudo';
 const PATH = '/usr/sbin:/usr/bin:/sbin:/bin';
 
@@ -102,6 +107,28 @@ export function diskWrapperCommand(
   return {
     file: process.execPath,
     args: [direct.wrapper, action],
+    env: { PATH, LANG: 'C.UTF-8', HOMELAB_WRAPPER_CONFIG: direct.configFile },
+  };
+}
+
+/** The same for the process wrapper: its one action is `signal`; the values on stdin. */
+export function processWrapperCommand(
+  mode: ExecutorMode,
+  direct: { wrapper: string; configFile: string } = {
+    wrapper: REPO_PROCESS_WRAPPER,
+    configFile: '',
+  },
+): WrapperCommand {
+  if (mode === 'sudo') {
+    return {
+      file: SUDO,
+      args: ['-n', INSTALLED_PROCESS_WRAPPER, 'signal'],
+      env: { PATH, LANG: 'C.UTF-8' },
+    };
+  }
+  return {
+    file: process.execPath,
+    args: [direct.wrapper, 'signal'],
     env: { PATH, LANG: 'C.UTF-8', HOMELAB_WRAPPER_CONFIG: direct.configFile },
   };
 }

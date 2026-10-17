@@ -1,0 +1,94 @@
+<div class="grid gap-4">
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="relative min-w-0 flex-1 basis-60">
+      <ng-icon
+        name="lucideSearch"
+        class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
+      <input
+        hlmInput
+        type="search"
+        class="w-full ps-9"
+        [attr.aria-label]="'processes.search' | translate"
+        [placeholder]="'processes.searchPlaceholder' | translate"
+        [value]="store.search()"
+        (input)="search($event)"
+      />
+    </div>
+    <div
+      class="flex flex-wrap items-center gap-1"
+      role="group"
+      [attr.aria-label]="'processes.sortBy' | translate"
+    >
+      <span class="me-1 text-sm text-muted-foreground" aria-hidden="true">{{
+        'processes.sortBy' | translate
+      }}</span>
+      @for (sort of sorts; track sort) {
+        <button
+          hlmBtn
+          size="sm"
+          [variant]="store.sort() === sort ? 'secondary' : 'ghost'"
+          [attr.aria-pressed]="store.sort() === sort"
+          (click)="store.setSort(sort)"
+        >
+          {{ 'processes.sort.' + sort | translate }}
+        </button>
+      }
+    </div>
+    <label class="flex items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        class="size-4"
+        [checked]="store.showSystem()"
+        (change)="showSystem($event)"
+      />
+      {{ 'processes.showSystem' | translate }}
+    </label>
+    <button
+      hlmBtn
+      variant="outline"
+      size="sm"
+      [attr.aria-pressed]="store.paused()"
+      (click)="store.togglePause()"
+    >
+      <ng-icon [name]="store.paused() ? 'lucidePlay' : 'lucidePause'" aria-hidden="true" />
+      {{ (store.paused() ? 'processes.resume' : 'processes.pause') | translate }}
+    </button>
+  </div>
+
+  @if (store.partial()) {
+    <div hlmAlert role="status">
+      <p hlmAlertDescription>{{ 'processes.partial' | translate }}</p>
+    </div>
+  }
+
+  @if (store.loaded()) {
+    <p class="text-sm text-muted-foreground" aria-live="polite">
+      {{ 'processes.count' | plural: store.rows().length }}
+      @if (store.paused()) {
+        · {{ 'processes.paused' | translate }}
+      }
+    </p>
+    <app-process-list
+      [processes]="store.shownRows()"
+      [pending]="store.pending()"
+      [forceable]="store.forceable()"
+      [now]="store.now()"
+      (end)="ask($event)"
+    />
+    @if (store.moreRows() > 0) {
+      <button hlmBtn variant="outline" class="justify-self-center" (click)="store.showEverything()">
+        {{ 'processes.showAll' | translate: { count: store.rows().length } }}
+      </button>
+    }
+  } @else {
+    <div class="grid gap-2" role="status" [attr.aria-label]="'processes.loading' | translate">
+      @for (line of [1, 2, 3, 4, 5]; track line) {
+        <hlm-skeleton class="h-12 w-full" />
+      }
+    </div>
+  }
+</div>
+
+<app-end-process-dialog (confirm)="store.end($event)" />

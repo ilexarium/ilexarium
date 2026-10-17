@@ -38,6 +38,11 @@ const diskConfigSchema = z.object({
     .object({ root: absolute, mountRoot: absolute, unitDir: absolute, backupPlan: absolute })
     .optional(),
 });
+const processConfigSchema = z.object({
+  appUid: z.number().int().nonnegative().optional(),
+  minUid: z.number().int().positive().optional(),
+  dev: z.object({ procRoot: absolute }).optional(),
+});
 const wrapperConfigSchema = z.object({
   catalogDir: absolute,
   storageRoots: z.array(absolute).min(1),
@@ -49,6 +54,7 @@ const wrapperConfigSchema = z.object({
   home: absolute.optional(),
   backup: backupConfigSchema.optional(),
   disk: diskConfigSchema.optional(),
+  process: processConfigSchema.optional(),
 });
 
 const REPO_CATALOG = fileURLToPath(new URL('../../../../catalog', import.meta.url));
@@ -98,6 +104,15 @@ export class WrapperConfigService implements OnModuleInit {
       this.loaded = await withDevelopmentDisks(this.loaded, this.loaded.backup);
       await writeFile(this.file, `${JSON.stringify(this.loaded, null, 2)}\n`, { mode: 0o600 });
       this.logger.warn(`Added a development disk config (pretend disks) to ${this.file}`);
+    }
+    // And the process wrapper's: the real /proc; the app's own user (this one) is protected.
+    if (!this.production && !this.loaded.process) {
+      this.loaded = {
+        ...this.loaded,
+        process: { appUid: process.getuid?.() ?? 0, dev: { procRoot: '/proc' } },
+      };
+      await writeFile(this.file, `${JSON.stringify(this.loaded, null, 2)}\n`, { mode: 0o600 });
+      this.logger.warn(`Added a development process config to ${this.file}`);
     }
   }
 

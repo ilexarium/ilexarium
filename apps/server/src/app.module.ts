@@ -12,6 +12,7 @@ import { ContainerLogsModule } from './container-logs/container-logs.module.js';
 import { ContainersModule } from './containers/containers.module.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { ProcessesModule } from './processes/processes.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { ServicesModule } from './services/services.module.js';
 import { SystemMetricsModule } from './system-metrics/system-metrics.module.js';
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module.js';
     BackupsModule,
     DisksModule,
     AlertsModule,
+    ProcessesModule,
   ],
   providers: [{ provide: APP_PIPE, useClass: ZodValidationPipe }],
 })

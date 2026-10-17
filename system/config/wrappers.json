@@ -8,6 +8,9 @@
   "disk": {
     "systemctlBin": "/usr/bin/systemctl"
   },
+  "process": {
+    "appUid": 990
+  },
   "backup": {
     "borgBin": "/usr/bin/borg",
     "systemctlBin": "/usr/bin/systemctl",

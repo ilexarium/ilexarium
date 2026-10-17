@@ -5,6 +5,9 @@ import type { DiskUsage, HostInfo } from '@homelab/shared';
 import {
   diskMounts,
   isShownInterface,
+  parseBootTime,
+  parseCmdline,
+  parseContainerId,
   parseCpuTimes,
   parseListeningTcpPorts,
   parseMeminfo,
@@ -13,8 +16,12 @@ import {
   parseNetDev,
   parseDiskUnit,
   parseOsRelease,
+  parsePasswd,
+  parseProcStat,
+  parseProcStatus,
   parseSwaps,
   parseUdevData,
+  procHidesProcesses,
 } from './proc-parsers.js';
 import type {
   BlockDevice,
@@ -23,6 +30,7 @@ import type {
   MemoryInfo,
   MountPoint,
   NetCounters,
+  RawProcess,
   Space,
   Subfolder,
 } from './host.model.js';
@@ -231,6 +239,48 @@ export class SystemReader {
       if (unit) units.push({ name: unit.where.slice(unit.where.lastIndexOf('/') + 1), ...unit });
     }
     return units;
+  }
+
+  /** Every process; one that ends while being read is left out. */
+  async processes(): Promise<RawProcess[]> {
+    const pids = ((await this.list('proc')) ?? []).filter((name) => /^\d+$/.test(name));
+    const processes = await Promise.all(pids.map((pid) => this.process(Number(pid))));
+    return processes.filter((process) => process !== null);
+  }
+
+  /** One process, or null if there is none with this PID (or it ended while being read). */
+  async process(pid: number): Promise<RawProcess | null> {
+    if (!Number.isInteger(pid) || pid <= 0) return null;
+    const [stat, status, cmdline, cgroup] = await Promise.all([
+      this.readOptional(`proc/${pid}/stat`),
+      this.readOptional(`proc/${pid}/status`),
+      this.readOptional(`proc/${pid}/cmdline`),
+      this.readOptional(`proc/${pid}/cgroup`),
+    ]);
+    const parsed = stat ? parseProcStat(stat) : null;
+    const owner = status ? parseProcStatus(status) : null;
+    if (!parsed || !owner || parsed.pid !== pid) return null;
+    return {
+      ...parsed,
+      ...owner,
+      command: parseCmdline(cmdline ?? ''),
+      containerId: parseContainerId(cgroup ?? ''),
+    };
+  }
+
+  /** Account names by uid, from /etc/passwd (empty if it can't be read). */
+  async users(): Promise<Map<number, string>> {
+    return parsePasswd((await this.readOptional('etc/passwd')) ?? '');
+  }
+
+  /** When the machine booted, in seconds since 1970. */
+  async bootTime(): Promise<number | null> {
+    return parseBootTime(await this.read('proc/stat'));
+  }
+
+  /** Whether /proc hides other users' processes (`hidepid`). */
+  async procHidden(): Promise<boolean> {
+    return procHidesProcesses((await this.readOptional('proc/self/mounts')) ?? '');
   }
 
   private async readOptional(path: string): Promise<string | null> {

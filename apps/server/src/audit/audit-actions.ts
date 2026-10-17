@@ -21,6 +21,7 @@ export const AUDIT_ACTIONS = [
   'disk.unmount',
   'alerts.channel.update',
   'alerts.channel.test',
+  'process.end',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

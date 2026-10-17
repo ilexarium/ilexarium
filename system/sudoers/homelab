@@ -1,8 +1,9 @@
 # /etc/sudoers.d/homelab — REVIEW-REQUIRED (system/CLAUDE.md).
 # Install as root:root, mode 0440, after `visudo -cf` accepts it (the installer does both).
 #
-# The app's user may run exactly three programs as root, by absolute path: the deploy wrapper, the
-# backup wrapper and the disk wrapper. No wildcards, no raw binaries (docker, node, borg, mount,
+# The app's user may run exactly four programs as root, by absolute path: the deploy wrapper, the
+# backup wrapper, the disk wrapper and the process wrapper (which drops to the process owner's
+# uid before it signals anything). No wildcards, no raw binaries (docker, node, borg, mount,
 # systemctl) — each wrapper checks its own arguments. The wrapper files (and the backup wrapper's word list beside it) and their folder
 # must belong to root and be writable only by root: sudo trusts the path, so whoever can replace
 # a file runs code as root.
@@ -15,3 +16,4 @@ Defaults:homelab env_reset, !env_keep, secure_path="/usr/sbin:/usr/bin:/sbin:/bi
 homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-compose.mts
 homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-backup.mts
 homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-disk.mts
+homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-process.mts

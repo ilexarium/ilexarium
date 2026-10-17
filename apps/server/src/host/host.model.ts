@@ -66,3 +66,28 @@ export interface BlockDevice {
   uuid: string | null;
   label: string | null;
 }
+
+/** One process as /proc shows it (proc(5)), before CPU shares and names are worked out. */
+export interface ProcStat {
+  pid: number;
+  /** `comm`: the kernel's short name (at most 15 characters; may hold spaces and parentheses). */
+  name: string;
+  /** The state letter: R, S, D, Z, T, t, I, … */
+  state: string;
+  /** PF_* flags; PF_KTHREAD marks a kernel thread. */
+  flags: number;
+  /** User plus system CPU time, in clock ticks. */
+  cpuTicks: number;
+  /** Since boot, in clock ticks, as digits (with the PID it names one process). */
+  startTicks: string;
+}
+
+/** A process: its /proc/<pid>/stat, status, cmdline and cgroup together. */
+export interface RawProcess extends ProcStat {
+  /** Real, effective, saved and file-system uid. */
+  uids: [number, number, number, number];
+  rssBytes: number;
+  command: string;
+  /** The container's ID (64 hex digits) if it runs in one; `''` in one whose ID isn't known. */
+  containerId: string | null;
+}
