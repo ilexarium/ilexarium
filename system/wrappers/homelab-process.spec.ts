@@ -2,7 +2,7 @@
 // against a pretend /proc for the refusals, and the real /proc for ending a real process (a
 // child of this test). Run by the server's unit tests.
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -135,6 +135,17 @@ describe('homelab-process: what it refuses', () => {
     ],
     ['a Docker container’s (cgroup v1)', { cgroup: '12:pids:/docker/' + 'b'.repeat(64) }],
     ['a Podman container’s', { cgroup: '0::/machine.slice/libpod-' + 'c'.repeat(64) + '.scope' }],
+    [
+      'a rootless Docker container’s',
+      {
+        cgroup:
+          '0::/user.slice/user-1500.slice/user@1500.service/app.slice/docker-' +
+          'd'.repeat(64) +
+          '.scope',
+      },
+    ],
+    ['a systemd-nspawn machine’s', { cgroup: '0::/machine.slice/machine-web.scope/payload' }],
+    ['a Kubernetes pod’s', { cgroup: '0::/kubepods/besteffort/pod1/abc' }],
   ])('refuses %s process', async (_, change) => {
     addProcess(4312, change);
     expectRefused(await signal(4312), 'process_protected');
@@ -145,6 +156,16 @@ describe('homelab-process: what it refuses', () => {
     const status = join(proc, '4312', 'status');
     writeFileSync(status, readFileSync(status, 'utf8').replace(/^Uid:.*$/m, 'Uid:\t1500\t0\t0\t0'));
     expectRefused(await signal(4312), 'process_protected');
+  });
+
+  it('lets through a person’s own rootless Docker daemon (its service is no container)', async () => {
+    // Past every check, the signal goes to the real PID: one that no process has here.
+    let pid = 4_000_000;
+    while (existsSync(`/proc/${pid}`)) pid--;
+    addProcess(pid, {
+      cgroup: '0::/user.slice/user-1500.slice/user@1500.service/app.slice/docker.service',
+    });
+    expectRefused(await signal(pid), 'process_not_found');
   });
 
   it('refuses the app’s own user also from a higher configured range', async () => {

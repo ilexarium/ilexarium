@@ -10,7 +10,8 @@
 // /proc/<pid>/stat) must both match: a PID used again by another process is refused. Everything
 // is read again here from /proc — nothing the app says about the process is trusted. Before the
 // signal it takes on the owner's uid and gid, so the kernel only lets it signal that person's
-// processes: it never signals anything as root. Design: docs/plans/process_list.md.
+// processes: it never signals anything as root (its group is `nogroup`, never the process's).
+// Design: docs/plans/process_list.md.
 //
 // Zero dependencies on purpose: only node: built-ins — any package it loaded would run as root.
 // `env -i` in the shebang empties the environment before Node starts.

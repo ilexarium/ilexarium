@@ -35,6 +35,9 @@ import type {
   Subfolder,
 } from './host.model.js';
 
+/** /proc/<pid>/ folders read at once (four files each). */
+const PROCESS_BATCH = 64;
+
 /**
  * The only place the host's state is read: plain files under `/proc` and `/etc`, folders,
  * `statfs()` and Node's `os` — no child processes, no privileges. Everything else works on what
@@ -241,21 +244,30 @@ export class SystemReader {
     return units;
   }
 
-  /** Every process; one that ends while being read is left out. */
+  /**
+   * Every process; one that ends while being read is left out. Read 64 at a time (4 files each):
+   * all at once would run out of file descriptors on a busy machine and crowd out other work.
+   */
   async processes(): Promise<RawProcess[]> {
     const pids = ((await this.list('proc')) ?? []).filter((name) => /^\d+$/.test(name));
-    const processes = await Promise.all(pids.map((pid) => this.process(Number(pid))));
-    return processes.filter((process) => process !== null);
+    const processes: RawProcess[] = [];
+    for (let i = 0; i < pids.length; i += PROCESS_BATCH) {
+      const batch = await Promise.all(
+        pids.slice(i, i + PROCESS_BATCH).map((pid) => this.process(Number(pid))),
+      );
+      for (const process of batch) if (process) processes.push(process);
+    }
+    return processes;
   }
 
   /** One process, or null if there is none with this PID (or it ended while being read). */
   async process(pid: number): Promise<RawProcess | null> {
     if (!Number.isInteger(pid) || pid <= 0) return null;
     const [stat, status, cmdline, cgroup] = await Promise.all([
-      this.readOptional(`proc/${pid}/stat`),
-      this.readOptional(`proc/${pid}/status`),
-      this.readOptional(`proc/${pid}/cmdline`),
-      this.readOptional(`proc/${pid}/cgroup`),
+      this.readProc(`proc/${pid}/stat`),
+      this.readProc(`proc/${pid}/status`),
+      this.readProc(`proc/${pid}/cmdline`),
+      this.readProc(`proc/${pid}/cgroup`),
     ]);
     const parsed = stat ? parseProcStat(stat) : null;
     const owner = status ? parseProcStatus(status) : null;
@@ -281,6 +293,20 @@ export class SystemReader {
   /** Whether /proc hides other users' processes (`hidepid`). */
   async procHidden(): Promise<boolean> {
     return procHidesProcesses((await this.readOptional('proc/self/mounts')) ?? '');
+  }
+
+  /**
+   * A file of /proc/<pid>/: null once the process has ended (ENOENT, ESRCH); any other error
+   * (out of file descriptors, …) is thrown — a process must never silently drop off the list.
+   */
+  private async readProc(path: string): Promise<string | null> {
+    try {
+      return await this.read(path);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT' || code === 'ESRCH') return null;
+      throw error;
+    }
   }
 
   private async readOptional(path: string): Promise<string | null> {

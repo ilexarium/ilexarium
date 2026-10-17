@@ -9,6 +9,12 @@ import { parseInput } from '../lib/input.mts';
 import { Refusal } from '../lib/output.mts';
 import { isRoot } from '../lib/startup.mts';
 
+/**
+ * The group it signals with: `nogroup`, no rights of its own. The kernel decides whether a signal
+ * may be sent by uid alone, so the process's own group (possibly root's) is never taken on.
+ */
+const NOGROUP = 65534;
+
 /** Linux's highest PID (`pid_max` at most 2^22). */
 const MAX_PID = 4_194_304;
 
@@ -49,9 +55,9 @@ function current(proc: string, request: SignalRequest): ProcessInfo {
 }
 
 /**
- * Sends the signal, as the owner: in root mode this program first takes on the owner's real uid
- * and gid (and no supplementary groups) — from then on the kernel lets it signal only that
- * person's processes. In development (not root) it runs as the developer anyway.
+ * Sends the signal, as the owner: in root mode this program first takes on the owner's real uid,
+ * with no groups but `nogroup` — from then on the kernel lets it signal only that person's
+ * processes. In development (not root) it runs as the developer anyway.
  */
 export function sendSignal(config: Config, input: string): void {
   const request = parseRequest(input);
@@ -70,9 +76,15 @@ export function sendSignal(config: Config, input: string): void {
       throw new Refusal('setup', 'can’t take on another identity here', 6);
     }
     process.setgroups([]);
-    process.setgid(info.gid);
+    process.setgid(NOGROUP);
     process.setuid(owner);
-    if (process.getuid?.() !== owner || process.geteuid?.() !== owner) {
+    if (
+      process.getuid?.() !== owner ||
+      process.geteuid?.() !== owner ||
+      process.getgid?.() !== NOGROUP ||
+      process.getegid?.() !== NOGROUP ||
+      (process.getgroups?.() ?? []).some((group) => group !== NOGROUP)
+    ) {
       throw new Refusal('setup', 'could not take on the owner’s identity', 6);
     }
   }

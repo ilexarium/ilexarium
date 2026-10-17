@@ -1,4 +1,4 @@
-import { PROCESS_LIMITS, type Process, type ProcessState } from '@homelab/shared';
+import { PROCESS_LIMITS, type Process, processKey, type ProcessState } from '@homelab/shared';
 import { isKernelThread } from '../host/proc-parsers.js';
 import type { RawProcess } from '../host/host.model.js';
 import type { EndRules, ProcessContext } from './processes.model.js';
@@ -15,9 +15,6 @@ const STATES: Record<string, ProcessState> = {
   t: 'stopped',
   I: 'idle',
 };
-
-/** A process's identity across readings: a PID used again later has another start time. */
-export const processKey = (p: Pick<RawProcess, 'pid' | 'startTicks'>) => `${p.pid}:${p.startTicks}`;
 
 const isPerson = (uid: number, minUid: number = PROCESS_LIMITS.minUid) =>
   uid >= minUid && uid <= PROCESS_LIMITS.maxUid;
@@ -72,7 +69,7 @@ export function toProcess(raw: RawProcess, context: ProcessContext): Process {
             (context.bootTime + Number(raw.startTicks) / TICKS_PER_SECOND) * 1000,
           ).toISOString(),
     kernel,
-    system: kernel || (container === null && !isPerson(uid)),
+    system: kernel || (container === null && !isPerson(uid, context.rules.minUid)),
     container,
     endable: isEndable(raw, context.rules),
   };

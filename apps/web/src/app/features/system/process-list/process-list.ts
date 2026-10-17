@@ -1,14 +1,22 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, input, output } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  DOCUMENT,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Process } from '@homelab/shared';
+import { type Process, processKey } from '@homelab/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmBadgeImports } from '@ui/badge';
 import { HlmButton } from '@ui/button';
 import { HlmTableImports } from '@ui/table';
 import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
-import { processKey } from '../processes-page/processes-page-store';
 import type { EndRequest } from '../processes.model';
 
 interface Row {
@@ -23,9 +31,13 @@ interface Row {
   action: 'end' | 'force' | 'containers' | null;
 }
 
+/** Where the table starts (Tailwind's `xl`): below it, cards. */
+const WIDE = '(min-width: 1280px)';
+
 /**
  * The processes as a table from extra-large screens up, one card each below (nothing scrolls
- * sideways on phones). Presentational: the rows in, "end" and "force" out (the page confirms).
+ * sideways on phones) — only the one that fits is rendered, the list updates every 2 s.
+ * Presentational: the rows in, "end" and "force" out (the page confirms).
  */
 @Component({
   selector: 'app-process-list',
@@ -50,6 +62,8 @@ export class ProcessList {
   readonly end = output<EndRequest>();
 
   private readonly format = inject(Formatter);
+  /** Wide enough for the table (without `matchMedia`, as in tests: yes). */
+  protected readonly wide = signal(true);
   private readonly translator = inject(Translator);
 
   protected readonly rows = computed<Row[]>(() => {
@@ -84,6 +98,16 @@ export class ProcessList {
       };
     });
   });
+
+  constructor() {
+    const media = inject(DOCUMENT).defaultView?.matchMedia?.(WIDE);
+    if (media) {
+      this.wide.set(media.matches);
+      const changed = (event: MediaQueryListEvent) => this.wide.set(event.matches);
+      media.addEventListener('change', changed);
+      inject(DestroyRef).onDestroy(() => media.removeEventListener('change', changed));
+    }
+  }
 
   protected busy(row: Row): boolean {
     return this.pending().includes(row.key);

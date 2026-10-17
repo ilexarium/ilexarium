@@ -72,6 +72,19 @@ describe('process parsers', () => {
     ['Podman', `0::/machine.slice/libpod-${ID}.scope/container`, ID],
     ['containerd (Kubernetes)', `0::/kubepods/besteffort/pod1/cri-containerd-${ID}.scope`, ID],
     ['a container without its ID', '0::/kubepods/burstable/pod1/abc', ''],
+    ['a systemd-nspawn machine', '0::/machine.slice/machine-web.scope/payload', ''],
+    [
+      'a rootless Docker container',
+      `0::/user.slice/user-1000.slice/user@1000.service/app.slice/docker-${ID}.scope`,
+      ID,
+    ],
+    ['the Docker daemon itself', '0::/system.slice/docker.service', null],
+    ['containerd itself', '0::/system.slice/containerd.service', null],
+    [
+      'a person’s rootless Docker daemon',
+      '0::/user.slice/user-1000.slice/user@1000.service/app.slice/docker.service',
+      null,
+    ],
     ['a person’s session', '0::/user.slice/user-1000.slice/session-2.scope', null],
     ['a system service', '0::/system.slice/sshd.service', null],
   ])('finds the container in its cgroup: %s', (_, cgroup, expected) => {

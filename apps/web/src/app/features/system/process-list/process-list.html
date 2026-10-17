@@ -1,8 +1,8 @@
 @if (rows().length === 0) {
   <p class="text-sm text-muted-foreground">{{ 'processes.none' | translate }}</p>
-} @else {
+} @else if (wide()) {
   <!-- Extra-large screens: a table. -->
-  <div hlmTableContainer class="hidden xl:block">
+  <div hlmTableContainer>
     <table hlmTable>
       <thead hlmTHead>
         <tr hlmTr>
@@ -47,9 +47,9 @@
       </tbody>
     </table>
   </div>
-
+} @else {
   <!-- Phones, tablets and laptops: one card per process. -->
-  <ul class="grid gap-3 xl:hidden">
+  <ul class="grid gap-3">
     @for (row of rows(); track row.key) {
       <li class="grid gap-2 rounded-lg border p-3">
         <ng-container *ngTemplateOutlet="name; context: { $implicit: row }" />

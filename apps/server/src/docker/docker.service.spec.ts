@@ -176,6 +176,15 @@ describe('DockerService', () => {
 
   afterEach(() => fake.close());
 
+  it('names every container by full ID with one request, no inspect', async () => {
+    const names = await docker.containerNames();
+    expect(names.get(ID_B)).toEqual({ name: 'web', composeProject: 'hl-web' });
+    expect(names.get(ID_GONE)).toEqual({ name: 'gone', composeProject: null });
+    expect(fake.requests.map((r) => new URL(r.url, 'http://d').pathname)).toEqual([
+      '/containers/json',
+    ]);
+  });
+
   it('lists every container in our shape, sorted by name', async () => {
     expect(await docker.listContainers()).toEqual([
       {
@@ -354,6 +363,7 @@ describe('DockerService', () => {
     expect(methods.sort()).toEqual([
       'containerEvents',
       'containerLogs',
+      'containerNames',
       'containerState',
       'containerStats',
       'isProtected',

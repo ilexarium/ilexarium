@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { PROCESS_LIMITS, type Process, type ProcessesUpdate } from '@homelab/shared';
+import { PROCESS_LIMITS, type Process, type ProcessesUpdate, processKey } from '@homelab/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { Translator } from '../../../core/i18n/translator';
 import { ProcessesApi } from '../../../core/processes/processes-api';
@@ -17,9 +17,6 @@ import type { EndRequest, ProcessSort } from '../processes.model';
 
 /** Rows shown at first (the busiest, as sorted): a long list is slow and endless on a phone. */
 export const SHOWN_FIRST = 50;
-
-/** A process's identity: a PID used again later has another start time. */
-export const processKey = (p: Pick<Process, 'pid' | 'startTicks'>) => `${p.pid}:${p.startTicks}`;
 
 interface ProcessesPageState {
   /** The latest from the topic; null until the first. */
