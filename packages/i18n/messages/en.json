@@ -9,7 +9,9 @@
     "services": "Services",
     "installService": "Install a service",
     "backups": "Backups",
-    "disks": "Disks"
+    "disks": "Disks",
+    "alerts": "Alerts",
+    "notifications": "Notifications"
   },
   "app": {
     "loading": "Loading…",
@@ -32,7 +34,9 @@
     "backups": "Backups",
     "attention": "(needs attention)",
     "disks": "Disks",
-    "storage": "Storage"
+    "storage": "Storage",
+    "alerts": "Alerts",
+    "notifications": "Notifications"
   },
   "userMenu": {
     "open": "Account menu",
@@ -128,7 +132,16 @@
     "backupDestinationInvalid": "A disk mounted under /mnt or /media",
     "diskNameRequired": "Enter a name.",
     "diskNameInvalid": "Use up to {{diskNameMax}} lowercase letters, digits and dashes, starting with a letter or digit.",
-    "diskUuidInvalid": "This disk can't be named by its ID."
+    "diskUuidInvalid": "This disk can't be named by its ID.",
+    "emailRequired": "Enter an email address",
+    "emailInvalid": "An email address, like me@example.com",
+    "hostRequired": "Enter the mail server",
+    "hostInvalid": "A server name like mail.example.com, or an IP address",
+    "anyPortRange": "A port from 1 to 65535",
+    "urlRequired": "Enter the topic URL",
+    "urlInvalid": "A URL starting with https:// or http://",
+    "ntfyTopicInvalid": "A server and a topic, like https://ntfy.sh/my-topic",
+    "tokenInvalid": "Letters, digits and symbols, no spaces"
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -195,7 +208,12 @@
     "disk_busy": "Files on this disk are open. Close them, or stop what uses them, and try again.",
     "mount_failed": "The disk could not be mounted. Nothing was changed.",
     "unmount_failed": "The disk could not be unmounted.",
-    "duplicate_uuid": "Another disk has the same ID (a copied disk?). Unplug one of them to mount this one."
+    "duplicate_uuid": "Another disk has the same ID (a copied disk?). Unplug one of them to mount this one.",
+    "alert_not_found": "This alert isn't open any more.",
+    "channel_not_configured": "Save the settings first.",
+    "address_refused": "The app never sends to this address: not to the platform's own ports, not to link-local addresses, and plain http:// only on your own network.",
+    "topic_required": "Enter the topic URL.",
+    "password_required": "Enter the password."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -509,9 +527,6 @@
   "backups": {
     "loading": "Loading backups",
     "failed": "The backups couldn't be loaded. Reload the page to try again.",
-    "notice": {
-      "open": "Open backups"
-    },
     "setup": {
       "title": "Set up backups",
       "text": "Your services' data, chosen folders and this app are backed up every day — encrypted, and only changes take space. Backups run even when this app is down.",
@@ -760,5 +775,114 @@
     "mountFailed": "The disk could not be mounted.",
     "unmountFailed": "The disk could not be unmounted.",
     "duplicateUuid": "Another disk has the same ID (a copied disk?): either one could be mounted after a restart. Unplug one of them."
+  },
+  "alerts": {
+    "bell": "Alerts",
+    "bellCount_one": "Alerts: {{count}} open",
+    "bellCount_other": "Alerts: {{count}} open",
+    "kind": {
+      "serviceDown": "{{name}} has stopped",
+      "restartLoop": "{{name}} keeps restarting",
+      "unhealthy": "{{name}} is unhealthy",
+      "outOfMemory": "{{name}} ran out of memory",
+      "diskFull": "Disk {{path}} is {{percent}} full",
+      "diskMissing": "Disk {{path}} isn't connected"
+    },
+    "text": {
+      "serviceDown": "It stopped by itself. Its logs may say why.",
+      "restartLoop": "It crashed several times in the last few minutes.",
+      "unhealthy": "Its health check has been failing for more than 2 minutes.",
+      "outOfMemory": "The system stopped it because it used too much memory.",
+      "diskFull": "Free some space, or move files to another disk.",
+      "diskMissing": "Connect it again, or forget it on the Disks page."
+    },
+    "severity": {
+      "critical": "Critical",
+      "warning": "Warning"
+    },
+    "open": "Open",
+    "noneOpen": "All is well: no open alerts.",
+    "closed": "Resolved in the last 7 days",
+    "noneClosed": "Nothing in the last 7 days.",
+    "since": "Since {{time}}",
+    "resolved": "{{from}} – {{to}}",
+    "acknowledge": "Acknowledge",
+    "acknowledgeHelp": "Stops the daily reminder. The alert stays until the problem is gone.",
+    "acknowledged": "Acknowledged by {{name}}",
+    "acknowledgeFailed": "The alert couldn't be acknowledged",
+    "action": {
+      "logs": "Show logs",
+      "disks": "Open disks",
+      "backups": "Open backups"
+    },
+    "notice": {
+      "title_one": "{{count}} open alert",
+      "title_other": "{{count}} open alerts",
+      "more_one": "And {{count}} more.",
+      "more_other": "And {{count}} more.",
+      "open": "Open alerts"
+    },
+    "delivery": {
+      "title": "A message couldn't be sent",
+      "text": "The last message by {{channel}} couldn't be sent ({{time}}). {{problem}}",
+      "settings": "Check the settings"
+    },
+    "channel": {
+      "email": "email",
+      "ntfy": "ntfy"
+    },
+    "problem": {
+      "addressRefused": "The app never sends to that address.",
+      "notFound": "The server's name wasn't found.",
+      "unreachable": "The server couldn't be reached.",
+      "timedOut": "The server didn't answer in time.",
+      "tlsFailed": "No secure connection could be made.",
+      "loginRefused": "The server refused the login.",
+      "rejected": "The server refused the message.",
+      "failed": "Something went wrong."
+    },
+    "loading": "Loading alerts",
+    "settingsLink": "Notification settings"
+  },
+  "notifications": {
+    "description": "Alerts always show in the app. They can also reach you by email, or on your phone with ntfy.",
+    "loading": "Loading the notification settings",
+    "loadFailed": "The notification settings couldn't be loaded.",
+    "email": {
+      "title": "Email",
+      "description": "Messages through your mail server.",
+      "enabled": "Send alerts by email",
+      "host": "Mail server",
+      "port": "Port",
+      "portHelp": "465 for TLS, 587 for STARTTLS. Encryption is required, except for a mail server on this machine.",
+      "username": "User name",
+      "usernameHelp": "Leave empty if the server needs no login.",
+      "password": "Password",
+      "passwordSet": "A password is saved. Leave empty to keep it.",
+      "from": "Sender",
+      "to": "Recipient"
+    },
+    "ntfy": {
+      "title": "ntfy",
+      "description": "Notifications on your phone with the ntfy app, from ntfy.sh or your own ntfy server.",
+      "enabled": "Send alerts with ntfy",
+      "topicUrl": "Topic URL",
+      "topicHelp": "Server and topic, like {{url}}. On ntfy.sh anyone who knows the topic can read it: use a long random name like this one.",
+      "topicSet": "A topic is saved. Leave empty to keep it.",
+      "token": "Access token (optional)",
+      "tokenHelp": "For locked topics on your own server or a paid account.",
+      "tokenSet": "A token is saved. Leave empty to keep it.",
+      "clearToken": "Remove the saved token",
+      "plainHttp": "Plain http:// works only on your own network, and the token isn't encrypted there.",
+      "ios": "iPhone with your own server: set upstream-base-url in the server's settings, or messages arrive late."
+    },
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Notification settings saved",
+    "test": "Send a test",
+    "testing": "Sending…",
+    "testSent": "Test message sent",
+    "testFailed": "The test message couldn't be sent",
+    "lastFailure": "The last message couldn't be sent ({{time}}). {{problem}}"
   }
 }

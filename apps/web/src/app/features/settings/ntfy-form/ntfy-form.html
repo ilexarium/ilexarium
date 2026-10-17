@@ -1,0 +1,95 @@
+<section hlmCard aria-labelledby="ntfy-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="ntfy-title">{{ 'notifications.ntfy.title' | translate }}</h2>
+    <p hlmCardDescription>{{ 'notifications.ntfy.description' | translate }}</p>
+  </div>
+  <div hlmCardContent class="grid gap-5">
+    @if (lastFailure(); as failure) {
+      <div hlmAlert variant="destructive" role="alert">
+        <p hlmAlertDescription>{{ failure }}</p>
+      </div>
+    }
+    <form [formRoot]="form" class="grid gap-5">
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error | errorText }}</p>
+        </div>
+      }
+
+      <label class="flex items-center gap-3 text-sm font-medium">
+        <input type="checkbox" class="size-4" [formField]="form.enabled" />
+        {{ 'notifications.ntfy.enabled' | translate }}
+      </label>
+
+      <div hlmField>
+        <label hlmFieldLabel for="ntfy-topic">{{
+          'notifications.ntfy.topicUrl' | translate
+        }}</label>
+        <input
+          hlmInput
+          id="ntfy-topic"
+          type="url"
+          dir="ltr"
+          autocomplete="off"
+          spellcheck="false"
+          [placeholder]="exampleUrl"
+          [formField]="form.topicUrl"
+        />
+        <p hlmFieldDescription class="break-words">
+          {{ 'notifications.ntfy.topicHelp' | translate: { url: format.machine(exampleUrl) } }}
+        </p>
+        @if (settings()?.topicSet) {
+          <p hlmFieldDescription>{{ 'notifications.ntfy.topicSet' | translate }}</p>
+        }
+        @if (plainHttp()) {
+          <p hlmFieldDescription class="text-amber-700 dark:text-amber-400">
+            {{ 'notifications.ntfy.plainHttp' | translate }}
+          </p>
+        }
+        @for (error of form.topicUrl().errors(); track error) {
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+        }
+      </div>
+
+      <div hlmField>
+        <label hlmFieldLabel for="ntfy-token">{{ 'notifications.ntfy.token' | translate }}</label>
+        <input
+          hlmInput
+          id="ntfy-token"
+          type="password"
+          dir="ltr"
+          autocomplete="off"
+          [formField]="form.token"
+        />
+        <p hlmFieldDescription>{{ 'notifications.ntfy.tokenHelp' | translate }}</p>
+        @if (settings()?.tokenSet) {
+          <p hlmFieldDescription>{{ 'notifications.ntfy.tokenSet' | translate }}</p>
+          <label class="flex items-center gap-3 text-sm">
+            <input type="checkbox" class="size-4" [formField]="form.clearToken" />
+            {{ 'notifications.ntfy.clearToken' | translate }}
+          </label>
+        }
+        @for (error of form.token().errors(); track error) {
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+        }
+      </div>
+
+      <p class="text-sm text-muted-foreground">{{ 'notifications.ntfy.ios' | translate }}</p>
+
+      <div class="flex flex-wrap gap-2">
+        <button hlmBtn type="submit" [disabled]="form().submitting()">
+          {{ (form().submitting() ? 'notifications.saving' : 'notifications.save') | translate }}
+        </button>
+        <button
+          hlmBtn
+          type="button"
+          variant="outline"
+          [disabled]="!settings() || testing()"
+          (click)="store.test('ntfy')"
+        >
+          {{ (testing() ? 'notifications.testing' : 'notifications.test') | translate }}
+        </button>
+      </div>
+    </form>
+  </div>
+</section>

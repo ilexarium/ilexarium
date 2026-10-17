@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { HlmSkeleton } from '@ui/skeleton';
 import { ContainersTable } from '../../../shared/containers-table/containers-table';
-import { BackupNotice } from '../backup-notice/backup-notice';
+import { AlertsNotice } from '../alerts-notice/alerts-notice';
 import { CpuCard } from '../cpu-card/cpu-card';
 import { DiskList } from '../disk-list/disk-list';
 import { HostSummary } from '../host-summary/host-summary';
@@ -14,7 +14,7 @@ import { DashboardPageStore } from './dashboard-page-store';
 @Component({
   selector: 'app-dashboard-page',
   imports: [
-    BackupNotice,
+    AlertsNotice,
     ContainersTable,
     CpuCard,
     DiskList,

@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { SystemSnapshot, SystemUpdate } from '@homelab/shared';
+import type { Alert, SystemSnapshot, SystemUpdate } from '@homelab/shared';
+import { AlertsStore } from '../../../core/alerts/alerts-store';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
-import { BackupsStore } from '../../../core/backups/backups-store';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
 import { DashboardPage } from './dashboard-page';
@@ -135,31 +135,69 @@ describe('DashboardPage', () => {
     expect(card('cpu').textContent).toContain('87%');
   });
 
-  it('shows the backups’ most serious problem, with a way to the Backups page', async () => {
+  it('shows the open alerts, critical first, with a way to the Alerts page', async () => {
     const { fixture, el, socket } = await render();
-    TestBed.inject(BackupsStore).watch();
+    TestBed.inject(AlertsStore).watch();
     socket.receive({ event: 'system:snapshot', data: snapshot });
     await fixture.whenStable();
-    expect(el.querySelector('app-backup-notice')).toBeNull();
+    expect(el.querySelector('app-alerts-notice')).toBeNull();
+    const alert = (id: string, overrides: Partial<Alert>): Alert => ({
+      id,
+      kind: 'serviceDown',
+      subject: 'hl-immich-server-1',
+      severity: 'critical',
+      catalogId: 'immich',
+      serviceName: 'Immich',
+      percent: null,
+      warning: null,
+      openedAt: '2026-10-17T12:00:00.000Z',
+      closedAt: null,
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+      ...overrides,
+    });
     socket.receive({
-      event: 'backups:update',
+      event: 'alerts:update',
       data: {
-        configured: true,
-        warnings: ['destinationUnavailable', 'noRecentBackup'],
-        lastSuccessAt: null,
-        nextRunAt: null,
-        running: null,
-        lastRun: null,
-        items: [],
-        restore: null,
-        lastCheck: null,
+        open: [
+          alert('0199f000-0000-7000-8000-00000000000a', {}),
+          alert('0199f000-0000-7000-8000-00000000000b', {
+            kind: 'backup',
+            subject: 'destinationUnavailable',
+            severity: 'warning',
+            catalogId: null,
+            serviceName: null,
+            warning: 'destinationUnavailable',
+          }),
+          alert('0199f000-0000-7000-8000-00000000000c', {
+            kind: 'diskFull',
+            subject: '/mnt/usb',
+            severity: 'warning',
+            catalogId: null,
+            serviceName: null,
+            percent: 93,
+          }),
+          alert('0199f000-0000-7000-8000-00000000000d', {
+            kind: 'diskMissing',
+            subject: '/mnt/old',
+            severity: 'warning',
+            catalogId: null,
+            serviceName: null,
+          }),
+        ],
+        closed: [],
+        deliveryFailure: null,
       },
     });
     await fixture.whenStable();
-    const notice = el.querySelector('app-backup-notice')!;
+    const notice = el.querySelector('app-alerts-notice')!;
+    expect(notice.querySelector('h2')!.textContent).toContain('4 open alerts');
+    expect(notice.textContent).toContain('Immich has stopped');
     expect(notice.textContent).toContain("The backup disk isn't connected");
-    expect(notice.textContent).not.toContain('more than two days');
-    expect(notice.querySelector('a')!.getAttribute('href')).toBe('/backups');
+    expect(notice.textContent).toContain('Disk /mnt/usb is 93% full');
+    expect(notice.textContent).not.toContain('/mnt/old');
+    expect(notice.textContent).toContain('And 1 more.');
+    expect(notice.querySelector('a')!.getAttribute('href')).toBe('/alerts');
   });
 
   it('stops the live data when left', async () => {

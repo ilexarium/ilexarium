@@ -10,6 +10,7 @@ import {
   type Observable,
   switchMap,
 } from 'rxjs';
+import { CatalogService } from '../catalog/catalog.service.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { AlertChannels } from './alert-channels.js';
@@ -29,6 +30,7 @@ export class AlertsTopic implements TopicSource<'alerts'> {
   constructor(
     private readonly records: AlertRecords,
     private readonly channels: AlertChannels,
+    private readonly catalog: CatalogService,
     subscriptions: RealtimeSubscriptions,
   ) {
     this.updates$ = merge(records.changes$, channels.changes$, interval(REFRESH_MS)).pipe(
@@ -40,7 +42,7 @@ export class AlertsTopic implements TopicSource<'alerts'> {
 
   async snapshot(): Promise<AlertsStatus> {
     const [{ open, closed }, deliveryFailure] = await Promise.all([
-      this.records.view(),
+      this.records.view((id) => this.catalog.get(id)?.meta.name ?? null),
       this.channels.deliveryFailure(),
     ]);
     return { open, closed, deliveryFailure };

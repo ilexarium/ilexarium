@@ -1,0 +1,148 @@
+<section hlmCard aria-labelledby="email-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="email-title">{{ 'notifications.email.title' | translate }}</h2>
+    <p hlmCardDescription>{{ 'notifications.email.description' | translate }}</p>
+  </div>
+  <div hlmCardContent class="grid gap-5">
+    @if (lastFailure(); as failure) {
+      <div hlmAlert variant="destructive" role="alert">
+        <p hlmAlertDescription>{{ failure }}</p>
+      </div>
+    }
+    <form [formRoot]="form" class="grid gap-5">
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error | errorText }}</p>
+        </div>
+      }
+
+      <label class="flex items-center gap-3 text-sm font-medium">
+        <input type="checkbox" class="size-4" [formField]="form.enabled" />
+        {{ 'notifications.email.enabled' | translate }}
+      </label>
+
+      <div class="grid gap-5 sm:grid-cols-[1fr_8rem]">
+        <div hlmField>
+          <label hlmFieldLabel for="email-host">{{ 'notifications.email.host' | translate }}</label>
+          <input
+            hlmInput
+            id="email-host"
+            dir="ltr"
+            autocomplete="off"
+            placeholder="mail.example.com"
+            [formField]="form.host"
+          />
+          @for (error of form.host().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+        <div hlmField>
+          <label hlmFieldLabel for="email-port">{{ 'notifications.email.port' | translate }}</label>
+          <input
+            hlmInput
+            id="email-port"
+            type="number"
+            inputmode="numeric"
+            dir="ltr"
+            [formField]="form.port"
+          />
+          @for (error of form.port().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+        <p hlmFieldDescription class="sm:col-span-2 sm:-mt-3">
+          {{ 'notifications.email.portHelp' | translate }}
+        </p>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div hlmField>
+          <label hlmFieldLabel for="email-username">{{
+            'notifications.email.username' | translate
+          }}</label>
+          <input
+            hlmInput
+            id="email-username"
+            dir="ltr"
+            autocomplete="off"
+            [formField]="form.username"
+          />
+          <p hlmFieldDescription>{{ 'notifications.email.usernameHelp' | translate }}</p>
+          @for (error of form.username().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+        <div hlmField>
+          <label hlmFieldLabel for="email-password">{{
+            'notifications.email.password' | translate
+          }}</label>
+          <div class="relative">
+            <input
+              hlmInput
+              id="email-password"
+              dir="ltr"
+              class="pe-10"
+              autocomplete="new-password"
+              [type]="showPassword() ? 'text' : 'password'"
+              [formField]="form.password"
+            />
+            <app-password-toggle [(visible)]="showPassword" />
+          </div>
+          @if (settings()?.passwordSet) {
+            <p hlmFieldDescription>{{ 'notifications.email.passwordSet' | translate }}</p>
+          }
+          @for (error of form.password().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div hlmField>
+          <label hlmFieldLabel for="email-from">{{ 'notifications.email.from' | translate }}</label>
+          <input
+            hlmInput
+            id="email-from"
+            type="email"
+            dir="ltr"
+            autocomplete="off"
+            placeholder="homelab@example.com"
+            [formField]="form.from"
+          />
+          @for (error of form.from().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+        <div hlmField>
+          <label hlmFieldLabel for="email-to">{{ 'notifications.email.to' | translate }}</label>
+          <input
+            hlmInput
+            id="email-to"
+            type="email"
+            dir="ltr"
+            autocomplete="email"
+            [formField]="form.to"
+          />
+          @for (error of form.to().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button hlmBtn type="submit" [disabled]="form().submitting()">
+          {{ (form().submitting() ? 'notifications.saving' : 'notifications.save') | translate }}
+        </button>
+        <button
+          hlmBtn
+          type="button"
+          variant="outline"
+          [disabled]="!settings() || testing()"
+          (click)="store.test('email')"
+        >
+          {{ (testing() ? 'notifications.testing' : 'notifications.test') | translate }}
+        </button>
+      </div>
+    </form>
+  </div>
+</section>

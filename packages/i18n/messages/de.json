@@ -9,7 +9,9 @@
     "services": "Dienste",
     "installService": "Dienst installieren",
     "backups": "Backups",
-    "disks": "Laufwerke"
+    "disks": "Laufwerke",
+    "alerts": "Warnungen",
+    "notifications": "Benachrichtigungen"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -32,7 +34,9 @@
     "backups": "Backups",
     "attention": "(braucht Aufmerksamkeit)",
     "disks": "Laufwerke",
-    "storage": "Speicher"
+    "storage": "Speicher",
+    "alerts": "Warnungen",
+    "notifications": "Benachrichtigungen"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -128,7 +132,16 @@
     "backupDestinationInvalid": "Ein unter /mnt oder /media eingehängtes Laufwerk",
     "diskNameRequired": "Gib einen Namen ein.",
     "diskNameInvalid": "Verwende bis zu {{diskNameMax}} Kleinbuchstaben, Ziffern und Bindestriche, beginnend mit einem Buchstaben oder einer Ziffer.",
-    "diskUuidInvalid": "Dieses Laufwerk lässt sich nicht über seine ID benennen."
+    "diskUuidInvalid": "Dieses Laufwerk lässt sich nicht über seine ID benennen.",
+    "emailRequired": "Gib eine E-Mail-Adresse ein",
+    "emailInvalid": "Eine E-Mail-Adresse, z. B. ich@example.com",
+    "hostRequired": "Gib den Mailserver ein",
+    "hostInvalid": "Ein Servername wie mail.example.com oder eine IP-Adresse",
+    "anyPortRange": "Ein Port von 1 bis 65535",
+    "urlRequired": "Gib die Topic-URL ein",
+    "urlInvalid": "Eine URL, die mit https:// oder http:// beginnt",
+    "ntfyTopicInvalid": "Ein Server und ein Topic, z. B. https://ntfy.sh/mein-topic",
+    "tokenInvalid": "Buchstaben, Ziffern und Zeichen, keine Leerzeichen"
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -195,7 +208,12 @@
     "disk_busy": "Dateien auf diesem Laufwerk sind geöffnet. Schließe sie oder beende, was sie verwendet, und versuche es erneut.",
     "mount_failed": "Das Laufwerk konnte nicht eingebunden werden. Es wurde nichts geändert.",
     "unmount_failed": "Das Laufwerk konnte nicht ausgehängt werden.",
-    "duplicate_uuid": "Ein anderes Laufwerk hat dieselbe Kennung (ein kopiertes Laufwerk?). Ziehe eines von beiden ab, um dieses einzubinden."
+    "duplicate_uuid": "Ein anderes Laufwerk hat dieselbe Kennung (ein kopiertes Laufwerk?). Ziehe eines von beiden ab, um dieses einzubinden.",
+    "alert_not_found": "Diese Warnung ist nicht mehr offen.",
+    "channel_not_configured": "Speichere zuerst die Einstellungen.",
+    "address_refused": "An diese Adresse sendet die App nie: nicht an die eigenen Ports der Plattform, nicht an Link-Local-Adressen, und unverschlüsseltes http:// nur im eigenen Netzwerk.",
+    "topic_required": "Gib die Topic-URL ein.",
+    "password_required": "Gib das Passwort ein."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -509,9 +527,6 @@
   "backups": {
     "loading": "Backups werden geladen",
     "failed": "Die Backups konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
-    "notice": {
-      "open": "Backups öffnen"
-    },
     "setup": {
       "title": "Backups einrichten",
       "text": "Die Daten deiner Dienste, ausgewählte Ordner und diese App werden jeden Tag gesichert – verschlüsselt, und nur Änderungen belegen Platz. Backups laufen auch, wenn diese App nicht läuft.",
@@ -760,5 +775,114 @@
     "mountFailed": "Das Laufwerk konnte nicht eingebunden werden.",
     "unmountFailed": "Das Laufwerk konnte nicht ausgehängt werden.",
     "duplicateUuid": "Ein anderes Laufwerk hat dieselbe Kennung (ein kopiertes Laufwerk?): Nach einem Neustart könnte jedes von beiden eingebunden werden. Ziehe eines davon ab."
+  },
+  "alerts": {
+    "bell": "Warnungen",
+    "bellCount_one": "Warnungen: {{count}} offen",
+    "bellCount_other": "Warnungen: {{count}} offen",
+    "kind": {
+      "serviceDown": "{{name}} wurde beendet",
+      "restartLoop": "{{name}} startet immer wieder neu",
+      "unhealthy": "{{name}} ist nicht gesund",
+      "outOfMemory": "{{name}} hatte zu wenig Arbeitsspeicher",
+      "diskFull": "Laufwerk {{path}} ist zu {{percent}} voll",
+      "diskMissing": "Laufwerk {{path}} ist nicht angeschlossen"
+    },
+    "text": {
+      "serviceDown": "Es hat sich von selbst beendet. Seine Logs sagen vielleicht, warum.",
+      "restartLoop": "Es ist in den letzten Minuten mehrmals abgestürzt.",
+      "unhealthy": "Seine Zustandsprüfung schlägt seit mehr als 2 Minuten fehl.",
+      "outOfMemory": "Das System hat es beendet, weil es zu viel Arbeitsspeicher brauchte.",
+      "diskFull": "Gib Platz frei oder verschiebe Dateien auf ein anderes Laufwerk.",
+      "diskMissing": "Schließe es wieder an oder entferne es auf der Seite Laufwerke."
+    },
+    "severity": {
+      "critical": "Kritisch",
+      "warning": "Warnung"
+    },
+    "open": "Offen",
+    "noneOpen": "Alles in Ordnung: keine offenen Warnungen.",
+    "closed": "In den letzten 7 Tagen behoben",
+    "noneClosed": "Nichts in den letzten 7 Tagen.",
+    "since": "Seit {{time}}",
+    "resolved": "{{from}} – {{to}}",
+    "acknowledge": "Bestätigen",
+    "acknowledgeHelp": "Beendet die tägliche Erinnerung. Die Warnung bleibt, bis das Problem behoben ist.",
+    "acknowledged": "Bestätigt von {{name}}",
+    "acknowledgeFailed": "Die Warnung konnte nicht bestätigt werden",
+    "action": {
+      "logs": "Logs anzeigen",
+      "disks": "Laufwerke öffnen",
+      "backups": "Backups öffnen"
+    },
+    "notice": {
+      "title_one": "{{count}} offene Warnung",
+      "title_other": "{{count}} offene Warnungen",
+      "more_one": "Und {{count}} weitere.",
+      "more_other": "Und {{count}} weitere.",
+      "open": "Warnungen öffnen"
+    },
+    "delivery": {
+      "title": "Eine Nachricht konnte nicht gesendet werden",
+      "text": "Die letzte Nachricht per {{channel}} konnte nicht gesendet werden ({{time}}). {{problem}}",
+      "settings": "Einstellungen prüfen"
+    },
+    "channel": {
+      "email": "E-Mail",
+      "ntfy": "ntfy"
+    },
+    "problem": {
+      "addressRefused": "An diese Adresse sendet die App nie.",
+      "notFound": "Der Name des Servers wurde nicht gefunden.",
+      "unreachable": "Der Server war nicht erreichbar.",
+      "timedOut": "Der Server hat nicht rechtzeitig geantwortet.",
+      "tlsFailed": "Es kam keine sichere Verbindung zustande.",
+      "loginRefused": "Der Server hat die Anmeldung abgelehnt.",
+      "rejected": "Der Server hat die Nachricht abgelehnt.",
+      "failed": "Etwas ist schiefgelaufen."
+    },
+    "loading": "Warnungen werden geladen",
+    "settingsLink": "Benachrichtigungseinstellungen"
+  },
+  "notifications": {
+    "description": "Warnungen erscheinen immer in der App. Sie können dich auch per E-Mail erreichen oder mit ntfy auf dem Handy.",
+    "loading": "Benachrichtigungseinstellungen werden geladen",
+    "loadFailed": "Die Benachrichtigungseinstellungen konnten nicht geladen werden.",
+    "email": {
+      "title": "E-Mail",
+      "description": "Nachrichten über deinen Mailserver.",
+      "enabled": "Warnungen per E-Mail senden",
+      "host": "Mailserver",
+      "port": "Port",
+      "portHelp": "465 für TLS, 587 für STARTTLS. Verschlüsselung ist Pflicht, außer bei einem Mailserver auf diesem Rechner.",
+      "username": "Benutzername",
+      "usernameHelp": "Leer lassen, wenn der Server keine Anmeldung braucht.",
+      "password": "Passwort",
+      "passwordSet": "Ein Passwort ist gespeichert. Leer lassen, um es zu behalten.",
+      "from": "Absender",
+      "to": "Empfänger"
+    },
+    "ntfy": {
+      "title": "ntfy",
+      "description": "Benachrichtigungen auf dem Handy mit der ntfy-App, über ntfy.sh oder deinen eigenen ntfy-Server.",
+      "enabled": "Warnungen mit ntfy senden",
+      "topicUrl": "Topic-URL",
+      "topicHelp": "Server und Topic, z. B. {{url}}. Auf ntfy.sh kann jeder mitlesen, der das Topic kennt: nimm einen langen zufälligen Namen wie diesen.",
+      "topicSet": "Ein Topic ist gespeichert. Leer lassen, um es zu behalten.",
+      "token": "Zugangstoken (optional)",
+      "tokenHelp": "Für gesperrte Topics auf deinem eigenen Server oder mit einem bezahlten Konto.",
+      "tokenSet": "Ein Token ist gespeichert. Leer lassen, um es zu behalten.",
+      "clearToken": "Gespeichertes Token entfernen",
+      "plainHttp": "Unverschlüsseltes http:// geht nur im eigenen Netzwerk, und das Token wird dort nicht verschlüsselt.",
+      "ios": "iPhone mit eigenem Server: setze upstream-base-url in den Einstellungen des Servers, sonst kommen Nachrichten verspätet an."
+    },
+    "save": "Speichern",
+    "saving": "Wird gespeichert…",
+    "saved": "Benachrichtigungseinstellungen gespeichert",
+    "test": "Test senden",
+    "testing": "Wird gesendet…",
+    "testSent": "Testnachricht gesendet",
+    "testFailed": "Die Testnachricht konnte nicht gesendet werden",
+    "lastFailure": "Die letzte Nachricht konnte nicht gesendet werden ({{time}}). {{problem}}"
   }
 }
