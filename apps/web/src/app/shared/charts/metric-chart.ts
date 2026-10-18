@@ -68,6 +68,7 @@ export class MetricChart {
     return {
       animation: false,
       color: colors.series,
+      textStyle: { fontFamily: colors.font },
       grid: {
         left: 4,
         right: 8,

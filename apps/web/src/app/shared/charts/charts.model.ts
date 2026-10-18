@@ -13,4 +13,6 @@ export interface ChartColors {
   grid: string;
   tooltipBackground: string;
   tooltipText: string;
+  /** The interface's font stack (`--font-sans`), for axis labels and tooltips. */
+  font: string;
 }

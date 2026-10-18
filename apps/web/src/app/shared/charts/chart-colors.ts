@@ -39,6 +39,7 @@ export class ChartColorsService {
       grid: token('--border', '#e1e2ec'),
       tooltipBackground: token('--popover', '#ffffff'),
       tooltipText: token('--popover-foreground', '#151628'),
+      font: style?.getPropertyValue('--font-sans').trim() || 'sans-serif',
     };
   }
 
