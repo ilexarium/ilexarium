@@ -11,6 +11,7 @@ import { map } from 'rxjs';
 import { LogView } from '../log-view/log-view';
 import { LogsPageStore } from './logs-page-store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 interface Notice {
   /** Translation keys `<key>.title`, `<key>.text` and, if it can help, `<key>.retry`. */
@@ -30,7 +31,16 @@ interface Notice {
  */
 @Component({
   selector: 'app-logs-page',
-  imports: [HlmAlertImports, HlmButton, HlmSkeleton, LogView, NgIcon, RouterLink, TranslatePipe],
+  imports: [
+    EmptyState,
+    HlmAlertImports,
+    HlmButton,
+    HlmSkeleton,
+    LogView,
+    NgIcon,
+    RouterLink,
+    TranslatePipe,
+  ],
   providers: [LogsPageStore, provideIcons({ lucideArrowLeft })],
   host: {
     // The viewport minus the top bar (3.5rem) and the page padding (1rem / 1.5rem each side).

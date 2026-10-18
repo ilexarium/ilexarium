@@ -26,7 +26,11 @@
         {{ (status() === null ? 'services.install' : 'services.reinstall') | translate }}
       </a>
     } @else {
-      <span hlmBadge variant="outline">{{ 'services.status.' + status() | translate }}</span>
+      @if (status(); as status) {
+        <app-status-badge [tone]="statusTones[status]">{{
+          'services.status.' + status | translate
+        }}</app-status-badge>
+      }
     }
   </div>
 </article>

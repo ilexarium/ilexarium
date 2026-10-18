@@ -299,6 +299,7 @@
       "text": "Container-Informationen sind gerade nicht verfügbar. Prüfe, ob Docker läuft; diese Seite aktualisiert sich dann von selbst."
     },
     "none": "Noch keine Container.",
+    "noneAction": "Dienst installieren",
     "column": {
       "name": "Name",
       "state": "Status",

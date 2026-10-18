@@ -1,11 +1,11 @@
-<div class="grid gap-8">
+<div class="grid gap-6">
   <section aria-labelledby="installed-title" class="grid gap-4">
     <h2 id="installed-title" class="text-lg font-semibold">
       {{ 'services.installed.title' | translate }}
     </h2>
     @if (store.installed(); as services) {
       @if (services.length === 0) {
-        <p class="text-sm text-muted-foreground">{{ 'services.installed.none' | translate }}</p>
+        <app-empty-state icon="lucidePackage" [text]="'services.installed.none' | translate" />
       } @else {
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           @for (service of services; track service.id) {

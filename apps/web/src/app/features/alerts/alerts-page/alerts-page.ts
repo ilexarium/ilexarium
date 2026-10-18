@@ -11,6 +11,7 @@ import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
 import { AlertCard } from '../alert-card/alert-card';
 import { AlertsPageStore } from './alerts-page-store';
+import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 /**
  * The Alerts page (docs/plans/health_alerts.md): open alerts first (each can be acknowledged),
@@ -18,7 +19,16 @@ import { AlertsPageStore } from './alerts-page-store';
  */
 @Component({
   selector: 'app-alerts-page',
-  imports: [AlertCard, HlmAlertImports, HlmButton, HlmSkeleton, NgIcon, RouterLink, TranslatePipe],
+  imports: [
+    EmptyState,
+    AlertCard,
+    HlmAlertImports,
+    HlmButton,
+    HlmSkeleton,
+    NgIcon,
+    RouterLink,
+    TranslatePipe,
+  ],
   providers: [AlertsPageStore, provideIcons({ lucideMailWarning })],
   templateUrl: './alerts-page.html',
 })

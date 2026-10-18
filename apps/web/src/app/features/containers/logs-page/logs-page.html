@@ -29,10 +29,12 @@
     </div>
   }
   @case ('empty') {
-    <div class="rounded-lg border border-dashed p-4 text-sm" role="status">
-      <p class="font-medium">{{ 'logs.empty.title' | translate }}</p>
-      <p class="mt-1 text-muted-foreground">{{ 'logs.empty.text' | translate }}</p>
-    </div>
+    <app-empty-state
+      icon="lucideScrollText"
+      role="status"
+      [text]="'logs.empty.title' | translate"
+      [detail]="'logs.empty.text' | translate"
+    />
   }
   @case ('lines') {
     <app-log-view class="min-h-0 flex-1" [entries]="logs.entries()" />

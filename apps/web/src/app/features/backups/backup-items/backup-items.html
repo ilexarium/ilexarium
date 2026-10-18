@@ -15,9 +15,9 @@
               </p>
               <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 @if (last) {
-                  <span hlmBadge [variant]="last.status === 'failed' ? 'destructive' : 'outline'">{{
+                  <app-status-badge [tone]="statusTones[last.status]">{{
                     'backups.status.' + last.status | translate
-                  }}</span>
+                  }}</app-status-badge>
                 }
                 @if (row.item.lastSuccessAt; as at) {
                   <span>{{

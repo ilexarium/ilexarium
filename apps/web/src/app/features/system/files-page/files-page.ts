@@ -21,6 +21,7 @@ import { FileNameDialog } from '../file-name-dialog/file-name-dialog';
 import { LinuxSignIn } from '../linux-sign-in/linux-sign-in';
 import type { FileAction } from '../files.model';
 import { FilesPageStore, joinPath } from './files-page-store';
+import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 /**
  * The Files page (docs/plans/files_and_terminal.md): sign in as a Linux user, then browse,
@@ -31,6 +32,7 @@ import { FilesPageStore, joinPath } from './files-page-store';
 @Component({
   selector: 'app-files-page',
   imports: [
+    EmptyState,
     FileDeleteDialog,
     FileList,
     FileNameDialog,
