@@ -28,7 +28,7 @@ const TOPIC_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
 /** A long random topic name to suggest: on ntfy.sh the name is the password. */
 function randomTopic(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
-  return `homelab-${Array.from(bytes, (b) => TOPIC_ALPHABET[b % TOPIC_ALPHABET.length]).join('')}`;
+  return `laris-${Array.from(bytes, (b) => TOPIC_ALPHABET[b % TOPIC_ALPHABET.length]).join('')}`;
 }
 
 /**

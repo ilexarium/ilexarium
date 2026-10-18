@@ -1,7 +1,7 @@
 // Builds the Laris logo files (SVG, PNG, ICO) into brand/ (docs/identity.md).
 // Run once: npm install here and in tools/browser; then: npm run build.
 import { createRequire } from 'node:module';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const opentype = require('opentype.js');
 const { chromium } = await import(
@@ -148,3 +148,16 @@ console.log(
   `capital height ${capHeight.toFixed(3)} em, font size ${fontSize.toFixed(1)}, lockup ${lockupW} × ${MARK_H}`,
 );
 console.log(Object.keys(files).length + ' SVG files, 5 PNG files, favicon.ico');
+
+// The web app's icons (favicon, home screen, manifest) are copies: its build only takes files from apps/web.
+const WEB = new URL('../../apps/web/public/', import.meta.url).pathname;
+const WEB_ICONS = [
+  'favicon.ico',
+  'favicon.svg',
+  'apple-touch-icon.png',
+  'icon-192.png',
+  'icon-512.png',
+  'icon-maskable-512.png',
+];
+for (const name of WEB_ICONS) copyFileSync(OUT + name, WEB + name);
+console.log(`copied ${WEB_ICONS.length} icons to apps/web/public/`);

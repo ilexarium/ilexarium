@@ -14,6 +14,9 @@ const types = {
   '.json': 'application/json',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
 };
 
 const server = createServer(async (req, res) => {
