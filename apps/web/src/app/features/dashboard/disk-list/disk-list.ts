@@ -1,5 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
-import type { DiskUsage } from '@homelab/shared';
+import { ALERT_LIMITS, type DiskUsage } from '@homelab/shared';
 import { HlmCardImports } from '@ui/card';
 import { HlmProgressImports } from '@ui/progress';
 import { percentOf } from '../../../shared/format/format';
@@ -27,6 +27,8 @@ export class DiskList {
         percent,
         percentText: this.formatter.percent(percent),
         warning: percent >= DISK_WARNING_PERCENT,
+        // Past the alerts' critical limit: red, like the alert it raises.
+        critical: percent >= ALERT_LIMITS.diskCriticalPercent,
         used: this.formatter.bytes(disk.usedBytes),
         size: this.formatter.bytes(disk.sizeBytes),
         free: this.formatter.bytes(disk.sizeBytes - disk.usedBytes),

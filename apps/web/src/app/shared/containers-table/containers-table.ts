@@ -20,8 +20,6 @@ import { StatusBadge } from '../status-badge/status-badge';
 import { HEALTH_TONES } from './containers-table.constants';
 import type { StatusTone } from '../status-badge/status-badge.model';
 import { EmptyState } from '../empty-state/empty-state';
-import { RouterLink } from '@angular/router';
-import { HlmButton } from '@ui/button';
 
 const STATE_DOTS: Record<ContainerState, string> = {
   running: 'bg-success',
@@ -63,8 +61,6 @@ interface Row {
 @Component({
   selector: 'app-containers-table',
   imports: [
-    HlmButton,
-    RouterLink,
     EmptyState,
     ContainerActions,
     StatusBadge,

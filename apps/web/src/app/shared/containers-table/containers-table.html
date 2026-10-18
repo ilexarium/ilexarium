@@ -19,10 +19,9 @@
         <p class="mt-1 text-muted-foreground">{{ 'containers.unreachable.text' | translate }}</p>
       </div>
     } @else if (rows().length === 0) {
+      <!-- The next action is the page's: it projects it (emptyAction). -->
       <app-empty-state icon="lucideBox" [text]="'containers.none' | translate">
-        <a hlmBtn variant="outline" size="sm" routerLink="/services">{{
-          'containers.noneAction' | translate
-        }}</a>
+        <ng-content select="[emptyAction]" />
       </app-empty-state>
     } @else {
       <!-- Extra-large screens: a table. -->

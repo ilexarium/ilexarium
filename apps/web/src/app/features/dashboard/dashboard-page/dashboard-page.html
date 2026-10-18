@@ -23,7 +23,11 @@
       [now]="system.sample.at"
       [pending]="store.pending()"
       (action)="store.act($event)"
-    />
+    >
+      <a emptyAction hlmBtn variant="outline" size="sm" routerLink="/services">{{
+        'containers.noneAction' | translate
+      }}</a>
+    </app-containers-table>
   </div>
 } @else {
   <div

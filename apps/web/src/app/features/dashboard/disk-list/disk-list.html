@@ -18,7 +18,7 @@
                 </span>
               </span>
               @if (disk.warning) {
-                <app-status-badge tone="warning">{{
+                <app-status-badge [tone]="disk.critical ? 'failed' : 'warning'">{{
                   'dashboard.storage.almostFull' | translate
                 }}</app-status-badge>
               }
@@ -27,7 +27,9 @@
               [value]="disk.percent"
               [attr.aria-label]="'dashboard.storage.spaceUsedOn' | translate: { mount: disk.mount }"
             >
-              <hlm-progress-indicator [class]="disk.warning ? 'bg-destructive' : ''" />
+              <hlm-progress-indicator
+                [class]="disk.critical ? 'bg-destructive' : disk.warning ? 'bg-warning' : ''"
+              />
             </hlm-progress>
             <p class="text-sm text-muted-foreground tabular-nums">
               {{

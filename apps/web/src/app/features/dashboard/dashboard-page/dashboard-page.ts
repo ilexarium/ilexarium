@@ -7,7 +7,9 @@ import { DiskList } from '../disk-list/disk-list';
 import { HostSummary } from '../host-summary/host-summary';
 import { MemoryCard } from '../memory-card/memory-card';
 import { NetworkCard } from '../network-card/network-card';
+import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { HlmButton } from '@ui/button';
 import { DashboardPageStore } from './dashboard-page-store';
 
 /** The server at a glance, live: host, CPU, memory, network, storage, containers. UI only. */
@@ -18,10 +20,12 @@ import { DashboardPageStore } from './dashboard-page-store';
     ContainersTable,
     CpuCard,
     DiskList,
+    HlmButton,
     HlmSkeleton,
     HostSummary,
     MemoryCard,
     NetworkCard,
+    RouterLink,
     TranslatePipe,
   ],
   providers: [DashboardPageStore],
