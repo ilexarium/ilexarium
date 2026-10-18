@@ -45,7 +45,7 @@ describe('validateEnv', () => {
 
   it('uses the production setup-token path in production', () => {
     expect(validateEnv({ ...base, NODE_ENV: 'production' }).SETUP_TOKEN_FILE).toBe(
-      '/var/lib/homelab/setup-token',
+      '/var/lib/homelab/app/setup-token',
     );
   });
 

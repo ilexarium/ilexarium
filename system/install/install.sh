@@ -56,10 +56,12 @@ if [[ -n "$OLD_VERSION" ]]; then
   # The app stops first: nothing writes to the database while it's backed up and migrated.
   systemctl stop homelab.service 2>/dev/null || true
 fi
-install_release
+install_platform_files
 start_platform
 backup_database
+# Migrated from the new release before it replaces the old: a failure leaves the old one.
 migrate_database
+install_release
 setup_https
 start_app
 printf '%s\n' "$NEW_VERSION" | write_file "$ETC/version" root:root 0644

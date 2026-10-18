@@ -97,7 +97,8 @@ export const envSchema = z
     return {
       ...env,
       SETUP_TOKEN_FILE:
-        env.SETUP_TOKEN_FILE ?? (production ? '/var/lib/homelab/setup-token' : '.dev/setup-token'),
+        env.SETUP_TOKEN_FILE ??
+        (production ? '/var/lib/homelab/app/setup-token' : '.dev/setup-token'),
       MASTER_KEY_FILE:
         env.MASTER_KEY_FILE ?? (production ? '/etc/homelab/master.key' : '.dev/master.key'),
       WRAPPER_CONFIG_FILE:

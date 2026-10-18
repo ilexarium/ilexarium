@@ -36,7 +36,9 @@ export function configureApp(app: NestExpressApplication): NestExpressApplicatio
 /**
  * The built web app on the same origin as the API (production): its files as they are — the
  * hashed ones cached for a year, index.html never — and index.html for every other page address,
- * so links into the app work. Never for /api (unknown API routes stay JSON 404s).
+ * so links into the app work. Never for /api (any case, like Express's routes: unknown API routes
+ * stay JSON 404s), and never for a missing file (`chunk-OLD.js` after an update gets a 404, not
+ * the page).
  */
 function serveWebApp(app: NestExpressApplication, root: string): void {
   app.useStaticAssets(root, {
@@ -52,7 +54,10 @@ function serveWebApp(app: NestExpressApplication, root: string): void {
   const index = join(root, 'index.html');
   app.use((req: Request, res: Response, next: NextFunction) => {
     const page = req.method === 'GET' || req.method === 'HEAD';
-    if (!page || req.path === '/api' || req.path.startsWith('/api/')) return next();
+    const path = req.path.toLowerCase();
+    const api = path === '/api' || path.startsWith('/api/');
+    const file = /\.[a-z0-9]+$/.test(path.slice(path.lastIndexOf('/') + 1));
+    if (!page || api || file) return next();
     res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(index, (error) => {
       if (error) next(error);

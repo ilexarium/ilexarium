@@ -11,4 +11,5 @@ if [ ! -s "$TOKEN" ]; then
   echo 'No setup code: the platform is set up already (or the app is not running).' >&2
   exit 1
 fi
-cat "$TOKEN"
+# Read as the app's user: the file is in its folder (root reading it could follow a link there).
+exec runuser -u homelab -- cat "$TOKEN"

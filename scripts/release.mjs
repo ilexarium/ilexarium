@@ -5,6 +5,7 @@
 // and system/ (the installer, wrappers, units). Usage: npm run release
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import {
   cpSync,
   existsSync,
@@ -12,7 +13,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
+  lstatSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -107,9 +108,11 @@ for (const target of ENGINE_TARGETS) {
 function* files(dir) {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
-    const stat = statSync(path, { throwIfNoEntry: false });
-    if (stat?.isDirectory()) yield* files(path);
-    else if (stat) yield path;
+    // Links (the workspaces' in node_modules/@homelab) aren't followed: their targets are walked
+    // where they are.
+    const stat = lstatSync(path);
+    if (stat.isDirectory()) yield* files(path);
+    else if (stat.isFile()) yield path;
   }
 }
 const native = [...files(join(APP, 'node_modules'))].filter((path) => path.endsWith('.node'));
@@ -132,7 +135,9 @@ writeFileSync(join(STAGE, 'VERSION'), `${version}\n`);
 // The archive: owned by root inside, so unpacking it as root keeps nothing of this machine's users.
 const archive = join(OUT, `${NAME}.tar.gz`);
 run('tar', ['--owner=0', '--group=0', '--numeric-owner', '-czf', archive, '-C', OUT, NAME]);
-const sha256 = createHash('sha256').update(readFileSync(archive)).digest('hex');
+const hash = createHash('sha256');
+for await (const chunk of createReadStream(archive)) hash.update(chunk);
+const sha256 = hash.digest('hex');
 writeFileSync(`${archive}.sha256`, `${sha256}  ${NAME}.tar.gz\n`);
 console.log(`\n${relative(ROOT, archive)}\nsha256 ${sha256}`);
 console.log(`${dirname(relative(ROOT, archive))}/${NAME}.tar.gz.sha256`);

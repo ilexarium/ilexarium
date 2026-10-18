@@ -56,10 +56,19 @@ describe('web app (e2e)', () => {
     expect(res.headers['cache-control']).toContain('immutable');
   });
 
-  it('never answers /api with the page: unknown API routes stay JSON 404s', async () => {
-    const res = await request(origin).get('/api/nothing-here').expect(404);
-    expect(res.headers['content-type']).toMatch(/json/);
+  it('never answers /api with the page, in any case: unknown API routes stay JSON 404s', async () => {
+    for (const path of ['/api/nothing-here', '/API/nothing-here', '/Api']) {
+      const res = await request(origin).get(path).expect(404);
+      expect(res.headers['content-type'], path).toMatch(/json/);
+    }
     await request(origin).get('/api/health').expect(200);
+  });
+
+  it('answers a missing file with a 404, not the page (an old chunk after an update)', async () => {
+    for (const path of ['/chunk-OLDHASH12.js', '/favicon.ico', '/assets/missing.svg']) {
+      const res = await request(origin).get(path).expect(404);
+      expect(res.text, path).not.toContain('<app-root>');
+    }
   });
 
   it('serves no hidden files and nothing outside its folder', async () => {
