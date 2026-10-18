@@ -40,3 +40,9 @@ apps/server/src/generated/
 
 # The browser check (tools/browser/): its build, state (a test master key and passphrase), logs, screenshots
 tools/browser/run/
+
+# Release archives (npm run release)
+release/
+
+# The installer test (tools/vm/): logs, the VM image and disks
+tools/vm/run/

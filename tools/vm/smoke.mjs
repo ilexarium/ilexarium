@@ -1,0 +1,394 @@
+// The installer's smoke test, run as root inside a freshly installed machine (tools/vm/):
+//   node smoke.mjs install   after the first install: setup, sign-in, containers through the proxy
+//                            socket, deploying a service, a backup, ending a person's process,
+//                            and the security setup (files, sudo, who reaches the proxy)
+//   node smoke.mjs update    after running the installer again: everything is still there
+// Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
+import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+
+const BASE = 'http://127.0.0.1:3000';
+const ORIGIN = BASE;
+const USER = 'owner';
+const PASSWORD = 'correct horse battery staple';
+const { default: WebSocket } = await import('/opt/homelab/app/node_modules/ws/index.js');
+
+let failures = 0;
+function check(name, ok, detail = '') {
+  console.log(`${ok ? '  ok  ' : '  FAIL'} ${name}${!ok && detail ? ` — ${detail}` : ''}`);
+  if (!ok) failures++;
+}
+function done() {
+  console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed');
+  process.exit(failures ? 1 : 0);
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: 'utf8', ...opts });
+const fails = (cmd, args) => {
+  try {
+    execFileSync(cmd, args, { stdio: 'ignore' });
+    return false;
+  } catch {
+    return true;
+  }
+};
+
+let cookie = '';
+async function api(method, path, body) {
+  const res = await fetch(`${BASE}/api${path}`, {
+    method,
+    headers: {
+      Origin: ORIGIN,
+      ...(cookie && { Cookie: cookie }),
+      ...(body !== undefined && { 'Content-Type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const setCookie = res.headers.getSetCookie().find((c) => c.startsWith('__Host-sid='));
+  if (setCookie) cookie = setCookie.split(';')[0];
+  const text = await res.text();
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {}
+  return { status: res.status, json, text };
+}
+
+async function until(name, fn, timeoutMs) {
+  const end = Date.now() + timeoutMs;
+  let last;
+  while (Date.now() < end) {
+    last = await fn();
+    if (last?.done) return last;
+    await sleep(2000);
+  }
+  check(name, false, `timed out (${JSON.stringify(last?.value ?? last)})`);
+  done();
+}
+
+/** The first snapshot of a realtime topic. */
+function snapshot(topic) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:3000/api/ws`, {
+      headers: { Cookie: cookie, Origin: ORIGIN },
+    });
+    const timer = setTimeout(
+      () => (ws.terminate(), reject(new Error(`no ${topic} snapshot`))),
+      20_000,
+    );
+    ws.on('open', () => ws.send(JSON.stringify({ event: 'subscribe', data: { topic } })));
+    ws.on('message', (raw) => {
+      const message = JSON.parse(raw.toString());
+      if (message.event === `${topic}:snapshot`) {
+        clearTimeout(timer);
+        ws.close();
+        resolve(message.data);
+      }
+    });
+    ws.on('error', reject);
+  });
+}
+
+function mode(path) {
+  const stat = statSync(path);
+  return { mode: (stat.mode & 0o7777).toString(8).padStart(4, '0'), uid: stat.uid, gid: stat.gid };
+}
+const uidOf = (user) => Number(sh('id', ['-u', user]).trim());
+const gidOf = (group) => Number(sh('getent', ['group', group]).split(':')[2]);
+
+async function signIn() {
+  const login = await api('POST', '/auth/login', { username: USER, password: PASSWORD });
+  check('signs in', login.status === 200, `${login.status} ${login.text}`);
+}
+
+async function securitySetup() {
+  console.log('\nThe security setup');
+  const app = uidOf('homelab');
+  const appGroup = gidOf('homelab');
+  const expect = (path, want) => {
+    const got = mode(path);
+    check(
+      `${path}: ${JSON.stringify(want)}`,
+      Object.entries(want).every(([k, v]) => got[k] === v),
+      JSON.stringify(got),
+    );
+  };
+  expect('/etc/homelab/master.key', { mode: '0400', uid: app });
+  expect('/etc/homelab/app.env', { mode: '0640', uid: 0, gid: appGroup });
+  expect('/etc/homelab/database.env', { mode: '0600', uid: 0 });
+  expect('/etc/homelab/wrappers.json', { mode: '0644', uid: 0 });
+  expect('/etc/sudoers.d/homelab', { mode: '0440', uid: 0 });
+  expect('/opt/homelab/libexec', { mode: '0755', uid: 0 });
+  expect('/opt/homelab/libexec/homelab-process.mts', { mode: '0755', uid: 0 });
+  expect('/var/lib/homelab', { mode: '0755', uid: 0 });
+  expect('/var/lib/homelab/app', { mode: '0700', uid: app });
+  expect('/var/lib/homelab/backups', { mode: '0750', uid: 0, gid: appGroup });
+  expect('/run/homelab/proxy', { mode: '0750', uid: 99, gid: appGroup });
+  check(
+    'the app’s user is not in the docker group',
+    !sh('id', ['-nG', 'homelab']).split(/\s+/).includes('docker'),
+  );
+  const appProcess = sh('systemctl', ['show', '-p', 'MainPID', '--value', 'homelab']).trim();
+  check('the app runs as homelab', mode(`/proc/${appProcess}`).uid === app);
+  check(
+    'the app listens on 127.0.0.1 only',
+    !/0\.0\.0\.0:3000|\[::\]:3000|\*:3000/.test(sh('ss', ['-ltnH'])),
+  );
+  check(
+    'Postgres listens on 127.0.0.1 only',
+    !/0\.0\.0\.0:5432|\[::\]:5432|\*:5432/.test(sh('ss', ['-ltnH'])),
+  );
+  check('the proxy has no TCP port', !/:2375\b/.test(sh('ss', ['-ltnH'])));
+  // What the app's user may do with sudo: exactly the four wrappers.
+  const sudo = sh('sudo', ['-l', '-U', 'homelab']);
+  const allowed = [...sudo.matchAll(/NOPASSWD:\s*(\S+)/g)].map((m) => m[1]).sort();
+  check(
+    'sudo: the app may run exactly the four wrappers',
+    JSON.stringify(allowed) ===
+      JSON.stringify(
+        ['backup', 'compose', 'disk', 'process'].map(
+          (w) => `/opt/homelab/libexec/homelab-${w}.mts`,
+        ),
+      ),
+    allowed.join(' '),
+  );
+  check(
+    'sudo: not docker',
+    fails('runuser', ['-u', 'homelab', '--', 'sudo', '-n', '/usr/bin/docker', 'ps']),
+  );
+  check(
+    'the app can’t read the database owner’s password',
+    fails('runuser', ['-u', 'homelab', '--', 'cat', '/etc/homelab/database.env']),
+  );
+  check(
+    'the app can’t open Docker’s socket',
+    fails('runuser', [
+      '-u',
+      'homelab',
+      '--',
+      'curl',
+      '-sf',
+      '--unix-socket',
+      '/var/run/docker.sock',
+      'http://d/_ping',
+    ]),
+  );
+  check(
+    'the app reaches the proxy’s socket',
+    !fails('runuser', [
+      '-u',
+      'homelab',
+      '--',
+      'curl',
+      '-sf',
+      '--unix-socket',
+      '/run/homelab/proxy/docker.sock',
+      'http://d/_ping',
+    ]),
+  );
+  ensurePerson();
+  check(
+    'another user can’t reach the proxy’s socket',
+    fails('runuser', [
+      '-u',
+      'anna',
+      '--',
+      'curl',
+      '-sf',
+      '--unix-socket',
+      '/run/homelab/proxy/docker.sock',
+      'http://d/_ping',
+    ]),
+  );
+  check(
+    'the proxy still refuses what isn’t allowed',
+    sh('runuser', [
+      '-u',
+      'homelab',
+      '--',
+      'curl',
+      '-s',
+      '-o',
+      '/dev/null',
+      '-w',
+      '%{http_code}',
+      '--unix-socket',
+      '/run/homelab/proxy/docker.sock',
+      '-X',
+      'POST',
+      'http://d/containers/create',
+    ]).trim() === '403',
+  );
+  // The database: the app's role may read and write data, nothing more.
+  const role = sh('docker', [
+    'exec',
+    'homelab-postgres-1',
+    'psql',
+    '-tA',
+    '-U',
+    'homelab_owner',
+    '-d',
+    'homelab',
+    '-c',
+    "SELECT rolsuper, rolcreatedb, rolcreaterole, has_table_privilege('homelab', '\"User\"', 'SELECT'), has_table_privilege('homelab', '_prisma_migrations', 'SELECT'), has_schema_privilege('homelab', 'public', 'CREATE') FROM pg_roles WHERE rolname = 'homelab'",
+  ]).trim();
+  check(
+    'the app’s database role reads data, can’t migrate or create',
+    role === 'f|f|f|t|f|f',
+    role,
+  );
+}
+
+function ensurePerson() {
+  if (fails('id', ['anna'])) sh('useradd', ['--create-home', '--uid', '1500', 'anna']);
+}
+
+async function install() {
+  console.log('First install');
+  check('the app answers', (await api('GET', '/health')).status === 200);
+  const status = await api('GET', '/auth/status');
+  check('needs setup', status.json?.needsSetup === true, status.text);
+  const token = readFileSync('/var/lib/homelab/app/setup-token', 'utf8').trim();
+  const setup = await api('POST', '/auth/setup', {
+    setupToken: token,
+    username: USER,
+    password: PASSWORD,
+  });
+  check(
+    'setup with the code from the token file',
+    setup.status === 200 || setup.status === 201,
+    `${setup.status} ${setup.text}`,
+  );
+  await signIn();
+  check(
+    'the web app is served on the same origin',
+    (await fetch(`${BASE}/backups`).then((r) => r.text())).includes('<app-root'),
+  );
+
+  await securitySetup();
+
+  console.log('\nContainers through the proxy');
+  const containers = await snapshot('containers');
+  const names = (containers.containers ?? []).map((c) => c.name);
+  check(
+    'Docker reachable through the proxy socket',
+    containers.dockerAvailable === true,
+    JSON.stringify(containers).slice(0, 200),
+  );
+  check(
+    'the platform’s containers, protected',
+    ['homelab-postgres-1', 'homelab-docker-proxy-1'].every(
+      (n) => containers.containers?.find((c) => c.name === n)?.protected,
+    ),
+    names.join(', '),
+  );
+
+  console.log('\nDeploying a service');
+  mkdirSync('/srv/homelab/navidrome/music', { recursive: true });
+  const deploy = await api('POST', '/services', {
+    catalogId: 'navidrome',
+    values: {
+      WEB_PORT: 4533,
+      MUSIC_DIR: '/srv/homelab/navidrome/music',
+      DATA_DIR: '/srv/homelab/navidrome/data',
+    },
+  });
+  check(
+    'deploy started',
+    deploy.status === 202 || deploy.status === 201,
+    `${deploy.status} ${deploy.text}`,
+  );
+  const job = await until(
+    'Navidrome installed',
+    async () => {
+      const j = await api('GET', `/services/jobs/${deploy.json?.jobId}`);
+      return { done: j.json?.status && j.json.status !== 'running', value: j.json };
+    },
+    15 * 60_000,
+  );
+  check(
+    'Navidrome installed',
+    job.value.status === 'succeeded',
+    JSON.stringify(job.value).slice(0, 400),
+  );
+
+  console.log('\nBacking up');
+  const plan = await api('POST', '/backups/plan', {
+    destination: '/mnt/backup',
+    schedule: { frequency: 'daily', time: '03:00' },
+    retention: { daily: 7, weekly: 4, monthly: 6 },
+    items: [{ kind: 'service', serviceId: deploy.json?.serviceId }],
+  });
+  check(
+    'backups set up',
+    plan.status === 200 || plan.status === 201,
+    `${plan.status} ${plan.text}`,
+  );
+  check('the passphrase shown once', typeof plan.json?.passphrase === 'string');
+  const run = await api('POST', '/backups/runs', {});
+  check('"Back up now" started', run.status === 202, `${run.status} ${run.text}`);
+  const result = await until(
+    'the backup finished',
+    async () => {
+      const s = await api('GET', '/backups/status');
+      return { done: s.json?.lastRun && !s.json.running, value: s.json?.lastRun };
+    },
+    15 * 60_000,
+  );
+  check(
+    'the backup succeeded',
+    ['ok', 'warning'].includes(result.value?.status),
+    JSON.stringify(result.value).slice(0, 400),
+  );
+
+  console.log('\nEnding a person’s process (as that person, through sudo)');
+  ensurePerson();
+  const child = spawn(
+    'setpriv',
+    ['--reuid=anna', '--regid=anna', '--clear-groups', 'sleep', '300'],
+    { stdio: 'ignore' },
+  );
+  await sleep(500);
+  const stat = readFileSync(`/proc/${child.pid}/stat`, 'utf8');
+  const startTicks = stat
+    .slice(stat.lastIndexOf(')') + 1)
+    .trim()
+    .split(/\s+/)[19];
+  const exited = new Promise((r) => child.on('exit', (_, signal) => r(signal)));
+  const end = await api('POST', '/processes/signal', {
+    pid: child.pid,
+    startTicks,
+    signal: 'TERM',
+  });
+  check('ended through the wrapper', end.status === 204, `${end.status} ${end.text}`);
+  check(
+    'it got SIGTERM',
+    (await Promise.race([exited, sleep(5000).then(() => 'still running')])) === 'SIGTERM',
+  );
+  const init = await api('POST', '/processes/signal', { pid: 1, startTicks: '1', signal: 'KILL' });
+  check('PID 1 refused', init.status === 403 || init.status === 404, `${init.status}`);
+  done();
+}
+
+async function update() {
+  console.log('After running the installer again');
+  check('the app answers', (await api('GET', '/health')).status === 200);
+  check('still set up', (await api('GET', '/auth/status')).json?.needsSetup === false);
+  await signIn();
+  const services = await api('GET', '/services');
+  check(
+    'Navidrome still installed',
+    services.json?.services?.some((s) => s.catalogId === 'navidrome' && s.status === 'installed'),
+    services.text.slice(0, 300),
+  );
+  check('backups still set up', (await api('GET', '/backups/status')).json?.configured === true);
+  check(
+    'a database backup was made before migrating',
+    sh('ls', ['/var/lib/homelab/install-backups']).trim().length > 0,
+  );
+  check('the version recorded', existsSync('/etc/homelab/version'));
+  await securitySetup();
+  done();
+}
+
+await (process.argv[2] === 'update' ? update() : install());

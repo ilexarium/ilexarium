@@ -1,0 +1,30 @@
+# /etc/systemd/system/homelab.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# The app, as its own unprivileged user. Listens on 127.0.0.1 only (tailscale serve puts HTTPS
+# in front). Its settings: /etc/homelab/app.env (root:homelab 0640 — the database password).
+# Design: docs/plans/installer.md.
+#
+# Deliberately without NoNewPrivileges, ProtectSystem, PrivateTmp and the like: they apply to
+# everything the app starts too, and the app's privileged work happens in its root wrappers,
+# started through sudo (which needs new privileges) — they write /etc, /mnt and /srv. The
+# wrappers check everything themselves; the app gets no rights beyond sudo to them.
+
+[Unit]
+Description=Homelab
+Requires=homelab-platform.service
+After=homelab-platform.service network-online.target
+Wants=network-online.target
+
+[Service]
+User=homelab
+Group=homelab
+EnvironmentFile=/etc/homelab/app.env
+WorkingDirectory=/opt/homelab/app/apps/server
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=5
+UMask=0077
+# Gives a running install, removal or restore time to start its service again.
+TimeoutStopSec=2min
+
+[Install]
+WantedBy=multi-user.target

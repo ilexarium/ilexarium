@@ -1,0 +1,11 @@
+# A throwaway "machine" for testing the installer without a VM (tools/vm/test-install.sh
+# --container): plain Debian 13 with systemd as its first process — everything else (Node,
+# Docker, Borg, …) is the installer's job. Never for anything but tests.
+FROM debian:13
+ENV container=docker
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends systemd systemd-sysv dbus \
+ && rm -rf /var/lib/apt/lists/* \
+ && systemctl mask getty.target console-getty.service systemd-firstboot.service
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

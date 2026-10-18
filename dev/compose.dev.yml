@@ -24,9 +24,9 @@ services:
       timeout: 3s
       retries: 10
 
-  # The read-only Docker API allow-list the app talks to (DOCKER_HOST=tcp://127.0.0.1:2375).
-  # REVIEW-REQUIRED: system/docker-socket-proxy/haproxy.cfg. In production it joins the app's
-  # Compose stack on an internal network, with no published port (installer feature).
+  # The Docker API allow-list the app talks to (DOCKER_HOST=tcp://127.0.0.1:2375).
+  # REVIEW-REQUIRED: system/docker-socket-proxy/haproxy.cfg. In production it has no network at
+  # all and answers on a Unix socket only the app's group can reach (system/platform/compose.yml).
   docker-proxy:
     # Official image, pinned by digest (3.4-alpine, HAProxy 3.4.6). Runs as user haproxy (uid 99).
     image: haproxy:3.4-alpine@sha256:7af8255207ee9964ccb4eec8ce4b7a40b777769665e3ae83897fb01b24d8a43a

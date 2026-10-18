@@ -1,0 +1,14 @@
+#!/bin/sh
+# /usr/local/bin/homelab-setup-code — prints the one-time setup code again (until the first
+# account is made). The code is readable only by root and the app's user.
+set -eu
+TOKEN=/var/lib/homelab/app/setup-token
+if [ "$(id -u)" != 0 ]; then
+  echo 'Run it as root: sudo homelab-setup-code' >&2
+  exit 1
+fi
+if [ ! -s "$TOKEN" ]; then
+  echo 'No setup code: the platform is set up already (or the app is not running).' >&2
+  exit 1
+fi
+cat "$TOKEN"

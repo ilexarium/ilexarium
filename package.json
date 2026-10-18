@@ -1,6 +1,6 @@
 {
   "name": "homelab",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "packageManager": "npm@12.0.2",
@@ -22,7 +22,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:migrate": "npm run db:migrate -w @homelab/server",
-    "test:e2e": "npm run build:shared && npm run test:e2e -w @homelab/server"
+    "test:e2e": "npm run build:shared && npm run test:e2e -w @homelab/server",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "prettier": "^3.8.1",

@@ -32,6 +32,17 @@ const trustProxySchema = z
   )
   .pipe(z.union([z.literal(false), z.array(trustedProxySchema).min(1)]));
 
+/** The proxy's socket in production: one plain file name under /run/homelab/, no `..`. */
+export const PROXY_SOCKET = /^unix:\/\/\/run\/homelab\/(?:[a-z0-9-]+\/)?[a-z0-9-]+\.sock$/;
+
+function isProxyUrl(value: string): boolean {
+  try {
+    return /^(tcp|http):$/.test(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -40,15 +51,29 @@ export const envSchema = z
     SETUP_TOKEN_FILE: z.string().trim().min(1).optional(),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     /**
-     * The Docker API: always the read-only socket proxy, never the socket itself — so only
-     * tcp:// or http:// (a unix:// socket path is refused).
+     * The address the app listens on. Production: 127.0.0.1 unless set — only the HTTPS proxy in
+     * front of it (tailscale serve) reaches it. Development: every interface (the dev server's
+     * proxy may use IPv6 for "localhost").
+     */
+    HOST: z.union([z.ipv4(), z.ipv6()]).optional(),
+    /**
+     * The Docker API: always the socket proxy, never Docker's own socket — tcp:// or http://
+     * (development), or the proxy's Unix socket under /run/homelab/ (production: only the app's
+     * group can reach it). Any other unix:// path is refused.
      */
     DOCKER_HOST: z
-      .url({
-        protocol: /^(tcp|http)$/,
-        error: 'Must be a tcp:// or http:// URL of the Docker socket proxy',
-      })
-      .default('tcp://127.0.0.1:2375'),
+      .string()
+      .trim()
+      .default('tcp://127.0.0.1:2375')
+      .refine((value) => PROXY_SOCKET.test(value) || isProxyUrl(value), {
+        error:
+          'Must be a tcp:// or http:// URL of the Docker socket proxy, or unix:///run/homelab/<name>.sock',
+      }),
+    /**
+     * The built web app (its index.html and files), served by the app on the same origin as the
+     * API (production). Unset: not served (development: the Angular dev server does).
+     */
+    WEB_ROOT: z.string().trim().startsWith('/').optional(),
     /** The key that encrypts services' secrets (32 random bytes, base64). Created in development. */
     MASTER_KEY_FILE: z.string().trim().min(1).optional(),
     /**
@@ -79,6 +104,7 @@ export const envSchema = z
         env.WRAPPER_CONFIG_FILE ??
         (production ? '/etc/homelab/wrappers.json' : '.dev/wrappers.json'),
       EXECUTOR_MODE: env.EXECUTOR_MODE ?? (production ? 'sudo' : 'direct'),
+      HOST: env.HOST ?? (production ? '127.0.0.1' : undefined),
     };
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.EXECUTOR_MODE === 'sudo', {
