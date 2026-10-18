@@ -126,7 +126,7 @@ describe('NotificationsPage', () => {
   it('suggests a long random topic name', async () => {
     const { el } = await render({ email: null, ntfy: null });
     const placeholder = el.querySelector<HTMLInputElement>('#ntfy-topic')!.placeholder;
-    expect(placeholder).toMatch(/^https:\/\/ntfy\.sh\/homelab-[a-z2-9]{12}$/);
+    expect(placeholder).toMatch(/^https:\/\/ntfy\.sh\/laris-[a-z2-9]{12}$/);
   });
 
   it('sends a test and says how it went; not before the settings are saved', async () => {

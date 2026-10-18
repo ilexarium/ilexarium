@@ -21,13 +21,13 @@ describe('PageTitleStrategy', () => {
   it("translates the route's title for the page and the browser tab", async () => {
     await TestBed.inject(Router).navigateByUrl('/');
     expect(TestBed.inject(PageTitleStrategy).pageTitle()).toBe('Dashboard');
-    expect(TestBed.inject(Title).getTitle()).toBe('Dashboard · Homelab');
+    expect(TestBed.inject(Title).getTitle()).toBe('Dashboard · Laris');
   });
 
   it("fills in the route's parameters", async () => {
     await TestBed.inject(Router).navigateByUrl('/containers/jellyfin/logs');
     expect(TestBed.inject(PageTitleStrategy).pageTitle()).toBe('Logs · jellyfin');
-    expect(TestBed.inject(Title).getTitle()).toBe('Logs · jellyfin · Homelab');
+    expect(TestBed.inject(Title).getTitle()).toBe('Logs · jellyfin · Laris');
   });
 
   it('follows a language switch', async () => {
@@ -36,12 +36,12 @@ describe('PageTitleStrategy', () => {
     await TestBed.inject(Router).navigateByUrl('/');
     translate.use('xx');
     expect(TestBed.inject(PageTitleStrategy).pageTitle()).toBe('Übersicht');
-    expect(TestBed.inject(Title).getTitle()).toBe('Übersicht · Homelab');
+    expect(TestBed.inject(Title).getTitle()).toBe('Übersicht · Laris');
   });
 
   it('falls back to the app name for a route without a title', async () => {
     await TestBed.inject(Router).navigateByUrl('/untitled');
     expect(TestBed.inject(PageTitleStrategy).pageTitle()).toBe('');
-    expect(TestBed.inject(Title).getTitle()).toBe('Homelab');
+    expect(TestBed.inject(Title).getTitle()).toBe('Laris');
   });
 });

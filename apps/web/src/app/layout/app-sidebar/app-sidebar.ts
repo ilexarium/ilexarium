@@ -1,13 +1,13 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideServer } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmSidebarImports } from '@ui/sidebar';
 import { AlertsStore } from '../../core/alerts/alerts-store';
 import { BackupsStore } from '../../core/backups/backups-store';
 import { LanguageService } from '../../core/i18n/language';
 import { APP_NAME } from '../../core/page-title/page-title';
+import { LarisMark } from '../../shared/brand/laris-mark';
 import { NAV_ICONS, NAVIGATION } from '../navigation';
 
 /**
@@ -16,8 +16,8 @@ import { NAV_ICONS, NAVIGATION } from '../navigation';
  */
 @Component({
   selector: 'app-sidebar',
-  imports: [HlmSidebarImports, NgIcon, RouterLink, RouterLinkActive, TranslatePipe],
-  providers: [provideIcons({ ...NAV_ICONS, lucideServer })],
+  imports: [HlmSidebarImports, LarisMark, NgIcon, RouterLink, RouterLinkActive, TranslatePipe],
+  providers: [provideIcons(NAV_ICONS)],
   templateUrl: './app-sidebar.html',
 })
 export class AppSidebar {

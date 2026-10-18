@@ -86,7 +86,7 @@ describe('LogsPage', () => {
       { event: 'logs:open', data: { container: 'jellyfin', tail: 500 } },
     ]);
     expect(TestBed.inject(PageTitleStrategy).pageTitle()).toBe('Logs · jellyfin');
-    expect(TestBed.inject(Title).getTitle()).toBe('Logs · jellyfin · Homelab');
+    expect(TestBed.inject(Title).getTitle()).toBe('Logs · jellyfin · Laris');
   });
 
   it('has a back link to the Containers page and no heading of its own', async () => {
