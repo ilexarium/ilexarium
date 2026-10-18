@@ -1,6 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { NextFunction, Request, Response } from 'express';
+import { join } from 'node:path';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { config as rxjsConfig } from 'rxjs';
 import { applyTrustProxy } from './common/trust-proxy.js';
@@ -20,6 +22,8 @@ export function configureApp(app: NestExpressApplication): NestExpressApplicatio
       error instanceof Error ? error.stack : error,
     );
   app.setGlobalPrefix('api');
+  const webRoot = config.get('WEB_ROOT', { infer: true });
+  if (webRoot) serveWebApp(app, webRoot);
   applyTrustProxy(app, config.get('TRUST_PROXY', { infer: true }));
   // Refuses state-changing requests from other origins (with the session cookie's SameSite=Lax).
   app.enableCsrfProtection();
@@ -27,4 +31,31 @@ export function configureApp(app: NestExpressApplication): NestExpressApplicatio
   app.useWebSocketAdapter(new WsAdapter(app));
   app.enableShutdownHooks();
   return app;
+}
+
+/**
+ * The built web app on the same origin as the API (production): its files as they are — the
+ * hashed ones cached for a year, index.html never — and index.html for every other page address,
+ * so links into the app work. Never for /api (unknown API routes stay JSON 404s).
+ */
+function serveWebApp(app: NestExpressApplication, root: string): void {
+  app.useStaticAssets(root, {
+    index: false,
+    dotfiles: 'ignore',
+    setHeaders: (res, path) => {
+      // Angular names its build files by content hash: they never change.
+      if (/-[A-Z0-9]{8,}\.(js|css|woff2?)$/.test(path)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else res.setHeader('Cache-Control', 'no-cache');
+    },
+  });
+  const index = join(root, 'index.html');
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const page = req.method === 'GET' || req.method === 'HEAD';
+    if (!page || req.path === '/api' || req.path.startsWith('/api/')) return next();
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(index, (error) => {
+      if (error) next(error);
+    });
+  });
 }

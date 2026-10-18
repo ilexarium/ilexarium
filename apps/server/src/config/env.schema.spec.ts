@@ -15,11 +15,30 @@ describe('validateEnv', () => {
     });
   });
 
-  it('accepts the Docker proxy over tcp:// or http://, never a unix socket', () => {
-    for (const url of ['tcp://127.0.0.1:2375', 'http://docker-proxy:2375']) {
+  it('accepts the Docker proxy over tcp:// or http://, or its own socket under /run/homelab/', () => {
+    for (const url of [
+      'tcp://127.0.0.1:2375',
+      'http://docker-proxy:2375',
+      'unix:///run/homelab/proxy/docker.sock',
+      'unix:///run/homelab/docker-proxy.sock',
+    ]) {
       expect(validateEnv({ ...base, DOCKER_HOST: url }).DOCKER_HOST, url).toBe(url);
     }
-    for (const url of ['unix:///var/run/docker.sock', '/var/run/docker.sock', 'ssh://host']) {
+  });
+
+  it('never Docker’s own socket, or any other socket path', () => {
+    for (const url of [
+      'unix:///var/run/docker.sock',
+      'unix:///run/docker.sock',
+      'unix:///run/homelab/../docker.sock',
+      'unix:///run/homelab/proxy/../../docker.sock',
+      'unix:///run/homelab/a/b/docker.sock',
+      'unix:///run/homelab/docker.sock/../x.sock',
+      'unix://run/homelab/docker.sock',
+      '/var/run/docker.sock',
+      'ssh://host',
+      'npipe:////./pipe/docker_engine',
+    ]) {
       expect(() => validateEnv({ ...base, DOCKER_HOST: url }), url).toThrow(/DOCKER_HOST/);
     }
   });
@@ -36,6 +55,13 @@ describe('validateEnv', () => {
       WRAPPER_CONFIG_FILE: '.dev/wrappers.json',
       EXECUTOR_MODE: 'direct',
     });
+  });
+
+  it('listens only on loopback in production unless told otherwise', () => {
+    expect(validateEnv({ ...base, NODE_ENV: 'production' }).HOST).toBe('127.0.0.1');
+    expect(validateEnv(base).HOST).toBeUndefined();
+    expect(validateEnv({ ...base, NODE_ENV: 'production', HOST: '::1' }).HOST).toBe('::1');
+    expect(() => validateEnv({ ...base, HOST: 'example.com' })).toThrow(/HOST/);
   });
 
   it('uses the installed files and sudo in production', () => {

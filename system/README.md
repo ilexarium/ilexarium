@@ -16,3 +16,6 @@ Host-side pieces installed onto the target machine: privileged wrapper scripts, 
 Root-owned state the backup wrapper keeps: `/etc/homelab/backup.json` (the plan), `/etc/homelab/backup-repository.json` (the repository's path and id), `/etc/homelab/backup.passphrase` (0400), `/var/lib/homelab/backups/` (0750 root:app group — `runs.jsonl` and `current.jsonl` are 0640, readable by the app; Borg's cache and the set-aside list are root-only), `/srv/homelab/restores/`.
 
 Design: `docs/plans/service_deploys.md`, `docs/plans/backups.md`. `install/` is still empty (the installer feature).
+
+- `install/` — the installer (`install.sh`, run from the release archive as `sudo ./install.sh`; its parts in `install/lib/`: checks, packages, files and settings, the platform and database), `tmpfiles.conf` (the proxy's socket folder in `/run/homelab`, made again at every boot) and `homelab-setup-code`. Design: `docs/plans/installer.md`. Tested by `tools/vm/test-install.sh`.
+- `platform/compose.yml` — the platform's own containers: Postgres (127.0.0.1 only) and the Docker socket proxy (no network: a Unix socket in `/run/homelab/proxy`). Started by `systemd/homelab-platform.service`; the app itself is `systemd/homelab.service`.
