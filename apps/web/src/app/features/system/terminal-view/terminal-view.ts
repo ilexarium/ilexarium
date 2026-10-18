@@ -24,18 +24,18 @@ import { FitAddon } from '@xterm/addon-fit';
 import { type ITheme, Terminal } from '@xterm/xterm';
 import type { TerminalSize } from '../terminal.model';
 
-/** Fixed palettes (xterm needs plain colours; the app's tokens are oklch). */
+/** Fixed palettes (xterm needs plain colours; the app's tokens are oklch): the theme's text and primary as hex. */
 const LIGHT: ITheme = {
   background: '#ffffff',
-  foreground: '#1f2328',
-  cursor: '#1f2328',
-  selectionBackground: '#b6d6fd',
+  foreground: '#151628',
+  cursor: '#544ccb',
+  selectionBackground: '#d5daff',
 };
 const DARK: ITheme = {
-  background: '#0a0a0b',
-  foreground: '#e6e6e6',
-  cursor: '#e6e6e6',
-  selectionBackground: '#264f78',
+  background: '#0d0e16',
+  foreground: '#f2f3f9',
+  cursor: '#a8afff',
+  selectionBackground: '#353766',
 };
 
 /** What the phone key bar's keys send. */

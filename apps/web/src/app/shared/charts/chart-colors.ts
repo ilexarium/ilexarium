@@ -33,12 +33,12 @@ export class ChartColorsService {
       this.toRgb(style?.getPropertyValue(name).trim() || fallback);
     return {
       series: SERIES_TOKENS.map((name, i) =>
-        token(name, ['#e76e50', '#2a9d90', '#274754', '#e8c468', '#f4a462'][i]),
+        token(name, ['#544ccb', '#009589', '#da950b', '#cd5394', '#1292c0'][i]),
       ),
-      text: token('--muted-foreground', '#71717a'),
-      grid: token('--border', '#e4e4e7'),
+      text: token('--muted-foreground', '#5f6177'),
+      grid: token('--border', '#e1e2ec'),
       tooltipBackground: token('--popover', '#ffffff'),
-      tooltipText: token('--popover-foreground', '#09090b'),
+      tooltipText: token('--popover-foreground', '#151628'),
     };
   }
 

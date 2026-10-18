@@ -19,10 +19,10 @@ import { Translator } from '../../core/i18n/translator';
 import { Formatter } from '../format/formatter';
 
 const STATE_DOTS: Record<ContainerState, string> = {
-  running: 'bg-emerald-500',
+  running: 'bg-success',
   created: 'bg-muted-foreground',
-  restarting: 'bg-amber-500',
-  paused: 'bg-amber-500',
+  restarting: 'bg-warning',
+  paused: 'bg-warning',
   removing: 'bg-muted-foreground',
   exited: 'bg-muted-foreground',
   dead: 'bg-destructive',
