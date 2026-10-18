@@ -54,9 +54,7 @@
                   }}</span>
                 }
                 @if (disk.sameDiskAsData) {
-                  <span class="text-amber-700 dark:text-amber-400">{{
-                    'backups.setup.sameDisk' | translate
-                  }}</span>
+                  <span class="text-warning">{{ 'backups.setup.sameDisk' | translate }}</span>
                 }
                 @if (disk.hasRepository) {
                   <span class="text-muted-foreground">{{
