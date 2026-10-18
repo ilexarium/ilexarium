@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, input, signal } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { type LinuxSignInRequest, linuxSignInRequestSchema } from '@homelab/shared';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -10,11 +10,14 @@ import { HlmInput } from '@ui/input';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
-import { FilesPageStore } from '../files-page/files-page-store';
 
-/** Signing in as a Linux user of this machine (sshd checks the password). Submits through the page store. */
+/**
+ * Signing in as a Linux user of this machine (sshd checks the password), for Files and the
+ * terminal. Submits through the page store's `signIn` (passed in), which rejects with the
+ * server's error.
+ */
 @Component({
-  selector: 'app-files-sign-in',
+  selector: 'app-linux-sign-in',
   imports: [
     ErrorTextPipe,
     FormField,
@@ -27,10 +30,14 @@ import { FilesPageStore } from '../files-page/files-page-store';
     PasswordToggle,
     TranslatePipe,
   ],
-  templateUrl: './files-sign-in.html',
+  templateUrl: './linux-sign-in.html',
 })
-export class FilesSignIn {
-  private readonly store = inject(FilesPageStore);
+export class LinuxSignIn {
+  readonly submit = input.required<(request: LinuxSignInRequest) => Promise<void>>();
+  /** Translation keys: what signing in opens. */
+  readonly title = input.required<string>();
+  readonly text = input.required<string>();
+
   protected readonly showPassword = signal(false);
   private readonly model = signal<LinuxSignInRequest>({ username: '', password: '' });
   protected readonly form = form(
@@ -40,7 +47,7 @@ export class FilesSignIn {
       submission: {
         action: async (tree) => {
           try {
-            await this.store.signIn(tree().value());
+            await this.submit()(tree().value());
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }

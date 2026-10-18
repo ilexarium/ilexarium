@@ -13,7 +13,8 @@
     "alerts": "Alerts",
     "notifications": "Notifications",
     "processes": "Processes",
-    "files": "Files"
+    "files": "Files",
+    "terminal": "Terminal"
   },
   "app": {
     "loading": "Loading…",
@@ -41,7 +42,8 @@
     "notifications": "Notifications",
     "system": "System",
     "processes": "Processes",
-    "files": "Files"
+    "files": "Files",
+    "terminal": "Terminal"
   },
   "userMenu": {
     "open": "Account menu",
@@ -1048,5 +1050,42 @@
     "deleted": "{{name}} deleted",
     "uploaded": "{{name}} uploaded",
     "actionFailed": "That didn’t work"
+  },
+  "terminal": {
+    "signIn": {
+      "title": "Open a terminal",
+      "text": "Sign in with your Linux account on this machine. The terminal is a shell of that account, like SSH."
+    },
+    "unlock": {
+      "title": "Confirm it’s you",
+      "text": "A terminal can change anything this Linux account may. Enter your app password to open it.",
+      "password": "App password",
+      "submit": "Open terminal",
+      "submitting": "Opening…"
+    },
+    "as": "As {{user}}",
+    "connecting": "Connecting…",
+    "close": "Close terminal",
+    "region": "Terminal",
+    "closed": {
+      "title": "The terminal is closed",
+      "exited": "The shell ended.",
+      "replaced": "A terminal opened in another tab or window took its place.",
+      "linuxSessionEnded": "The Linux session ended (unused for 30 minutes, or closed).",
+      "ticketRefused": "Opening took too long. Try again.",
+      "lost": "The connection was lost.",
+      "closed": "You closed it."
+    },
+    "openAgain": "Open again",
+    "keys": {
+      "label": "Extra keys",
+      "esc": "Esc",
+      "tab": "Tab",
+      "ctrl": "Ctrl",
+      "up": "Arrow up",
+      "down": "Arrow down",
+      "left": "Arrow left",
+      "right": "Arrow right"
+    }
   }
 }

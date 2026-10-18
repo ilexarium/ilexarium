@@ -13,7 +13,8 @@
     "alerts": "Warnungen",
     "notifications": "Benachrichtigungen",
     "processes": "Prozesse",
-    "files": "Dateien"
+    "files": "Dateien",
+    "terminal": "Terminal"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -41,7 +42,8 @@
     "notifications": "Benachrichtigungen",
     "system": "System",
     "processes": "Prozesse",
-    "files": "Dateien"
+    "files": "Dateien",
+    "terminal": "Terminal"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -1048,5 +1050,42 @@
     "deleted": "{{name}} gelöscht",
     "uploaded": "{{name}} hochgeladen",
     "actionFailed": "Das hat nicht geklappt"
+  },
+  "terminal": {
+    "signIn": {
+      "title": "Ein Terminal öffnen",
+      "text": "Melde dich mit deinem Linux-Konto auf diesem Rechner an. Das Terminal ist eine Shell dieses Kontos, wie bei SSH."
+    },
+    "unlock": {
+      "title": "Bestätige, dass du es bist",
+      "text": "Ein Terminal kann alles ändern, was dieses Linux-Konto darf. Gib dein App-Passwort ein, um es zu öffnen.",
+      "password": "App-Passwort",
+      "submit": "Terminal öffnen",
+      "submitting": "Wird geöffnet…"
+    },
+    "as": "Als {{user}}",
+    "connecting": "Verbindung wird hergestellt…",
+    "close": "Terminal schließen",
+    "region": "Terminal",
+    "closed": {
+      "title": "Das Terminal ist geschlossen",
+      "exited": "Die Shell wurde beendet.",
+      "replaced": "Ein in einem anderen Tab oder Fenster geöffnetes Terminal hat seinen Platz eingenommen.",
+      "linuxSessionEnded": "Die Linux-Sitzung ist beendet (30 Minuten nicht benutzt oder geschlossen).",
+      "ticketRefused": "Das Öffnen hat zu lange gedauert. Versuche es noch einmal.",
+      "lost": "Die Verbindung ist abgebrochen.",
+      "closed": "Du hast es geschlossen."
+    },
+    "openAgain": "Wieder öffnen",
+    "keys": {
+      "label": "Zusätzliche Tasten",
+      "esc": "Esc",
+      "tab": "Tab",
+      "ctrl": "Strg",
+      "up": "Pfeil nach oben",
+      "down": "Pfeil nach unten",
+      "left": "Pfeil nach links",
+      "right": "Pfeil nach rechts"
+    }
   }
 }
