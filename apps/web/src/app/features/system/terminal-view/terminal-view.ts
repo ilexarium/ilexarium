@@ -2,6 +2,7 @@ import {
   afterNextRender,
   Component,
   DestroyRef,
+  DOCUMENT,
   effect,
   ElementRef,
   inject,
@@ -23,6 +24,8 @@ import { HlmButton } from '@ui/button';
 import { FitAddon } from '@xterm/addon-fit';
 import { type ITheme, Terminal } from '@xterm/xterm';
 import type { TerminalSize } from '../terminal.model';
+import { loadTerminalFonts } from './terminal-fonts';
+import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE } from './terminal-view.constants';
 
 /** Fixed palettes (xterm needs plain colours; the app's tokens are oklch): the theme's text and primary as hex. */
 const LIGHT: ITheme = {
@@ -83,11 +86,17 @@ export class TerminalView {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
-    afterNextRender(() => {
+    const document = inject(DOCUMENT);
+    let destroyed = false;
+    destroyRef.onDestroy(() => (destroyed = true));
+    afterNextRender(async () => {
+      await loadTerminalFonts(document);
+      if (destroyed) return;
       const terminal = new Terminal({
         cursorBlink: true,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-        fontSize: 14,
+        fontFamily: TERMINAL_FONT_FAMILY,
+        fontSize: TERMINAL_FONT_SIZE,
+        fontWeightBold: 600,
         scrollback: 5000,
         theme: this.dark() ? DARK : LIGHT,
       });

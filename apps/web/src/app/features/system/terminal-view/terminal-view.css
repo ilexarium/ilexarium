@@ -9,3 +9,11 @@ app-terminal-view .terminal-box .xterm {
 app-terminal-view .terminal-box .xterm-viewport {
   background-color: transparent !important;
 }
+
+/* No ligatures: in a terminal every character is its own cell (JetBrains Mono has them on). */
+app-terminal-view .terminal-box .xterm {
+  font-variant-ligatures: none;
+  font-feature-settings:
+    'calt' 0,
+    'liga' 0;
+}
