@@ -216,6 +216,11 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
     await api()
       .delete(`/files?path=${q('/etc/hostname')}`)
       .expect(403);
+    // Visible but not readable: a clear 403 before anything is sent (not a broken download).
+    const shadow = await api()
+      .get(`/files/download?path=${q('/etc/shadow')}`)
+      .expect(403);
+    expect(shadow.body.code).toBe('permission_denied');
     const missing = await api()
       .get(`/files/list?path=${q('/home/anna/nothing-here')}`)
       .expect(404);

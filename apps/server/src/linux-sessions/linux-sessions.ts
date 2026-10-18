@@ -170,7 +170,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       await this.audit.tryRecord(entry('failure', FILES_ERROR_CODES.linuxRootRefused));
       throw linuxError(FILES_ERROR_CODES.linuxRootRefused, 'root never signs in here');
     }
-    this.close(appSessionId, 'replaced');
+    // The previous session stays until this one works (a typo never closes a running terminal).
     let client: Client;
     try {
       client = await this.connect(request.username, request.password);
@@ -191,7 +191,10 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       const home = await new Promise<string>((ok, fail) =>
         sftp.realpath('.', (error, path) => (error ? fail(error) : ok(path))),
       );
-      const idle = setTimeout(() => this.close(appSessionId, 'idle'), IDLE_MS);
+      // Closes this session only — never a newer one of the same app session.
+      const idle = setTimeout(() => {
+        if (this.sessions.get(appSessionId) === session) this.close(appSessionId, 'idle');
+      }, IDLE_MS);
       idle.unref();
       const session: OpenLinuxSession = {
         client,
@@ -202,6 +205,8 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         idle,
         closing: new Set(),
       };
+      // Replaces the previous one, also one signed in at the same time (no connection left open).
+      this.close(appSessionId, 'replaced');
       this.sessions.set(appSessionId, session);
       // The server ended it (restarted, the account locked): forgotten at once.
       client.on('close', () => {
