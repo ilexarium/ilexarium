@@ -19,8 +19,8 @@
     "test": "npm run build:shared && npm test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present && npm run lint:wrappers",
     "lint:wrappers": "tsc -p system/wrappers",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write . '!**/.dev/**'",
+    "format:check": "prettier --check . '!**/.dev/**'",
     "db:migrate": "npm run db:migrate -w @homelab/server",
     "test:e2e": "npm run build:shared && npm run test:e2e -w @homelab/server",
     "release": "node scripts/release.mjs"

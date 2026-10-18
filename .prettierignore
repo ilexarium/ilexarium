@@ -4,3 +4,7 @@ node_modules
 .angular
 package-lock.json
 tools/browser/run
+.dev
+release
+tools/vm/run
+apps/server/src/generated
