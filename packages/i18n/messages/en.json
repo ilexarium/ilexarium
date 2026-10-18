@@ -12,7 +12,8 @@
     "disks": "Disks",
     "alerts": "Alerts",
     "notifications": "Notifications",
-    "processes": "Processes"
+    "processes": "Processes",
+    "files": "Files"
   },
   "app": {
     "loading": "Loading…",
@@ -39,7 +40,8 @@
     "alerts": "Alerts",
     "notifications": "Notifications",
     "system": "System",
-    "processes": "Processes"
+    "processes": "Processes",
+    "files": "Files"
   },
   "userMenu": {
     "open": "Account menu",
@@ -144,7 +146,11 @@
     "urlRequired": "Enter the topic URL",
     "urlInvalid": "A URL starting with https:// or http://",
     "ntfyTopicInvalid": "A server and a topic, like https://ntfy.sh/my-topic",
-    "tokenInvalid": "Letters, digits and symbols, no spaces"
+    "tokenInvalid": "Letters, digits and symbols, no spaces",
+    "fileNameRequired": "Enter a name",
+    "fileNameTooLong": "At most 255 characters",
+    "fileNameInvalid": "A name without “/” (not “.” or “..”)",
+    "linuxUsernameInvalid": "A Linux user name, like anna"
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -219,7 +225,17 @@
     "password_required": "Enter the password.",
     "process_not_found": "This process isn't running any more.",
     "process_protected": "Only a person's own processes can be ended here — not the system's, a service's or the app's.",
-    "signal_failed": "The process couldn't be signalled."
+    "signal_failed": "The process couldn't be signalled.",
+    "linux_session_required": "Sign in as a Linux user again (the session ended).",
+    "linux_login_refused": "Wrong user name or password, or this account can’t sign in.",
+    "linux_root_refused": "root can’t sign in here. Use your own account.",
+    "ssh_unavailable": "This machine’s SSH server doesn’t answer.",
+    "file_not_found": "It isn’t there any more.",
+    "permission_denied": "Linux doesn’t allow this account to do that.",
+    "file_exists": "Something of that name is there already.",
+    "wrong_type": "That doesn’t work here (a folder instead of a file, or the other way round).",
+    "file_too_large": "Too large (at most 10 GB per file).",
+    "file_operation_failed": "The machine refused it (a full disk, or a folder that isn’t empty?)."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -956,5 +972,81 @@
     "forced": "{{name}} was forced to end",
     "endFailed": "The process couldn't be ended",
     "showAll": "Show all ({{count}})"
+  },
+  "files": {
+    "signIn": {
+      "title": "Open your files",
+      "text": "Sign in with your Linux account on this machine. You’ll see and change exactly what that account may.",
+      "username": "Linux user name",
+      "password": "Password",
+      "submit": "Open",
+      "submitting": "Signing in…",
+      "checking": "Checking for an open session"
+    },
+    "signedInAs": "As {{user}}",
+    "close": "Close",
+    "closed": "Files closed",
+    "up": "Up one folder",
+    "refresh": "Refresh",
+    "newFolder": "New folder",
+    "upload": "Upload",
+    "dropHere": "Drop files here to upload them into this folder",
+    "path": "Folder",
+    "root": "Top folder (/)",
+    "column": {
+      "name": "Name",
+      "size": "Size",
+      "modified": "Modified",
+      "owner": "Owner",
+      "permissions": "Permissions",
+      "actions": "Actions"
+    },
+    "empty": "This folder is empty.",
+    "loading": "Loading the folder",
+    "type": {
+      "folder": "Folder",
+      "link": "Link",
+      "other": "Special file"
+    },
+    "actionsFor": "Actions for {{name}}",
+    "open": "Open",
+    "download": "Download",
+    "rename": "Rename or move",
+    "delete": "Delete",
+    "nameDialog": {
+      "newFolderTitle": "New folder",
+      "renameTitle": "Rename or move {{name}}",
+      "name": "Name",
+      "renameHelp": "A new name, or a path to move it (like ../archive/{{name}} or /srv/music/{{name}}).",
+      "cancel": "Cancel",
+      "create": "Create",
+      "save": "Save"
+    },
+    "deleteDialog": {
+      "title": "Delete {{name}}?",
+      "fileText": "The file is deleted for good.",
+      "folderText_one": "The folder and everything in it are deleted for good: {{count}} item, {{size}}.",
+      "folderText_other": "The folder and everything in it are deleted for good: {{count}} items, {{size}}.",
+      "folderMore": "The folder and everything in it are deleted for good: more than {{count}} items.",
+      "counting": "Counting what’s in it…",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "replaceDialog": {
+      "title": "Replace {{name}}?",
+      "text": "A file of that name is in this folder already. Replacing it can’t be undone.",
+      "cancel": "Keep it",
+      "confirm": "Replace",
+      "titleMany": "Replace these files?",
+      "textMany": "Files of these names are in this folder already. Replacing them can’t be undone."
+    },
+    "uploads": "Uploads",
+    "uploadDone": "Uploaded",
+    "uploadFailed": "Failed",
+    "created": "Folder {{name}} created",
+    "renamed": "Saved",
+    "deleted": "{{name}} deleted",
+    "uploaded": "{{name}} uploaded",
+    "actionFailed": "That didn’t work"
   }
 }

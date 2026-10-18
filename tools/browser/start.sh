@@ -48,6 +48,7 @@ JSON
   DATABASE_URL='postgresql://homelab:homelab-dev@127.0.0.1:5432/homelab_test' \
   SETUP_TOKEN_FILE="$S/setup-token" MASTER_KEY_FILE="$S/master.key" \
   WRAPPER_CONFIG_FILE="$S/wrappers.json" EXECUTOR_MODE=direct \
+  SSH_HOST_KEYS="$P/apps/server/.dev/sshd" \
   setsid node dist/main.js </dev/null >"$R/server.log" 2>&1 & echo $! >"$R/server.pid")
 (cd "$T" && setsid node serve.mjs "$R/web/browser" 4400 3100 </dev/null >"$R/serve.log" 2>&1 &
   echo $! >"$R/serve.pid")

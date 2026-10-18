@@ -1,0 +1,50 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @if (form(); as form) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle class="break-words">
+          @switch (request()?.kind) {
+            @case ('rename') {
+              {{ 'files.nameDialog.renameTitle' | translate: { name: $any(request()).entry.name } }}
+            }
+            @default {
+              {{ 'files.nameDialog.newFolderTitle' | translate }}
+            }
+          }
+        </h2>
+      </hlm-alert-dialog-header>
+      <form [formRoot]="form" class="grid gap-4">
+        <div hlmField>
+          <label hlmFieldLabel for="file-name">{{ 'files.nameDialog.name' | translate }}</label>
+          <input
+            hlmInput
+            id="file-name"
+            dir="ltr"
+            autocomplete="off"
+            spellcheck="false"
+            [formField]="form.name"
+          />
+          @if (request()?.kind === 'rename') {
+            <p hlmFieldDescription>
+              {{ 'files.nameDialog.renameHelp' | translate: { name: $any(request()).entry.name } }}
+            </p>
+          }
+          @for (error of form.name().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+        <hlm-alert-dialog-footer>
+          <button hlmBtn type="button" variant="outline" (click)="close()">
+            {{ 'files.nameDialog.cancel' | translate }}
+          </button>
+          <button hlmBtn type="submit" [disabled]="form().submitting()">
+            {{
+              (request()?.kind === 'rename' ? 'files.nameDialog.save' : 'files.nameDialog.create')
+                | translate
+            }}
+          </button>
+        </hlm-alert-dialog-footer>
+      </form>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

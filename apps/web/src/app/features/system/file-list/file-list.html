@@ -1,0 +1,122 @@
+@if (wide()) {
+  <div hlmTableContainer>
+    <table hlmTable>
+      <thead hlmTHead>
+        <tr hlmTr>
+          <th hlmTh scope="col">{{ 'files.column.name' | translate }}</th>
+          <th hlmTh scope="col" class="w-24 text-end">{{ 'files.column.size' | translate }}</th>
+          <th hlmTh scope="col" class="w-44">{{ 'files.column.modified' | translate }}</th>
+          <th hlmTh scope="col" class="w-28">{{ 'files.column.owner' | translate }}</th>
+          <th hlmTh scope="col" class="w-28">{{ 'files.column.permissions' | translate }}</th>
+          <th hlmTh scope="col" class="w-12">
+            <span class="sr-only">{{ 'files.column.actions' | translate }}</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody hlmTBody>
+        @for (row of rows(); track row.entry.name) {
+          <tr hlmTr>
+            <th hlmTd scope="row" class="max-w-0 font-normal">
+              <ng-container *ngTemplateOutlet="name; context: { $implicit: row }" />
+            </th>
+            <td hlmTd class="text-end tabular-nums">{{ row.size }}</td>
+            <td hlmTd class="whitespace-nowrap">{{ row.modified }}</td>
+            <td hlmTd class="truncate">
+              <span dir="ltr">{{ row.entry.owner }}</span>
+            </td>
+            <td hlmTd>
+              <code class="text-xs" dir="ltr">{{ row.entry.permissions }}</code>
+            </td>
+            <td hlmTd class="text-end">
+              <ng-container *ngTemplateOutlet="menu; context: { $implicit: row }" />
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <ul class="grid divide-y rounded-lg border">
+    @for (row of rows(); track row.entry.name) {
+      <li class="flex items-center gap-2 p-2">
+        <div class="grid min-w-0 flex-1 gap-0.5">
+          <ng-container *ngTemplateOutlet="name; context: { $implicit: row }" />
+          <p class="ps-8 text-xs text-muted-foreground">
+            @if (row.file) {
+              {{ row.size }} ·
+            }
+            {{ row.modified }} · <span dir="ltr">{{ row.entry.owner }}</span>
+          </p>
+        </div>
+        <ng-container *ngTemplateOutlet="menu; context: { $implicit: row }" />
+      </li>
+    }
+  </ul>
+}
+
+<!-- The name: opens a folder, downloads a file (a plain link — the browser saves the attachment). -->
+<ng-template #name let-row>
+  @if (row.folder) {
+    <button
+      type="button"
+      class="flex min-h-8 min-w-0 items-center gap-2 text-start hover:underline"
+      (click)="open.emit(row.entry)"
+    >
+      <ng-icon [name]="row.icon" class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span class="truncate" dir="ltr">{{ row.entry.name }}</span>
+    </button>
+  } @else if (row.file) {
+    <a
+      class="flex min-h-8 min-w-0 items-center gap-2 hover:underline"
+      [href]="urlFor()(row.entry)"
+      download
+    >
+      <ng-icon [name]="row.icon" class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span class="truncate" dir="ltr">{{ row.entry.name }}</span>
+    </a>
+  } @else {
+    <span class="flex min-h-8 min-w-0 items-center gap-2 text-muted-foreground">
+      <ng-icon [name]="row.icon" class="size-5 shrink-0" aria-hidden="true" />
+      <span class="truncate" dir="ltr">{{ row.entry.name }}</span>
+      <span class="sr-only">({{ 'files.type.' + row.entry.type | translate }})</span>
+    </span>
+  }
+</ng-template>
+
+<!-- Open or download, rename or move, delete. -->
+<ng-template #menu let-row>
+  <button
+    hlmBtn
+    variant="ghost"
+    size="icon"
+    [disabled]="row.busy"
+    [hlmDropdownMenuTrigger]="actions"
+    align="end"
+    [attr.aria-label]="'files.actionsFor' | translate: { name: row.entry.name }"
+  >
+    <ng-icon name="lucideEllipsis" aria-hidden="true" />
+  </button>
+  <ng-template #actions>
+    <hlm-dropdown-menu class="w-52">
+      @if (row.folder) {
+        <button hlmDropdownMenuItem (triggered)="open.emit(row.entry)">
+          <ng-icon name="lucideFolderOpen" aria-hidden="true" />
+          {{ 'files.open' | translate }}
+        </button>
+      } @else if (row.file) {
+        <a hlmDropdownMenuItem [href]="urlFor()(row.entry)" download>
+          <ng-icon name="lucideDownload" aria-hidden="true" />
+          {{ 'files.download' | translate }}
+        </a>
+      }
+      <button hlmDropdownMenuItem (triggered)="action.emit({ kind: 'rename', entry: row.entry })">
+        <ng-icon name="lucidePencil" aria-hidden="true" />
+        {{ 'files.rename' | translate }}
+      </button>
+      <button hlmDropdownMenuItem (triggered)="action.emit({ kind: 'delete', entry: row.entry })">
+        <ng-icon name="lucideTrash2" aria-hidden="true" />
+        {{ 'files.delete' | translate }}
+      </button>
+    </hlm-dropdown-menu>
+  </ng-template>
+</ng-template>

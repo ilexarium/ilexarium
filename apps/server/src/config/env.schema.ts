@@ -91,6 +91,14 @@ export const envSchema = z
      * tests that open and close alerts themselves.
      */
     ALERTS_WATCH: z.enum(['on', 'off']).default('on'),
+    /**
+     * The machine's own SSH server, for the Linux sign-in and the file explorer
+     * (docs/plans/files_and_terminal.md): always on this machine (127.0.0.1). Port 22 in
+     * production; development uses the stand-in container (dev/sshd, 2222).
+     */
+    SSH_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+    /** The folder whose `ssh_host_*_key.pub` are pinned: only that server is trusted. */
+    SSH_HOST_KEYS: z.string().trim().min(1).optional(),
   })
   .transform((env) => {
     const production = env.NODE_ENV === 'production';
@@ -106,6 +114,8 @@ export const envSchema = z
         (production ? '/etc/homelab/wrappers.json' : '.dev/wrappers.json'),
       EXECUTOR_MODE: env.EXECUTOR_MODE ?? (production ? 'sudo' : 'direct'),
       HOST: env.HOST ?? (production ? '127.0.0.1' : undefined),
+      SSH_PORT: env.SSH_PORT ?? (production ? 22 : 2222),
+      SSH_HOST_KEYS: env.SSH_HOST_KEYS ?? (production ? '/etc/ssh' : '.dev/sshd'),
     };
   })
   .refine((env) => env.NODE_ENV !== 'production' || env.EXECUTOR_MODE === 'sudo', {

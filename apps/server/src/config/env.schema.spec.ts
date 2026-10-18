@@ -69,6 +69,8 @@ describe('validateEnv', () => {
       MASTER_KEY_FILE: '/etc/homelab/master.key',
       WRAPPER_CONFIG_FILE: '/etc/homelab/wrappers.json',
       EXECUTOR_MODE: 'sudo',
+      SSH_PORT: 22,
+      SSH_HOST_KEYS: '/etc/ssh',
     });
   });
 

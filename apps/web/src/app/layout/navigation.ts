@@ -5,6 +5,7 @@ import {
   lucideBellRing,
   lucideBlocks,
   lucideBoxes,
+  lucideFolderOpen,
   lucideHardDrive,
   lucideKeyRound,
   lucideLayoutDashboard,
@@ -28,7 +29,10 @@ export const NAVIGATION: NavGroup[] = [
   },
   {
     label: 'nav.system',
-    items: [{ label: 'nav.processes', link: '/system/processes', icon: 'lucideActivity' }],
+    items: [
+      { label: 'nav.processes', link: '/system/processes', icon: 'lucideActivity' },
+      { label: 'nav.files', link: '/system/files', icon: 'lucideFolderOpen' },
+    ],
   },
   {
     label: 'nav.settings',
@@ -41,6 +45,7 @@ export const NAVIGATION: NavGroup[] = [
 
 export const NAV_ICONS = {
   lucideActivity,
+  lucideFolderOpen,
   lucideLayoutDashboard,
   lucideBoxes,
   lucideBlocks,

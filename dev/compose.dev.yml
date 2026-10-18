@@ -46,6 +46,17 @@ services:
     security_opt: ['no-new-privileges:true']
     restart: unless-stopped
 
+  # An SSH server standing in for the machine's own (dev/sshd/): the Linux sign-in and the file
+  # explorer sign in to it (anna / anna-dev-password). Its host key is shared with the app in
+  # apps/server/.dev/sshd, which pins it.
+  sshd:
+    build: ./sshd
+    ports:
+      - '127.0.0.1:2222:22'
+    volumes:
+      - ../apps/server/.dev/sshd:/keys
+    restart: unless-stopped
+
   # Something to start, stop and restart: the container actions' e2e tests and trying the menu.
   # Not protected. Does nothing; stops at once (SIGTERM ends the sleep).
   sandbox:

@@ -62,6 +62,7 @@ backup_database
 # Migrated from the new release before it replaces the old: a failure leaves the old one.
 migrate_database
 install_release
+setup_ssh_login
 setup_https
 start_app
 printf '%s\n' "$NEW_VERSION" | write_file "$ETC/version" root:root 0644

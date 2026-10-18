@@ -5,6 +5,7 @@ import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BackupsModule } from './backups/backups.module.js';
 import { DisksModule } from './disks/disks.module.js';
+import { FilesModule } from './files/files.module.js';
 import { ZodValidationPipe } from './common/zod-validation.pipe.js';
 import { ConfigModule } from './config/config.module.js';
 import { ContainerActionsModule } from './container-actions/container-actions.module.js';
@@ -36,6 +37,7 @@ import { UsersModule } from './users/users.module.js';
     DisksModule,
     AlertsModule,
     ProcessesModule,
+    FilesModule,
   ],
   providers: [{ provide: APP_PIPE, useClass: ZodValidationPipe }],
 })
