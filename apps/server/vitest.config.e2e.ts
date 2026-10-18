@@ -25,6 +25,10 @@ export default defineConfig({
       // The health alerts' watcher would write alerts while tests empty the tables; its rules
       // have unit tests (src/alerts/*.spec.ts).
       ALERTS_WATCH: 'off',
+      // Always the dev SSH container and its test users (npm run db:up), whatever .env says —
+      // .env may point development at this machine's own sshd.
+      SSH_PORT: '2222',
+      SSH_HOST_KEYS: '.dev/sshd',
     },
     // One shared test database: run files one after another.
     fileParallelism: false,
