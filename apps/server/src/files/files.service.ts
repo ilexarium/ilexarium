@@ -164,7 +164,10 @@ export class FilesService {
     return result;
   }
 
-  /** A regular file's contents, as a stream (links followed, like any program would). */
+  /**
+   * A regular file's contents, as a stream (links followed, like any program would). Opened
+   * before anything is sent, so a file Linux won't let this account read is a clear 403.
+   */
   async download(appSessionId: string, path: string): Promise<Download> {
     const { sftp } = this.linux.sftp(appSessionId);
     const target = posix.normalize(path);
@@ -172,7 +175,12 @@ export class FilesService {
     if (typeOf(info.mode) !== 'file') {
       throw linuxError(FILES_ERROR_CODES.wrongType, 'Only files can be downloaded');
     }
-    return { name: posix.basename(target), size: info.size, stream: sftp.createReadStream(target) };
+    const handle = await call<Buffer>((done) => sftp.open(target, 'r', done));
+    return {
+      name: posix.basename(target),
+      size: info.size,
+      stream: sftp.createReadStream(target, { handle, autoClose: true }),
+    };
   }
 
   /**
@@ -218,8 +226,13 @@ export class FilesService {
       if (size !== null && written !== size) {
         throw linuxError(FILES_ERROR_CODES.failed, 'The upload ended early');
       }
-      if (existing) await call<void>((done) => sftp.unlink(path, done));
-      await call<void>((done) => sftp.rename(temporary, path, done));
+      // Replacing: one atomic step (OpenSSH's posix-rename) — the old file stays until the new
+      // one takes its place, so a failure here loses neither.
+      await call<void>((done) =>
+        existing
+          ? sftp.ext_openssh_rename(temporary, path, done)
+          : sftp.rename(temporary, path, done),
+      );
     } catch (error) {
       await call<void>((done) => sftp.unlink(temporary, done)).catch(() => undefined);
       throw toFilesError(error);

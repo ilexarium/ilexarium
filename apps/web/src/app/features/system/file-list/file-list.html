@@ -42,7 +42,7 @@
         <div class="grid min-w-0 flex-1 gap-0.5">
           <ng-container *ngTemplateOutlet="name; context: { $implicit: row }" />
           <p class="ps-8 text-xs text-muted-foreground">
-            @if (row.file) {
+            @if (row.entry.type === 'file') {
               {{ row.size }} ·
             }
             {{ row.modified }} · <span dir="ltr">{{ row.entry.owner }}</span>

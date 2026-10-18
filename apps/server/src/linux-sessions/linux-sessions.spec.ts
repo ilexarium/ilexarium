@@ -105,6 +105,25 @@ describe('LinuxSessions', () => {
     expect(sessions.current('other')).toBeNull();
   });
 
+  it('a refused sign-in keeps the running session (a typo never closes a terminal)', async () => {
+    await signIn();
+    refuse = true;
+    await expect(signIn()).rejects.toMatchObject({ response: { code: 'linux_login_refused' } });
+    expect(sessions.current('s1')).not.toBeNull();
+    expect(clients[0].ended).toBe(false);
+  });
+
+  it('two sign-ins at once: one session stays, the other connection is closed', async () => {
+    await Promise.all([signIn(), signIn()]);
+    expect(sessions.current('s1')).not.toBeNull();
+    expect(clients.filter((c) => !c.ended)).toHaveLength(1);
+    // The closed one's idle time never ends the session that stayed.
+    vi.advanceTimersByTime(29 * 60_000);
+    sessions.sftp('s1');
+    vi.advanceTimersByTime(2 * 60_000);
+    expect(sessions.current('s1')).not.toBeNull();
+  });
+
   it('refuses a server whose host key isn’t pinned', async () => {
     serverKey = Buffer.from('someone else');
     await expect(signIn()).rejects.toMatchObject({ response: { code: 'ssh_unavailable' } });

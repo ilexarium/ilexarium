@@ -259,6 +259,29 @@ describe('FilesPage', () => {
     expect(error).toHaveBeenCalled();
   });
 
+  it('a delete count that fails says why and closes the dialog', async () => {
+    const { api, fixture, menu } = await render();
+    const error = vi.spyOn(toast, 'error');
+    api.summary.mockRejectedValueOnce(httpError(403, 'permission_denied'));
+    await menu('Photos', 'Delete');
+    await vi.waitFor(() => expect(dialog()).toBeNull());
+    expect(error).toHaveBeenCalledWith('That didn’t work', {
+      description: 'Linux doesn’t allow this account to do that.',
+    });
+    expect(api.delete).not.toHaveBeenCalled();
+    await fixture.whenStable();
+  });
+
+  it('closing that fails keeps the files and says so', async () => {
+    const { el, api, fixture, button } = await render();
+    const error = vi.spyOn(toast, 'error');
+    api.signOut.mockRejectedValueOnce(httpError(503, 'ssh_unavailable'));
+    button('Close')!.click();
+    await vi.waitFor(() => expect(error).toHaveBeenCalled());
+    await fixture.whenStable();
+    expect(el.textContent).not.toContain('Open your files');
+  });
+
   it('closes the Linux session', async () => {
     const { el, api, fixture, button } = await render();
     button('Close')!.click();

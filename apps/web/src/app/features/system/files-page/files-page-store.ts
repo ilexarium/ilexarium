@@ -102,9 +102,10 @@ export const FilesPageStore = signalStore(
       async signOut(): Promise<void> {
         try {
           await api.signOut();
-        } finally {
           patchState(store, { session: null, list: null, uploads: [] });
           toast.success(translator.t('files.closed'));
+        } catch (error) {
+          failed(error);
         }
       },
 
@@ -154,9 +155,14 @@ export const FilesPageStore = signalStore(
         }
       },
 
-      /** What deleting it would remove (for the confirmation). */
-      summary(entry: FileEntry): Promise<FileSummary> {
-        return api.summary(joinPath(folder(), entry.name));
+      /** What deleting it would remove (for the confirmation); a failure says why in a toast. */
+      async summary(entry: FileEntry): Promise<FileSummary> {
+        try {
+          return await api.summary(joinPath(folder(), entry.name));
+        } catch (error) {
+          failed(error);
+          throw error;
+        }
       },
 
       async delete(entry: FileEntry): Promise<void> {
@@ -169,7 +175,8 @@ export const FilesPageStore = signalStore(
           failed(error);
         } finally {
           patchState(store, { pending: store.pending().filter((p) => p !== path) });
-          await methods.refresh();
+          // Not after the Linux session ended (the sign-in is shown).
+          if (store.session()) await methods.refresh();
         }
       },
 

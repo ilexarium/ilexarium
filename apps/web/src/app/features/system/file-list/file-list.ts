@@ -94,7 +94,8 @@ export class FileList {
         folder,
         file,
         icon: entry.type === 'link' ? 'lucideLink' : folder ? 'lucideFolder' : 'lucideFile',
-        size: file ? this.format.bytes(entry.size) : '—',
+        // A link's own size is its target's path length: only real files show one.
+        size: entry.type === 'file' ? this.format.bytes(entry.size) : '—',
         modified: this.format.dateTime(entry.modifiedAt),
         busy: busy.has(entry.name),
       };
