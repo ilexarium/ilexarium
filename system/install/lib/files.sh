@@ -71,10 +71,11 @@ install_release() {
 }
 
 # The four wrapper lines — only once visudo accepts the file: a broken sudoers file can lock
-# everyone out of sudo.
+# everyone out of sudo. The temporary file is beside the real one (one atomic rename, never a
+# half-copied file across filesystems) and named with a dot, which sudo ignores in sudoers.d.
 install_sudoers() {
   local tmp
-  tmp="$(mktemp)"
+  tmp="$(mktemp /etc/sudoers.d/.homelab.XXXXXX)"
   cp "$RELEASE/system/sudoers/homelab" "$tmp"
   chmod 0440 "$tmp"
   visudo -cqf "$tmp" || {
