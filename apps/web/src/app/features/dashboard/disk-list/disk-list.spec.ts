@@ -36,10 +36,12 @@ describe('DiskList', () => {
     const [root, data, backup] = items();
     expect(root.textContent).not.toContain('Almost full');
     expect(root.hasAttribute('data-warning')).toBe(false);
-    for (const item of [data, backup]) {
-      expect(item.textContent).toContain('Almost full');
-      expect(item.querySelector('hlm-progress-indicator')!.className).toContain('bg-destructive');
-    }
+    for (const item of [data, backup]) expect(item.textContent).toContain('Almost full');
+    // A warning, then red from the alerts' critical limit (97%), like the alert it raises.
+    expect(data.querySelector('app-status-badge')!.getAttribute('data-tone')).toBe('warning');
+    expect(data.querySelector('hlm-progress-indicator')!.className).toContain('bg-warning');
+    expect(backup.querySelector('app-status-badge')!.getAttribute('data-tone')).toBe('failed');
+    expect(backup.querySelector('hlm-progress-indicator')!.className).toContain('bg-destructive');
   });
 
   it('says so when there are no disks', async () => {

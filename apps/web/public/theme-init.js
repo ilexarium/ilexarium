@@ -11,4 +11,7 @@
   var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   var dark = choice === 'dark' || (choice !== 'light' && systemDark);
   document.documentElement.classList.toggle('dark', dark);
+  // The browser bar's colour: the theme's page background (THEME_COLORS in theme.constants.ts).
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0d0e16' : '#fdfdff');
 })();

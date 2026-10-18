@@ -1,4 +1,5 @@
 import { computed, DestroyRef, DOCUMENT, effect, inject, Service, signal } from '@angular/core';
+import { THEME_COLORS } from './theme.constants';
 import type { ThemeChoice } from './theme.model';
 
 export const THEME_STORAGE_KEY = 'homelab.theme';
@@ -7,7 +8,7 @@ const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 /**
  * Light or dark: the `dark` class on `<html>` switches the theme tokens in `styles.css` (and the
- * charts follow). Remembered per browser — a device preference, not user data, so it stays after
+ * charts follow); the `theme-color` meta gives the browser bar the same background. Remembered per browser — a device preference, not user data, so it stays after
  * sign-out. `public/theme-init.js` applies the same choice before the app starts.
  */
 @Service()
@@ -29,7 +30,13 @@ export class ThemeService {
     const onSystemChange = (event: MediaQueryListEvent) => this.systemDark.set(event.matches);
     this.media?.addEventListener('change', onSystemChange);
     inject(DestroyRef).onDestroy(() => this.media?.removeEventListener('change', onSystemChange));
-    effect(() => this.document.documentElement.classList.toggle('dark', this.dark()));
+    effect(() => {
+      const dark = this.dark();
+      this.document.documentElement.classList.toggle('dark', dark);
+      this.document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', dark ? THEME_COLORS.dark : THEME_COLORS.light);
+    });
   }
 
   setChoice(choice: ThemeChoice): void {

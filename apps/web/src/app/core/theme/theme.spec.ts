@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { TestBed } from '@angular/core/testing';
 import { stubLocalStorage } from '../../layout/testing';
 import { THEME_STORAGE_KEY, ThemeService } from './theme';
+import { THEME_COLORS } from './theme.constants';
 
 /** A device whose light/dark setting the test can flip. */
 function stubSystemTheme(initiallyDark: boolean) {
@@ -53,6 +54,21 @@ describe('ThemeService', () => {
     system.setDark(false);
     TestBed.tick();
     expect(isDark()).toBe(false);
+  });
+
+  it("gives the browser bar the chosen theme's background", () => {
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.append(meta);
+    try {
+      const theme = create();
+      expect(meta.content).toBe(THEME_COLORS.light);
+      theme.setChoice('dark');
+      TestBed.tick();
+      expect(meta.content).toBe(THEME_COLORS.dark);
+    } finally {
+      meta.remove();
+    }
   });
 
   it('applies and remembers an explicit choice, regardless of the device', () => {
@@ -108,6 +124,20 @@ describe('theme-init.js (runs before the app)', () => {
     new Function(script)();
     return isDark();
   }
+
+  it("gives the browser bar the theme's background, in the same colours as ThemeService", () => {
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.append(meta);
+    try {
+      run('dark', false);
+      expect(meta.content).toBe(THEME_COLORS.dark);
+      run('light', true);
+      expect(meta.content).toBe(THEME_COLORS.light);
+    } finally {
+      meta.remove();
+    }
+  });
 
   it('makes the same decision as ThemeService', () => {
     expect(run(null, true)).toBe(true);
