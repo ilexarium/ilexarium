@@ -37,6 +37,7 @@ describe('StatusBadge', () => {
   it('neutral: an outline, no icon', async () => {
     const badge = await render('neutral');
     expect(badge.className).toContain('border-border');
+    expect(badge.className).not.toContain('border-transparent');
     expect(badge.querySelector('ng-icon')).toBeNull();
   });
 });
