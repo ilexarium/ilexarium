@@ -1,0 +1,13 @@
+{
+  "name": "laris-brand",
+  "private": true,
+  "description": "Builds the Laris logo files in brand/ (SVG, PNG, ICO). Its own package, not an npm workspace: none of it ships. Renders with tools/browser's Playwright.",
+  "type": "module",
+  "scripts": {
+    "build": "node make.mjs"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans": "5.2.5",
+    "opentype.js": "1.3.4"
+  }
+}
