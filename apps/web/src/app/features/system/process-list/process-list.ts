@@ -18,6 +18,7 @@ import { HlmTableImports } from '@ui/table';
 import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
 import type { EndRequest } from '../processes.model';
+import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 interface Row {
   key: string;
@@ -42,6 +43,7 @@ const WIDE = '(min-width: 1280px)';
 @Component({
   selector: 'app-process-list',
   imports: [
+    EmptyState,
     HlmBadgeImports,
     HlmButton,
     HlmTableImports,

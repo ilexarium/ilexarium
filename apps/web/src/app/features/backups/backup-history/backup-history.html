@@ -5,7 +5,7 @@
   <div hlmCardContent>
     @if (runs(); as list) {
       @if (list.length === 0) {
-        <p class="text-sm text-muted-foreground">{{ 'backups.history.none' | translate }}</p>
+        <app-empty-state icon="lucideHistory" [text]="'backups.history.none' | translate" />
       } @else {
         <ul class="grid gap-2">
           @for (run of list; track run.id) {
@@ -18,12 +18,9 @@
                   <span class="text-muted-foreground">{{
                     'backups.history.' + run.trigger | translate
                   }}</span>
-                  <span
-                    hlmBadge
-                    class="ms-auto"
-                    [variant]="run.status === 'failed' ? 'destructive' : 'outline'"
-                    >{{ 'backups.status.' + run.status | translate }}</span
-                  >
+                  <app-status-badge class="ms-auto" [tone]="statusTones[run.status]">{{
+                    'backups.status.' + run.status | translate
+                  }}</app-status-badge>
                 </summary>
                 <div class="grid gap-2 border-t px-3 py-2 text-sm">
                   @if (run.errorCode; as code) {

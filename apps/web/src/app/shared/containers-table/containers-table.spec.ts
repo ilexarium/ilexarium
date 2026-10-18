@@ -274,9 +274,9 @@ describe('ContainersTable', () => {
 
   it('flags an unhealthy container in words', async () => {
     const { el } = await render(snapshot(sick));
-    const badge = el.querySelector('tbody [hlmBadge]')!;
+    const badge = el.querySelector('tbody app-status-badge')!;
     expect(badge.textContent!.trim()).toBe('Unhealthy');
-    expect(badge.className).toContain('destructive');
+    expect(badge.getAttribute('data-tone')).toBe('failed');
   });
 
   it('summarises how many are running', async () => {

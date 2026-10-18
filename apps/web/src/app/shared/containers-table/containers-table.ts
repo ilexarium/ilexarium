@@ -8,7 +8,6 @@ import type {
 } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideLoaderCircle } from '@ng-icons/lucide';
-import { HlmBadgeImports } from '@ui/badge';
 import { HlmCardImports } from '@ui/card';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTableImports } from '@ui/table';
@@ -17,6 +16,12 @@ import { ContainerActions } from './container-actions';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Translator } from '../../core/i18n/translator';
 import { Formatter } from '../format/formatter';
+import { StatusBadge } from '../status-badge/status-badge';
+import { HEALTH_TONES } from './containers-table.constants';
+import type { StatusTone } from '../status-badge/status-badge.model';
+import { EmptyState } from '../empty-state/empty-state';
+import { RouterLink } from '@angular/router';
+import { HlmButton } from '@ui/button';
 
 const STATE_DOTS: Record<ContainerState, string> = {
   running: 'bg-success',
@@ -38,7 +43,7 @@ interface Row {
   /** "Stopping…" while an action runs. */
   pendingLabel: string | null;
   stateDot: string;
-  health: { label: string; problem: boolean } | null;
+  health: { label: string; tone: StatusTone } | null;
   cpu: string;
   /** Used memory; the limit goes on a second, quieter line. */
   memory: string;
@@ -58,8 +63,11 @@ interface Row {
 @Component({
   selector: 'app-containers-table',
   imports: [
+    HlmButton,
+    RouterLink,
+    EmptyState,
     ContainerActions,
-    HlmBadgeImports,
+    StatusBadge,
     HlmCardImports,
     HlmSkeleton,
     HlmTableImports,
@@ -132,7 +140,7 @@ export class ContainersTable {
           ? null
           : {
               label: t(`containers.health.${container.health}`),
-              problem: container.health === 'unhealthy',
+              tone: HEALTH_TONES[container.health],
             },
       cpu: stats ? format.percent(stats.cpuPercent) : '—',
       memory: stats ? format.bytes(stats.memoryUsedBytes) : '—',

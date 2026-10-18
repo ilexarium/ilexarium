@@ -18,10 +18,9 @@
                 </span>
               </span>
               @if (disk.warning) {
-                <span hlmBadge variant="destructive">
-                  <ng-icon name="lucideTriangleAlert" aria-hidden="true" />
-                  {{ 'dashboard.storage.almostFull' | translate }}
-                </span>
+                <app-status-badge tone="warning">{{
+                  'dashboard.storage.almostFull' | translate
+                }}</app-status-badge>
               }
             </div>
             <hlm-progress

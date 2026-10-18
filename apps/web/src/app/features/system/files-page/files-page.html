@@ -119,9 +119,7 @@
           (action)="act($event)"
         />
       } @else {
-        <p class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-          {{ 'files.empty' | translate }}
-        </p>
+        <app-empty-state icon="lucideFolderOpen" [text]="'files.empty' | translate" />
       }
     } @else if (store.loading()) {
       <div class="grid gap-2" role="status" [attr.aria-label]="'files.loading' | translate">

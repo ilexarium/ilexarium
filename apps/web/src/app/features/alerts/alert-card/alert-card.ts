@@ -4,20 +4,22 @@ import type { Alert } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmBadge } from '@ui/badge';
 import { HlmButton } from '@ui/button';
 import { alertLink, alertText, alertTitle } from '../../../core/alerts/alert-wording';
 import { Formatter } from '../../../shared/format/formatter';
+import { StatusBadge } from '../../../shared/status-badge/status-badge';
+import { SEVERITY_TONES } from '../alerts.constants';
 
 /** One alert: what happened, since when, where to look; an open one can be acknowledged. */
 @Component({
   selector: 'app-alert-card',
-  imports: [HlmBadge, HlmButton, NgIcon, RouterLink, TranslatePipe],
+  imports: [StatusBadge, HlmButton, NgIcon, RouterLink, TranslatePipe],
   providers: [provideIcons({ lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert })],
   host: { class: 'block' },
   templateUrl: './alert-card.html',
 })
 export class AlertCard {
+  protected readonly severityTones = SEVERITY_TONES;
   readonly alert = input.required<Alert>();
   /** Being acknowledged. */
   readonly pending = input(false);

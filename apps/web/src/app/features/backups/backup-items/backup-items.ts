@@ -11,7 +11,6 @@ import {
 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
-import { HlmBadgeImports } from '@ui/badge';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
@@ -19,6 +18,8 @@ import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { Formatter } from '../../../shared/format/formatter';
 import type { BackupableService, ItemLabel, ItemRow } from '../backups.model';
 import { FolderPicker } from '../folder-picker/folder-picker';
+import { StatusBadge } from '../../../shared/status-badge/status-badge';
+import { RUN_STATUS_TONES } from '../backups.constants';
 
 /**
  * What's backed up: each item with its last backup, size and state, and its actions — Back up
@@ -31,7 +32,7 @@ import { FolderPicker } from '../folder-picker/folder-picker';
   imports: [
     FolderPicker,
     HlmAlertDialogImports,
-    HlmBadgeImports,
+    StatusBadge,
     HlmButton,
     HlmCardImports,
     HlmDropdownMenuImports,
@@ -52,6 +53,7 @@ import { FolderPicker } from '../folder-picker/folder-picker';
   templateUrl: './backup-items.html',
 })
 export class BackupItems {
+  protected readonly statusTones = RUN_STATUS_TONES;
   readonly active = input.required<ItemRow[]>();
   readonly removed = input<ItemRow[]>([]);
   readonly addable = input<BackupableService[]>([]);

@@ -5,13 +5,14 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideExternalLink, lucideLoaderCircle, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
-import { HlmBadgeImports } from '@ui/badge';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { catalogIconUrl } from '../../../core/services/services-api';
 import { JobProgress } from '../../../shared/job-progress/job-progress';
 import { Formatter } from '../../../shared/format/formatter';
 import type { ServiceBackup, ServiceRuntime } from '../services.model';
+import { StatusBadge } from '../../../shared/status-badge/status-badge';
+import { RUNTIME_TONES } from '../services.constants';
 
 /**
  * One installed service: its state, an Open link to its web page, Remove (after a confirmation —
@@ -24,7 +25,7 @@ import type { ServiceBackup, ServiceRuntime } from '../services.model';
   host: { class: 'block h-full' },
   imports: [
     HlmAlertDialogImports,
-    HlmBadgeImports,
+    StatusBadge,
     HlmButton,
     HlmCardImports,
     JobProgress,
@@ -36,6 +37,7 @@ import type { ServiceBackup, ServiceRuntime } from '../services.model';
   templateUrl: './installed-service.html',
 })
 export class InstalledServiceCard {
+  protected readonly runtimeTones = RUNTIME_TONES;
   readonly service = input.required<InstalledService>();
   /** Null while the containers aren't known yet (or Docker isn't reachable). */
   readonly runtime = input<ServiceRuntime | null>(null);

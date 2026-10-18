@@ -1,5 +1,5 @@
 @if (rows().length === 0) {
-  <p class="text-sm text-muted-foreground">{{ 'processes.none' | translate }}</p>
+  <app-empty-state icon="lucideSearchX" [text]="'processes.none' | translate" />
 } @else if (wide()) {
   <!-- Extra-large screens: a table. -->
   <div hlmTableContainer>

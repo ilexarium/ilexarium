@@ -27,7 +27,7 @@
           (acknowledge)="store.acknowledge($event)"
         />
       } @empty {
-        <p class="text-sm text-muted-foreground">{{ 'alerts.noneOpen' | translate }}</p>
+        <app-empty-state icon="lucideCircleCheck" [text]="'alerts.noneOpen' | translate" />
       }
     </section>
 

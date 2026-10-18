@@ -299,6 +299,7 @@
       "text": "Container information is unavailable right now. Make sure Docker is running; this page updates by itself once it is."
     },
     "none": "No containers yet.",
+    "noneAction": "Install a service",
     "column": {
       "name": "Name",
       "state": "State",

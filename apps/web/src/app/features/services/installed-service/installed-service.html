@@ -7,15 +7,19 @@
         @switch (service().status) {
           @case ('installed') {
             @if (runtime(); as state) {
-              <span hlmBadge [variant]="state === 'running' ? 'outline' : 'destructive'">{{
+              <app-status-badge [tone]="runtimeTones[state]">{{
                 'services.runtime.' + state | translate
-              }}</span>
+              }}</app-status-badge>
             } @else {
-              <span hlmBadge variant="outline">{{ 'services.status.installed' | translate }}</span>
+              <app-status-badge tone="neutral">{{
+                'services.status.installed' | translate
+              }}</app-status-badge>
             }
           }
           @case ('failed') {
-            <span hlmBadge variant="destructive">{{ 'services.status.failed' | translate }}</span>
+            <app-status-badge tone="failed">{{
+              'services.status.failed' | translate
+            }}</app-status-badge>
           }
           @default {
             <span class="flex items-center gap-1.5" role="status">
