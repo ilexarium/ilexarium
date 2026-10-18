@@ -4,6 +4,7 @@ export * from './backups.js';
 export * from './catalog.js';
 export * from './containers.js';
 export * from './disks.js';
+export * from './files.js';
 export * from './health.js';
 export * from './jobs.js';
 export * from './logs.js';

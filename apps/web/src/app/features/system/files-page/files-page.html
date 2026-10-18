@@ -1,0 +1,185 @@
+@if (!store.checked()) {
+  <div class="grid gap-2" role="status" [attr.aria-label]="'files.signIn.checking' | translate">
+    <hlm-skeleton class="h-10 w-full max-w-md" />
+    <hlm-skeleton class="h-48 w-full max-w-md" />
+  </div>
+} @else if (!store.session()) {
+  <app-files-sign-in />
+} @else {
+  <div
+    class="relative grid gap-4"
+    (dragover)="dragOver($event)"
+    (dragleave)="dragLeave($event)"
+    (drop)="dropped($event)"
+  >
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        hlmBtn
+        variant="outline"
+        size="icon"
+        [disabled]="!store.list()?.parent || store.loading()"
+        [attr.aria-label]="'files.up' | translate"
+        (click)="store.open(store.list()!.parent!)"
+      >
+        <ng-icon name="lucideArrowUp" class="rtl:rotate-0" aria-hidden="true" />
+      </button>
+      <p class="min-w-0 flex-1 basis-48">
+        <span class="sr-only">{{ 'files.path' | translate }}</span>
+        <code class="block truncate rounded bg-muted px-2 py-1.5 text-sm" dir="ltr">{{
+          store.list()?.path ?? store.session()!.home
+        }}</code>
+      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          hlmBtn
+          variant="outline"
+          size="icon"
+          [disabled]="store.loading()"
+          [attr.aria-label]="'files.refresh' | translate"
+          (click)="store.refresh()"
+        >
+          <ng-icon name="lucideRefreshCw" aria-hidden="true" />
+        </button>
+        <button hlmBtn variant="outline" (click)="newFolder()">
+          <ng-icon name="lucideFolderPlus" aria-hidden="true" />
+          {{ 'files.newFolder' | translate }}
+        </button>
+        <button hlmBtn (click)="picker.click()">
+          <ng-icon name="lucideUpload" aria-hidden="true" />
+          {{ 'files.upload' | translate }}
+        </button>
+        <input
+          #picker
+          type="file"
+          multiple
+          hidden
+          tabindex="-1"
+          aria-hidden="true"
+          (change)="chosen($event)"
+        />
+        <button hlmBtn variant="ghost" (click)="store.signOut()">
+          <ng-icon name="lucideLogOut" class="rtl:-scale-x-100" aria-hidden="true" />
+          {{ 'files.close' | translate }}
+          <span class="text-muted-foreground"
+            >(<span dir="ltr">{{ store.session()!.username }}</span
+            >)</span
+          >
+        </button>
+      </div>
+    </div>
+
+    @if (store.uploads().length) {
+      <section class="grid gap-2 rounded-lg border p-3" aria-labelledby="uploads-title">
+        <h2 id="uploads-title" class="text-sm font-medium">{{ 'files.uploads' | translate }}</h2>
+        <ul class="grid gap-2">
+          @for (upload of store.uploads(); track upload.id) {
+            <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-sm">
+              <span class="truncate" dir="ltr">{{ upload.name }}</span>
+              @switch (upload.state) {
+                @case ('done') {
+                  <span class="flex items-center gap-1 text-muted-foreground">
+                    <ng-icon name="lucideCircleCheck" aria-hidden="true" />
+                    {{ 'files.uploadDone' | translate }}
+                  </span>
+                }
+                @case ('failed') {
+                  <span class="flex items-center gap-1 text-destructive">
+                    <ng-icon name="lucideCircleX" aria-hidden="true" />
+                    {{ 'files.uploadFailed' | translate }}
+                  </span>
+                }
+                @default {
+                  <span class="tabular-nums text-muted-foreground" dir="ltr"
+                    >{{ (upload.progress * 100).toFixed(0) }} %</span
+                  >
+                }
+              }
+              @if (upload.state === 'uploading') {
+                <hlm-progress
+                  class="col-span-2 h-1.5"
+                  [value]="upload.progress * 100"
+                  [attr.aria-label]="upload.name"
+                >
+                  <hlm-progress-indicator />
+                </hlm-progress>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (store.list(); as list) {
+      @if (list.entries.length) {
+        <app-file-list
+          [entries]="list.entries"
+          [urlFor]="urlFor"
+          [busy]="busy()"
+          (open)="openEntry($event)"
+          (action)="act($event)"
+        />
+      } @else {
+        <p class="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+          {{ 'files.empty' | translate }}
+        </p>
+      }
+    } @else if (store.loading()) {
+      <div class="grid gap-2" role="status" [attr.aria-label]="'files.loading' | translate">
+        @for (row of [1, 2, 3, 4]; track row) {
+          <hlm-skeleton class="h-10 w-full" />
+        }
+      </div>
+    }
+
+    @if (dragging()) {
+      <div
+        class="pointer-events-none absolute inset-0 grid place-items-center rounded-lg border-2 border-dashed border-primary bg-background/80 p-4 text-center font-medium"
+      >
+        {{ 'files.dropHere' | translate }}
+      </div>
+    }
+  </div>
+}
+
+<app-file-name-dialog />
+<app-file-delete-dialog (confirm)="store.delete($event)" />
+
+<hlm-alert-dialog #replaceDialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @let files = taken();
+    @if (files.length) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle class="break-words">
+          @if (files.length === 1) {
+            {{ 'files.replaceDialog.title' | translate: { name: files[0].name } }}
+          } @else {
+            {{ 'files.replaceDialog.titleMany' | translate }}
+          }
+        </h2>
+        <p hlmAlertDialogDescription>
+          {{
+            (files.length === 1 ? 'files.replaceDialog.text' : 'files.replaceDialog.textMany')
+              | translate
+          }}
+        </p>
+      </hlm-alert-dialog-header>
+      @if (files.length > 1) {
+        <ul class="max-h-40 list-inside list-disc overflow-y-auto text-sm">
+          @for (file of files; track $index) {
+            <li class="truncate">
+              <span dir="ltr">{{ file.name }}</span>
+            </li>
+          }
+        </ul>
+      }
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>
+          {{ 'files.replaceDialog.cancel' | translate }}
+        </button>
+        <button hlmAlertDialogAction (click)="replace()">
+          {{ 'files.replaceDialog.confirm' | translate }}
+        </button>
+      </hlm-alert-dialog-footer>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

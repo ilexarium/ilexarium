@@ -12,7 +12,8 @@
     "disks": "الأقراص",
     "alerts": "التنبيهات",
     "notifications": "الإشعارات",
-    "processes": "العمليات"
+    "processes": "العمليات",
+    "files": "الملفات"
   },
   "app": {
     "loading": "جارٍ التحميل…",
@@ -39,7 +40,8 @@
     "alerts": "التنبيهات",
     "notifications": "الإشعارات",
     "system": "النظام",
-    "processes": "العمليات"
+    "processes": "العمليات",
+    "files": "الملفات"
   },
   "userMenu": {
     "open": "قائمة الحساب",
@@ -144,7 +146,11 @@
     "urlRequired": "أدخل رابط الموضوع",
     "urlInvalid": "رابط يبدأ بـ https:// أو http://",
     "ntfyTopicInvalid": "خادم وموضوع، مثل https://ntfy.sh/my-topic",
-    "tokenInvalid": "حروف وأرقام ورموز، بدون مسافات"
+    "tokenInvalid": "حروف وأرقام ورموز، بدون مسافات",
+    "fileNameRequired": "أدخل اسمًا",
+    "fileNameTooLong": "255 حرفًا على الأكثر",
+    "fileNameInvalid": "اسم بلا «/» (وليس «.» أو «..»)",
+    "linuxUsernameInvalid": "اسم مستخدم لينكس، مثل anna"
   },
   "errors": {
     "network": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك وحاول مرة أخرى.",
@@ -223,7 +229,17 @@
     "password_required": "أدخل كلمة المرور.",
     "process_not_found": "لم تعد هذه العملية تعمل.",
     "process_protected": "لا يمكن هنا إنهاء إلا عمليات الأشخاص أنفسهم، لا عمليات النظام أو الخدمات أو التطبيق.",
-    "signal_failed": "تعذّر إرسال الإشارة إلى العملية."
+    "signal_failed": "تعذّر إرسال الإشارة إلى العملية.",
+    "linux_session_required": "سجّل الدخول كمستخدم لينكس مرة أخرى (انتهت الجلسة).",
+    "linux_login_refused": "اسم المستخدم أو كلمة المرور غير صحيحة، أو لا يمكن لهذا الحساب تسجيل الدخول.",
+    "linux_root_refused": "لا يمكن للمستخدم root تسجيل الدخول هنا. استخدم حسابك.",
+    "ssh_unavailable": "خادم SSH في هذا الجهاز لا يستجيب.",
+    "file_not_found": "لم يعد موجودًا.",
+    "permission_denied": "لا يسمح لينكس لهذا الحساب بذلك.",
+    "file_exists": "يوجد شيء بهذا الاسم بالفعل.",
+    "wrong_type": "لا يصلح هذا هنا (مجلد بدل ملف أو العكس).",
+    "file_too_large": "كبير جدًا (10 غيغابايت على الأكثر لكل ملف).",
+    "file_operation_failed": "رفض الجهاز ذلك (قرص ممتلئ أو مجلد غير فارغ؟)."
   },
   "format": {
     "lessThanAMinute": "أقل من دقيقة"
@@ -996,5 +1012,85 @@
     "count_many": "{{count}} عملية",
     "count_other": "{{count}} عملية",
     "showAll": "عرض الكل ({{count}})"
+  },
+  "files": {
+    "signIn": {
+      "title": "افتح ملفاتك",
+      "text": "سجّل الدخول بحساب لينكس الخاص بك على هذا الجهاز. سترى وتغيّر بالضبط ما يُسمح لهذا الحساب به.",
+      "username": "اسم مستخدم لينكس",
+      "password": "كلمة المرور",
+      "submit": "فتح",
+      "submitting": "جارٍ تسجيل الدخول…",
+      "checking": "جارٍ البحث عن جلسة مفتوحة"
+    },
+    "signedInAs": "باسم {{user}}",
+    "close": "إغلاق",
+    "closed": "أُغلقت الملفات",
+    "up": "مجلد للأعلى",
+    "refresh": "تحديث",
+    "newFolder": "مجلد جديد",
+    "upload": "رفع",
+    "dropHere": "أفلت الملفات هنا لرفعها إلى هذا المجلد",
+    "path": "المجلد",
+    "root": "المجلد الأعلى (/)",
+    "column": {
+      "name": "الاسم",
+      "size": "الحجم",
+      "modified": "آخر تعديل",
+      "owner": "المالك",
+      "permissions": "الصلاحيات",
+      "actions": "الإجراءات"
+    },
+    "empty": "هذا المجلد فارغ.",
+    "loading": "جارٍ تحميل المجلد",
+    "type": {
+      "folder": "مجلد",
+      "link": "رابط",
+      "other": "ملف خاص"
+    },
+    "actionsFor": "إجراءات {{name}}",
+    "open": "فتح",
+    "download": "تنزيل",
+    "rename": "إعادة تسمية أو نقل",
+    "delete": "حذف",
+    "nameDialog": {
+      "newFolderTitle": "مجلد جديد",
+      "renameTitle": "إعادة تسمية {{name}} أو نقله",
+      "name": "الاسم",
+      "renameHelp": "اسم جديد، أو مسار لنقله (مثل ../archive/{{name}} أو /srv/music/{{name}}).",
+      "cancel": "إلغاء",
+      "create": "إنشاء",
+      "save": "حفظ"
+    },
+    "deleteDialog": {
+      "title": "حذف {{name}}؟",
+      "fileText": "يُحذف الملف نهائيًا.",
+      "folderMore": "يُحذف المجلد وكل ما فيه نهائيًا: أكثر من {{count}} عنصر.",
+      "counting": "جارٍ عدّ محتواه…",
+      "cancel": "إلغاء",
+      "confirm": "حذف",
+      "folderText_zero": "يُحذف المجلد نهائيًا: لا شيء فيه، {{size}}.",
+      "folderText_one": "يُحذف المجلد وكل ما فيه نهائيًا: عنصر واحد، {{size}}.",
+      "folderText_two": "يُحذف المجلد وكل ما فيه نهائيًا: عنصران، {{size}}.",
+      "folderText_few": "يُحذف المجلد وكل ما فيه نهائيًا: {{count}} عناصر، {{size}}.",
+      "folderText_many": "يُحذف المجلد وكل ما فيه نهائيًا: {{count}} عنصرًا، {{size}}.",
+      "folderText_other": "يُحذف المجلد وكل ما فيه نهائيًا: {{count}} عنصر، {{size}}."
+    },
+    "replaceDialog": {
+      "title": "استبدال {{name}}؟",
+      "text": "يوجد ملف بهذا الاسم في هذا المجلد. لا يمكن التراجع عن الاستبدال.",
+      "cancel": "الإبقاء عليه",
+      "confirm": "استبدال",
+      "titleMany": "استبدال هذه الملفات؟",
+      "textMany": "توجد ملفات بهذه الأسماء في هذا المجلد. لا يمكن التراجع عن الاستبدال."
+    },
+    "uploads": "عمليات الرفع",
+    "uploadDone": "تم الرفع",
+    "uploadFailed": "فشل",
+    "created": "أُنشئ المجلد {{name}}",
+    "renamed": "تم الحفظ",
+    "deleted": "حُذف {{name}}",
+    "uploaded": "رُفع {{name}}",
+    "actionFailed": "لم ينجح ذلك"
   }
 }

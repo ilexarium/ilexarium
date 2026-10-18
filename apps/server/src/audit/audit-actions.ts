@@ -22,6 +22,11 @@ export const AUDIT_ACTIONS = [
   'alerts.channel.update',
   'alerts.channel.test',
   'process.end',
+  'linux.signin',
+  'linux.signout',
+  'files.upload',
+  'files.rename',
+  'files.delete',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

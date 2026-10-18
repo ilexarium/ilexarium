@@ -74,6 +74,24 @@ SQL
   info 'migrated; the app’s role reads and writes data only'
 }
 
+# Password logins from this machine itself only (the Linux sign-in), in a drop-in checked by
+# `sshd -t` before sshd reloads — a refused one is removed again and nothing changes.
+setup_ssh_login() {
+  log 'SSH: password logins from this machine itself'
+  grep -Eqs '^\s*Include\s+/etc/ssh/sshd_config\.d/\*\.conf' /etc/ssh/sshd_config ||
+    die '/etc/ssh/sshd_config does not include /etc/ssh/sshd_config.d/*.conf'
+  local dropin=/etc/ssh/sshd_config.d/homelab.conf
+  ensure_dir /etc/ssh/sshd_config.d root:root 0755
+  write_file "$dropin" root:root 0644 <"$RELEASE/system/install/sshd.conf"
+  if ! /usr/sbin/sshd -t 2>/dev/null; then
+    rm -f "$dropin"
+    die 'sshd refused the configuration with the drop-in (removed again; nothing changed)'
+  fi
+  systemctl enable ssh.service >/dev/null 2>&1 || true
+  systemctl reload-or-restart ssh.service || die 'sshd could not be reloaded (journalctl -u ssh)'
+  info "$dropin"
+}
+
 start_app() {
   log 'Starting the app'
   systemctl daemon-reload

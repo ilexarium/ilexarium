@@ -240,7 +240,67 @@ async function securitySetup() {
 }
 
 function ensurePerson() {
-  if (fails('id', ['anna'])) sh('useradd', ['--create-home', '--uid', '1500', 'anna']);
+  if (fails('id', ['anna'])) {
+    sh('useradd', ['--create-home', '--uid', '1500', '--shell', '/bin/bash', 'anna']);
+    sh('chpasswd', [], { input: 'anna:anna-smoke-password\n' });
+  }
+}
+
+/** The Linux sign-in and the file explorer, as anna, through the machine's own sshd. */
+async function files() {
+  console.log('\nLinux sign-in and files (through this machine’s sshd)');
+  ensurePerson();
+  const effective = (addr) =>
+    sh('sshd', ['-T', '-C', `user=anna,host=client,addr=${addr}`]).match(
+      /^passwordauthentication (\w+)/m,
+    )?.[1];
+  check('sshd: password logins from 127.0.0.1', effective('127.0.0.1') === 'yes');
+  check('sshd: password logins from ::1', effective('::1') === 'yes');
+  sh('sed', [
+    '-i',
+    's/^#\\?PasswordAuthentication.*/PasswordAuthentication no/',
+    '/etc/ssh/sshd_config',
+  ]);
+  check(
+    'sshd: other addresses keep the main settings (here: no)',
+    effective('203.0.113.5') === 'no',
+  );
+  sh('sed', [
+    '-i',
+    's/^PasswordAuthentication no$/#PasswordAuthentication yes/',
+    '/etc/ssh/sshd_config',
+  ]);
+  const wrong = await api('POST', '/files/session', { username: 'anna', password: 'wrong' });
+  check('a wrong Linux password refused (403, not 401)', wrong.status === 403, `${wrong.status}`);
+  const root = await api('POST', '/files/session', { username: 'root', password: 'x' });
+  check('root refused', root.status === 403, `${root.status}`);
+  const signIn = await api('POST', '/files/session', {
+    username: 'anna',
+    password: 'anna-smoke-password',
+  });
+  check(
+    'signs in as anna',
+    signIn.status === 200 && signIn.json?.home === '/home/anna',
+    `${signIn.status} ${signIn.text}`,
+  );
+  const up = await fetch(`${BASE}/api/files/upload?folder=%2Fhome%2Fanna&name=hello.txt`, {
+    method: 'PUT',
+    headers: { Origin: ORIGIN, Cookie: cookie, 'Content-Type': 'application/octet-stream' },
+    body: 'hello from the smoke test',
+  });
+  check('uploads into her home', up.status === 204, `${up.status}`);
+  check('the file belongs to anna', mode('/home/anna/hello.txt').uid === uidOf('anna'));
+  const list = await api('GET', '/files/list?path=%2Fhome%2Fanna');
+  check(
+    'lists her home',
+    list.json?.entries?.some((e) => e.name === 'hello.txt'),
+    list.text.slice(0, 200),
+  );
+  const root2 = await api('GET', '/files/list?path=%2Froot');
+  check('/root refused (Linux decides)', root2.status === 403, `${root2.status}`);
+  const del = await api('DELETE', '/files?path=%2Fhome%2Fanna%2Fhello.txt');
+  check('deletes it', del.status === 204 && !existsSync('/home/anna/hello.txt'), `${del.status}`);
+  await api('DELETE', '/files/session');
 }
 
 async function install() {
@@ -367,6 +427,7 @@ async function install() {
   );
   const init = await api('POST', '/processes/signal', { pid: 1, startTicks: '1', signal: 'KILL' });
   check('PID 1 refused', init.status === 403 || init.status === 404, `${init.status}`);
+  await files();
   done();
 }
 
@@ -388,6 +449,7 @@ async function update() {
   );
   check('the version recorded', existsSync('/etc/homelab/version'));
   await securitySetup();
+  await files();
   done();
 }
 

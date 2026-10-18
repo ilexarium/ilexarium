@@ -76,6 +76,12 @@ export const routes: Routes = [
           import('./features/system/processes-page/processes-page').then((m) => m.ProcessesPage),
       },
       {
+        path: 'system/files',
+        title: 'pages.files',
+        loadComponent: () =>
+          import('./features/system/files-page/files-page').then((m) => m.FilesPage),
+      },
+      {
         path: 'settings/notifications',
         title: 'pages.notifications',
         loadComponent: () =>

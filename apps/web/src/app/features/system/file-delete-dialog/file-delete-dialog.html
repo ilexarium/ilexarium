@@ -1,0 +1,30 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @if (entry(); as entry) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle class="break-words">
+          {{ 'files.deleteDialog.title' | translate: { name: entry.name } }}
+        </h2>
+        <p hlmAlertDialogDescription aria-live="polite">
+          @if (summary(); as summary) {
+            @if (summary.type !== 'folder') {
+              {{ 'files.deleteDialog.fileText' | translate }}
+            } @else if (summary.truncated) {
+              {{ 'files.deleteDialog.folderMore' | translate: { count: count() } }}
+            } @else {
+              {{ 'files.deleteDialog.folderText' | plural: count() : { size: size() } }}
+            }
+          } @else {
+            {{ 'files.deleteDialog.counting' | translate }}
+          }
+        </p>
+      </hlm-alert-dialog-header>
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>{{ 'files.deleteDialog.cancel' | translate }}</button>
+        <button hlmAlertDialogAction [disabled]="!summary()" (click)="confirmed()">
+          {{ 'files.deleteDialog.confirm' | translate }}
+        </button>
+      </hlm-alert-dialog-footer>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

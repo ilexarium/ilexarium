@@ -130,9 +130,22 @@ ensure_borg() {
   info "Borg $version"
 }
 
+# The machine's own SSH server: the Linux sign-in connects to it (as a person, with their password).
+ensure_ssh_server() {
+  if [[ -x /usr/sbin/sshd ]]; then
+    info "$(/usr/sbin/sshd -V 2>&1 | head -n1)"
+    return
+  fi
+  confirm 'Install the OpenSSH server (the Linux sign-in uses it)?' || die 'The OpenSSH server is needed'
+  apt_update
+  apt_install openssh-server
+  info "$(/usr/sbin/sshd -V 2>&1 | head -n1)"
+}
+
 ensure_packages() {
   ensure_base
   log 'Checking the programs the platform needs'
+  ensure_ssh_server
   ensure_node
   ensure_docker
   ensure_tailscale

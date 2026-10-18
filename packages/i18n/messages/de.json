@@ -12,7 +12,8 @@
     "disks": "Laufwerke",
     "alerts": "Warnungen",
     "notifications": "Benachrichtigungen",
-    "processes": "Prozesse"
+    "processes": "Prozesse",
+    "files": "Dateien"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -39,7 +40,8 @@
     "alerts": "Warnungen",
     "notifications": "Benachrichtigungen",
     "system": "System",
-    "processes": "Prozesse"
+    "processes": "Prozesse",
+    "files": "Dateien"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -144,7 +146,11 @@
     "urlRequired": "Gib die Topic-URL ein",
     "urlInvalid": "Eine URL, die mit https:// oder http:// beginnt",
     "ntfyTopicInvalid": "Ein Server und ein Topic, z. B. https://ntfy.sh/mein-topic",
-    "tokenInvalid": "Buchstaben, Ziffern und Zeichen, keine Leerzeichen"
+    "tokenInvalid": "Buchstaben, Ziffern und Zeichen, keine Leerzeichen",
+    "fileNameRequired": "Gib einen Namen ein",
+    "fileNameTooLong": "Höchstens 255 Zeichen",
+    "fileNameInvalid": "Ein Name ohne „/“ (nicht „.“ oder „..“)",
+    "linuxUsernameInvalid": "Ein Linux-Benutzername, z. B. anna"
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -219,7 +225,17 @@
     "password_required": "Gib das Passwort ein.",
     "process_not_found": "Dieser Prozess läuft nicht mehr.",
     "process_protected": "Hier lassen sich nur die eigenen Prozesse von Personen beenden – nicht die des Systems, eines Dienstes oder der App.",
-    "signal_failed": "Das Signal konnte nicht gesendet werden."
+    "signal_failed": "Das Signal konnte nicht gesendet werden.",
+    "linux_session_required": "Melde dich erneut als Linux-Benutzer an (die Sitzung ist beendet).",
+    "linux_login_refused": "Falscher Benutzername oder falsches Passwort, oder dieses Konto kann sich nicht anmelden.",
+    "linux_root_refused": "root kann sich hier nicht anmelden. Nimm dein eigenes Konto.",
+    "ssh_unavailable": "Der SSH-Server dieses Rechners antwortet nicht.",
+    "file_not_found": "Das ist nicht mehr da.",
+    "permission_denied": "Linux erlaubt diesem Konto das nicht.",
+    "file_exists": "Etwas mit diesem Namen gibt es schon.",
+    "wrong_type": "Das geht hier nicht (ein Ordner statt einer Datei oder umgekehrt).",
+    "file_too_large": "Zu groß (höchstens 10 GB pro Datei).",
+    "file_operation_failed": "Der Rechner hat es abgelehnt (volle Festplatte oder ein Ordner, der nicht leer ist?)."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -956,5 +972,81 @@
     "forced": "{{name}} wurde zwangsweise beendet",
     "endFailed": "Der Prozess konnte nicht beendet werden",
     "showAll": "Alle anzeigen ({{count}})"
+  },
+  "files": {
+    "signIn": {
+      "title": "Deine Dateien öffnen",
+      "text": "Melde dich mit deinem Linux-Konto auf diesem Rechner an. Du siehst und änderst genau das, was dieses Konto darf.",
+      "username": "Linux-Benutzername",
+      "password": "Passwort",
+      "submit": "Öffnen",
+      "submitting": "Anmeldung…",
+      "checking": "Suche nach einer offenen Sitzung"
+    },
+    "signedInAs": "Als {{user}}",
+    "close": "Schließen",
+    "closed": "Dateien geschlossen",
+    "up": "Einen Ordner höher",
+    "refresh": "Aktualisieren",
+    "newFolder": "Neuer Ordner",
+    "upload": "Hochladen",
+    "dropHere": "Dateien hier ablegen, um sie in diesen Ordner hochzuladen",
+    "path": "Ordner",
+    "root": "Oberster Ordner (/)",
+    "column": {
+      "name": "Name",
+      "size": "Größe",
+      "modified": "Geändert",
+      "owner": "Besitzer",
+      "permissions": "Rechte",
+      "actions": "Aktionen"
+    },
+    "empty": "Dieser Ordner ist leer.",
+    "loading": "Ordner wird geladen",
+    "type": {
+      "folder": "Ordner",
+      "link": "Verknüpfung",
+      "other": "Spezialdatei"
+    },
+    "actionsFor": "Aktionen für {{name}}",
+    "open": "Öffnen",
+    "download": "Herunterladen",
+    "rename": "Umbenennen oder verschieben",
+    "delete": "Löschen",
+    "nameDialog": {
+      "newFolderTitle": "Neuer Ordner",
+      "renameTitle": "{{name}} umbenennen oder verschieben",
+      "name": "Name",
+      "renameHelp": "Ein neuer Name oder ein Pfad zum Verschieben (z. B. ../archiv/{{name}} oder /srv/musik/{{name}}).",
+      "cancel": "Abbrechen",
+      "create": "Erstellen",
+      "save": "Speichern"
+    },
+    "deleteDialog": {
+      "title": "{{name}} löschen?",
+      "fileText": "Die Datei wird endgültig gelöscht.",
+      "folderText_one": "Der Ordner und alles darin werden endgültig gelöscht: {{count}} Eintrag, {{size}}.",
+      "folderText_other": "Der Ordner und alles darin werden endgültig gelöscht: {{count}} Einträge, {{size}}.",
+      "folderMore": "Der Ordner und alles darin werden endgültig gelöscht: mehr als {{count}} Einträge.",
+      "counting": "Inhalt wird gezählt…",
+      "cancel": "Abbrechen",
+      "confirm": "Löschen"
+    },
+    "replaceDialog": {
+      "title": "{{name}} ersetzen?",
+      "text": "In diesem Ordner gibt es schon eine Datei mit diesem Namen. Das Ersetzen lässt sich nicht rückgängig machen.",
+      "cancel": "Behalten",
+      "confirm": "Ersetzen",
+      "titleMany": "Diese Dateien ersetzen?",
+      "textMany": "In diesem Ordner gibt es schon Dateien mit diesen Namen. Das Ersetzen lässt sich nicht rückgängig machen."
+    },
+    "uploads": "Uploads",
+    "uploadDone": "Hochgeladen",
+    "uploadFailed": "Fehlgeschlagen",
+    "created": "Ordner {{name}} erstellt",
+    "renamed": "Gespeichert",
+    "deleted": "{{name}} gelöscht",
+    "uploaded": "{{name}} hochgeladen",
+    "actionFailed": "Das hat nicht geklappt"
   }
 }
