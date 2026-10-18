@@ -11,11 +11,18 @@ apt_install() {
 
 apt_update() { DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null; }
 
-# A repository: its key (downloaded over HTTPS, de-armored if needed) and its source line.
+# A repository: its key (downloaded over HTTPS; de-armored if it's ASCII-armored — Tailscale's
+# .noarmor.gpg is binary already) and its source line.
 add_repository() {
   local name="$1" key_url="$2" line="$3" key="$KEYRINGS/$1.gpg"
   ensure_dir "$KEYRINGS" root:root 0755
-  curl -fsSL --proto '=https' --tlsv1.2 "$key_url" | gpg --dearmor --yes -o "$key.tmp"
+  curl -fsSL --proto '=https' --tlsv1.2 -o "$key.download" "$key_url"
+  if grep -q -- '-----BEGIN PGP PUBLIC KEY BLOCK-----' "$key.download"; then
+    gpg --dearmor --yes -o "$key.tmp" "$key.download"
+    rm -f "$key.download"
+  else
+    mv -f "$key.download" "$key.tmp"
+  fi
   chmod 0644 "$key.tmp"
   mv -f "$key.tmp" "$key"
   printf '%s\n' "${line//@KEY@/$key}" | write_file "/etc/apt/sources.list.d/$name.list" root:root 0644
@@ -23,7 +30,7 @@ add_repository() {
 
 # Nothing (not a failure) when it isn't installed: under `set -e` a failing command
 # substitution would end the script without a word.
-node_major() { node --version 2>/dev/null | sed -n 's/^v\([0-9]*\).*/\1/p' || true; }
+node_major() { /usr/bin/node --version 2>/dev/null | sed -n 's/^v\([0-9]*\).*/\1/p' || true; }
 
 ensure_base() {
   log 'Checking the basics'
@@ -37,12 +44,13 @@ ensure_base() {
   info 'curl, gnupg, sudo'
 }
 
-# Node 24 or newer at /usr/bin/node: the root wrappers' shebang names that exact path.
+# Node 24 or newer at /usr/bin/node — that one, whatever else is on PATH: the root wrappers'
+# shebang and homelab.service name that exact path.
 ensure_node() {
   local major
   major="$(node_major)"
-  if [[ -n "$major" ]] && ((major >= 24)) && [[ -x /usr/bin/node ]]; then
-    info "Node $(node --version)"
+  if [[ -n "$major" ]] && ((major >= 24)); then
+    info "Node $(/usr/bin/node --version)"
     return
   fi
   confirm 'Install Node.js 24 (from NodeSource)?' || die 'Node.js 24 is needed'
@@ -51,8 +59,8 @@ ensure_node() {
   apt_update
   apt_install nodejs
   major="$(node_major)"
-  if [[ ! -x /usr/bin/node ]] || ((major < 24)); then die 'Node.js 24 could not be installed'; fi
-  info "Node $(node --version)"
+  if [[ -z "$major" ]] || ((major < 24)); then die 'Node.js 24 could not be installed at /usr/bin/node'; fi
+  info "Node $(/usr/bin/node --version)"
 }
 
 # Docker Engine and its Compose plugin (docker.com's packages, not the distribution's).

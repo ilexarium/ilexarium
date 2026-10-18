@@ -16,18 +16,31 @@ start_platform() {
   systemctl enable homelab-platform.service >/dev/null 2>&1
   systemctl restart homelab-platform.service ||
     die 'The platform’s containers did not start (journalctl -u homelab-platform)'
-  [[ -S /run/homelab/proxy/docker.sock ]] || die 'The Docker proxy’s socket is missing'
-  info "$POSTGRES_CONTAINER, homelab-docker-proxy-1"
+  # The proxy has no health check of its own: it's ready once it answers on its socket (an old
+  # socket file from before the restart doesn't answer).
+  for _ in $(seq 1 30); do
+    if curl -sf --unix-socket /run/homelab/proxy/docker.sock http://proxy/_ping >/dev/null 2>&1; then
+      info "$POSTGRES_CONTAINER, homelab-docker-proxy-1"
+      return
+    fi
+    sleep 1
+  done
+  die 'The Docker proxy doesn’t answer on its socket (docker logs homelab-docker-proxy-1)'
 }
 
 # An update: the database as it was, before any migration — the way back if one goes wrong.
 backup_database() {
   if [[ -z "$OLD_VERSION" ]]; then return; fi
   log 'Backing up the database before the update'
-  DATABASE_BACKUP="$VAR/install-backups/homelab-$OLD_VERSION-$(date +%Y%m%d-%H%M%S).dump"
-  docker exec "$POSTGRES_CONTAINER" pg_dump -U homelab_owner -d homelab -Fc |
-    write_file "$DATABASE_BACKUP" root:root 0600
-  [[ -s "$DATABASE_BACKUP" ]] || die 'The database backup is empty (nothing was changed)'
+  local dump tmp
+  dump="$VAR/install-backups/homelab-$OLD_VERSION-$(date +%Y%m%d-%H%M%S).dump"
+  tmp="$(mktemp "$VAR/install-backups/.dump.XXXXXX")"
+  if ! docker exec "$POSTGRES_CONTAINER" pg_dump -U homelab_owner -d homelab -Fc >"$tmp" || [[ ! -s "$tmp" ]]; then
+    rm -f "$tmp"
+    die 'The database could not be backed up — nothing was changed (the old version is still installed; systemctl start homelab)'
+  fi
+  mv -f "$tmp" "$dump"
+  DATABASE_BACKUP="$dump"
   info "$DATABASE_BACKUP"
 }
 
@@ -39,11 +52,14 @@ SELECT 'CREATE ROLE homelab LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE 
 \gexec
 ALTER ROLE homelab WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '$APP_DB_PASSWORD';
 SQL
-  # Prisma's migrations, as the owner (only this step ever holds its password).
-  if ! (cd "$OPT/app/apps/server" &&
-    DATABASE_URL="$OWNER_DATABASE_URL" node ../../node_modules/prisma/build/index.js migrate deploy >/dev/null); then
+  # Prisma's migrations, as the owner (only this step ever holds its password) — from the new
+  # release, before it replaces anything: if one fails, the old version is still installed.
+  if ! (cd "$RELEASE/app/apps/server" &&
+    DATABASE_URL="$OWNER_DATABASE_URL" /usr/bin/node ../../node_modules/prisma/build/index.js migrate deploy >/dev/null); then
     if [[ -n "${DATABASE_BACKUP:-}" ]]; then
-      die "A migration failed. The database before the update: $DATABASE_BACKUP (pg_restore --clean)"
+      die "A migration failed; the old version is still installed. Put the database back first:
+    docker exec -i $POSTGRES_CONTAINER pg_restore --clean --if-exists -U homelab_owner -d homelab <$DATABASE_BACKUP
+    then: systemctl start homelab"
     fi
     die 'A migration failed'
   fi
@@ -99,7 +115,8 @@ print_result() {
   local status token
   status="$(curl -fsS http://127.0.0.1:3000/api/auth/status 2>/dev/null || true)"
   if [[ "$status" == *'"needsSetup":true'* ]]; then
-    token="$(cat "$VAR/app/setup-token" 2>/dev/null || true)"
+    # Read as the app's user: the file is in its folder (root reading it could follow a link).
+    token="$(runuser -u "$APP_USER" -- cat "$VAR/app/setup-token" 2>/dev/null || true)"
     info 'Open this link to create your account (it works once):'
     info ''
     info "    $PUBLIC_URL/setup#token=$token"

@@ -34,21 +34,10 @@ ensure_folders() {
   ensure_dir "$SRV/restores" root:root 0755
 }
 
-# The release's programs: root-owned, writable only by root — the app reads them, never changes
-# them (the wrappers' entries check it again before running, sudo trusts their paths).
-install_release() {
-  log 'Installing the release'
-  ensure_folders
-  replace_tree "$RELEASE/app" "$OPT/app"
-  replace_tree "$RELEASE/catalog" "$OPT/catalog"
-  # The wrappers: the four entries and their modules, without anything else of the folder.
-  local wrappers="$RELEASE/system/wrappers" staged
-  staged="$(mktemp -d)"
-  cp -a "$wrappers"/homelab-*.mts "$wrappers"/eff_large_wordlist.txt "$staged/"
-  for module in lib compose backup disk process; do cp -a "$wrappers/$module" "$staged/"; done
-  chmod 0755 "$staged"/homelab-*.mts
-  replace_tree "$staged" "$OPT/libexec"
-  rm -rf "$staged"
+# The platform's own files — needed before the database starts: its compose file and the
+# proxy's config, the units, the /run/homelab folders.
+install_platform_files() {
+  log 'The platform’s files'
   ensure_dir "$OPT/platform" root:root 0755
   install -o root -g root -m 0644 "$RELEASE/system/platform/compose.yml" "$OPT/platform/compose.yml"
   install -o root -g root -m 0644 "$RELEASE/system/docker-socket-proxy/haproxy.cfg" "$OPT/platform/haproxy.cfg"
@@ -58,6 +47,24 @@ install_release() {
   done
   install -o root -g root -m 0644 "$RELEASE/system/install/tmpfiles.conf" /etc/tmpfiles.d/homelab.conf
   systemd-tmpfiles --create /etc/tmpfiles.d/homelab.conf
+  info "$OPT/platform, the units"
+}
+
+# The release's programs: root-owned, writable only by root — the app reads them, never changes
+# them (the wrappers' entries check it again before running, sudo trusts their paths). Only once
+# the database is migrated: until then the old version stays, the way back.
+install_release() {
+  log 'Installing the release'
+  replace_tree "$RELEASE/app" "$OPT/app"
+  replace_tree "$RELEASE/catalog" "$OPT/catalog"
+  # The wrappers: the whole folder (the release carries no tests or test tools in it), the
+  # entries executable.
+  local staged
+  staged="$(mktemp -d)"
+  cp -a "$RELEASE/system/wrappers/." "$staged/"
+  chmod 0755 "$staged"/homelab-*.mts
+  replace_tree "$staged" "$OPT/libexec"
+  rm -rf "$staged"
   install -o root -g root -m 0755 "$RELEASE/system/install/homelab-setup-code" /usr/local/bin/homelab-setup-code
   install_sudoers
   info "$OPT"
