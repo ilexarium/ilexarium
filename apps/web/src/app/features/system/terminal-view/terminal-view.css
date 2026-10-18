@@ -1,0 +1,11 @@
+@import '@xterm/xterm/css/xterm.css';
+
+/* The terminal fills its box (the box has the padding, in the terminal's own colour). */
+app-terminal-view .terminal-box .xterm {
+  height: 100%;
+}
+
+/* Below the last row: the box's colour, not xterm's black. */
+app-terminal-view .terminal-box .xterm-viewport {
+  background-color: transparent !important;
+}

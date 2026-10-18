@@ -27,6 +27,8 @@ export const AUDIT_ACTIONS = [
   'files.upload',
   'files.rename',
   'files.delete',
+  'terminal.open',
+  'terminal.close',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

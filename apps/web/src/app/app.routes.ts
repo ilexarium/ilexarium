@@ -82,6 +82,12 @@ export const routes: Routes = [
           import('./features/system/files-page/files-page').then((m) => m.FilesPage),
       },
       {
+        path: 'system/terminal',
+        title: 'pages.terminal',
+        loadComponent: () =>
+          import('./features/system/terminal-page/terminal-page').then((m) => m.TerminalPage),
+      },
+      {
         path: 'settings/notifications',
         title: 'pages.notifications',
         loadComponent: () =>

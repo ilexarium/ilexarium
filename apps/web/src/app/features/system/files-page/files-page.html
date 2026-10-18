@@ -4,7 +4,7 @@
     <hlm-skeleton class="h-48 w-full max-w-md" />
   </div>
 } @else if (!store.session()) {
-  <app-files-sign-in />
+  <app-linux-sign-in title="files.signIn.title" text="files.signIn.text" [submit]="signIn" />
 } @else {
   <div
     class="relative grid gap-4"

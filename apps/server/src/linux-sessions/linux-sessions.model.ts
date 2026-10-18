@@ -1,5 +1,9 @@
 import type { PublicUser } from '@homelab/shared';
-import type { Client, SFTPWrapper } from 'ssh2';
+import type { ClientChannel, Client, SFTPWrapper } from 'ssh2';
+
+/** Why a Linux session closed. */
+export type LinuxCloseReason =
+  'idle' | 'app-sign-out' | 'closed' | 'replaced' | 'shutdown' | 'ended';
 
 /** Who acts, for the audit log. */
 export interface LinuxActor {
@@ -17,4 +21,14 @@ export interface OpenLinuxSession {
   userId: string;
   /** Closes it after 30 minutes without use; refreshed on every use. */
   idle: NodeJS.Timeout;
+  /** Called once when it closes, whatever the reason (the terminal ends with it). */
+  closing: Set<(why: LinuxCloseReason) => void>;
+}
+
+/** A shell opened on a Linux session (the web terminal). */
+export interface LinuxShell {
+  channel: ClientChannel;
+  username: string;
+  /** Runs `listener` when the Linux session closes; returns the unsubscribe. */
+  onSessionClose(listener: (why: LinuxCloseReason) => void): () => void;
 }

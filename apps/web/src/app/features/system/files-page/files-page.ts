@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
-import type { FileEntry } from '@homelab/shared';
+import type { FileEntry, LinuxSignInRequest } from '@homelab/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowUp,
@@ -18,7 +18,7 @@ import { HlmSkeleton } from '@ui/skeleton';
 import { FileDeleteDialog } from '../file-delete-dialog/file-delete-dialog';
 import { FileList } from '../file-list/file-list';
 import { FileNameDialog } from '../file-name-dialog/file-name-dialog';
-import { FilesSignIn } from '../files-sign-in/files-sign-in';
+import { LinuxSignIn } from '../linux-sign-in/linux-sign-in';
 import type { FileAction } from '../files.model';
 import { FilesPageStore, joinPath } from './files-page-store';
 
@@ -34,11 +34,11 @@ import { FilesPageStore, joinPath } from './files-page-store';
     FileDeleteDialog,
     FileList,
     FileNameDialog,
-    FilesSignIn,
     HlmAlertDialogImports,
     HlmButton,
     HlmProgressImports,
     HlmSkeleton,
+    LinuxSignIn,
     NgIcon,
     TranslatePipe,
   ],
@@ -66,6 +66,7 @@ export class FilesPage {
   protected readonly dragging = signal(false);
   /** Uploads whose name is taken there: one question for all of them. */
   protected readonly taken = signal<File[]>([]);
+  protected readonly signIn = (request: LinuxSignInRequest) => this.store.signIn(request);
   protected readonly urlFor = (entry: FileEntry) => this.store.downloadUrl(entry);
   /** The names in the folder shown that are being renamed or deleted. */
   protected readonly busy = computed(() => {

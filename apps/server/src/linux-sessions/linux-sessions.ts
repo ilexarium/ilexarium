@@ -19,10 +19,15 @@ import {
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Subscription } from 'rxjs';
-import { Client, type SFTPWrapper } from 'ssh2';
+import { Client, type ClientChannel, type SFTPWrapper } from 'ssh2';
 import { AuditService } from '../audit/audit.service.js';
 import type { Env } from '../config/env.schema.js';
-import type { LinuxActor, OpenLinuxSession } from './linux-sessions.model.js';
+import type {
+  LinuxActor,
+  LinuxCloseReason,
+  LinuxShell,
+  OpenLinuxSession,
+} from './linux-sessions.model.js';
 
 /** The machine's own SSH server: never another one. */
 const SSH_HOST = '127.0.0.1';
@@ -113,6 +118,40 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     return { sftp: session.sftp, username: session.username };
   }
 
+  /** Counts as use (terminal input): the idle time starts again. */
+  touch(appSessionId: string): void {
+    this.sessions.get(appSessionId)?.idle.refresh();
+  }
+
+  /**
+   * A shell of the signed-in account (a pty, `xterm-256color`) on the session's SSH connection —
+   * a login shell like `ssh` gives, with that account's rights and nothing more.
+   */
+  async shell(appSessionId: string, size: { cols: number; rows: number }): Promise<LinuxShell> {
+    const session = this.sessions.get(appSessionId);
+    if (!session) {
+      throw linuxError(FILES_ERROR_CODES.linuxSessionRequired, 'Sign in as a Linux user first');
+    }
+    session.idle.refresh();
+    const channel = await new Promise<ClientChannel>((ok, fail) =>
+      session.client.shell(
+        { term: 'xterm-256color', cols: size.cols, rows: size.rows },
+        (error, stream) => (error ? fail(error) : ok(stream)),
+      ),
+    ).catch((error: Error) => {
+      this.logger.warn(`No shell for ${session.username}: ${error.message}`);
+      throw linuxError(FILES_ERROR_CODES.sshUnavailable, 'The SSH server gave no shell');
+    });
+    return {
+      channel,
+      username: session.username,
+      onSessionClose: (listener) => {
+        session.closing.add(listener);
+        return () => session.closing.delete(listener);
+      },
+    };
+  }
+
   /** Signs in as a Linux user; replaces this app session's previous Linux session. */
   async signIn(
     appSessionId: string,
@@ -161,11 +200,12 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         home,
         userId: actor.user.id,
         idle,
+        closing: new Set(),
       };
       this.sessions.set(appSessionId, session);
       // The server ended it (restarted, the account locked): forgotten at once.
       client.on('close', () => {
-        if (this.sessions.get(appSessionId) === session) this.forget(appSessionId);
+        if (this.sessions.get(appSessionId) === session) this.forget(appSessionId, 'ended');
       });
       await this.audit.tryRecord(entry('success'));
       return { username: request.username, home };
@@ -193,10 +233,10 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private close(appSessionId: string, why: string): void {
+  private close(appSessionId: string, why: LinuxCloseReason): void {
     const session = this.sessions.get(appSessionId);
     if (!session) return;
-    this.forget(appSessionId);
+    this.forget(appSessionId, why);
     session.client.end();
     if (why === 'idle' || why === 'app-sign-out') {
       void this.audit.tryRecord({
@@ -208,11 +248,13 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private forget(appSessionId: string): void {
+  private forget(appSessionId: string, why: LinuxCloseReason): void {
     const session = this.sessions.get(appSessionId);
     if (!session) return;
     clearTimeout(session.idle);
     this.sessions.delete(appSessionId);
+    for (const listener of session.closing) listener(why);
+    session.closing.clear();
   }
 
   private connect(username: string, password: string): Promise<Client> {

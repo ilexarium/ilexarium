@@ -300,7 +300,32 @@ async function files() {
   check('/root refused (Linux decides)', root2.status === 403, `${root2.status}`);
   const del = await api('DELETE', '/files?path=%2Fhome%2Fanna%2Fhello.txt');
   check('deletes it', del.status === 204 && !existsSync('/home/anna/hello.txt'), `${del.status}`);
+  await terminal();
   await api('DELETE', '/files/session');
+}
+
+/** The web terminal: a shell as anna through this machine's sshd (the Linux session is open). */
+async function terminal() {
+  const ticket = await api('POST', '/terminal/ticket', { password: PASSWORD });
+  check('terminal: a ticket with the app password', ticket.status === 200, `${ticket.status}`);
+  const result = await new Promise((resolve) => {
+    let output = '';
+    const ws = new WebSocket(
+      `ws://127.0.0.1:3000/api/terminal?ticket=${ticket.json?.ticket}&cols=80&rows=24`,
+      { headers: { Cookie: cookie, Origin: ORIGIN } },
+    );
+    const timer = setTimeout(() => (ws.terminate(), resolve({ output, code: 'timeout' })), 20_000);
+    ws.on('message', (data) => {
+      output += data.toString();
+      if (/\$ ?$/m.test(output) && !output.includes('who=')) {
+        ws.send(Buffer.from('echo "who=$(id -un)"; exit\n'), { binary: true });
+      }
+    });
+    ws.on('close', (code) => (clearTimeout(timer), resolve({ output, code })));
+    ws.on('error', () => undefined);
+  });
+  check('terminal: a shell as anna', /who=anna/.test(result.output), result.output.slice(-200));
+  check('terminal: exit closes it (4000)', result.code === 4000, `${result.code}`);
 }
 
 async function install() {

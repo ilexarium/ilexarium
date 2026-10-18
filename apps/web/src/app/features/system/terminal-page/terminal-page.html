@@ -1,0 +1,106 @@
+@if (!store.checked()) {
+  <div class="grid gap-2" role="status" [attr.aria-label]="'terminal.connecting' | translate">
+    <hlm-skeleton class="h-48 w-full max-w-md" />
+  </div>
+} @else if (!store.session()) {
+  <div class="grid gap-4">
+    @if (store.closedReason(); as reason) {
+      <div hlmAlert class="max-w-md" role="status">
+        <p hlmAlertDescription>{{ 'terminal.closed.' + reason | translate }}</p>
+      </div>
+    }
+    <app-linux-sign-in
+      title="terminal.signIn.title"
+      text="terminal.signIn.text"
+      [submit]="signIn"
+    />
+  </div>
+} @else {
+  @switch (store.phase()) {
+    @case ('locked') {
+      <section hlmCard class="max-w-md" aria-labelledby="terminal-unlock-title">
+        <div hlmCardHeader>
+          <h2 hlmCardTitle id="terminal-unlock-title">{{ 'terminal.unlock.title' | translate }}</h2>
+          <p hlmCardDescription>{{ 'terminal.unlock.text' | translate }}</p>
+        </div>
+        <div hlmCardContent>
+          <form [formRoot]="unlockForm" class="grid gap-5">
+            @for (error of unlockForm().errors(); track error) {
+              <div hlmAlert variant="destructive" role="alert">
+                <p hlmAlertDescription>{{ error | errorText }}</p>
+              </div>
+            }
+            <div hlmField>
+              <label hlmFieldLabel for="terminal-password">{{
+                'terminal.unlock.password' | translate
+              }}</label>
+              <div class="relative">
+                <input
+                  hlmInput
+                  id="terminal-password"
+                  dir="ltr"
+                  class="pe-10"
+                  autocomplete="current-password"
+                  [type]="showPassword() ? 'text' : 'password'"
+                  [formField]="unlockForm.password"
+                />
+                <app-password-toggle [(visible)]="showPassword" />
+              </div>
+              @for (error of unlockForm.password().errors(); track error) {
+                <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+              }
+            </div>
+            <button
+              hlmBtn
+              type="submit"
+              class="justify-self-start"
+              [disabled]="unlockForm().submitting()"
+            >
+              {{
+                (unlockForm().submitting()
+                  ? 'terminal.unlock.submitting'
+                  : 'terminal.unlock.submit'
+                ) | translate
+              }}
+            </button>
+          </form>
+        </div>
+      </section>
+    }
+    @case ('closed') {
+      <div class="grid max-w-md gap-4">
+        <div hlmAlert role="status">
+          <h2 hlmAlertTitle>{{ 'terminal.closed.title' | translate }}</h2>
+          <p hlmAlertDescription>{{ 'terminal.closed.' + store.closedReason() | translate }}</p>
+        </div>
+        <button hlmBtn class="justify-self-start" (click)="store.lock()">
+          {{ 'terminal.openAgain' | translate }}
+        </button>
+      </div>
+    }
+    @default {
+      <div class="flex min-h-0 flex-1 flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="flex-1 text-sm text-muted-foreground" aria-live="polite">
+            @if (store.phase() === 'connecting') {
+              {{ 'terminal.connecting' | translate }}
+            } @else {
+              <span dir="ltr">{{ store.session()!.username }}</span>
+            }
+          </p>
+          <button hlmBtn variant="outline" size="sm" (click)="store.close()">
+            <ng-icon name="lucideX" aria-hidden="true" />
+            {{ 'terminal.close' | translate }}
+          </button>
+        </div>
+        <app-terminal-view
+          #view
+          [dark]="theme.dark()"
+          (ready)="connect($event)"
+          (resized)="store.resize($event)"
+          (data)="store.send($event)"
+        />
+      </div>
+    }
+  }
+}
