@@ -1213,6 +1213,7 @@
       "sizesHelp": "Smaller sizes (Q4) need less memory and answer faster; larger ones (Q8) are a little better.",
       "installed": "Installed",
       "download": "Download"
-    }
+    },
+    "checkAgain": "Check again"
   }
 }

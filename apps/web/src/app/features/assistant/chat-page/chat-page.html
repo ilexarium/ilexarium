@@ -15,9 +15,14 @@
         [text]="'assistant.notRunning' | translate"
         [detail]="'assistant.notRunningText' | translate"
       >
-        <a hlmBtn variant="outline" size="sm" routerLink="/containers">{{
-          'nav.containers' | translate
-        }}</a>
+        <div class="flex flex-wrap justify-center gap-2">
+          <button hlmBtn size="sm" (click)="store.load()">
+            {{ 'assistant.checkAgain' | translate }}
+          </button>
+          <a hlmBtn variant="outline" size="sm" routerLink="/containers">{{
+            'nav.containers' | translate
+          }}</a>
+        </div>
       </app-empty-state>
     }
     @default {
