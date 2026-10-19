@@ -2,20 +2,101 @@ import { PasswordHasher } from '@nestjs/authentication';
 import type { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { WS_CLOSE_CODES } from '@homelab/shared';
+import {
+  containerLogsPath,
+  LOG_LIMITS,
+  type LogLine,
+  logsEndSchema,
+  logsLinesSchema,
+} from '@homelab/shared';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import type { Env } from '../src/config/env.schema.js';
 import { ContainerLogStreams } from '../src/container-logs/container-log-streams.js';
 import { DockerService } from '../src/docker/docker.service.js';
 import { proxyReachable } from './docker-proxy.js';
-import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
+import { type SignedIn, signIn, testHasher } from './realtime-client.js';
 
 const POSTGRES = 'homelab-dev-postgres-1';
+const dockerReachable = await proxyReachable();
 
-async function start(
-  docker?: DockerService,
-): Promise<{ app: NestExpressApplication; client: Client }> {
+type LogsEvent =
+  { event: 'lines'; id: string; lines: LogLine[] } | { event: 'end'; reason: string };
+
+/** One log view, as the browser's `EventSource` sees it: its events, checked against the contract. */
+class LogsReader {
+  readonly events: LogsEvent[] = [];
+  /** Resolves once the server has ended the response. */
+  readonly ended: Promise<void>;
+  private waiters: (() => void)[] = [];
+
+  constructor(
+    readonly response: Response,
+    private readonly controller: AbortController,
+  ) {
+    this.ended = this.read().catch(() => {}); // aborted by close()
+  }
+
+  get lines(): LogLine[] {
+    return this.events.flatMap((e) => (e.event === 'lines' ? e.lines : []));
+  }
+
+  /** Resolves once `count` events have arrived in total. */
+  async received(count: number, timeoutMs = 3000): Promise<LogsEvent[]> {
+    while (this.events.length < count) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error(`Timed out at ${this.events.length}/${count} events`)),
+          timeoutMs,
+        );
+        this.waiters.push(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    }
+    return this.events;
+  }
+
+  /** The browser leaves. */
+  close(): void {
+    this.controller.abort();
+  }
+
+  private async read(): Promise<void> {
+    const decoder = new TextDecoder();
+    let text = '';
+    for await (const chunk of this.response.body!) {
+      text += decoder.decode(chunk, { stream: true });
+      let end: number;
+      while ((end = text.indexOf('\n\n')) >= 0) {
+        this.parse(text.slice(0, end));
+        text = text.slice(end + 2);
+      }
+    }
+  }
+
+  private parse(block: string): void {
+    const fields = new Map<string, string>();
+    for (const field of block.split('\n')) {
+      const match = /^(\w+): (.*)$/.exec(field);
+      if (match) fields.set(match[1], match[2]);
+    }
+    const data = fields.has('data') ? JSON.parse(fields.get('data')!) : undefined;
+    if (fields.get('event') === 'lines') {
+      const { lines } = logsLinesSchema.parse(data);
+      expect(fields.get('id')).toBe(lines.at(-1)!.at);
+      this.events.push({ event: 'lines', id: fields.get('id')!, lines });
+    } else if (fields.get('event') === 'end') {
+      this.events.push({ event: 'end', ...logsEndSchema.parse(data) });
+    } else {
+      return; // `retry`, comments
+    }
+    for (const wake of this.waiters.splice(0)) wake();
+  }
+}
+
+async function start(docker?: DockerService): Promise<{ app: NestExpressApplication } & SignedIn> {
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(PasswordHasher)
     .useValue(testHasher);
@@ -23,160 +104,145 @@ async function start(
   const app = configureApp(
     (await builder.compile()).createNestApplication<NestExpressApplication>(),
   );
-  return { app, client: await connectSignedIn(app) };
+  return { app, ...(await signIn(app)) };
 }
 
-describe('container logs without Docker (e2e)', () => {
+describe('container logs over SSE (e2e)', () => {
   let app: NestExpressApplication;
-  let client: Client;
+  let session: SignedIn;
+  const readers: LogsReader[] = [];
 
-  beforeEach(async () => {
-    // Port 1 on loopback: nothing listens there, so the connection is refused at once.
-    const unreachable = { get: () => 'tcp://127.0.0.1:1' } as unknown as ConfigService<Env, true>;
-    ({ app, client } = await start(new DockerService(unreachable)));
-  });
+  async function open(
+    name: string,
+    { query = '', headers = {} }: { query?: string; headers?: Record<string, string> } = {},
+  ): Promise<LogsReader> {
+    const controller = new AbortController();
+    const response = await fetch(`${session.origin}${containerLogsPath(name)}${query}`, {
+      headers: { Cookie: session.cookie, Accept: 'text/event-stream', ...headers },
+      signal: controller.signal,
+    });
+    const reader = new LogsReader(response, controller);
+    readers.push(reader);
+    return reader;
+  }
 
   afterEach(async () => {
-    client.socket.terminate();
+    for (const reader of readers.splice(0)) reader.close();
     await app.close();
   });
 
-  it('ends with reason error', async () => {
-    client.send({ event: 'logs:open', data: { container: POSTGRES } });
-    expect(await client.received(1)).toEqual([
-      { event: 'logs:end', data: { container: POSTGRES, reason: 'error' } },
-    ]);
-    expect(app.get(ContainerLogStreams).openCount).toBe(0);
-  });
-});
+  describe('without Docker', () => {
+    beforeEach(async () => {
+      // Port 1 on loopback: nothing listens there, so the connection is refused at once.
+      const unreachable = { get: () => 'tcp://127.0.0.1:1' } as unknown as ConfigService<Env, true>;
+      ({ app, ...session } = await start(new DockerService(unreachable)));
+    });
 
-const dockerReachable = await proxyReachable();
+    it('needs a session', async () => {
+      const response = await fetch(`${session.origin}${containerLogsPath(POSTGRES)}`);
+      expect(response.status).toBe(401);
+    });
 
-describe.skipIf(!dockerReachable)('container logs with real Docker (e2e)', () => {
-  let app: NestExpressApplication;
-  let client: Client;
+    it('answers as an event stream that ends with reason error', async () => {
+      const reader = await open(POSTGRES);
+      expect(reader.response.status).toBe(200);
+      expect(reader.response.headers.get('content-type')).toBe('text/event-stream; charset=utf-8');
+      expect(reader.response.headers.get('cache-control')).toBe('no-store');
+      await reader.ended;
+      expect(reader.events).toEqual([{ event: 'end', reason: 'error' }]);
+      expect(app.get(ContainerLogStreams).openCount).toBe(0);
+    });
 
-  beforeEach(async () => {
-    ({ app, client } = await start());
-  });
-
-  afterEach(async () => {
-    client.socket.terminate();
-    await app.close();
-  });
-
-  it('sends the last lines of the dev Postgres, follows, and closes the stream on logs:close', async () => {
-    client.send({ event: 'logs:open', data: { container: POSTGRES, tail: 3 } });
-    const [batch] = await client.received(1);
-    if (batch.event !== 'logs:lines') throw new Error(`Expected lines, got ${batch.event}`);
-    expect(batch.data.container).toBe(POSTGRES);
-    expect(batch.data.lines).toHaveLength(3);
-
-    const streams = app.get(ContainerLogStreams);
-    expect(streams.openCount).toBe(1); // still following
-    client.send({ event: 'logs:close', data: { container: POSTGRES } });
-    await vi.waitFor(() => expect(streams.openCount).toBe(0));
-    await client.flush();
-    expect(client.events).toEqual(['logs:lines']); // no logs:end for a closed view
-  });
-
-  it('resumes after a given line without repeating it', async () => {
-    client.send({ event: 'logs:open', data: { container: POSTGRES, tail: 3 } });
-    const [first] = await client.received(1);
-    if (first.event !== 'logs:lines') throw new Error(`Expected lines, got ${first.event}`);
-    const [, second, third] = first.data.lines;
-
-    client.send({ event: 'logs:open', data: { container: POSTGRES, tail: 3, since: second.at } });
-    const [, resumed] = await client.received(2);
-    if (resumed.event !== 'logs:lines') throw new Error(`Expected lines, got ${resumed.event}`);
-    expect(resumed.data.lines[0]).toEqual(third);
-    expect(app.get(ContainerLogStreams).openCount).toBe(1); // replaced, not added
+    it('refuses invalid requests with 400, before asking Docker', async () => {
+      for (const [name, query, headers] of [
+        ['a/b', '', {}],
+        ['-flag', '', {}],
+        ['.hidden', '', {}],
+        [POSTGRES, '?tail=0', {}],
+        [POSTGRES, '?tail=5001', {}],
+        [POSTGRES, '?tail=1e3', {}],
+        [POSTGRES, '?since=yesterday', {}],
+        [POSTGRES, '?follow=0', {}],
+        [POSTGRES, '', { 'Last-Event-ID': 'yesterday' }],
+      ] as const) {
+        const reader = await open(name, { query, headers });
+        expect(reader.response.status, `${name}${query} ${JSON.stringify(headers)}`).toBe(400);
+      }
+      expect(app.get(ContainerLogStreams).openCount).toBe(0);
+    });
   });
 
-  it('closes the streams of a socket that disconnects', async () => {
-    client.send({ event: 'logs:open', data: { container: POSTGRES, tail: 1 } });
-    await client.received(1);
-    const streams = app.get(ContainerLogStreams);
-    expect(streams.openCount).toBe(1);
-    client.socket.close();
-    await vi.waitFor(() => expect(streams.openCount).toBe(0));
+  describe.skipIf(!dockerReachable)('with real Docker', () => {
+    beforeEach(async () => {
+      ({ app, ...session } = await start());
+    });
+
+    it('sends the last lines of the dev Postgres, follows, and stops when the browser leaves', async () => {
+      const reader = await open(POSTGRES, { query: '?tail=3' });
+      await vi.waitFor(() => expect(reader.lines).toHaveLength(3));
+      const streams = app.get(ContainerLogStreams);
+      expect(streams.openCount).toBe(1); // still following
+      reader.close();
+      await vi.waitFor(() => expect(streams.openCount).toBe(0));
+      expect(reader.events.some((e) => e.event === 'end')).toBe(false);
+    });
+
+    it('resumes after a Last-Event-ID (or since) without repeating it', async () => {
+      const first = await open(POSTGRES, { query: '?tail=3' });
+      await vi.waitFor(() => expect(first.lines).toHaveLength(3));
+      const [, second, third] = first.lines;
+      first.close();
+
+      const resumed = await open(POSTGRES, {
+        query: '?tail=3',
+        headers: { 'Last-Event-ID': second.at },
+      });
+      await resumed.received(1);
+      expect(resumed.lines[0]).toEqual(third);
+
+      const bySince = await open(POSTGRES, { query: `?since=${encodeURIComponent(second.at)}` });
+      await bySince.received(1);
+      expect(bySince.lines[0]).toEqual(third);
+    });
+
+    it('ends with not_found for an unknown container', async () => {
+      const reader = await open('homelab-no-such-container');
+      await reader.ended;
+      expect(reader.events).toEqual([{ event: 'end', reason: 'not_found' }]);
+    });
   });
 
-  it('ends with not_found for an unknown container', async () => {
-    client.send({ event: 'logs:open', data: { container: 'homelab-no-such-container' } });
-    expect(await client.received(1)).toEqual([
-      {
-        event: 'logs:end',
-        data: { container: 'homelab-no-such-container', reason: 'not_found' },
-      },
-    ]);
-  });
+  describe('limits', () => {
+    beforeEach(async () => {
+      // Every stream stays open (no output) until closed.
+      const quiet = {
+        // oxlint-disable-next-line require-yield -- a stream without output
+        async *containerLogs(_name: string, _options: unknown, signal: AbortSignal) {
+          await new Promise((resolve) => signal.addEventListener('abort', resolve));
+          throw new DOMException('aborted', 'AbortError');
+        },
+      } as unknown as DockerService;
+      ({ app, ...session } = await start(quiet));
+    });
 
-  it('refuses invalid requests with invalid_message, before asking Docker', async () => {
-    for (const data of [
-      { container: '../json' },
-      { container: 'a/b' },
-      { container: POSTGRES, tail: 0 },
-      { container: POSTGRES, tail: 5001 },
-      { container: POSTGRES, since: 'yesterday' },
-      { container: POSTGRES, follow: false },
-    ]) {
-      client.send({ event: 'logs:open', data });
-    }
-    client.send({ event: 'logs:close', data: { container: '..' } });
-    const messages = await client.received(7);
-    expect(messages.map((m) => (m.event === 'error' ? m.data.code : m.event))).toEqual(
-      Array(7).fill('invalid_message'),
-    );
-    expect(app.get(ContainerLogStreams).openCount).toBe(0);
-  });
-});
+    it(`ends a ${LOG_LIMITS.maxStreamsPerSession + 1}th stream of a sign-in with too_many`, async () => {
+      for (const name of ['a', 'b', 'c', 'd']) await open(name);
+      const streams = app.get(ContainerLogStreams);
+      await vi.waitFor(() => expect(streams.openCount).toBe(LOG_LIMITS.maxStreamsPerSession));
+      const refused = await open('e');
+      await refused.ended;
+      expect(refused.events).toEqual([{ event: 'end', reason: 'too_many' }]);
+    });
 
-describe('container log limits (e2e)', () => {
-  let app: NestExpressApplication;
-  let client: Client;
-
-  beforeEach(async () => {
-    // Every stream stays open (no output) until closed.
-    const quiet = {
-      // oxlint-disable-next-line require-yield -- a stream without output
-      async *containerLogs(_name: string, _options: unknown, signal: AbortSignal) {
-        await new Promise((resolve) => signal.addEventListener('abort', resolve));
-      },
-    } as unknown as DockerService;
-    ({ app, client } = await start(quiet));
-  });
-
-  afterEach(async () => {
-    client.socket.terminate();
-    await app.close();
-  });
-
-  it('closes the session’s log streams at once on sign-out', async () => {
-    client.send({ event: 'logs:open', data: { container: 'a' } });
-    client.send({ event: 'logs:open', data: { container: 'b' } });
-    await client.flush();
-    const streams = app.get(ContainerLogStreams);
-    expect(streams.openCount).toBe(2);
-    await client.signOut();
-    expect((await client.closed).code).toBe(WS_CLOSE_CODES.sessionEnded);
-    await vi.waitFor(() => expect(streams.openCount).toBe(0));
-  });
-
-  it('refuses a 4th open stream with too_many_streams; closing one makes room', async () => {
-    for (const container of ['a', 'b', 'c', 'd']) {
-      client.send({ event: 'logs:open', data: { container } });
-    }
-    expect(await client.received(1)).toEqual([
-      { event: 'error', data: { code: 'too_many_streams', message: expect.any(String) } },
-    ]);
-    const streams = app.get(ContainerLogStreams);
-    expect(streams.openCount).toBe(3);
-
-    client.send({ event: 'logs:close', data: { container: 'a' } });
-    client.send({ event: 'logs:open', data: { container: 'd' } });
-    await client.flush();
-    expect(client.messages).toHaveLength(1); // no second error
-    expect(streams.openCount).toBe(3);
+    it('ends the session’s streams at once on sign-out; reconnecting is refused', async () => {
+      const a = await open('a');
+      const b = await open('b');
+      const streams = app.get(ContainerLogStreams);
+      await vi.waitFor(() => expect(streams.openCount).toBe(2));
+      await session.signOut();
+      await Promise.all([a.ended, b.ended]);
+      expect(streams.openCount).toBe(0);
+      expect((await open('a')).response.status).toBe(401);
+    });
   });
 });

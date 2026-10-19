@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   LOG_LIMITS,
+  containerLogsPath,
+  containerLogsQuerySchema,
   containerNameSchema,
   logLineSchema,
-  logsCloseSchema,
   logsEndSchema,
   logsLinesSchema,
-  logsOpenSchema,
 } from './logs.js';
 
 const line = { at: '2026-10-11T12:00:00.123456789Z', stream: 'stdout', text: 'Server started' };
@@ -43,26 +43,33 @@ describe('containerNameSchema', () => {
   });
 });
 
-describe('logsOpenSchema', () => {
+describe('containerLogsQuerySchema', () => {
   it('defaults tail to 500 and leaves since out', () => {
-    expect(logsOpenSchema.parse({ container: 'jellyfin' })).toEqual({
-      container: 'jellyfin',
-      tail: LOG_LIMITS.defaultTail,
-    });
+    expect(containerLogsQuerySchema.parse({})).toEqual({ tail: LOG_LIMITS.defaultTail });
     expect(LOG_LIMITS.defaultTail).toBe(500);
   });
 
-  it('accepts tail from 1 to 5,000', () => {
-    for (const tail of [1, 500, 5000]) {
-      expect(logsOpenSchema.safeParse({ container: 'jellyfin', tail }).success, `${tail}`).toBe(
-        true,
-      );
+  it('accepts tail from 1 to 5,000, as a query string gives it', () => {
+    for (const tail of ['1', '500', '5000', '0500']) {
+      expect(containerLogsQuerySchema.parse({ tail }).tail, tail).toBe(Number(tail));
     }
   });
 
-  it('rejects tail outside 1–5,000 or not a whole number', () => {
-    for (const tail of [0, -1, 5001, 1.5, '500', null, Number.NaN, Infinity]) {
-      expect(logsOpenSchema.safeParse({ container: 'jellyfin', tail }).success, `${tail}`).toBe(
+  it('rejects tail outside 1–5,000 or not plain digits', () => {
+    for (const tail of [
+      '0',
+      '-1',
+      '5001',
+      '1.5',
+      '1e3',
+      ' 5',
+      '0x10',
+      '',
+      'NaN',
+      500,
+      ['1', '2'],
+    ]) {
+      expect(containerLogsQuerySchema.safeParse({ tail }).success, JSON.stringify(tail)).toBe(
         false,
       );
     }
@@ -70,37 +77,27 @@ describe('logsOpenSchema', () => {
 
   it('accepts since as Docker’s nanosecond timestamp', () => {
     for (const since of ['2026-10-11T12:00:00.123456789Z', '2026-10-11T12:00:00Z']) {
-      expect(logsOpenSchema.safeParse({ container: 'jellyfin', since }).success, since).toBe(true);
+      expect(containerLogsQuerySchema.safeParse({ since }).success, since).toBe(true);
     }
   });
 
   it('rejects since that isn’t an RFC 3339 UTC timestamp', () => {
-    for (const since of ['yesterday', '1791720000', 1_791_720_000_000, '2026-10-11', '']) {
-      expect(logsOpenSchema.safeParse({ container: 'jellyfin', since }).success, `${since}`).toBe(
-        false,
-      );
+    for (const since of ['yesterday', '1791720000', '2026-10-11', '', ['2026-10-11T12:00:00Z']]) {
+      expect(containerLogsQuerySchema.safeParse({ since }).success, `${since}`).toBe(false);
     }
   });
 
-  it('rejects a missing or invalid container name', () => {
-    expect(logsOpenSchema.safeParse({ tail: 100 }).success).toBe(false);
-    expect(logsOpenSchema.safeParse({ container: '../x' }).success).toBe(false);
-  });
-
   it('rejects unknown fields', () => {
-    for (const extra of [{ follow: false }, { stdout: false }, { until: line.at }]) {
-      const data = { container: 'jellyfin', ...extra };
-      expect(logsOpenSchema.safeParse(data).success, JSON.stringify(extra)).toBe(false);
+    for (const extra of [{ follow: '0' }, { stdout: '0' }, { until: line.at }, { name: 'x' }]) {
+      expect(containerLogsQuerySchema.safeParse(extra).success, JSON.stringify(extra)).toBe(false);
     }
   });
 });
 
-describe('logsCloseSchema', () => {
-  it('takes a container name and nothing else', () => {
-    expect(logsCloseSchema.safeParse({ container: 'jellyfin' }).success).toBe(true);
-    expect(logsCloseSchema.safeParse({}).success).toBe(false);
-    expect(logsCloseSchema.safeParse({ container: '../x' }).success).toBe(false);
-    expect(logsCloseSchema.safeParse({ container: 'jellyfin', tail: 5 }).success).toBe(false);
+describe('containerLogsPath', () => {
+  it('puts the encoded name in the path', () => {
+    expect(containerLogsPath('jellyfin')).toBe('/api/containers/jellyfin/logs');
+    expect(containerLogsPath('a/../b')).toBe('/api/containers/a%2F..%2Fb/logs');
   });
 });
 
@@ -128,25 +125,21 @@ describe('logLineSchema', () => {
 });
 
 describe('logsLinesSchema', () => {
-  it('accepts a batch, with or without skipped lines', () => {
-    expect(logsLinesSchema.safeParse({ container: 'jellyfin', lines: [line] }).success).toBe(true);
-    const flood = { container: 'jellyfin', lines: [line], skipped: 12_000 };
-    expect(logsLinesSchema.safeParse(flood).success).toBe(true);
+  it('accepts a batch of one or more lines', () => {
+    expect(logsLinesSchema.safeParse({ lines: [line] }).success).toBe(true);
+    expect(logsLinesSchema.safeParse({ lines: [line, line] }).success).toBe(true);
   });
 
-  it('rejects a skipped count that isn’t a positive whole number', () => {
-    for (const skipped of [0, -1, 1.5]) {
-      const data = { container: 'jellyfin', lines: [line], skipped };
-      expect(logsLinesSchema.safeParse(data).success, `${skipped}`).toBe(false);
-    }
+  it('rejects an empty batch', () => {
+    expect(logsLinesSchema.safeParse({ lines: [] }).success).toBe(false);
   });
 });
 
 describe('logsEndSchema', () => {
   it('accepts the known reasons only', () => {
-    for (const reason of ['stopped', 'removed', 'not_found', 'unavailable', 'error']) {
-      expect(logsEndSchema.safeParse({ container: 'jellyfin', reason }).success, reason).toBe(true);
+    for (const reason of ['stopped', 'removed', 'not_found', 'unavailable', 'error', 'too_many']) {
+      expect(logsEndSchema.safeParse({ reason }).success, reason).toBe(true);
     }
-    expect(logsEndSchema.safeParse({ container: 'jellyfin', reason: 'oops' }).success).toBe(false);
+    expect(logsEndSchema.safeParse({ reason: 'oops' }).success).toBe(false);
   });
 });

@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
 import { DockerModule } from '../docker/docker.module.js';
-import { RealtimeModule } from '../realtime/realtime.module.js';
+import { ContainerLogsController } from './container-logs.controller.js';
 import { ContainerLogStreams } from './container-log-streams.js';
 
-/** Container logs over the WebSocket (`logs:open` / `logs:close`), see docs/plans/container_logs.md. */
+/**
+ * Container logs as Server-Sent Events (`GET /api/containers/:name/logs`), see
+ * docs/plans/container_logs_sse.md.
+ */
 @Module({
-  imports: [DockerModule, RealtimeModule],
+  imports: [DockerModule],
+  controllers: [ContainerLogsController],
   providers: [ContainerLogStreams],
 })
 export class ContainerLogsModule {}

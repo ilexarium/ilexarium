@@ -1,4 +1,4 @@
-import type { LogsClose, LogsOpen, RealtimeTopic, ServerEventData } from '@homelab/shared';
+import type { RealtimeTopic, ServerEventData } from '@homelab/shared';
 import type { Observable } from 'rxjs';
 import type { MessageRateLimiter } from './message-rate-limiter.js';
 
@@ -38,19 +38,6 @@ export interface TopicSource<T extends RealtimeTopic = RealtimeTopic> {
  * - `abusive`: twice over it — the client ignores the errors, so the connection is closed.
  */
 export type RateDecision = 'allowed' | 'limited' | 'abusive';
-
-/**
- * Per-client log streams (`logs:open` / `logs:close`). Unlike topics, each viewer has its own
- * stream: a specific container, from its own starting point.
- */
-export interface LogStreamHandler {
-  /** Throws a `RealtimeException` to refuse (e.g. `too_many_streams`). */
-  open(client: RealtimeClient, request: LogsOpen): void;
-  /** Idempotent. */
-  close(client: RealtimeClient, request: LogsClose): void;
-  /** A disconnected client: close all of its streams. */
-  removeClient(client: RealtimeClient): void;
-}
 
 export type SnapshotData<T extends RealtimeTopic> = ServerEventData<`${T}:snapshot`>;
 

@@ -12,9 +12,8 @@ import { REALTIME_PATH } from '@homelab/shared';
 import type { WebSocket } from 'ws';
 import { RealtimeConnections } from './realtime-connections.js';
 import { RealtimeExceptionFilter } from './realtime-exception.filter.js';
-import { RealtimeLogStreams } from './realtime-log-streams.js';
 import { RealtimeSubscriptions } from './realtime-subscriptions.js';
-import { LogsCloseDto, LogsOpenDto, TopicRequestDto } from './realtime.dto.js';
+import { TopicRequestDto } from './realtime.dto.js';
 import { RealtimeGuard } from './realtime.guard.js';
 import { MAX_MESSAGE_BYTES } from './realtime.options.js';
 
@@ -33,7 +32,6 @@ export class RealtimeGateway
   constructor(
     private readonly connections: RealtimeConnections,
     private readonly subscriptions: RealtimeSubscriptions,
-    private readonly logStreams: RealtimeLogStreams,
   ) {}
 
   /** Synchronous up to the admission's first await — see `RealtimeConnections`. */
@@ -44,7 +42,6 @@ export class RealtimeGateway
   handleDisconnect(client: WebSocket): void {
     this.connections.release(client);
     this.subscriptions.removeClient(client);
-    this.logStreams.removeClient(client);
   }
 
   @SubscribeMessage('subscribe')
@@ -58,15 +55,5 @@ export class RealtimeGateway
   @SubscribeMessage('unsubscribe')
   unsubscribe(@ConnectedSocket() client: WebSocket, @MessageBody() body: TopicRequestDto): void {
     this.subscriptions.unsubscribe(client, body.topic);
-  }
-
-  @SubscribeMessage('logs:open')
-  openLogs(@ConnectedSocket() client: WebSocket, @MessageBody() body: LogsOpenDto): void {
-    this.logStreams.open(client, body);
-  }
-
-  @SubscribeMessage('logs:close')
-  closeLogs(@ConnectedSocket() client: WebSocket, @MessageBody() body: LogsCloseDto): void {
-    this.logStreams.close(client, body);
   }
 }
