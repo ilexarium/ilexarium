@@ -2,26 +2,7 @@
 <hlm-separator orientation="vertical" class="me-2" />
 <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
 <app-connection-status class="ms-auto" />
-<a
-  hlmBtn
-  variant="ghost"
-  size="icon"
-  class="relative"
-  routerLink="/alerts"
-  [attr.aria-label]="
-    openAlerts() > 0 ? ('alerts.bellCount' | plural: openAlerts()) : ('alerts.bell' | translate)
-  "
->
-  <ng-icon name="lucideBell" aria-hidden="true" />
-  @if (openAlerts() > 0) {
-    <span
-      class="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-semibold text-background"
-      [class]="critical() ? 'bg-destructive' : 'bg-warning'"
-      aria-hidden="true"
-      >{{ openAlerts() }}</span
-    >
-  }
-</a>
+<app-alerts-menu [open]="alerts.open()" [resolved]="alerts.closed()" />
 <app-theme-menu />
 <button
   hlmBtn

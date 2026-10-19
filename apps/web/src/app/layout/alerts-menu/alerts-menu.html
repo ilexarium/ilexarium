@@ -1,0 +1,77 @@
+<button
+  hlmBtn
+  variant="ghost"
+  size="icon"
+  class="relative"
+  [hlmDropdownMenuTrigger]="menu"
+  align="end"
+  (hlmDropdownMenuOpened)="opened()"
+  [attr.aria-label]="
+    open().length > 0 ? ('alerts.bellCount' | plural: open().length) : ('alerts.bell' | translate)
+  "
+>
+  <ng-icon name="lucideBell" aria-hidden="true" />
+  @if (open().length > 0) {
+    <span
+      class="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-semibold text-background"
+      [class]="critical() ? 'bg-destructive' : 'bg-warning'"
+      aria-hidden="true"
+      >{{ open().length }}</span
+    >
+  }
+</button>
+
+<ng-template #menu>
+  <!-- Never wider than the screen, with even space on both sides of a phone; the list scrolls inside. -->
+  <hlm-dropdown-menu class="w-[min(24rem,calc(100vw-1rem))] p-0 max-sm:mx-2">
+    <div class="flex items-baseline justify-between gap-2 border-b px-3 py-2.5">
+      <p class="text-sm font-semibold">{{ 'alerts.bell' | translate }}</p>
+      @if (open().length > 0) {
+        <p class="text-xs text-muted-foreground">
+          {{ 'alerts.menu.openCount' | plural: open().length }}
+        </p>
+      }
+    </div>
+
+    <div class="max-h-[min(28rem,65dvh)] overflow-y-auto p-1">
+      @if (open().length === 0) {
+        <p class="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+          <ng-icon name="lucideCircleCheck" class="text-success" aria-hidden="true" />
+          {{ 'alerts.noneOpen' | translate }}
+        </p>
+      }
+      @for (row of rows(); track row.id) {
+        @if (row.id === firstResolved()) {
+          <div hlmDropdownMenuLabel class="mt-1 border-t pt-2.5">
+            {{ 'alerts.closed' | translate }}
+          </div>
+        }
+        <a
+          hlmDropdownMenuItem
+          class="items-start gap-3 py-2"
+          [class.text-muted-foreground]="row.resolved"
+          [routerLink]="row.link"
+        >
+          <ng-icon [name]="row.icon" class="mt-0.5" [class]="row.iconClass" aria-hidden="true" />
+          <span class="grid min-w-0 gap-0.5">
+            <span class="break-words" [class.font-medium]="!row.resolved">{{
+              row.title[0] | translate: row.title[1]
+            }}</span>
+            <span class="text-xs text-muted-foreground">
+              {{ row.when[0] | translate: row.when[1] }}
+              @if (row.acknowledged) {
+                · {{ 'alerts.menu.acknowledged' | translate }}
+              }
+            </span>
+          </span>
+        </a>
+      }
+    </div>
+
+    <div class="border-t p-1">
+      <a hlmDropdownMenuItem routerLink="/alerts" class="justify-center font-medium">
+        {{ 'alerts.menu.all' | translate }}
+      </a>
+    </div>
+  </hlm-dropdown-menu>
+</ng-template>

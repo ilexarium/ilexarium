@@ -867,7 +867,15 @@
       "failed": "Something went wrong."
     },
     "loading": "Loading alerts",
-    "settingsLink": "Notification settings"
+    "settingsLink": "Notification settings",
+    "menu": {
+      "ago": "{{time}} ago",
+      "resolvedAgo": "Resolved {{time}} ago",
+      "acknowledged": "Acknowledged",
+      "all": "All alerts",
+      "openCount_one": "{{count}} open",
+      "openCount_other": "{{count}} open"
+    }
   },
   "notifications": {
     "description": "Alerts always show in the app. They can also reach you by email, or on your phone with ntfy.",

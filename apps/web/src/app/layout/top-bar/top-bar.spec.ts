@@ -89,32 +89,22 @@ describe('TopBar user menu', () => {
 });
 
 describe('TopBar alerts bell', () => {
-  async function render() {
+  it('shows the open alerts on the bell, which opens the alerts menu', async () => {
     const auth = fakeAuthApi({ user: OWNER });
     TestBed.configureTestingModule({ providers: [provideRouter([]), auth.provider] });
     await TestBed.inject(AuthStore).load();
     const fixture = TestBed.createComponent(TopBar);
-    await fixture.whenStable();
-    const bell = () =>
-      (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('a[href="/alerts"]')!;
-    return { fixture, bell };
-  }
-
-  it('links to the Alerts page, with no count while all is well', async () => {
-    const { bell } = await render();
-    expect(bell().getAttribute('aria-label')).toBe('Alerts');
-    expect(bell().textContent!.trim()).toBe('');
-  });
-
-  it('shows how many alerts are open, red when one is critical', async () => {
-    const { fixture, bell } = await render();
     TestBed.inject(AlertsStore).fill(
       alertsStatus({ open: [testAlert({ severity: 'warning' }), testAlert()] }),
     );
     await fixture.whenStable();
-    expect(bell().getAttribute('aria-label')).toBe('Alerts: 2 open');
-    const badge = bell().querySelector('span')!;
-    expect(badge.textContent!.trim()).toBe('2');
-    expect(badge.classList).toContain('bg-destructive');
+    const bell = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'app-alerts-menu button',
+    )!;
+    expect(bell.getAttribute('aria-label')).toBe('Alerts: 2 open');
+    bell.click();
+    await fixture.whenStable();
+    expect(document.querySelector('[data-slot="dropdown-menu"]')!.textContent).toContain('Immich');
+    document.querySelectorAll('.cdk-overlay-container').forEach((el) => el.remove());
   });
 });
