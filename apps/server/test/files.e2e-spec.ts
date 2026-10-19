@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
+import contentDisposition from 'content-disposition';
 import type { FileList, LinuxSession } from '@homelab/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
@@ -141,6 +142,23 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
     expect(download.headers['content-disposition']).toMatch(/^attachment; filename="page.html"/);
     expect(download.headers['x-content-type-options']).toBe('nosniff');
 
+    // Any name comes back whole: quotes, brackets, umlauts, other scripts.
+    const odd = `it's (1)* März "x" 日本.txt`;
+    await api()
+      .put(`/files/upload?folder=${q(folder)}&name=${q(odd)}`, 'odd')
+      .expect(204);
+    const oddDownload = await api()
+      .get(`/files/download?path=${q(`${folder}/${odd}`)}`)
+      .expect(200);
+    const header = oddDownload.headers['content-disposition'] as string;
+    expect(contentDisposition.parse(header)).toEqual({
+      type: 'attachment',
+      parameters: { filename: odd },
+    });
+    await api()
+      .delete(`/files?path=${q(`${folder}/${odd}`)}`)
+      .expect(204);
+
     const again = await api()
       .put(`/files/upload?folder=${q(folder)}&name=page.html`, 'other')
       .expect(409);
@@ -189,6 +207,8 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
     });
     expect(audit.map((a) => a.action)).toEqual([
       'files.upload',
+      'files.upload', // the oddly named file, and its delete
+      'files.delete',
       'files.upload',
       'files.upload',
       'files.rename',

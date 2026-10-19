@@ -1,4 +1,5 @@
 import { BlockList, isIP } from 'node:net';
+import ipaddr from 'ipaddr.js';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { DeliveryError } from './alerts.model.js';
 
@@ -49,36 +50,20 @@ const PRIVATE = blockList([
   ['fc00::', 7, 'ipv6'],
 ]);
 
-/** An IPv6 address's eight 16-bit groups (a dotted IPv4 tail counts as two). */
-function groups(address: string): number[] | null {
-  let text = address.replace(/%.*$/, '');
-  const tail = /(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(text);
-  if (tail) {
-    const [a, b, c, d] = tail.slice(1).map(Number);
-    text = `${text.slice(0, tail.index)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
-  }
-  const [head, rest] = text.split('::');
-  const part = (s: string | undefined) => (s ? s.split(':').map((g) => parseInt(g, 16)) : []);
-  const front = part(head);
-  const back = part(rest);
-  const fill = text.includes('::') ? 8 - front.length - back.length : 0;
-  const all = [...front, ...Array<number>(fill).fill(0), ...back];
-  return all.length === 8 && all.every((g) => g >= 0 && g <= 0xffff) ? all : null;
-}
-
 /**
  * An IPv4 address written as IPv6 is checked as the IPv4 address: mapped (`::ffff:10.0.0.1`, also
  * in hex, `::ffff:a00:1`) and the old compatible form (`::10.0.0.1`). `::` and `::1` stay IPv6.
+ * Parsing is `ipaddr.js`'s (zone ids, `::`, dotted tails), the rule ours.
  */
 function unwrap(address: string): { address: string; type: 'ipv4' | 'ipv6' } {
   if (isIP(address) === 4) return { address, type: 'ipv4' };
-  const g = groups(address);
-  const zeros = g?.slice(0, 5).every((x) => x === 0);
-  if (g && zeros && (g[5] === 0xffff || (g[5] === 0 && (g[6] !== 0 || g[7] > 1)))) {
-    return {
-      address: [g[6] >> 8, g[6] & 0xff, g[7] >> 8, g[7] & 0xff].join('.'),
-      type: 'ipv4',
-    };
+  if (!ipaddr.IPv6.isValid(address)) return { address, type: 'ipv6' };
+  const ip = ipaddr.IPv6.parse(address);
+  const [, , , , , sixth, high, low] = ip.parts;
+  const zeros = ip.parts.slice(0, 5).every((part) => part === 0);
+  if (ip.isIPv4MappedAddress() || (zeros && sixth === 0 && (high !== 0 || low > 1))) {
+    const ipv4 = ipaddr.fromByteArray(ip.toByteArray().slice(12)).toString();
+    return { address: ipv4, type: 'ipv4' };
   }
   return { address, type: 'ipv6' };
 }
