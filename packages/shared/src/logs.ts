@@ -1,16 +1,14 @@
 import { z } from 'zod';
 
 export const LOG_LIMITS = {
-  /** Open log streams per WebSocket connection. */
-  maxStreamsPerConnection: 3,
+  /** Open log streams per sign-in — below the browser's 6 connections per site over HTTP/1.1. */
+  maxStreamsPerSession: 4,
   /** Lines of history sent first, before following. */
   minTail: 1,
   maxTail: 5000,
   defaultTail: 500,
   /** Longer lines are cut and marked `truncated`. */
   maxLineBytes: 16 * 1024,
-  /** Lines are sent at most this often per stream. */
-  batchIntervalMs: 250,
   /** Lines the log view keeps in memory. */
   maxLinesInView: 10_000,
 } as const;
@@ -44,35 +42,40 @@ export const logLineSchema = z.object({
 });
 export type LogLine = z.infer<typeof logLineSchema>;
 
-// Client → server. Strict: anything else is an `invalid_message`.
+/** The logs of one container, as Server-Sent Events: `GET /api/containers/:name/logs`. */
+export function containerLogsPath(name: string): string {
+  return `/api/containers/${encodeURIComponent(name)}/logs`;
+}
 
-/** `data` of `logs:open`: the last `tail` lines (or those after `since`), then new ones live. */
-export const logsOpenSchema = z.strictObject({
-  container: containerNameSchema,
-  tail: z
-    .number()
-    .int()
-    .min(LOG_LIMITS.minTail)
-    .max(LOG_LIMITS.maxTail)
+export const containerLogsParamsSchema = z.strictObject({ name: containerNameSchema });
+export type ContainerLogsParams = z.infer<typeof containerLogsParamsSchema>;
+
+/** A whole number in a query string: digits only (no sign, no exponent, no spaces). */
+const queryInt = z
+  .string()
+  .regex(/^\d{1,9}$/)
+  .transform(Number);
+
+/**
+ * The query: the last `tail` lines (or those after `since`), then new ones live. Strict: anything
+ * else is a 400. A reconnect's `Last-Event-ID` header takes the place of `since`.
+ */
+export const containerLogsQuerySchema = z.strictObject({
+  tail: queryInt
+    .pipe(z.number().min(LOG_LIMITS.minTail).max(LOG_LIMITS.maxTail))
     .default(LOG_LIMITS.defaultTail),
-  /** Resuming after a dropped connection: only lines after the last one the viewer has. */
+  /** Resuming (a hidden tab shown again): only lines after the last one the viewer has. */
   since: logTimestampSchema.optional(),
 });
-export type LogsOpen = z.infer<typeof logsOpenSchema>;
+export type ContainerLogsQuery = z.infer<typeof containerLogsQuerySchema>;
 
-/** `data` of `logs:close`. */
-export const logsCloseSchema = z.strictObject({ container: containerNameSchema });
-export type LogsClose = z.infer<typeof logsCloseSchema>;
+// The events. Each `lines` event's `id` is its last line's `at`: what `EventSource` sends back as
+// `Last-Event-ID` when it reconnects.
 
-// Server → client.
+export const LOGS_EVENTS = { lines: 'lines', end: 'end' } as const;
 
-/** `data` of `logs:lines`: a batch, oldest first. */
-export const logsLinesSchema = z.object({
-  container: z.string(),
-  lines: z.array(logLineSchema),
-  /** A flood: this many lines after the last one in `lines` were dropped. */
-  skipped: z.number().int().positive().optional(),
-});
+/** `data` of a `lines` event: as Docker delivered them, oldest first. */
+export const logsLinesSchema = z.object({ lines: z.array(logLineSchema).min(1) });
 export type LogsLines = z.infer<typeof logsLinesSchema>;
 
 export const LOGS_END_REASONS = [
@@ -86,13 +89,12 @@ export const LOGS_END_REASONS = [
   'unavailable',
   /** Docker not reachable, or the stream failed. */
   'error',
+  /** Already `LOG_LIMITS.maxStreamsPerSession` log views open in this sign-in. */
+  'too_many',
 ] as const;
 export const logsEndReasonSchema = z.enum(LOGS_END_REASONS);
 export type LogsEndReason = z.infer<typeof logsEndReasonSchema>;
 
-/** `data` of `logs:end`: the stream is over; no more lines for this container until reopened. */
-export const logsEndSchema = z.object({
-  container: z.string(),
-  reason: logsEndReasonSchema,
-});
+/** `data` of an `end` event: the stream is over and the browser closes it (no reconnecting). */
+export const logsEndSchema = z.object({ reason: logsEndReasonSchema });
 export type LogsEnd = z.infer<typeof logsEndSchema>;

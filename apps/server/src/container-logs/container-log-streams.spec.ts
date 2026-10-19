@@ -1,38 +1,96 @@
+import { EventEmitter } from 'node:events';
 import { Logger } from '@nestjs/common';
-import { type ContainerState, LOG_LIMITS, type LogLine, type ServerMessage } from '@homelab/shared';
-import { WebSocket } from 'ws';
+import type { AuthenticationEvents } from '@nestjs/authentication';
+import type { Response } from 'express';
+import { Subject } from 'rxjs';
+import { type ContainerState, LOG_LIMITS, type LogLine } from '@homelab/shared';
 import { ContainerLogsError, type DockerService } from '../docker/docker.service.js';
-import { RealtimeLogStreams } from '../realtime/realtime-log-streams.js';
-import { RealtimeException } from '../realtime/realtime-messages.js';
+import { ContainerLogStreams } from './container-log-streams.js';
 import {
-  ContainerLogStreams,
-  MAX_BATCH_BYTES,
+  HEARTBEAT_MS,
   MAX_BATCH_LINES,
-  REOPEN_DELAY_MS,
-} from './container-log-streams.js';
-import type { RealtimeClient } from '../realtime/realtime.model.js';
-
-const BATCH_MS = LOG_LIMITS.batchIntervalMs;
+  MAX_RESPONSE_MS,
+  RETRY_MS,
+  STOP_GRACE_MS,
+} from './container-logs.constants.js';
+import type { LogsRequest, LogViewer } from './container-logs.model.js';
 
 function line(i: number, text = `line ${i}`): LogLine {
   return { at: `2026-10-11T12:00:00.${String(i).padStart(9, '0')}Z`, stream: 'stdout', text };
 }
 
-class FakeClient implements RealtimeClient {
-  readyState: number = WebSocket.OPEN;
-  bufferedAmount = 0;
-  readonly sent: ServerMessage[] = [];
-  send(data: string): void {
-    this.sent.push(JSON.parse(data) as ServerMessage);
+interface SseEvent {
+  event?: string;
+  id?: string;
+  data?: unknown;
+  retry?: number;
+  comment?: true;
+}
+
+/** A response the test reads back as events; `full` makes writes back up until `drain()`. */
+class FakeResponse extends EventEmitter {
+  statusCode = 0;
+  headers: Record<string, string> = {};
+  text = '';
+  writableEnded = false;
+  writableNeedDrain = false;
+  destroyed = false;
+  full = false;
+
+  status(code: number): this {
+    this.statusCode = code;
+    return this;
   }
-  get events(): string[] {
-    return this.sent.map((message) => message.event);
+  set(headers: Record<string, string>): this {
+    Object.assign(this.headers, headers);
+    return this;
+  }
+  flushHeaders(): void {}
+  write(chunk: string): boolean {
+    this.text += chunk;
+    if (this.full) this.writableNeedDrain = true;
+    return !this.full;
+  }
+  end(): void {
+    this.writableEnded = true;
+    this.emit('close');
+  }
+  drain(): void {
+    this.full = false;
+    this.writableNeedDrain = false;
+    this.emit('drain');
+  }
+  /** The browser went away. */
+  close(): void {
+    this.destroyed = true;
+    this.emit('close');
+  }
+
+  get events(): SseEvent[] {
+    return this.text
+      .split('\n\n')
+      .filter(Boolean)
+      .map((block) => {
+        const event: SseEvent = {};
+        for (const field of block.split('\n')) {
+          if (field.startsWith(':')) event.comment = true;
+          const [, key, value] = /^(\w+): (.*)$/.exec(field) ?? [];
+          if (key === 'event') event.event = value;
+          if (key === 'id') event.id = value;
+          if (key === 'data') event.data = JSON.parse(value);
+          if (key === 'retry') event.retry = Number(value);
+        }
+        return event;
+      });
   }
   /** Every line received, in order. */
   get lines(): LogLine[] {
-    return this.sent.flatMap((message) =>
-      message.event === 'logs:lines' ? message.data.lines : [],
+    return this.events.flatMap((e) =>
+      e.event === 'lines' ? (e.data as { lines: LogLine[] }).lines : [],
     );
+  }
+  get ends(): unknown[] {
+    return this.events.filter((e) => e.event === 'end').map((e) => e.data);
   }
 }
 
@@ -40,6 +98,8 @@ class FakeClient implements RealtimeClient {
 class Feed {
   private readonly queue: (LogLine | { end: true } | { error: unknown })[] = [];
   private wake: (() => void) | null = null;
+  /** Lines the reader has taken. */
+  read = 0;
 
   constructor(
     readonly name: string,
@@ -72,6 +132,7 @@ class Feed {
       }
       if ('end' in item) return;
       if ('error' in item) throw item.error;
+      this.read++;
       yield item;
     }
   }
@@ -98,17 +159,25 @@ class FakeDocker {
   }
 }
 
+const viewer: LogViewer = { sessionId: 's1', userId: 'u1' };
+
 describe('ContainerLogStreams', () => {
   let docker: FakeDocker;
+  let authEvents: Subject<unknown>;
   let streams: ContainerLogStreams;
-  let client: FakeClient;
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     docker = new FakeDocker();
-    streams = new ContainerLogStreams(docker as unknown as DockerService, new RealtimeLogStreams());
-    client = new FakeClient();
+    authEvents = new Subject();
+    streams = new ContainerLogStreams(
+      docker as unknown as DockerService,
+      {
+        events$: authEvents,
+      } as unknown as AuthenticationEvents,
+    );
+    streams.onModuleInit();
   });
 
   afterEach(() => {
@@ -120,279 +189,229 @@ describe('ContainerLogStreams', () => {
   /** Lets the streams' async work and timers run. */
   const tick = (ms = 0) => vi.advanceTimersByTimeAsync(ms);
 
-  it('registers itself as the gateway’s log stream handler', () => {
-    const registry = new RealtimeLogStreams();
-    const own = new ContainerLogStreams(docker as unknown as DockerService, registry);
-    expect(() => registry.register(own)).toThrow(/already registered/);
+  function serve(request: Partial<LogsRequest> = {}, who = viewer) {
+    const res = new FakeResponse();
+    const done = streams.serve(
+      res as unknown as Response,
+      { name: 'web', tail: LOG_LIMITS.defaultTail, ...request },
+      who,
+    );
+    return { res, done };
+  }
+
+  it('answers as an event stream, the reconnect delay first', async () => {
+    const { res } = serve();
+    await tick();
+    expect(res.statusCode).toBe(200);
+    expect(res.headers).toEqual({
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Accel-Buffering': 'no',
+    });
+    expect(res.events[0]).toEqual({ retry: RETRY_MS });
   });
 
-  it('asks Docker for the requested tail and sends the history as one batch', async () => {
-    streams.open(client, { container: 'web', tail: 100 });
-    expect(docker.last).toMatchObject({ name: 'web', options: { tail: 100 } });
+  it('asks Docker for the tail and sends what arrives together as one event, its id the last line’s time', async () => {
+    const { res } = serve({ tail: 100 });
+    await tick();
+    expect(docker.last.name).toBe('web');
+    expect(docker.last.options).toEqual({ tail: 100 });
+
     docker.last.push(line(1), line(2), line(3));
     await tick();
-    expect(client.sent).toEqual([
-      { event: 'logs:lines', data: { container: 'web', lines: [line(1), line(2), line(3)] } },
-    ]);
-  });
-
-  it('passes since on to Docker when resuming', () => {
-    streams.open(client, { container: 'web', tail: 500, since: line(7).at });
-    expect(docker.last.options).toEqual({ tail: 500, since: line(7).at });
-  });
-
-  it('sends at most one batch per interval', async () => {
-    streams.open(client, { container: 'web', tail: 10 });
-    docker.last.push(line(1));
-    await tick();
-    docker.last.push(line(2));
-    await tick();
-    docker.last.push(line(3));
-    await tick(BATCH_MS - 1);
-    expect(client.lines).toEqual([line(1)]);
-    await tick(1);
-    expect(client.sent).toHaveLength(2);
-    expect(client.lines).toEqual([line(1), line(2), line(3)]);
-  });
-
-  it('caps a flood per batch and counts the rest as skipped', async () => {
-    streams.open(client, { container: 'web', tail: 10 });
-    const flood = Array.from({ length: 10_000 }, (_, i) => line(i));
-    docker.last.push(...flood);
-    await tick();
-    expect(client.sent).toHaveLength(1);
-    const [first] = client.sent as Extract<ServerMessage, { event: 'logs:lines' }>[];
-    expect(first.data.lines).toEqual(flood.slice(0, MAX_BATCH_LINES));
-    expect(first.data.skipped).toBe(10_000 - MAX_BATCH_LINES);
-
-    // The flood is over: the next batch is complete again.
-    docker.last.push(line(20_000));
-    await tick(BATCH_MS);
-    expect(client.sent[1]).toEqual({
-      event: 'logs:lines',
-      data: { container: 'web', lines: [line(20_000)] },
-    });
-  });
-
-  it('caps a batch by size, too', async () => {
-    streams.open(client, { container: 'web', tail: 10 });
-    const big = 'x'.repeat(LOG_LIMITS.maxLineBytes);
-    const count = MAX_BATCH_BYTES / LOG_LIMITS.maxLineBytes + 5;
-    docker.last.push(...Array.from({ length: count }, (_, i) => line(i, big)));
-    await tick();
-    const [first] = client.sent as Extract<ServerMessage, { event: 'logs:lines' }>[];
-    expect(first.data.lines).toHaveLength(MAX_BATCH_BYTES / LOG_LIMITS.maxLineBytes);
-    expect(first.data.skipped).toBe(5);
-  });
-
-  it('counts lines as skipped while the client is backed up, and reports them after', async () => {
-    streams.open(client, { container: 'web', tail: 10 });
-    client.bufferedAmount = 10 * 1024 * 1024;
-    docker.last.push(line(1), line(2));
-    await tick(BATCH_MS);
-    docker.last.push(line(3));
-    await tick(BATCH_MS);
-    expect(client.sent).toEqual([]);
-
-    client.bufferedAmount = 0;
-    await tick(BATCH_MS);
-    expect(client.sent).toEqual([
-      { event: 'logs:lines', data: { container: 'web', lines: [], skipped: 3 } },
-    ]);
     docker.last.push(line(4));
-    await tick(BATCH_MS);
-    expect(client.lines).toEqual([line(4)]);
-  });
-
-  it('closes the Docker stream on logs:close, and sends nothing more', async () => {
-    streams.open(client, { container: 'web', tail: 10 });
-    const feed = docker.last;
-    feed.push(line(1));
-    streams.close(client, { container: 'web' });
-    await tick(BATCH_MS);
-    expect(feed.signal.aborted).toBe(true);
-    expect(client.sent).toEqual([]);
-    expect(streams.openCount).toBe(0);
-    streams.close(client, { container: 'web' }); // idempotent
-    streams.close(client, { container: 'never-opened' });
-  });
-
-  it('closes every stream of a client that disconnects (also how a sign-out ends them)', async () => {
-    const other = new FakeClient();
-    streams.open(client, { container: 'a', tail: 10 });
-    streams.open(client, { container: 'b', tail: 10 });
-    streams.open(other, { container: 'a', tail: 10 });
-    const [a, b, otherA] = docker.feeds;
-    streams.removeClient(client);
     await tick();
-    expect(a.signal.aborted).toBe(true);
-    expect(b.signal.aborted).toBe(true);
-    expect(otherA.signal.aborted).toBe(false);
-    expect(streams.openCount).toBe(1);
+    const events = res.events.filter((e) => e.event === 'lines');
+    expect(events).toEqual([
+      { event: 'lines', id: line(3).at, data: { lines: [line(1), line(2), line(3)] } },
+      { event: 'lines', id: line(4).at, data: { lines: [line(4)] } },
+    ]);
   });
 
-  it('closes everything on shutdown', () => {
-    streams.open(client, { container: 'a', tail: 10 });
-    streams.open(new FakeClient(), { container: 'b', tail: 10 });
+  it('splits a burst into events of at most MAX_BATCH_LINES', async () => {
+    const { res } = serve();
+    await tick();
+    const burst = Array.from({ length: MAX_BATCH_LINES + 1 }, (_, i) => line(i));
+    docker.last.push(...burst);
+    await tick();
+    const sizes = res.events
+      .filter((e) => e.event === 'lines')
+      .map((e) => (e.data as { lines: unknown[] }).lines.length);
+    expect(sizes).toEqual([MAX_BATCH_LINES, 1]);
+    expect(res.lines).toEqual(burst);
+  });
+
+  it('resumes after `since` (a Last-Event-ID or the query), as much as Docker gives at once', async () => {
+    serve({ tail: 100, since: line(5).at });
+    await tick();
+    expect(docker.last.options).toEqual({ tail: LOG_LIMITS.maxTail, since: line(5).at });
+  });
+
+  it('ends the response quietly when Docker ends the stream of a still running container', async () => {
+    const { res, done } = serve();
+    await tick();
+    docker.last.push(line(1));
+    docker.state = 'running';
+    docker.last.end();
+    await done;
+    expect(docker.containerState).toHaveBeenCalledWith('web');
+    expect(res.ends).toEqual([]);
+    expect(res.lines).toEqual([line(1)]); // the last lines before the end
+    expect(res.writableEnded).toBe(true);
+    expect(streams.openCount).toBe(0);
+  });
+
+  it.each([
+    ['exited', 'stopped'],
+    ['dead', 'stopped'],
+    [null, 'removed'],
+    [new Error('Docker unreachable'), 'error'],
+  ] as const)('a stream that ends with the container %s: end %s', async (state, reason) => {
+    const { res, done } = serve();
+    await tick();
+    docker.last.push(line(1));
+    docker.state = state;
+    docker.last.end();
+    await tick(STOP_GRACE_MS - 1);
+    expect(res.ends).toEqual([]); // asked again after a moment
+    await tick(1);
+    await done;
+    expect(docker.containerState).toHaveBeenCalledTimes(2);
+    expect(res.lines).toEqual([line(1)]);
+    expect(res.ends).toEqual([{ reason }]);
+    expect(res.events.at(-1)).toMatchObject({ event: 'end' });
+    expect(res.writableEnded).toBe(true);
+  });
+
+  it('ends the response quietly for a restart: stopped at first, running a moment later', async () => {
+    const { res, done } = serve();
+    await tick();
+    docker.state = 'exited';
+    docker.last.end();
+    await tick();
+    docker.state = 'running';
+    await tick(STOP_GRACE_MS);
+    await done;
+    expect(res.ends).toEqual([]);
+    expect(res.writableEnded).toBe(true);
+  });
+
+  it('ends without an event when the browser leaves during the moment', async () => {
+    const { res, done } = serve();
+    await tick();
+    docker.last.end();
+    await tick();
+    res.close();
+    await done;
+    expect(docker.containerState).toHaveBeenCalledTimes(1);
+    expect(res.ends).toEqual([]);
+  });
+
+  it.each([
+    [new ContainerLogsError('not_found'), {}, 'not_found'],
+    [new ContainerLogsError('not_found'), { since: line(1).at }, 'removed'],
+    [new ContainerLogsError('unavailable'), {}, 'unavailable'],
+    [new Error('connect ECONNREFUSED'), {}, 'error'],
+  ] as const)('Docker refusing with %s (%o): end %s', async (error, request, reason) => {
+    const { res, done } = serve(request);
+    await tick();
+    docker.last.fail(error);
+    await done;
+    expect(res.ends).toEqual([{ reason }]);
+    expect(docker.containerState).not.toHaveBeenCalled();
+  });
+
+  it('stops reading from Docker while the browser isn’t taking what was written', async () => {
+    const { res } = serve();
+    await tick();
+    res.full = true;
+    docker.last.push(...Array.from({ length: 2 * MAX_BATCH_LINES }, (_, i) => line(i)));
+    await tick();
+    // One batch written into a full buffer, then waiting.
+    expect(docker.last.read).toBe(MAX_BATCH_LINES);
+    await tick(60_000);
+    expect(docker.last.read).toBe(MAX_BATCH_LINES);
+
+    res.drain();
+    await tick();
+    expect(docker.last.read).toBe(2 * MAX_BATCH_LINES);
+    expect(res.lines).toHaveLength(2 * MAX_BATCH_LINES);
+  });
+
+  it('stops the Docker stream when the browser goes away', async () => {
+    const { res, done } = serve();
+    await tick();
+    res.close();
+    await done;
+    expect(docker.last.signal.aborted).toBe(true);
+    expect(streams.openCount).toBe(0);
+    expect(res.ends).toEqual([]);
+  });
+
+  it(`refuses a ${LOG_LIMITS.maxStreamsPerSession + 1}th stream of a session with end too_many; one closing makes room`, async () => {
+    const open = Array.from({ length: LOG_LIMITS.maxStreamsPerSession }, () => serve());
+    await tick();
+    expect(streams.openCount).toBe(LOG_LIMITS.maxStreamsPerSession);
+
+    const refused = serve();
+    await refused.done;
+    expect(refused.res.ends).toEqual([{ reason: 'too_many' }]);
+    expect(refused.res.writableEnded).toBe(true);
+    expect(docker.feeds).toHaveLength(LOG_LIMITS.maxStreamsPerSession);
+
+    // Another sign-in has its own.
+    serve({}, { sessionId: 's2', userId: 'u1' });
+    await tick();
+    expect(streams.openCount).toBe(LOG_LIMITS.maxStreamsPerSession + 1);
+
+    open[0].res.close();
+    await open[0].done;
+    const again = serve();
+    await tick();
+    expect(again.res.ends).toEqual([]);
+    expect(streams.openCount).toBe(LOG_LIMITS.maxStreamsPerSession + 1);
+  });
+
+  it('ends a response after MAX_RESPONSE_MS without an end event, so the reconnect checks the session', async () => {
+    const { res, done } = serve();
+    await tick(MAX_RESPONSE_MS - 1);
+    expect(res.writableEnded).toBe(false);
+    await tick(1);
+    await done;
+    expect(docker.last.signal.aborted).toBe(true);
+    expect(res.ends).toEqual([]);
+    expect(res.writableEnded).toBe(true);
+  });
+
+  it('sends a comment every HEARTBEAT_MS while quiet', async () => {
+    const { res } = serve();
+    await tick(2 * HEARTBEAT_MS);
+    expect(res.events.filter((e) => e.comment)).toHaveLength(2);
+  });
+
+  it('ends the signed-out session’s streams at once, and all of a user’s for "everywhere"', async () => {
+    const mine = serve();
+    const otherSession = serve({}, { sessionId: 's2', userId: 'u1' });
+    const otherUser = serve({}, { sessionId: 's3', userId: 'u2' });
+    await tick();
+
+    authEvents.next({ type: 'sign-out', sessionId: 's1', userId: 'u1', everywhere: false });
+    await mine.done;
+    expect(mine.res.writableEnded).toBe(true);
+    expect(streams.openCount).toBe(2);
+
+    authEvents.next({ type: 'sign-out', userId: 'u1', everywhere: true });
+    await otherSession.done;
+    expect(streams.openCount).toBe(1);
+    expect(otherUser.res.writableEnded).toBe(false);
+  });
+
+  it('ends every stream on shutdown', async () => {
+    const { done } = serve();
+    await tick();
     streams.onModuleDestroy();
-    expect(docker.feeds.every((feed) => feed.signal.aborted)).toBe(true);
+    await done;
     expect(streams.openCount).toBe(0);
-  });
-
-  it('allows 3 streams per connection; a 4th is refused with too_many_streams', () => {
-    for (const container of ['a', 'b', 'c']) streams.open(client, { container, tail: 10 });
-    expect(() => streams.open(client, { container: 'd', tail: 10 })).toThrow(
-      RealtimeException.tooManyStreams(),
-    );
-    expect(docker.feeds).toHaveLength(3);
-
-    // Re-opening one of the three doesn't count twice; closing one makes room.
-    streams.open(client, { container: 'a', tail: 10 });
-    streams.close(client, { container: 'b' });
-    streams.open(client, { container: 'd', tail: 10 });
-    expect(streams.openCount).toBe(3);
-    // Another connection has its own limit.
-    streams.open(new FakeClient(), { container: 'a', tail: 10 });
-  });
-
-  it('replaces the stream when a viewer re-opens the same container', async () => {
-    streams.open(client, { container: 'web', tail: 10 });
-    const old = docker.last;
-    streams.open(client, { container: 'web', tail: 10, since: line(5).at });
-    old.push(line(1)); // too late: aborted
-    docker.last.push(line(6));
-    await tick();
-    expect(old.signal.aborted).toBe(true);
-    expect(client.lines).toEqual([line(6)]);
-    expect(streams.openCount).toBe(1);
-  });
-
-  describe('when the stream ends', () => {
-    it('sends the last lines, then logs:end stopped, for a stopped container', async () => {
-      docker.state = 'exited';
-      streams.open(client, { container: 'web', tail: 10 });
-      docker.last.push(line(1));
-      await tick();
-      docker.last.push(line(2));
-      docker.last.end();
-      await tick();
-      expect(client.events).toEqual(['logs:lines', 'logs:lines', 'logs:end']);
-      expect(client.lines).toEqual([line(1), line(2)]); // not held back by the interval
-      expect(client.sent.at(-1)).toEqual({
-        event: 'logs:end',
-        data: { container: 'web', reason: 'stopped' },
-      });
-      expect(streams.openCount).toBe(0);
-    });
-
-    it('sends logs:end removed when the container is gone', async () => {
-      docker.state = null;
-      streams.open(client, { container: 'web', tail: 10 });
-      docker.last.end();
-      await tick();
-      expect(client.sent).toEqual([
-        { event: 'logs:end', data: { container: 'web', reason: 'removed' } },
-      ]);
-    });
-
-    it('re-opens quietly where it left off while the container still runs', async () => {
-      docker.state = 'running';
-      streams.open(client, { container: 'web', tail: 10 });
-      docker.last.push(line(1), line(2));
-      docker.last.end(); // e.g. an hour without output: the proxy's timeout
-      await tick(REOPEN_DELAY_MS - 1);
-      expect(docker.feeds).toHaveLength(1);
-      await tick(1);
-      expect(docker.feeds).toHaveLength(2);
-      expect(docker.last.options).toEqual({ since: line(2).at });
-      docker.last.push(line(3));
-      await tick(BATCH_MS);
-      expect(client.lines).toEqual([line(1), line(2), line(3)]);
-      expect(client.events).not.toContain('logs:end');
-    });
-
-    it('re-opens from when it was opened if no line had arrived yet', async () => {
-      vi.setSystemTime(new Date('2026-10-11T12:00:00.000Z'));
-      docker.state = 'running';
-      streams.open(client, { container: 'web', tail: 10 });
-      docker.last.end();
-      await tick(REOPEN_DELAY_MS);
-      expect(docker.last.options).toEqual({ since: '2026-10-11T12:00:00.000000000Z' });
-    });
-
-    it('doesn’t re-open a stream closed during the wait', async () => {
-      docker.state = 'running';
-      streams.open(client, { container: 'web', tail: 10 });
-      docker.last.end();
-      await tick();
-      streams.close(client, { container: 'web' });
-      await tick(REOPEN_DELAY_MS);
-      expect(docker.feeds).toHaveLength(1);
-      expect(client.sent).toEqual([]);
-    });
-
-    it('reports not_found and unavailable as such', async () => {
-      streams.open(client, { container: 'nope', tail: 10 });
-      docker.last.fail(new ContainerLogsError('not_found'));
-      streams.open(client, { container: 'silent', tail: 10 });
-      docker.last.fail(new ContainerLogsError('unavailable'));
-      await tick();
-      expect(client.sent).toEqual([
-        { event: 'logs:end', data: { container: 'nope', reason: 'not_found' } },
-        { event: 'logs:end', data: { container: 'silent', reason: 'unavailable' } },
-      ]);
-      expect(streams.openCount).toBe(0);
-    });
-
-    it('reports a container that disappears between re-opens as removed', async () => {
-      docker.state = 'running';
-      streams.open(client, { container: 'web', tail: 10 });
-      docker.last.end();
-      await tick(REOPEN_DELAY_MS);
-      docker.last.fail(new ContainerLogsError('not_found'));
-      await tick();
-      expect(client.sent).toEqual([
-        { event: 'logs:end', data: { container: 'web', reason: 'removed' } },
-      ]);
-    });
-
-    it('reports Docker failures as error, after the lines it had', async () => {
-      streams.open(client, { container: 'web', tail: 10 });
-      docker.last.push(line(1));
-      docker.last.fail(new Error('connect ECONNREFUSED'));
-      await tick();
-      expect(client.sent).toEqual([
-        { event: 'logs:lines', data: { container: 'web', lines: [line(1)] } },
-        { event: 'logs:end', data: { container: 'web', reason: 'error' } },
-      ]);
-    });
-
-    it('reports error when the state can’t be checked', async () => {
-      docker.state = new Error('Docker gone');
-      streams.open(client, { container: 'web', tail: 10 });
-      docker.last.end();
-      await tick();
-      expect(client.sent).toEqual([
-        { event: 'logs:end', data: { container: 'web', reason: 'error' } },
-      ]);
-    });
-
-    it('sends logs:end even to a backed-up client', async () => {
-      streams.open(client, { container: 'web', tail: 10 });
-      client.bufferedAmount = 10 * 1024 * 1024;
-      docker.last.push(line(1));
-      docker.last.end();
-      await tick();
-      expect(client.events).toEqual(['logs:end']);
-    });
-
-    it('sends nothing to a closed socket', async () => {
-      streams.open(client, { container: 'web', tail: 10 });
-      client.readyState = WebSocket.CLOSED;
-      docker.last.push(line(1));
-      docker.last.end();
-      await tick(BATCH_MS);
-      expect(client.sent).toEqual([]);
-    });
   });
 });

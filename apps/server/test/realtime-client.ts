@@ -65,40 +65,54 @@ export class Client {
   }
 }
 
-/**
- * Starts listening on a free port, creates the owner, signs in and opens a socket the way the
- * app's own page would. For e2e tests of a realtime topic.
- */
-export async function connectSignedIn(app: NestExpressApplication): Promise<Client> {
+/** A signed-in owner: the server's origin, the session cookie, and signing it out. */
+export interface SignedIn {
+  origin: string;
+  cookie: string;
+  signOut: () => Promise<void>;
+}
+
+/** Starts listening on a free port, creates the owner and signs in over HTTP. */
+export async function signIn(app: NestExpressApplication): Promise<SignedIn> {
   await app.listen(0, '127.0.0.1');
-  const host = `127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`;
+  const origin = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`;
   await resetDatabase(app.get(PrismaService));
   await app.get(UsersService).create({
     username: 'owner',
     passwordHash: await testHasher.hash(PASSWORD),
   });
-  const login = await request(`http://${host}`)
+  const login = await request(origin)
     .post('/api/auth/login')
-    .set('Origin', `http://${host}`)
+    .set('Origin', origin)
     .send({ username: 'owner', password: PASSWORD })
     .expect(200);
   const cookie = ([] as string[])
     .concat(login.headers['set-cookie'] ?? [])
     .find((c) => c.startsWith('__Host-sid='))!
     .split(';')[0];
-  const client = new Client(
-    new WebSocket(`ws://${host}${REALTIME_PATH}`, {
-      headers: { Cookie: cookie },
-      origin: `http://${host}`,
-    }),
-  );
-  client.signOut = async () => {
-    await request(`http://${host}`)
+  const signOut = async () => {
+    await request(origin)
       .post('/api/auth/logout')
-      .set('Origin', `http://${host}`)
+      .set('Origin', origin)
       .set('Cookie', cookie)
       .expect(204);
   };
+  return { origin, cookie, signOut };
+}
+
+/**
+ * Signs in and opens a socket the way the app's own page would. For e2e tests of a realtime
+ * topic.
+ */
+export async function connectSignedIn(app: NestExpressApplication): Promise<Client> {
+  const { origin, cookie, signOut } = await signIn(app);
+  const client = new Client(
+    new WebSocket(`${origin.replace('http:', 'ws:')}${REALTIME_PATH}`, {
+      headers: { Cookie: cookie },
+      origin,
+    }),
+  );
+  client.signOut = signOut;
   await new Promise((resolve) => client.socket.once('open', resolve));
   return client;
 }
