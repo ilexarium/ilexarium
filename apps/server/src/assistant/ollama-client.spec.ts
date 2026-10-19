@@ -32,7 +32,12 @@ describe('OllamaClient', () => {
     }
     expect(pieces).toEqual(['Hello', ' there', '!']);
     const request = ollama.requests.find((r) => r.url === '/api/chat')!;
-    expect(request.body).toEqual({ model: 'smollm2:135m', messages, options: { num_ctx: 8192 } });
+    expect(request.body).toMatchObject({
+      model: 'smollm2:135m',
+      messages,
+      stream: true,
+      options: { num_ctx: 8192 },
+    });
   });
 
   it('reports an error line in a stream as an error', async () => {
@@ -81,6 +86,42 @@ describe('OllamaClient', () => {
         // progress
       }
     }).rejects.toThrow('file does not exist');
+  });
+
+  it('treats a stream that breaks off before it’s done as an error, not a finished answer', async () => {
+    ollama.answer = { pieces: ['Half an'], cut: true };
+    const pieces: string[] = [];
+    await expect(async () => {
+      for await (const piece of client.chat(
+        'smollm2:135m',
+        [],
+        8192,
+        new AbortController().signal,
+      )) {
+        pieces.push(piece);
+      }
+    }).rejects.toBeInstanceOf(OllamaError);
+    expect(pieces).toEqual(['Half an']);
+  });
+
+  it('never hands the library a broken-off line (it would print it: chat contents are never logged)', async () => {
+    const warn = vi.spyOn(console, 'warn');
+    const log = vi.spyOn(console, 'log');
+    ollama.answer = { pieces: ['Secret'], cut: true, tail: '{"message":{"content":"half a sec' };
+    await expect(async () => {
+      for await (const _ of client.chat('smollm2:135m', [], 8192, new AbortController().signal)) {
+        // pieces
+      }
+    }).rejects.toBeInstanceOf(OllamaError);
+    const printed = [...warn.mock.calls, ...log.mock.calls].flat().join(' ');
+    expect(printed).not.toContain('half a sec');
+    vi.restoreAllMocks();
+  });
+
+  it('follows no redirect', async () => {
+    ollama.redirect = true;
+    await expect(client.version()).rejects.toMatchObject({ status: 0 });
+    expect(ollama.requests).toHaveLength(1);
   });
 
   it('says so when nothing answers', async () => {
