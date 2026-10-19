@@ -903,7 +903,19 @@
     "bellCount_two": "التنبيهات: اثنان مفتوحان",
     "bellCount_few": "التنبيهات: {{count}} مفتوحة",
     "bellCount_many": "التنبيهات: {{count}} مفتوحًا",
-    "bellCount_other": "التنبيهات: {{count}} مفتوح"
+    "bellCount_other": "التنبيهات: {{count}} مفتوح",
+    "menu": {
+      "ago": "قبل {{time}}",
+      "resolvedAgo": "حُلّ قبل {{time}}",
+      "acknowledged": "تم الإقرار به",
+      "all": "كل التنبيهات",
+      "openCount_zero": "لا شيء مفتوح",
+      "openCount_one": "واحد مفتوح",
+      "openCount_two": "اثنان مفتوحان",
+      "openCount_few": "{{count}} مفتوحة",
+      "openCount_many": "{{count}} مفتوحًا",
+      "openCount_other": "{{count}} مفتوح"
+    }
   },
   "notifications": {
     "description": "تظهر التنبيهات دائمًا في التطبيق. ويمكن أن تصلك أيضًا بالبريد الإلكتروني أو على هاتفك عبر ntfy.",

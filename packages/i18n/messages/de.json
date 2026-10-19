@@ -867,7 +867,15 @@
       "failed": "Etwas ist schiefgelaufen."
     },
     "loading": "Warnungen werden geladen",
-    "settingsLink": "Benachrichtigungseinstellungen"
+    "settingsLink": "Benachrichtigungseinstellungen",
+    "menu": {
+      "ago": "Vor {{time}}",
+      "resolvedAgo": "Vor {{time}} behoben",
+      "acknowledged": "Bestätigt",
+      "all": "Alle Warnungen",
+      "openCount_one": "{{count}} offen",
+      "openCount_other": "{{count}} offen"
+    }
   },
   "notifications": {
     "description": "Warnungen erscheinen immer in der App. Sie können dich auch per E-Mail erreichen oder mit ntfy auf dem Handy.",
