@@ -152,7 +152,11 @@
     "fileNameRequired": "أدخل اسمًا",
     "fileNameTooLong": "255 حرفًا على الأكثر",
     "fileNameInvalid": "اسم بلا «/» (وليس «.» أو «..»)",
-    "linuxUsernameInvalid": "اسم مستخدم لينكس، مثل anna"
+    "linuxUsernameInvalid": "اسم مستخدم لينكس، مثل anna",
+    "modelNameRequired": "أدخل اسم نموذج",
+    "modelNameInvalid": "اسم نموذج مثل ⁦llama3.2:3b⁩",
+    "messageRequired": "اكتب رسالة",
+    "messageTooLong": "{{messageMax}} حرفًا كحد أقصى"
   },
   "errors": {
     "network": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك وحاول مرة أخرى.",

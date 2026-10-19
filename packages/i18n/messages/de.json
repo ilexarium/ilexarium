@@ -152,7 +152,11 @@
     "fileNameRequired": "Gib einen Namen ein",
     "fileNameTooLong": "Höchstens 255 Zeichen",
     "fileNameInvalid": "Ein Name ohne „/“ (nicht „.“ oder „..“)",
-    "linuxUsernameInvalid": "Ein Linux-Benutzername, z. B. anna"
+    "linuxUsernameInvalid": "Ein Linux-Benutzername, z. B. anna",
+    "modelNameRequired": "Gib einen Modellnamen ein",
+    "modelNameInvalid": "Ein Modellname wie llama3.2:3b",
+    "messageRequired": "Schreib eine Nachricht",
+    "messageTooLong": "Höchstens {{messageMax}} Zeichen"
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",

@@ -152,7 +152,11 @@
     "fileNameRequired": "Enter a name",
     "fileNameTooLong": "At most 255 characters",
     "fileNameInvalid": "A name without “/” (not “.” or “..”)",
-    "linuxUsernameInvalid": "A Linux user name, like anna"
+    "linuxUsernameInvalid": "A Linux user name, like anna",
+    "modelNameRequired": "Enter a model name",
+    "modelNameInvalid": "A model name like llama3.2:3b",
+    "messageRequired": "Write a message",
+    "messageTooLong": "At most {{messageMax}} characters"
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
