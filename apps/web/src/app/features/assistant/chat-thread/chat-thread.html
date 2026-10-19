@@ -12,7 +12,12 @@
               <div hlmMessage align="end">
                 <div hlmMessageContent>
                   <div hlmBubble>
-                    <div hlmBubbleContent class="text-sm whitespace-pre-wrap break-words">
+                    <!-- The person's own text: its own direction, whatever the interface language. -->
+                    <div
+                      hlmBubbleContent
+                      dir="auto"
+                      class="text-sm break-words whitespace-pre-wrap"
+                    >
                       {{ row.content }}
                     </div>
                   </div>
@@ -28,7 +33,7 @@
                       }}</span>
                     </div>
                   } @else {
-                    <app-markdown-view [text]="row.content" />
+                    <app-markdown-view dir="auto" [text]="row.content" />
                     @if (row.id !== 'streaming' && 'model' in row) {
                       <div hlmMessageFooter class="gap-1 px-0">
                         <span dir="ltr">{{ row.model }}</span>

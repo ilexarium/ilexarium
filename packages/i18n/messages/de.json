@@ -1213,6 +1213,7 @@
       "sizesHelp": "Kleinere Größen (Q4) brauchen weniger Speicher und antworten schneller; größere (Q8) sind etwas besser.",
       "installed": "Installiert",
       "download": "Herunterladen"
-    }
+    },
+    "checkAgain": "Erneut prüfen"
   }
 }

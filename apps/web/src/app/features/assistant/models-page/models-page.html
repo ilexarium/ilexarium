@@ -19,15 +19,18 @@
           ) | translate
         "
       >
-        <a
-          hlmBtn
-          size="sm"
-          [routerLink]="status.state === 'not_installed' ? '/services' : '/containers'"
-          >{{
-            (status.state === 'not_installed' ? 'assistant.installOllama' : 'nav.containers')
-              | translate
-          }}</a
-        >
+        @if (status.state === 'not_installed') {
+          <a hlmBtn size="sm" routerLink="/services">{{ 'assistant.installOllama' | translate }}</a>
+        } @else {
+          <div class="flex flex-wrap justify-center gap-2">
+            <button hlmBtn size="sm" (click)="store.load()">
+              {{ 'assistant.checkAgain' | translate }}
+            </button>
+            <a hlmBtn variant="outline" size="sm" routerLink="/containers">{{
+              'nav.containers' | translate
+            }}</a>
+          </div>
+        }
       </app-empty-state>
     } @else {
       @if (store.pull(); as pull) {
