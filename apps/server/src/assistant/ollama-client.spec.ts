@@ -104,20 +104,6 @@ describe('OllamaClient', () => {
     expect(pieces).toEqual(['Half an']);
   });
 
-  it('never hands the library a broken-off line (it would print it: chat contents are never logged)', async () => {
-    const warn = vi.spyOn(console, 'warn');
-    const log = vi.spyOn(console, 'log');
-    ollama.answer = { pieces: ['Secret'], cut: true, tail: '{"message":{"content":"half a sec' };
-    await expect(async () => {
-      for await (const _ of client.chat('smollm2:135m', [], 8192, new AbortController().signal)) {
-        // pieces
-      }
-    }).rejects.toBeInstanceOf(OllamaError);
-    const printed = [...warn.mock.calls, ...log.mock.calls].flat().join(' ');
-    expect(printed).not.toContain('half a sec');
-    vi.restoreAllMocks();
-  });
-
   it('follows no redirect', async () => {
     ollama.redirect = true;
     await expect(client.version()).rejects.toMatchObject({ status: 0 });

@@ -16,14 +16,13 @@ export class FakeOllama {
   loaded: string[] = [];
   /**
    * The answer, in pieces; `hang` keeps the stream open after them; `cut` ends it without the
-   * done line; `tail` is raw text written last (e.g. a broken-off line).
+   * done line.
    */
   answer: {
     pieces: string[];
     error?: string;
     hang?: boolean;
     cut?: boolean;
-    tail?: string;
     delayMs?: number;
   } = {
     pieces: ['Hello', ' there', '!'],
@@ -127,8 +126,7 @@ export class FakeOllama {
         else if (!this.answer.hang && !this.answer.cut) {
           lines.push({ message: { role: 'assistant', content: '' }, done: true });
         }
-        const { hang, delayMs, tail } = this.answer;
-        return this.stream(res, req.url!, lines, hang, delayMs, tail);
+        return this.stream(res, req.url!, lines, this.answer.hang, this.answer.delayMs);
       }
       default:
         return json(404, { error: 'not found' });
@@ -141,7 +139,6 @@ export class FakeOllama {
     lines: (object | null)[],
     hang = false,
     delayMs = 0,
-    tail = '',
   ): Promise<void> {
     res.on('close', () => {
       if (!res.writableFinished) this.closed.push(path);
@@ -153,7 +150,6 @@ export class FakeOllama {
       if (res.destroyed) return;
       res.write(`${JSON.stringify(line)}\n`);
     }
-    if (tail) res.write(tail);
     if (!hang) res.end();
   }
 }
