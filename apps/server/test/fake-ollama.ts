@@ -14,10 +14,22 @@ export interface FakeModel {
 export class FakeOllama {
   models: FakeModel[] = [{ name: 'smollm2:135m', size: 270_898_672 }];
   loaded: string[] = [];
-  /** The answer, in pieces; `hang` keeps the stream open after them. */
-  answer: { pieces: string[]; error?: string; hang?: boolean; delayMs?: number } = {
+  /**
+   * The answer, in pieces; `hang` keeps the stream open after them; `cut` ends it without the
+   * done line; `tail` is raw text written last (e.g. a broken-off line).
+   */
+  answer: {
+    pieces: string[];
+    error?: string;
+    hang?: boolean;
+    cut?: boolean;
+    tail?: string;
+    delayMs?: number;
+  } = {
     pieces: ['Hello', ' there', '!'],
   };
+  /** Answers every request with a redirect (to check none is followed). */
+  redirect = false;
   /** Download progress lines, then success (or an error line). */
   pull: { lines: object[]; error?: string; hang?: boolean } = {
     lines: [
@@ -59,6 +71,10 @@ export class FakeOllama {
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse, body: any): Promise<void> {
+    if (this.redirect) {
+      res.writeHead(302, { Location: 'http://127.0.0.1:1/elsewhere' }).end();
+      return;
+    }
     const json = (status: number, value: unknown): void => {
       res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(value));
     };
@@ -78,8 +94,10 @@ export class FakeOllama {
       case 'GET /api/ps':
         return json(200, { models: this.loaded.map((name) => ({ name })) });
       case 'DELETE /api/delete': {
-        const index = this.models.findIndex((model) => model.name === body.model);
-        if (index < 0) return json(404, { error: `model '${body.model}' not found` });
+        // Ollama takes `model`, or `name` (older; what the `ollama` library sends).
+        const name = body.model ?? body.name;
+        const index = this.models.findIndex((model) => model.name === name);
+        if (index < 0) return json(404, { error: `model '${name}' not found` });
         this.models.splice(index, 1);
         return json(200, {});
       }
@@ -106,9 +124,11 @@ export class FakeOllama {
           done: false,
         }));
         if (this.answer.error) lines.push({ error: this.answer.error });
-        else if (!this.answer.hang)
+        else if (!this.answer.hang && !this.answer.cut) {
           lines.push({ message: { role: 'assistant', content: '' }, done: true });
-        return this.stream(res, req.url!, lines, this.answer.hang, this.answer.delayMs);
+        }
+        const { hang, delayMs, tail } = this.answer;
+        return this.stream(res, req.url!, lines, hang, delayMs, tail);
       }
       default:
         return json(404, { error: 'not found' });
@@ -121,6 +141,7 @@ export class FakeOllama {
     lines: (object | null)[],
     hang = false,
     delayMs = 0,
+    tail = '',
   ): Promise<void> {
     res.on('close', () => {
       if (!res.writableFinished) this.closed.push(path);
@@ -132,6 +153,7 @@ export class FakeOllama {
       if (res.destroyed) return;
       res.write(`${JSON.stringify(line)}\n`);
     }
+    if (tail) res.write(tail);
     if (!hang) res.end();
   }
 }

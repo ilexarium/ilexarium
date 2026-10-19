@@ -253,8 +253,10 @@ describe('assistant (e2e)', () => {
       .expect(202);
     expect(started.body).toMatchObject({ model: 'qwen2.5:0.5b', status: 'running' });
     await vi.waitFor(() => expect(app.get(ModelPulls).view()?.status).toBe('succeeded'));
-    expect(ollama.requests.find((r) => r.url === '/api/pull')?.body).toEqual({
-      model: 'qwen2.5:0.5b',
+    // The `ollama` library sends the name as `name` (Ollama takes both).
+    expect(ollama.requests.find((r) => r.url === '/api/pull')?.body).toMatchObject({
+      name: 'qwen2.5:0.5b',
+      stream: true,
     });
     const outcomes = (
       await prisma.auditEvent.findMany({

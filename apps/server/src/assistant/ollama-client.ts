@@ -1,3 +1,4 @@
+import { Ollama } from 'ollama';
 import { z } from 'zod';
 import { OLLAMA_IDLE_MS, OLLAMA_REQUEST_MS } from './assistant.constants.js';
 import type { OllamaMessage, OllamaPullLine } from './assistant.model.js';
@@ -18,7 +19,7 @@ const tagsSchema = z.object({
     z.object({
       name: z.string(),
       size: z.number(),
-      modified_at: z.string(),
+      modified_at: z.union([z.string(), z.date()]).transform(String),
       details: z
         .object({
           family: z.string().optional(),
@@ -31,123 +32,166 @@ const tagsSchema = z.object({
   ),
 });
 const psSchema = z.object({ models: z.array(z.object({ name: z.string() })) });
-const chatLineSchema = z.object({
+const chatPartSchema = z.object({
   message: z.object({ content: z.string() }).optional(),
   done: z.boolean().optional(),
-  error: z.string().optional(),
+});
+const pullPartSchema = z.object({
+  status: z.string().optional(),
+  digest: z.string().optional(),
+  total: z.number().optional(),
+  completed: z.number().optional(),
 });
 
 export type OllamaTags = z.infer<typeof tagsSchema>;
 
 /**
- * Ollama's HTTP API (docs/plans/ai_assistant.md) at one fixed loopback address — the installed
- * recipe's port, never an address from a request. Answers are checked; streams are NDJSON.
+ * Ollama's API (docs/plans/ai_assistant.md) through its official client (`ollama`), at one fixed
+ * loopback address — the installed recipe's port, never an address from a request. Around the
+ * library: every request goes through `guardedFetch` (no redirects; quick calls time out; streams
+ * see only complete lines), streams give up after `OLLAMA_IDLE_MS` without a part and stop with
+ * our signal, and every answer is checked.
  */
 export class OllamaClient {
-  constructor(private readonly baseUrl: string) {}
+  private readonly ollama: Ollama;
+
+  constructor(baseUrl: string) {
+    this.ollama = new Ollama({ host: baseUrl, fetch: guardedFetch });
+  }
 
   async version(): Promise<string> {
-    return versionSchema.parse(await this.json('GET', '/api/version')).version;
+    return versionSchema.parse(await call(() => this.ollama.version())).version;
   }
 
   async tags(): Promise<OllamaTags> {
-    return tagsSchema.parse(await this.json('GET', '/api/tags'));
+    return tagsSchema.parse(await call(() => this.ollama.list()));
   }
 
   /** The models loaded in memory. */
   async loaded(): Promise<Set<string>> {
-    const { models } = psSchema.parse(await this.json('GET', '/api/ps'));
+    const { models } = psSchema.parse(await call(() => this.ollama.ps()));
     return new Set(models.map((model) => model.name));
   }
 
   async remove(model: string): Promise<void> {
-    await this.json('DELETE', '/api/delete', { model });
+    await call(() => this.ollama.delete({ model }));
   }
 
-  /** Downloads a model; each progress line as it comes. Closing (the signal) cancels it in Ollama. */
+  /** Downloads a model; each progress part as it comes. Stopping (the signal) cancels it in Ollama. */
   async *pull(model: string, signal: AbortSignal): AsyncGenerator<OllamaPullLine> {
-    for await (const line of this.stream('/api/pull', { model }, signal)) {
-      const progress = line as OllamaPullLine;
-      if (progress.error) throw new OllamaError(progress.error, 200);
-      yield progress;
-    }
+    const stream = await call(() => this.ollama.pull({ model, stream: true }));
+    for await (const part of guarded(stream, signal)) yield pullPartSchema.parse(part);
   }
 
-  /** An answer, piece by piece. */
+  /** An answer, piece by piece. A stream that breaks off before it's done is an error. */
   async *chat(
     model: string,
     messages: OllamaMessage[],
     contextTokens: number,
     signal: AbortSignal,
   ): AsyncGenerator<string> {
-    const body = { model, messages, options: { num_ctx: contextTokens } };
-    for await (const raw of this.stream('/api/chat', body, signal)) {
-      const line = chatLineSchema.parse(raw);
-      if (line.error) throw new OllamaError(line.error, 200);
-      if (line.message?.content) yield line.message.content;
-      if (line.done) return;
+    const stream = await call(() =>
+      this.ollama.chat({ model, messages, stream: true, options: { num_ctx: contextTokens } }),
+    );
+    for await (const part of guarded(stream, signal)) {
+      const { message } = chatPartSchema.parse(part);
+      if (message?.content) yield message.content;
     }
   }
+}
 
-  private async json(method: string, path: string, body?: unknown): Promise<unknown> {
-    const response = await this.request(method, path, body, AbortSignal.timeout(OLLAMA_REQUEST_MS));
-    return response.json();
+/** One of the library's calls, its failures as `OllamaError`s. */
+async function call<T>(request: () => Promise<T>): Promise<T> {
+  try {
+    return await request();
+  } catch (error) {
+    throw asOllamaError(error);
   }
+}
 
-  /** NDJSON lines; given up after `OLLAMA_IDLE_MS` without a byte. */
-  private async *stream(path: string, body: unknown, signal: AbortSignal): AsyncGenerator<unknown> {
-    const idle = new AbortController();
-    let timer = setTimeout(() => idle.abort(), OLLAMA_IDLE_MS);
-    const both = AbortSignal.any([signal, idle.signal]);
-    try {
-      const response = await this.request('POST', path, body, both);
-      if (!response.body) throw new OllamaError('No answer body', response.status);
-      const decoder = new TextDecoder();
-      let rest = '';
-      for await (const chunk of response.body) {
-        clearTimeout(timer);
-        timer = setTimeout(() => idle.abort(), OLLAMA_IDLE_MS);
-        rest += decoder.decode(chunk, { stream: true });
-        let end: number;
-        while ((end = rest.indexOf('\n')) >= 0) {
-          const text = rest.slice(0, end).trim();
-          rest = rest.slice(end + 1);
-          if (text) yield JSON.parse(text);
-        }
-      }
-      if (rest.trim()) yield JSON.parse(rest);
-    } catch (error) {
-      if (idle.signal.aborted && !signal.aborted) throw new OllamaError('No answer in time', 0);
-      throw error;
-    } finally {
+/** The library's errors: `ResponseError` (Ollama said no; not exported), a failed fetch, a stream's error line. */
+function asOllamaError(error: unknown): unknown {
+  if (error instanceof OllamaError || isAbort(error)) return error;
+  if (error instanceof Error && error.name === 'ResponseError') {
+    const status = (error as Error & { status_code?: number }).status_code ?? 0;
+    return new OllamaError(error.message, status);
+  }
+  if (error instanceof TypeError) return new OllamaError('Ollama is not reachable', 0);
+  return new OllamaError(error instanceof Error ? error.message : 'Ollama failed', 200);
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
+}
+
+/**
+ * A library stream, stopped by `signal` and given up after `OLLAMA_IDLE_MS` without a part
+ * (a stalled model must not hold a person's answer slot); its errors as `OllamaError`s.
+ */
+async function* guarded<T>(
+  stream: AsyncIterable<T> & { abort(): void },
+  signal: AbortSignal,
+): AsyncGenerator<T> {
+  let idle = false;
+  let timer = setTimeout(stopIdle, OLLAMA_IDLE_MS);
+  function stopIdle(): void {
+    idle = true;
+    stream.abort();
+  }
+  const stop = () => stream.abort();
+  signal.addEventListener('abort', stop, { once: true });
+  if (signal.aborted) stream.abort();
+  try {
+    for await (const part of stream) {
       clearTimeout(timer);
+      timer = setTimeout(stopIdle, OLLAMA_IDLE_MS);
+      yield part;
     }
+  } catch (error) {
+    if (signal.aborted) throw error;
+    if (idle) throw new OllamaError('No answer in time', 0);
+    throw asOllamaError(error);
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', stop);
   }
+}
 
-  private async request(
-    method: string,
-    path: string,
-    body: unknown,
-    signal: AbortSignal,
-  ): Promise<Response> {
-    let response: Response;
-    try {
-      response = await fetch(this.baseUrl + path, {
-        method,
-        signal,
-        redirect: 'error',
-        headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
-    } catch (error) {
-      if (signal.aborted) throw error;
-      throw new OllamaError('Ollama is not reachable', 0);
-    }
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      const message = /"error"\s*:\s*"([^"]*)"/.exec(text)?.[1] ?? `HTTP ${response.status}`;
-      throw new OllamaError(message, response.status);
-    }
-    return response;
-  }
+/**
+ * The library's `fetch`: never follows a redirect; a quick call (no signal of its own) times out
+ * after `OLLAMA_REQUEST_MS`; a stream reaches the library only as complete lines — the library
+ * prints a line it can't parse, and a broken-off line could hold a piece of an answer (chat
+ * contents are never logged).
+ */
+async function guardedFetch(
+  input: string | URL | Request,
+  init: RequestInit = {},
+): Promise<Response> {
+  const response = await fetch(input, {
+    ...init,
+    redirect: 'error',
+    signal: init.signal ?? AbortSignal.timeout(OLLAMA_REQUEST_MS),
+  });
+  if (!response.body || !response.headers.get('content-type')?.includes('ndjson')) return response;
+  return new Response(response.body.pipeThrough(wholeLines()), {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
+/** Passes on complete lines only; an unfinished last line is dropped. */
+function wholeLines(): TransformStream<Uint8Array, Uint8Array> {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let rest = '';
+  return new TransformStream({
+    transform(chunk, controller) {
+      rest += decoder.decode(chunk, { stream: true });
+      const end = rest.lastIndexOf('\n');
+      if (end < 0) return;
+      controller.enqueue(encoder.encode(rest.slice(0, end + 1)));
+      rest = rest.slice(end + 1);
+    },
+  });
 }
