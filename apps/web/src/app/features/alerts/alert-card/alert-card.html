@@ -3,18 +3,7 @@
   [class.border-destructive]="!alert().closedAt && alert().severity === 'critical'"
   [attr.aria-labelledby]="'alert-' + alert().id"
 >
-  <ng-icon
-    [name]="icon()"
-    class="size-5"
-    [class]="
-      alert().closedAt
-        ? 'text-muted-foreground'
-        : alert().severity === 'critical'
-          ? 'text-destructive'
-          : 'text-warning'
-    "
-    aria-hidden="true"
-  />
+  <ng-icon [name]="icon().icon" class="size-5" [class]="icon().color" aria-hidden="true" />
   <div class="grid min-w-0 gap-1">
     <h3 [id]="'alert-' + alert().id" class="flex flex-wrap items-center gap-2 font-medium">
       <span class="min-w-0 break-words">{{ title()[0] | translate: title()[1] }}</span>

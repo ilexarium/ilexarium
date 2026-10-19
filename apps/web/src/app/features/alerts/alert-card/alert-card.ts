@@ -5,7 +5,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
-import { alertLink, alertText, alertTitle } from '../../../core/alerts/alert-wording';
+import { alertIcon, alertLink, alertText, alertTitle } from '../../../core/alerts/alert-wording';
 import { Formatter } from '../../../shared/format/formatter';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 import { SEVERITY_TONES } from '../alerts.constants';
@@ -29,9 +29,5 @@ export class AlertCard {
   protected readonly title = computed(() => alertTitle(this.alert(), this.format));
   protected readonly text = computed(() => alertText(this.alert()));
   protected readonly link = computed(() => alertLink(this.alert()));
-  protected readonly icon = computed(() => {
-    const alert = this.alert();
-    if (alert.closedAt) return 'lucideCircleCheck';
-    return alert.severity === 'critical' ? 'lucideCircleAlert' : 'lucideTriangleAlert';
-  });
+  protected readonly icon = computed(() => alertIcon(this.alert()));
 }

@@ -73,6 +73,7 @@ describe('AlertsMenu', () => {
     const { openMenu, items } = await render([immich, disk]);
     const menu = await openMenu();
     expect(menu.textContent).toContain('2 open');
+    expect(menu.getAttribute('aria-label')).toBe('Alerts: 2 open');
     const [first, second, all] = items();
     expect(first.textContent).toContain('Immich');
     expect(first.getAttribute('href')).toBe('/containers/hl-immich-server-1/logs');
@@ -101,6 +102,38 @@ describe('AlertsMenu', () => {
     const { openMenu, items } = await render([], [resolvedBackup]);
     const menu = await openMenu();
     expect(menu.textContent).toContain('All is well: no open alerts.');
+    // Not a menu item, so screen readers skip the line: the menu's label says it.
+    expect(menu.getAttribute('aria-label')).toBe('All is well: no open alerts.');
     expect(items()).toHaveLength(2);
+  });
+});
+
+describe('AlertsMenu times', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    document.querySelectorAll('.cdk-overlay-container').forEach((el) => el.remove());
+  });
+
+  it('measures "… ago" again on every update, not only when the menu opened', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.parse('2026-10-17T12:05:00.000Z'));
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const fixture = TestBed.createComponent(Host);
+    const first = testAlert({ openedAt: '2026-10-17T12:00:00.000Z' });
+    fixture.componentInstance.open.set([first]);
+    await fixture.whenStable();
+    (fixture.nativeElement as HTMLElement).querySelector('button')!.click();
+    await fixture.whenStable();
+    const menu = () => document.querySelector('[data-slot="dropdown-menu"]')!.textContent!;
+    expect(menu()).toContain('5 minutes ago');
+    // The menu stays open; an hour later another alert arrives.
+    vi.setSystemTime(Date.parse('2026-10-17T13:05:00.000Z'));
+    fixture.componentInstance.open.set([
+      first,
+      testAlert({ openedAt: '2026-10-17T13:04:00.000Z' }),
+    ]);
+    await fixture.whenStable();
+    expect(menu()).toContain('1 hour, 5 minutes ago');
+    expect(menu()).toContain('1 minute ago');
   });
 });
