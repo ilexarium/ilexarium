@@ -101,5 +101,7 @@ function endNotice(reason: LogsEndReason, name: string): Notice {
       return { key: 'logs.notice.unavailable', problem: false, retry: false };
     case 'error':
       return { key: 'logs.notice.error', problem: true, retry: true };
+    case 'too_many':
+      return { key: 'logs.notice.refused', problem: true, retry: true };
   }
 }

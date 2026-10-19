@@ -13,9 +13,9 @@ async function switchToGerman() {
     'de',
     {
       connection: { offline: 'Getrennt' },
-      logs: {
-        skipped_one: '{{count}} Zeile ausgelassen',
-        skipped_other: '{{count}} Zeilen ausgelassen',
+      processes: {
+        count_one: '{{count}} Prozess',
+        count_other: '{{count}} Prozesse',
       },
     },
     true,
@@ -26,8 +26,8 @@ describe('Translator', () => {
   it('translates with params, and picks the plural form for a count', () => {
     const translator = TestBed.inject(Translator);
     expect(translator.t('pages.logs', { name: 'web' })).toBe('Logs · web');
-    expect(translator.plural('logs.skipped', 1)).toBe('1 line skipped (too many at once)');
-    expect(translator.plural('logs.skipped', 900)).toBe('900 lines skipped (too many at once)');
+    expect(translator.plural('processes.count', 1)).toBe('1 process');
+    expect(translator.plural('processes.count', 900)).toBe('900 processes');
   });
 
   it('cuts a translation around a placeholder, for markup in between', () => {
@@ -78,7 +78,7 @@ describe('Translator', () => {
 
 @Component({
   imports: [PluralPipe, ConnectionStatus],
-  template: `<p>{{ 'logs.skipped' | plural: 3 }}</p>
+  template: `<p>{{ 'processes.count' | plural: 3 }}</p>
     <app-connection-status />`,
 })
 class Host {}
@@ -88,12 +88,12 @@ describe('templates', () => {
     const fixture = TestBed.createComponent(Host);
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.textContent).toContain('3 lines skipped');
+    expect(el.textContent).toContain('3 processes');
     expect(el.textContent).toContain('Offline');
 
     await switchToGerman();
     await fixture.whenStable();
-    expect(el.textContent).toContain('3 Zeilen ausgelassen');
+    expect(el.textContent).toContain('3 Prozesse');
     expect(el.textContent).toContain('Getrennt');
   });
 });

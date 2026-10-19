@@ -1,13 +1,24 @@
-import { effect, inject, untracked } from '@angular/core';
+import { DestroyRef, DOCUMENT, effect, inject, InjectionToken, untracked } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import { type ClientMessage, LOG_LIMITS, type ServerMessage } from '@homelab/shared';
+import {
+  containerLogsPath,
+  LOG_LIMITS,
+  LOGS_EVENTS,
+  logsEndSchema,
+  logsLinesSchema,
+} from '@homelab/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
-import { RealtimeService } from '../../../core/realtime/realtime-service';
-import type { RealtimeStream } from '../../../core/realtime/realtime.model';
 import type { LogEntry, LogStreamState } from '../containers.model';
+import { QUIET_MS } from './logs-page-store.constants';
 
-/** No message this long after opening: the container has no output (yet). */
-export const QUIET_MS = 1_000;
+/** How event streams are opened — tests swap in a fake. */
+export const EVENT_SOURCE_FACTORY = new InjectionToken<(url: string) => EventSource>(
+  'EVENT_SOURCE_FACTORY',
+  { providedIn: 'root', factory: () => (url: string) => new EventSource(url) },
+);
+
+/** `EventSource.CLOSED`, without needing the global (tests use a fake). */
+const CLOSED = 2;
 
 interface LogsPageState {
   entries: LogEntry[];
@@ -17,32 +28,38 @@ interface LogsPageState {
 const initialState: LogsPageState = { entries: [], state: { status: 'idle' } };
 
 /**
- * The logs page's data — one container's logs, live — provided by the page and gone with it:
+ * The logs page's data — one container's logs, live, over Server-Sent Events
+ * (`GET /api/containers/:name/logs`) — provided by the page and gone with it:
  *
- * - the last `tail` lines first, then new ones; at most `LOG_LIMITS.maxLinesInView` kept;
- * - **resumes** after a dropped connection, and when a hidden tab is shown again, from the last
- *   line it has (`since`) — lines are neither repeated nor missed;
+ * - the last `tail` lines first, then new ones; at most `LOG_LIMITS.maxLinesInView` kept, and a
+ *   flood lands in at most one update per frame;
+ * - **resumes** after a dropped connection (`EventSource` reconnects by itself, from its last
+ *   event id) and when a hidden tab is shown again (closed while hidden, reopened with `since`);
  * - closed on `close()`, when the page goes away, and on sign-out (its lines are cleared).
- *
- * A per-viewer stream (`RealtimeService.attach()`), not a topic: each viewer its own container
- * and starting point.
  */
 export const LogsPageStore = signalStore(
   withState<LogsPageState>(initialState),
-  withMethods((store, realtime = inject(RealtimeService)) => {
+  withMethods((store, createSource = inject(EVENT_SOURCE_FACTORY), document = inject(DOCUMENT)) => {
     // Not state: what the stream needs to resume, and its plumbing.
     let container: string | null = null;
     let tail: number = LOG_LIMITS.defaultTail;
-    let lastAt: string | null = null;
+    /** The last line's time: where a reopened stream continues. */
+    let lastId: string | null = null;
     let nextId = 0;
-    let detach: (() => void) | null = null;
-    let send: ((message: ClientMessage) => void) | null = null;
+    let source: EventSource | null = null;
     let quietTimer: ReturnType<typeof setTimeout> | null = null;
+    let arrived: LogEntry[] = [];
+    let frame: number | null = null;
 
-    /** Open on the server: requested and not ended. */
+    /** Following: opened and not ended. */
     const active = () => {
       const { status } = store.state();
       return container !== null && (status === 'loading' || status === 'live');
+    };
+
+    const disconnect = () => {
+      source?.close();
+      source = null;
     };
 
     const clearQuietTimer = () => {
@@ -50,79 +67,78 @@ export const LogsPageStore = signalStore(
       quietTimer = null;
     };
 
-    const resume = (sender: (message: ClientMessage) => void) => {
-      send = sender;
-      if (!active()) return;
-      sender({
-        event: 'logs:open',
-        // Resuming: everything after the last line, as much as the server gives at once.
-        data: lastAt
-          ? { container: container!, tail: LOG_LIMITS.maxTail, since: lastAt }
-          : { container: container!, tail },
+    /** Shows the lines that arrived since the last frame. */
+    const showArrived = () => {
+      if (frame !== null) document.defaultView?.cancelAnimationFrame(frame);
+      frame = null;
+      if (arrived.length === 0) return;
+      patchState(store, {
+        entries: [...store.entries(), ...arrived].slice(-LOG_LIMITS.maxLinesInView),
+        state: { status: 'live' },
       });
-      if (store.state().status === 'loading') {
-        clearQuietTimer();
-        quietTimer = setTimeout(() => {
-          quietTimer = null;
-          if (store.state().status === 'loading') patchState(store, { state: { status: 'live' } });
-        }, QUIET_MS);
-      }
+      arrived = [];
     };
 
-    const receive = (message: ServerMessage) => {
-      if (message.event === 'error') {
-        // The only refusal of a `logs:open`; it can only be this stream's while nothing has come.
-        if (message.data.code === 'too_many_streams' && store.state().status === 'loading') {
-          clearQuietTimer();
-          patchState(store, { state: { status: 'refused' } });
-        }
-        return;
-      }
-      if (message.event !== 'logs:lines' && message.event !== 'logs:end') return;
-      if (message.data.container !== container || !active()) return;
-
-      if (message.event === 'logs:end') {
-        clearQuietTimer();
-        patchState(store, { state: { status: 'ended', reason: message.data.reason } });
-        return;
-      }
-      const added: LogEntry[] = [];
-      for (const line of message.data.lines) {
-        if (lastAt !== null && line.at <= lastAt) continue; // already have it
-        lastAt = line.at;
-        added.push({ kind: 'line', id: nextId++, ...line });
-      }
-      if (message.data.skipped) {
-        added.push({ kind: 'skipped', id: nextId++, count: message.data.skipped });
-      }
-      if (added.length > 0) {
-        patchState(store, {
-          entries: [...store.entries(), ...added].slice(-LOG_LIMITS.maxLinesInView),
-        });
-      }
+    const finish = (state: LogStreamState) => {
+      disconnect();
       clearQuietTimer();
-      patchState(store, { state: { status: 'live' } });
+      showArrived();
+      patchState(store, { state });
     };
 
-    const stream: RealtimeStream = {
-      resume,
-      pause: (sender) => {
-        if (active()) sender({ event: 'logs:close', data: { container: container! } });
-      },
-      receive,
+    const connect = () => {
+      const query = new URLSearchParams({ tail: String(tail) });
+      if (lastId) query.set('since', lastId);
+      const opened = createSource(`${containerLogsPath(container!)}?${query}`);
+      source = opened;
+      opened.addEventListener(LOGS_EVENTS.lines, (event: MessageEvent) => {
+        if (opened !== source) return;
+        const parsed = logsLinesSchema.safeParse(JSON.parse(event.data));
+        if (!parsed.success) return;
+        lastId = event.lastEventId || lastId;
+        clearQuietTimer();
+        for (const line of parsed.data.lines) arrived.push({ id: nextId++, ...line });
+        frame ??= document.defaultView?.requestAnimationFrame(showArrived) ?? null;
+      });
+      opened.addEventListener(LOGS_EVENTS.end, (event: MessageEvent) => {
+        if (opened !== source) return;
+        const parsed = logsEndSchema.safeParse(JSON.parse(event.data));
+        const reason = parsed.success ? parsed.data.reason : 'error';
+        finish(reason === 'too_many' ? { status: 'refused' } : { status: 'ended', reason });
+      });
+      // While reconnecting, `EventSource` tries again by itself; closed, it has given up
+      // (an error answer: the session ended, or the server refused the request).
+      opened.onerror = () => {
+        if (opened === source && opened.readyState === CLOSED) {
+          finish({ status: 'ended', reason: 'error' });
+        }
+      };
     };
 
     /** Stops the stream and forgets its lines. Idempotent. */
     const close = () => {
-      if (active()) send?.({ event: 'logs:close', data: { container: container! } });
-      detach?.();
-      detach = null;
-      send = null;
+      disconnect();
       clearQuietTimer();
+      if (frame !== null) document.defaultView?.cancelAnimationFrame(frame);
+      frame = null;
+      arrived = [];
       container = null;
-      lastAt = null;
+      lastId = null;
       patchState(store, initialState);
     };
+
+    const onVisibilityChange = () => {
+      if (!active()) return;
+      if (document.visibilityState === 'hidden') {
+        disconnect();
+      } else if (!source) {
+        connect();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    inject(DestroyRef).onDestroy(() =>
+      document.removeEventListener('visibilitychange', onVisibilityChange),
+    );
 
     return {
       /** Starts (or restarts) the stream of `name`, from its last `tailLines` lines. */
@@ -131,7 +147,11 @@ export const LogsPageStore = signalStore(
         container = name;
         tail = tailLines;
         patchState(store, { state: { status: 'loading' } });
-        detach = realtime.attach(stream);
+        quietTimer = setTimeout(() => {
+          quietTimer = null;
+          if (store.state().status === 'loading') patchState(store, { state: { status: 'live' } });
+        }, QUIET_MS);
+        if (document.visibilityState !== 'hidden') connect();
       },
       close,
     };

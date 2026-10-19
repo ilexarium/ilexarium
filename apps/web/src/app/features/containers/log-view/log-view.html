@@ -61,36 +61,30 @@
     (scroll)="onScroll()"
   >
     @for (entry of visible(); track entry.id) {
-      @if (entry.kind === 'line') {
-        <li
-          class="flex min-w-full flex-col px-3 [contain-intrinsic-block-size:auto_1.25rem] [content-visibility:auto] sm:flex-row sm:gap-3"
-          [class]="{ 'w-max': !prefs.wrap() }"
+      <li
+        class="flex min-w-full flex-col px-3 [contain-intrinsic-block-size:auto_1.25rem] [content-visibility:auto] sm:flex-row sm:gap-3"
+        [class]="{ 'w-max': !prefs.wrap() }"
+      >
+        @if (prefs.timestamps() || entry.stream === 'stderr') {
+          <span class="flex shrink-0 items-center gap-2">
+            @if (prefs.timestamps()) {
+              <time class="text-muted-foreground" [attr.datetime]="entry.at">{{
+                entry.at | logTime
+              }}</time>
+            }
+            @if (entry.stream === 'stderr') {
+              <span class="inline-flex items-center gap-1 font-medium text-destructive">
+                <ng-icon name="lucideTriangleAlert" aria-hidden="true" />stderr
+              </span>
+            }
+          </span>
+        }
+        <span
+          class="min-w-0"
+          [class]="prefs.wrap() ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'"
+          >{{ entry.text }}</span
         >
-          @if (prefs.timestamps() || entry.stream === 'stderr') {
-            <span class="flex shrink-0 items-center gap-2">
-              @if (prefs.timestamps()) {
-                <time class="text-muted-foreground" [attr.datetime]="entry.at">{{
-                  entry.at | logTime
-                }}</time>
-              }
-              @if (entry.stream === 'stderr') {
-                <span class="inline-flex items-center gap-1 font-medium text-destructive">
-                  <ng-icon name="lucideTriangleAlert" aria-hidden="true" />stderr
-                </span>
-              }
-            </span>
-          }
-          <span
-            class="min-w-0"
-            [class]="prefs.wrap() ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'"
-            >{{ entry.text }}</span
-          >
-        </li>
-      } @else {
-        <li class="px-3 text-center text-muted-foreground italic">
-          {{ 'logs.skipped' | plural: entry.count }}
-        </li>
-      }
+      </li>
     } @empty {
       @if (filter()) {
         <li class="px-3 text-muted-foreground">

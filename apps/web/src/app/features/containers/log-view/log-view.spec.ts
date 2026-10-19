@@ -11,9 +11,8 @@ let nextId = 0;
 function entry(text: string, stream: LogLine['stream'] = 'stdout'): LogEntry {
   const id = nextId++;
   const at = `2026-10-11T12:00:00.${String(id).padStart(9, '0')}Z`;
-  return { kind: 'line', id, at, stream, text };
+  return { id, at, stream, text };
 }
-const skipped = (count: number): LogEntry => ({ kind: 'skipped', id: nextId++, count });
 
 @Component({
   imports: [LogView],
@@ -99,12 +98,6 @@ describe('LogView', () => {
     expect(lines()[1].querySelector('ng-icon[name="lucideTriangleAlert"]')).not.toBeNull();
   });
 
-  it('says where lines were skipped in a flood', async () => {
-    const { lines } = await render([entry('a'), skipped(900), skipped(1)]);
-    expect(lines()[1].textContent).toContain('900 lines skipped');
-    expect(lines()[2].textContent).toContain('1 line skipped');
-  });
-
   it('keeps log lines left to right, even in a right-to-left language', async () => {
     const { box, el } = await render([entry('a')]);
     expect(box.getAttribute('dir')).toBe('ltr');
@@ -124,8 +117,8 @@ describe('LogView', () => {
       const line = entry('a');
       const { fixture, lines, button } = await render([line]);
       const time = lines()[0].querySelector('time')!;
-      expect(time.textContent).toBe(formatLogTime(line.kind === 'line' ? line.at : ''));
-      expect(time.getAttribute('datetime')).toBe(line.kind === 'line' && line.at);
+      expect(time.textContent).toBe(formatLogTime(line.at));
+      expect(time.getAttribute('datetime')).toBe(line.at);
 
       const toggle = button('Timestamps')!;
       expect(toggle.getAttribute('aria-pressed')).toBe('true');
@@ -185,7 +178,6 @@ describe('LogView', () => {
     it('shows matching lines only, ignoring case, and says how many', async () => {
       const { el, lines, filter } = await render([
         entry('GET /health 200'),
-        skipped(5),
         entry('get /api 500', 'stderr'),
         entry('started'),
       ]);

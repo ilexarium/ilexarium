@@ -4,21 +4,13 @@ import { provideRouter } from '@angular/router';
 import { LOG_LIMITS, type LogLine } from '@homelab/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
-import { FIRST_RETRY_MS, RealtimeService } from '../../../core/realtime/realtime-service';
-import { fakeSockets } from '../../../core/realtime/testing';
-import { LogsPageStore, QUIET_MS } from './logs-page-store';
+import { LogsPageStore } from './logs-page-store';
+import { QUIET_MS } from './logs-page-store.constants';
+import { fakeEventSources } from './testing';
 
 function line(i: number, stream: LogLine['stream'] = 'stdout'): LogLine {
   return { at: `2026-10-11T12:00:00.${String(i).padStart(9, '0')}Z`, stream, text: `line ${i}` };
 }
-const lines = (container: string, ...batch: LogLine[]) => ({
-  event: 'logs:lines',
-  data: { container, lines: batch },
-});
-const end = (container: string, reason: string) => ({
-  event: 'logs:end',
-  data: { container, reason },
-});
 
 /** A page that provides its own store, like the logs page. */
 @Component({ selector: 'app-host', template: '', providers: [LogsPageStore] })
@@ -33,21 +25,24 @@ function setVisibility(state: 'visible' | 'hidden') {
 
 async function setup() {
   const auth = fakeAuthApi({ user: OWNER });
-  const sockets = fakeSockets();
+  const sources = fakeEventSources();
   TestBed.configureTestingModule({
     providers: [
       provideRouter([{ path: 'login', children: [] }]),
       auth.provider,
-      sockets.provider,
+      sources.provider,
       LogsPageStore,
     ],
   });
   await TestBed.inject(AuthStore).load();
-  TestBed.inject(RealtimeService).connect();
-  sockets.latest().open();
   const logs = TestBed.inject(LogsPageStore);
   TestBed.tick();
-  return { logs, socket: () => sockets.latest() };
+  /** The server sends lines; they show at the next frame. */
+  const send = (...lines: LogLine[]) => {
+    sources.latest().emit('lines', { lines }, lines.at(-1)!.at);
+    vi.advanceTimersToNextFrame();
+  };
+  return { logs, sources: sources.sources, source: sources.latest, send };
 }
 
 describe('LogsPageStore', () => {
@@ -58,200 +53,175 @@ describe('LogsPageStore', () => {
     setVisibility('visible');
   });
 
-  it('asks for the last lines, and shows them once they come', async () => {
-    const { logs, socket } = await setup();
+  it('opens the container’s event stream for the last lines, and shows them once they come', async () => {
+    const { logs, source, send } = await setup();
     logs.open('web', 100);
-    expect(socket().sent).toEqual([{ event: 'logs:open', data: { container: 'web', tail: 100 } }]);
+    expect(source().url).toBe('/api/containers/web/logs?tail=100');
     expect(logs.state()).toEqual({ status: 'loading' });
 
-    socket().receive(lines('web', line(1), line(2, 'stderr')));
+    send(line(1), line(2, 'stderr'));
     expect(logs.state()).toEqual({ status: 'live' });
     expect(logs.entries()).toEqual([
-      { kind: 'line', id: 0, ...line(1) },
-      { kind: 'line', id: 1, ...line(2, 'stderr') },
+      { id: 0, ...line(1) },
+      { id: 1, ...line(2, 'stderr') },
     ]);
   });
 
   it('asks for 500 lines by default', async () => {
-    const { logs, socket } = await setup();
-    logs.open('web');
-    expect(socket().sent).toEqual([
-      { event: 'logs:open', data: { container: 'web', tail: LOG_LIMITS.defaultTail } },
-    ]);
+    const { logs, source } = await setup();
+    logs.open('a.b_c');
+    expect(source().url).toBe(`/api/containers/a.b_c/logs?tail=${LOG_LIMITS.defaultTail}`);
   });
 
   it('counts as live with no output when nothing comes for a moment', async () => {
     const { logs } = await setup();
     logs.open('web');
-    await vi.advanceTimersByTimeAsync(QUIET_MS - 1);
+    vi.advanceTimersByTime(QUIET_MS - 1);
     expect(logs.state()).toEqual({ status: 'loading' });
-    await vi.advanceTimersByTimeAsync(1);
+    vi.advanceTimersByTime(1);
     expect(logs.state()).toEqual({ status: 'live' });
     expect(logs.entries()).toEqual([]);
   });
 
-  it('adds a marker where the server skipped lines', async () => {
-    const { logs, socket } = await setup();
+  it('shows a flood in one update per frame', async () => {
+    const { logs, source } = await setup();
     logs.open('web');
-    socket().receive({
-      ...lines('web', line(1)),
-      data: { container: 'web', lines: [line(1)], skipped: 900 },
-    });
-    socket().receive(lines('web', line(2)));
-    expect(logs.entries().map((e) => (e.kind === 'line' ? e.text : `skipped ${e.count}`))).toEqual([
-      'line 1',
-      'skipped 900',
-      'line 2',
-    ]);
+    source().emit('lines', { lines: [line(1)] }, line(1).at);
+    source().emit('lines', { lines: [line(2), line(3)] }, line(3).at);
+    expect(logs.entries()).toEqual([]);
+    vi.advanceTimersToNextFrame();
+    expect(logs.entries().map((e) => e.text)).toEqual(['line 1', 'line 2', 'line 3']);
   });
 
-  it('keeps the last 10,000 entries', async () => {
-    const { logs, socket } = await setup();
+  it('keeps the last 10,000 lines', async () => {
+    const { logs, send } = await setup();
     logs.open('web');
-    for (let batch = 0; batch < 3; batch++) {
-      const batchLines = Array.from({ length: 5000 }, (_, i) => line(batch * 5000 + i + 1));
-      socket().receive(lines('web', ...batchLines));
-    }
+    const many = Array.from({ length: LOG_LIMITS.maxLinesInView + 5 }, (_, i) => line(i));
+    send(...many);
     expect(logs.entries()).toHaveLength(LOG_LIMITS.maxLinesInView);
-    const first = logs.entries()[0];
-    expect(first.kind === 'line' && first.text).toBe('line 5001');
+    expect(logs.entries()[0].text).toBe('line 5');
   });
 
-  it('resumes after a reconnect from the last line it has, without repeating any', async () => {
-    const { logs, socket } = await setup();
-    logs.open('web', 100);
-    socket().receive(lines('web', line(1), line(2)));
-    socket().serverClose(1006);
-    await vi.advanceTimersByTimeAsync(FIRST_RETRY_MS);
-    socket().open();
-    expect(socket().sent).toEqual([
-      {
-        event: 'logs:open',
-        data: { container: 'web', tail: LOG_LIMITS.maxTail, since: line(2).at },
-      },
-    ]);
-    // Even if the server sent a line it has again, it appears once.
-    socket().receive(lines('web', line(2), line(3)));
-    expect(logs.entries().map((e) => e.id)).toEqual([0, 1, 2]);
-    expect(logs.entries().map((e) => e.kind === 'line' && e.text)).toEqual([
-      'line 1',
-      'line 2',
-      'line 3',
-    ]);
+  it('leaves a dropped connection to the browser, which reconnects from the last event by itself', async () => {
+    const { logs, sources, source, send } = await setup();
+    logs.open('web');
+    send(line(1));
+    source().fail({ reconnecting: true });
+    expect(sources).toHaveLength(1);
     expect(logs.state()).toEqual({ status: 'live' });
   });
 
-  it('asks again for the last lines after a reconnect if none had come', async () => {
-    const { logs, socket } = await setup();
-    logs.open('web', 100);
-    socket().serverClose(1006);
-    await vi.advanceTimersByTimeAsync(FIRST_RETRY_MS);
-    socket().open();
-    expect(socket().sent).toEqual([{ event: 'logs:open', data: { container: 'web', tail: 100 } }]);
-  });
-
-  it('closes on the server while the tab is hidden, and resumes when it is shown', async () => {
-    const { logs, socket } = await setup();
+  it('closes while the tab is hidden, and reopens after the last line when shown', async () => {
+    const { logs, sources, source, send } = await setup();
     logs.open('web');
-    socket().receive(lines('web', line(1)));
-    socket().sent.length = 0;
+    send(line(1), line(2));
     setVisibility('hidden');
-    expect(socket().sent).toEqual([{ event: 'logs:close', data: { container: 'web' } }]);
+    expect(source().closed).toBe(true);
+    expect(logs.state()).toEqual({ status: 'live' });
+
     setVisibility('visible');
-    expect(socket().sent[1]).toEqual({
-      event: 'logs:open',
-      data: { container: 'web', tail: LOG_LIMITS.maxTail, since: line(1).at },
-    });
-    expect(logs.entries()).toHaveLength(1);
+    expect(sources).toHaveLength(2);
+    expect(source().query).toEqual({ tail: String(LOG_LIMITS.defaultTail), since: line(2).at });
+    send(line(3));
+    expect(logs.entries().map((e) => e.text)).toEqual(['line 1', 'line 2', 'line 3']);
   });
 
-  it('ends with the server’s reason, keeps the lines, and isn’t resumed', async () => {
-    const { logs, socket } = await setup();
+  it('reopens without since when no line had come', async () => {
+    const { logs, source } = await setup();
     logs.open('web');
-    socket().receive(lines('web', line(1)));
-    socket().receive(end('web', 'stopped'));
-    expect(logs.state()).toEqual({ status: 'ended', reason: 'stopped' });
-    expect(logs.entries()).toHaveLength(1);
+    setVisibility('hidden');
+    setVisibility('visible');
+    expect(source().query).toEqual({ tail: String(LOG_LIMITS.defaultTail) });
+  });
 
-    socket().serverClose(1006);
-    await vi.advanceTimersByTimeAsync(FIRST_RETRY_MS);
-    socket().open();
-    expect(socket().sent).toEqual([]);
-    socket().receive(lines('web', line(2))); // late lines are ignored
-    expect(logs.entries()).toHaveLength(1);
+  it('doesn’t open while the tab is hidden, only once shown', async () => {
+    const { logs, sources } = await setup();
+    setVisibility('hidden');
+    logs.open('web');
+    expect(sources).toHaveLength(0);
+    setVisibility('visible');
+    expect(sources).toHaveLength(1);
+  });
+
+  it('ends with the server’s reason, keeps the lines (also those not yet shown), and closes', async () => {
+    const { logs, sources, source, send } = await setup();
+    logs.open('web');
+    send(line(1));
+    source().emit('lines', { lines: [line(2)] }, line(2).at);
+    source().emit('end', { reason: 'stopped' });
+    expect(logs.state()).toEqual({ status: 'ended', reason: 'stopped' });
+    expect(logs.entries().map((e) => e.text)).toEqual(['line 1', 'line 2']);
+    expect(source().closed).toBe(true);
+
+    setVisibility('hidden');
+    setVisibility('visible');
+    expect(sources).toHaveLength(1); // not reopened
   });
 
   it('ends at once for a container that doesn’t exist', async () => {
-    const { logs, socket } = await setup();
+    const { logs, source } = await setup();
     logs.open('nope');
-    socket().receive(end('nope', 'not_found'));
-    expect(logs.state()).toEqual({ status: 'ended', reason: 'not_found' });
-    await vi.advanceTimersByTimeAsync(QUIET_MS);
+    source().emit('end', { reason: 'not_found' });
     expect(logs.state()).toEqual({ status: 'ended', reason: 'not_found' });
   });
 
-  it('ignores other containers’ messages', async () => {
-    const { logs, socket } = await setup();
+  it('is refused when too many log views are open', async () => {
+    const { logs, source } = await setup();
     logs.open('web');
-    socket().receive(lines('db', line(1)));
-    socket().receive(end('db', 'stopped'));
-    expect(logs.entries()).toEqual([]);
-    expect(logs.state()).toEqual({ status: 'loading' });
-  });
-
-  it('is refused when too many log views are open — only while waiting for its first lines', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const tooMany = { event: 'error', data: { code: 'too_many_streams', message: 'x' } };
-    const { logs, socket } = await setup();
-    logs.open('web');
-    socket().receive(tooMany);
+    source().emit('end', { reason: 'too_many' });
     expect(logs.state()).toEqual({ status: 'refused' });
-
-    logs.open('db');
-    socket().receive(lines('db', line(1)));
-    socket().receive(tooMany); // another stream's refusal
-    expect(logs.state()).toEqual({ status: 'live' });
+    expect(source().closed).toBe(true);
+    vi.advanceTimersByTime(QUIET_MS);
+    expect(logs.state()).toEqual({ status: 'refused' });
   });
 
-  it('closes on the server and forgets its lines on close(); idempotent', async () => {
-    const { logs, socket } = await setup();
+  it('ends with error when the browser gives up (an error answer)', async () => {
+    const { logs, source, send } = await setup();
     logs.open('web');
-    socket().receive(lines('web', line(1)));
+    send(line(1));
+    source().fail({ reconnecting: false });
+    expect(logs.state()).toEqual({ status: 'ended', reason: 'error' });
+    expect(logs.entries()).toHaveLength(1);
+  });
+
+  it('closes and forgets its lines on close(); idempotent', async () => {
+    const { logs, source, send } = await setup();
+    logs.open('web');
+    send(line(1));
     logs.close();
     logs.close();
-    expect(socket().sent.slice(1)).toEqual([{ event: 'logs:close', data: { container: 'web' } }]);
+    expect(source().closed).toBe(true);
     expect(logs.entries()).toEqual([]);
     expect(logs.state()).toEqual({ status: 'idle' });
-    socket().receive(lines('web', line(2)));
-    expect(logs.entries()).toEqual([]);
   });
 
-  it('closes the previous container when opening another', async () => {
-    const { logs, socket } = await setup();
+  it('closes the previous container when opening another, ignoring its late events', async () => {
+    const { logs, sources, send } = await setup();
     logs.open('web');
+    const web = sources[0];
     logs.open('db');
-    expect(socket().sent).toEqual([
-      { event: 'logs:open', data: { container: 'web', tail: 500 } },
-      { event: 'logs:close', data: { container: 'web' } },
-      { event: 'logs:open', data: { container: 'db', tail: 500 } },
-    ]);
+    expect(web.closed).toBe(true);
+    web.emit('lines', { lines: [line(9)] }, line(9).at);
+    send(line(1));
+    expect(logs.entries().map((e) => e.text)).toEqual(['line 1']);
+    expect(sources[1].url).toBe(`/api/containers/db/logs?tail=${LOG_LIMITS.defaultTail}`);
   });
 
   it('forgets everything on sign-out', async () => {
-    const { logs, socket } = await setup();
+    const { logs, source, send } = await setup();
     logs.open('web');
-    socket().receive(lines('web', line(1)));
+    send(line(1));
     await TestBed.inject(AuthStore).logout();
     TestBed.tick();
+    expect(source().closed).toBe(true);
     expect(logs.entries()).toEqual([]);
-    expect(logs.state()).toEqual({ status: 'idle' });
   });
 
-  it('closes on the server when its page goes away', async () => {
-    const { socket } = await setup();
+  it('closes when its page goes away', async () => {
+    const { sources } = await setup();
     const fixture = TestBed.createComponent(Host);
     fixture.componentInstance.logs.open('web');
     fixture.destroy();
-    expect(socket().sent.at(-1)).toEqual({ event: 'logs:close', data: { container: 'web' } });
+    expect(sources.at(-1)!.closed).toBe(true);
   });
 });
