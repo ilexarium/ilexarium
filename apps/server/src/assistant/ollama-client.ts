@@ -48,8 +48,8 @@ export type OllamaTags = z.infer<typeof tagsSchema>;
 /**
  * Ollama's API (docs/plans/ai_assistant.md) through its official client (`ollama`), at one fixed
  * loopback address — the installed recipe's port, never an address from a request. Around the
- * library: every request goes through `guardedFetch` (no redirects; quick calls time out; streams
- * see only complete lines), streams give up after `OLLAMA_IDLE_MS` without a part and stop with
+ * library: every request goes through `guardedFetch` (no redirects; quick calls time out), streams
+ * give up after `OLLAMA_IDLE_MS` without a part and stop with
  * our signal, and every answer is checked.
  */
 export class OllamaClient {
@@ -157,41 +157,11 @@ async function* guarded<T>(
   }
 }
 
-/**
- * The library's `fetch`: never follows a redirect; a quick call (no signal of its own) times out
- * after `OLLAMA_REQUEST_MS`; a stream reaches the library only as complete lines — the library
- * prints a line it can't parse, and a broken-off line could hold a piece of an answer (chat
- * contents are never logged).
- */
-async function guardedFetch(
-  input: string | URL | Request,
-  init: RequestInit = {},
-): Promise<Response> {
-  const response = await fetch(input, {
+/** The library's `fetch`: never follows a redirect; a quick call (no signal of its own) times out after `OLLAMA_REQUEST_MS`. */
+function guardedFetch(input: string | URL | Request, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, {
     ...init,
     redirect: 'error',
     signal: init.signal ?? AbortSignal.timeout(OLLAMA_REQUEST_MS),
-  });
-  if (!response.body || !response.headers.get('content-type')?.includes('ndjson')) return response;
-  return new Response(response.body.pipeThrough(wholeLines()), {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers,
-  });
-}
-
-/** Passes on complete lines only; an unfinished last line is dropped. */
-function wholeLines(): TransformStream<Uint8Array, Uint8Array> {
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  let rest = '';
-  return new TransformStream({
-    transform(chunk, controller) {
-      rest += decoder.decode(chunk, { stream: true });
-      const end = rest.lastIndexOf('\n');
-      if (end < 0) return;
-      controller.enqueue(encoder.encode(rest.slice(0, end + 1)));
-      rest = rest.slice(end + 1);
-    },
   });
 }
