@@ -262,6 +262,10 @@ describe('assistant (e2e)', () => {
     ).map((e) => e.outcome);
     expect(outcomes).toEqual(['requested', 'success']);
     await as(owner).post('/assistant/models/pull', { model: 'bad name' }).expect(400);
+    // Ollama pulls from the host a name starts with: only Hugging Face's.
+    await as(owner)
+      .post('/assistant/models/pull', { model: '192.168.1.10/library/llama3:1b' })
+      .expect(400);
   });
 
   it('checks the Hugging Face names before asking anything', async () => {
