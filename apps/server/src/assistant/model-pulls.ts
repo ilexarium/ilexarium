@@ -1,17 +1,12 @@
 import { ConflictException, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
-import { AI_ERROR_CODES, type AiPull, type PublicUser } from '@homelab/shared';
+import { AI_ERROR_CODES, type AiPull } from '@homelab/shared';
 import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
 import { SystemReader } from '../host/system-reader.js';
 import { FREE_SPACE_MARGIN_BYTES } from './assistant.constants.js';
+import type { Requester } from './assistant.model.js';
 import { OllamaError } from './ollama-client.js';
 import { OllamaService } from './ollama-service.js';
-
-/** Who asked: for the audit log. */
-export interface Requester {
-  user: PublicUser;
-  ip: string;
-}
 
 /**
  * Model downloads (docs/plans/ai_assistant.md): one at a time, by Ollama itself, their progress
@@ -51,8 +46,15 @@ export class ModelPulls implements OnModuleDestroy {
     this.running = controller;
     try {
       const { client, location } = await this.ollama.client();
+      // Fails closed: free space that can't be read is no room.
       const space = location.modelsDir ? await this.host.space(location.modelsDir) : null;
-      if (space && space.freeBytes < FREE_SPACE_MARGIN_BYTES) {
+      if (!space) {
+        throw new ConflictException({
+          message: "The models folder can't be read",
+          code: AI_ERROR_CODES.modelsFolderUnavailable,
+        });
+      }
+      if (space.freeBytes < FREE_SPACE_MARGIN_BYTES) {
         throw new ConflictException({
           message: 'The models disk is full',
           code: AI_ERROR_CODES.notEnoughSpace,
@@ -106,7 +108,7 @@ export class ModelPulls implements OnModuleDestroy {
         done.set(line.digest, line.completed ?? 0);
         const totalBytes = sum(totals);
         const completedBytes = sum(done);
-        if (!known && modelsDir && (await this.tooBig(modelsDir, totalBytes - completedBytes))) {
+        if (!known && (await this.tooBig(modelsDir, totalBytes - completedBytes))) {
           errorCode = AI_ERROR_CODES.notEnoughSpace;
           controller.abort();
           break;
@@ -135,10 +137,10 @@ export class ModelPulls implements OnModuleDestroy {
     });
   }
 
-  /** Whether the rest of a download would leave the models' disk too full. */
-  private async tooBig(modelsDir: string, remaining: number): Promise<boolean> {
-    const space = await this.host.space(modelsDir);
-    return space !== null && space.freeBytes - remaining < FREE_SPACE_MARGIN_BYTES;
+  /** Whether the rest of a download would leave the models' disk too full (unreadable: yes). */
+  private async tooBig(modelsDir: string | null, remaining: number): Promise<boolean> {
+    const space = modelsDir ? await this.host.space(modelsDir) : null;
+    return space === null || space.freeBytes - remaining < FREE_SPACE_MARGIN_BYTES;
   }
 
   private update(change: Partial<AiPull>): void {

@@ -1,4 +1,5 @@
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
@@ -54,7 +55,8 @@ describe('assistant (e2e)', () => {
         catalogId: 'ollama',
         catalogVersion: '1',
         status: 'installed',
-        settings: { API_PORT: port, MODELS_DIR: '/srv/homelab/ollama' },
+        // A real folder: downloads need its free space (they're refused when it can't be read).
+        settings: { API_PORT: port, MODELS_DIR: tmpdir() },
       },
     });
   }

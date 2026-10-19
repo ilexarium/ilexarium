@@ -130,6 +130,13 @@ describe('ChatAnswers', () => {
     await vi.waitFor(() => expect(ollama.closed).toContain('/api/chat'));
   });
 
+  it('saves no empty answer: a model that wrote nothing has failed', async () => {
+    ollama.answer = { pieces: [] };
+    await answers.answer('u1', send(), sink, new AbortController().signal);
+    expect(events.at(-1)).toMatchObject({ type: 'error', code: 'answer_failed', answer: null });
+    expect(store.messages.map((m) => m.role)).toEqual(['user']);
+  });
+
   it('ends with an error line when the model fails, keeping the part written', async () => {
     ollama.answer = { pieces: ['Part'], error: 'model crashed' };
     await answers.answer('u1', send(), sink, new AbortController().signal);
@@ -154,6 +161,13 @@ describe('fitting', () => {
     const half = 'x'.repeat(AI_LIMITS.historyMax / 2);
     const history = [msg('user', 'old'), msg('assistant', half), msg('user', half)];
     expect(fitting(history).map((m) => m.content)).toEqual([half, half]);
+  });
+
+  it('leaves out empty messages', () => {
+    expect(fitting([msg('user', 'a'), msg('assistant', ''), msg('user', 'b')])).toEqual([
+      { role: 'user', content: 'a' },
+      { role: 'user', content: 'b' },
+    ]);
   });
 
   it('always keeps the question', () => {

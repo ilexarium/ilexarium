@@ -59,8 +59,9 @@ export class FakeOllama {
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse, body: any): Promise<void> {
-    const json = (status: number, value: unknown) =>
+    const json = (status: number, value: unknown): void => {
       res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(value));
+    };
     switch (`${req.method} ${req.url}`) {
       case 'GET /api/version':
         return json(200, { version: '0.40.6' });

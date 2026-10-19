@@ -164,6 +164,24 @@ describe('ChatPage', () => {
     expect(thread).toContain('stopped');
   });
 
+  it('opening another chat while an answer streams goes there, without bouncing back', async () => {
+    const { fixture, api, router, type, submit } = await render();
+    await type('Tell me a story');
+    await submit();
+    api.answers[0].next({
+      type: 'chat',
+      chat: summary(CHAT_ID, 'Tell me a story'),
+      question: message('user', 'Tell me a story'),
+    });
+    api.answers[0].next({ type: 'text', text: 'Once upon' });
+    await fixture.whenStable();
+    await router.navigateByUrl(`/assistant?chat=${OLD_ID}`);
+    await fixture.whenStable();
+    expect(api.answers[0].observed).toBe(false);
+    expect(router.url).toBe(`/assistant?chat=${OLD_ID}`);
+    expect(api.chat).toHaveBeenCalledWith(OLD_ID);
+  });
+
   it('keeps the text when the message is refused, and says why', async () => {
     const error = vi.spyOn(toast, 'error');
     const { el, fixture, api, type, submit } = await render();

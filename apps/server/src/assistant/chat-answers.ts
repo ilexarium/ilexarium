@@ -1,19 +1,8 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import {
-  AI_ERROR_CODES,
-  AI_LIMITS,
-  type ChatMessage,
-  type ChatSend,
-  type ChatStreamEvent,
-} from '@homelab/shared';
-import type { OllamaMessage } from './assistant.model.js';
+import { AI_ERROR_CODES, AI_LIMITS, type ChatMessage, type ChatSend } from '@homelab/shared';
+import type { AnswerSink, OllamaMessage } from './assistant.model.js';
 import { ChatStore } from './chat-store.js';
 import { OllamaService, unreachable } from './ollama-service.js';
-
-/** Where the answer goes: one JSON line at a time, waiting while the browser is slow. */
-export interface AnswerSink {
-  write(event: ChatStreamEvent): Promise<void>;
-}
 
 /**
  * Answers a message (docs/plans/ai_assistant.md): saves the question, asks the model with the
@@ -85,10 +74,12 @@ export class ChatAnswers {
         text += piece;
         await sink.write({ type: 'text', text: piece });
       }
+      // Nothing written: a failure, not an (empty) answer the model would read back later.
+      if (!text.trim()) throw new Error('The model wrote nothing');
       const answer = await this.chats.answer(asked.chat.id, send.model, text, false);
       await sink.write({ type: 'done', answer });
     } catch (error) {
-      const answer = text
+      const answer = text.trim()
         ? await this.chats.answer(asked.chat.id, send.model, text, true).catch(() => null)
         : null;
       if (signal.aborted) return;
@@ -109,6 +100,7 @@ export function fitting(history: ChatMessage[]): OllamaMessage[] {
   let size = 0;
   for (let i = history.length - 1; i >= 0; i--) {
     const { role, content } = history[i];
+    if (!content.trim()) continue;
     if (kept.length > 0 && size + content.length > AI_LIMITS.historyMax) break;
     size += content.length;
     kept.unshift({ role, content });

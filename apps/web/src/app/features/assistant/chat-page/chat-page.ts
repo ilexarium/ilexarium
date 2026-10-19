@@ -98,10 +98,11 @@ export class ChatPage {
       const id = this.routeChat();
       untracked(() => void this.store.open(id));
     });
-    // … and a new chat, once saved, gets its own URL.
+    // … and a new chat, once saved, gets its own URL. Only a new one: while another chat is
+    // being opened, the URL already says which.
     effect(() => {
       const id = this.store.chat()?.id;
-      if (id && untracked(this.routeChat) !== id) {
+      if (id && untracked(this.routeChat) === null) {
         void this.router.navigate(['/assistant'], { queryParams: { chat: id }, replaceUrl: true });
       }
     });
