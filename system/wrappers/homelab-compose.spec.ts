@@ -496,6 +496,9 @@ describe('homelab-compose checks the rendered config (the policy)', () => {
         }),
     ],
     ['a port on one address', (c) => (c.services.app.ports[0].host_ip = '0.0.0.0')],
+    ['a port on a network address', (c) => (c.services.app.ports[0].host_ip = '192.168.1.10')],
+    ['loopback written another way', (c) => (c.services.app.ports[0].host_ip = '127.0.0.2')],
+    ['an empty port address', (c) => (c.services.app.ports[0].host_ip = '')],
     ['an image without a digest', (c) => (c.services.app.image = 'example/app:latest')],
     ['another restart policy', (c) => (c.services.app.restart = 'always')],
     ['no log rotation', (c) => delete c.services.app.logging],
@@ -512,6 +515,15 @@ describe('homelab-compose checks the rendered config (the policy)', () => {
     writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
     expectRefused(await up(), 'policy_violation', undefined, 4);
     expect(commands()).toEqual(['config']);
+  });
+
+  it('accepts a port bound to loopback only (a service without its own sign-in)', async () => {
+    const config = demoConfig();
+    config.services.app.ports[0].host_ip = '127.0.0.1';
+    writeFileSync(join(dir, 'config.json'), JSON.stringify(config));
+    const result = await up();
+    expect(result.code, result.lines.join('\n')).toBe(0);
+    expect(commands()).toEqual(['config', 'pull', 'up']);
   });
 
   it.skipIf(!REAL_DOCKER)(

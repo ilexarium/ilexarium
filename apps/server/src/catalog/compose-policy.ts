@@ -75,7 +75,10 @@ export function checkComposePolicy(template: unknown, meta: CatalogMeta): string
     for (const [i, port] of asList(service['ports']).entries()) {
       const key = typeof port === 'string' ? PORT_ENTRY.exec(port)?.[1] : undefined;
       if (!key || !portKeys.has(key)) {
-        fail(`${at}.ports[${i}]`, "only '${PORT_FIELD}:<container port>' with a declared port");
+        fail(
+          `${at}.ports[${i}]`,
+          "only '${PORT_FIELD}:<container port>' or '127.0.0.1:${PORT_FIELD}:<container port>' with a declared port",
+        );
       } else {
         usedPorts.add(key);
       }
@@ -191,7 +194,8 @@ const VOLUME_KEYS = new Set(['type', 'source', 'target', 'read_only']);
 const LOG_DRIVERS = new Set(['json-file', 'local']);
 /** name[:tag]@sha256:<64 hex> */
 const PINNED_IMAGE = /^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$/;
-const PORT_ENTRY = /^\$\{([A-Z][A-Z0-9_]*)\}:[0-9]{1,5}(?:\/(?:tcp|udp))?$/;
+/** Published on every address, or on loopback only (a service without its own sign-in, e.g. Ollama). */
+const PORT_ENTRY = /^(?:127\.0\.0\.1:)?\$\{([A-Z][A-Z0-9_]*)\}:[0-9]{1,5}(?:\/(?:tcp|udp))?$/;
 const PLACEHOLDER_ONLY = /^\$\{([A-Z][A-Z0-9_]*)\}$/;
 /** Ours, and Compose's own (a recipe must not pose as another project). */
 const RESERVED_LABEL = /^(homelab\.|com\.docker\.compose\.)/;
