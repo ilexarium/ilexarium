@@ -9,6 +9,7 @@ describe('modelNameSchema', () => {
     'qwen2.5',
     'library/llama3.2:latest',
     'hf.co/bartowski/SmolLM2-135M-Instruct-GGUF:Q4_K_M',
+    'huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF',
   ])('accepts %s', (name) => expect(modelNameSchema.safeParse(name).success).toBe(true));
 
   it.each([
@@ -20,6 +21,9 @@ describe('modelNameSchema', () => {
     ['too many parts', 'a/b/c/d'],
     ['a URL', 'https://example.com/x'],
     ['shell characters', 'llama3;rm'],
+    ['another registry host', 'registry.example.com/library/llama3:1b'],
+    ['a host on the home network', '192.168.1.10/x/y:1'],
+    ['localhost as a host', 'localhost/x/y'],
     ['too long', 'a'.repeat(AI_LIMITS.modelNameMax + 1)],
   ])('refuses %s', (_, name) => expect(modelNameSchema.safeParse(name).success).toBe(false));
 });

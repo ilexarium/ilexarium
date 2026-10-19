@@ -30,13 +30,29 @@ export const AI_LIMITS = {
 export const MODEL_NAME_PATTERN =
   /^[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*){0,2}(?::[A-Za-z0-9][A-Za-z0-9._-]*)?$/;
 
+/**
+ * The only registry hosts a name may name: Ollama pulls from whatever host a name starts with, so
+ * any other would make the server fetch from an address of the requester's choosing.
+ */
+export const MODEL_HOSTS = ['hf.co', 'huggingface.co'] as const;
+
+/** A name's host: the first of three parts (`hf.co/owner/repo`), else none (Ollama's library). */
+export function modelHost(name: string): string | null {
+  const parts = name.split(':')[0].split('/');
+  return parts.length === 3 ? parts[0].toLowerCase() : null;
+}
+
 export const modelNameSchema = z
   .string()
   .trim()
   .min(1, 'validation.modelNameRequired')
   .max(AI_LIMITS.modelNameMax, 'validation.modelNameInvalid')
   .regex(MODEL_NAME_PATTERN, 'validation.modelNameInvalid')
-  .refine((name) => !name.includes('..'), 'validation.modelNameInvalid');
+  .refine((name) => !name.includes('..'), 'validation.modelNameInvalid')
+  .refine((name) => {
+    const host = modelHost(name);
+    return host === null || (MODEL_HOSTS as readonly string[]).includes(host);
+  }, 'validation.modelNameInvalid');
 
 /** One part of a Hugging Face repository id (`owner` or `repo`). */
 export const HF_ID_PART = /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/;
