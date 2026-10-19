@@ -6,6 +6,7 @@
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 
 const BASE = 'http://127.0.0.1:3000';
 const ORIGIN = BASE;
@@ -397,6 +398,59 @@ async function install() {
     JSON.stringify(job.value).slice(0, 400),
   );
 
+  // Ollama: its API published on loopback only (docs/plans/ai_assistant.md) — the root wrapper
+  // accepts host_ip 127.0.0.1 and nothing else; nothing on the network may reach it.
+  console.log('\nInstalling Ollama (the Assistant)');
+  const ollama = await api('POST', '/services', {
+    catalogId: 'ollama',
+    values: { API_PORT: 11434, MODELS_DIR: '/srv/homelab/ollama/models' },
+  });
+  check('Ollama deploy started', ollama.status === 202 || ollama.status === 201, ollama.text);
+  const ollamaJob = await until(
+    'Ollama installed',
+    async () => {
+      const j = await api('GET', `/services/jobs/${ollama.json?.jobId}`);
+      return { done: j.json?.status && j.json.status !== 'running', value: j.json };
+    },
+    20 * 60_000,
+  );
+  check(
+    'Ollama installed',
+    ollamaJob.value.status === 'succeeded',
+    JSON.stringify(ollamaJob.value).slice(0, 400),
+  );
+  // Reached from the machine itself, refused on its network address.
+  const answers = async (host) => {
+    try {
+      return (
+        await fetch(`http://${host}:11434/api/version`, { signal: AbortSignal.timeout(5000) })
+      ).ok;
+    } catch {
+      return false;
+    }
+  };
+  const networkAddress = Object.values(networkInterfaces())
+    .flat()
+    .find((a) => a && a.family === 'IPv4' && !a.internal)?.address;
+  check('Ollama answers on 127.0.0.1', await answers('127.0.0.1'));
+  check(
+    `Ollama is not reachable on the network address (${networkAddress})`,
+    networkAddress !== undefined && !(await answers(networkAddress)),
+  );
+  const assistant = await until(
+    'the Assistant finds Ollama',
+    async () => {
+      const s = await api('GET', '/assistant/status');
+      return { done: s.json?.state === 'ready', value: s.json };
+    },
+    2 * 60_000,
+  );
+  check(
+    'the Assistant finds Ollama',
+    assistant.value?.state === 'ready',
+    JSON.stringify(assistant.value),
+  );
+
   console.log('\nBacking up');
   const plan = await api('POST', '/backups/plan', {
     destination: '/mnt/backup',
@@ -466,6 +520,10 @@ async function update() {
     'Navidrome still installed',
     services.json?.services?.some((s) => s.catalogId === 'navidrome' && s.status === 'installed'),
     services.text.slice(0, 300),
+  );
+  check(
+    'the chat tables migrated (the Assistant answers)',
+    (await api('GET', '/assistant/chats')).status === 200,
   );
   check('backups still set up', (await api('GET', '/backups/status')).json?.configured === true);
   check(
