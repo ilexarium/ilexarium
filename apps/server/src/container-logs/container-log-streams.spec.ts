@@ -373,6 +373,15 @@ describe('ContainerLogStreams', () => {
     expect(streams.openCount).toBe(LOG_LIMITS.maxStreamsPerSession + 1);
   });
 
+  it('lets a resumed view in at the limit: its dropped connection may still be counted', async () => {
+    for (let i = 0; i < LOG_LIMITS.maxStreamsPerSession; i++) serve();
+    await tick();
+    const resumed = serve({ since: line(1).at });
+    await tick();
+    expect(resumed.res.ends).toEqual([]);
+    expect(streams.openCount).toBe(LOG_LIMITS.maxStreamsPerSession + 1);
+  });
+
   it('ends a response after MAX_RESPONSE_MS without an end event, so the reconnect checks the session', async () => {
     const { res, done } = serve();
     await tick(MAX_RESPONSE_MS - 1);

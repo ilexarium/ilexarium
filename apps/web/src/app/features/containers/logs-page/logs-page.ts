@@ -68,11 +68,7 @@ export class LogsPage {
   protected readonly notice = computed<Notice | null>(() => {
     if (!this.validName()) return endNotice('not_found', this.name());
     const state = this.logs.state();
-    if (state.status === 'ended') return endNotice(state.reason, this.name());
-    if (state.status === 'refused') {
-      return { key: 'logs.notice.refused', problem: true, retry: true };
-    }
-    return null;
+    return state.status === 'ended' ? endNotice(state.reason, this.name()) : null;
   });
 
   constructor() {

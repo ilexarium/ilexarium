@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { AuthenticationEvents } from '@nestjs/authentication';
 import type { Response } from 'express';
@@ -37,7 +38,8 @@ interface Stream {
  *   after its `Last-Event-ID`; otherwise asked again after `STOP_GRACE_MS` (a restart is running
  *   again by then): stopped → `end stopped`; gone → `removed`. Every outcome is an event: `EventSource` can't
  *   read an error response.
- * - **Limits:** `LOG_LIMITS.maxStreamsPerSession` per sign-in (`end too_many` beyond); each
+ * - **Limits:** `LOG_LIMITS.maxStreamsPerSession` new views per sign-in (`end too_many` beyond;
+ *   a resumed view isn't refused, its dropped connection may still be counted); each
  *   response ends after `MAX_RESPONSE_MS`, so the reconnect checks the session again. Sign-out
  *   ends the session's streams at once — log lines can hold secrets.
  */
@@ -82,9 +84,10 @@ export class ContainerLogStreams implements OnModuleInit, OnModuleDestroy {
     const sse = new SseResponse(res, signal);
     sse.start(RETRY_MS);
 
-    // Counted and added before the first await, so parallel requests can't all pass.
+    // Counted and added before the first await, so parallel requests can't all pass. Only new
+    // views are refused: a reconnect's old connection may not have been noticed as gone yet.
     const open = [...this.streams].filter((s) => s.viewer.sessionId === viewer.sessionId).length;
-    if (open >= LOG_LIMITS.maxStreamsPerSession) {
+    if (request.since === undefined && open >= LOG_LIMITS.maxStreamsPerSession) {
       sse.event(LOGS_EVENTS.end, { reason: 'too_many' });
       sse.end();
       return;
@@ -129,7 +132,7 @@ export class ContainerLogStreams implements OnModuleInit, OnModuleDestroy {
     let state = await this.state(name);
     if (!(state && STILL_RUNNING.includes(state))) {
       // A restart ends the stream too, and the container is `exited` until it starts again.
-      if (!(await wait(STOP_GRACE_MS, signal))) return null;
+      if (!(await sleep(STOP_GRACE_MS, true, { signal }).catch(() => false))) return null;
       state = await this.state(name);
     }
     if (signal.aborted || (state && STILL_RUNNING.includes(state))) return null;
@@ -171,20 +174,4 @@ export class ContainerLogStreams implements OnModuleInit, OnModuleDestroy {
       flush();
     }
   }
-}
-
-/** Resolves true after `ms`, or false as soon as `signal` aborts. */
-function wait(ms: number, signal: AbortSignal): Promise<boolean> {
-  if (signal.aborted) return Promise.resolve(false);
-  return new Promise((resolve) => {
-    const onAbort = () => {
-      clearTimeout(timer);
-      resolve(false);
-    };
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort);
-      resolve(true);
-    }, ms);
-    signal.addEventListener('abort', onAbort, { once: true });
-  });
 }
