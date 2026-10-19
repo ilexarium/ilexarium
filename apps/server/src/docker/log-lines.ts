@@ -7,12 +7,14 @@ const TIMESTAMP = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d{1,9}))?Z /;
 /** Room for the timestamp prefix on top of the text limit. */
 const PREFIX_BYTES = 64;
 /**
- * ANSI escape sequences: CSI (`ESC [ … m`, also the 8-bit form), OSC (`ESC ] … BEL`), then any
- * other `ESC`, optional intermediates and a final byte (e.g. the charset switch `ESC ( B`).
+ * ANSI escape sequences: CSI (`ESC [ … m`, also the 8-bit form), OSC (`ESC ] … BEL`, `ESC \` or
+ * the 8-bit `ST`), then any other `ESC`, optional intermediates and a final byte (e.g. the
+ * charset switch `ESC ( B`, save cursor `ESC 7`). Node's `util.stripVTControlCharacters` was
+ * considered: it also removes the character after `ESC 7` / `ESC 8`, losing log text.
  */
 const ANSI =
   // oxlint-disable-next-line no-control-regex
-  /\x1b\[[0-?]*[ -/]*[@-~]|\x9b[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[ -/]*[0-~]/g;
+  /\x1b\[[0-?]*[ -/]*[@-~]|\x9b[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b\x9c]*(?:\x07|\x1b\\|\x9c)?|\x1b[ -/]*[0-~]/g;
 /** Control characters left after the escapes (keeps tabs). */
 // oxlint-disable-next-line no-control-regex
 const CONTROL = /[\x00-\x08\x0a-\x1f\x7f-\x9f]/g;

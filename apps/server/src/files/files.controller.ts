@@ -16,6 +16,7 @@ import {
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { FileList, FileSummary, LinuxSession, PublicUser } from '@homelab/shared';
+import contentDisposition from 'content-disposition';
 import type { Request, Response } from 'express';
 import { pipeline } from 'node:stream/promises';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
@@ -31,12 +32,6 @@ import { FilesService } from './files.service.js';
 
 /** Linux sign-in: few tries (sshd counts too). */
 const SIGN_IN_LIMIT = { default: { limit: 5, ttl: 60_000 } };
-
-/** `Content-Disposition` for any file name: an ASCII fallback, and the real name (RFC 6266). */
-function attachment(name: string): string {
-  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_');
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
-}
 
 /**
  * Linux sign-in and the file explorer (docs/plans/files_and_terminal.md). Every route needs an
@@ -106,7 +101,8 @@ export class FilesController {
     const file = await this.files.download(session.id, path);
     res.status(200).set({
       'Content-Type': 'application/octet-stream',
-      'Content-Disposition': attachment(file.name),
+      // RFC 6266 for any name: a Latin-1 fallback, and the real name encoded when it needs it.
+      'Content-Disposition': contentDisposition(file.name),
       'Content-Length': String(file.size),
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "default-src 'none'; sandbox",

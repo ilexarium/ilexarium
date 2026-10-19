@@ -35,6 +35,11 @@ describe('classify', () => {
     ['8.8.8.8', 'public'],
     ['2606:4700::1111', 'public'],
     ['172.32.0.1', 'public'],
+    // Written other ways: upper case, a zone id, every zero spelled out, a tiny compatible form.
+    ['::FFFF:A9FE:A9FE', 'refused'],
+    ['fe80::1%eth0', 'refused'],
+    ['0000:0000:0000:0000:0000:ffff:7f00:0001', 'loopback'],
+    ['::2', 'refused'],
   ])('%s is %s', (address, expected) => {
     expect(classify(address)).toBe(expected);
   });

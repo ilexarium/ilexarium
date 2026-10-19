@@ -212,6 +212,8 @@ describe('stripAnsi', () => {
     ['\x1b]0;window title\x07text', 'text'],
     ['\x1b]8;;https://example.com\x1b\\link\x1b]8;;\x1b\\', 'link'],
     ['\x1b(Bcharset', 'charset'],
+    ['\x1b7save\x1b8 restore', 'save restore'], // keeps the letter after `ESC 7`
+    ['\x1b]2;title\x9cafter', 'after'], // OSC ended by the 8-bit ST
     ['a\x00b\x08c\x7fd', 'abcd'],
     ['tab\tkept', 'tab\tkept'],
     ['<script>alert(1)</script>', '<script>alert(1)</script>'], // text, rendered as text
