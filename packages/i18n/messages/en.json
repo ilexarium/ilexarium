@@ -255,7 +255,8 @@
     "not_enough_space": "There isn’t enough free space on the models’ disk.",
     "chat_not_found": "This chat doesn’t exist (any more).",
     "library_unreachable": "Hugging Face can’t be reached right now.",
-    "library_not_found": "No such model on Hugging Face."
+    "library_not_found": "No such model on Hugging Face.",
+    "models_folder_unavailable": "The models folder can’t be read, so its free space is unknown. Check that its disk is there."
   },
   "format": {
     "lessThanAMinute": "less than a minute"

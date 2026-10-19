@@ -9,6 +9,7 @@ import {
 import { z } from 'zod';
 import {
   GGUF_QUANT,
+  GGUF_SPLIT,
   HF_API,
   HF_CACHE_ENTRIES,
   HF_CACHE_MS,
@@ -66,7 +67,7 @@ export class HfLibrary {
     const files = new Map<string, AiLibraryFile>();
     for (const file of detail.siblings ?? []) {
       // Split files ("-00001-of-00003.gguf") can't be downloaded by name: left out.
-      if (/-\d{5}-of-\d{5}\.gguf$/.test(file.rfilename)) continue;
+      if (GGUF_SPLIT.test(file.rfilename)) continue;
       const quantization = GGUF_QUANT.exec(file.rfilename)?.[1];
       if (!quantization || files.has(quantization.toUpperCase())) continue;
       files.set(quantization.toUpperCase(), {

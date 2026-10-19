@@ -74,12 +74,13 @@ export class AssistantApi {
       let read = 0;
       const emit = (text: string, final: boolean) => {
         const end = final ? text.length : text.lastIndexOf('\n') + 1;
-        for (const line of text.slice(read, end).split('\n')) {
+        const lines = text.slice(read, end).split('\n');
+        read = Math.max(read, end);
+        for (const line of lines) {
           if (!line.trim()) continue;
-          const event = chatStreamEventSchema.safeParse(JSON.parse(line));
+          const event = chatStreamEventSchema.safeParse(parseJson(line));
           if (event.success) subscriber.next(event.data);
         }
-        read = Math.max(read, end);
       };
       const subscription = this.http
         .post('/api/assistant/chat', message, {
@@ -100,6 +101,15 @@ export class AssistantApi {
         });
       return () => subscription.unsubscribe();
     });
+  }
+}
+
+/** A line as JSON; a garbled one is skipped (undefined), never thrown. */
+function parseJson(line: string): unknown {
+  try {
+    return JSON.parse(line);
+  } catch {
+    return undefined;
   }
 }
 

@@ -52,6 +52,15 @@ describe('AssistantApi.send', () => {
     expect(done).toBe(true);
   });
 
+  it('skips a garbled line and goes on', () => {
+    const events: ChatStreamEvent[] = [];
+    api.send({ chatId: null, model: 'x:1', content: 'Hi' }).subscribe((e) => events.push(e));
+    http
+      .expectOne('/api/assistant/chat')
+      .flush('{"type":"text","te\nnot json at all\n{"type":"text","text":"ok"}\n');
+    expect(events).toEqual([{ type: 'text', text: 'ok' }]);
+  });
+
   it('gives a refusal its { code }, like other calls', () => {
     let error: any;
     api

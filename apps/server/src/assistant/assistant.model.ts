@@ -1,3 +1,5 @@
+import type { ChatStreamEvent, PublicUser } from '@homelab/shared';
+
 /** Where Ollama runs: its loopback address and the models' folder. */
 export interface OllamaLocation {
   baseUrl: string;
@@ -17,4 +19,15 @@ export interface OllamaPullLine {
   total?: number;
   completed?: number;
   error?: string;
+}
+
+/** Who asked: for the audit log. */
+export interface Requester {
+  user: PublicUser;
+  ip: string;
+}
+
+/** Where an answer goes: one JSON line at a time, waiting while the browser is slow. */
+export interface AnswerSink {
+  write(event: ChatStreamEvent): Promise<void>;
 }

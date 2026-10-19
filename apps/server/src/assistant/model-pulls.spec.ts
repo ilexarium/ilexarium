@@ -6,14 +6,18 @@ import { ModelPulls } from './model-pulls.js';
 import { OllamaService } from './ollama-service.js';
 
 const BY = {
-  user: { id: '0199f000-0000-7000-8000-000000000001', username: 'owner' },
+  user: {
+    id: '0199f000-0000-7000-8000-000000000001',
+    username: 'owner',
+    createdAt: '2026-10-19T00:00:00.000Z',
+  },
   ip: '127.0.0.1',
 };
 const GB = 1024 ** 3;
 
 describe('ModelPulls', () => {
   let ollama: FakeOllama;
-  let free: number;
+  let free: number | null;
   let audit: { record: ReturnType<typeof vi.fn>; tryRecord: ReturnType<typeof vi.fn> };
   let pulls: ModelPulls;
 
@@ -26,7 +30,9 @@ describe('ModelPulls', () => {
       baseUrl: ollama.baseUrl,
       modelsDir: '/srv/homelab/ollama',
     }));
-    const host = { space: vi.fn(async () => ({ totalBytes: 200 * GB, freeBytes: free })) };
+    const host = {
+      space: vi.fn(async () => (free === null ? null : { totalBytes: 200 * GB, freeBytes: free })),
+    };
     pulls = new ModelPulls(
       service,
       host as unknown as SystemReader,
@@ -81,6 +87,14 @@ describe('ModelPulls', () => {
     await expect(pulls.start('smollm2:135m', BY)).rejects.toMatchObject({
       response: { code: 'not_enough_space' },
     });
+  });
+
+  it('refuses when the free space can’t be read (fails closed)', async () => {
+    free = null;
+    await expect(pulls.start('smollm2:135m', BY)).rejects.toMatchObject({
+      response: { code: 'models_folder_unavailable' },
+    });
+    expect(ollama.requests.some((r) => r.url === '/api/pull')).toBe(false);
   });
 
   it('stops a download that would fill the disk', async () => {

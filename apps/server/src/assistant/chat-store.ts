@@ -8,15 +8,8 @@ import {
 } from '@homelab/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { MESSAGE_FIELDS } from './assistant.constants.js';
 
-const MESSAGE_FIELDS = {
-  id: true,
-  role: true,
-  content: true,
-  model: true,
-  stopped: true,
-  createdAt: true,
-} as const;
 type MessageRow = Prisma.ChatMessageGetPayload<{ select: typeof MESSAGE_FIELDS }>;
 
 /**
@@ -62,13 +55,19 @@ export class ChatStore {
     model: string,
     content: string,
   ): Promise<{ chat: ChatSummary; question: ChatMessage } | null> {
+    let chat;
     if (chatId) {
-      const owned = await this.prisma.chat.count({ where: { id: chatId, userId } });
-      if (!owned) return null;
+      // The owner in the update itself: a chat deleted meanwhile is "not found", not an error.
+      const { count } = await this.prisma.chat.updateMany({
+        where: { id: chatId, userId },
+        data: { model },
+      });
+      if (count === 0) return null;
+      chat = await this.prisma.chat.findFirst({ where: { id: chatId, userId } });
+      if (!chat) return null;
+    } else {
+      chat = await this.prisma.chat.create({ data: { userId, model, title: title(content) } });
     }
-    const chat = chatId
-      ? await this.prisma.chat.update({ where: { id: chatId }, data: { model } })
-      : await this.prisma.chat.create({ data: { userId, model, title: title(content) } });
     const question = await this.prisma.chatMessage.create({
       data: { chatId: chat.id, role: 'user', content },
       select: MESSAGE_FIELDS,

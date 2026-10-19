@@ -91,7 +91,12 @@ export const ModelsPageStore = signalStore(
       /** Starts a download; throws when refused (so a form keeps its text). */
       async download(model: string): Promise<void> {
         try {
-          patchState(store, { pull: await api.pull(model) });
+          const started = await api.pull(model);
+          // The topic may already have said how it ended (a quick download): keep that.
+          const known = store.pull();
+          if (known?.startedAt !== started.startedAt || known.status === 'running') {
+            patchState(store, { pull: started });
+          }
         } catch (error) {
           failed('assistant.pullFailed', error, { model });
           throw error;

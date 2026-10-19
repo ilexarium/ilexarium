@@ -133,6 +133,18 @@ describe('ModelsPage', () => {
     expect(success).toHaveBeenCalledWith('qwen2.5:0.5b is ready');
   });
 
+  it('keeps how a quick download ended, even when the topic said so before the reply', async () => {
+    const { el, fixture, api, fill, topic } = await render();
+    let reply!: (pull: AiPull) => void;
+    api.pull.mockImplementation(() => new Promise((resolve) => (reply = resolve)));
+    await fill('#model-name', 'qwen2.5:0.5b');
+    await topic(pull({ status: 'succeeded', completedBytes: 400, totalBytes: 400 }));
+    reply(pull());
+    await fixture.whenStable();
+    expect(el.querySelector('app-pull-progress')!.textContent).toContain('Downloaded');
+    expect(el.querySelector<HTMLButtonElement>('#model-name ~ button')!.disabled).toBe(false);
+  });
+
   it('refuses a name that isn’t one, without asking the server', async () => {
     const { el, api, fill } = await render();
     await fill('#model-name', 'no spaces please');

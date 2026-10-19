@@ -226,6 +226,8 @@ export const AI_ERROR_CODES = {
   pullRunning: 'pull_running',
   pullFailed: 'pull_failed',
   notEnoughSpace: 'not_enough_space',
+  /** The models folder's free space can't be read: no download (fails closed). */
+  modelsFolderUnavailable: 'models_folder_unavailable',
   chatNotFound: 'chat_not_found',
   libraryUnreachable: 'library_unreachable',
   libraryNotFound: 'library_not_found',

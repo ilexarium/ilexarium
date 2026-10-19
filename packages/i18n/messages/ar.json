@@ -259,7 +259,8 @@
     "not_enough_space": "لا توجد مساحة كافية على قرص النماذج.",
     "chat_not_found": "هذه المحادثة غير موجودة (لم تعد موجودة).",
     "library_unreachable": "لا يمكن الوصول إلى Hugging Face الآن.",
-    "library_not_found": "لا يوجد نموذج بهذا الاسم على Hugging Face."
+    "library_not_found": "لا يوجد نموذج بهذا الاسم على Hugging Face.",
+    "models_folder_unavailable": "تعذّرت قراءة مجلد النماذج، فالمساحة الحرة فيه غير معروفة. تحقّق من وجود قرصه."
   },
   "format": {
     "lessThanAMinute": "أقل من دقيقة"

@@ -24,11 +24,12 @@ import {
   type AiStatus,
   type Chat,
   type ChatList,
-  type ChatStreamEvent,
   type PublicUser,
 } from '@homelab/shared';
 import type { Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
+import { CHANGE_LIMIT, LIBRARY_LIMIT, SEND_LIMIT } from './assistant.constants.js';
+import { ndjsonWriter } from './ndjson-response.js';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { ChatAnswers } from './chat-answers.js';
 import { ChatStore } from './chat-store.js';
@@ -43,13 +44,6 @@ import {
   ChatIdParamsDto,
   ChatSendDto,
 } from './assistant.dto.js';
-
-/** Per IP: downloads and removals. */
-const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
-/** Per IP: questions to Hugging Face. */
-const LIBRARY_LIMIT = { default: { limit: 30, ttl: 60_000 } };
-/** Per IP: messages (each also waits for the one before). */
-const SEND_LIMIT = { default: { limit: 30, ttl: 60_000 } };
 
 /** The Assistant (docs/plans/ai_assistant.md). Every route needs a session. */
 @Controller('assistant')
@@ -164,28 +158,12 @@ export class AssistantController {
     res.on('close', () => {
       if (!res.writableFinished) stop.abort();
     });
-    let started = false;
-    const write = (event: ChatStreamEvent): Promise<void> => {
-      if (!started) {
-        started = true;
-        res.status(200).set({
-          'Content-Type': 'application/x-ndjson; charset=utf-8',
-          'Cache-Control': 'no-store',
-          'X-Content-Type-Options': 'nosniff',
-          // No proxy buffering: the pieces should arrive as they're written.
-          'X-Accel-Buffering': 'no',
-        });
-        res.flushHeaders();
-      }
-      if (stop.signal.aborted) return Promise.resolve();
-      const fits = res.write(`${JSON.stringify(event)}\n`);
-      return fits ? Promise.resolve() : new Promise((resolve) => res.once('drain', resolve));
-    };
+    const writer = ndjsonWriter(res, stop.signal);
     try {
-      await this.answers.answer(user.id, body, { write }, stop.signal);
+      await this.answers.answer(user.id, body, writer, stop.signal);
     } catch (error) {
       // Before the first line: an ordinary HTTP error (Nest's filter answers it).
-      if (!started) throw error;
+      if (!writer.started) throw error;
     }
     if (!res.writableEnded) res.end();
   }

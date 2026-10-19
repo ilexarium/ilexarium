@@ -255,7 +255,8 @@
     "not_enough_space": "Auf der Festplatte der Modelle ist nicht genug Platz frei.",
     "chat_not_found": "Diesen Chat gibt es nicht (mehr).",
     "library_unreachable": "Hugging Face ist gerade nicht erreichbar.",
-    "library_not_found": "Dieses Modell gibt es auf Hugging Face nicht."
+    "library_not_found": "Dieses Modell gibt es auf Hugging Face nicht.",
+    "models_folder_unavailable": "Der Modellordner lässt sich nicht lesen, sein freier Platz ist unbekannt. Prüfe, ob seine Festplatte da ist."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
