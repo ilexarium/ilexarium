@@ -9,6 +9,7 @@ import { logsCloseSchema, logsEndSchema, logsLinesSchema, logsOpenSchema } from 
 import { servicesListSchema } from './services.js';
 import { backupsStatusSchema } from './backups.js';
 import { disksStatusSchema } from './disks.js';
+import { aiTopicSchema } from './ai.js';
 import { alertsStatusSchema } from './alerts.js';
 import { processesUpdateSchema } from './processes.js';
 
@@ -31,6 +32,7 @@ export const REALTIME_TOPICS = [
   'disks',
   'alerts',
   'processes',
+  'assistant',
 ] as const;
 export const realtimeTopicSchema = z.enum(REALTIME_TOPICS);
 export type RealtimeTopic = z.infer<typeof realtimeTopicSchema>;
@@ -87,6 +89,8 @@ export const serverMessageSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('alerts:update'), data: alertsStatusSchema }),
   z.object({ event: z.literal('processes:snapshot'), data: processesUpdateSchema }),
   z.object({ event: z.literal('processes:update'), data: processesUpdateSchema }),
+  z.object({ event: z.literal('assistant:snapshot'), data: aiTopicSchema }),
+  z.object({ event: z.literal('assistant:update'), data: aiTopicSchema }),
   z.object({ event: z.literal('logs:lines'), data: logsLinesSchema }),
   z.object({ event: z.literal('logs:end'), data: logsEndSchema }),
   z.object({ event: z.literal('error'), data: realtimeErrorSchema }),
