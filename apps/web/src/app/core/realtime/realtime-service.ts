@@ -17,7 +17,7 @@ import {
 } from '@homelab/shared';
 import { AuthApi } from '../auth/auth-api';
 import { AuthStore } from '../auth/auth-store';
-import type { ConnectionStatus, RealtimeStream } from './realtime.model';
+import type { ConnectionStatus } from './realtime.model';
 
 /** How sockets are made — tests swap in a fake. */
 export const WEB_SOCKET_FACTORY = new InjectionToken<(url: string) => WebSocket>(
@@ -41,10 +41,8 @@ type Listener = (message: ServerMessage) => void;
  *   gets a fresh snapshot.
  * - **Closed with 4401** (session ended): asks the server who is signed in. Still signed in (a
  *   password change replaced this browser's session) → reconnects; otherwise → login.
- * - **Hidden tab:** unsubscribes from everything (and pauses streams), so the server stops
- *   collecting; subscribes again (fresh snapshots) and resumes streams when the tab is visible.
- * - **Streams** ({@link RealtimeStream}, e.g. container logs) are resumed whenever the socket goes
- *   live, so they pick up again after a reconnect.
+ * - **Hidden tab:** unsubscribes from everything, so the server stops collecting; subscribes
+ *   again (fresh snapshots) when the tab is visible.
  * - **Sign-out:** closes the socket (nothing of the previous user remains).
  */
 @Service()
@@ -55,7 +53,6 @@ export class RealtimeService {
   private readonly createSocket = inject(WEB_SOCKET_FACTORY);
 
   private readonly listeners = new Map<RealtimeTopic, Set<Listener>>();
-  private readonly streams = new Set<RealtimeStream>();
   private readonly _status = signal<ConnectionStatus>('offline');
   private socket: WebSocket | null = null;
   private wanted = false;
@@ -68,11 +65,7 @@ export class RealtimeService {
     effect(() => {
       if (!this.auth.isAuthenticated()) this.disconnect();
     });
-    const onVisibilityChange = () => {
-      const visible = this.visible();
-      this.sendAll(visible ? 'subscribe' : 'unsubscribe');
-      for (const stream of this.streams) this.toStream(stream, visible ? 'resume' : 'pause');
-    };
+    const onVisibilityChange = () => this.sendAll(this.visible() ? 'subscribe' : 'unsubscribe');
     this.document.addEventListener('visibilitychange', onVisibilityChange);
     inject(DestroyRef).onDestroy(() => {
       this.document.removeEventListener('visibilitychange', onVisibilityChange);
@@ -117,25 +110,6 @@ export class RealtimeService {
     };
   }
 
-  /**
-   * Attaches a stream until the returned function is called; resumed at once if the socket is
-   * live. Detaching sends nothing: the stream closes itself on the server first.
-   */
-  attach(stream: RealtimeStream): () => void {
-    this.streams.add(stream);
-    if (this.visible()) this.toStream(stream, 'resume');
-    return () => void this.streams.delete(stream);
-  }
-
-  /** Sends a stream's message if the socket is open (otherwise it is resumed when it opens). */
-  private sendMessage = (message: ClientMessage): void => {
-    if (this.socket?.readyState === OPEN) this.socket.send(JSON.stringify(message));
-  };
-
-  private toStream(stream: RealtimeStream, call: 'resume' | 'pause'): void {
-    if (this.socket?.readyState === OPEN) stream[call](this.sendMessage);
-  }
-
   private open(): void {
     this._status.set(this.attempt === 0 ? 'connecting' : 'reconnecting');
     const { protocol, host } = this.document.location;
@@ -147,10 +121,7 @@ export class RealtimeService {
       if (socket !== this.socket) return;
       this.attempt = 0;
       this._status.set('live');
-      if (this.visible()) {
-        this.sendAll('subscribe');
-        for (const stream of this.streams) this.toStream(stream, 'resume');
-      }
+      if (this.visible()) this.sendAll('subscribe');
     };
     socket.onmessage = (event: MessageEvent) => {
       if (socket === this.socket) this.dispatch(event.data);
@@ -197,11 +168,6 @@ export class RealtimeService {
     }
     if (message.event === 'error') {
       console.warn(`Realtime error: ${message.data.code} — ${message.data.message}`);
-      for (const stream of this.streams) stream.receive(message);
-      return;
-    }
-    if (message.event === 'logs:lines' || message.event === 'logs:end') {
-      for (const stream of this.streams) stream.receive(message);
       return;
     }
     const topic = message.event.split(':')[0] as RealtimeTopic;
@@ -213,7 +179,9 @@ export class RealtimeService {
   }
 
   private send(event: 'subscribe' | 'unsubscribe', topic: RealtimeTopic): void {
-    this.sendMessage({ event, data: { topic } });
+    if (this.socket?.readyState === OPEN) {
+      this.socket.send(JSON.stringify({ event, data: { topic } } satisfies ClientMessage));
+    }
   }
 
   private visible(): boolean {

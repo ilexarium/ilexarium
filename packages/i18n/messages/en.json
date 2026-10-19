@@ -414,7 +414,7 @@
       },
       "refused": {
         "title": "Too many log views open",
-        "text": "This browser tab already shows logs of as many containers as it can at once. Close one, then try again.",
+        "text": "You already have as many log views open as one sign-in can have at once. Close one, then try again.",
         "retry": "Try again"
       }
     },
@@ -426,8 +426,6 @@
     "timestamps": "Timestamps",
     "wrap": "Wrap lines",
     "lines": "Log lines",
-    "skipped_one": "{{count}} line skipped (too many at once)",
-    "skipped_other": "{{count}} lines skipped (too many at once)",
     "noMatch": "No lines match “{{filter}}”.",
     "matches_one": "{{shown}} of {{count}} line matches",
     "matches_other": "{{shown}} of {{count}} lines match",

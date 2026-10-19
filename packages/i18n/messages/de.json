@@ -414,7 +414,7 @@
       },
       "refused": {
         "title": "Zu viele Log-Ansichten offen",
-        "text": "Dieser Browser-Tab zeigt bereits die Logs von so vielen Containern, wie gleichzeitig möglich ist. Schließe eine Ansicht und versuche es erneut.",
+        "text": "Du hast bereits so viele Log-Ansichten offen, wie eine Anmeldung gleichzeitig haben kann. Schließe eine und versuche es erneut.",
         "retry": "Erneut versuchen"
       }
     },
@@ -426,8 +426,6 @@
     "timestamps": "Zeitstempel",
     "wrap": "Zeilen umbrechen",
     "lines": "Log-Zeilen",
-    "skipped_one": "{{count}} Zeile ausgelassen (zu viele auf einmal)",
-    "skipped_other": "{{count}} Zeilen ausgelassen (zu viele auf einmal)",
     "noMatch": "Keine Zeile passt zu „{{filter}}“.",
     "matches_one": "{{shown}} von {{count}} Zeile passt",
     "matches_other": "{{shown}} von {{count}} Zeilen passen",
