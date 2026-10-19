@@ -93,6 +93,20 @@ describe('LogsPageStore', () => {
     expect(logs.entries().map((e) => e.text)).toEqual(['line 1', 'line 2', 'line 3']);
   });
 
+  it('keeps only the last 10,000 of a flood that arrives before the next frame', async () => {
+    const { logs, source } = await setup();
+    logs.open('web');
+    for (let i = 0; i < 3; i++) {
+      const batch = Array.from({ length: LOG_LIMITS.maxLinesInView / 2 }, (_, j) =>
+        line(i * 10_000 + j),
+      );
+      source().emit('lines', { lines: batch }, batch.at(-1)!.at);
+    }
+    vi.advanceTimersToNextFrame();
+    expect(logs.entries()).toHaveLength(LOG_LIMITS.maxLinesInView);
+    expect(logs.entries()[0].text).toBe('line 10000');
+  });
+
   it('keeps the last 10,000 lines', async () => {
     const { logs, send } = await setup();
     logs.open('web');
@@ -134,11 +148,13 @@ describe('LogsPageStore', () => {
     expect(source().query).toEqual({ tail: String(LOG_LIMITS.defaultTail) });
   });
 
-  it('doesn’t open while the tab is hidden, only once shown', async () => {
+  it('doesn’t open while the tab is hidden, only once shown — nor say "no output" meanwhile', async () => {
     const { logs, sources } = await setup();
     setVisibility('hidden');
     logs.open('web');
     expect(sources).toHaveLength(0);
+    vi.advanceTimersByTime(QUIET_MS);
+    expect(logs.state()).toEqual({ status: 'loading' });
     setVisibility('visible');
     expect(sources).toHaveLength(1);
   });
@@ -165,14 +181,14 @@ describe('LogsPageStore', () => {
     expect(logs.state()).toEqual({ status: 'ended', reason: 'not_found' });
   });
 
-  it('is refused when too many log views are open', async () => {
+  it('ends with too_many when too many log views are open', async () => {
     const { logs, source } = await setup();
     logs.open('web');
     source().emit('end', { reason: 'too_many' });
-    expect(logs.state()).toEqual({ status: 'refused' });
+    expect(logs.state()).toEqual({ status: 'ended', reason: 'too_many' });
     expect(source().closed).toBe(true);
     vi.advanceTimersByTime(QUIET_MS);
-    expect(logs.state()).toEqual({ status: 'refused' });
+    expect(logs.state()).toEqual({ status: 'ended', reason: 'too_many' });
   });
 
   it('ends with error when the browser gives up (an error answer)', async () => {

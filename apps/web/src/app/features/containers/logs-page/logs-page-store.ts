@@ -9,16 +9,13 @@ import {
 } from '@homelab/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import type { LogEntry, LogStreamState } from '../containers.model';
-import { QUIET_MS } from './logs-page-store.constants';
+import { EVENT_SOURCE_CLOSED, QUIET_MS } from './logs-page-store.constants';
 
 /** How event streams are opened — tests swap in a fake. */
 export const EVENT_SOURCE_FACTORY = new InjectionToken<(url: string) => EventSource>(
   'EVENT_SOURCE_FACTORY',
   { providedIn: 'root', factory: () => (url: string) => new EventSource(url) },
 );
-
-/** `EventSource.CLOSED`, without needing the global (tests use a fake). */
-const CLOSED = 2;
 
 interface LogsPageState {
   entries: LogEntry[];
@@ -91,6 +88,14 @@ export const LogsPageStore = signalStore(
       if (lastId) query.set('since', lastId);
       const opened = createSource(`${containerLogsPath(container!)}?${query}`);
       source = opened;
+      if (store.state().status === 'loading') {
+        // Docker sends nothing for a container without output.
+        clearQuietTimer();
+        quietTimer = setTimeout(() => {
+          quietTimer = null;
+          if (store.state().status === 'loading') patchState(store, { state: { status: 'live' } });
+        }, QUIET_MS);
+      }
       opened.addEventListener(LOGS_EVENTS.lines, (event: MessageEvent) => {
         if (opened !== source) return;
         const parsed = logsLinesSchema.safeParse(JSON.parse(event.data));
@@ -98,18 +103,21 @@ export const LogsPageStore = signalStore(
         lastId = event.lastEventId || lastId;
         clearQuietTimer();
         for (const line of parsed.data.lines) arrived.push({ id: nextId++, ...line });
+        // A flood while frames are slow: only what can be shown is kept.
+        const excess = arrived.length - LOG_LIMITS.maxLinesInView;
+        if (excess > 0) arrived.splice(0, excess);
         frame ??= document.defaultView?.requestAnimationFrame(showArrived) ?? null;
       });
       opened.addEventListener(LOGS_EVENTS.end, (event: MessageEvent) => {
         if (opened !== source) return;
         const parsed = logsEndSchema.safeParse(JSON.parse(event.data));
         const reason = parsed.success ? parsed.data.reason : 'error';
-        finish(reason === 'too_many' ? { status: 'refused' } : { status: 'ended', reason });
+        finish({ status: 'ended', reason });
       });
       // While reconnecting, `EventSource` tries again by itself; closed, it has given up
       // (an error answer: the session ended, or the server refused the request).
       opened.onerror = () => {
-        if (opened === source && opened.readyState === CLOSED) {
+        if (opened === source && opened.readyState === EVENT_SOURCE_CLOSED) {
           finish({ status: 'ended', reason: 'error' });
         }
       };
@@ -131,6 +139,7 @@ export const LogsPageStore = signalStore(
       if (!active()) return;
       if (document.visibilityState === 'hidden') {
         disconnect();
+        clearQuietTimer();
       } else if (!source) {
         connect();
       }
@@ -147,10 +156,6 @@ export const LogsPageStore = signalStore(
         container = name;
         tail = tailLines;
         patchState(store, { state: { status: 'loading' } });
-        quietTimer = setTimeout(() => {
-          quietTimer = null;
-          if (store.state().status === 'loading') patchState(store, { state: { status: 'live' } });
-        }, QUIET_MS);
         if (document.visibilityState !== 'hidden') connect();
       },
       close,
