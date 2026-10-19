@@ -196,3 +196,32 @@ export const chatStreamEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('error'), code: z.string(), answer: chatMessageSchema.nullable() }),
 ]);
 export type ChatStreamEvent = z.infer<typeof chatStreamEventSchema>;
+
+/** Codes the server answers with; the web app words them (`errors.<code>`). */
+export const AI_ERROR_CODES = {
+  ollamaNotInstalled: 'ollama_not_installed',
+  ollamaUnreachable: 'ollama_unreachable',
+  modelNotFound: 'model_not_found',
+  /** One answer at a time per person. */
+  answerRunning: 'answer_running',
+  /** The model stopped answering, or Ollama failed while answering. */
+  answerFailed: 'answer_failed',
+  /** One download at a time. */
+  pullRunning: 'pull_running',
+  pullFailed: 'pull_failed',
+  notEnoughSpace: 'not_enough_space',
+  chatNotFound: 'chat_not_found',
+  libraryUnreachable: 'library_unreachable',
+  libraryNotFound: 'library_not_found',
+} as const;
+export type AiErrorCode = (typeof AI_ERROR_CODES)[keyof typeof AI_ERROR_CODES];
+
+/** Remove a model (a query: names contain "/" and ":"). */
+export const aiModelQuerySchema = z.strictObject({ model: modelNameSchema });
+
+export const chatIdParamsSchema = z.strictObject({ id: z.uuid() });
+
+export const aiLibraryParamsSchema = z.strictObject({
+  owner: z.string().refine(isHfIdPart),
+  repo: z.string().refine(isHfIdPart),
+});
