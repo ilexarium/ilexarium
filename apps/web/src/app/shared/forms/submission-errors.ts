@@ -10,6 +10,7 @@ import {
   FILES_ERROR_CODES,
   PROCESS_ERROR_CODES,
   SERVICE_ERROR_CODES,
+  AI_ERROR_CODES,
 } from '@homelab/shared';
 import type { FormError } from './forms.model';
 
@@ -23,6 +24,7 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(ALERT_ERROR_CODES),
   ...Object.values(PROCESS_ERROR_CODES),
   ...Object.values(FILES_ERROR_CODES),
+  ...Object.values(AI_ERROR_CODES),
 ];
 
 /**

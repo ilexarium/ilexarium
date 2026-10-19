@@ -58,6 +58,18 @@ export const routes: Routes = [
           import('./features/backups/backups-page/backups-page').then((m) => m.BackupsPage),
       },
       {
+        path: 'assistant',
+        title: 'pages.assistant',
+        loadComponent: () =>
+          import('./features/assistant/chat-page/chat-page').then((m) => m.ChatPage),
+      },
+      {
+        path: 'assistant/models',
+        title: 'pages.assistantModels',
+        loadComponent: () =>
+          import('./features/assistant/models-page/models-page').then((m) => m.ModelsPage),
+      },
+      {
         path: 'disks',
         title: 'pages.disks',
         loadComponent: () =>

@@ -1,0 +1,63 @@
+<a
+  hlmBtn
+  variant="outline"
+  size="sm"
+  class="justify-start"
+  routerLink="/assistant"
+  (click)="picked.emit()"
+>
+  <ng-icon name="lucidePlus" aria-hidden="true" />
+  {{ 'assistant.newChat' | translate }}
+</a>
+
+<nav class="min-h-0 flex-1 overflow-y-auto" [attr.aria-label]="'assistant.chats' | translate">
+  @if (chats().length === 0) {
+    <p class="px-2 py-3 text-sm text-muted-foreground">{{ 'assistant.noChats' | translate }}</p>
+  }
+  <ul class="grid gap-0.5">
+    @for (chat of chats(); track chat.id) {
+      <li
+        class="group flex items-center gap-1 rounded-md hover:bg-accent/60"
+        [class.bg-accent]="chat.id === selected()"
+      >
+        <a
+          class="min-w-0 flex-1 truncate rounded-md px-2 py-2 text-sm"
+          [class.font-medium]="chat.id === selected()"
+          [class.text-accent-foreground]="chat.id === selected()"
+          routerLink="/assistant"
+          [queryParams]="{ chat: chat.id }"
+          [attr.aria-current]="chat.id === selected() ? 'page' : null"
+          (click)="picked.emit()"
+          >{{ chat.title }}</a
+        >
+        <button
+          hlmBtn
+          variant="ghost"
+          size="icon-sm"
+          class="shrink-0 text-muted-foreground"
+          [attr.aria-label]="'assistant.deleteChat' | translate: { title: chat.title }"
+          (click)="confirmRemove(chat)"
+        >
+          <ng-icon name="lucideTrash2" aria-hidden="true" />
+        </button>
+      </li>
+    }
+  </ul>
+</nav>
+
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle class="break-words">
+        {{ 'assistant.delete.title' | translate: { title: asking()?.title ?? '' } }}
+      </h2>
+      <p hlmAlertDialogDescription>{{ 'assistant.delete.text' | translate }}</p>
+    </hlm-alert-dialog-header>
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'assistant.delete.cancel' | translate }}</button>
+      <button hlmAlertDialogAction variant="destructive" (click)="confirmed()">
+        {{ 'assistant.delete.confirm' | translate }}
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

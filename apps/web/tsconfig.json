@@ -32,7 +32,12 @@
       "@ui/badge": ["./src/ui/badge/src/index.ts"],
       "@ui/table": ["./src/ui/table/src/index.ts"],
       "@ui/alert-dialog": ["./src/ui/alert-dialog/src/index.ts"],
-      "@ui/select": ["./src/ui/select/src/index.ts"]
+      "@ui/select": ["./src/ui/select/src/index.ts"],
+      "@ui/message": ["./src/ui/message/src/index.ts"],
+      "@ui/bubble": ["./src/ui/bubble/src/index.ts"],
+      "@ui/message-scroller": ["./src/ui/message-scroller/src/index.ts"],
+      "@ui/marker": ["./src/ui/marker/src/index.ts"],
+      "@ui/textarea": ["./src/ui/textarea/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

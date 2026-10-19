@@ -14,7 +14,9 @@
     "notifications": "Notifications",
     "processes": "Processes",
     "files": "Files",
-    "terminal": "Terminal"
+    "terminal": "Terminal",
+    "assistant": "Assistant",
+    "assistantModels": "Models"
   },
   "app": {
     "loading": "Loading…",
@@ -43,7 +45,8 @@
     "system": "System",
     "processes": "Processes",
     "files": "Files",
-    "terminal": "Terminal"
+    "terminal": "Terminal",
+    "assistant": "Assistant"
   },
   "userMenu": {
     "open": "Account menu",
@@ -241,7 +244,18 @@
     "file_exists": "Something of that name is there already.",
     "wrong_type": "That doesn’t work here (a folder instead of a file, or the other way round).",
     "file_too_large": "Too large (at most 10 GB per file).",
-    "file_operation_failed": "The machine refused it (a full disk, or a folder that isn’t empty?)."
+    "file_operation_failed": "The machine refused it (a full disk, or a folder that isn’t empty?).",
+    "ollama_not_installed": "Ollama isn’t installed.",
+    "ollama_unreachable": "Ollama doesn’t answer. Check that it’s running.",
+    "model_not_found": "That model doesn’t exist, or isn’t installed.",
+    "answer_running": "An answer is still being written. Wait for it or stop it.",
+    "answer_failed": "The model stopped answering. What it wrote is kept.",
+    "pull_running": "A model is downloading. Wait until it’s done.",
+    "pull_failed": "The download failed. Check the name and the connection, then try again.",
+    "not_enough_space": "There isn’t enough free space on the models’ disk.",
+    "chat_not_found": "This chat doesn’t exist (any more).",
+    "library_unreachable": "Hugging Face can’t be reached right now.",
+    "library_not_found": "No such model on Hugging Face."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -1112,6 +1126,93 @@
       "down": "Arrow down",
       "left": "Arrow left",
       "right": "Arrow right"
+    }
+  },
+  "assistant": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "newChat": "New chat",
+    "chats": "Chats",
+    "noChats": "No chats yet.",
+    "deleteChat": "Delete the chat “{{title}}”",
+    "delete": {
+      "title": "Delete “{{title}}”?",
+      "text": "The chat and all its messages are deleted. This can’t be undone.",
+      "cancel": "Keep it",
+      "confirm": "Delete"
+    },
+    "conversation": "Conversation",
+    "thinking": "Thinking…",
+    "stopped": "stopped",
+    "toLatest": "Jump to the latest message",
+    "notInstalled": "Ollama isn’t installed",
+    "notInstalledText": "Ollama runs the language models on this server. Install it from the Services page, then download a model.",
+    "installOllama": "Install Ollama",
+    "notRunning": "Ollama isn’t running",
+    "notRunningText": "It’s installed but doesn’t answer. Check its container on the Containers page.",
+    "noModels": "No model installed",
+    "noModelsText": "Download a model to start chatting. Small ones (1–4B parameters) work well without a graphics card.",
+    "noModelsHere": "Download one by name or find one on Hugging Face below.",
+    "getModel": "Get a model",
+    "chat": "Chat",
+    "model": "Model",
+    "models": "Models",
+    "loading": "Loading…",
+    "start": "Ask anything",
+    "startText": "Answers come from {{model}}, running on this server. Nothing leaves it.",
+    "message": "Message",
+    "placeholder": "Write a message… (Enter sends, Shift+Enter for a new line)",
+    "stop": "Stop the answer",
+    "send": "Send",
+    "loadFailed": "The Assistant couldn’t be loaded",
+    "openFailed": "The chat couldn’t be opened",
+    "answerFailed": "The answer stopped",
+    "sendFailed": "The message wasn’t sent",
+    "removeChatFailed": "The chat couldn’t be deleted",
+    "pulled": "{{model}} is ready",
+    "pullFailed": "{{model}} couldn’t be downloaded",
+    "removed": "{{model}} was removed",
+    "removeFailed": "{{model}} couldn’t be removed",
+    "searchFailed": "Hugging Face couldn’t be searched",
+    "loaded": "Loaded",
+    "remove": "Remove",
+    "removeModel": {
+      "title": "Remove {{model}}?",
+      "text": "The model is deleted from this server; its chats stay. You can download it again any time.",
+      "cancel": "Keep it",
+      "confirm": "Remove"
+    },
+    "pull": {
+      "title": "Download",
+      "running": "Downloading",
+      "succeeded": "Downloaded",
+      "failed": "Failed",
+      "progress": "Downloading {{model}}",
+      "bytes": "{{done}} of {{total}} ({{percent}})",
+      "starting": "Starting…"
+    },
+    "installed": "Installed models",
+    "installedSize": "{{size}} in all",
+    "byName": {
+      "title": "Download by name",
+      "label": "Model name",
+      "download": "Download",
+      "help": "A name from ollama.com/library, e.g. llama3.2:3b or qwen2.5:7b. Larger models need more memory: about 1 GB of RAM per billion parameters."
+    },
+    "library": {
+      "title": "Find on Hugging Face",
+      "description": "Models in GGUF format, the ones Ollama runs. Searched by this server; your chats stay here.",
+      "search": "Search",
+      "placeholder": "e.g. llama, qwen, mistral",
+      "none": "No models found.",
+      "downloads": "downloads",
+      "likes": "likes",
+      "gated": "This model needs a Hugging Face account and accepted terms, so it can’t be downloaded here.",
+      "noFiles": "This repository has no single-file model to download.",
+      "license": "Licence:",
+      "sizesHelp": "Smaller sizes (Q4) need less memory and answer faster; larger ones (Q8) are a little better.",
+      "installed": "Installed",
+      "download": "Download"
     }
   }
 }
