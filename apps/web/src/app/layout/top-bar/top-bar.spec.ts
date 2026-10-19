@@ -89,6 +89,8 @@ describe('TopBar user menu', () => {
 });
 
 describe('TopBar alerts bell', () => {
+  afterEach(() => document.querySelectorAll('.cdk-overlay-container').forEach((el) => el.remove()));
+
   it('shows the open alerts on the bell, which opens the alerts menu', async () => {
     const auth = fakeAuthApi({ user: OWNER });
     TestBed.configureTestingModule({ providers: [provideRouter([]), auth.provider] });
@@ -105,6 +107,5 @@ describe('TopBar alerts bell', () => {
     bell.click();
     await fixture.whenStable();
     expect(document.querySelector('[data-slot="dropdown-menu"]')!.textContent).toContain('Immich');
-    document.querySelectorAll('.cdk-overlay-container').forEach((el) => el.remove());
   });
 });

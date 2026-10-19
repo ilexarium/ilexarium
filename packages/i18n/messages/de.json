@@ -869,8 +869,8 @@
     "loading": "Warnungen werden geladen",
     "settingsLink": "Benachrichtigungseinstellungen",
     "menu": {
-      "ago": "Vor {{time}}",
-      "resolvedAgo": "Vor {{time}} behoben",
+      "ago": "{{time}} her",
+      "resolvedAgo": "Behoben, {{time}} her",
       "acknowledged": "Bestätigt",
       "all": "Alle Warnungen",
       "openCount_one": "{{count}} offen",

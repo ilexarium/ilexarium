@@ -22,9 +22,20 @@
 </button>
 
 <ng-template #menu>
-  <!-- Never wider than the screen, with even space on both sides of a phone; the list scrolls inside. -->
-  <hlm-dropdown-menu class="w-[min(24rem,calc(100vw-1rem))] p-0 max-sm:mx-2">
-    <div class="flex items-baseline justify-between gap-2 border-b px-3 py-2.5">
+  <!--
+    Never wider or taller than the screen (even space on both sides of a phone); the list scrolls
+    between the header and "All alerts". The header and the all-is-well line aren't menu items, so
+    screen readers skip them: the menu's label says the same.
+  -->
+  <hlm-dropdown-menu
+    class="flex max-h-[min(36rem,calc(100dvh-5rem))] w-[min(24rem,calc(100vw-1rem))] flex-col p-0 max-sm:mx-2"
+    [attr.aria-label]="
+      open().length > 0
+        ? ('alerts.bellCount' | plural: open().length)
+        : ('alerts.noneOpen' | translate)
+    "
+  >
+    <div class="flex items-baseline justify-between gap-2 border-b px-3 py-2.5" aria-hidden="true">
       <p class="text-sm font-semibold">{{ 'alerts.bell' | translate }}</p>
       @if (open().length > 0) {
         <p class="text-xs text-muted-foreground">
@@ -33,9 +44,12 @@
       }
     </div>
 
-    <div class="max-h-[min(28rem,65dvh)] overflow-y-auto p-1">
+    <div class="min-h-0 flex-1 overflow-y-auto p-1">
       @if (open().length === 0) {
-        <p class="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+        <p
+          class="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground"
+          aria-hidden="true"
+        >
           <ng-icon name="lucideCircleCheck" class="text-success" aria-hidden="true" />
           {{ 'alerts.noneOpen' | translate }}
         </p>
@@ -52,7 +66,12 @@
           [class.text-muted-foreground]="row.resolved"
           [routerLink]="row.link"
         >
-          <ng-icon [name]="row.icon" class="mt-0.5" [class]="row.iconClass" aria-hidden="true" />
+          <ng-icon
+            [name]="row.icon"
+            class="mt-0.5 size-4"
+            [class]="row.iconClass"
+            aria-hidden="true"
+          />
           <span class="grid min-w-0 gap-0.5">
             <span class="break-words" [class.font-medium]="!row.resolved">{{
               row.title[0] | translate: row.title[1]

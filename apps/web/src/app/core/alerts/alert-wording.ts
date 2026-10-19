@@ -23,6 +23,14 @@ export function alertText(alert: Alert): Wording {
   return [`alerts.text.${alert.kind}`];
 }
 
+/** Its icon and the icon's colour: resolved, critical or a warning. */
+export function alertIcon(alert: Alert): { icon: string; color: string } {
+  if (alert.closedAt) return { icon: 'lucideCircleCheck', color: 'text-muted-foreground' };
+  return alert.severity === 'critical'
+    ? { icon: 'lucideCircleAlert', color: 'text-destructive' }
+    : { icon: 'lucideTriangleAlert', color: 'text-warning' };
+}
+
 /** Where to look: the container's logs, the Disks or the Backups page. */
 export function alertLink(alert: Alert): { link: string[]; label: string } {
   switch (alert.kind) {
