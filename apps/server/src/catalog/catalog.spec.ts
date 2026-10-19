@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,10 +63,20 @@ function withChange(change: (template: Record<string, any>) => void) {
 describe('the catalog', () => {
   it('loads every entry, each passing every rule', async () => {
     const entries = await loadCatalog(CATALOG_DIR);
-    expect(entries.map((entry) => entry.meta.id)).toEqual(['immich', 'navidrome']);
+    expect(entries.map((entry) => entry.meta.id)).toEqual(['immich', 'navidrome', 'ollama']);
     const immich = entries.find((entry) => entry.meta.id === 'immich')!;
     expect(immich.volumes).toEqual(['model-cache', 'database']);
     expect(immich.images).toHaveLength(4);
+  });
+
+  it("publishes Ollama's API on loopback only and has no Open link (it has no sign-in)", async () => {
+    const entries = await loadCatalog(CATALOG_DIR);
+    const ollama = entries.find((entry) => entry.meta.id === 'ollama')!;
+    const recipe = await readFile(join(CATALOG_DIR, 'ollama', 'compose.yml'), 'utf8');
+    expect(recipe).toMatch(/^\s+- '127\.0\.0\.1:\$\{API_PORT\}:11434'$/m);
+    expect(recipe.match(/^\s+- '.*:11434'$/gm)).toHaveLength(1);
+    expect(ollama.meta.webPort).toBeUndefined();
+    expect(ollama.meta.backup).toBeUndefined();
   });
 
   it('has the texts of every entry in English (the consistency test covers the other languages)', async () => {
@@ -105,6 +115,10 @@ describe('the catalog', () => {
 describe('checkComposePolicy', () => {
   it('accepts a good recipe', () => {
     expect(checkComposePolicy(goodTemplate(), meta)).toEqual([]);
+  });
+
+  it('accepts a port bound to loopback only (a service without its own sign-in)', () => {
+    expect(withChange((t) => (t.services.app.ports = ['127.0.0.1:${WEB_PORT}:80']))).toEqual([]);
   });
 
   // One deliberately bad recipe per rule: each must be refused.
@@ -177,6 +191,16 @@ describe('checkComposePolicy', () => {
     [
       'a host address on a port',
       (t) => (t.services.app.ports = ['0.0.0.0:${WEB_PORT}:80']),
+      /only '\$\{PORT_FIELD\}/,
+    ],
+    [
+      'a host address other than loopback',
+      (t) => (t.services.app.ports = ['192.168.1.10:${WEB_PORT}:80']),
+      /only '\$\{PORT_FIELD\}/,
+    ],
+    [
+      'loopback written another way',
+      (t) => (t.services.app.ports = ['127.0.0.2:${WEB_PORT}:80']),
       /only '\$\{PORT_FIELD\}/,
     ],
     [

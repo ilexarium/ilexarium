@@ -108,10 +108,13 @@ export function checkPolicy(config: unknown, project: string, values: CheckedVal
     for (const port of asArray(service['ports'], `${at}.ports`, fail)) {
       if (!isObject(port)) return fail(`${at}.ports`, 'not a mapping');
       const keysOk = Object.keys(port).every((k) =>
-        ['mode', 'target', 'published', 'protocol'].includes(k),
+        ['mode', 'target', 'published', 'protocol', 'host_ip'].includes(k),
       );
+      // On every address, or on loopback only (a service without its own sign-in); no other address.
+      const addressOk = port['host_ip'] === undefined || port['host_ip'] === '127.0.0.1';
       if (
         !keysOk ||
+        !addressOk ||
         port['mode'] !== 'ingress' ||
         !values.ports.has(String(port['published'])) ||
         !['tcp', 'udp'].includes(String(port['protocol']))

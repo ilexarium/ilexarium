@@ -451,6 +451,19 @@
       "backup": {
         "restoreNote": "Your photos and videos are back. Albums, people and Immich's other data live in its database: its latest database backup came back with the photos — restore it in Immich (Immich's documentation explains how)."
       }
+    },
+    "ollama": {
+      "description": "Runs language models on this server, for the Assistant. Your chats never leave it.",
+      "fields": {
+        "API_PORT": {
+          "label": "API port",
+          "help": "Only this server can reach it: Ollama has no sign-in of its own."
+        },
+        "MODELS_DIR": {
+          "label": "Models folder",
+          "help": "Where the models are kept. They are large (often several GB each), so a big disk is a good place."
+        }
+      }
     }
   },
   "services": {

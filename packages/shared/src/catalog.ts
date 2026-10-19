@@ -191,8 +191,8 @@ export const catalogMetaSchema = z
     name: z.string().min(1).max(40),
     category: catalogCategorySchema,
     website: z.url({ protocol: /^https$/ }),
-    /** The port field behind the "Open" link. */
-    webPort: z.string().regex(FIELD_KEY_PATTERN),
+    /** The port field behind the "Open" link; none for a service without a web page of its own (Ollama). */
+    webPort: z.string().regex(FIELD_KEY_PATTERN).optional(),
     /** Owner of folders the wrapper creates for this service (its containers' user). */
     dataOwner: z.strictObject({
       uid: z.number().int().min(0).max(65535),
@@ -208,7 +208,7 @@ export const catalogMetaSchema = z
       ctx.addIssue({ code: 'custom', path: ['fields'], message: 'field keys must be unique' });
     }
     const web = meta.fields.find((field) => field.key === meta.webPort);
-    if (web?.type !== 'port') {
+    if (meta.webPort !== undefined && web?.type !== 'port') {
       ctx.addIssue({ code: 'custom', path: ['webPort'], message: 'must name a port field' });
     }
     meta.fields.forEach((field, i) => {

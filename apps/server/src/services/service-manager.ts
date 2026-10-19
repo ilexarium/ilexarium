@@ -124,7 +124,7 @@ export class ServiceManager {
     return services.map((service) => {
       const entry = this.catalog.get(service.catalogId);
       const settings = service.settings as FieldValues;
-      const webPort = entry ? settings[entry.meta.webPort] : undefined;
+      const webPort = entry?.meta.webPort ? settings[entry.meta.webPort] : undefined;
       const latest = service.jobs[0];
       return {
         id: service.id,

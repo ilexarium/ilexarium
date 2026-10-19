@@ -451,6 +451,19 @@
       "backup": {
         "restoreNote": "Deine Fotos und Videos sind zurück. Alben, Personen und Immichs übrige Daten liegen in seiner Datenbank: Ihre letzte Sicherung kam mit den Fotos zurück — stelle sie in Immich wieder her (Immichs Dokumentation erklärt, wie)."
       }
+    },
+    "ollama": {
+      "description": "Führt Sprachmodelle auf diesem Server aus, für den Assistenten. Deine Chats verlassen ihn nie.",
+      "fields": {
+        "API_PORT": {
+          "label": "API-Port",
+          "help": "Nur dieser Server erreicht ihn: Ollama hat keine eigene Anmeldung."
+        },
+        "MODELS_DIR": {
+          "label": "Modellordner",
+          "help": "Wo die Modelle liegen. Sie sind groß (oft mehrere GB pro Modell), eine große Festplatte ist ein guter Ort."
+        }
+      }
     }
   },
   "services": {

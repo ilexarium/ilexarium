@@ -51,6 +51,11 @@ describe('catalogMetaSchema', () => {
     expect(catalogMetaSchema.parse(meta)).toEqual(meta);
   });
 
+  it('accepts an entry without a web page of its own (no Open link)', () => {
+    const { webPort: _, ...withoutWeb } = meta;
+    expect(catalogMetaSchema.safeParse(withoutWeb).success).toBe(true);
+  });
+
   it.each([
     ['an id that could leave a folder', { id: '../etc' }],
     ['an uppercase id', { id: 'Demo' }],
