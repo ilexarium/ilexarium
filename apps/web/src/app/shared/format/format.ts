@@ -35,6 +35,13 @@ export function formatRate(bytesPerSecond: number, locale = 'en'): string {
 }
 
 /** "42%" ("42 %" in German) — "<1%" for a small non-zero share, so it never reads as idle. */
+/** A count, short: "52K", "1.2M" (downloads, likes). */
+export function formatCount(count: number, locale = 'en'): string {
+  return new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(
+    count,
+  );
+}
+
 export function formatPercent(percent: number, locale = 'en'): string {
   const format = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
   if (percent > 0 && percent < 1) return `<${format.format(0.01)}`;

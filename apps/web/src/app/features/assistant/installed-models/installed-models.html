@@ -1,0 +1,54 @@
+<ul class="grid gap-2">
+  @for (model of models(); track model.name) {
+    <li class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border p-3">
+      <div class="grid min-w-0 flex-1 gap-1">
+        <p class="flex flex-wrap items-center gap-2 font-medium">
+          <span class="min-w-0 break-all" dir="ltr">{{ model.name }}</span>
+          @if (model.loaded) {
+            <app-status-badge tone="info">{{ 'assistant.loaded' | translate }}</app-status-badge>
+          }
+        </p>
+        <p class="flex flex-wrap gap-x-2 text-sm text-muted-foreground" dir="ltr">
+          <span>{{ format.bytes(model.sizeBytes) }}</span>
+          @if (model.parameterSize) {
+            <span>· {{ model.parameterSize }}</span>
+          }
+          @if (model.quantization) {
+            <span>· {{ model.quantization }}</span>
+          }
+          @if (model.family) {
+            <span>· {{ model.family }}</span>
+          }
+        </p>
+      </div>
+      <button
+        hlmBtn
+        variant="outline"
+        size="sm"
+        [disabled]="removing().includes(model.name)"
+        (click)="confirmRemove(model.name)"
+      >
+        <ng-icon name="lucideTrash2" aria-hidden="true" />
+        {{ 'assistant.remove' | translate }}
+        <span class="sr-only" dir="ltr">{{ model.name }}</span>
+      </button>
+    </li>
+  }
+</ul>
+
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle class="break-words">
+        {{ 'assistant.removeModel.title' | translate: { model: asking() ?? '' } }}
+      </h2>
+      <p hlmAlertDialogDescription>{{ 'assistant.removeModel.text' | translate }}</p>
+    </hlm-alert-dialog-header>
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'assistant.removeModel.cancel' | translate }}</button>
+      <button hlmAlertDialogAction variant="destructive" (click)="confirmed()">
+        {{ 'assistant.removeModel.confirm' | translate }}
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

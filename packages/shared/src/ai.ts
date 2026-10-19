@@ -225,3 +225,7 @@ export const aiLibraryParamsSchema = z.strictObject({
   owner: z.string().refine(isHfIdPart),
   repo: z.string().refine(isHfIdPart),
 });
+
+/** The message box (the web form): the message alone, checked like the request. */
+export const chatMessageFormSchema = z.object({ content: chatSendSchema.shape.content });
+export type ChatMessageForm = z.infer<typeof chatMessageFormSchema>;

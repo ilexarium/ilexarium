@@ -14,7 +14,9 @@
     "notifications": "Benachrichtigungen",
     "processes": "Prozesse",
     "files": "Dateien",
-    "terminal": "Terminal"
+    "terminal": "Terminal",
+    "assistant": "Assistent",
+    "assistantModels": "Modelle"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -43,7 +45,8 @@
     "system": "System",
     "processes": "Prozesse",
     "files": "Dateien",
-    "terminal": "Terminal"
+    "terminal": "Terminal",
+    "assistant": "Assistent"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -241,7 +244,18 @@
     "file_exists": "Etwas mit diesem Namen gibt es schon.",
     "wrong_type": "Das geht hier nicht (ein Ordner statt einer Datei oder umgekehrt).",
     "file_too_large": "Zu groß (höchstens 10 GB pro Datei).",
-    "file_operation_failed": "Der Rechner hat es abgelehnt (volle Festplatte oder ein Ordner, der nicht leer ist?)."
+    "file_operation_failed": "Der Rechner hat es abgelehnt (volle Festplatte oder ein Ordner, der nicht leer ist?).",
+    "ollama_not_installed": "Ollama ist nicht installiert.",
+    "ollama_unreachable": "Ollama antwortet nicht. Prüfe, ob es läuft.",
+    "model_not_found": "Dieses Modell gibt es nicht oder es ist nicht installiert.",
+    "answer_running": "Eine Antwort wird noch geschrieben. Warte darauf oder brich sie ab.",
+    "answer_failed": "Das Modell hat aufgehört zu antworten. Was es geschrieben hat, bleibt erhalten.",
+    "pull_running": "Ein Modell wird gerade heruntergeladen. Warte, bis es fertig ist.",
+    "pull_failed": "Der Download ist fehlgeschlagen. Prüfe den Namen und die Verbindung und versuch es noch einmal.",
+    "not_enough_space": "Auf der Festplatte der Modelle ist nicht genug Platz frei.",
+    "chat_not_found": "Diesen Chat gibt es nicht (mehr).",
+    "library_unreachable": "Hugging Face ist gerade nicht erreichbar.",
+    "library_not_found": "Dieses Modell gibt es auf Hugging Face nicht."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -1112,6 +1126,93 @@
       "down": "Pfeil nach unten",
       "left": "Pfeil nach links",
       "right": "Pfeil nach rechts"
+    }
+  },
+  "assistant": {
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "newChat": "Neuer Chat",
+    "chats": "Chats",
+    "noChats": "Noch keine Chats.",
+    "deleteChat": "Chat „{{title}}“ löschen",
+    "delete": {
+      "title": "„{{title}}“ löschen?",
+      "text": "Der Chat und alle seine Nachrichten werden gelöscht. Das lässt sich nicht rückgängig machen.",
+      "cancel": "Behalten",
+      "confirm": "Löschen"
+    },
+    "conversation": "Unterhaltung",
+    "thinking": "Denkt nach…",
+    "stopped": "abgebrochen",
+    "toLatest": "Zur neuesten Nachricht",
+    "notInstalled": "Ollama ist nicht installiert",
+    "notInstalledText": "Ollama führt die Sprachmodelle auf diesem Server aus. Installiere es auf der Seite Dienste und lade dann ein Modell herunter.",
+    "installOllama": "Ollama installieren",
+    "notRunning": "Ollama läuft nicht",
+    "notRunningText": "Es ist installiert, antwortet aber nicht. Sieh dir seinen Container auf der Seite Container an.",
+    "noModels": "Kein Modell installiert",
+    "noModelsText": "Lade ein Modell herunter, um zu chatten. Kleine Modelle (1–4 Mrd. Parameter) laufen auch ohne Grafikkarte gut.",
+    "noModelsHere": "Lade eins per Namen herunter oder finde eins unten auf Hugging Face.",
+    "getModel": "Modell holen",
+    "chat": "Chat",
+    "model": "Modell",
+    "models": "Modelle",
+    "loading": "Wird geladen…",
+    "start": "Frag, was du willst",
+    "startText": "Die Antworten kommen von {{model}} auf diesem Server. Nichts verlässt ihn.",
+    "message": "Nachricht",
+    "placeholder": "Nachricht schreiben… (Enter sendet, Umschalt+Enter für eine neue Zeile)",
+    "stop": "Antwort abbrechen",
+    "send": "Senden",
+    "loadFailed": "Der Assistent konnte nicht geladen werden",
+    "openFailed": "Der Chat konnte nicht geöffnet werden",
+    "answerFailed": "Die Antwort wurde abgebrochen",
+    "sendFailed": "Die Nachricht wurde nicht gesendet",
+    "removeChatFailed": "Der Chat konnte nicht gelöscht werden",
+    "pulled": "{{model}} ist bereit",
+    "pullFailed": "{{model}} konnte nicht heruntergeladen werden",
+    "removed": "{{model}} wurde entfernt",
+    "removeFailed": "{{model}} konnte nicht entfernt werden",
+    "searchFailed": "Hugging Face konnte nicht durchsucht werden",
+    "loaded": "Geladen",
+    "remove": "Entfernen",
+    "removeModel": {
+      "title": "{{model}} entfernen?",
+      "text": "Das Modell wird von diesem Server gelöscht; seine Chats bleiben. Du kannst es jederzeit wieder herunterladen.",
+      "cancel": "Behalten",
+      "confirm": "Entfernen"
+    },
+    "pull": {
+      "title": "Download",
+      "running": "Wird heruntergeladen",
+      "succeeded": "Heruntergeladen",
+      "failed": "Fehlgeschlagen",
+      "progress": "{{model}} wird heruntergeladen",
+      "bytes": "{{done}} von {{total}} ({{percent}})",
+      "starting": "Wird gestartet…"
+    },
+    "installed": "Installierte Modelle",
+    "installedSize": "{{size}} insgesamt",
+    "byName": {
+      "title": "Per Namen herunterladen",
+      "label": "Modellname",
+      "download": "Herunterladen",
+      "help": "Ein Name aus ollama.com/library, z. B. llama3.2:3b oder qwen2.5:7b. Größere Modelle brauchen mehr Speicher: etwa 1 GB RAM pro Milliarde Parameter."
+    },
+    "library": {
+      "title": "Auf Hugging Face finden",
+      "description": "Modelle im GGUF-Format, das Ollama ausführt. Die Suche macht dieser Server; deine Chats bleiben hier.",
+      "search": "Suchen",
+      "placeholder": "z. B. llama, qwen, mistral",
+      "none": "Keine Modelle gefunden.",
+      "downloads": "Downloads",
+      "likes": "Likes",
+      "gated": "Für dieses Modell braucht man ein Hugging-Face-Konto und akzeptierte Bedingungen, daher lässt es sich hier nicht herunterladen.",
+      "noFiles": "Dieses Repository hat kein Modell als einzelne Datei zum Herunterladen.",
+      "license": "Lizenz:",
+      "sizesHelp": "Kleinere Größen (Q4) brauchen weniger Speicher und antworten schneller; größere (Q8) sind etwas besser.",
+      "installed": "Installiert",
+      "download": "Herunterladen"
     }
   }
 }

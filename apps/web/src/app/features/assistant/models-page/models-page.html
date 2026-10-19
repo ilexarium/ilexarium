@@ -1,0 +1,155 @@
+<div class="grid max-w-3xl gap-6">
+  <a hlmBtn variant="ghost" size="sm" routerLink="/assistant" class="-ms-2 justify-self-start">
+    <ng-icon name="lucideArrowLeft" class="rtl:-scale-x-100" aria-hidden="true" />
+    {{ 'nav.assistant' | translate }}
+  </a>
+
+  @if (store.status(); as status) {
+    @if (status.state !== 'ready') {
+      <app-empty-state
+        icon="lucideBot"
+        [text]="
+          (status.state === 'not_installed' ? 'assistant.notInstalled' : 'assistant.notRunning')
+            | translate
+        "
+        [detail]="
+          (status.state === 'not_installed'
+            ? 'assistant.notInstalledText'
+            : 'assistant.notRunningText'
+          ) | translate
+        "
+      >
+        <a
+          hlmBtn
+          size="sm"
+          [routerLink]="status.state === 'not_installed' ? '/services' : '/containers'"
+          >{{
+            (status.state === 'not_installed' ? 'assistant.installOllama' : 'nav.containers')
+              | translate
+          }}</a
+        >
+      </app-empty-state>
+    } @else {
+      @if (store.pull(); as pull) {
+        <section class="grid gap-3" aria-labelledby="pull-title">
+          <h2 id="pull-title" class="text-lg font-semibold">
+            {{ 'assistant.pull.title' | translate }}
+          </h2>
+          <app-pull-progress [pull]="pull" />
+        </section>
+      }
+
+      <section class="grid gap-3" aria-labelledby="installed-title">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="installed-title" class="text-lg font-semibold">
+            {{ 'assistant.installed' | translate }}
+          </h2>
+          @if (store.models().length > 0) {
+            <p class="text-sm text-muted-foreground">
+              {{
+                'assistant.installedSize' | translate: { size: format.bytes(store.totalBytes()) }
+              }}
+            </p>
+          }
+        </div>
+        @if (store.models().length === 0) {
+          <app-empty-state
+            icon="lucidePackage"
+            [text]="'assistant.noModels' | translate"
+            [detail]="'assistant.noModelsHere' | translate"
+          />
+        } @else {
+          <app-installed-models
+            [models]="store.models()"
+            [removing]="store.removing()"
+            (remove)="store.remove($event)"
+          />
+        }
+      </section>
+
+      <section class="grid gap-3" aria-labelledby="by-name-title">
+        <h2 id="by-name-title" class="text-lg font-semibold">
+          {{ 'assistant.byName.title' | translate }}
+        </h2>
+        <form [formRoot]="pullForm" class="grid gap-2">
+          <div hlmField>
+            <label hlmFieldLabel for="model-name">{{ 'assistant.byName.label' | translate }}</label>
+            <div class="flex flex-wrap gap-2">
+              <input
+                hlmInput
+                id="model-name"
+                dir="ltr"
+                class="min-w-0 flex-1 basis-56"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                placeholder="llama3.2:3b"
+                [formField]="pullForm.model"
+              />
+              <button hlmBtn type="submit" [disabled]="store.downloading()">
+                {{ 'assistant.byName.download' | translate }}
+              </button>
+            </div>
+            <p hlmFieldDescription>{{ 'assistant.byName.help' | translate }}</p>
+            @if (pullForm.model().touched()) {
+              @for (error of pullForm.model().errors(); track error) {
+                <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+              }
+            }
+          </div>
+        </form>
+      </section>
+
+      <section class="grid gap-3" aria-labelledby="library-title">
+        <div class="grid gap-1">
+          <h2 id="library-title" class="text-lg font-semibold">
+            {{ 'assistant.library.title' | translate }}
+          </h2>
+          <p class="text-sm text-muted-foreground">
+            {{ 'assistant.library.description' | translate }}
+          </p>
+        </div>
+        <form [formRoot]="searchForm" class="flex flex-wrap gap-2" role="search">
+          <label for="library-search" class="sr-only">{{
+            'assistant.library.search' | translate
+          }}</label>
+          <input
+            hlmInput
+            id="library-search"
+            type="search"
+            class="min-w-0 flex-1 basis-56"
+            autocomplete="off"
+            [placeholder]="'assistant.library.placeholder' | translate"
+            [formField]="searchForm.search"
+          />
+          <button hlmBtn type="submit" variant="secondary" [disabled]="store.searching()">
+            <ng-icon name="lucideSearch" aria-hidden="true" />
+            {{ 'assistant.library.search' | translate }}
+          </button>
+        </form>
+        @if (store.searching()) {
+          <div class="grid gap-2" role="status" [attr.aria-label]="'assistant.loading' | translate">
+            @for (row of [1, 2, 3]; track row) {
+              <hlm-skeleton class="h-12 w-full" />
+            }
+          </div>
+        } @else if (store.results(); as results) {
+          <app-library-results
+            [results]="results"
+            [opened]="store.opened()"
+            [downloading]="store.downloading()"
+            [installed]="installedNames()"
+            (toggle)="store.toggle($event)"
+            (download)="download($event)"
+          />
+        }
+      </section>
+    }
+  } @else {
+    <div class="grid gap-3" role="status" [attr.aria-label]="'assistant.loading' | translate">
+      <hlm-skeleton class="h-7 w-40" />
+      <hlm-skeleton class="h-16 w-full" />
+      <hlm-skeleton class="h-16 w-full" />
+    </div>
+  }
+</div>

@@ -3,6 +3,7 @@ import { LanguageService } from '../../core/i18n/language';
 import { Translator } from '../../core/i18n/translator';
 import {
   formatBytes,
+  formatCount,
   formatDateTime,
   formatDuration,
   formatLogTime,
@@ -26,6 +27,10 @@ export class Formatter {
 
   rate(bytesPerSecond: number): string {
     return this.ltr(formatRate(bytesPerSecond, this.locale()));
+  }
+
+  count(count: number): string {
+    return this.ltr(formatCount(count, this.locale()));
   }
 
   percent(percent: number): string {

@@ -71,6 +71,7 @@ describe('Shell (app layout)', () => {
     expect(navLink('Dashboard')!.getAttribute('href')).toBe('/');
     expect(navLink('Containers')!.getAttribute('href')).toBe('/containers');
     expect(navLink('Services')!.getAttribute('href')).toBe('/services');
+    expect(navLink('Assistant')!.getAttribute('href')).toBe('/assistant');
     expect(navLink('Account')!.getAttribute('href')).toBe('/settings/account');
     expect(nav.textContent).toContain('Settings');
     const order = [...nav.querySelectorAll('a')].map((a) => a.textContent!.trim());
@@ -78,6 +79,7 @@ describe('Shell (app layout)', () => {
       'Dashboard',
       'Containers',
       'Services',
+      'Assistant',
       'Backups',
       'Alerts',
       'Disks',

@@ -1,0 +1,168 @@
+@if (store.status(); as status) {
+  @switch (status.state) {
+    @case ('not_installed') {
+      <app-empty-state
+        icon="lucideBot"
+        [text]="'assistant.notInstalled' | translate"
+        [detail]="'assistant.notInstalledText' | translate"
+      >
+        <a hlmBtn size="sm" routerLink="/services">{{ 'assistant.installOllama' | translate }}</a>
+      </app-empty-state>
+    }
+    @case ('not_running') {
+      <app-empty-state
+        icon="lucideBot"
+        [text]="'assistant.notRunning' | translate"
+        [detail]="'assistant.notRunningText' | translate"
+      >
+        <a hlmBtn variant="outline" size="sm" routerLink="/containers">{{
+          'nav.containers' | translate
+        }}</a>
+      </app-empty-state>
+    }
+    @default {
+      @if (store.models().length === 0) {
+        <app-empty-state
+          icon="lucidePackage"
+          [text]="'assistant.noModels' | translate"
+          [detail]="'assistant.noModelsText' | translate"
+        >
+          <a hlmBtn size="sm" routerLink="/assistant/models">{{
+            'assistant.getModel' | translate
+          }}</a>
+        </app-empty-state>
+      } @else {
+        <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
+          <app-chat-list
+            class="hidden lg:flex"
+            [chats]="store.chats()"
+            [selected]="store.chat()?.id ?? null"
+            (remove)="remove($event)"
+          />
+
+          <section
+            class="flex min-h-0 flex-col gap-3"
+            [attr.aria-label]="'assistant.chat' | translate"
+          >
+            <div class="flex flex-wrap items-center gap-2">
+              <hlm-sheet [side]="sheetSide()">
+                <button hlmSheetTrigger hlmBtn variant="outline" size="sm" class="lg:hidden">
+                  <ng-icon name="lucideMessagesSquare" aria-hidden="true" />
+                  {{ 'assistant.chats' | translate }}
+                </button>
+                <hlm-sheet-content *hlmSheetPortal="let ctx" class="p-4">
+                  <hlm-sheet-header class="p-0">
+                    <h2 hlmSheetTitle>{{ 'assistant.chats' | translate }}</h2>
+                  </hlm-sheet-header>
+                  <app-chat-list
+                    class="min-h-0 flex-1"
+                    [chats]="store.chats()"
+                    [selected]="store.chat()?.id ?? null"
+                    (remove)="remove($event)"
+                    (picked)="ctx.close()"
+                  />
+                </hlm-sheet-content>
+              </hlm-sheet>
+
+              <label for="model" class="sr-only">{{ 'assistant.model' | translate }}</label>
+              <hlm-select
+                class="min-w-0 flex-1 sm:max-w-72 sm:flex-none"
+                dir="ltr"
+                [value]="store.model()"
+                (valueChange)="store.setModel($any($event))"
+                [disabled]="store.sending()"
+              >
+                <hlm-select-trigger buttonId="model" class="w-full"
+                  ><hlm-select-value
+                /></hlm-select-trigger>
+                <hlm-select-content *hlmSelectPortal>
+                  @for (model of store.models(); track model.name) {
+                    <hlm-select-item [value]="model.name">{{ model.name }}</hlm-select-item>
+                  }
+                </hlm-select-content>
+              </hlm-select>
+
+              <a hlmBtn variant="ghost" size="sm" class="ms-auto" routerLink="/assistant/models">
+                <ng-icon name="lucideSlidersHorizontal" aria-hidden="true" />
+                {{ 'assistant.models' | translate }}
+              </a>
+            </div>
+
+            @if (store.loadingChat()) {
+              <div
+                class="grid flex-1 content-start gap-4"
+                role="status"
+                [attr.aria-label]="'assistant.loading' | translate"
+              >
+                <hlm-skeleton class="ms-auto h-10 w-2/3" />
+                <hlm-skeleton class="h-24 w-full" />
+              </div>
+            } @else if (!store.chat() && !store.sending()) {
+              <app-empty-state
+                class="flex-1 justify-center border-none"
+                icon="lucideSparkles"
+                [text]="'assistant.start' | translate"
+                [detail]="'assistant.startText' | translate: { model: store.model() ?? '' }"
+              />
+            } @else {
+              <app-chat-thread
+                class="flex-1"
+                [messages]="store.chat()?.messages ?? []"
+                [streaming]="store.streaming()?.text ?? null"
+              />
+            }
+
+            <form [formRoot]="message" class="mx-auto grid w-full max-w-3xl gap-1">
+              <div class="relative">
+                <label for="message" class="sr-only">{{ 'assistant.message' | translate }}</label>
+                <textarea
+                  hlmTextarea
+                  id="message"
+                  rows="2"
+                  class="max-h-48 min-h-14 resize-none pe-12"
+                  [formField]="message.content"
+                  [placeholder]="'assistant.placeholder' | translate"
+                  (keydown)="keydown($event)"
+                ></textarea>
+                @if (store.sending()) {
+                  <button
+                    hlmBtn
+                    type="button"
+                    size="icon-sm"
+                    variant="secondary"
+                    class="absolute end-2 bottom-2"
+                    [attr.aria-label]="'assistant.stop' | translate"
+                    (click)="store.stop()"
+                  >
+                    <ng-icon name="lucideSquare" aria-hidden="true" />
+                  </button>
+                } @else {
+                  <button
+                    hlmBtn
+                    type="submit"
+                    size="icon-sm"
+                    class="absolute end-2 bottom-2"
+                    [disabled]="!store.model()"
+                    [attr.aria-label]="'assistant.send' | translate"
+                  >
+                    <ng-icon name="lucideArrowUp" aria-hidden="true" />
+                  </button>
+                }
+              </div>
+              @if (message.content().touched()) {
+                @for (error of message.content().errors(); track error) {
+                  <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+                }
+              }
+            </form>
+          </section>
+        </div>
+      }
+    }
+  }
+} @else {
+  <div class="grid gap-4" role="status" [attr.aria-label]="'assistant.loading' | translate">
+    <hlm-skeleton class="h-9 w-64" />
+    <hlm-skeleton class="h-64 w-full" />
+  </div>
+}

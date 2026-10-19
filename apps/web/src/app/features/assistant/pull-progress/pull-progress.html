@@ -1,0 +1,41 @@
+<p class="flex flex-wrap items-center gap-2 text-sm">
+  <span class="min-w-0 font-medium break-all" dir="ltr">{{ pull().model }}</span>
+  @switch (pull().status) {
+    @case ('running') {
+      <app-status-badge tone="info">{{ 'assistant.pull.running' | translate }}</app-status-badge>
+    }
+    @case ('succeeded') {
+      <app-status-badge tone="healthy">{{
+        'assistant.pull.succeeded' | translate
+      }}</app-status-badge>
+    }
+    @default {
+      <app-status-badge tone="failed">{{ 'assistant.pull.failed' | translate }}</app-status-badge>
+    }
+  }
+</p>
+@if (pull().status === 'running') {
+  <hlm-progress
+    [value]="percent()"
+    [attr.aria-label]="'assistant.pull.progress' | translate: { model: pull().model }"
+  >
+    <hlm-progress-indicator />
+  </hlm-progress>
+  <p class="text-sm text-muted-foreground">
+    @if (pull().totalBytes > 0) {
+      {{
+        'assistant.pull.bytes'
+          | translate
+            : {
+                done: format.bytes(pull().completedBytes),
+                total: format.bytes(pull().totalBytes),
+                percent: format.percent(percent()),
+              }
+      }}
+    } @else {
+      {{ 'assistant.pull.starting' | translate }}
+    }
+  </p>
+} @else if (pull().errorCode; as code) {
+  <p class="text-sm text-destructive">{{ 'errors.' + code | translate }}</p>
+}

@@ -2,6 +2,7 @@ import {
   formatBytes,
   formatDuration,
   formatLogTime,
+  formatCount,
   formatPercent,
   formatRate,
   percentOf,
@@ -27,6 +28,18 @@ describe('formatRate', () => {
   it('is bytes per second', () => {
     expect(formatRate(1_200_000)).toBe('1.2 MB/s');
     expect(formatRate(0)).toBe('0 B/s');
+  });
+});
+
+describe('formatCount', () => {
+  it('shortens large counts', () => {
+    expect(formatCount(18)).toBe('18');
+    expect(formatCount(52_592)).toBe('52.6K');
+    expect(formatCount(1_200_000)).toBe('1.2M');
+  });
+
+  it('keeps Latin digits in Arabic', () => {
+    expect(formatCount(52_592, 'ar-u-nu-latn')).toMatch(/^52[.,٫]6/);
   });
 });
 
