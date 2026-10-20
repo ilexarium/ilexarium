@@ -5,7 +5,15 @@ import type { SystemReader } from '../host/system-reader.js';
 import type { RawProcess } from '../host/host.model.js';
 import { ProcessesService } from './processes.service.js';
 
-const USER: PublicUser = { id: 'u1', username: 'owner', createdAt: '2026-10-12T00:00:00.000Z' };
+const USER: PublicUser = {
+  id: 'u1',
+  username: 'owner',
+  createdAt: '2026-10-12T00:00:00.000Z',
+  displayName: null,
+  email: null,
+  language: null,
+  avatar: null,
+};
 const ACTOR = { user: USER, ip: '127.0.0.1' };
 
 const person: RawProcess = {

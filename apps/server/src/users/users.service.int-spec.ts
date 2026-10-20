@@ -76,4 +76,49 @@ describe('UsersService (database)', () => {
     await users.updatePasswordHash(id, 'new');
     expect((await users.findCredentials('owner'))?.passwordHash).toBe('new');
   });
+
+  it('keeps the profile: a name, an address, a language; null removes them', async () => {
+    const { id } = await users.create({ username: 'owner', passwordHash: 'h' });
+    const updated = await users.updateProfile(id, {
+      displayName: 'Anna',
+      email: 'anna@example.com',
+      language: 'de',
+    });
+    expect(updated).toMatchObject({
+      displayName: 'Anna',
+      email: 'anna@example.com',
+      language: 'de',
+    });
+    expect(await users.findById(id)).toEqual(updated);
+    const cleared = await users.updateProfile(id, { displayName: null });
+    expect(cleared).toMatchObject({ displayName: null, email: 'anna@example.com' });
+  });
+
+  it('keeps one picture per user: replaced, read back, removed; its path versioned', async () => {
+    const { id } = await users.create({ username: 'owner', passwordHash: 'h' });
+    const first = await users.setAvatar(id, Buffer.from('first'), 'image/webp');
+    expect(first.avatar).toMatch(/^\/api\/profile\/avatar\?v=\d+$/);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = await users.setAvatar(id, Buffer.from('second'), 'image/jpeg');
+    expect(second.avatar).not.toBe(first.avatar);
+    const stored = await users.findAvatar(id);
+    expect(Buffer.from(stored!.bytes).toString()).toBe('second');
+    expect(stored!.type).toBe('image/jpeg');
+    expect((await users.removeAvatar(id)).avatar).toBeNull();
+    expect(await users.findAvatar(id)).toBeNull();
+    expect((await users.removeAvatar(id)).avatar).toBeNull(); // idempotent
+  });
+
+  it('removes the picture with its user', async () => {
+    const { id } = await users.create({ username: 'owner', passwordHash: 'h' });
+    await users.setAvatar(id, Buffer.from('x'), 'image/png');
+    await prisma.user.delete({ where: { id } });
+    expect(await prisma.userAvatar.count()).toBe(0);
+  });
+
+  it('reads an unknown stored language as none', async () => {
+    const { id } = await users.create({ username: 'owner', passwordHash: 'h' });
+    await prisma.user.update({ where: { id }, data: { language: 'fr' } });
+    expect((await users.findById(id))?.language).toBeNull();
+  });
 });

@@ -31,6 +31,8 @@ export const AUDIT_ACTIONS = [
   'terminal.close',
   'assistant.model_pull',
   'assistant.model_remove',
+  'profile.update',
+  'profile.avatar',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

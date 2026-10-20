@@ -16,7 +16,15 @@ import type {
 } from './wrapper-command.js';
 import type { WrapperConfigService } from './wrapper-config.js';
 
-const USER: PublicUser = { id: 'u1', username: 'owner', createdAt: '2026-10-12T00:00:00.000Z' };
+const USER: PublicUser = {
+  id: 'u1',
+  username: 'owner',
+  createdAt: '2026-10-12T00:00:00.000Z',
+  displayName: null,
+  email: null,
+  language: null,
+  avatar: null,
+};
 
 /**
  * A stand-in for the wrapper: records its arguments, environment and stdin, then prints the

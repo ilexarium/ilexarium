@@ -5,7 +5,15 @@ import { ContainerActionError, type DockerControl } from '../docker/docker-contr
 import type { DockerService } from '../docker/docker.service.js';
 import { ContainerActionsService } from './container-actions.service.js';
 
-const USER: PublicUser = { id: 'u1', username: 'owner', createdAt: '2026-10-12T00:00:00.000Z' };
+const USER: PublicUser = {
+  id: 'u1',
+  username: 'owner',
+  createdAt: '2026-10-12T00:00:00.000Z',
+  displayName: null,
+  email: null,
+  language: null,
+  avatar: null,
+};
 const ACTOR = { user: USER, ip: '127.0.0.1' };
 
 /** Everything in call order: audit entries and Docker calls, so the order can be checked. */

@@ -16,7 +16,8 @@
     "files": "Dateien",
     "terminal": "Terminal",
     "assistant": "Assistent",
-    "assistantModels": "Modelle"
+    "assistantModels": "Modelle",
+    "profile": "Profil"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -51,8 +52,10 @@
   "userMenu": {
     "open": "Kontomenü",
     "language": "Sprache",
-    "changePassword": "Passwort ändern",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "editProfile": "Profil bearbeiten",
+    "profile": "Mein Profil",
+    "accountSettings": "Kontoeinstellungen"
   },
   "connection": {
     "offline": "Offline",
@@ -159,7 +162,10 @@
     "modelNameRequired": "Gib einen Modellnamen ein",
     "modelNameInvalid": "Ein Modellname wie llama3.2:3b",
     "messageRequired": "Schreib eine Nachricht",
-    "messageTooLong": "Höchstens {{messageMax}} Zeichen"
+    "messageTooLong": "Höchstens {{messageMax}} Zeichen",
+    "displayNameTooLong": "Höchstens {{displayNameMax}} Zeichen",
+    "emailTooLong": "Höchstens {{emailMax}} Zeichen",
+    "nothingToChange": "Nichts zu ändern"
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -256,7 +262,9 @@
     "chat_not_found": "Diesen Chat gibt es nicht (mehr).",
     "library_unreachable": "Hugging Face ist gerade nicht erreichbar.",
     "library_not_found": "Dieses Modell gibt es auf Hugging Face nicht.",
-    "models_folder_unavailable": "Der Modellordner lässt sich nicht lesen, sein freier Platz ist unbekannt. Prüfe, ob seine Festplatte da ist."
+    "models_folder_unavailable": "Der Modellordner lässt sich nicht lesen, sein freier Platz ist unbekannt. Prüfe, ob seine Festplatte da ist.",
+    "invalid_picture": "Das Bild konnte nicht verwendet werden. Wähle ein anderes JPEG-, PNG- oder WebP-Bild.",
+    "picture_too_large": "Das Bild ist zu groß."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -1214,5 +1222,53 @@
       "download": "Herunterladen"
     },
     "checkAgain": "Erneut prüfen"
+  },
+  "profile": {
+    "edit": "Bearbeiten",
+    "saved": "Profil gespeichert",
+    "languageNotSaved": "Die Sprache konnte nicht für dein Konto gespeichert werden",
+    "memberSince": "Mitglied seit {{date}}",
+    "notSet": "Nicht festgelegt",
+    "displayName": "Anzeigename",
+    "displayNameHelp": "Wird statt deines Benutzernamens angezeigt.",
+    "email": "E-Mail-Adresse",
+    "emailHelp": "Nur zur Kontaktaufnahme – angemeldet wird weiter mit dem Benutzernamen.",
+    "picture": {
+      "title": "Profilbild",
+      "choose": "Bild auswählen",
+      "help": "Ein JPEG-, PNG- oder WebP-Bild. Es wird quadratisch zugeschnitten.",
+      "preparing": "Bild wird vorbereitet …",
+      "unreadable": "Diese Datei ist kein verwendbares Bild. Wähle ein JPEG-, PNG- oder WebP-Bild.",
+      "tooLarge": "Diese Datei ist zu groß. Wähle ein kleineres Bild.",
+      "remove": "Bild entfernen"
+    },
+    "dialog": {
+      "title": "Profil bearbeiten",
+      "description": "Dein Bild, der in der App angezeigte Name und eine Adresse, unter der du erreichbar bist.",
+      "close": "Schließen",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "saving": "Wird gespeichert …"
+    },
+    "preferences": {
+      "title": "Einstellungen",
+      "language": "Sprache – für dein Konto gespeichert, sie gilt also auch in anderen Browsern."
+    },
+    "security": {
+      "title": "Sicherheit",
+      "password": "Passwort",
+      "passwordText": "Ändere das Passwort, mit dem du dich anmeldest.",
+      "changePassword": "Passwort ändern"
+    },
+    "signOutEverywhere": {
+      "title": "Überall abmelden",
+      "text": "Beendet jede Sitzung deines Kontos auf jedem Gerät – auch diese.",
+      "button": "Überall abmelden",
+      "confirmTitle": "Überall abmelden?",
+      "confirmText": "Jeder bei deinem Konto angemeldete Browser wird abgemeldet, auch dieser. Zum erneuten Anmelden brauchst du dein Passwort.",
+      "cancel": "Abbrechen",
+      "confirm": "Überall abmelden",
+      "failed": "Abmelden auf allen Geräten fehlgeschlagen"
+    }
   }
 }
