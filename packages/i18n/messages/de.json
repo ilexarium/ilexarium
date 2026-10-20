@@ -5,7 +5,6 @@
     "dashboard": "Übersicht",
     "containers": "Container",
     "logs": "Logs · {{name}}",
-    "account": "Konto",
     "services": "Dienste",
     "installService": "Dienst installieren",
     "backups": "Backups",
@@ -35,7 +34,6 @@
     "dashboard": "Übersicht",
     "containers": "Container",
     "settings": "Einstellungen",
-    "account": "Konto",
     "services": "Dienste",
     "backups": "Backups",
     "attention": "(braucht Aufmerksamkeit)",
@@ -54,8 +52,7 @@
     "language": "Sprache",
     "signOut": "Abmelden",
     "editProfile": "Profil bearbeiten",
-    "profile": "Mein Profil",
-    "accountSettings": "Kontoeinstellungen"
+    "profile": "Mein Profil"
   },
   "connection": {
     "offline": "Offline",
@@ -108,7 +105,9 @@
     "submit": "Passwort ändern",
     "submitting": "Wird geändert …",
     "changed": "Passwort geändert",
-    "changedText": "Andere Geräte wurden abgemeldet."
+    "changedText": "Andere Geräte wurden abgemeldet.",
+    "cancel": "Abbrechen",
+    "close": "Schließen"
   },
   "validation": {
     "usernameRequired": "Gib deinen Benutzernamen ein",

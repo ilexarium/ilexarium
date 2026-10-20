@@ -60,9 +60,11 @@ describe('ProfilePage', () => {
     expect(profiles.update).toHaveBeenCalledWith({ language: 'de' });
   });
 
-  it('links to the password form', async () => {
-    const { el } = await setup();
-    expect(el.querySelector('a[href="/settings/account"]')!.textContent).toContain(
+  it('opens the password dialog', async () => {
+    const { fixture, button } = await setup();
+    button('Change password').click();
+    await fixture.whenStable();
+    expect(document.querySelector('[role="dialog"] h2')!.textContent!.trim()).toBe(
       'Change password',
     );
   });

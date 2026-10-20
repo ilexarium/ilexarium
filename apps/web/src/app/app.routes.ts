@@ -113,12 +113,8 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/profile/profile-page/profile-page').then((m) => m.ProfilePage),
       },
-      {
-        path: 'settings/account',
-        title: 'pages.account',
-        loadComponent: () =>
-          import('./features/settings/account-page/account-page').then((m) => m.AccountPage),
-      },
+      // The password is changed in a dialog on the profile page now (2026-10-20).
+      { path: 'settings/account', redirectTo: 'profile' },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -26,7 +26,7 @@ async function render(url = '/') {
             { path: '', title: 'pages.dashboard', component: Page },
             { path: 'containers', title: 'pages.containers', component: Page },
             { path: 'containers/:name/logs', title: 'pages.logs', component: Page },
-            { path: 'settings/account', title: 'pages.account', component: Page },
+            { path: 'settings/notifications', title: 'pages.notifications', component: Page },
           ],
         },
       ]),
@@ -72,7 +72,7 @@ describe('Shell (app layout)', () => {
     expect(navLink('Containers')!.getAttribute('href')).toBe('/containers');
     expect(navLink('Services')!.getAttribute('href')).toBe('/services');
     expect(navLink('Assistant')!.getAttribute('href')).toBe('/assistant');
-    expect(navLink('Account')!.getAttribute('href')).toBe('/settings/account');
+    expect(navLink('Notifications')!.getAttribute('href')).toBe('/settings/notifications');
     expect(nav.textContent).toContain('Settings');
     const order = [...nav.querySelectorAll('a')].map((a) => a.textContent!.trim());
     expect(order).toEqual([
@@ -86,7 +86,6 @@ describe('Shell (app layout)', () => {
       'Processes',
       'Files',
       'Terminal',
-      'Account',
       'Notifications',
     ]);
     expect(nav.textContent).toContain('Storage');
@@ -95,10 +94,10 @@ describe('Shell (app layout)', () => {
   it('marks only the current page, also for the dashboard at "/"', async () => {
     const { harness, navLink } = await render('/');
     expect(navLink('Dashboard')!.getAttribute('aria-current')).toBe('page');
-    expect(navLink('Account')!.hasAttribute('aria-current')).toBe(false);
+    expect(navLink('Notifications')!.hasAttribute('aria-current')).toBe(false);
 
-    await harness.navigateByUrl('/settings/account');
-    expect(navLink('Account')!.getAttribute('aria-current')).toBe('page');
+    await harness.navigateByUrl('/settings/notifications');
+    expect(navLink('Notifications')!.getAttribute('aria-current')).toBe('page');
     expect(navLink('Dashboard')!.hasAttribute('aria-current')).toBe(false);
   });
 
@@ -113,8 +112,8 @@ describe('Shell (app layout)', () => {
   it("shows the route's title as the page heading in the top bar", async () => {
     const { harness, el } = await render('/');
     expect(el.querySelector('h1')!.textContent?.trim()).toBe('Dashboard');
-    await harness.navigateByUrl('/settings/account');
-    expect(el.querySelector('h1')!.textContent?.trim()).toBe('Account');
+    await harness.navigateByUrl('/settings/notifications');
+    expect(el.querySelector('h1')!.textContent?.trim()).toBe('Notifications');
     expect(el.querySelectorAll('h1')).toHaveLength(1);
   });
 
@@ -191,15 +190,15 @@ describe('Shell (app layout)', () => {
       const sheetNav = document.querySelector<HTMLElement>('[data-mobile="true"] nav');
       expect(sheetNav).not.toBeNull();
 
-      const account = [...sheetNav!.querySelectorAll<HTMLAnchorElement>('a')].find(
-        (a) => a.textContent?.trim() === 'Account',
+      const notifications = [...sheetNav!.querySelectorAll<HTMLAnchorElement>('a')].find(
+        (a) => a.textContent?.trim() === 'Notifications',
       )!;
-      account.click();
+      notifications.click();
       await harness.fixture.whenStable();
       await vi.waitFor(() =>
         expect(document.querySelector('[data-mobile="true"][data-state="open"]')).toBeNull(),
       );
-      expect(el.querySelector('h1')!.textContent?.trim()).toBe('Account');
+      expect(el.querySelector('h1')!.textContent?.trim()).toBe('Notifications');
     });
   });
 

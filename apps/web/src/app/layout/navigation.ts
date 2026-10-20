@@ -7,7 +7,6 @@ import {
   lucideBoxes,
   lucideFolderOpen,
   lucideHardDrive,
-  lucideKeyRound,
   lucideLayoutDashboard,
   lucideSparkles,
   lucideSquareTerminal,
@@ -41,7 +40,6 @@ export const NAVIGATION: NavGroup[] = [
   {
     label: 'nav.settings',
     items: [
-      { label: 'nav.account', link: '/settings/account', icon: 'lucideKeyRound' },
       { label: 'nav.notifications', link: '/settings/notifications', icon: 'lucideBellRing' },
     ],
   },
@@ -58,6 +56,5 @@ export const NAV_ICONS = {
   lucideBell,
   lucideBellRing,
   lucideHardDrive,
-  lucideKeyRound,
   lucideSparkles,
 };

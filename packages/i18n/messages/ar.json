@@ -5,7 +5,6 @@
     "dashboard": "لوحة المعلومات",
     "containers": "الحاويات",
     "logs": "السجلات · {{name}}",
-    "account": "الحساب",
     "services": "الخدمات",
     "installService": "تثبيت خدمة",
     "backups": "النسخ الاحتياطية",
@@ -35,7 +34,6 @@
     "dashboard": "لوحة المعلومات",
     "containers": "الحاويات",
     "settings": "الإعدادات",
-    "account": "الحساب",
     "services": "الخدمات",
     "backups": "النسخ الاحتياطية",
     "attention": "(تحتاج إلى انتباه)",
@@ -54,8 +52,7 @@
     "language": "اللغة",
     "signOut": "تسجيل الخروج",
     "editProfile": "تعديل الملف الشخصي",
-    "profile": "ملفي الشخصي",
-    "accountSettings": "إعدادات الحساب"
+    "profile": "ملفي الشخصي"
   },
   "connection": {
     "offline": "غير متصل",
@@ -108,7 +105,9 @@
     "submit": "تغيير كلمة المرور",
     "submitting": "جارٍ التغيير…",
     "changed": "تم تغيير كلمة المرور",
-    "changedText": "تم تسجيل خروج الأجهزة الأخرى."
+    "changedText": "تم تسجيل خروج الأجهزة الأخرى.",
+    "cancel": "إلغاء",
+    "close": "إغلاق"
   },
   "validation": {
     "usernameRequired": "أدخل اسم المستخدم",

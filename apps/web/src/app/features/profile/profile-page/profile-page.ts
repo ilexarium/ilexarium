@@ -1,5 +1,4 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { LANGUAGE_NAMES } from '@homelab/i18n';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideKeyRound, lucideLogOut, lucidePencil } from '@ng-icons/lucide';
@@ -13,6 +12,7 @@ import { LanguageService } from '../../../core/i18n/language';
 import { Formatter } from '../../../shared/format/formatter';
 import { ProfileDialog } from '../../../shared/profile-dialog/profile-dialog';
 import { displayNameOf, UserAvatar } from '../../../shared/user-avatar/user-avatar';
+import { PasswordDialog } from '../password-dialog/password-dialog';
 import { ProfilePageStore } from './profile-page-store';
 
 /**
@@ -26,8 +26,8 @@ import { ProfilePageStore } from './profile-page-store';
     HlmButton,
     HlmCardImports,
     NgIcon,
+    PasswordDialog,
     ProfileDialog,
-    RouterLink,
     TranslatePipe,
     UserAvatar,
   ],
@@ -43,6 +43,7 @@ export class ProfilePage {
   private readonly format = inject(Formatter);
   protected readonly names = LANGUAGE_NAMES;
   protected readonly editing = signal(false);
+  protected readonly changingPassword = signal(false);
 
   protected readonly name = computed(() => displayNameOf(this.auth.user()));
   protected readonly memberSince = computed(() => {
