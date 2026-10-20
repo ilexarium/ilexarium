@@ -64,10 +64,15 @@ describe('TopBar user menu', () => {
     return { fixture, trigger, menu, items, item, radios, openLanguages };
   }
 
-  it('shows the username on the trigger and in the header until there is a display name', async () => {
+  it('shows the username on the trigger and once in the header until there is a display name', async () => {
     const { fixture, menu } = await openMenu();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('owner');
-    expect(menu().textContent).toContain('owner');
+    expect(menu().textContent!.match(/owner/g)).toHaveLength(1);
+  });
+
+  it('shows the username under the display name when there is no email address', async () => {
+    const { menu } = await openMenu({ ...OWNER, displayName: 'Anna Berg' });
+    expect(menu().querySelector('p[dir="ltr"]')!.textContent).toBe('owner');
   });
 
   it('shows the display name and the email address when set', async () => {
