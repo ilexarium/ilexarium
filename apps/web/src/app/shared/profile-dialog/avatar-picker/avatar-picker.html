@@ -1,0 +1,45 @@
+<div class="flex items-center gap-4">
+  <div class="relative shrink-0">
+    <app-user-avatar class="size-24 text-2xl" [user]="shown()" [preview]="preview()" />
+    <button
+      hlmBtn
+      type="button"
+      variant="outline"
+      size="icon"
+      class="absolute -end-1 -bottom-1 size-9 rounded-full bg-background"
+      [attr.aria-label]="'profile.picture.choose' | translate"
+      [disabled]="preparing()"
+      (click)="file.click()"
+    >
+      <ng-icon name="lucideCamera" aria-hidden="true" />
+    </button>
+    <input
+      #file
+      type="file"
+      class="sr-only"
+      tabindex="-1"
+      aria-hidden="true"
+      [accept]="accept"
+      (change)="picked($event)"
+    />
+  </div>
+  <div class="grid min-w-0 gap-1 text-sm">
+    <p class="text-muted-foreground">{{ 'profile.picture.help' | translate }}</p>
+    @if (preparing()) {
+      <p role="status">{{ 'profile.picture.preparing' | translate }}</p>
+    } @else if (problem(); as problem) {
+      <p role="alert" class="text-destructive">{{ 'profile.picture.' + problem | translate }}</p>
+    }
+    @if (hasPicture()) {
+      <button
+        hlmBtn
+        type="button"
+        variant="link"
+        class="h-auto justify-self-start p-0"
+        (click)="remove.emit()"
+      >
+        {{ 'profile.picture.remove' | translate }}
+      </button>
+    }
+  </div>
+</div>

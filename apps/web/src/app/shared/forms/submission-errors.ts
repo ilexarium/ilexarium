@@ -9,6 +9,7 @@ import {
   DISK_ERROR_CODES,
   FILES_ERROR_CODES,
   PROCESS_ERROR_CODES,
+  PROFILE_ERROR_CODES,
   SERVICE_ERROR_CODES,
   AI_ERROR_CODES,
 } from '@homelab/shared';
@@ -25,6 +26,7 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(PROCESS_ERROR_CODES),
   ...Object.values(FILES_ERROR_CODES),
   ...Object.values(AI_ERROR_CODES),
+  ...Object.values(PROFILE_ERROR_CODES),
 ];
 
 /**

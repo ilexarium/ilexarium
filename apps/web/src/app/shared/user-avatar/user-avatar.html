@@ -1,0 +1,8 @@
+<hlm-avatar class="size-full">
+  @if (picture(); as src) {
+    <img hlmAvatarImage [src]="src" alt="" />
+  }
+  <span hlmAvatarFallback aria-hidden="true" class="font-medium" style="font-size: inherit">{{
+    initials()
+  }}</span>
+</hlm-avatar>

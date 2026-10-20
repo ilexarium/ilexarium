@@ -1,0 +1,81 @@
+<hlm-dialog [state]="shown() ? 'open' : 'closed'" (closed)="closed.emit()">
+  <hlm-dialog-content
+    *hlmDialogPortal
+    class="max-h-[90dvh] overflow-y-auto sm:max-w-lg"
+    [closeLabel]="'profile.dialog.close' | translate"
+  >
+    <hlm-dialog-header>
+      <h2 hlmDialogTitle>{{ 'profile.dialog.title' | translate }}</h2>
+      <p hlmDialogDescription>{{ 'profile.dialog.description' | translate }}</p>
+    </hlm-dialog-header>
+
+    <form id="profile-form" [formRoot]="form" class="grid gap-6">
+      @for (error of form().errors(); track error) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ error | errorText }}</p>
+        </div>
+      }
+
+      <section class="grid gap-3" aria-labelledby="profile-picture-heading">
+        <h3 id="profile-picture-heading" class="text-sm font-medium">
+          {{ 'profile.picture.title' | translate }}
+        </h3>
+        <app-avatar-picker
+          [user]="auth.user()"
+          [preview]="picture()"
+          [removed]="edit.picture().kind === 'remove'"
+          [problem]="edit.pictureProblem()"
+          [preparing]="edit.preparing()"
+          (choose)="edit.choosePicture($event)"
+          (remove)="edit.removePicture()"
+        />
+      </section>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div hlmField>
+          <label hlmFieldLabel for="displayName">{{ 'profile.displayName' | translate }}</label>
+          <input
+            hlmInput
+            id="displayName"
+            dir="auto"
+            autocomplete="name"
+            [formField]="form.displayName"
+          />
+          <p hlmFieldDescription>{{ 'profile.displayNameHelp' | translate }}</p>
+          @for (error of form.displayName().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+        <div hlmField>
+          <label hlmFieldLabel for="email">{{ 'profile.email' | translate }}</label>
+          <input
+            hlmInput
+            id="email"
+            type="email"
+            dir="ltr"
+            autocomplete="email"
+            [formField]="form.email"
+          />
+          <p hlmFieldDescription>{{ 'profile.emailHelp' | translate }}</p>
+          @for (error of form.email().errors(); track error) {
+            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
+          }
+        </div>
+      </div>
+    </form>
+
+    <hlm-dialog-footer>
+      <button hlmBtn type="button" variant="outline" (click)="shown.set(false)">
+        {{ 'profile.dialog.cancel' | translate }}
+      </button>
+      <button
+        hlmBtn
+        type="submit"
+        form="profile-form"
+        [disabled]="form().submitting() || edit.preparing()"
+      >
+        {{ (form().submitting() ? 'profile.dialog.saving' : 'profile.dialog.save') | translate }}
+      </button>
+    </hlm-dialog-footer>
+  </hlm-dialog-content>
+</hlm-dialog>

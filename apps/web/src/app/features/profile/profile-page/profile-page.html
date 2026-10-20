@@ -1,0 +1,116 @@
+<section hlmCard>
+  <div hlmCardContent class="flex flex-col gap-6 sm:flex-row sm:items-center">
+    <app-user-avatar class="size-20 text-2xl" [user]="auth.user()" />
+    <div class="grid min-w-0 flex-1 gap-1">
+      <h2 dir="auto" class="truncate text-lg font-semibold">{{ name() }}</h2>
+      <p class="text-sm text-muted-foreground">
+        <span dir="ltr">{{ auth.user()?.username }}</span>
+        · {{ 'profile.memberSince' | translate: { date: memberSince() } }}
+      </p>
+    </div>
+    <button hlmBtn variant="outline" class="self-start sm:self-center" (click)="editing.set(true)">
+      <ng-icon name="lucidePencil" aria-hidden="true" />
+      {{ 'profile.edit' | translate }}
+    </button>
+  </div>
+  <div hlmCardContent>
+    <dl class="grid gap-4 border-t pt-6 text-sm sm:grid-cols-2">
+      <div class="grid gap-1">
+        <dt class="text-muted-foreground">{{ 'profile.displayName' | translate }}</dt>
+        <dd dir="auto" class="break-words">
+          {{ auth.user()?.displayName ?? ('profile.notSet' | translate) }}
+        </dd>
+      </div>
+      <div class="grid gap-1">
+        <dt class="text-muted-foreground">{{ 'profile.email' | translate }}</dt>
+        <dd class="break-all">
+          @if (auth.user()?.email; as email) {
+            <span dir="ltr">{{ email }}</span>
+          } @else {
+            {{ 'profile.notSet' | translate }}
+          }
+        </dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<section hlmCard>
+  <div hlmCardHeader>
+    <h2 hlmCardTitle>{{ 'profile.preferences.title' | translate }}</h2>
+  </div>
+  <div hlmCardContent>
+    <fieldset class="grid gap-2">
+      <legend class="mb-2 text-sm text-muted-foreground">
+        {{ 'profile.preferences.language' | translate }}
+      </legend>
+      <div class="flex flex-wrap gap-2">
+        @for (language of languages.available; track language) {
+          <button
+            hlmBtn
+            type="button"
+            size="sm"
+            [variant]="languages.language() === language ? 'default' : 'outline'"
+            [attr.aria-pressed]="languages.language() === language"
+            [attr.lang]="language"
+            (click)="profile.chooseLanguage(language)"
+          >
+            {{ names[language] }}
+          </button>
+        }
+      </div>
+    </fieldset>
+  </div>
+</section>
+
+<section hlmCard>
+  <div hlmCardHeader>
+    <h2 hlmCardTitle>{{ 'profile.security.title' | translate }}</h2>
+  </div>
+  <div hlmCardContent class="grid divide-y">
+    <div class="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="grid gap-1">
+        <h3 class="text-sm font-medium">{{ 'profile.security.password' | translate }}</h3>
+        <p class="text-sm text-muted-foreground">
+          {{ 'profile.security.passwordText' | translate }}
+        </p>
+      </div>
+      <a hlmBtn variant="outline" class="shrink-0 self-start" routerLink="/settings/account">
+        <ng-icon name="lucideKeyRound" aria-hidden="true" />
+        {{ 'profile.security.changePassword' | translate }}
+      </a>
+    </div>
+    <div class="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="grid gap-1">
+        <h3 class="text-sm font-medium">{{ 'profile.signOutEverywhere.title' | translate }}</h3>
+        <p class="text-sm text-muted-foreground">
+          {{ 'profile.signOutEverywhere.text' | translate }}
+        </p>
+      </div>
+      <hlm-alert-dialog>
+        <button hlmBtn hlmAlertDialogTrigger variant="outline" class="shrink-0 self-start">
+          <ng-icon name="lucideLogOut" aria-hidden="true" />
+          {{ 'profile.signOutEverywhere.button' | translate }}
+        </button>
+        <hlm-alert-dialog-content *hlmAlertDialogPortal>
+          <hlm-alert-dialog-header>
+            <h2 hlmAlertDialogTitle>{{ 'profile.signOutEverywhere.confirmTitle' | translate }}</h2>
+            <p hlmAlertDialogDescription>
+              {{ 'profile.signOutEverywhere.confirmText' | translate }}
+            </p>
+          </hlm-alert-dialog-header>
+          <hlm-alert-dialog-footer>
+            <button hlmAlertDialogCancel>
+              {{ 'profile.signOutEverywhere.cancel' | translate }}
+            </button>
+            <button hlmAlertDialogAction (click)="store.signOutEverywhere()">
+              {{ 'profile.signOutEverywhere.confirm' | translate }}
+            </button>
+          </hlm-alert-dialog-footer>
+        </hlm-alert-dialog-content>
+      </hlm-alert-dialog>
+    </div>
+  </div>
+</section>
+
+<app-profile-dialog [open]="editing()" (closed)="editing.set(false)" />

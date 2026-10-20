@@ -2,11 +2,13 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Language } from '@homelab/i18n';
+import type { PublicUser } from '@homelab/shared';
 import { AlertsStore } from '../../core/alerts/alerts-store';
 import { alertsStatus, testAlert } from '../../core/alerts/testing';
 import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
 import { LanguageService } from '../../core/i18n/language';
+import { ProfileApi } from '../../core/profile/profile-api';
 import { TopBar } from './top-bar';
 
 /** Stands in for the language service with all three languages available. */
@@ -14,6 +16,7 @@ function fakeLanguages() {
   const language = signal<Language>('en');
   return {
     language: language.asReadonly(),
+    dir: signal<'ltr' | 'rtl'>('ltr').asReadonly(),
     available: ['en', 'de', 'ar'] as Language[],
     setLanguage: vi.fn(async (next: Language) => language.set(next)),
   };
@@ -21,17 +24,22 @@ function fakeLanguages() {
 
 describe('TopBar user menu', () => {
   let languages: ReturnType<typeof fakeLanguages>;
+  let profiles: { update: ReturnType<typeof vi.fn> };
 
   afterEach(() => document.querySelectorAll('.cdk-overlay-container').forEach((el) => el.remove()));
 
-  async function openMenu() {
+  async function openMenu(user: PublicUser = OWNER) {
     languages = fakeLanguages();
-    const auth = fakeAuthApi({ user: OWNER });
+    profiles = {
+      update: vi.fn(async (body: { language: Language }) => ({ user: { ...user, ...body } })),
+    };
+    const auth = fakeAuthApi({ user });
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         auth.provider,
         { provide: LanguageService, useValue: languages },
+        { provide: ProfileApi, useValue: profiles },
       ],
     });
     await TestBed.inject(AuthStore).load();
@@ -42,49 +50,89 @@ describe('TopBar user menu', () => {
     )!;
     trigger.click();
     await fixture.whenStable();
+    const menu = () => document.querySelector<HTMLElement>('[data-slot="dropdown-menu"]')!;
+    const items = () => [...menu().querySelectorAll<HTMLElement>('[role="menuitem"]')];
+    const item = (text: string) => items().find((el) => el.textContent!.includes(text))!;
     const radios = () => [
       ...document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'),
     ];
-    return { fixture, trigger, radios };
+    /** Opens the language submenu. */
+    const openLanguages = async () => {
+      item('Language').click();
+      await fixture.whenStable();
+    };
+    return { fixture, trigger, menu, items, item, radios, openLanguages };
   }
 
-  it('offers each language under its own name, marked with its language, the current one checked', async () => {
-    const { radios } = await openMenu();
-    expect(document.body.textContent).toContain('Language');
-    expect(radios().map((item) => item.textContent!.trim())).toEqual([
-      'English',
-      'Deutsch',
-      'العربية',
+  it('shows the username on the trigger and in the header until there is a display name', async () => {
+    const { fixture, menu } = await openMenu();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('owner');
+    expect(menu().textContent).toContain('owner');
+  });
+
+  it('shows the display name and the email address when set', async () => {
+    const { fixture, menu } = await openMenu({
+      ...OWNER,
+      displayName: 'Anna Berg',
+      email: 'anna@example.com',
+      avatar: '/api/profile/avatar?v=1',
+    });
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).toContain('Anna Berg');
+    // jsdom loads no images: the avatar shows the initials (the picture is checked in a browser).
+    expect(host.querySelector('app-user-avatar')!.textContent!.trim()).toBe('AB');
+    expect(menu().textContent).toContain('Anna Berg');
+    expect(menu().textContent).toContain('anna@example.com');
+  });
+
+  it('has Edit profile, My profile, Account settings and Language, then Sign out', async () => {
+    const { items, menu } = await openMenu();
+    expect(items().map((el) => el.textContent!.replace(/\s+/g, ' ').trim())).toEqual([
+      'Edit profile',
+      'My profile',
+      'Account settings',
+      'Language English',
     ]);
-    expect(radios().map((item) => item.getAttribute('lang'))).toEqual(['en', 'de', 'ar']);
-    expect(radios().map((item) => item.getAttribute('aria-checked'))).toEqual([
+    expect(menu().querySelector('a[href="/profile"]')).not.toBeNull();
+    expect(menu().querySelector('a[href="/settings/account"]')).not.toBeNull();
+    const signOut = [...menu().querySelectorAll('button')].at(-1)!;
+    expect(signOut.textContent!.trim()).toBe('Sign out');
+  });
+
+  it('offers each language under its own name in a submenu, the current one checked', async () => {
+    const { radios, openLanguages } = await openMenu();
+    await openLanguages();
+    expect(radios().map((el) => el.textContent!.trim())).toEqual(['English', 'Deutsch', 'العربية']);
+    expect(radios().map((el) => el.getAttribute('lang'))).toEqual(['en', 'de', 'ar']);
+    expect(radios().map((el) => el.getAttribute('aria-checked'))).toEqual([
       'true',
       'false',
       'false',
     ]);
   });
 
-  it('switches the language, and shows the new choice next time', async () => {
-    const { fixture, trigger, radios } = await openMenu();
+  it('leaves the language submenu open when Language is clicked again', async () => {
+    const { radios, openLanguages } = await openMenu();
+    await openLanguages();
+    await openLanguages();
+    expect(radios()).toHaveLength(3);
+  });
+
+  it('switches the language and keeps it for the account', async () => {
+    const { fixture, radios, openLanguages } = await openMenu();
+    await openLanguages();
     radios()[1].click();
     await fixture.whenStable();
     expect(languages.setLanguage).toHaveBeenCalledWith('de');
-
-    trigger.click();
-    await fixture.whenStable();
-    expect(radios().map((item) => item.getAttribute('aria-checked'))).toEqual([
-      'false',
-      'true',
-      'false',
-    ]);
+    expect(profiles.update).toHaveBeenCalledWith({ language: 'de' });
+    expect(TestBed.inject(AuthStore).user()?.language).toBe('de');
   });
 
-  it('still has Change password and Sign out', async () => {
-    await openMenu();
-    const items = [...document.querySelectorAll('[role="menuitem"]')].map((item) =>
-      item.textContent!.trim(),
-    );
-    expect(items).toEqual(['Change password', 'Sign out']);
+  it('opens the edit dialog from Edit profile', async () => {
+    const { fixture, item } = await openMenu();
+    item('Edit profile').click();
+    await fixture.whenStable();
+    expect(document.querySelector('[role="dialog"]')!.textContent).toContain('Edit profile');
   });
 });
 
