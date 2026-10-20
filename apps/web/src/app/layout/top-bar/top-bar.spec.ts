@@ -90,17 +90,15 @@ describe('TopBar user menu', () => {
     expect(menu().textContent).toContain('anna@example.com');
   });
 
-  it('has Edit profile, My profile, Account settings, Language and Sign out — all menu items', async () => {
+  it('has Edit profile, My profile, Language and Sign out — all menu items', async () => {
     const { items, menu } = await openMenu();
     expect(items().map((el) => el.textContent!.replace(/\s+/g, ' ').trim())).toEqual([
       'Edit profile',
       'My profile',
-      'Account settings',
       'Language English',
       'Sign out',
     ]);
     expect(menu().querySelector('a[href="/profile"]')).not.toBeNull();
-    expect(menu().querySelector('a[href="/settings/account"]')).not.toBeNull();
   });
 
   it('signs out from the menu', async () => {

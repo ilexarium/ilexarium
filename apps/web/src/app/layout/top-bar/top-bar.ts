@@ -9,7 +9,6 @@ import {
   lucideGlobe,
   lucideLogOut,
   lucidePencil,
-  lucideSettings,
 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
@@ -30,7 +29,7 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
 /**
  * Sidebar toggle, the page title (the page's only h1), the live-data status, the alerts' bell
  * (open alerts on it, a dropdown of the alerts), the theme switch and the user menu (edit profile,
- * the profile page, account settings, language, sign out).
+ * the profile page, language, sign out).
  */
 @Component({
   selector: 'app-top-bar',
@@ -55,7 +54,6 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
       lucideGlobe,
       lucideLogOut,
       lucidePencil,
-      lucideSettings,
     }),
   ],
   host: {

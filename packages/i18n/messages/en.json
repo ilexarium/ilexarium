@@ -5,7 +5,6 @@
     "dashboard": "Dashboard",
     "containers": "Containers",
     "logs": "Logs · {{name}}",
-    "account": "Account",
     "services": "Services",
     "installService": "Install a service",
     "backups": "Backups",
@@ -35,7 +34,6 @@
     "dashboard": "Dashboard",
     "containers": "Containers",
     "settings": "Settings",
-    "account": "Account",
     "services": "Services",
     "backups": "Backups",
     "attention": "(needs attention)",
@@ -54,8 +52,7 @@
     "language": "Language",
     "signOut": "Sign out",
     "editProfile": "Edit profile",
-    "profile": "My profile",
-    "accountSettings": "Account settings"
+    "profile": "My profile"
   },
   "connection": {
     "offline": "Offline",
@@ -108,7 +105,9 @@
     "submit": "Change password",
     "submitting": "Changing…",
     "changed": "Password changed",
-    "changedText": "Other devices were signed out."
+    "changedText": "Other devices were signed out.",
+    "cancel": "Cancel",
+    "close": "Close"
   },
   "validation": {
     "usernameRequired": "Enter your username",
