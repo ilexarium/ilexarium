@@ -77,6 +77,9 @@ export const ProfileEditStore = signalStore(
           } else if (picture.kind === 'remove' && auth.user()?.avatar) {
             auth.updated((await api.removeAvatar()).user);
           }
+          // Saved: if the fields fail now, trying again doesn't send the picture again.
+          forgetPreview();
+          patchState(store, { picture: { kind: 'keep' } });
           const user = auth.user();
           const update: ProfileUpdate = {};
           const displayName = form.displayName.trim();

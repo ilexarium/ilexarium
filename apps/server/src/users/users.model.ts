@@ -20,3 +20,14 @@ export interface StoredAvatar {
   type: string;
   updatedAt: Date;
 }
+
+/** A user as `publicUserSelect` reads it, before `toPublicUser`. */
+export interface PublicUserRow {
+  id: string;
+  username: string;
+  createdAt: Date;
+  displayName: string | null;
+  email: string | null;
+  language: string | null;
+  avatar: { updatedAt: Date } | null;
+}

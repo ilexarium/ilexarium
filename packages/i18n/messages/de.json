@@ -1269,6 +1269,7 @@
       "cancel": "Abbrechen",
       "confirm": "Überall abmelden",
       "failed": "Abmelden auf allen Geräten fehlgeschlagen"
-    }
+    },
+    "languageNotLoaded": "Die Sprache konnte nicht geladen werden"
   }
 }

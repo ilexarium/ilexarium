@@ -120,6 +120,21 @@ describe('AuthStore', () => {
     expect(store.user()).toBeNull();
   });
 
+  it('logoutEverywhere(): the socket’s 4401 on the way isn’t taken for an expiry', async () => {
+    const { store, api } = setup({ user: OWNER });
+    await store.load();
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    api.logoutEverywhere.mockImplementation(async () => {
+      store.sessionExpired(); // what RealtimeService does on the 4401
+      return null;
+    });
+    await store.logoutEverywhere();
+    expect(navigate).not.toHaveBeenCalled(); // no /login?reason=expired
+    expect(store.user()).toBeNull();
+  });
+
   it('logoutEverywhere() ends every session on the server, clears the user and goes to /login', async () => {
     const { store, api } = setup({ user: OWNER });
     await store.load();

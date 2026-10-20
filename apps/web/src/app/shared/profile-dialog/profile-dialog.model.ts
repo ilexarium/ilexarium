@@ -7,3 +7,11 @@ export type PictureProblem = 'unreadable' | 'tooLarge';
 
 /** Draws the picture the profile keeps; see `squarePicture`. Tests provide a fake. */
 export type PictureEncoder = (file: Blob) => Promise<Blob>;
+
+/** What `squarePicture` needs from the browser (tests pass a fake canvas). */
+export interface PictureTools {
+  decode(
+    file: Blob,
+  ): Promise<{ width: number; height: number; close?(): void } & CanvasImageSource>;
+  canvas(): HTMLCanvasElement;
+}

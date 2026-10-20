@@ -22,7 +22,7 @@
   <hlm-dropdown-menu class="w-64">
     <div class="grid gap-0.5 px-2 py-1.5">
       <p dir="auto" class="truncate text-sm font-medium">{{ name() }}</p>
-      <p dir="auto" class="truncate text-xs text-muted-foreground">
+      <p dir="ltr" class="truncate text-start text-xs text-muted-foreground">
         {{ auth.user()?.email ?? auth.user()?.username }}
       </p>
     </div>
@@ -55,12 +55,14 @@
       </button>
     </div>
     <hlm-dropdown-menu-separator />
-    <div class="p-1">
-      <button hlmBtn variant="outline" size="sm" class="w-full" (click)="auth.logout()">
-        <ng-icon name="lucideLogOut" aria-hidden="true" />
-        {{ 'userMenu.signOut' | translate }}
-      </button>
-    </div>
+    <button
+      hlmDropdownMenuItem
+      class="m-1 justify-center border font-medium"
+      (triggered)="auth.logout()"
+    >
+      <ng-icon name="lucideLogOut" aria-hidden="true" />
+      {{ 'userMenu.signOut' | translate }}
+    </button>
   </hlm-dropdown-menu>
 </ng-template>
 <ng-template #languageMenu>

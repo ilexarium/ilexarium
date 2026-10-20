@@ -25,7 +25,16 @@ export const ProfileStore = signalStore(
     ) => ({
       /** Shows the app in `language`, and keeps it for the account (it follows to other browsers). */
       async chooseLanguage(language: UserLanguage): Promise<void> {
-        await languages.setLanguage(language);
+        try {
+          await languages.setLanguage(language);
+        } catch (error) {
+          // Its file didn't load (offline, an update under way): the language stays as it was.
+          const [key, params] = apiErrorText(error);
+          toast.error(translator.t('profile.languageNotLoaded'), {
+            description: translator.t(key, params),
+          });
+          return;
+        }
         if (!auth.isAuthenticated() || auth.user()?.language === language) return;
         try {
           auth.updated((await api.update({ language })).user);

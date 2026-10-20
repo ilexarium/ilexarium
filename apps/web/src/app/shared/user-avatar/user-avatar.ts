@@ -22,6 +22,11 @@ export class UserAvatar {
   protected readonly initials = computed(() => initialsOf(this.user()));
 }
 
+/** How a person is named in the app: their display name, else their username. */
+export function displayNameOf(user: PublicUser | null): string {
+  return user?.displayName?.trim() || user?.username || '';
+}
+
 /** Two letters: the first of the first and last word of the name, or the username's first two. */
 export function initialsOf(user: PublicUser | null): string {
   const words = (user?.displayName ?? '').trim().split(/\s+/u).filter(Boolean);

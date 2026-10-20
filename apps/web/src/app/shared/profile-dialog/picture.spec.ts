@@ -1,4 +1,5 @@
-import { type PictureTools, squarePicture } from './picture';
+import { squarePicture } from './picture';
+import type { PictureTools } from './profile-dialog.model';
 
 /** A canvas that records what was drawn and makes the blob types the "browser" supports. */
 function fakeTools(image: { width: number; height: number }, supports: string[]) {

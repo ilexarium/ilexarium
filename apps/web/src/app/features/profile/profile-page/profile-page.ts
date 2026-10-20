@@ -12,7 +12,7 @@ import { ProfileStore } from '../../../core/profile/profile-store';
 import { LanguageService } from '../../../core/i18n/language';
 import { Formatter } from '../../../shared/format/formatter';
 import { ProfileDialog } from '../../../shared/profile-dialog/profile-dialog';
-import { UserAvatar } from '../../../shared/user-avatar/user-avatar';
+import { displayNameOf, UserAvatar } from '../../../shared/user-avatar/user-avatar';
 import { ProfilePageStore } from './profile-page-store';
 
 /**
@@ -44,9 +44,7 @@ export class ProfilePage {
   protected readonly names = LANGUAGE_NAMES;
   protected readonly editing = signal(false);
 
-  protected readonly name = computed(
-    () => this.auth.user()?.displayName ?? this.auth.user()?.username ?? '',
-  );
+  protected readonly name = computed(() => displayNameOf(this.auth.user()));
   protected readonly memberSince = computed(() => {
     const createdAt = this.auth.user()?.createdAt;
     return createdAt ? this.format.date(createdAt) : '';

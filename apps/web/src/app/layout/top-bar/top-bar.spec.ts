@@ -85,18 +85,31 @@ describe('TopBar user menu', () => {
     expect(menu().textContent).toContain('anna@example.com');
   });
 
-  it('has Edit profile, My profile, Account settings and Language, then Sign out', async () => {
+  it('has Edit profile, My profile, Account settings, Language and Sign out — all menu items', async () => {
     const { items, menu } = await openMenu();
     expect(items().map((el) => el.textContent!.replace(/\s+/g, ' ').trim())).toEqual([
       'Edit profile',
       'My profile',
       'Account settings',
       'Language English',
+      'Sign out',
     ]);
     expect(menu().querySelector('a[href="/profile"]')).not.toBeNull();
     expect(menu().querySelector('a[href="/settings/account"]')).not.toBeNull();
-    const signOut = [...menu().querySelectorAll('button')].at(-1)!;
-    expect(signOut.textContent!.trim()).toBe('Sign out');
+  });
+
+  it('signs out from the menu', async () => {
+    const { fixture, item } = await openMenu();
+    const logout = vi.spyOn(TestBed.inject(AuthStore), 'logout').mockResolvedValue();
+    item('Sign out').click();
+    await fixture.whenStable();
+    expect(logout).toHaveBeenCalled();
+  });
+
+  it('shows the email address left to right, whatever the language', async () => {
+    const { menu } = await openMenu({ ...OWNER, email: 'anna@example.com' });
+    const address = [...menu().querySelectorAll('p')].find((p) => p.textContent!.includes('@'))!;
+    expect(address.getAttribute('dir')).toBe('ltr');
   });
 
   it('offers each language under its own name in a submenu, the current one checked', async () => {

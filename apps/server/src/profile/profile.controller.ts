@@ -16,12 +16,10 @@ import { CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { PROFILE_LIMITS, type PublicUser, type UserResponse } from '@homelab/shared';
 import type { Request, Response } from 'express';
+import { CHANGE_LIMIT } from './profile.constants.js';
 import { AvatarQueryDto, ProfileUpdateDto } from './profile.dto.js';
 import { pictureTooLarge, ProfileService } from './profile.service.js';
 import { readBody } from './read-body.js';
-
-/** Per IP: plenty for choosing a picture a few times, not for a loop. */
-const CHANGE_LIMIT = { default: { limit: 30, ttl: 60_000 } };
 
 /** Changes to the signed-in person's profile; reading it is `GET /api/auth/me`. */
 @Controller('profile')

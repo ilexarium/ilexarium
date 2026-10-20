@@ -1,7 +1,7 @@
 import { DOCUMENT, inject, InjectionToken } from '@angular/core';
 import { PROFILE_LIMITS } from '@homelab/shared';
 import { PICTURE_QUALITY } from './profile-dialog.constants';
-import type { PictureEncoder } from './profile-dialog.model';
+import type { PictureEncoder, PictureTools } from './profile-dialog.model';
 
 /** How a chosen file becomes the profile's picture — tests swap in a fake (no canvas in tests). */
 export const PICTURE_ENCODER = new InjectionToken<PictureEncoder>('PICTURE_ENCODER', {
@@ -15,14 +15,6 @@ export const PICTURE_ENCODER = new InjectionToken<PictureEncoder>('PICTURE_ENCOD
       });
   },
 });
-
-/** What `squarePicture` needs from the browser. */
-export interface PictureTools {
-  decode(
-    file: Blob,
-  ): Promise<{ width: number; height: number; close?(): void } & CanvasImageSource>;
-  canvas(): HTMLCanvasElement;
-}
 
 /**
  * The centred square of the image, drawn at `pictureSize` × `pictureSize`: WebP, or JPEG where the

@@ -1269,6 +1269,7 @@
       "cancel": "Cancel",
       "confirm": "Sign out everywhere",
       "failed": "Couldn’t sign out everywhere"
-    }
+    },
+    "languageNotLoaded": "The language couldn’t be loaded"
   }
 }

@@ -305,7 +305,6 @@ async function files() {
   await api('DELETE', '/files/session');
 }
 
-/** The web terminal: a shell as anna through this machine's sshd (the Linux session is open). */
 /**
  * The profile as the installed app keeps it: a name, then a picture in its own table (the app's
  * restricted database role must be able to write and read it). The picture is only a WebP
@@ -343,6 +342,7 @@ async function profile() {
   check('profile: the picture removed', removed.json?.user?.avatar === null, removed.text);
 }
 
+/** The web terminal: a shell as anna through this machine's sshd (the Linux session is open). */
 async function terminal() {
   const ticket = await api('POST', '/terminal/ticket', { password: PASSWORD });
   check('terminal: a ticket with the app password', ticket.status === 200, `${ticket.status}`);
