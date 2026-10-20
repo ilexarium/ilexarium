@@ -306,6 +306,43 @@ async function files() {
 }
 
 /** The web terminal: a shell as anna through this machine's sshd (the Linux session is open). */
+/**
+ * The profile as the installed app keeps it: a name, then a picture in its own table (the app's
+ * restricted database role must be able to write and read it). The picture is only a WebP
+ * header of 600×600 — what the server checks; it never decodes the image.
+ */
+async function profile() {
+  const saved = await api('PATCH', '/profile', { displayName: 'Smoke Test' });
+  check(
+    'profile: a display name saved',
+    saved.json?.user?.displayName === 'Smoke Test',
+    saved.text,
+  );
+  const header = Buffer.alloc(30);
+  header.write('RIFF', 0, 'latin1');
+  header.writeUInt32LE(22, 4);
+  header.write('WEBPVP8X', 8, 'latin1');
+  header.writeUInt32LE(10, 16);
+  header.writeUIntLE(599, 24, 3);
+  header.writeUIntLE(599, 27, 3);
+  const put = await fetch(`${BASE}/api/profile/avatar`, {
+    method: 'PUT',
+    headers: { Origin: ORIGIN, Cookie: cookie, 'Content-Type': 'image/webp' },
+    body: header,
+  });
+  check('profile: a picture kept', put.status === 200, `${put.status}`);
+  const got = await fetch(`${BASE}/api/profile/avatar`, { headers: { Cookie: cookie } });
+  check(
+    'profile: the picture served as an image only',
+    got.status === 200 &&
+      got.headers.get('content-type') === 'image/webp' &&
+      got.headers.get('x-content-type-options') === 'nosniff',
+    `${got.status} ${got.headers.get('content-type')}`,
+  );
+  const removed = await api('DELETE', '/profile/avatar');
+  check('profile: the picture removed', removed.json?.user?.avatar === null, removed.text);
+}
+
 async function terminal() {
   const ticket = await api('POST', '/terminal/ticket', { password: PASSWORD });
   check('terminal: a ticket with the app password', ticket.status === 200, `${ticket.status}`);
@@ -507,6 +544,7 @@ async function install() {
   const init = await api('POST', '/processes/signal', { pid: 1, startTicks: '1', signal: 'KILL' });
   check('PID 1 refused', init.status === 403 || init.status === 404, `${init.status}`);
   await files();
+  await profile();
   done();
 }
 
@@ -533,6 +571,7 @@ async function update() {
   check('the version recorded', existsSync('/etc/homelab/version'));
   await securitySetup();
   await files();
+  await profile();
   done();
 }
 
