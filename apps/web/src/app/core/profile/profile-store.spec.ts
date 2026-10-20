@@ -57,6 +57,15 @@ describe('ProfileStore.chooseLanguage', () => {
     expect(api.update).not.toHaveBeenCalled();
   });
 
+  it('says so when the language’s file doesn’t load, and saves nothing', async () => {
+    const { store, languages, api } = await setup();
+    const error = vi.spyOn(toast, 'error');
+    languages.setLanguage.mockRejectedValueOnce(new Error('chunk failed'));
+    await store.chooseLanguage('ar');
+    expect(api.update).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith('The language couldn’t be loaded', expect.anything());
+  });
+
   it('keeps showing it, and says so, when the account can’t be updated', async () => {
     const { store, languages, api } = await setup();
     const error = vi.spyOn(toast, 'error');

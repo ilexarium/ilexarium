@@ -169,6 +169,22 @@ describe('ProfileDialog', () => {
     expect(TestBed.inject(AuthStore).user()?.avatar).toBeNull();
   });
 
+  it('doesn’t send the picture again when the fields fail after it was saved', async () => {
+    const { fixture, chooseFile, save, typeInto } = await setup();
+    await chooseFile(new File(['photo'], 'me.jpg'));
+    typeInto(fixture, 'displayName', 'Anna Berg');
+    api.update.mockRejectedValueOnce(new HttpErrorResponse({ status: 0 }));
+    await save();
+    expect(fixture.componentInstance.closings).toBe(0);
+    expect(TestBed.inject(AuthStore).user()?.avatar).toBe('/api/profile/avatar?v=2');
+    // A server error stays on the form until a value changes (Signal Forms): the person edits again.
+    typeInto(fixture, 'displayName', 'Anna Berg-Lund');
+    await save();
+    expect(api.setAvatar).toHaveBeenCalledTimes(1);
+    expect(api.update).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.closings).toBe(1);
+  });
+
   it('shows the server’s refusal of the picture and stays open', async () => {
     const { fixture, dialog, chooseFile, save } = await setup();
     api.setAvatar.mockRejectedValueOnce(

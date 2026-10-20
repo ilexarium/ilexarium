@@ -36,6 +36,8 @@ export const AuthStore = signalStore(
       router = inject(Router),
     ) => {
       const sessionEnded = () => patchState(store, { user: null, status: 'anonymous' });
+      /** Signing out on purpose: the socket closing with 4401 meanwhile isn't an expiry. */
+      let leaving = false;
       /** The account's language, if it has one and it isn't the one shown. Never throws. */
       const applyLanguage = async (user: PublicUser | null) => {
         if (!user?.language || user.language === languages.language()) return;
@@ -69,6 +71,7 @@ export const AuthStore = signalStore(
          * to the login page, remembering where the user was. "Expired" only if they were signed in.
          */
         sessionExpired(): void {
+          if (leaving) return;
           const wasSignedIn = store.status() === 'authenticated';
           sessionEnded();
           if (!router.url.startsWith('/login')) {
@@ -90,9 +93,14 @@ export const AuthStore = signalStore(
         },
         /** Ends every session of this person — this one too — and goes to the login page. */
         async logoutEverywhere(): Promise<void> {
-          await api.logoutEverywhere();
-          sessionEnded();
-          await router.navigateByUrl('/login');
+          leaving = true;
+          try {
+            await api.logoutEverywhere();
+            sessionEnded();
+            await router.navigateByUrl('/login');
+          } finally {
+            leaving = false;
+          }
         },
       };
     },

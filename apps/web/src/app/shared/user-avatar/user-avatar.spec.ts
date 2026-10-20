@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import type { PublicUser } from '@homelab/shared';
 import { OWNER } from '../../core/auth/testing';
-import { initialsOf, UserAvatar } from './user-avatar';
+import { displayNameOf, initialsOf, UserAvatar } from './user-avatar';
 
 const user = (changes: Partial<PublicUser>): PublicUser => ({ ...OWNER, ...changes });
 
@@ -20,6 +20,17 @@ describe('initialsOf', () => {
 
   it('keeps letters made of two UTF-16 units whole', () => {
     expect(initialsOf(user({ displayName: '𝒜lice 𝒞ooper' }))).toBe('𝒜𝒞');
+  });
+});
+
+describe('displayNameOf', () => {
+  it.each([
+    [user({}), 'owner'],
+    [user({ displayName: 'Anna Berg' }), 'Anna Berg'],
+    [user({ displayName: '  ' }), 'owner'],
+    [null, ''],
+  ])('%#: %j → %s', (who, name) => {
+    expect(displayNameOf(who)).toBe(name);
   });
 });
 

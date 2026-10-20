@@ -22,7 +22,7 @@ import { ProfileStore } from '../../core/profile/profile-store';
 import { LanguageService } from '../../core/i18n/language';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
 import { ProfileDialog } from '../../shared/profile-dialog/profile-dialog';
-import { UserAvatar } from '../../shared/user-avatar/user-avatar';
+import { displayNameOf, UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { AlertsMenu } from '../alerts-menu/alerts-menu';
 import { ConnectionStatus } from '../connection-status/connection-status';
 import { ThemeMenu } from '../theme-menu/theme-menu';
@@ -71,9 +71,7 @@ export class TopBar {
   /** Each language in itself — the same in every interface language. */
   protected readonly names = LANGUAGE_NAMES;
   protected readonly pageTitle = inject(PageTitleStrategy).pageTitle;
-  protected readonly name = computed(
-    () => this.auth.user()?.displayName ?? this.auth.user()?.username ?? '',
-  );
+  protected readonly name = computed(() => displayNameOf(this.auth.user()));
   /** The edit dialog is open. */
   protected readonly editing = signal(false);
   private readonly languageTrigger = viewChild('languageItem', { read: CdkMenuTrigger });

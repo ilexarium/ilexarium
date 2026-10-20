@@ -1,12 +1,5 @@
-import type { ProfilePictureType } from '@homelab/shared';
-
-export interface PictureInfo {
-  type: ProfilePictureType;
-  width: number;
-  height: number;
-}
-
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+import { PNG_SIGNATURE } from './profile.constants.js';
+import type { PictureInfo } from './profile.model.js';
 
 /**
  * What a picture is, judged by its bytes alone (never a name or a header the browser sent): a
