@@ -5,6 +5,10 @@ export const OWNER: PublicUser = {
   id: '0192f3a1-7c2e-7a4b-9d1e-3f5a7c9b2d4e',
   username: 'owner',
   createdAt: '2026-10-11T00:00:00.000Z',
+  displayName: null,
+  email: null,
+  language: null,
+  avatar: null,
 };
 
 /** A fake AuthApi whose server answers are set per test. */
@@ -21,6 +25,7 @@ export function fakeAuthApi(
     login: vi.fn(),
     setup: vi.fn(),
     changePassword: vi.fn(),
+    logoutEverywhere: vi.fn(() => Promise.resolve(null)),
   };
   return { api, provider: { provide: AuthApi, useValue: api }, server };
 }

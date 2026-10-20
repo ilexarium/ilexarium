@@ -108,6 +108,12 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'profile',
+        title: 'pages.profile',
+        loadComponent: () =>
+          import('./features/profile/profile-page/profile-page').then((m) => m.ProfilePage),
+      },
+      {
         path: 'settings/account',
         title: 'pages.account',
         loadComponent: () =>

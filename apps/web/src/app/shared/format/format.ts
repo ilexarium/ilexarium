@@ -108,3 +108,8 @@ export function formatDateTime(at: string, locale = 'en'): string {
     new Date(at),
   );
 }
+
+/** A day, in the language's own way (e.g. "14 Oct 2026"). */
+export function formatDate(at: string, locale = 'en'): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(at));
+}

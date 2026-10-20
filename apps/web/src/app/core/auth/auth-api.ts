@@ -35,6 +35,11 @@ export class AuthApi {
     return firstValueFrom(this.http.post('/api/auth/logout', null));
   }
 
+  /** Ends every session of the signed-in person, this one too. */
+  logoutEverywhere(): Promise<unknown> {
+    return firstValueFrom(this.http.post('/api/auth/logout-everywhere', null));
+  }
+
   changePassword(body: ChangePasswordRequest): Promise<unknown> {
     return firstValueFrom(this.http.post('/api/auth/password', body));
   }

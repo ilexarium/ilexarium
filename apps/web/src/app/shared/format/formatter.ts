@@ -4,6 +4,7 @@ import { Translator } from '../../core/i18n/translator';
 import {
   formatBytes,
   formatCount,
+  formatDate,
   formatDateTime,
   formatDuration,
   formatLogTime,
@@ -39,6 +40,11 @@ export class Formatter {
 
   duration(seconds: number): string {
     return formatDuration(seconds, this.locale(), this.translator.t('format.lessThanAMinute'));
+  }
+
+  /** The day of a moment ("member since"), in the current language. */
+  date(at: string): string {
+    return formatDate(at, this.locale());
   }
 
   /** Date and time of a moment (backups, restores), in the current language. */

@@ -1,4 +1,7 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import type { Language } from '@homelab/i18n';
+import { LanguageService } from '../i18n/language';
 import { provideRouter, Router } from '@angular/router';
 import { AuthStore } from './auth-store';
 import { fakeAuthApi, OWNER } from './testing';
@@ -67,5 +70,63 @@ describe('AuthStore', () => {
     vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     await store.logout().catch(() => undefined);
     expect(store.user()).toBeNull();
+  });
+
+  describe('the account’s language', () => {
+    function withLanguages(server: Parameters<typeof fakeAuthApi>[0]) {
+      const fake = fakeAuthApi(server);
+      const language = signal<Language>('en');
+      const languages = {
+        language: language.asReadonly(),
+        setLanguage: vi.fn(async (next: Language) => language.set(next)),
+      };
+      TestBed.configureTestingModule({
+        providers: [
+          provideRouter([]),
+          fake.provider,
+          { provide: LanguageService, useValue: languages },
+        ],
+      });
+      return { store: TestBed.inject(AuthStore), languages };
+    }
+
+    it('is applied at startup when it differs from the one shown', async () => {
+      const { store, languages } = withLanguages({ user: { ...OWNER, language: 'ar' } });
+      await store.load();
+      expect(languages.setLanguage).toHaveBeenCalledWith('ar');
+    });
+
+    it('is applied at sign-in', () => {
+      const { store, languages } = withLanguages({});
+      store.signedIn({ ...OWNER, language: 'de' });
+      expect(languages.setLanguage).toHaveBeenCalledWith('de');
+    });
+
+    it('leaves the browser’s choice alone when the account has none, or the same', async () => {
+      const { store, languages } = withLanguages({ user: { ...OWNER, language: 'en' } });
+      await store.load();
+      store.signedIn(OWNER);
+      expect(languages.setLanguage).not.toHaveBeenCalled();
+    });
+  });
+
+  it('updated() takes the user a profile change returned, only while signed in', async () => {
+    const { store } = setup({ user: OWNER });
+    await store.load();
+    store.updated({ ...OWNER, displayName: 'Anna' });
+    expect(store.user()?.displayName).toBe('Anna');
+    store.sessionEnded();
+    store.updated({ ...OWNER, displayName: 'Ghost' });
+    expect(store.user()).toBeNull();
+  });
+
+  it('logoutEverywhere() ends every session on the server, clears the user and goes to /login', async () => {
+    const { store, api } = setup({ user: OWNER });
+    await store.load();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    await store.logoutEverywhere();
+    expect(api.logoutEverywhere).toHaveBeenCalled();
+    expect(store.user()).toBeNull();
+    expect(navigate).toHaveBeenCalledWith('/login');
   });
 });

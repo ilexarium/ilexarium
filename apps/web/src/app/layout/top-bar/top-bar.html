@@ -7,41 +7,76 @@
 <button
   hlmBtn
   variant="ghost"
-  class="gap-2 px-2"
+  class="gap-2 px-1.5 sm:pe-2"
   [hlmDropdownMenuTrigger]="userMenu"
   align="end"
   [attr.aria-label]="'userMenu.open' | translate"
 >
-  <hlm-avatar class="size-7">
-    <span hlmAvatarFallback class="text-xs">{{ initials() }}</span>
-  </hlm-avatar>
-  <span class="hidden text-sm sm:inline">{{ auth.user()?.username }}</span>
+  <app-user-avatar class="size-8 text-xs" [user]="auth.user()" />
+  <span dir="auto" class="hidden max-w-40 truncate text-sm sm:inline">{{ name() }}</span>
+  <span class="hidden text-muted-foreground sm:inline-flex" aria-hidden="true">
+    <ng-icon name="lucideChevronDown" />
+  </span>
 </button>
 <ng-template #userMenu>
-  <hlm-dropdown-menu class="w-48">
-    <div hlmDropdownMenuLabel>{{ auth.user()?.username }}</div>
-    <hlm-dropdown-menu-separator />
-    <div hlmDropdownMenuLabel>{{ 'userMenu.language' | translate }}</div>
-    <div hlmDropdownMenuGroup>
-      @for (language of languages.available; track language) {
-        <button
-          hlmDropdownMenuRadio
-          [checked]="languages.language() === language"
-          [keepOpen]="false"
-          [attr.lang]="language"
-          (triggered)="languages.setLanguage(language)"
-        >
-          <hlm-dropdown-menu-radio-indicator />
-          {{ names[language] }}
-        </button>
-      }
+  <hlm-dropdown-menu class="w-64">
+    <div class="grid gap-0.5 px-2 py-1.5">
+      <p dir="auto" class="truncate text-sm font-medium">{{ name() }}</p>
+      <p dir="auto" class="truncate text-xs text-muted-foreground">
+        {{ auth.user()?.email ?? auth.user()?.username }}
+      </p>
     </div>
     <hlm-dropdown-menu-separator />
-    <a hlmDropdownMenuItem routerLink="/settings/account">{{
-      'userMenu.changePassword' | translate
-    }}</a>
-    <button hlmDropdownMenuItem (click)="auth.logout()">
-      {{ 'userMenu.signOut' | translate }}
-    </button>
+    <div hlmDropdownMenuGroup>
+      <button hlmDropdownMenuItem (triggered)="editing.set(true)">
+        <ng-icon name="lucidePencil" aria-hidden="true" />
+        {{ 'userMenu.editProfile' | translate }}
+      </button>
+      <a hlmDropdownMenuItem routerLink="/profile">
+        <ng-icon name="lucideCircleUser" aria-hidden="true" />
+        {{ 'userMenu.profile' | translate }}
+      </a>
+      <a hlmDropdownMenuItem routerLink="/settings/account">
+        <ng-icon name="lucideSettings" aria-hidden="true" />
+        {{ 'userMenu.accountSettings' | translate }}
+      </a>
+      <button
+        #languageItem
+        hlmDropdownMenuItem
+        [hlmDropdownMenuSubTrigger]="languageMenu"
+        [side]="languages.dir() === 'rtl' ? 'right' : 'left'"
+        (click)="keepLanguagesOpen()"
+      >
+        <ng-icon name="lucideGlobe" aria-hidden="true" />
+        {{ 'userMenu.language' | translate }}
+        <span class="ms-auto text-xs text-muted-foreground" [attr.lang]="languages.language()">{{
+          names[languages.language()]
+        }}</span>
+      </button>
+    </div>
+    <hlm-dropdown-menu-separator />
+    <div class="p-1">
+      <button hlmBtn variant="outline" size="sm" class="w-full" (click)="auth.logout()">
+        <ng-icon name="lucideLogOut" aria-hidden="true" />
+        {{ 'userMenu.signOut' | translate }}
+      </button>
+    </div>
   </hlm-dropdown-menu>
 </ng-template>
+<ng-template #languageMenu>
+  <hlm-dropdown-menu-sub class="w-44">
+    @for (language of languages.available; track language) {
+      <button
+        hlmDropdownMenuRadio
+        [checked]="languages.language() === language"
+        [keepOpen]="false"
+        [attr.lang]="language"
+        (triggered)="profile.chooseLanguage(language)"
+      >
+        <hlm-dropdown-menu-radio-indicator />
+        {{ names[language] }}
+      </button>
+    }
+  </hlm-dropdown-menu-sub>
+</ng-template>
+<app-profile-dialog [open]="editing()" (closed)="editing.set(false)" />
