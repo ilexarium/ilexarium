@@ -57,6 +57,13 @@ export class AuthController {
     await this.signIn.signOut();
   }
 
+  /** Every session of this user, this browser's too; sockets and log streams close with them. */
+  @Post('logout-everywhere')
+  @HttpCode(204)
+  async logoutEverywhere(@CurrentUser() user: PublicUser): Promise<void> {
+    await this.signIn.signOutEverywhere(user.id);
+  }
+
   /** Optional: `{ user: null }` when signed out — never a 401, so startup can't misread it. */
   @Authenticate({ optional: true })
   @Get('me')

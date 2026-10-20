@@ -46,7 +46,15 @@ class FakeClient extends EventEmitter {
 vi.mock('ssh2', () => ({ Client: FakeClient }));
 const { LinuxSessions } = await import('./linux-sessions.js');
 
-const USER = { id: 'u1', username: 'owner', createdAt: '2026-10-12T00:00:00.000Z' };
+const USER = {
+  id: 'u1',
+  username: 'owner',
+  createdAt: '2026-10-12T00:00:00.000Z',
+  displayName: null,
+  email: null,
+  language: null,
+  avatar: null,
+};
 const ACTOR = { user: USER, ip: '127.0.0.1' };
 
 describe('LinuxSessions', () => {

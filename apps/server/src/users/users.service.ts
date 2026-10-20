@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { PublicUser } from '@homelab/shared';
+import type { ProfilePictureType, PublicUser } from '@homelab/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { publicUserSelect, toPublicUser } from './public-user.js';
-import type { UserCredentials } from './users.model.js';
+import type { ProfileFields, StoredAvatar, UserCredentials } from './users.model.js';
 
 /** Arbitrary constant identifying the "create the first user" advisory lock. */
 const FIRST_USER_LOCK_KEY = 4_401_001;
@@ -74,5 +74,43 @@ export class UsersService {
 
   async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
     await this.prisma.user.update({ where: { id }, data: { passwordHash } });
+  }
+
+  /** The profile's fields; `null` removes a name or an address. */
+  async updateProfile(id: string, profile: ProfileFields): Promise<PublicUser> {
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: profile,
+      select: publicUserSelect,
+    });
+    return toPublicUser(user);
+  }
+
+  /** The picture, already checked (`inspectPicture`). */
+  async setAvatar(id: string, bytes: Buffer, type: ProfilePictureType): Promise<PublicUser> {
+    const avatar = { bytes: new Uint8Array(bytes), type, updatedAt: new Date() };
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: { avatar: { upsert: { create: avatar, update: avatar } } },
+      select: publicUserSelect,
+    });
+    return toPublicUser(user);
+  }
+
+  /** Idempotent. */
+  async removeAvatar(id: string): Promise<PublicUser> {
+    await this.prisma.userAvatar.deleteMany({ where: { userId: id } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id },
+      select: publicUserSelect,
+    });
+    return toPublicUser(user);
+  }
+
+  findAvatar(id: string): Promise<StoredAvatar | null> {
+    return this.prisma.userAvatar.findUnique({
+      where: { userId: id },
+      select: { bytes: true, type: true, updatedAt: true },
+    });
   }
 }

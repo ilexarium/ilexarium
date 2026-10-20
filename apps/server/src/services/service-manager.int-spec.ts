@@ -24,6 +24,7 @@ import { SystemReader } from '../host/system-reader.js';
 import { ServiceJobs } from './service-jobs.js';
 import { ServiceSecrets } from './service-secrets.js';
 import { ServiceManager } from './service-manager.js';
+import { publicUserSelect, toPublicUser } from '../users/public-user.js';
 
 const FIXTURES = fileURLToPath(new URL('../../test/fixtures/catalog', import.meta.url));
 
@@ -77,8 +78,12 @@ describe('ServiceManager (database)', () => {
 
   beforeEach(async () => {
     await resetDatabase(prisma);
-    const created = await prisma.user.create({ data: { username: 'owner', passwordHash: 'x' } });
-    user = { id: created.id, username: 'owner', createdAt: created.createdAt.toISOString() };
+    user = toPublicUser(
+      await prisma.user.create({
+        data: { username: 'owner', passwordHash: 'x' },
+        select: publicUserSelect,
+      }),
+    );
     dir = mkdtempSync(join(tmpdir(), 'services-int-'));
     const config = {
       get: (name: string) => (name === 'MASTER_KEY_FILE' ? join(dir, 'master.key') : 'test'),

@@ -153,6 +153,10 @@ describe('response schemas', () => {
     id: '0192f3a1-7c2e-7a4b-9d1e-3f5a7c9b2d4e',
     username: 'owner',
     createdAt: '2026-10-11T12:00:00.000Z',
+    displayName: null,
+    email: null,
+    language: null,
+    avatar: null,
   };
 
   it('publicUserSchema strips anything that is not public', () => {

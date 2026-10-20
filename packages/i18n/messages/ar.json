@@ -16,7 +16,8 @@
     "files": "الملفات",
     "terminal": "الطرفية",
     "assistant": "المساعد",
-    "assistantModels": "النماذج"
+    "assistantModels": "النماذج",
+    "profile": "الملف الشخصي"
   },
   "app": {
     "loading": "جارٍ التحميل…",
@@ -51,8 +52,10 @@
   "userMenu": {
     "open": "قائمة الحساب",
     "language": "اللغة",
-    "changePassword": "تغيير كلمة المرور",
-    "signOut": "تسجيل الخروج"
+    "signOut": "تسجيل الخروج",
+    "editProfile": "تعديل الملف الشخصي",
+    "profile": "ملفي الشخصي",
+    "accountSettings": "إعدادات الحساب"
   },
   "connection": {
     "offline": "غير متصل",
@@ -159,7 +162,10 @@
     "modelNameRequired": "أدخل اسم نموذج",
     "modelNameInvalid": "اسم نموذج مثل ⁦llama3.2:3b⁩",
     "messageRequired": "اكتب رسالة",
-    "messageTooLong": "{{messageMax}} حرفًا كحد أقصى"
+    "messageTooLong": "{{messageMax}} حرفًا كحد أقصى",
+    "displayNameTooLong": "{{displayNameMax}} حرفًا كحد أقصى",
+    "emailTooLong": "{{emailMax}} حرفًا كحد أقصى",
+    "nothingToChange": "لا يوجد ما يتغير"
   },
   "errors": {
     "network": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك وحاول مرة أخرى.",
@@ -260,7 +266,9 @@
     "chat_not_found": "هذه المحادثة غير موجودة (لم تعد موجودة).",
     "library_unreachable": "لا يمكن الوصول إلى Hugging Face الآن.",
     "library_not_found": "لا يوجد نموذج بهذا الاسم على Hugging Face.",
-    "models_folder_unavailable": "تعذّرت قراءة مجلد النماذج، فالمساحة الحرة فيه غير معروفة. تحقّق من وجود قرصه."
+    "models_folder_unavailable": "تعذّرت قراءة مجلد النماذج، فالمساحة الحرة فيه غير معروفة. تحقّق من وجود قرصه.",
+    "invalid_picture": "تعذّر استخدام الصورة. اختر صورة أخرى بصيغة JPEG أو PNG أو WebP.",
+    "picture_too_large": "الصورة كبيرة جدًا."
   },
   "format": {
     "lessThanAMinute": "أقل من دقيقة"
@@ -1258,5 +1266,53 @@
       "download": "تنزيل"
     },
     "checkAgain": "التحقق مجددًا"
+  },
+  "profile": {
+    "edit": "تعديل",
+    "saved": "تم حفظ الملف الشخصي",
+    "languageNotSaved": "تعذّر حفظ اللغة لحسابك",
+    "memberSince": "عضو منذ {{date}}",
+    "notSet": "غير محدد",
+    "displayName": "الاسم المعروض",
+    "displayNameHelp": "يظهر بدلًا من اسم المستخدم.",
+    "email": "البريد الإلكتروني",
+    "emailHelp": "للتواصل فقط — يبقى تسجيل الدخول باسم المستخدم.",
+    "picture": {
+      "title": "صورة الملف الشخصي",
+      "choose": "اختر صورة",
+      "help": "صورة بصيغة JPEG أو PNG أو WebP، تُقص إلى مربع.",
+      "preparing": "جارٍ تجهيز الصورة…",
+      "unreadable": "هذا الملف ليس صورة يمكن استخدامها. اختر صورة بصيغة JPEG أو PNG أو WebP.",
+      "tooLarge": "هذا الملف كبير جدًا. اختر صورة أصغر.",
+      "remove": "إزالة الصورة"
+    },
+    "dialog": {
+      "title": "تعديل الملف الشخصي",
+      "description": "صورتك والاسم الذي يظهر في التطبيق وعنوان للتواصل معك.",
+      "close": "إغلاق",
+      "cancel": "إلغاء",
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ…"
+    },
+    "preferences": {
+      "title": "التفضيلات",
+      "language": "اللغة — تُحفظ لحسابك، فتنتقل معك إلى المتصفحات الأخرى."
+    },
+    "security": {
+      "title": "الأمان",
+      "password": "كلمة المرور",
+      "passwordText": "غيّر كلمة المرور التي تسجّل الدخول بها.",
+      "changePassword": "تغيير كلمة المرور"
+    },
+    "signOutEverywhere": {
+      "title": "تسجيل الخروج من كل مكان",
+      "text": "يُنهي كل جلسات حسابك على كل الأجهزة، بما فيها هذه.",
+      "button": "تسجيل الخروج من كل مكان",
+      "confirmTitle": "تسجيل الخروج من كل مكان؟",
+      "confirmText": "سيُسجَّل خروج كل متصفح مسجّل الدخول إلى حسابك، بما فيه هذا. ستحتاج إلى كلمة المرور لتسجيل الدخول مجددًا.",
+      "cancel": "إلغاء",
+      "confirm": "تسجيل الخروج من كل مكان",
+      "failed": "تعذّر تسجيل الخروج من كل مكان"
+    }
   }
 }

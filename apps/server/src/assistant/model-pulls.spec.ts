@@ -10,6 +10,10 @@ const BY = {
     id: '0199f000-0000-7000-8000-000000000001',
     username: 'owner',
     createdAt: '2026-10-19T00:00:00.000Z',
+    displayName: null,
+    email: null,
+    language: null,
+    avatar: null,
   },
   ip: '127.0.0.1',
 };

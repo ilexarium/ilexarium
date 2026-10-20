@@ -132,7 +132,15 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
         secrets: [],
         fields: [],
         actor: {
-          user: { id: '00000000-0000-0000-0000-000000000000', username: 'test', createdAt: '' },
+          user: {
+            id: '00000000-0000-0000-0000-000000000000',
+            username: 'test',
+            createdAt: '',
+            displayName: null,
+            email: null,
+            language: null,
+            avatar: null,
+          },
         },
         audit: {},
         onPhase: () => undefined,
@@ -320,7 +328,15 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
       secrets: [],
       fields: ['WEB_PORT'],
       actor: {
-        user: { id: '00000000-0000-0000-0000-000000000000', username: 'test', createdAt: '' },
+        user: {
+          id: '00000000-0000-0000-0000-000000000000',
+          username: 'test',
+          createdAt: '',
+          displayName: null,
+          email: null,
+          language: null,
+          avatar: null,
+        },
       },
       audit: {},
       onPhase: () => undefined,

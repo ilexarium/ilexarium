@@ -32,7 +32,15 @@ export const VALIDATION_LIMITS = {
   diskNameMax: 32,
   // The Assistant (`AI_LIMITS.messageMax` in ai.ts).
   messageMax: 16_000,
+  // The profile (`PROFILE_LIMITS` in profile.ts).
+  displayNameMax: 64,
+  emailMax: 254,
 } as const;
+
+/** The languages a person can choose (the same as `@homelab/i18n`'s; a test keeps them equal). */
+export const USER_LANGUAGES = ['en', 'de', 'ar'] as const;
+export const userLanguageSchema = z.enum(USER_LANGUAGES);
+export type UserLanguage = z.infer<typeof userLanguageSchema>;
 
 /** Username when choosing one (setup). Normalised to lowercase before the checks run. */
 export const usernameSchema = z
@@ -114,6 +122,14 @@ export const publicUserSchema = z.object({
   id: z.uuid(),
   username: z.string(),
   createdAt: z.iso.datetime(),
+  /** Shown instead of the username when set. */
+  displayName: z.string().nullable(),
+  /** A contact address; never used to sign in. */
+  email: z.string().nullable(),
+  /** The account's language; null: the browser's choice. */
+  language: userLanguageSchema.nullable(),
+  /** The picture's path, versioned (`/api/profile/avatar?v=…`); null: initials. */
+  avatar: z.string().nullable(),
 });
 export type PublicUser = z.infer<typeof publicUserSchema>;
 

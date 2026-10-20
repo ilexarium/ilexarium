@@ -16,7 +16,8 @@
     "files": "Files",
     "terminal": "Terminal",
     "assistant": "Assistant",
-    "assistantModels": "Models"
+    "assistantModels": "Models",
+    "profile": "Profile"
   },
   "app": {
     "loading": "Loading…",
@@ -51,8 +52,10 @@
   "userMenu": {
     "open": "Account menu",
     "language": "Language",
-    "changePassword": "Change password",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "editProfile": "Edit profile",
+    "profile": "My profile",
+    "accountSettings": "Account settings"
   },
   "connection": {
     "offline": "Offline",
@@ -159,7 +162,10 @@
     "modelNameRequired": "Enter a model name",
     "modelNameInvalid": "A model name like llama3.2:3b",
     "messageRequired": "Write a message",
-    "messageTooLong": "At most {{messageMax}} characters"
+    "messageTooLong": "At most {{messageMax}} characters",
+    "displayNameTooLong": "At most {{displayNameMax}} characters",
+    "emailTooLong": "At most {{emailMax}} characters",
+    "nothingToChange": "Nothing to change"
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -256,7 +262,9 @@
     "chat_not_found": "This chat doesn’t exist (any more).",
     "library_unreachable": "Hugging Face can’t be reached right now.",
     "library_not_found": "No such model on Hugging Face.",
-    "models_folder_unavailable": "The models folder can’t be read, so its free space is unknown. Check that its disk is there."
+    "models_folder_unavailable": "The models folder can’t be read, so its free space is unknown. Check that its disk is there.",
+    "invalid_picture": "The picture couldn’t be used. Choose another JPEG, PNG or WebP image.",
+    "picture_too_large": "The picture is too large."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -1214,5 +1222,53 @@
       "download": "Download"
     },
     "checkAgain": "Check again"
+  },
+  "profile": {
+    "edit": "Edit",
+    "saved": "Profile saved",
+    "languageNotSaved": "The language couldn’t be saved for your account",
+    "memberSince": "Member since {{date}}",
+    "notSet": "Not set",
+    "displayName": "Display name",
+    "displayNameHelp": "Shown instead of your username.",
+    "email": "Email address",
+    "emailHelp": "For contact only — you still sign in with your username.",
+    "picture": {
+      "title": "Profile picture",
+      "choose": "Choose a picture",
+      "help": "A JPEG, PNG or WebP image. It’s cropped to a square.",
+      "preparing": "Preparing the picture…",
+      "unreadable": "This file isn’t a picture that can be used. Choose a JPEG, PNG or WebP image.",
+      "tooLarge": "This file is too large. Choose a smaller image.",
+      "remove": "Remove picture"
+    },
+    "dialog": {
+      "title": "Edit profile",
+      "description": "Your picture, the name shown in the app, and an address to reach you.",
+      "close": "Close",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "language": "Language — saved for your account, so it follows you to other browsers."
+    },
+    "security": {
+      "title": "Security",
+      "password": "Password",
+      "passwordText": "Change the password you sign in with.",
+      "changePassword": "Change password"
+    },
+    "signOutEverywhere": {
+      "title": "Sign out everywhere",
+      "text": "Ends every session of your account, on every device — this one too.",
+      "button": "Sign out everywhere",
+      "confirmTitle": "Sign out everywhere?",
+      "confirmText": "Every browser signed in to your account is signed out, this one too. You’ll need your password to sign in again.",
+      "cancel": "Cancel",
+      "confirm": "Sign out everywhere",
+      "failed": "Couldn’t sign out everywhere"
+    }
   }
 }

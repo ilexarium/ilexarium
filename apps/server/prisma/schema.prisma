@@ -15,12 +15,27 @@ model User {
   passwordHash   String // self-describing ($scrypt$…); never leaves the server
   createdAt      DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+  /// The profile (docs/plans/profile.md): shown instead of the username; a contact address, never a sign-in; "en" | "de" | "ar".
+  displayName    String?
+  email          String?
+  language       String?
+  avatar         UserAvatar?
   sessions       Session[]
   services       Service[]
   serviceJobs    ServiceJob[]
   backupRuns     BackupRun[]
   backupRestores BackupRestore[]
   chats          Chat[]
+}
+
+/// The profile picture: 600×600, checked by its bytes (WebP, JPEG or PNG). In the database, so backups carry it.
+model UserAvatar {
+  userId    String   @id @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bytes     Bytes
+  /// The type judged from the bytes: "image/webp" | "image/jpeg" | "image/png".
+  type      String
+  updatedAt DateTime @db.Timestamptz(3)
 }
 
 /// Mirrors @nestjs/authentication's SessionRecord. Times come from the package's clock, never DB defaults.
