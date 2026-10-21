@@ -59,9 +59,11 @@ export const AuthStore = signalStore(
       };
       const signedOut = async () => {
         sessionEnded();
-        channel?.postMessage(null);
         await router.navigateByUrl('/login');
       };
+      // Before the server call: the other tabs' sockets close with 4401 while it runs, and they
+      // should take it for a sign-out, not an expiry. A failed call signs this tab out too.
+      const tellOtherTabs = () => channel?.postMessage(null);
       return {
         /** Never throws: an unreachable server is never taken for signed out. */
         async load(): Promise<void> {
@@ -97,6 +99,7 @@ export const AuthStore = signalStore(
           toLogin(false);
         },
         async logout(): Promise<void> {
+          tellOtherTabs();
           try {
             await api.logout();
           } finally {
@@ -105,6 +108,7 @@ export const AuthStore = signalStore(
         },
         async logoutEverywhere(): Promise<void> {
           leaving = true;
+          tellOtherTabs();
           try {
             await api.logoutEverywhere();
             await signedOut();
@@ -117,7 +121,7 @@ export const AuthStore = signalStore(
   ),
   withHooks((store, channel = inject(SIGN_OUT_CHANNEL)) => ({
     onInit() {
-      if (channel) channel.onmessage = () => store.signedOutElsewhere();
+      channel?.addEventListener('message', () => store.signedOutElsewhere());
     },
     onDestroy() {
       channel?.close();

@@ -5,12 +5,9 @@ import { chmod, mkdir, open, rename, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import type { Env } from '../config/env.schema.js';
 import { UsersService } from '../users/users.service.js';
+import { BASE32_ALPHABET, TOKEN_LENGTH } from './setup.constants.js';
 
-/** 26 characters of 5 bits: 130 bits. 32 divides 256, so `byte & 31` stays uniform. */
-const TOKEN_LENGTH = 26;
-const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-
-/** In groups of four: easy to read, and to type if it comes to that. */
+/** `byte & 31` is uniform, as 32 divides 256. Groups of four: easy to read, and to type. */
 function generateToken(): string {
   const letters = Array.from(randomBytes(TOKEN_LENGTH), (byte) => BASE32_ALPHABET[byte & 31]);
   return letters

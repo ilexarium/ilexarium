@@ -33,14 +33,15 @@ export function fakeAuthApi(
 
 /** A fake of the other tabs: `receive()` is a message from one of them. */
 export function fakeSignOutChannel() {
+  const listeners: (() => void)[] = [];
   const channel = {
     postMessage: vi.fn(),
     close: vi.fn(),
-    onmessage: null as ((event: MessageEvent) => void) | null,
+    addEventListener: vi.fn((_type: 'message', listener: () => void) => listeners.push(listener)),
   };
   return {
     channel,
-    receive: () => channel.onmessage?.(new MessageEvent('message', { data: null })),
+    receive: () => listeners.forEach((listener) => listener()),
     provider: { provide: SIGN_OUT_CHANNEL, useValue: channel },
   };
 }
