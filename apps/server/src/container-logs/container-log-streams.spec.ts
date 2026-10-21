@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import type { AuthenticationEvents } from '@nestjs/authentication';
 import type { Response } from 'express';
 import { Subject } from 'rxjs';
-import { type ContainerState, LOG_LIMITS, type LogLine } from '@homelab/shared';
+import { type ContainerState, LOG_LIMITS, type LogLine } from '@laris/shared';
 import { ContainerLogsError, type DockerService } from '../docker/docker.service.js';
 import { ContainerLogStreams } from './container-log-streams.js';
 import {

@@ -11,7 +11,7 @@
     {
       "key": "MODELS_DIR",
       "type": "path",
-      "default": "/srv/homelab/ollama/models",
+      "default": "/srv/laris/ollama/models",
       "access": "write"
     }
   ]

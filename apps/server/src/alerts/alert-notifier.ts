@@ -1,5 +1,5 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { ALERT_LIMITS } from '@homelab/shared';
+import { ALERT_LIMITS } from '@laris/shared';
 import { hostname } from 'node:os';
 import { catchError, concatMap, EMPTY, exhaustMap, from, interval, type Subscription } from 'rxjs';
 import { CatalogService } from '../catalog/catalog.service.js';

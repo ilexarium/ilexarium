@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { containerNameSchema } from '@homelab/shared';
+import { containerNameSchema } from '@laris/shared';
 import type Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
 import { createDockerClient } from './docker-client.js';

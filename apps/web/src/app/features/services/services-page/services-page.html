@@ -5,11 +5,11 @@
     </h2>
     @if (store.installed(); as services) {
       @if (services.length === 0) {
-        <app-empty-state icon="lucidePackage" [text]="'services.installed.none' | translate" />
+        <laris-empty-state icon="lucidePackage" [text]="'services.installed.none' | translate" />
       } @else {
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           @for (service of services; track service.id) {
-            <app-installed-service
+            <laris-installed-service
               [service]="service"
               [runtime]="store.runtimes().get(service.catalogId) ?? null"
               [backup]="store.backups().get(service.id) ?? null"
@@ -35,7 +35,7 @@
     @if (store.catalog(); as entries) {
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         @for (entry of entries; track entry.id) {
-          <app-catalog-card [entry]="entry" [status]="store.statuses().get(entry.id) ?? null" />
+          <laris-catalog-card [entry]="entry" [status]="store.statuses().get(entry.id) ?? null" />
         }
       </div>
     } @else if (store.catalogFailed()) {

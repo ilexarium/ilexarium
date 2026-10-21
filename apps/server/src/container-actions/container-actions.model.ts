@@ -1,4 +1,4 @@
-import type { ContainerAction, PublicUser } from '@homelab/shared';
+import type { ContainerAction, PublicUser } from '@laris/shared';
 
 /** Who asks for an action, for the audit log. */
 export interface ContainerActionActor {

@@ -1,5 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
-import type { BackupWarning, DiskUsage } from '@homelab/shared';
+import type { BackupWarning, DiskUsage } from '@laris/shared';
 import { Subject } from 'rxjs';
 import type { BackupPlanManager } from '../backups/backup-plan-manager.js';
 import type { BackupResults } from '../backups/backup-results.js';

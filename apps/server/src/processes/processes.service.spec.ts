@@ -1,4 +1,4 @@
-import type { PublicUser } from '@homelab/shared';
+import type { PublicUser } from '@laris/shared';
 import type { ExecutorService } from '../executor/executor.service.js';
 import type { WrapperConfigService } from '../executor/wrapper-config.js';
 import type { SystemReader } from '../host/system-reader.js';

@@ -9,7 +9,7 @@ import {
   type SystemUpdate,
   toContainerHistoryPoint,
   toSystemHistoryPoint,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { AuthStore } from '../auth/auth-store';
 import { RealtimeService } from '../realtime/realtime-service';
 

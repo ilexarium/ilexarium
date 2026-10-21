@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { LOG_LIMITS, type LogLine } from '@homelab/shared';
+import { LOG_LIMITS, type LogLine } from '@laris/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { LogsPageStore } from './logs-page-store';
@@ -13,7 +13,7 @@ function line(i: number, stream: LogLine['stream'] = 'stdout'): LogLine {
 }
 
 /** A page that provides its own store, like the logs page. */
-@Component({ selector: 'app-host', template: '', providers: [LogsPageStore] })
+@Component({ selector: 'laris-host', template: '', providers: [LogsPageStore] })
 class Host {
   readonly logs = inject(LogsPageStore);
 }

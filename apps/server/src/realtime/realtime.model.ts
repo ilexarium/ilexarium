@@ -1,4 +1,4 @@
-import type { RealtimeTopic, ServerEventData } from '@homelab/shared';
+import type { RealtimeTopic, ServerEventData } from '@laris/shared';
 import type { Observable } from 'rxjs';
 import type { MessageRateLimiter } from './message-rate-limiter.js';
 

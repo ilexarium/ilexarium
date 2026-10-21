@@ -5,7 +5,7 @@ import {
   type AlertKind,
   type AlertSeverity,
   type BackupWarning,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { type Observable, Subject } from 'rxjs';
 import type { Alert as AlertRow } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';

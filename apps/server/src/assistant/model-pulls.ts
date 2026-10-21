@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
-import { AI_ERROR_CODES, type AiPull } from '@homelab/shared';
+import { AI_ERROR_CODES, type AiPull } from '@laris/shared';
 import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
 import { SystemReader } from '../host/system-reader.js';

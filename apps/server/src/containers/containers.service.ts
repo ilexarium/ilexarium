@@ -6,7 +6,7 @@ import {
   type ContainersUpdate,
   type ContainerStats,
   toContainerHistoryPoint,
-} from '@homelab/shared';
+} from '@laris/shared';
 import {
   auditTime,
   defer,

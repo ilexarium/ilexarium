@@ -6,7 +6,7 @@ import {
   type SystemSnapshot,
   type SystemUpdate,
   toSystemHistoryPoint,
-} from '@homelab/shared';
+} from '@laris/shared';
 import {
   defer,
   filter,

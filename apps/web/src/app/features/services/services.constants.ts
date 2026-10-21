@@ -1,4 +1,4 @@
-import type { ServiceStatus } from '@homelab/shared';
+import type { ServiceStatus } from '@laris/shared';
 import type { StatusTone } from '../../shared/status-badge/status-badge.model';
 import type { ServiceRuntime } from './services.model';
 

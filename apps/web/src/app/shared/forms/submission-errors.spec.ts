@@ -2,8 +2,8 @@ import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
-import en from '@homelab/i18n/en.json';
-import { flattenMessages } from '@homelab/i18n';
+import en from '@laris/i18n/en.json';
+import { flattenMessages } from '@laris/i18n';
 import { toSubmissionErrors, TRANSLATED_ERROR_CODES } from './submission-errors';
 
 function makeForm() {

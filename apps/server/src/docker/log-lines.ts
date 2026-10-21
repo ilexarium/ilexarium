@@ -1,4 +1,4 @@
-import { LOG_LIMITS, type LogLine, type LogStream } from '@homelab/shared';
+import { LOG_LIMITS, type LogLine, type LogStream } from '@laris/shared';
 
 const HEADER_BYTES = 8;
 const NEWLINE = 0x0a;

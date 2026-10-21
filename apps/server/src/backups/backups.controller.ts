@@ -31,7 +31,7 @@ import type {
   BackupRunStartedResponse,
   BackupsStatus,
   PublicUser,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { BackupChecks } from './backup-checks.js';
 import { BackupPlanManager } from './backup-plan-manager.js';

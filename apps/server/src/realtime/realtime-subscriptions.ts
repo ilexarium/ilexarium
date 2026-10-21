@@ -1,5 +1,5 @@
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
-import type { RealtimeTopic, ServerMessage } from '@homelab/shared';
+import type { RealtimeTopic, ServerMessage } from '@laris/shared';
 import { retry, type Subscription, timer } from 'rxjs';
 import { sendMessage } from './realtime-messages.js';
 import type { RealtimeClient, TopicSource, UpdateData } from './realtime.model.js';

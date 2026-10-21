@@ -1,5 +1,5 @@
 import { createServer, type AddressInfo } from 'node:net';
-import { diskUsageSchema, hostInfoSchema } from '@homelab/shared';
+import { diskUsageSchema, hostInfoSchema } from '@laris/shared';
 import { SystemReader } from './system-reader.js';
 
 // Against the machine running the tests (the app only runs on Linux): proves the real files

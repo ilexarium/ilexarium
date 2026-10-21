@@ -32,7 +32,7 @@ describe('ModelPulls', () => {
     const service = new OllamaService({} as never);
     vi.spyOn(service, 'location').mockImplementation(async () => ({
       baseUrl: ollama.baseUrl,
-      modelsDir: '/srv/homelab/ollama',
+      modelsDir: '/srv/laris/ollama',
     }));
     const host = {
       space: vi.fn(async () => (free === null ? null : { totalBytes: 200 * GB, freeBytes: free })),

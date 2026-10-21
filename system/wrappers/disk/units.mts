@@ -12,7 +12,7 @@ import type { Paths } from './model.mts';
 export const NAME = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 /** The first line of every unit this program writes: only those are ever removed. */
-export const MARKER = '# Managed by homelab (homelab-disk).';
+export const MARKER = '# Managed by laris (laris-disk).';
 
 export const FILESYSTEMS = ['ext4', 'xfs', 'btrfs', 'exfat'];
 
@@ -34,7 +34,7 @@ export function unitContent(name: string, uuid: string, fsType: string, where: s
     MARKER,
     '# It is not in /etc/fstab: `systemctl list-units --type=mount` lists it.',
     '[Unit]',
-    `Description=homelab disk ${name}`,
+    `Description=laris disk ${name}`,
     '',
     '[Mount]',
     `What=/dev/disk/by-uuid/${uuid}`,

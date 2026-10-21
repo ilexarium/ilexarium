@@ -1,4 +1,4 @@
-import type { Process, ProcessSignal } from '@homelab/shared';
+import type { Process, ProcessSignal } from '@laris/shared';
 
 export const PROCESS_SORTS = ['cpu', 'memory', 'name', 'pid'] as const;
 export type ProcessSort = (typeof PROCESS_SORTS)[number];

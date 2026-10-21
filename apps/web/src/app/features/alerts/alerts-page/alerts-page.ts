@@ -18,7 +18,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
  * then those resolved in the last 7 days; a notice when a message couldn't be sent.
  */
 @Component({
-  selector: 'app-alerts-page',
+  selector: 'laris-alerts-page',
   imports: [
     EmptyState,
     AlertCard,

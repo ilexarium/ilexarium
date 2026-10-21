@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
-import type { FileEntry, LinuxSignInRequest } from '@homelab/shared';
+import type { FileEntry, LinuxSignInRequest } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowUp,
@@ -30,7 +30,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
  * before replacing a file.
  */
 @Component({
-  selector: 'app-files-page',
+  selector: 'laris-files-page',
   imports: [
     EmptyState,
     FileDeleteDialog,

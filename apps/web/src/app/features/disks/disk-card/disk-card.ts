@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import type { Disk, DiskPartition } from '@homelab/shared';
+import type { Disk, DiskPartition } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArchive, lucideHardDrive, lucideLock, lucideUsb } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -16,7 +16,7 @@ import type { MountTarget, UnmountTarget } from '../disks.model';
  * changed. UI only: the buttons report through `mount` and `unmount`.
  */
 @Component({
-  selector: 'app-disk-card',
+  selector: 'laris-disk-card',
   imports: [HlmBadge, HlmButton, HlmCardImports, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideArchive, lucideHardDrive, lucideLock, lucideUsb })],
   templateUrl: './disk-card.html',

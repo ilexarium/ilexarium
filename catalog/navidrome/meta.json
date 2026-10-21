@@ -12,13 +12,13 @@
     {
       "key": "MUSIC_DIR",
       "type": "path",
-      "default": "/srv/homelab/navidrome/music",
+      "default": "/srv/laris/navidrome/music",
       "access": "read"
     },
     {
       "key": "DATA_DIR",
       "type": "path",
-      "default": "/srv/homelab/navidrome/data",
+      "default": "/srv/laris/navidrome/data",
       "access": "write",
       "advanced": true
     }

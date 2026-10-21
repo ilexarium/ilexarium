@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AlertsStatus } from '@homelab/shared';
+import type { AlertsStatus } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
@@ -62,7 +62,7 @@ describe('AlertsPage', () => {
       }),
     );
     const open = section('alerts-open');
-    const cards = open.querySelectorAll('app-alert-card');
+    const cards = open.querySelectorAll('laris-alert-card');
     expect(cards).toHaveLength(2);
     expect(cards[0].textContent).toContain('Immich has stopped');
     expect(cards[0].textContent).toContain('Critical');
@@ -90,7 +90,7 @@ describe('AlertsPage', () => {
     const { fixture, el, api } = await render(alertsStatus({ open: [alert, other] }));
     api.status.mockClear();
     const card = (name: string) =>
-      [...el.querySelectorAll('app-alert-card')].find((c) => c.textContent!.includes(name))!;
+      [...el.querySelectorAll('laris-alert-card')].find((c) => c.textContent!.includes(name))!;
     card('Immich')
       .querySelectorAll('button')
       .forEach((b) => b.textContent!.includes('Acknowledge') && b.click());

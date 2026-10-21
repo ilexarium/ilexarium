@@ -6,7 +6,7 @@ import {
   LOGS_EVENTS,
   logsEndSchema,
   logsLinesSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import type { LogEntry, LogStreamState } from '../containers.model';
 import { EVENT_SOURCE_CLOSED, QUIET_MS } from './logs-page-store.constants';

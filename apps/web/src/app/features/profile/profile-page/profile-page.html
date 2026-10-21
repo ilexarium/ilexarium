@@ -1,6 +1,6 @@
 <section hlmCard>
   <div hlmCardContent class="flex flex-col gap-6 sm:flex-row sm:items-center">
-    <app-user-avatar class="size-20 text-2xl" [user]="auth.user()" />
+    <laris-user-avatar class="size-20 text-2xl" [user]="auth.user()" />
     <div class="grid min-w-0 flex-1 gap-1">
       <h2 dir="auto" class="truncate text-lg font-semibold">{{ name() }}</h2>
       <p class="text-sm text-muted-foreground">
@@ -118,5 +118,5 @@
   </div>
 </section>
 
-<app-profile-dialog [open]="editing()" (closed)="editing.set(false)" />
-<app-password-dialog [open]="changingPassword()" (closed)="changingPassword.set(false)" />
+<laris-profile-dialog [open]="editing()" (closed)="editing.set(false)" />
+<laris-password-dialog [open]="changingPassword()" (closed)="changingPassword.set(false)" />

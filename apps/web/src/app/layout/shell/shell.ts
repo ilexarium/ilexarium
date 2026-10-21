@@ -13,7 +13,7 @@ import { TopBar } from '../top-bar/top-bar';
  * bell, the dashboard).
  */
 @Component({
-  selector: 'app-shell',
+  selector: 'laris-shell',
   imports: [RouterOutlet, HlmSidebarImports, AppSidebar, TopBar],
   templateUrl: './shell.html',
 })

@@ -1,4 +1,4 @@
-import type { FileEntry } from '@homelab/shared';
+import type { FileEntry } from '@laris/shared';
 
 /** An upload in progress or finished. */
 export interface Upload {

@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * The service catalog: `catalog/<id>/meta.json` describes a reviewed Compose recipe's blanks —
  * which values a user may fill in, of which type. The same rules are checked in the browser, by
- * the server and (written independently) by the root wrapper `system/wrappers/homelab-compose.ts`.
+ * the server and (written independently) by the root wrapper `system/wrappers/laris-compose.ts`.
  * Design: docs/plans/service_deploys.md.
  */
 

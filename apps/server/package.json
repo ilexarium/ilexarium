@@ -1,5 +1,5 @@
 {
-  "name": "@homelab/server",
+  "name": "@laris/server",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -19,10 +19,10 @@
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "test:db:deploy": "DATABASE_URL=${TEST_DATABASE_URL:-postgresql://homelab:homelab-dev@127.0.0.1:5432/homelab_test} prisma migrate deploy"
+    "test:db:deploy": "DATABASE_URL=${TEST_DATABASE_URL:-postgresql://laris:laris-dev@127.0.0.1:5432/laris_test} prisma migrate deploy"
   },
   "dependencies": {
-    "@homelab/shared": "*",
+    "@laris/shared": "*",
     "@nestjs/authentication": "0.1.0",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.1",

@@ -6,7 +6,7 @@ import { MARK_PATH } from './laris-mark.constants';
  * classes. Decorative: the name always stands beside it or in the link's label.
  */
 @Component({
-  selector: 'app-laris-mark',
+  selector: 'laris-mark',
   host: { class: 'inline-block shrink-0', 'aria-hidden': 'true' },
   templateUrl: './laris-mark.html',
 })

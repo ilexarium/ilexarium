@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { signalStore, withMethods } from '@ngrx/signals';
-import type { UserLanguage } from '@homelab/shared';
+import type { UserLanguage } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { apiErrorText } from '../../shared/forms/submission-errors';
 import { AuthStore } from '../auth/auth-store';

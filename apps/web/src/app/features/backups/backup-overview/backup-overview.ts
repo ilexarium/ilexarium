@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import type { BackupDestination, BackupsStatus } from '@homelab/shared';
+import type { BackupDestination, BackupsStatus } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideCircleCheck,
@@ -22,7 +22,7 @@ import type { ItemLabel } from '../backups.model';
  * "Back up now". UI only: `runNow` reports the click.
  */
 @Component({
-  selector: 'app-backup-overview',
+  selector: 'laris-backup-overview',
   imports: [HlmAlertImports, HlmButton, HlmCardImports, HlmProgressImports, NgIcon, TranslatePipe],
   providers: [
     provideIcons({

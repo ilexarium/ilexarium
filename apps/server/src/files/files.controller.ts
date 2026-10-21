@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { FileList, FileSummary, LinuxSession, PublicUser } from '@homelab/shared';
+import type { FileList, FileSummary, LinuxSession, PublicUser } from '@laris/shared';
 import contentDisposition from 'content-disposition';
 import type { Request, Response } from 'express';
 import { pipeline } from 'node:stream/promises';

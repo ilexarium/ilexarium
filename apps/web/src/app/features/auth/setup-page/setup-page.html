@@ -1,12 +1,12 @@
-<app-auth-frame
+<laris-auth-frame
   [heading]="'auth.setup.heading' | translate: { app: appName }"
   [description]="'auth.setup.description' | translate"
 >
   @if (!secure) {
-    <app-insecure-context-notice />
+    <laris-insecure-context-notice />
   } @else {
     <form [formRoot]="form" class="grid gap-5">
-      <app-form-errors [form]="form" />
+      <laris-form-errors [form]="form" />
 
       <div hlmField>
         <label hlmFieldLabel for="setupToken">{{ 'auth.setup.setupCode' | translate }}</label>
@@ -21,10 +21,10 @@
           spellcheck="false"
         />
         <p hlmFieldDescription>
-          {{ setupCodeHelp()[0] }}<code dir="ltr">sudo homelab-setup-code</code
+          {{ setupCodeHelp()[0] }}<code dir="ltr">sudo laris-setup-code</code
           >{{ setupCodeHelp()[1] }}
         </p>
-        <app-field-errors [field]="form.setupToken" />
+        <laris-field-errors [field]="form.setupToken" />
       </div>
 
       <div hlmField>
@@ -39,7 +39,7 @@
           spellcheck="false"
         />
         <p hlmFieldDescription>{{ 'auth.setup.usernameHelp' | translate }}</p>
-        <app-field-errors [field]="form.username" />
+        <laris-field-errors [field]="form.username" />
       </div>
 
       <div hlmField>
@@ -54,10 +54,10 @@
             [formField]="form.password"
             autocomplete="new-password"
           />
-          <app-password-toggle [(visible)]="showPasswords" />
+          <laris-password-toggle [(visible)]="showPasswords" />
         </div>
         <p hlmFieldDescription>{{ 'auth.setup.passwordHelp' | translate: limits }}</p>
-        <app-field-errors [field]="form.password" />
+        <laris-field-errors [field]="form.password" />
       </div>
 
       <div hlmField>
@@ -72,7 +72,7 @@
           [formField]="form.confirmPassword"
           autocomplete="new-password"
         />
-        <app-field-errors [field]="form.confirmPassword" />
+        <laris-field-errors [field]="form.confirmPassword" />
       </div>
 
       <button hlmBtn type="submit" class="w-full" [disabled]="form().submitting()">
@@ -80,4 +80,4 @@
       </button>
     </form>
   }
-</app-auth-frame>
+</laris-auth-frame>

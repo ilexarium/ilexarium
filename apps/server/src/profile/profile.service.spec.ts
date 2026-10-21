@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { PROFILE_LIMITS, type PublicUser } from '@homelab/shared';
+import { PROFILE_LIMITS, type PublicUser } from '@laris/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { UsersService } from '../users/users.service.js';
 import { ProfileService } from './profile.service.js';

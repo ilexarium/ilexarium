@@ -54,7 +54,7 @@ ensure_folders
 write_settings
 if [[ -n "$OLD_VERSION" ]]; then
   # The app stops first: nothing writes to the database while it's backed up and migrated.
-  systemctl stop homelab.service 2>/dev/null || true
+  systemctl stop laris.service 2>/dev/null || true
 fi
 install_platform_files
 start_platform

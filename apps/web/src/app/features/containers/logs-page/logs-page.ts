@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowLeft } from '@ng-icons/lucide';
-import { containerNameSchema, type LogsEndReason } from '@homelab/shared';
+import { containerNameSchema, type LogsEndReason } from '@laris/shared';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
@@ -30,7 +30,7 @@ interface Notice {
  * not reachable, too many log views.
  */
 @Component({
-  selector: 'app-logs-page',
+  selector: 'laris-logs-page',
   imports: [
     EmptyState,
     HlmAlertImports,

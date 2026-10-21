@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { CatalogEntrySummary, ServiceStatus } from '@homelab/shared';
+import type { CatalogEntrySummary, ServiceStatus } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
@@ -10,7 +10,7 @@ import { SERVICE_STATUS_TONES } from '../services.constants';
 
 /** One catalog entry: what it is, and Install (or its state if it's installed). */
 @Component({
-  selector: 'app-catalog-card',
+  selector: 'laris-catalog-card',
   // Fills its grid cell, so the cards of a row line up.
   host: { class: 'block h-full' },
   imports: [StatusBadge, HlmButton, HlmCardImports, RouterLink, TranslatePipe],

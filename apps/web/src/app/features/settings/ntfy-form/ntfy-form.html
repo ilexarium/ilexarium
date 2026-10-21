@@ -10,7 +10,7 @@
       </div>
     }
     <form [formRoot]="form" class="grid gap-5">
-      <app-form-errors [form]="form" />
+      <laris-form-errors [form]="form" />
 
       <label class="flex items-center gap-3 text-sm font-medium">
         <input type="checkbox" class="size-4" [formField]="form.enabled" />
@@ -42,7 +42,7 @@
             {{ 'notifications.ntfy.plainHttp' | translate }}
           </p>
         }
-        <app-field-errors [field]="form.topicUrl" />
+        <laris-field-errors [field]="form.topicUrl" />
       </div>
 
       <div hlmField>
@@ -63,7 +63,7 @@
             {{ 'notifications.ntfy.clearToken' | translate }}
           </label>
         }
-        <app-field-errors [field]="form.token" />
+        <laris-field-errors [field]="form.token" />
       </div>
 
       <p class="text-sm text-muted-foreground">{{ 'notifications.ntfy.ios' | translate }}</p>

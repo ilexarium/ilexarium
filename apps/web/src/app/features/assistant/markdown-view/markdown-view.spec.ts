@@ -4,7 +4,7 @@ import { MarkdownView } from './markdown-view';
 
 @Component({
   imports: [MarkdownView],
-  template: `<app-markdown-view [text]="text()" />`,
+  template: `<laris-markdown-view [text]="text()" />`,
 })
 class Host {
   readonly text = signal('');
@@ -15,7 +15,7 @@ describe('MarkdownView', () => {
     const fixture = TestBed.createComponent(Host);
     fixture.componentInstance.text.set(text);
     await fixture.whenStable();
-    return fixture.nativeElement.querySelector('app-markdown-view') as HTMLElement;
+    return fixture.nativeElement.querySelector('laris-markdown-view') as HTMLElement;
   }
 
   it('renders Markdown: emphasis, lists, code', async () => {

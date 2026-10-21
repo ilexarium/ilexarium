@@ -18,7 +18,7 @@ import type {
   BackupRun,
   BackupSetupRequest,
   CatalogEntrySummary,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';

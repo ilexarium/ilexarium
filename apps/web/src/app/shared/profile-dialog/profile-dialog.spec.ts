@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { ProfileUpdate, PublicUser } from '@homelab/shared';
+import type { ProfileUpdate, PublicUser } from '@laris/shared';
 import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
 import { ProfileApi } from '../../core/profile/profile-api';
@@ -12,7 +12,7 @@ import { SOURCE_MAX_BYTES } from './profile-dialog.constants';
 
 @Component({
   imports: [ProfileDialog],
-  template: `<app-profile-dialog
+  template: `<laris-profile-dialog
     [open]="open()"
     (closed)="open.set(false); closings = closings + 1"
   />`,

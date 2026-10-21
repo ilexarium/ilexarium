@@ -20,9 +20,9 @@
       </div>
     } @else if (rows().length === 0) {
       <!-- The next action is the page's: it projects it (emptyAction). -->
-      <app-empty-state icon="lucideBox" [text]="'containers.none' | translate">
+      <laris-empty-state icon="lucideBox" [text]="'containers.none' | translate">
         <ng-content select="[emptyAction]" />
-      </app-empty-state>
+      </laris-empty-state>
     } @else {
       <!-- Extra-large screens: a table. -->
       <div hlmTableContainer class="hidden xl:block">
@@ -94,7 +94,7 @@
                   </span>
                 </td>
                 <td hlmTd class="text-end">
-                  <app-container-actions
+                  <laris-container-actions
                     [name]="row.name"
                     [state]="row.state"
                     [protected]="row.protected"
@@ -122,7 +122,7 @@
               </span>
               <span class="flex items-center gap-1">
                 <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
-                <app-container-actions
+                <laris-container-actions
                   [name]="row.name"
                   [state]="row.state"
                   [protected]="row.protected"
@@ -192,7 +192,7 @@
       </span>
     }
     @if (row.health; as health) {
-      <app-status-badge [tone]="health.tone">{{ health.label }}</app-status-badge>
+      <laris-status-badge [tone]="health.tone">{{ health.label }}</laris-status-badge>
     }
   </span>
 </ng-template>

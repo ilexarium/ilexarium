@@ -13,7 +13,7 @@ node check.mjs /backups     # screenshots: phone, tablet, desktop × English, Ar
 ```
 
 - **Separate from development:** server on :3100, production web build on :4400 — never the dev
-  servers (:3000, :4200) or the dev database. It uses `homelab_test` (the e2e tests reset it too)
+  servers (:3000, :4200) or the dev database. It uses `laris_test` (the e2e tests reset it too)
   and pretend backup disks under `run/state/mnt/`. `--reset` empties the test database: the next
   sign-in goes through setup (as `owner` / `correct horse battery staple`).
 - **Needs:** the dev stack up (`npm run db:up` at the repository root); Borg for backup flows.

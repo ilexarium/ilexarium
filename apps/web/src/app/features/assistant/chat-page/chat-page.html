@@ -1,16 +1,16 @@
 @if (store.status(); as status) {
   @switch (status.state) {
     @case ('not_installed') {
-      <app-empty-state
+      <laris-empty-state
         icon="lucideBot"
         [text]="'assistant.notInstalled' | translate"
         [detail]="'assistant.notInstalledText' | translate"
       >
         <a hlmBtn size="sm" routerLink="/services">{{ 'assistant.installOllama' | translate }}</a>
-      </app-empty-state>
+      </laris-empty-state>
     }
     @case ('not_running') {
-      <app-empty-state
+      <laris-empty-state
         icon="lucideBot"
         [text]="'assistant.notRunning' | translate"
         [detail]="'assistant.notRunningText' | translate"
@@ -23,11 +23,11 @@
             'nav.containers' | translate
           }}</a>
         </div>
-      </app-empty-state>
+      </laris-empty-state>
     }
     @default {
       @if (store.models().length === 0) {
-        <app-empty-state
+        <laris-empty-state
           icon="lucidePackage"
           [text]="'assistant.noModels' | translate"
           [detail]="'assistant.noModelsText' | translate"
@@ -35,10 +35,10 @@
           <a hlmBtn size="sm" routerLink="/assistant/models">{{
             'assistant.getModel' | translate
           }}</a>
-        </app-empty-state>
+        </laris-empty-state>
       } @else {
         <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
-          <app-chat-list
+          <laris-chat-list
             class="hidden lg:flex"
             [chats]="store.chats()"
             [selected]="store.chat()?.id ?? null"
@@ -59,7 +59,7 @@
                   <hlm-sheet-header class="p-0">
                     <h2 hlmSheetTitle>{{ 'assistant.chats' | translate }}</h2>
                   </hlm-sheet-header>
-                  <app-chat-list
+                  <laris-chat-list
                     class="min-h-0 flex-1"
                     [chats]="store.chats()"
                     [selected]="store.chat()?.id ?? null"
@@ -103,14 +103,14 @@
                 <hlm-skeleton class="h-24 w-full" />
               </div>
             } @else if (!store.chat() && !store.sending()) {
-              <app-empty-state
+              <laris-empty-state
                 class="flex-1 justify-center border-none"
                 icon="lucideSparkles"
                 [text]="'assistant.start' | translate"
                 [detail]="'assistant.startText' | translate: { model: store.model() ?? '' }"
               />
             } @else {
-              <app-chat-thread
+              <laris-chat-thread
                 class="flex-1"
                 [messages]="store.chat()?.messages ?? []"
                 [streaming]="store.streaming()?.text ?? null"
@@ -155,7 +155,7 @@
                 }
               </div>
               @if (message.content().touched()) {
-                <app-field-errors [field]="message.content" />
+                <laris-field-errors [field]="message.content" />
               }
             </form>
           </section>

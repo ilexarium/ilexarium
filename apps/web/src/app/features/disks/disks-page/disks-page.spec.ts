@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Disk, DiskPartition, DisksStatus } from '@homelab/shared';
+import type { Disk, DiskPartition, DisksStatus } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';

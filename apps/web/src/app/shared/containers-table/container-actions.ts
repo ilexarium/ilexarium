@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import type { ContainerAction, ContainerState } from '@homelab/shared';
+import type { ContainerAction, ContainerState } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideEllipsis,
@@ -31,7 +31,7 @@ const ICONS: Record<ContainerAction, string> = {
  * handles Enter itself and would cancel a link's navigation.
  */
 @Component({
-  selector: 'app-container-actions',
+  selector: 'laris-container-actions',
   imports: [HlmAlertDialogImports, HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],
   providers: [
     provideIcons({ lucideEllipsis, lucidePlay, lucideRotateCw, lucideScrollText, lucideSquare }),

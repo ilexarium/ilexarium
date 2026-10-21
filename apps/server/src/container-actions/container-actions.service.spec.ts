@@ -1,4 +1,4 @@
-import type { PublicUser } from '@homelab/shared';
+import type { PublicUser } from '@laris/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { AuditEntry } from '../audit/audit.model.js';
 import { ContainerActionError, type DockerControl } from '../docker/docker-control.js';

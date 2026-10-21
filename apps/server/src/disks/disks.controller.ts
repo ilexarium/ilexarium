@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { DiskMountedResponse, DisksStatus, PublicUser } from '@homelab/shared';
+import type { DiskMountedResponse, DisksStatus, PublicUser } from '@laris/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { DiskManager } from './disk-manager.js';
 import { DiskMountDto, DiskNameParamsDto } from './disks.dto.js';

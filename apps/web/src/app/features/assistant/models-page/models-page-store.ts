@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type { AiLibraryDetail, AiLibraryModel, AiModel, AiPull, AiStatus } from '@homelab/shared';
+import type { AiLibraryDetail, AiLibraryModel, AiModel, AiPull, AiStatus } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
 import { Translator } from '../../../core/i18n/translator';

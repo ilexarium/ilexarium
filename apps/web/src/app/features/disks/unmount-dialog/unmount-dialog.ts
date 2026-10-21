@@ -8,7 +8,7 @@ import type { UnmountTarget } from '../disks.model';
  * that isn't connected. UI only: the page opens it; the choice goes out through `confirm`.
  */
 @Component({
-  selector: 'app-unmount-dialog',
+  selector: 'laris-unmount-dialog',
   imports: [HlmAlertDialogImports, TranslatePipe],
   templateUrl: './unmount-dialog.html',
 })

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import type { Container, ContainerAction, ContainersSnapshot } from '@homelab/shared';
+import type { Container, ContainerAction, ContainersSnapshot } from '@laris/shared';
 import type { ContainerActionRequest } from '../../core/containers/containers.model';
 import { ContainersTable } from './containers-table';
 
@@ -274,7 +274,7 @@ describe('ContainersTable', () => {
 
   it('flags an unhealthy container in words', async () => {
     const { el } = await render(snapshot(sick));
-    const badge = el.querySelector('tbody app-status-badge')!;
+    const badge = el.querySelector('tbody laris-status-badge')!;
     expect(badge.textContent!.trim()).toBe('Unhealthy');
     expect(badge.getAttribute('data-tone')).toBe('failed');
   });

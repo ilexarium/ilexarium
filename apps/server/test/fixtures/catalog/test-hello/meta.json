@@ -12,7 +12,7 @@
     {
       "key": "SITE_DIR",
       "type": "path",
-      "default": "/srv/homelab/test-hello/site",
+      "default": "/srv/laris/test-hello/site",
       "access": "read"
     },
     { "key": "TOKEN", "type": "generatedSecret" }

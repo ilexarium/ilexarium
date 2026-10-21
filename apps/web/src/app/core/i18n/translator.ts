@@ -1,5 +1,5 @@
 import { inject, Service } from '@angular/core';
-import { pluralKey } from '@homelab/i18n';
+import { pluralKey } from '@laris/i18n';
 import { TranslateService } from '@ngx-translate/core';
 import { LanguageService } from './language';
 

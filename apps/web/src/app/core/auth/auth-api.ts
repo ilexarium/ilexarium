@@ -7,7 +7,7 @@ import type {
   MeResponse,
   SetupRequest,
   UserResponse,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { firstValueFrom } from 'rxjs';
 
 @Service()

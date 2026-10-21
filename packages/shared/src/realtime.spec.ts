@@ -32,7 +32,7 @@ const systemUpdate = {
 const systemSnapshot = {
   ...systemUpdate,
   host: {
-    hostname: 'homelab',
+    hostname: 'laris',
     os: 'Debian GNU/Linux 13',
     kernel: '6.12.0',
     arch: 'arm64',

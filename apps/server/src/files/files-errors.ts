@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import { FILES_ERROR_CODES } from '@homelab/shared';
+import { FILES_ERROR_CODES } from '@laris/shared';
 import { linuxError } from '../linux-sessions/linux-sessions.js';
 
 /** SFTP's status codes (draft-ietf-secsh-filexfer, ssh2's `STATUS_CODE`). */

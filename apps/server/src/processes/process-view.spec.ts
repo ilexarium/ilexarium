@@ -1,5 +1,5 @@
 import type { RawProcess } from '../host/host.model.js';
-import { processKey } from '@homelab/shared';
+import { processKey } from '@laris/shared';
 import { isEndable, toProcess } from './process-view.js';
 import type { ProcessContext } from './processes.model.js';
 

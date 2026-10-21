@@ -4,7 +4,7 @@ import {
   BACKUP_WARNINGS,
   type BackupSchedule,
   type BackupWarning,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { WarningInput } from './backups.model.js';
 
 /** Less free space than this share of the disk: a warning. */

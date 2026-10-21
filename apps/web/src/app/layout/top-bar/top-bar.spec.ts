@@ -1,8 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Language } from '@homelab/i18n';
-import type { PublicUser } from '@homelab/shared';
+import type { Language } from '@laris/i18n';
+import type { PublicUser } from '@laris/shared';
 import { AlertsStore } from '../../core/alerts/alerts-store';
 import { alertsStatus, testAlert } from '../../core/alerts/testing';
 import { AuthStore } from '../../core/auth/auth-store';
@@ -85,7 +85,7 @@ describe('TopBar user menu', () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.textContent).toContain('Anna Berg');
     // jsdom loads no images: the avatar shows the initials (the picture is checked in a browser).
-    expect(host.querySelector('app-user-avatar')!.textContent!.trim()).toBe('AB');
+    expect(host.querySelector('laris-user-avatar')!.textContent!.trim()).toBe('AB');
     expect(menu().textContent).toContain('Anna Berg');
     expect(menu().textContent).toContain('anna@example.com');
   });
@@ -165,7 +165,7 @@ describe('TopBar alerts bell', () => {
     );
     await fixture.whenStable();
     const bell = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-      'app-alerts-menu button',
+      'laris-alerts-menu button',
     )!;
     expect(bell.getAttribute('aria-label')).toBe('Alerts: 2 open');
     bell.click();

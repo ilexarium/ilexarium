@@ -1,10 +1,10 @@
 // Applies the saved theme before the app starts, so the page never flashes the wrong one.
 // Mirrors ThemeService (src/app/core/theme/theme.ts): "light" | "dark" | "system" (default),
-// stored in localStorage under "homelab.theme". A file, not inline, so a CSP can allow it as 'self'.
+// stored in localStorage under "laris.theme". A file, not inline, so a CSP can allow it as 'self'.
 (function () {
   var choice = 'system';
   try {
-    choice = localStorage.getItem('homelab.theme') || 'system';
+    choice = localStorage.getItem('laris.theme') || 'system';
   } catch (e) {
     // Storage blocked: follow the system.
   }

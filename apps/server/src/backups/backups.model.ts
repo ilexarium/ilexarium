@@ -1,4 +1,4 @@
-import type { BackupProgress, BackupStatus } from '@homelab/shared';
+import type { BackupProgress, BackupStatus } from '@laris/shared';
 
 /** The run the progress file describes, as followed: its live view, its process and its end. */
 export interface FollowedRun {

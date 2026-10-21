@@ -1,7 +1,7 @@
 import { HttpEventType, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import type { ChatStreamEvent } from '@homelab/shared';
+import type { ChatStreamEvent } from '@laris/shared';
 import { AssistantApi } from './assistant-api';
 
 const CHAT = {

@@ -1,16 +1,16 @@
-import type { Messages } from '@homelab/i18n';
-import type { Language } from '@homelab/i18n';
+import type { Messages } from '@laris/i18n';
+import type { Language } from '@laris/i18n';
 import type { TranslateLoader, TranslationObject } from '@ngx-translate/core';
 import { from, map, type Observable } from 'rxjs';
 
 /**
- * The language files from `@homelab/i18n`, each its own lazy chunk — loaded only when that
+ * The language files from `@laris/i18n`, each its own lazy chunk — loaded only when that
  * language is used. A new language joins here with its file.
  */
 const FILES: Partial<Record<Language, () => Promise<{ default: Messages }>>> = {
-  en: () => import('@homelab/i18n/en.json'),
-  de: () => import('@homelab/i18n/de.json'),
-  ar: () => import('@homelab/i18n/ar.json'),
+  en: () => import('@laris/i18n/en.json'),
+  de: () => import('@laris/i18n/de.json'),
+  ar: () => import('@laris/i18n/ar.json'),
 };
 
 /** The languages there is a file for. */

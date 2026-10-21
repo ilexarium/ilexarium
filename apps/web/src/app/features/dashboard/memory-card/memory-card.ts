@@ -1,5 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
-import type { SystemHistoryPoint, SystemSample } from '@homelab/shared';
+import type { SystemHistoryPoint, SystemSample } from '@laris/shared';
 import { HlmCardImports } from '@ui/card';
 import { HlmProgressImports } from '@ui/progress';
 import { MetricChart } from '../../../shared/charts/metric-chart';
@@ -10,7 +10,7 @@ import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
 
 @Component({
-  selector: 'app-memory-card',
+  selector: 'laris-memory-card',
   imports: [HlmCardImports, HlmProgressImports, MetricChart, TranslatePipe],
   templateUrl: './memory-card.html',
 })

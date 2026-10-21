@@ -7,7 +7,7 @@ import { Refusal } from '../lib/output.mts';
 import { assertRootOwned, isPlainAbsolutePath } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
-export const ROOT_CONFIG = '/etc/homelab/wrappers.json';
+export const ROOT_CONFIG = '/etc/laris/wrappers.json';
 
 export interface Config {
   /** Where the reviewed recipes are: <catalogDir>/<id>/{meta.json,compose.yml}. */
@@ -27,7 +27,7 @@ export interface Config {
 }
 
 export function loadConfig(): Config {
-  const path = isRoot ? ROOT_CONFIG : process.env['HOMELAB_WRAPPER_CONFIG'];
+  const path = isRoot ? ROOT_CONFIG : process.env['LARIS_WRAPPER_CONFIG'];
   if (!path) throw new Refusal('setup', 'no configuration', 6);
   if (isRoot) assertRootOwned(path);
   const raw: unknown = JSON.parse(readFileSync(path, 'utf8'));

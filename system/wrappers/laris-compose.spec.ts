@@ -1,4 +1,4 @@
-// Tests for the root wrapper (homelab-compose.mts) — run in development mode (not root), with a
+// Tests for the root wrapper (laris-compose.mts) — run in development mode (not root), with a
 // fake `docker` that records its arguments and environment. Run by the server's unit tests.
 import { spawn, spawnSync } from 'node:child_process';
 import {
@@ -18,8 +18,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const WRAPPER = fileURLToPath(new URL('./homelab-compose.mts', import.meta.url));
-const SUDOERS = fileURLToPath(new URL('../sudoers/homelab', import.meta.url));
+const WRAPPER = fileURLToPath(new URL('./laris-compose.mts', import.meta.url));
+const SUDOERS = fileURLToPath(new URL('../sudoers/laris', import.meta.url));
 const CATALOG = fileURLToPath(new URL('../../catalog', import.meta.url));
 const REAL_DOCKER = ['/usr/bin/docker', '/usr/local/bin/docker'].find((p) => existsSync(p));
 const DIGEST = `@sha256:${'a'.repeat(64)}`;
@@ -161,7 +161,7 @@ function run(
 ): Promise<Run> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [WRAPPER, ...args], {
-      env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json'), ...env },
+      env: { LARIS_WRAPPER_CONFIG: join(dir, 'wrappers.json'), ...env },
       cwd,
     });
     let out = '';
@@ -213,7 +213,7 @@ beforeEach(() => {
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-describe('homelab-compose up', () => {
+describe('laris-compose up', () => {
   it('checks, then pulls and starts — markers in order, Compose output prefixed', async () => {
     const result = await up();
     expect(result.code, result.lines.join('\n')).toBe(0);
@@ -279,7 +279,7 @@ describe('homelab-compose up', () => {
   });
 });
 
-describe('homelab-compose refuses requests', () => {
+describe('laris-compose refuses requests', () => {
   it.each([
     [[], 'invalid_request'],
     [['up'], 'invalid_request'],
@@ -321,7 +321,7 @@ describe('homelab-compose refuses requests', () => {
   });
 });
 
-describe('homelab-compose checks every value', () => {
+describe('laris-compose checks every value', () => {
   it.each<[string, unknown, string, string?]>([
     ['not JSON', '{nope', 'invalid_values'],
     ['an array', '[]', 'invalid_values'],
@@ -415,9 +415,9 @@ describe('homelab-compose checks every value', () => {
 
   it('refuses the backup restore area (restored platform secrets live there)', async () => {
     // Whatever the configured storage: the production restore area is refused as such.
-    writeConfig({ storageRoots: [storage, '/srv/homelab'] });
+    writeConfig({ storageRoots: [storage, '/srv/laris'] });
     expectRefused(
-      await up(values({ MEDIA_DIR: '/srv/homelab/restores/0193a000-20261014-030000' })),
+      await up(values({ MEDIA_DIR: '/srv/laris/restores/0193a000-20261014-030000' })),
       'path_not_allowed',
       'MEDIA_DIR',
     );
@@ -456,7 +456,7 @@ describe('homelab-compose checks every value', () => {
   });
 });
 
-describe('homelab-compose checks the rendered config (the policy)', () => {
+describe('laris-compose checks the rendered config (the policy)', () => {
   it.each<[string, (c: Record<string, any>) => void]>([
     ['privileged', (c) => (c.services.app.privileged = true)],
     ['cap_add', (c) => (c.services.app.cap_add = ['SYS_ADMIN'])],
@@ -502,7 +502,7 @@ describe('homelab-compose checks the rendered config (the policy)', () => {
     ['an image without a digest', (c) => (c.services.app.image = 'example/app:latest')],
     ['another restart policy', (c) => (c.services.app.restart = 'always')],
     ['no log rotation', (c) => delete c.services.app.logging],
-    ['a protected label', (c) => (c.services.app.labels = { 'homelab.protected': 'true' })],
+    ['a protected label', (c) => (c.services.app.labels = { 'laris.protected': 'true' })],
     [
       'a Compose project label',
       (c) => (c.services.app.labels = { 'com.docker.compose.project': 'hl-other' }),
@@ -554,7 +554,7 @@ describe('homelab-compose checks the rendered config (the policy)', () => {
   );
 });
 
-describe('homelab-compose failures, down and the lock', () => {
+describe('laris-compose failures, down and the lock', () => {
   it('reports a failed Compose step', async () => {
     writeFileSync(join(dir, 'exit-up.txt'), '1');
     const result = await up();
@@ -617,7 +617,7 @@ describe('homelab-compose failures, down and the lock', () => {
   it('stops Compose and releases the lock on SIGTERM', async () => {
     writeFileSync(join(dir, 'sleep-pull.txt'), '5000');
     const child = spawn(process.execPath, [WRAPPER, 'up', 'demo'], {
-      env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
+      env: { LARIS_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
     });
     child.stdin.end(JSON.stringify(values()));
     await new Promise((resolve) => setTimeout(resolve, 700));
@@ -643,11 +643,11 @@ describe('the sudoers drop-in', () => {
       .split('\n')
       .filter((line) => line.trim() && !line.startsWith('#') && !line.startsWith('Defaults'));
     expect(rules).toEqual([
-      'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-compose.mts',
-      'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-backup.mts',
-      'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-disk.mts',
-      'homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-process.mts',
+      'laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-compose.mts',
+      'laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-backup.mts',
+      'laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-disk.mts',
+      'laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-process.mts',
     ]);
-    expect(readFileSync(SUDOERS, 'utf8')).toContain('Defaults:homelab env_reset, !env_keep');
+    expect(readFileSync(SUDOERS, 'utf8')).toContain('Defaults:laris env_reset, !env_keep');
   });
 });

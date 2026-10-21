@@ -17,7 +17,7 @@ export function checkStartup(): string {
   }
   const args = process.argv.slice(2);
   if (args.length !== 1 || !ACTIONS.has(args[0])) {
-    throw new Refusal('invalid_request', `usage: homelab-process ${[...ACTIONS].join('|')}`);
+    throw new Refusal('invalid_request', `usage: laris-process ${[...ACTIONS].join('|')}`);
   }
   return args[0];
 }
@@ -32,7 +32,7 @@ export async function main(): Promise<number> {
   return 0;
 }
 
-/** Called by the entry (homelab-process.mts) once it checked these modules. */
+/** Called by the entry (laris-process.mts) once it checked these modules. */
 export function start(): void {
   finish(main);
 }

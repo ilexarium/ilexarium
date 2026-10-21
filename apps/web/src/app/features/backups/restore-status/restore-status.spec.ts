@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { BackupRestore } from '@homelab/shared';
+import type { BackupRestore } from '@laris/shared';
 import { RestoreStatus } from './restore-status';
 
 const restore = (target: BackupRestore['target']): BackupRestore => ({
@@ -27,7 +27,7 @@ const restore = (target: BackupRestore['target']): BackupRestore => ({
 
 @Component({
   imports: [RestoreStatus],
-  template: `<app-restore-status [restore]="restore()" />`,
+  template: `<laris-restore-status [restore]="restore()" />`,
 })
 class Host {
   readonly restore = signal(restore('newFolder'));

@@ -16,7 +16,7 @@ import {
   type ChatSend,
   type ChatStreamEvent,
   chatStreamEventSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { firstValueFrom, Observable } from 'rxjs';
 
 /** The server's Assistant endpoints (docs/plans/ai_assistant.md). Downloads report through the `assistant` topic. */

@@ -14,7 +14,7 @@ const summaries = [
     Names: ['/web'],
     Image: 'nginx:1.27',
     State: 'running',
-    Labels: { 'homelab.protected': 'true', 'com.docker.compose.project': 'hl-web' },
+    Labels: { 'laris.protected': 'true', 'com.docker.compose.project': 'hl-web' },
     Ports: [
       { IP: '0.0.0.0', PrivatePort: 80, PublicPort: 8080, Type: 'tcp' },
       { IP: '::', PrivatePort: 80, PublicPort: 8080, Type: 'tcp' },
@@ -26,7 +26,7 @@ const summaries = [
     Names: ['/app'],
     Image: 'app:latest',
     State: 'exited',
-    Labels: { 'homelab.protected': 'yes' }, // only exactly "true" protects
+    Labels: { 'laris.protected': 'yes' }, // only exactly "true" protects
     Ports: [],
   },
   { Id: ID_GONE, Names: ['/gone'], Image: 'x', State: 'running', Ports: [] },
@@ -35,7 +35,7 @@ const summaries = [
 const inspects: Record<string, object> = {
   [ID_B]: {
     Name: '/web',
-    Config: { Tty: false, Labels: { 'homelab.protected': 'true' } },
+    Config: { Tty: false, Labels: { 'laris.protected': 'true' } },
     State: {
       Status: 'running',
       StartedAt: '2026-10-11T12:00:00.123456789Z',
@@ -44,7 +44,7 @@ const inspects: Record<string, object> = {
   },
   [ID_A]: {
     Name: '/app',
-    Config: { Tty: true, Labels: { 'homelab.protected': 'yes' } },
+    Config: { Tty: true, Labels: { 'laris.protected': 'yes' } },
     State: { Status: 'exited', StartedAt: '0001-01-01T00:00:00Z' },
   },
 };
@@ -135,7 +135,7 @@ class FakeDocker {
                 name: 'web',
                 image: 'nginx',
                 'com.docker.compose.project': 'hl-web',
-                'homelab.protected': 'true',
+                'laris.protected': 'true',
                 SECRET_LOOKING_LABEL: 'kept out',
               },
             },

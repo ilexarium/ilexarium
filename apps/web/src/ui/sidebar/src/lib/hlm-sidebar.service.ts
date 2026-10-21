@@ -89,7 +89,7 @@ export class HlmSidebarService {
 
   public setOpen(open: boolean): void {
     this._open.set(open);
-    // Homelab: remembered per browser in localStorage, not a cookie (no SSR; nothing for the API).
+    // Laris: remembered per browser in localStorage, not a cookie (no SSR; nothing for the API).
     try {
       this._window?.localStorage.setItem(this._config.sidebarCookieName, String(open));
     } catch {
@@ -116,7 +116,7 @@ export class HlmSidebarService {
   }
 
   /**
-   * Homelab: the stored choice, else collapsed to icons on medium screens (below `lg`) and
+   * Laris: the stored choice, else collapsed to icons on medium screens (below `lg`) and
    * expanded on large ones. Phones use the slide-out sheet regardless.
    */
   private restoreState(): void {

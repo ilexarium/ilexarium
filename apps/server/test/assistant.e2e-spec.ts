@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { AI_LIMITS, type Chat, type ChatList, type ChatStreamEvent } from '@homelab/shared';
+import { AI_LIMITS, type Chat, type ChatList, type ChatStreamEvent } from '@laris/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';

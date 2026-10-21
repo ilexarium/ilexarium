@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const WRAPPER = fileURLToPath(new URL('./homelab-backup.mts', import.meta.url));
+const WRAPPER = fileURLToPath(new URL('./laris-backup.mts', import.meta.url));
 const FAKE_DOCKER = fileURLToPath(new URL('./testing/fake-docker.cjs', import.meta.url));
 const BORG = ['/usr/bin/borg', '/usr/local/bin/borg'].find((p) => existsSync(p));
 
@@ -36,7 +36,7 @@ function wrapper(
 ): Promise<{ code: number | null; out: string; result: any }> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [WRAPPER, ...[action].flat()], {
-      env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
+      env: { LARIS_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
     });
     let out = '';
     child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
@@ -55,7 +55,7 @@ const runs = () =>
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 
-describe.skipIf(!BORG)('homelab-backup with the real Borg', () => {
+describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
   beforeAll(async () => {
     dir = mkdtempSync(join(tmpdir(), 'backup-borg-'));
     chmodSync(dir, 0o755);
@@ -104,8 +104,8 @@ describe.skipIf(!BORG)('homelab-backup with the real Borg', () => {
           borgBin: BORG,
           platform: {
             container: 'db',
-            database: 'homelab',
-            user: 'homelab',
+            database: 'laris',
+            user: 'laris',
             files: [join(dir, 'etc', 'master.key')],
           },
           dev: {
@@ -210,7 +210,7 @@ describe.skipIf(!BORG)('homelab-backup with the real Borg', () => {
     const target = result.result.targetPath;
     expect(readFileSync(join(target, join(dir, 'etc', 'master.key').slice(1)), 'utf8')).toBe('key');
     const dumps = readdirSync(join(target, join(dev, 'state', 'platform').slice(1)));
-    expect(dumps).toEqual(['homelab.dump']);
+    expect(dumps).toEqual(['laris.dump']);
   }, 60_000);
 
   it('checks the repository', async () => {

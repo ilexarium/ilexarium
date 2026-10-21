@@ -1,4 +1,4 @@
-import type { ContainerHealth } from '@homelab/shared';
+import type { ContainerHealth } from '@laris/shared';
 import type { StatusTone } from '../status-badge/status-badge.model';
 
 /** A container's health check, as a status badge (`none`: no badge). */

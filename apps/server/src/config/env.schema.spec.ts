@@ -1,6 +1,6 @@
 import { validateEnv } from './env.schema.js';
 
-const base = { DATABASE_URL: 'postgresql://homelab:secret-pw@127.0.0.1:5432/homelab' };
+const base = { DATABASE_URL: 'postgresql://laris:secret-pw@127.0.0.1:5432/laris' };
 
 describe('validateEnv', () => {
   it('applies defaults', () => {
@@ -15,12 +15,12 @@ describe('validateEnv', () => {
     });
   });
 
-  it('accepts the Docker proxy over tcp:// or http://, or its own socket under /run/homelab/', () => {
+  it('accepts the Docker proxy over tcp:// or http://, or its own socket under /run/laris/', () => {
     for (const url of [
       'tcp://127.0.0.1:2375',
       'http://docker-proxy:2375',
-      'unix:///run/homelab/proxy/docker.sock',
-      'unix:///run/homelab/docker-proxy.sock',
+      'unix:///run/laris/proxy/docker.sock',
+      'unix:///run/laris/docker-proxy.sock',
     ]) {
       expect(validateEnv({ ...base, DOCKER_HOST: url }).DOCKER_HOST, url).toBe(url);
     }
@@ -30,11 +30,11 @@ describe('validateEnv', () => {
     for (const url of [
       'unix:///var/run/docker.sock',
       'unix:///run/docker.sock',
-      'unix:///run/homelab/../docker.sock',
-      'unix:///run/homelab/proxy/../../docker.sock',
-      'unix:///run/homelab/a/b/docker.sock',
-      'unix:///run/homelab/docker.sock/../x.sock',
-      'unix://run/homelab/docker.sock',
+      'unix:///run/laris/../docker.sock',
+      'unix:///run/laris/proxy/../../docker.sock',
+      'unix:///run/laris/a/b/docker.sock',
+      'unix:///run/laris/docker.sock/../x.sock',
+      'unix://run/laris/docker.sock',
       '/var/run/docker.sock',
       'ssh://host',
       'npipe:////./pipe/docker_engine',
@@ -45,7 +45,7 @@ describe('validateEnv', () => {
 
   it('uses the production setup-token path in production', () => {
     expect(validateEnv({ ...base, NODE_ENV: 'production' }).SETUP_TOKEN_FILE).toBe(
-      '/var/lib/homelab/app/setup-token',
+      '/var/lib/laris/app/setup-token',
     );
   });
 
@@ -66,8 +66,8 @@ describe('validateEnv', () => {
 
   it('uses the installed files and sudo in production', () => {
     expect(validateEnv({ ...base, NODE_ENV: 'production' })).toMatchObject({
-      MASTER_KEY_FILE: '/etc/homelab/master.key',
-      WRAPPER_CONFIG_FILE: '/etc/homelab/wrappers.json',
+      MASTER_KEY_FILE: '/etc/laris/master.key',
+      WRAPPER_CONFIG_FILE: '/etc/laris/wrappers.json',
       EXECUTOR_MODE: 'sudo',
       SSH_PORT: 22,
       SSH_HOST_KEYS: '/etc/ssh',

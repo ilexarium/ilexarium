@@ -1,5 +1,5 @@
 {
-  "name": "homelab",
+  "name": "laris",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,11 +9,11 @@
     "apps/*"
   ],
   "scripts": {
-    "build:shared": "npm run build -w @homelab/shared -w @homelab/i18n",
-    "build": "npm run build:shared && npm run build -w @homelab/server -w @homelab/web",
-    "dev:shared": "npm run dev -w @homelab/shared",
-    "dev:server": "npm run build:shared && npm run start:dev -w @homelab/server",
-    "dev:web": "npm run build:shared && npm run start -w @homelab/web",
+    "build:shared": "npm run build -w @laris/shared -w @laris/i18n",
+    "build": "npm run build:shared && npm run build -w @laris/server -w @laris/web",
+    "dev:shared": "npm run dev -w @laris/shared",
+    "dev:server": "npm run build:shared && npm run start:dev -w @laris/server",
+    "dev:web": "npm run build:shared && npm run start -w @laris/web",
     "db:up": "DOCKER_GID=$(stat -c %g /var/run/docker.sock) docker compose -f dev/compose.dev.yml up -d",
     "db:down": "DOCKER_GID=$(stat -c %g /var/run/docker.sock) docker compose -f dev/compose.dev.yml down",
     "test": "npm run build:shared && npm test --workspaces --if-present",
@@ -21,8 +21,8 @@
     "lint:wrappers": "tsc -p system/wrappers",
     "format": "prettier --write . '!**/.dev/**'",
     "format:check": "prettier --check . '!**/.dev/**'",
-    "db:migrate": "npm run db:migrate -w @homelab/server",
-    "test:e2e": "npm run build:shared && npm run test:e2e -w @homelab/server",
+    "db:migrate": "npm run db:migrate -w @laris/server",
+    "test:e2e": "npm run build:shared && npm run test:e2e -w @laris/server",
     "release": "node scripts/release.mjs"
   },
   "devDependencies": {

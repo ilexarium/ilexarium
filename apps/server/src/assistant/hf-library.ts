@@ -5,7 +5,7 @@ import {
   type AiLibrary,
   type AiLibraryDetail,
   type AiLibraryFile,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { z } from 'zod';
 import {
   GGUF_QUANT,

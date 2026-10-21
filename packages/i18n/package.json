@@ -1,5 +1,5 @@
 {
-  "name": "@homelab/i18n",
+  "name": "@laris/i18n",
   "version": "0.0.0",
   "private": true,
   "description": "Translations shared by web and server: one JSON file per language, plus helpers (languages, plural keys, consistency checks).",

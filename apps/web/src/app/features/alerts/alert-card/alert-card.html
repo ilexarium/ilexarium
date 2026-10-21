@@ -8,9 +8,9 @@
     <h3 [id]="'alert-' + alert().id" class="flex flex-wrap items-center gap-2 font-medium">
       <span class="min-w-0 break-words">{{ title()[0] | translate: title()[1] }}</span>
       @if (!alert().closedAt) {
-        <app-status-badge [tone]="severityTones[alert().severity]">{{
+        <laris-status-badge [tone]="severityTones[alert().severity]">{{
           'alerts.severity.' + alert().severity | translate
-        }}</app-status-badge>
+        }}</laris-status-badge>
       }
     </h3>
     @if (!alert().closedAt) {

@@ -1,6 +1,6 @@
 import { Component, input, signal } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
-import { type LinuxSignInRequest, linuxSignInRequestSchema } from '@homelab/shared';
+import { type LinuxSignInRequest, linuxSignInRequestSchema } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
@@ -17,7 +17,7 @@ import { FormErrors } from '../../../shared/forms/form-errors';
  * server's error.
  */
 @Component({
-  selector: 'app-linux-sign-in',
+  selector: 'laris-linux-sign-in',
   imports: [
     FieldErrors,
     FormErrors,

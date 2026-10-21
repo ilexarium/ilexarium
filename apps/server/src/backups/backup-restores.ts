@@ -10,7 +10,7 @@ import {
   type BackupRestore,
   type BackupRestoreRequest,
   type JobPhase,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { Observable, Subject } from 'rxjs';
 import type { BackupOutcome, ExecutorActor } from '../executor/executor.model.js';
 import { ExecutorService } from '../executor/executor.service.js';

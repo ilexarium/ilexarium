@@ -4,9 +4,9 @@ import { EmptyState } from './empty-state';
 
 @Component({
   imports: [EmptyState],
-  template: `<app-empty-state icon="lucideBox" text="No containers yet." detail="More">
+  template: `<laris-empty-state icon="lucideBox" text="No containers yet." detail="More">
     <a href="/services">Install a service</a>
-  </app-empty-state>`,
+  </laris-empty-state>`,
 })
 class Host {}
 

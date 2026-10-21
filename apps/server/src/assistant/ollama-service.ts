@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { AI_ERROR_CODES, type AiModels, type AiStatus } from '@homelab/shared';
+import { AI_ERROR_CODES, type AiModels, type AiStatus } from '@laris/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   OLLAMA_CATALOG_ID,

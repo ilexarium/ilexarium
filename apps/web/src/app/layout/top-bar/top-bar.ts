@@ -1,7 +1,7 @@
 import { CdkMenuTrigger } from '@angular/cdk/menu';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { LANGUAGE_NAMES } from '@homelab/i18n';
+import { LANGUAGE_NAMES } from '@laris/i18n';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideChevronDown,
@@ -32,7 +32,7 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
  * the profile page, language, sign out).
  */
 @Component({
-  selector: 'app-top-bar',
+  selector: 'laris-top-bar',
   imports: [
     AlertsMenu,
     ConnectionStatus,

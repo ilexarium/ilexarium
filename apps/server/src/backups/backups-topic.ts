@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { BackupsStatus } from '@homelab/shared';
+import type { BackupsStatus } from '@laris/shared';
 import {
   auditTime,
   catchError,

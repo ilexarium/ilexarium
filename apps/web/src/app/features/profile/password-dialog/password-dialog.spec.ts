@@ -12,7 +12,7 @@ import { PasswordDialog } from './password-dialog';
 @Component({
   imports: [PasswordDialog],
   providers: [ProfilePageStore],
-  template: `<app-password-dialog
+  template: `<laris-password-dialog
     [open]="open()"
     (closed)="open.set(false); closings = closings + 1"
   />`,

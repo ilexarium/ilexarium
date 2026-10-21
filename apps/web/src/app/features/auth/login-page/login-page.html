@@ -1,9 +1,9 @@
-<app-auth-frame
+<laris-auth-frame
   [heading]="'pages.login' | translate"
   [description]="'auth.login.description' | translate"
 >
   @if (!secure) {
-    <app-insecure-context-notice />
+    <laris-insecure-context-notice />
   } @else {
     <form [formRoot]="form" class="grid gap-5">
       @if (expired) {
@@ -12,7 +12,7 @@
           <p hlmAlertDescription>{{ 'auth.login.expiredText' | translate }}</p>
         </div>
       }
-      <app-form-errors [form]="form" />
+      <laris-form-errors [form]="form" />
 
       <div hlmField>
         <label hlmFieldLabel for="username">{{ 'auth.username' | translate }}</label>
@@ -25,7 +25,7 @@
           autocapitalize="none"
           spellcheck="false"
         />
-        <app-field-errors [field]="form.username" />
+        <laris-field-errors [field]="form.username" />
       </div>
 
       <div hlmField>
@@ -40,9 +40,9 @@
             [formField]="form.password"
             autocomplete="current-password"
           />
-          <app-password-toggle [(visible)]="showPassword" />
+          <laris-password-toggle [(visible)]="showPassword" />
         </div>
-        <app-field-errors [field]="form.password" />
+        <laris-field-errors [field]="form.password" />
       </div>
 
       <button hlmBtn type="submit" class="w-full" [disabled]="form().submitting()">
@@ -50,4 +50,4 @@
       </button>
     </form>
   }
-</app-auth-frame>
+</laris-auth-frame>

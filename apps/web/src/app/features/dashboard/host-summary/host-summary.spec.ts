@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import type { HostInfo } from '@homelab/shared';
+import type { HostInfo } from '@laris/shared';
 import { HostSummary } from './host-summary';
 
 const host: HostInfo = {
-  hostname: 'homelab',
+  hostname: 'laris',
   os: 'Debian GNU/Linux 13',
   kernel: '6.12.0',
   arch: 'arm64',
@@ -22,7 +22,7 @@ async function text(info: HostInfo) {
 describe('HostSummary', () => {
   it('names the machine, OS, kernel, CPU and uptime', async () => {
     expect(await text(host)).toBe(
-      'homelab · Debian GNU/Linux 13 · Linux 6.12.0 · Cortex-A76 (arm64) · up 1 hour, 1 minute',
+      'laris · Debian GNU/Linux 13 · Linux 6.12.0 · Cortex-A76 (arm64) · up 1 hour, 1 minute',
     );
   });
 

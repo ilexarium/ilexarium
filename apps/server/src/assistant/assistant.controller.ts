@@ -25,7 +25,7 @@ import {
   type Chat,
   type ChatList,
   type PublicUser,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
 import { CHANGE_LIMIT, LIBRARY_LIMIT, SEND_LIMIT } from './assistant.constants.js';

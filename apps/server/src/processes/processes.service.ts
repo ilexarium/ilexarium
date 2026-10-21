@@ -4,7 +4,7 @@ import {
   PROCESS_ERROR_CODES,
   type ProcessErrorCode,
   type ProcessSignalRequest,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { ExecutorActor } from '../executor/executor.model.js';
 import { ExecutorService } from '../executor/executor.service.js';
 import { WrapperConfigService } from '../executor/wrapper-config.js';

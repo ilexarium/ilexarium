@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { AlertChannelsResponse, AlertsStatus } from '@homelab/shared';
+import type { AlertChannelsResponse, AlertsStatus } from '@laris/shared';
 import request from 'supertest';
 import { AlertRecords } from '../src/alerts/alert-records.js';
 import { AppModule } from '../src/app.module.js';
@@ -37,14 +37,14 @@ describe('alerts (e2e)', () => {
     put: (path: string, body: object) =>
       request(origin).put(`/api${path}`).set('Origin', origin).set('Cookie', cookie).send(body),
   });
-  const topicUrl = () => `http://127.0.0.1:${ntfy.port}/homelab-e2e-topic`;
+  const topicUrl = () => `http://127.0.0.1:${ntfy.port}/laris-e2e-topic`;
   const emailSettings = (overrides: object = {}) => ({
     enabled: true,
     host: '127.0.0.1',
     port: smtp.port,
     username: 'alerts',
     password: MAIL_PASSWORD,
-    from: 'homelab@example.com',
+    from: 'laris@example.com',
     to: 'me@example.com',
     ...overrides,
   });
@@ -148,13 +148,13 @@ describe('alerts (e2e)', () => {
       .expect(204);
     const view = (await api().get('/alerts/channels').expect(200)).body as AlertChannelsResponse;
     expect(view.ntfy).toEqual({ enabled: true, topicSet: true, tokenSet: true, lastFailure: null });
-    expect(JSON.stringify(view)).not.toContain('homelab-e2e-topic');
+    expect(JSON.stringify(view)).not.toContain('laris-e2e-topic');
 
     const row = await prisma.alertChannel.findUniqueOrThrow({ where: { kind: 'ntfy' } });
     const stored = Buffer.from(row.secrets!).toString('latin1');
     expect(stored).not.toContain(TOKEN);
-    expect(stored).not.toContain('homelab-e2e-topic');
-    expect(JSON.stringify(row.settings)).not.toContain('homelab-e2e-topic');
+    expect(stored).not.toContain('laris-e2e-topic');
+    expect(JSON.stringify(row.settings)).not.toContain('laris-e2e-topic');
 
     const audit = await prisma.auditEvent.findMany({ where: { action: 'alerts.channel.update' } });
     expect(audit.map((a) => a.details)).toEqual([{ channel: 'ntfy', enabled: true }]);
@@ -189,7 +189,7 @@ describe('alerts (e2e)', () => {
       expect.objectContaining({
         path: '/',
         authorization: `Bearer ${TOKEN}`,
-        body: expect.objectContaining({ topic: 'homelab-e2e-topic', title: 'Test message' }),
+        body: expect.objectContaining({ topic: 'laris-e2e-topic', title: 'Test message' }),
       }),
     ]);
     const audit = await prisma.auditEvent.findMany({ where: { action: 'alerts.channel.test' } });
@@ -230,7 +230,7 @@ describe('alerts (e2e)', () => {
       port: smtp.port,
       username: 'alerts',
       passwordSet: true,
-      from: 'homelab@example.com',
+      from: 'laris@example.com',
       to: 'me@example.com',
       lastFailure: null,
     });
@@ -297,21 +297,21 @@ describe('alerts (e2e)', () => {
     await api().put('/alerts/channels/ntfy', { enabled: true, topicUrl: topicUrl() }).expect(204);
     const condition = {
       kind: 'serviceDown' as const,
-      subject: 'homelab-postgres',
+      subject: 'laris-postgres',
       severity: 'critical' as const,
       details: {},
     };
     await records.reconcile(['serviceDown'], [condition]);
     await vi.waitFor(() => expect(ntfy.messages).toHaveLength(1));
     expect(ntfy.messages[0].body).toMatchObject({
-      title: 'homelab-postgres has stopped',
+      title: 'laris-postgres has stopped',
       priority: 4,
     });
     expect((await prisma.alert.findFirstOrThrow()).lastSentAt).not.toBeNull();
     await records.reconcile(['serviceDown'], []);
     await vi.waitFor(() => expect(ntfy.messages).toHaveLength(2));
     expect(ntfy.messages[1].body).toMatchObject({
-      title: 'Resolved: homelab-postgres has stopped',
+      title: 'Resolved: laris-postgres has stopped',
     });
   });
 });

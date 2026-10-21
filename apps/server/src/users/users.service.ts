@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ProfilePictureType, PublicUser } from '@homelab/shared';
+import type { ProfilePictureType, PublicUser } from '@laris/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { publicUserSelect, toPublicUser } from './public-user.js';
 import type { ProfileFields, StoredAvatar, UserCredentials } from './users.model.js';

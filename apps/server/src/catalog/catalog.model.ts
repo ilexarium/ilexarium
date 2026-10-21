@@ -1,4 +1,4 @@
-import type { CatalogMeta } from '@homelab/shared';
+import type { CatalogMeta } from '@laris/shared';
 
 /** A loaded, checked catalog entry. */
 export interface CatalogEntry {

@@ -8,14 +8,14 @@
 } @else if (store.plan(); as plan) {
   <div class="grid grid-cols-1 gap-4 md:gap-6">
     @if (store.passphrase(); as passphrase) {
-      <app-passphrase-card
+      <laris-passphrase-card
         [passphrase]="passphrase"
         [first]="store.passphraseFirst()"
         (saved)="store.hidePassphrase()"
       />
     }
     @if (store.status(); as status) {
-      <app-backup-overview
+      <laris-backup-overview
         [status]="status"
         [destination]="plan.destinationStatus"
         [destinationPath]="plan.destination"
@@ -25,7 +25,7 @@
       />
     }
     @if (restore(); as latest) {
-      <app-restore-status
+      <laris-restore-status
         [restore]="latest"
         [label]="labels().get(latest.itemId) ?? { text: '', ltr: false }"
         [note]="restoreNote()"
@@ -33,7 +33,7 @@
         (discard)="store.discardPrevious(latest.id)"
       />
     }
-    <app-backup-items
+    <laris-backup-items
       [active]="store.rows().active"
       [removed]="store.rows().removed"
       [addable]="store.addable()"
@@ -50,21 +50,21 @@
       (browse)="store.browse($event)"
       (closeBrowser)="store.closeBrowser()"
     />
-    <app-backup-history
+    <laris-backup-history
       [runs]="store.runs()"
       [outputs]="store.outputs()"
       [labels]="labels()"
       (openOutput)="store.loadOutput($event)"
     />
-    <app-backup-settings [plan]="plan" [destinations]="store.destinations()" />
+    <laris-backup-settings [plan]="plan" [destinations]="store.destinations()" />
   </div>
-  <app-restore-dialog
+  <laris-restore-dialog
     [archives]="store.archives()?.list ?? null"
     [labels]="labels()"
     (restore)="store.restore($event)"
   />
 } @else {
-  <app-backup-setup
+  <laris-backup-setup
     [destinations]="store.destinations()"
     [services]="store.backupable()"
     [folderListing]="store.folders()"

@@ -13,7 +13,7 @@ const line = { at: '2026-10-11T12:00:00.123456789Z', stream: 'stdout', text: 'Se
 
 describe('containerNameSchema', () => {
   it('accepts names Docker and Compose create', () => {
-    for (const name of ['jellyfin', 'homelab-dev-postgres-1', 'my_app.web', 'A1', '0abc']) {
+    for (const name of ['jellyfin', 'laris-dev-postgres-1', 'my_app.web', 'A1', '0abc']) {
       expect(containerNameSchema.safeParse(name).success, name).toBe(true);
     }
   });

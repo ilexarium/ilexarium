@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { AiTopic } from '@homelab/shared';
+import type { AiTopic } from '@laris/shared';
 import { auditTime, map, type Observable } from 'rxjs';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';

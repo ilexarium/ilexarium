@@ -31,8 +31,8 @@ export async function openPage({ lang = 'en', theme = 'light', size = 'desktop' 
   const context = await browser.newContext({ viewport: SIZES[size], storageState: session });
   await context.addInitScript(
     ([l, t]) => {
-      localStorage.setItem('homelab.language', l);
-      localStorage.setItem('homelab.theme', t);
+      localStorage.setItem('laris.language', l);
+      localStorage.setItem('laris.theme', t);
     },
     [lang, theme],
   );

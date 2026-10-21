@@ -15,9 +15,9 @@
               </p>
               <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 @if (last) {
-                  <app-status-badge [tone]="statusTones[last.status]">{{
+                  <laris-status-badge [tone]="statusTones[last.status]">{{
                     'backups.status.' + last.status | translate
-                  }}</app-status-badge>
+                  }}</laris-status-badge>
                 }
                 @if (row.item.lastSuccessAt; as at) {
                   <span>{{
@@ -158,7 +158,7 @@
   </div>
 </section>
 
-<app-folder-picker
+<laris-folder-picker
   [open]="pickerOpen()"
   [listing]="folderListing()"
   (browse)="browse.emit($event)"

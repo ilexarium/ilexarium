@@ -10,7 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { type Process, processKey } from '@homelab/shared';
+import { type Process, processKey } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmBadgeImports } from '@ui/badge';
 import { HlmButton } from '@ui/button';
@@ -41,7 +41,7 @@ const WIDE = '(min-width: 1280px)';
  * Presentational: the rows in, "end" and "force" out (the page confirms).
  */
 @Component({
-  selector: 'app-process-list',
+  selector: 'laris-process-list',
   imports: [
     EmptyState,
     HlmBadgeImports,

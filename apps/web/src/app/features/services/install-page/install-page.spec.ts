@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import type { CatalogEntryDetails } from '@homelab/shared';
+import type { CatalogEntryDetails } from '@laris/shared';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject } from 'rxjs';
 import { signal } from '@angular/core';
@@ -23,8 +23,8 @@ const details: CatalogEntryDetails = {
     dataOwner: { uid: 1000, gid: 1000 },
     fields: [
       { key: 'WEB_PORT', type: 'port', default: 8080 },
-      { key: 'MEDIA_DIR', type: 'path', default: '/srv/homelab/demo/media', access: 'read' },
-      { key: 'DATA_DIR', type: 'path', default: '/srv/homelab/demo/data', access: 'write' },
+      { key: 'MEDIA_DIR', type: 'path', default: '/srv/laris/demo/media', access: 'read' },
+      { key: 'DATA_DIR', type: 'path', default: '/srv/laris/demo/data', access: 'write' },
       { key: 'ADMIN_PASSWORD', type: 'secret' },
       { key: 'DB_PASSWORD', type: 'generatedSecret' },
       {
@@ -134,7 +134,7 @@ describe('InstallPage', () => {
     await submit(fixture);
     expect(api.deploy).not.toHaveBeenCalled();
     expect(textOf(fixture)).toContain('A port from 1024 to 65535');
-    expect(textOf(fixture)).toContain('A full folder path, like /srv/homelab/music');
+    expect(textOf(fixture)).toContain('A full folder path, like /srv/laris/music');
     expect(textOf(fixture)).toContain('At least 12 characters'); // the empty password
   });
 

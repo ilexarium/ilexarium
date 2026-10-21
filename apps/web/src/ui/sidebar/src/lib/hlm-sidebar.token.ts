@@ -17,8 +17,8 @@ const defaultConfig: HlmSidebarConfig = {
   sidebarWidth: '16rem',
   sidebarWidthMobile: '18rem',
   sidebarWidthIcon: '3rem',
-  // Homelab: the localStorage key (see HlmSidebarService); the max age is unused.
-  sidebarCookieName: 'homelab.sidebar',
+  // Laris: the localStorage key (see HlmSidebarService); the max age is unused.
+  sidebarCookieName: 'laris.sidebar',
   sidebarCookieMaxAge: 60 * 60 * 24 * 7, // 7 days in seconds
   sidebarKeyboardShortcut: 'b',
   mobileBreakpoint: '768px',

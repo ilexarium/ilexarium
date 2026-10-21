@@ -1,6 +1,6 @@
 import { Component, computed, DOCUMENT, inject, input, output, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { InstalledService } from '@homelab/shared';
+import type { InstalledService } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideExternalLink, lucideLoaderCircle, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -20,7 +20,7 @@ import { RUNTIME_TONES } from '../services.constants';
  * UI only: it reports a confirmed Remove through `remove`; the page's store does it.
  */
 @Component({
-  selector: 'app-installed-service',
+  selector: 'laris-installed-service',
   // Fills its grid cell, so the cards of a row line up.
   host: { class: 'block h-full' },
   imports: [

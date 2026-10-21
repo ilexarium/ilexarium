@@ -1,4 +1,4 @@
-import { PROCESS_LIMITS, type Process, processKey, type ProcessState } from '@homelab/shared';
+import { PROCESS_LIMITS, type Process, processKey, type ProcessState } from '@laris/shared';
 import { isKernelThread } from '../host/proc-parsers.js';
 import type { RawProcess } from '../host/host.model.js';
 import type { EndRules, ProcessContext } from './processes.model.js';

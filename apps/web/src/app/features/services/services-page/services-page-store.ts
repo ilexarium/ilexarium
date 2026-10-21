@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { type CatalogEntrySummary, type InstalledService, serviceProject } from '@homelab/shared';
+import { type CatalogEntrySummary, type InstalledService, serviceProject } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { Translator } from '../../../core/i18n/translator';
 import { BackupsStore } from '../../../core/backups/backups-store';

@@ -1,5 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
-import type { NetworkInterfaceStats, SystemHistoryPoint } from '@homelab/shared';
+import type { NetworkInterfaceStats, SystemHistoryPoint } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowDown, lucideArrowUp } from '@ng-icons/lucide';
 import { HlmCardImports } from '@ui/card';
@@ -10,7 +10,7 @@ import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
 
 @Component({
-  selector: 'app-network-card',
+  selector: 'laris-network-card',
   imports: [HlmCardImports, MetricChart, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideArrowDown, lucideArrowUp })],
   templateUrl: './network-card.html',

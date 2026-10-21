@@ -1,19 +1,19 @@
 #!/usr/bin/env -S -i /usr/bin/node
-// homelab-backup — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root: through sudo (the app) and
+// laris-backup — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root: through sudo (the app) and
 // from systemd units (scheduled runs and checks, and "Back up now" runs).
 //
-//   homelab-backup configure         the plan as JSON on stdin → /etc/homelab/backup.json + timer
-//   homelab-backup init              {"destination"} on stdin → creates the repository (+ passphrase)
-//   homelab-backup start             {"runId", "itemId"?} on stdin → "Back up now": starts
-//                                    homelab-backup-now@<runId>[_<itemId>].service, returns at once
-//   homelab-backup run-requested <instance>
-//                                    nothing on stdin (homelab-backup-now@.service runs it)
-//   homelab-backup run-scheduled     nothing on stdin (homelab-backup.service)
-//   homelab-backup check-scheduled   nothing on stdin (homelab-backup-check.service)
-//   homelab-backup restore           {"restoreId", "itemId", "archive", "target"} on stdin
-//   homelab-backup discard           {"path"} on stdin → deletes a restore's set-aside folder
-//   homelab-backup forget            {"itemId"} on stdin → deletes a removed item's archives
-//   homelab-backup passphrase        nothing on stdin → the passphrase, for "Show again"
+//   laris-backup configure         the plan as JSON on stdin → /etc/laris/backup.json + timer
+//   laris-backup init              {"destination"} on stdin → creates the repository (+ passphrase)
+//   laris-backup start             {"runId", "itemId"?} on stdin → "Back up now": starts
+//                                    laris-backup-now@<runId>[_<itemId>].service, returns at once
+//   laris-backup run-requested <instance>
+//                                    nothing on stdin (laris-backup-now@.service runs it)
+//   laris-backup run-scheduled     nothing on stdin (laris-backup.service)
+//   laris-backup check-scheduled   nothing on stdin (laris-backup-check.service)
+//   laris-backup restore           {"restoreId", "itemId", "archive", "target"} on stdin
+//   laris-backup discard           {"path"} on stdin → deletes a restore's set-aside folder
+//   laris-backup forget            {"itemId"} on stdin → deletes a removed item's archives
+//   laris-backup passphrase        nothing on stdin → the passphrase, for "Show again"
 //
 // Backups run as root with Borg, one repository on one disk under /mnt or /media, one archive
 // per item per run. The app can only change *what* is backed up, through `configure`, which

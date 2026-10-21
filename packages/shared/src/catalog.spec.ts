@@ -20,7 +20,7 @@ const meta: CatalogMeta = {
   dataOwner: { uid: 1000, gid: 1000 },
   fields: [
     { key: 'WEB_PORT', type: 'port', default: 8080 },
-    { key: 'DATA_DIR', type: 'path', default: '/srv/homelab/demo/data', access: 'write' },
+    { key: 'DATA_DIR', type: 'path', default: '/srv/laris/demo/data', access: 'write' },
     { key: 'ADMIN_USER', type: 'text', pattern: 'username', default: 'admin' },
     { key: 'ADMIN_PASSWORD', type: 'secret' },
     { key: 'DB_PASSWORD', type: 'generatedSecret' },
@@ -31,7 +31,7 @@ const meta: CatalogMeta = {
 
 const good = {
   WEB_PORT: 8080,
-  DATA_DIR: '/srv/homelab/demo/data',
+  DATA_DIR: '/srv/laris/demo/data',
   ADMIN_USER: 'alice',
   ADMIN_PASSWORD: 'correct horse battery',
   LOG_LEVEL: 'debug',
@@ -235,7 +235,7 @@ describe('TEXT_PATTERNS.timezone', () => {
 
 describe('isPlainAbsolutePath', () => {
   it('accepts plain absolute paths', () => {
-    for (const path of ['/', '/srv', '/srv/homelab/demo', '/mnt/My Disk/Music']) {
+    for (const path of ['/', '/srv', '/srv/laris/demo', '/mnt/My Disk/Music']) {
       expect(isPlainAbsolutePath(path), path).toBe(true);
     }
   });
@@ -252,7 +252,7 @@ describe('defaultValues', () => {
   it('starts each user field at its default, empty without one', () => {
     expect(defaultValues(meta)).toEqual({
       WEB_PORT: 8080,
-      DATA_DIR: '/srv/homelab/demo/data',
+      DATA_DIR: '/srv/laris/demo/data',
       ADMIN_USER: 'admin',
       ADMIN_PASSWORD: '',
       LOG_LEVEL: 'info',

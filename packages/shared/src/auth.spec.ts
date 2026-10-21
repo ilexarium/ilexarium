@@ -1,5 +1,5 @@
-import { flattenMessages, placeholders } from '@homelab/i18n';
-import en from '@homelab/i18n/en.json' with { type: 'json' };
+import { flattenMessages, placeholders } from '@laris/i18n';
+import en from '@laris/i18n/en.json' with { type: 'json' };
 import { describe, expect, it } from 'vitest';
 import {
   changePasswordFormSchema,

@@ -6,7 +6,7 @@ import {
   authStatusResponseSchema,
   meResponseSchema,
   userResponseSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -14,7 +14,7 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
 
-const HOST = 'homelab.test';
+const HOST = 'laris.test';
 const SAME_ORIGIN = `http://${HOST}`;
 const PASSWORD = 'correct horse battery';
 const NEW_PASSWORD = 'staple battery horse correct';

@@ -4,7 +4,7 @@
   </div>
   <div hlmCardContent class="grid grid-cols-1 gap-6">
     <form [formRoot]="form" class="grid grid-cols-1 gap-5">
-      <app-form-errors [form]="form" />
+      <laris-form-errors [form]="form" />
       <div class="flex flex-wrap gap-4">
         <div hlmField class="w-full sm:w-56">
           <label hlmFieldLabel for="settings-frequency">{{
@@ -32,7 +32,7 @@
             dir="ltr"
             [formField]="form.schedule.time"
           />
-          <app-field-errors [field]="form.schedule.time" />
+          <laris-field-errors [field]="form.schedule.time" />
         </div>
       </div>
 
@@ -53,7 +53,7 @@
               [id]="'settings-keep-' + part"
               [formField]="keep(part)"
             />
-            <app-field-errors [field]="keep(part)" />
+            <laris-field-errors [field]="keep(part)" />
           </div>
         }
       </fieldset>
@@ -76,7 +76,7 @@
             {{ 'backups.settings.newDisk' | translate }}
           </p>
         }
-        <app-field-errors [field]="form.destination" />
+        <laris-field-errors [field]="form.destination" />
       </div>
 
       <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
@@ -96,4 +96,4 @@
   </div>
 </section>
 
-<app-passphrase-dialog />
+<laris-passphrase-dialog />

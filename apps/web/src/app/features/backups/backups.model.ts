@@ -1,4 +1,4 @@
-import type { BackupItem, BackupRestoreTarget } from '@homelab/shared';
+import type { BackupItem, BackupRestoreTarget } from '@laris/shared';
 
 /** A service that can be backed up: installed, and its recipe has a backup. */
 export interface BackupableService {

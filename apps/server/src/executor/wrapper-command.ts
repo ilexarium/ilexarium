@@ -1,25 +1,25 @@
 import { fileURLToPath } from 'node:url';
 
 /** Where the installer puts the wrapper (root-owned) — the path the sudoers rule names. */
-export const INSTALLED_WRAPPER = '/opt/homelab/libexec/homelab-compose.mts';
+export const INSTALLED_WRAPPER = '/opt/laris/libexec/laris-compose.mts';
 /** The wrapper in this repository, for development and tests (`direct` mode). */
 export const REPO_WRAPPER = fileURLToPath(
-  new URL('../../../../system/wrappers/homelab-compose.mts', import.meta.url),
+  new URL('../../../../system/wrappers/laris-compose.mts', import.meta.url),
 );
 /** The backup wrapper, installed (the sudoers rule names it) and in this repository. */
-export const INSTALLED_BACKUP_WRAPPER = '/opt/homelab/libexec/homelab-backup.mts';
+export const INSTALLED_BACKUP_WRAPPER = '/opt/laris/libexec/laris-backup.mts';
 export const REPO_BACKUP_WRAPPER = fileURLToPath(
-  new URL('../../../../system/wrappers/homelab-backup.mts', import.meta.url),
+  new URL('../../../../system/wrappers/laris-backup.mts', import.meta.url),
 );
 /** The disk wrapper, installed (the sudoers rule names it) and in this repository. */
-export const INSTALLED_DISK_WRAPPER = '/opt/homelab/libexec/homelab-disk.mts';
+export const INSTALLED_DISK_WRAPPER = '/opt/laris/libexec/laris-disk.mts';
 export const REPO_DISK_WRAPPER = fileURLToPath(
-  new URL('../../../../system/wrappers/homelab-disk.mts', import.meta.url),
+  new URL('../../../../system/wrappers/laris-disk.mts', import.meta.url),
 );
 /** The process wrapper, installed (the sudoers rule names it) and in this repository. */
-export const INSTALLED_PROCESS_WRAPPER = '/opt/homelab/libexec/homelab-process.mts';
+export const INSTALLED_PROCESS_WRAPPER = '/opt/laris/libexec/laris-process.mts';
 export const REPO_PROCESS_WRAPPER = fileURLToPath(
-  new URL('../../../../system/wrappers/homelab-process.mts', import.meta.url),
+  new URL('../../../../system/wrappers/laris-process.mts', import.meta.url),
 );
 const SUDO = '/usr/bin/sudo';
 const PATH = '/usr/sbin:/usr/bin:/sbin:/bin';
@@ -64,7 +64,7 @@ export function wrapperCommand(
   return {
     file: process.execPath,
     args: [direct.wrapper, action, catalogId],
-    env: { PATH, LANG: 'C.UTF-8', HOMELAB_WRAPPER_CONFIG: direct.configFile },
+    env: { PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: direct.configFile },
   };
 }
 
@@ -87,7 +87,7 @@ export function backupWrapperCommand(
   return {
     file: process.execPath,
     args: [direct.wrapper, action],
-    env: { PATH, LANG: 'C.UTF-8', HOMELAB_WRAPPER_CONFIG: direct.configFile },
+    env: { PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: direct.configFile },
   };
 }
 
@@ -107,7 +107,7 @@ export function diskWrapperCommand(
   return {
     file: process.execPath,
     args: [direct.wrapper, action],
-    env: { PATH, LANG: 'C.UTF-8', HOMELAB_WRAPPER_CONFIG: direct.configFile },
+    env: { PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: direct.configFile },
   };
 }
 
@@ -129,6 +129,6 @@ export function processWrapperCommand(
   return {
     file: process.execPath,
     args: [direct.wrapper, 'signal'],
-    env: { PATH, LANG: 'C.UTF-8', HOMELAB_WRAPPER_CONFIG: direct.configFile },
+    env: { PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: direct.configFile },
   };
 }

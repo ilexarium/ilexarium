@@ -1,5 +1,5 @@
 import { Component, inject, input, output } from '@angular/core';
-import type { BackupRun } from '@homelab/shared';
+import type { BackupRun } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmCardImports } from '@ui/card';
 import { Formatter } from '../../../shared/format/formatter';
@@ -13,7 +13,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
  * its output when opened. UI only: opening a run asks for its output through `openOutput`.
  */
 @Component({
-  selector: 'app-backup-history',
+  selector: 'laris-backup-history',
   imports: [EmptyState, StatusBadge, HlmCardImports, TranslatePipe],
   templateUrl: './backup-history.html',
 })

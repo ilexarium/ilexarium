@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { DisksStatus } from '@homelab/shared';
+import type { DisksStatus } from '@laris/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -16,7 +16,7 @@ import { resetDatabase } from './database.js';
 import { testHasher } from './realtime-client.js';
 
 // Disks end to end: the app, the executor in direct mode and the real disk wrapper
-// (system/wrappers/homelab-disk.mts) — against a pretend host (its /sys, udev database,
+// (system/wrappers/laris-disk.mts) — against a pretend host (its /sys, udev database,
 // /dev/disk/by-uuid and mountinfo), the wrapper pretending its mounts (no systemd).
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/catalog', import.meta.url));

@@ -63,7 +63,7 @@ export function controlCharacter(key: string): string | null {
  * left to right; a key bar on phones (Esc, Tab, Ctrl, arrows). Presentational.
  */
 @Component({
-  selector: 'app-terminal-view',
+  selector: 'laris-terminal-view',
   imports: [HlmButton, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideArrowDown, lucideArrowLeft, lucideArrowRight, lucideArrowUp })],
   templateUrl: './terminal-view.html',

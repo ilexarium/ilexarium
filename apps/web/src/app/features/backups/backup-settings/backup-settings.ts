@@ -22,7 +22,7 @@ import {
   type BackupPlan,
   type BackupSettingsForm,
   backupSettingsFormSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideKeyRound } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -43,7 +43,7 @@ import { PassphraseDialog } from '../passphrase-dialog/passphrase-dialog';
  * set of backups) — and "Show the passphrase again". Submits through the page store.
  */
 @Component({
-  selector: 'app-backup-settings',
+  selector: 'laris-backup-settings',
   imports: [
     FieldErrors,
     FormErrors,

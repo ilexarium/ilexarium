@@ -10,7 +10,7 @@ import {
   type DeliveryProblem,
   type EmailChannelUpdate,
   type NtfyChannelUpdate,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { hostname } from 'node:os';
 import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';

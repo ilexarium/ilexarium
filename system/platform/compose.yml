@@ -1,9 +1,9 @@
-# /opt/homelab/platform/compose.yml — REVIEW-REQUIRED (system/CLAUDE.md).
-# The platform's own containers, beside the app (which runs on the host as homelab.service):
-# its database and the Docker socket proxy. Started by homelab-platform.service:
-#   docker compose --project-directory /opt/homelab/platform --env-file /etc/homelab/platform.env up -d --wait
+# /opt/laris/platform/compose.yml — REVIEW-REQUIRED (system/CLAUDE.md).
+# The platform's own containers, beside the app (which runs on the host as laris.service):
+# its database and the Docker socket proxy. Started by laris-platform.service:
+#   docker compose --project-directory /opt/laris/platform --env-file /etc/laris/platform.env up -d --wait
 # Both are labelled protected: the app refuses to stop or restart them. Design: docs/plans/installer.md.
-name: homelab
+name: laris
 
 services:
   postgres:
@@ -11,14 +11,14 @@ services:
     image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     # POSTGRES_USER (the owner role: migrations and backups), POSTGRES_PASSWORD, POSTGRES_DB —
     # root-only (0600). The app connects as its own role, which may only read and write data.
-    env_file: /etc/homelab/database.env
+    env_file: /etc/laris/database.env
     # This machine only: services' containers can't reach the host's loopback.
     ports:
       - '127.0.0.1:5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql
     labels:
-      homelab.protected: 'true'
+      laris.protected: 'true'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 5s
@@ -27,24 +27,24 @@ services:
     restart: unless-stopped
 
   # The Docker API allow-list the app talks to — system/docker-socket-proxy/haproxy.cfg. No
-  # network at all: it answers only on a Unix socket in /run/homelab/proxy, a folder only its own
-  # user (99) and the app's group can enter (systemd-tmpfiles: /etc/tmpfiles.d/homelab.conf).
+  # network at all: it answers only on a Unix socket in /run/laris/proxy, a folder only its own
+  # user (99) and the app's group can enter (systemd-tmpfiles: /etc/tmpfiles.d/laris.conf).
   docker-proxy:
     # Official image, pinned by digest (3.4-alpine, HAProxy 3.4.6). Runs as user haproxy (uid 99).
     image: haproxy:3.4-alpine@sha256:7af8255207ee9964ccb4eec8ce4b7a40b777769665e3ae83897fb01b24d8a43a
     group_add:
       # The host's docker group, inside this container only: lets the proxy open the socket.
-      - '${DOCKER_GID:?set in /etc/homelab/platform.env}'
+      - '${DOCKER_GID:?set in /etc/laris/platform.env}'
     environment:
-      HOMELAB_PROXY_SOCKET: /run/homelab-proxy/docker.sock
+      LARIS_PROXY_SOCKET: /run/laris-proxy/docker.sock
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       # :ro does not make the socket read-only (connecting is not a write) — the allow-list does.
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /run/homelab/proxy:/run/homelab-proxy
+      - /run/laris/proxy:/run/laris-proxy
     network_mode: none
     labels:
-      homelab.protected: 'true'
+      laris.protected: 'true'
     read_only: true
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']

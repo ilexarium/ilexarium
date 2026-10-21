@@ -12,7 +12,7 @@ import { Refusal } from '../lib/output.mts';
 import { assertRootOwned, inside } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
-export const REPOSITORY_FOLDER = 'homelab-backups';
+export const REPOSITORY_FOLDER = 'laris-backups';
 
 export const FILESYSTEMS = new Set(['ext4', 'btrfs', 'xfs', 'exfat']);
 

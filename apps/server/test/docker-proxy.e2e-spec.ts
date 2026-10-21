@@ -6,7 +6,7 @@ import { proxy, proxyReachable } from './docker-proxy.js';
 // the real Docker daemon behind it. Every refusal must come from the proxy (403), never Docker.
 // The write tests only ever touch the dev sandbox container.
 
-const SANDBOX = 'homelab-dev-sandbox-1';
+const SANDBOX = 'laris-dev-sandbox-1';
 
 const reachable = await proxyReachable();
 if (!reachable) console.warn('Docker socket proxy not reachable — run `npm run db:up`. Skipping.');

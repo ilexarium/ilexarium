@@ -11,7 +11,7 @@ import {
   backupRunIdParamsSchema,
   backupRunRequestSchema,
   backupSetupRequestSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class BackupSetupDto extends zodDto(backupSetupRequestSchema) {}

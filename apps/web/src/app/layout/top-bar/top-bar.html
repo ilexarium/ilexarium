@@ -1,9 +1,9 @@
 <button hlmSidebarTrigger [srOnlyText]="'nav.toggle' | translate" class="-ms-1"></button>
 <hlm-separator orientation="vertical" class="me-2" />
 <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
-<app-connection-status class="ms-auto" />
-<app-alerts-menu [open]="alerts.open()" [resolved]="alerts.closed()" />
-<app-theme-menu />
+<laris-connection-status class="ms-auto" />
+<laris-alerts-menu [open]="alerts.open()" [resolved]="alerts.closed()" />
+<laris-theme-menu />
 <button
   hlmBtn
   variant="ghost"
@@ -12,7 +12,7 @@
   align="end"
   [attr.aria-label]="'userMenu.open' | translate"
 >
-  <app-user-avatar class="size-8 text-xs" [user]="auth.user()" />
+  <laris-user-avatar class="size-8 text-xs" [user]="auth.user()" />
   <span dir="auto" class="hidden max-w-40 truncate text-sm sm:inline">{{ name() }}</span>
   <span class="hidden text-muted-foreground sm:inline-flex" aria-hidden="true">
     <ng-icon name="lucideChevronDown" />
@@ -82,4 +82,4 @@
     }
   </hlm-dropdown-menu-sub>
 </ng-template>
-<app-profile-dialog [open]="editing()" (closed)="editing.set(false)" />
+<laris-profile-dialog [open]="editing()" (closed)="editing.set(false)" />

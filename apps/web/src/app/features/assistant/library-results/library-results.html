@@ -1,5 +1,5 @@
 @if (results().length === 0) {
-  <app-empty-state icon="lucideSearchX" [text]="'assistant.library.none' | translate" />
+  <laris-empty-state icon="lucideSearchX" [text]="'assistant.library.none' | translate" />
 } @else {
   <ul class="grid gap-2">
     @for (result of results(); track result.id) {
@@ -59,9 +59,9 @@
                         file.sizeBytes !== null ? format.bytes(file.sizeBytes) : '—'
                       }}</span>
                       @if (installed().includes(file.model)) {
-                        <app-status-badge class="ms-auto" tone="healthy">{{
+                        <laris-status-badge class="ms-auto" tone="healthy">{{
                           'assistant.library.installed' | translate
-                        }}</app-status-badge>
+                        }}</laris-status-badge>
                       } @else {
                         <button
                           hlmBtn

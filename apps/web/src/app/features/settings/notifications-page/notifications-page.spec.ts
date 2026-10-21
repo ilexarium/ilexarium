@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AlertChannelsResponse } from '@homelab/shared';
+import type { AlertChannelsResponse } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -15,7 +15,7 @@ const SAVED: AlertChannelsResponse = {
     port: 587,
     username: 'alerts',
     passwordSet: true,
-    from: 'homelab@example.com',
+    from: 'laris@example.com',
     to: 'me@example.com',
     lastFailure: { channel: 'email', at: '2026-10-17T12:02:00.000Z', problem: 'loginRefused' },
   },
@@ -71,7 +71,7 @@ describe('NotificationsPage', () => {
       host: 'mail.example.com',
       port: 587,
       username: 'alerts',
-      from: 'homelab@example.com',
+      from: 'laris@example.com',
       to: 'other@example.com',
     });
   });
@@ -107,7 +107,7 @@ describe('NotificationsPage', () => {
 
   it('saves ntfy: a new topic, and removing the token', async () => {
     const { el, api, card, type, click } = await render(SAVED);
-    await type('ntfy-topic', 'http://192.168.1.20/homelab-alerts');
+    await type('ntfy-topic', 'http://192.168.1.20/laris-alerts');
     expect(card('ntfy-title').textContent).toContain(
       'Plain http:// works only on your own network',
     );
@@ -118,7 +118,7 @@ describe('NotificationsPage', () => {
     await click(card('ntfy-title'), 'Save');
     expect(api.updateNtfy).toHaveBeenCalledWith({
       enabled: true,
-      topicUrl: 'http://192.168.1.20/homelab-alerts',
+      topicUrl: 'http://192.168.1.20/laris-alerts',
       token: null,
     });
   });

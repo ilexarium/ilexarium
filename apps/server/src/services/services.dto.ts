@@ -1,4 +1,4 @@
-import { catalogIdParamsSchema, deployRequestSchema, serviceIdParamsSchema } from '@homelab/shared';
+import { catalogIdParamsSchema, deployRequestSchema, serviceIdParamsSchema } from '@laris/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class DeployDto extends zodDto(deployRequestSchema) {}

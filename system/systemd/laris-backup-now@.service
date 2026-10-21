@@ -1,18 +1,18 @@
-# /etc/systemd/system/homelab-backup-now@.service — REVIEW-REQUIRED (system/CLAUDE.md).
-# "Back up now": started by `homelab-backup start` (through the app) with the instance
+# /etc/systemd/system/laris-backup-now@.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# "Back up now": started by `laris-backup start` (through the app) with the instance
 # <runId> or <runId>_<itemId> — two uuids, checked again by the wrapper. Its own unit, not a
 # child of the app: it goes on if the app stops or restarts. Its progress and results go to
-# /var/lib/homelab/backups/{current,runs}.jsonl, like a scheduled run's (homelab-backup.service,
+# /var/lib/laris/backups/{current,runs}.jsonl, like a scheduled run's (laris-backup.service,
 # whose settings this mirrors). Design: docs/plans/backups.md.
 
 [Unit]
-Description=Homelab backup run (Back up now)
+Description=Laris backup run (Back up now)
 After=docker.service local-fs.target
 Wants=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/homelab/libexec/homelab-backup.mts run-requested %i
+ExecStart=/opt/laris/libexec/laris-backup.mts run-requested %i
 # Backups yield to everything else.
 Nice=10
 IOSchedulingClass=idle

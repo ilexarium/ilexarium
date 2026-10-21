@@ -1,4 +1,4 @@
-import type { LogLine, LogsEndReason } from '@homelab/shared';
+import type { LogLine, LogsEndReason } from '@laris/shared';
 
 /** A log line; `id` is unique per stream. */
 export type LogEntry = { id: number } & LogLine;

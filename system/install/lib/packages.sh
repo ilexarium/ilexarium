@@ -45,7 +45,7 @@ ensure_base() {
 }
 
 # Node 24 or newer at /usr/bin/node — that one, whatever else is on PATH: the root wrappers'
-# shebang and homelab.service name that exact path.
+# shebang and laris.service name that exact path.
 ensure_node() {
   local major
   major="$(node_major)"

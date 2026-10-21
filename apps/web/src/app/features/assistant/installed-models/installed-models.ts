@@ -1,5 +1,5 @@
 import { Component, inject, input, output, signal, viewChild } from '@angular/core';
-import type { AiModel } from '@homelab/shared';
+import type { AiModel } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -13,7 +13,7 @@ import { StatusBadge } from '../../../shared/status-badge/status-badge';
  * Remove after a confirmation. Presentational: a confirmed Remove goes out through `remove`.
  */
 @Component({
-  selector: 'app-installed-models',
+  selector: 'laris-installed-models',
   imports: [HlmAlertDialogImports, HlmButton, NgIcon, StatusBadge, TranslatePipe],
   providers: [provideIcons({ lucideTrash2 })],
   host: { class: 'block' },

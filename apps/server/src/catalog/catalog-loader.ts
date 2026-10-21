@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CATALOG_ID_PATTERN, catalogMetaSchema } from '@homelab/shared';
+import { CATALOG_ID_PATTERN, catalogMetaSchema } from '@laris/shared';
 import { parse } from 'yaml';
 import { checkComposePolicy, checkPlaceholders } from './compose-policy.js';
 import type { CatalogEntry } from './catalog.model.js';

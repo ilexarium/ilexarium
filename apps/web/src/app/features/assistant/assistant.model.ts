@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@homelab/shared';
+import type { ChatMessage } from '@laris/shared';
 
 /** An answer being written: the text so far. */
 export interface StreamingAnswer {

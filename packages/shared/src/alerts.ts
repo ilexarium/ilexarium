@@ -209,7 +209,7 @@ export type EmailChannelUpdate = z.infer<typeof emailChannelUpdateSchema>;
 /** ntfy's topic names: letters, digits, `-` and `_`. */
 const NTFY_TOPIC = /\/[-_A-Za-z0-9]{1,64}$/;
 
-/** A topic URL: server and topic, `https://ntfy.sh/homelab-7f3k9q2m`. Plain HTTP only to private addresses (checked by the server). */
+/** A topic URL: server and topic, `https://ntfy.sh/laris-7f3k9q2m`. Plain HTTP only to private addresses (checked by the server). */
 export const ntfyTopicUrlSchema = z
   .string()
   .trim()

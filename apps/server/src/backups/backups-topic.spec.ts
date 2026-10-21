@@ -1,4 +1,4 @@
-import type { BackupsStatus } from '@homelab/shared';
+import type { BackupsStatus } from '@laris/shared';
 import { Subject } from 'rxjs';
 import { OperationSlot } from '../jobs/operation-slot.js';
 import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';

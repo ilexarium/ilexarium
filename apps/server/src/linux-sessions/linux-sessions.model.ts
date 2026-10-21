@@ -1,4 +1,4 @@
-import type { PublicUser } from '@homelab/shared';
+import type { PublicUser } from '@laris/shared';
 import type { ClientChannel, Client, SFTPWrapper } from 'ssh2';
 
 /** Why a Linux session closed. */

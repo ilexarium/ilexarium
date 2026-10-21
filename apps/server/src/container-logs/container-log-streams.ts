@@ -9,7 +9,7 @@ import {
   LOGS_EVENTS,
   type LogLine,
   type LogsEndReason,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { ContainerLogsError, DockerService } from '../docker/docker.service.js';
 import {
   HEARTBEAT_MS,

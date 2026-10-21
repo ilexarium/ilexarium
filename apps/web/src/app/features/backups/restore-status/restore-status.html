@@ -7,7 +7,7 @@
   </div>
   <div hlmCardContent class="grid gap-3">
     @if (restore().job.status !== 'succeeded') {
-      <app-job-progress [job]="restore().job" [phases]="phases()" />
+      <laris-job-progress [job]="restore().job" [phases]="phases()" />
     } @else {
       <p class="text-sm">{{ 'backups.restore.succeeded' | translate }}</p>
     }

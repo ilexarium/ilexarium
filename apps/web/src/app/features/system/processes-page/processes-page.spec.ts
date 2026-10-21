@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Process, ProcessesUpdate } from '@homelab/shared';
+import type { Process, ProcessesUpdate } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
@@ -266,7 +266,7 @@ describe('ProcessesPage', () => {
     const { el, push } = await render();
     await push(update([PYTHON, IMMICH]));
     expect(el.querySelector('table')).toBeNull();
-    const cards = el.querySelectorAll('app-process-list ul > li');
+    const cards = el.querySelectorAll('laris-process-list ul > li');
     expect(cards).toHaveLength(2);
     expect(cards[0].textContent).toContain('python3');
     expect(cards[0].textContent).toContain('anna');

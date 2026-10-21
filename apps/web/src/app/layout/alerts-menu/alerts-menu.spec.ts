@@ -1,14 +1,14 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Alert } from '@homelab/shared';
+import type { Alert } from '@laris/shared';
 import { testAlert } from '../../core/alerts/testing';
 import { AlertsMenu } from './alerts-menu';
 import { RESOLVED_IN_MENU } from './alerts-menu.constants';
 
 @Component({
   imports: [AlertsMenu],
-  template: `<app-alerts-menu [open]="open()" [resolved]="resolved()" />`,
+  template: `<laris-alerts-menu [open]="open()" [resolved]="resolved()" />`,
 })
 class Host {
   readonly open = signal<Alert[]>([]);

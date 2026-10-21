@@ -56,7 +56,7 @@ export class LogTimePipe implements PipeTransform {
  * `LOG_LIMITS.maxLinesInView` lines are kept. Log text is always rendered as text, never HTML.
  */
 @Component({
-  selector: 'app-log-view',
+  selector: 'laris-log-view',
   imports: [HlmButton, HlmInput, LogTimePipe, NgIcon, TranslatePipe],
   providers: [
     provideIcons({

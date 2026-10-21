@@ -123,7 +123,7 @@
     "portInvalid": "أدخل رقم منفذ",
     "portRange": "منفذ من {{portMin}} إلى {{portMax}}",
     "pathRequired": "أدخل مجلدًا",
-    "pathInvalid": "مسار مجلد كامل، مثل /srv/homelab/music",
+    "pathInvalid": "مسار مجلد كامل، مثل /srv/laris/music",
     "textRequired": "أدخل قيمة",
     "textTooLong": "{{textMax}} حرفًا كحد أقصى",
     "text": {
@@ -769,7 +769,7 @@
       "inPlace": "إلى مكانها الأصلي",
       "inPlaceText": "تُوقف الخدمة، وتُنحّى مجلداتها الحالية جانبًا (وتبقى إلى أن تحذفها)، وتُعاد النسخة الاحتياطية، ثم تعمل الخدمة من جديد.",
       "newFolder": "إلى مجلد جديد",
-      "newFolderText": "إلى مجلد جديد تحت ⁦/srv/homelab/restores⁩. لا يتغيّر شيء آخر.",
+      "newFolderText": "إلى مجلد جديد تحت ⁦/srv/laris/restores⁩. لا يتغيّر شيء آخر.",
       "reinstall": "ثم ثبّت الخدمة من جديد — إعداداتها السابقة معبّأة.",
       "cancel": "إلغاء",
       "confirm": "استعد",

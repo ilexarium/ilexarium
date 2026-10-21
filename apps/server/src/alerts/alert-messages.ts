@@ -1,4 +1,4 @@
-import type { BackupWarning } from '@homelab/shared';
+import type { BackupWarning } from '@laris/shared';
 import type { AlertEvent, AlertMessage, OpenAlert } from './alerts.model.js';
 
 const BACKUP_TITLES: Record<BackupWarning, string> = {

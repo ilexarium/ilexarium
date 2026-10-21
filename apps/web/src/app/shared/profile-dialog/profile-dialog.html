@@ -10,13 +10,13 @@
     </hlm-dialog-header>
 
     <form id="profile-form" [formRoot]="form" class="grid gap-6">
-      <app-form-errors [form]="form" />
+      <laris-form-errors [form]="form" />
 
       <section class="grid gap-3" aria-labelledby="profile-picture-heading">
         <h3 id="profile-picture-heading" class="text-sm font-medium">
           {{ 'profile.picture.title' | translate }}
         </h3>
-        <app-avatar-picker
+        <laris-avatar-picker
           [user]="auth.user()"
           [preview]="picture()"
           [removed]="edit.picture().kind === 'remove'"
@@ -38,7 +38,7 @@
             [formField]="form.displayName"
           />
           <p hlmFieldDescription>{{ 'profile.displayNameHelp' | translate }}</p>
-          <app-field-errors [field]="form.displayName" />
+          <laris-field-errors [field]="form.displayName" />
         </div>
         <div hlmField>
           <label hlmFieldLabel for="email">{{ 'profile.email' | translate }}</label>
@@ -51,7 +51,7 @@
             [formField]="form.email"
           />
           <p hlmFieldDescription>{{ 'profile.emailHelp' | translate }}</p>
-          <app-field-errors [field]="form.email" />
+          <laris-field-errors [field]="form.email" />
         </div>
       </div>
     </form>

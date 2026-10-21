@@ -5,7 +5,7 @@ import {
   type DiskPartition,
   type DiskPartitionState,
   type DisksStatus,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { BlockDevice, MountPoint } from '../host/host.model.js';
 
 /** Folders whose disk is the system's: every partition on such a disk is shown as `system`. */

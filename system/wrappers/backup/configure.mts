@@ -31,7 +31,7 @@ export async function configure(config: Config, paths: Paths, input: string): Pr
   writeAtomic(paths.plan, `${JSON.stringify(plan, null, 2)}\n`, 0o600);
   writeAtomic(
     paths.timerDropIn,
-    `# Written by homelab-backup configure.\n[Timer]\nOnCalendar=\nOnCalendar=${onCalendar(plan.schedule)}\n`,
+    `# Written by laris-backup configure.\n[Timer]\nOnCalendar=\nOnCalendar=${onCalendar(plan.schedule)}\n`,
     0o644,
   );
   const systemctl = config.backup.systemctlBin;
@@ -39,7 +39,7 @@ export async function configure(config: Config, paths: Paths, input: string): Pr
   const env = { PATH: SAFE_PATH, HOME: home(config) };
   for (const args of [
     ['daemon-reload'],
-    ['enable', '--now', 'homelab-backup.timer', 'homelab-backup-check.timer'],
+    ['enable', '--now', 'laris-backup.timer', 'laris-backup-check.timer'],
   ]) {
     const result = await runProgram(systemctl, args, { env });
     if (result.code !== 0) throw new Refusal('setup', `systemctl ${args[0]} failed`, 6);

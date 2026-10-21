@@ -1,4 +1,4 @@
-import type { PublicUser } from '@homelab/shared';
+import type { PublicUser } from '@laris/shared';
 import { AuthApi } from './auth-api';
 import { SIGN_OUT_CHANNEL } from './sign-out-channel';
 

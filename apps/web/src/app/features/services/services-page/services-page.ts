@@ -11,7 +11,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
  * from. UI only: the data and Remove live in its page store.
  */
 @Component({
-  selector: 'app-services-page',
+  selector: 'laris-services-page',
   imports: [EmptyState, CatalogCard, HlmSkeleton, InstalledServiceCard, TranslatePipe],
   providers: [ServicesPageStore],
   templateUrl: './services-page.html',

@@ -1,4 +1,4 @@
-import type { ContainerStats } from '@homelab/shared';
+import type { ContainerStats } from '@laris/shared';
 import type { RawContainerStats } from './docker.model.js';
 
 /**

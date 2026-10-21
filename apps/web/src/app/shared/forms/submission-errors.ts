@@ -12,7 +12,7 @@ import {
   PROFILE_ERROR_CODES,
   SERVICE_ERROR_CODES,
   AI_ERROR_CODES,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { FormError } from './forms.model';
 
 /** Server codes with their own text (`errors.<code>` in en.json); others show the server's text. */

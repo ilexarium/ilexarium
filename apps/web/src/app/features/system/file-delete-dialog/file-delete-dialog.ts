@@ -1,5 +1,5 @@
 import { Component, computed, inject, output, signal, viewChild } from '@angular/core';
-import type { FileEntry, FileSummary } from '@homelab/shared';
+import type { FileEntry, FileSummary } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { PluralPipe } from '../../../core/i18n/plural-pipe';
@@ -11,7 +11,7 @@ import { Formatter } from '../../../shared/format/formatter';
  * goes out through `confirm`.
  */
 @Component({
-  selector: 'app-file-delete-dialog',
+  selector: 'laris-file-delete-dialog',
   imports: [HlmAlertDialogImports, PluralPipe, TranslatePipe],
   templateUrl: './file-delete-dialog.html',
 })

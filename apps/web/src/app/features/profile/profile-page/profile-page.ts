@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { LANGUAGE_NAMES } from '@homelab/i18n';
+import { LANGUAGE_NAMES } from '@laris/i18n';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideKeyRound, lucideLogOut, lucidePencil } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -20,7 +20,7 @@ import { ProfilePageStore } from './profile-page-store';
  * and their security — the password, signing out everywhere. Reached from the user menu.
  */
 @Component({
-  selector: 'app-profile-page',
+  selector: 'laris-profile-page',
   imports: [
     HlmAlertDialogImports,
     HlmButton,

@@ -30,7 +30,7 @@ check_machine() {
 check_version() {
   NEW_VERSION="$(cat "$RELEASE/VERSION")"
   OLD_VERSION=''
-  if [[ -f /etc/homelab/version ]]; then OLD_VERSION="$(cat /etc/homelab/version)"; fi
+  if [[ -f /etc/laris/version ]]; then OLD_VERSION="$(cat /etc/laris/version)"; fi
   if [[ -z "$OLD_VERSION" ]]; then
     info "Installing $NEW_VERSION"
   elif dpkg --compare-versions "$NEW_VERSION" lt "$OLD_VERSION"; then

@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import type { JobPhase, Job } from '@homelab/shared';
+import type { JobPhase, Job } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideCircleCheck,
@@ -22,7 +22,7 @@ const STEPS: Record<Job['kind'], JobPhase[]> = {
  * wrong if it failed, and its output — always shown as text, left to right.
  */
 @Component({
-  selector: 'app-job-progress',
+  selector: 'laris-job-progress',
   imports: [NgIcon, TranslatePipe],
   providers: [
     provideIcons({ lucideCircleCheck, lucideCircleDashed, lucideCircleX, lucideLoaderCircle }),

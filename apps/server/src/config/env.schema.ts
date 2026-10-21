@@ -32,8 +32,8 @@ const trustProxySchema = z
   )
   .pipe(z.union([z.literal(false), z.array(trustedProxySchema).min(1)]));
 
-/** The proxy's socket in production: one plain file name under /run/homelab/, no `..`. */
-export const PROXY_SOCKET = /^unix:\/\/\/run\/homelab\/(?:[a-z0-9-]+\/)?[a-z0-9-]+\.sock$/;
+/** The proxy's socket in production: one plain file name under /run/laris/, no `..`. */
+export const PROXY_SOCKET = /^unix:\/\/\/run\/laris\/(?:[a-z0-9-]+\/)?[a-z0-9-]+\.sock$/;
 
 function isProxyUrl(value: string): boolean {
   try {
@@ -58,7 +58,7 @@ export const envSchema = z
     HOST: z.union([z.ipv4(), z.ipv6()]).optional(),
     /**
      * The Docker API: always the socket proxy, never Docker's own socket — tcp:// or http://
-     * (development), or the proxy's Unix socket under /run/homelab/ (production: only the app's
+     * (development), or the proxy's Unix socket under /run/laris/ (production: only the app's
      * group can reach it). Any other unix:// path is refused.
      */
     DOCKER_HOST: z
@@ -67,7 +67,7 @@ export const envSchema = z
       .default('tcp://127.0.0.1:2375')
       .refine((value) => PROXY_SOCKET.test(value) || isProxyUrl(value), {
         error:
-          'Must be a tcp:// or http:// URL of the Docker socket proxy, or unix:///run/homelab/<name>.sock',
+          'Must be a tcp:// or http:// URL of the Docker socket proxy, or unix:///run/laris/<name>.sock',
       }),
     /**
      * The built web app (its index.html and files), served by the app on the same origin as the
@@ -106,12 +106,11 @@ export const envSchema = z
       ...env,
       SETUP_TOKEN_FILE:
         env.SETUP_TOKEN_FILE ??
-        (production ? '/var/lib/homelab/app/setup-token' : '.dev/setup-token'),
+        (production ? '/var/lib/laris/app/setup-token' : '.dev/setup-token'),
       MASTER_KEY_FILE:
-        env.MASTER_KEY_FILE ?? (production ? '/etc/homelab/master.key' : '.dev/master.key'),
+        env.MASTER_KEY_FILE ?? (production ? '/etc/laris/master.key' : '.dev/master.key'),
       WRAPPER_CONFIG_FILE:
-        env.WRAPPER_CONFIG_FILE ??
-        (production ? '/etc/homelab/wrappers.json' : '.dev/wrappers.json'),
+        env.WRAPPER_CONFIG_FILE ?? (production ? '/etc/laris/wrappers.json' : '.dev/wrappers.json'),
       EXECUTOR_MODE: env.EXECUTOR_MODE ?? (production ? 'sudo' : 'direct'),
       HOST: env.HOST ?? (production ? '127.0.0.1' : undefined),
       SSH_PORT: env.SSH_PORT ?? (production ? 22 : 2222),

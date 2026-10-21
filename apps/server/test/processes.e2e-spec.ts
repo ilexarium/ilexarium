@@ -14,7 +14,7 @@ import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
 // The process list end to end: the `processes` topic from this machine's /proc, and the API's
 // refusals through the executor in direct mode and the real process wrapper. The wrapper's config
 // makes this test's user a person and the app's user someone else. Ending a real process is
-// tested with the wrapper itself (system/wrappers/homelab-process.spec.ts starts one to end):
+// tested with the wrapper itself (system/wrappers/laris-process.spec.ts starts one to end):
 // here, only src/executor/ may start a program (lint).
 
 const WRAPPER_CONFIG = resolve('.dev/wrappers.test.json');

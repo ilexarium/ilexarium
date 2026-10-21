@@ -1,4 +1,4 @@
-import type { DiskUsage } from '@homelab/shared';
+import type { DiskUsage } from '@laris/shared';
 import { DiskWatch, usedPercent } from './disk-watch.js';
 
 const MINUTE = 60_000;

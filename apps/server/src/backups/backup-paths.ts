@@ -2,12 +2,12 @@ import {
   BACKUP_DESTINATION_ROOTS,
   BACKUP_REPOSITORY_FOLDER,
   isPlainAbsolutePath,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { WrapperConfig } from '../executor/executor.model.js';
 
 /**
  * Where things may be, as the app checks them — friendly errors before anything runs. The backup
- * wrapper checks all of it again, with its own code (system/wrappers/homelab-backup.mts).
+ * wrapper checks all of it again, with its own code (system/wrappers/laris-backup.mts).
  */
 
 /** Never backed up, whatever is configured. */
@@ -30,7 +30,7 @@ const DENIED_PATHS = [
 ];
 
 /** The production places of the wrapper's files (development: under the config's dev folder). */
-const STATE_DIR = '/var/lib/homelab/backups';
+const STATE_DIR = '/var/lib/laris/backups';
 const MOUNT_INFO = '/proc/self/mountinfo';
 
 export const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);

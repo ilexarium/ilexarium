@@ -1,6 +1,6 @@
 import { effect, inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import type { ContainerAction } from '@homelab/shared';
+import type { ContainerAction } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AuthStore } from '../auth/auth-store';
 import { Translator } from '../i18n/translator';

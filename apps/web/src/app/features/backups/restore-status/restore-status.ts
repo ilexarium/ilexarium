@@ -1,5 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
-import type { BackupRestore, JobPhase } from '@homelab/shared';
+import type { BackupRestore, JobPhase } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -13,7 +13,7 @@ import type { ItemLabel } from '../backups.model';
  * (e.g. "restore the database in Immich"). UI only: `discard` reports the click.
  */
 @Component({
-  selector: 'app-restore-status',
+  selector: 'laris-restore-status',
   imports: [HlmAlertImports, HlmButton, HlmCardImports, JobProgress, TranslatePipe],
   templateUrl: './restore-status.html',
 })

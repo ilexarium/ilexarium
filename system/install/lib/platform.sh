@@ -2,30 +2,30 @@
 # The platform's containers, the database (two roles, migrations), the app's service, HTTPS.
 # Sourced by install.sh.
 
-POSTGRES_CONTAINER=homelab-postgres-1
+POSTGRES_CONTAINER=laris-postgres-1
 
 # SQL as the database owner, inside the container (local socket: no password, no network).
 # Statements come on stdin — never in arguments, which every user can see in `ps`.
 owner_sql() {
-  docker exec -i "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 -q -X -U homelab_owner -d homelab
+  docker exec -i "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 -q -X -U laris_owner -d laris
 }
 
 start_platform() {
   log 'Starting the database and the Docker proxy'
   systemctl daemon-reload
-  systemctl enable homelab-platform.service >/dev/null 2>&1
-  systemctl restart homelab-platform.service ||
-    die 'The platform’s containers did not start (journalctl -u homelab-platform)'
+  systemctl enable laris-platform.service >/dev/null 2>&1
+  systemctl restart laris-platform.service ||
+    die 'The platform’s containers did not start (journalctl -u laris-platform)'
   # The proxy has no health check of its own: it's ready once it answers on its socket (an old
   # socket file from before the restart doesn't answer).
   for _ in $(seq 1 30); do
-    if curl -sf --unix-socket /run/homelab/proxy/docker.sock http://proxy/_ping >/dev/null 2>&1; then
-      info "$POSTGRES_CONTAINER, homelab-docker-proxy-1"
+    if curl -sf --unix-socket /run/laris/proxy/docker.sock http://proxy/_ping >/dev/null 2>&1; then
+      info "$POSTGRES_CONTAINER, laris-docker-proxy-1"
       return
     fi
     sleep 1
   done
-  die 'The Docker proxy doesn’t answer on its socket (docker logs homelab-docker-proxy-1)'
+  die 'The Docker proxy doesn’t answer on its socket (docker logs laris-docker-proxy-1)'
 }
 
 # An update: the database as it was, before any migration — the way back if one goes wrong.
@@ -33,11 +33,11 @@ backup_database() {
   if [[ -z "$OLD_VERSION" ]]; then return; fi
   log 'Backing up the database before the update'
   local dump tmp
-  dump="$VAR/install-backups/homelab-$OLD_VERSION-$(date +%Y%m%d-%H%M%S).dump"
+  dump="$VAR/install-backups/laris-$OLD_VERSION-$(date +%Y%m%d-%H%M%S).dump"
   tmp="$(mktemp "$VAR/install-backups/.dump.XXXXXX")"
-  if ! docker exec "$POSTGRES_CONTAINER" pg_dump -U homelab_owner -d homelab -Fc >"$tmp" || [[ ! -s "$tmp" ]]; then
+  if ! docker exec "$POSTGRES_CONTAINER" pg_dump -U laris_owner -d laris -Fc >"$tmp" || [[ ! -s "$tmp" ]]; then
     rm -f "$tmp"
-    die 'The database could not be backed up — nothing was changed (the old version is still installed; systemctl start homelab)'
+    die 'The database could not be backed up — nothing was changed (the old version is still installed; systemctl start laris)'
   fi
   mv -f "$tmp" "$dump"
   DATABASE_BACKUP="$dump"
@@ -48,9 +48,9 @@ backup_database() {
 migrate_database() {
   log 'Database'
   owner_sql <<SQL
-SELECT 'CREATE ROLE homelab LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'homelab')
+SELECT 'CREATE ROLE laris LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'laris')
 \gexec
-ALTER ROLE homelab WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '$APP_DB_PASSWORD';
+ALTER ROLE laris WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '$APP_DB_PASSWORD';
 SQL
   # Prisma's migrations, as the owner (only this step ever holds its password) — from the new
   # release, before it replaces anything: if one fails, the old version is still installed.
@@ -58,18 +58,18 @@ SQL
     DATABASE_URL="$OWNER_DATABASE_URL" /usr/bin/node ../../node_modules/prisma/build/index.js migrate deploy >/dev/null); then
     if [[ -n "${DATABASE_BACKUP:-}" ]]; then
       die "A migration failed; the old version is still installed. Put the database back first:
-    docker exec -i $POSTGRES_CONTAINER pg_restore --clean --if-exists -U homelab_owner -d homelab <$DATABASE_BACKUP
-    then: systemctl start homelab"
+    docker exec -i $POSTGRES_CONTAINER pg_restore --clean --if-exists -U laris_owner -d laris <$DATABASE_BACKUP
+    then: systemctl start laris"
     fi
     die 'A migration failed'
   fi
   owner_sql <<'SQL'
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
-GRANT CONNECT ON DATABASE homelab TO homelab;
-GRANT USAGE ON SCHEMA public TO homelab;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO homelab;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO homelab;
-REVOKE ALL ON TABLE _prisma_migrations FROM homelab;
+GRANT CONNECT ON DATABASE laris TO laris;
+GRANT USAGE ON SCHEMA public TO laris;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO laris;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO laris;
+REVOKE ALL ON TABLE _prisma_migrations FROM laris;
 SQL
   info 'migrated; the app’s role reads and writes data only'
 }
@@ -80,7 +80,7 @@ setup_ssh_login() {
   log 'SSH: password logins from this machine itself'
   grep -Eqs '^\s*Include\s+/etc/ssh/sshd_config\.d/\*\.conf' /etc/ssh/sshd_config ||
     die '/etc/ssh/sshd_config does not include /etc/ssh/sshd_config.d/*.conf'
-  local dropin=/etc/ssh/sshd_config.d/homelab.conf
+  local dropin=/etc/ssh/sshd_config.d/laris.conf
   ensure_dir /etc/ssh/sshd_config.d root:root 0755
   write_file "$dropin" root:root 0644 <"$RELEASE/system/install/sshd.conf"
   if ! /usr/sbin/sshd -t 2>/dev/null; then
@@ -95,8 +95,8 @@ setup_ssh_login() {
 start_app() {
   log 'Starting the app'
   systemctl daemon-reload
-  systemctl enable homelab.service >/dev/null 2>&1
-  systemctl restart homelab.service
+  systemctl enable laris.service >/dev/null 2>&1
+  systemctl restart laris.service
 
   for _ in $(seq 1 60); do
     if curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
@@ -105,7 +105,7 @@ start_app() {
     fi
     sleep 1
   done
-  die 'The app did not answer within a minute (journalctl -u homelab)'
+  die 'The app did not answer within a minute (journalctl -u laris)'
 }
 
 # HTTPS in front of the app, through Tailscale (the session cookie needs HTTPS).
@@ -129,7 +129,7 @@ setup_https() {
 }
 
 print_result() {
-  log "Homelab $NEW_VERSION is running"
+  log "Laris $NEW_VERSION is running"
   local status token
   status="$(curl -fsS http://127.0.0.1:3000/api/auth/status 2>/dev/null || true)"
   if [[ "$status" == *'"needsSetup":true'* ]]; then
@@ -139,7 +139,7 @@ print_result() {
     info ''
     info "    $PUBLIC_URL/setup#token=$token"
     info ''
-    info 'Lost it? sudo homelab-setup-code'
+    info 'Lost it? sudo laris-setup-code'
   else
     info "Open $PUBLIC_URL"
   fi

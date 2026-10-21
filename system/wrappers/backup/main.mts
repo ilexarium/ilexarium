@@ -38,7 +38,7 @@ export function checkStartup(): { action: string; instance: string | null } {
   const args = process.argv.slice(2);
   const expected = args[0] === 'run-requested' ? 2 : 1;
   if (args.length !== expected || !ACTIONS.has(args[0])) {
-    throw new Refusal('invalid_request', `usage: homelab-backup ${[...ACTIONS].join('|')}`);
+    throw new Refusal('invalid_request', `usage: laris-backup ${[...ACTIONS].join('|')}`);
   }
   return { action: args[0], instance: args[1] ?? null };
 }
@@ -69,7 +69,7 @@ export async function main(): Promise<number> {
       emit(`@@result ${JSON.stringify({ started: true })}`);
       return 0;
     case 'run-requested': {
-      // Started by homelab-backup-now@<instance>.service (or, in development, by `start`).
+      // Started by laris-backup-now@<instance>.service (or, in development, by `start`).
       requireNoInput(input);
       const request = parseInstance(instance!);
       return run(config, paths, 'manual', request.runId, request.itemId);
@@ -97,7 +97,7 @@ export async function main(): Promise<number> {
   throw new Refusal('invalid_request', 'unknown action');
 }
 
-/** Called by the entry (homelab-backup.mts) once it checked these modules. */
+/** Called by the entry (laris-backup.mts) once it checked these modules. */
 export function start(): void {
   finish(main, () => stopping);
 }

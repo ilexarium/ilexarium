@@ -20,7 +20,7 @@ describe('web app (e2e)', () => {
     mkdirSync(root);
     writeFileSync(
       join(root, 'index.html'),
-      '<!doctype html><title>homelab</title><app-root></app-root>',
+      '<!doctype html><title>laris</title><laris-root></laris-root>',
     );
     writeFileSync(join(root, 'main-ABCDEFGH.js'), 'console.log(1);');
     writeFileSync(join(root, '.secret'), 'never');
@@ -44,7 +44,7 @@ describe('web app (e2e)', () => {
   it('serves the page at / and at any page address (links into the app)', async () => {
     for (const path of ['/', '/backups', '/containers/web/logs', '/settings/notifications?x=1']) {
       const res = await request(origin).get(path).expect(200);
-      expect(res.text, path).toContain('<app-root>');
+      expect(res.text, path).toContain('<laris-root>');
       expect(res.headers['cache-control'], path).toBe('no-cache');
     }
   });
@@ -67,7 +67,7 @@ describe('web app (e2e)', () => {
   it('answers a missing file with a 404, not the page (an old chunk after an update)', async () => {
     for (const path of ['/chunk-OLDHASH12.js', '/favicon.ico', '/assets/missing.svg']) {
       const res = await request(origin).get(path).expect(404);
-      expect(res.text, path).not.toContain('<app-root>');
+      expect(res.text, path).not.toContain('<laris-root>');
     }
   });
 

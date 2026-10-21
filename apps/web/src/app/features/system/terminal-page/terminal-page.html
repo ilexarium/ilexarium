@@ -9,7 +9,7 @@
         <p hlmAlertDescription>{{ 'terminal.closed.' + reason | translate }}</p>
       </div>
     }
-    <app-linux-sign-in
+    <laris-linux-sign-in
       title="terminal.signIn.title"
       text="terminal.signIn.text"
       [submit]="signIn"
@@ -25,7 +25,7 @@
         </div>
         <div hlmCardContent>
           <form [formRoot]="unlockForm" class="grid gap-5">
-            <app-form-errors [form]="unlockForm" />
+            <laris-form-errors [form]="unlockForm" />
             <div hlmField>
               <label hlmFieldLabel for="terminal-password">{{
                 'terminal.unlock.password' | translate
@@ -40,9 +40,9 @@
                   [type]="showPassword() ? 'text' : 'password'"
                   [formField]="unlockForm.password"
                 />
-                <app-password-toggle [(visible)]="showPassword" />
+                <laris-password-toggle [(visible)]="showPassword" />
               </div>
-              <app-field-errors [field]="unlockForm.password" />
+              <laris-field-errors [field]="unlockForm.password" />
             </div>
             <button
               hlmBtn
@@ -87,7 +87,7 @@
             {{ 'terminal.close' | translate }}
           </button>
         </div>
-        <app-terminal-view
+        <laris-terminal-view
           #view
           [dark]="theme.dark()"
           (ready)="connect($event)"

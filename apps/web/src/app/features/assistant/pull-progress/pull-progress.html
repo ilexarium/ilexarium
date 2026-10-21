@@ -2,15 +2,19 @@
   <span class="min-w-0 font-medium break-all" dir="ltr">{{ pull().model }}</span>
   @switch (pull().status) {
     @case ('running') {
-      <app-status-badge tone="info">{{ 'assistant.pull.running' | translate }}</app-status-badge>
+      <laris-status-badge tone="info">{{
+        'assistant.pull.running' | translate
+      }}</laris-status-badge>
     }
     @case ('succeeded') {
-      <app-status-badge tone="healthy">{{
+      <laris-status-badge tone="healthy">{{
         'assistant.pull.succeeded' | translate
-      }}</app-status-badge>
+      }}</laris-status-badge>
     }
     @default {
-      <app-status-badge tone="failed">{{ 'assistant.pull.failed' | translate }}</app-status-badge>
+      <laris-status-badge tone="failed">{{
+        'assistant.pull.failed' | translate
+      }}</laris-status-badge>
     }
   }
 </p>

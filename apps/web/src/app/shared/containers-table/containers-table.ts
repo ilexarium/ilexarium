@@ -1,11 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, output } from '@angular/core';
-import type {
-  Container,
-  ContainerAction,
-  ContainersSnapshot,
-  ContainerState,
-} from '@homelab/shared';
+import type { Container, ContainerAction, ContainersSnapshot, ContainerState } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideLoaderCircle } from '@ng-icons/lucide';
 import { HlmCardImports } from '@ui/card';
@@ -59,7 +54,7 @@ interface Row {
  * list of cards below, so nothing scrolls sideways on phones and tablets. Shared by the dashboard and the Containers page.
  */
 @Component({
-  selector: 'app-containers-table',
+  selector: 'laris-containers-table',
   imports: [
     EmptyState,
     ContainerActions,

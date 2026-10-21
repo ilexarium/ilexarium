@@ -5,7 +5,7 @@ import {
   TERMINAL_CLOSE_CODES,
   terminalControlSchema,
   terminalOpenQuerySchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { WebSocket, type RawData } from 'ws';
 import { AuditService } from '../audit/audit.service.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';

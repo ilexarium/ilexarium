@@ -7,7 +7,7 @@ import { RealtimeService } from '../../core/realtime/realtime-service';
  * for screen readers, which hear changes through `role="status"`).
  */
 @Component({
-  selector: 'app-connection-status',
+  selector: 'laris-connection-status',
   host: {
     role: 'status',
     class: 'flex items-center gap-2 text-sm text-muted-foreground',

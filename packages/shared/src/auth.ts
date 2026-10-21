@@ -10,7 +10,7 @@ const SETUP_TOKEN_MAX_LENGTH = 64;
 
 /**
  * The numbers validation messages mention — their `{{ }}` parameters. Messages are translation
- * keys (`@homelab/i18n`): the browser's checks and the server's 400s carry the same key, and the
+ * keys (`@laris/i18n`): the browser's checks and the server's 400s carry the same key, and the
  * web app words it with these values, so no limit is ever written into a translation.
  */
 export const VALIDATION_LIMITS = {
@@ -37,7 +37,7 @@ export const VALIDATION_LIMITS = {
   emailMax: 254,
 } as const;
 
-/** The languages a person can choose (the same as `@homelab/i18n`'s; a test keeps them equal). */
+/** The languages a person can choose (the same as `@laris/i18n`'s; a test keeps them equal). */
 export const USER_LANGUAGES = ['en', 'de', 'ar'] as const;
 export const userLanguageSchema = z.enum(USER_LANGUAGES);
 export type UserLanguage = z.infer<typeof userLanguageSchema>;

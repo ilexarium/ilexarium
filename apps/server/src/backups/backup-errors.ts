@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, type Logger } from '@nestjs/common';
-import { type ApiErrorResponse, BACKUP_ERROR_CODES, type BackupErrorCode } from '@homelab/shared';
+import { type ApiErrorResponse, BACKUP_ERROR_CODES, type BackupErrorCode } from '@laris/shared';
 import type { BackupOutcome } from '../executor/executor.model.js';
 
 export function apiError(message: string, code: BackupErrorCode): ApiErrorResponse {

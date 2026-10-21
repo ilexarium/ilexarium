@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { ContainerAction } from '@homelab/shared';
+import type { ContainerAction } from '@laris/shared';
 import { firstValueFrom } from 'rxjs';
 
 /** The server's container actions. The new state arrives through the `containers` topic. */

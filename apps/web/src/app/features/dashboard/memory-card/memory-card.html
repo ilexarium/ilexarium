@@ -12,7 +12,7 @@
       {{ 'dashboard.memory.used' | translate: { size: used() } }}
     </p>
     <p class="text-sm text-muted-foreground">{{ swap() }}</p>
-    <app-metric-chart
+    <laris-metric-chart
       [series]="chart()"
       unit="bytes"
       [max]="memory().totalBytes"

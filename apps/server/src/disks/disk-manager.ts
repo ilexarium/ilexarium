@@ -5,7 +5,7 @@ import {
   type DiskErrorCode,
   type DiskMountRequest,
   type DisksStatus,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { type Observable, Subject } from 'rxjs';
 import type { DiskOutcome, ExecutorActor } from '../executor/executor.model.js';
 import { ExecutorService } from '../executor/executor.service.js';

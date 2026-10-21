@@ -5,7 +5,7 @@ import {
   type OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { BackupWarning } from '@homelab/shared';
+import type { BackupWarning } from '@laris/shared';
 import {
   auditTime,
   catchError,

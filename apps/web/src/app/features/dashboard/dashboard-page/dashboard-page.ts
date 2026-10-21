@@ -14,7 +14,7 @@ import { DashboardPageStore } from './dashboard-page-store';
 
 /** The server at a glance, live: host, CPU, memory, network, storage, containers. UI only. */
 @Component({
-  selector: 'app-dashboard-page',
+  selector: 'laris-dashboard-page',
   imports: [
     AlertsNotice,
     ContainersTable,

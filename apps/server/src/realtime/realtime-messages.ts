@@ -1,4 +1,4 @@
-import { REALTIME_ERROR_CODES, type RealtimeError, type ServerMessage } from '@homelab/shared';
+import { REALTIME_ERROR_CODES, type RealtimeError, type ServerMessage } from '@laris/shared';
 import { WebSocket } from 'ws';
 import type { RealtimeClient } from './realtime.model.js';
 

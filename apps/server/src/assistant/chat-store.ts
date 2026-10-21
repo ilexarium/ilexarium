@@ -5,7 +5,7 @@ import {
   type ChatList,
   type ChatMessage,
   type ChatSummary,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MESSAGE_FIELDS } from './assistant.constants.js';

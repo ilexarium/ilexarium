@@ -2,11 +2,11 @@ import type { WrapperConfig } from '../executor/executor.model.js';
 import { checkFolder, checkPort, localFolder } from './host-checks.js';
 
 const config: WrapperConfig = {
-  catalogDir: '/opt/homelab/catalog',
-  storageRoots: ['/srv/homelab', '/mnt/disk'],
-  serviceRoot: '/srv/homelab',
+  catalogDir: '/opt/laris/catalog',
+  storageRoots: ['/srv/laris', '/mnt/disk'],
+  serviceRoot: '/srv/laris',
   reservedPorts: [22, 3000],
-  protectedPaths: ['/srv/homelab/.platform'],
+  protectedPaths: ['/srv/laris/.platform'],
   dockerBin: '/usr/bin/docker',
 };
 
@@ -24,23 +24,23 @@ describe('checkFolder', () => {
     ['/', 'folder', 'path_not_allowed'],
     ['/var', 'folder', 'path_not_allowed'],
     ['/home/alice', 'folder', 'path_not_allowed'],
-    ['/srv/homelab/.platform/keys', 'folder', 'path_not_allowed'],
+    ['/srv/laris/.platform/keys', 'folder', 'path_not_allowed'],
     ['/mnt/disk/music', 'folder', null],
     ['/mnt/disk/music', 'missing', 'path_not_found'],
     ['/mnt/disk/music', 'other', 'path_not_found'],
     // Not readable by the app: the wrapper (root) decides.
     ['/mnt/disk/private', 'unreadable', null],
     // The service's own area: created on deploy.
-    ['/srv/homelab/demo/data', 'missing', null],
-    ['/srv/homelab/demo', 'missing', 'path_not_found'],
+    ['/srv/laris/demo/data', 'missing', null],
+    ['/srv/laris/demo', 'missing', 'path_not_found'],
   ] as const)('%s (%s) → %s', (path, state, expected) => {
     expect(checkFolder(path, 'demo', config, state)).toBe(expected);
   });
 });
 
 describe('localFolder', () => {
-  it('moves a /srv/homelab default to this machine’s service root', () => {
-    expect(localFolder('/srv/homelab/demo/data', { ...config, serviceRoot: '/data/srv' })).toBe(
+  it('moves a /srv/laris default to this machine’s service root', () => {
+    expect(localFolder('/srv/laris/demo/data', { ...config, serviceRoot: '/data/srv' })).toBe(
       '/data/srv/demo/data',
     );
     expect(localFolder('/mnt/x', config)).toBe('/mnt/x');

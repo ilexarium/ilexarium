@@ -10,7 +10,7 @@ import type { EndRequest } from '../processes.model';
  * unsaved work lost). UI only: the page opens it; the choice goes out through `confirm`.
  */
 @Component({
-  selector: 'app-end-process-dialog',
+  selector: 'laris-end-process-dialog',
   imports: [HlmAlertDialogImports, TranslatePipe],
   templateUrl: './end-process-dialog.html',
 })

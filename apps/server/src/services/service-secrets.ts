@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { FieldValues } from '@homelab/shared';
+import type { FieldValues } from '@laris/shared';
 import type { CatalogEntry } from '../catalog/catalog.model.js';
 import { SecretsService } from '../secrets/secrets.service.js';
 

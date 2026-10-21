@@ -52,7 +52,7 @@ describe('NtfySender', () => {
 
   it('posts the message as JSON to the server, the topic inside', async () => {
     await sender().send(
-      { kind: 'ntfy', topicUrl: `http://127.0.0.1:${port}/homelab-7f3k`, token: null },
+      { kind: 'ntfy', topicUrl: `http://127.0.0.1:${port}/laris-7f3k`, token: null },
       MESSAGE,
     );
     expect(received).toHaveLength(1);
@@ -60,7 +60,7 @@ describe('NtfySender', () => {
     expect(received[0].headers['content-type']).toBe('application/json');
     expect(received[0].headers.authorization).toBeUndefined();
     expect(received[0].body).toEqual({
-      topic: 'homelab-7f3k',
+      topic: 'laris-7f3k',
       title: 'Immich has stopped',
       message: 'On box, since 14:02.',
       priority: 4,

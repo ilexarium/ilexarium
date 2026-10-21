@@ -1,4 +1,4 @@
-// Tests for the disk wrapper (homelab-disk.mts) — run in development mode (not root), against a
+// Tests for the disk wrapper (laris-disk.mts) — run in development mode (not root), against a
 // pretend host (sys, run/udev, dev, proc under a temporary folder) and a fake `systemctl` that
 // mounts by writing the pretend mountinfo (testing/fake-disk-systemctl.cjs). Run by the server's
 // unit tests.
@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const WRAPPER = fileURLToPath(new URL('./homelab-disk.mts', import.meta.url));
+const WRAPPER = fileURLToPath(new URL('./laris-disk.mts', import.meta.url));
 const FAKE = fileURLToPath(new URL('./testing/fake-disk-systemctl.cjs', import.meta.url));
 
 const EXT4 = '0b6e6e2c-1111-4a6e-9f0e-6c2c8b3d1a01';
@@ -92,7 +92,7 @@ interface Run {
 function wrapper(args: string[], input: unknown = ''): Promise<Run> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [WRAPPER, ...args], {
-      env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
+      env: { LARIS_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
     });
     let out = '';
     child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
@@ -123,7 +123,7 @@ const calls = (): string[][] => {
 };
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'homelab-disk-'));
+  dir = mkdtempSync(join(tmpdir(), 'laris-disk-'));
   host = join(dir, 'host');
   for (const folder of ['sys/class/block', 'run/udev/data', 'dev/disk/by-uuid', 'proc/self']) {
     mkdirSync(join(host, folder), { recursive: true });
@@ -162,7 +162,7 @@ beforeEach(() => {
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-describe('homelab-disk', () => {
+describe('laris-disk', () => {
   it('starts with an empty environment, like the other wrappers', () => {
     expect(readFileSync(WRAPPER, 'utf8').split('\n')[0]).toBe('#!/usr/bin/env -S -i /usr/bin/node');
   });
@@ -188,10 +188,10 @@ describe('homelab-disk', () => {
       const unit = join(dir, 'units', 'mnt-backup\\x2ddisk.mount');
       expect(readFileSync(unit, 'utf8')).toBe(
         [
-          '# Managed by homelab (homelab-disk).',
+          '# Managed by laris (laris-disk).',
           '# It is not in /etc/fstab: `systemctl list-units --type=mount` lists it.',
           '[Unit]',
-          'Description=homelab disk backup-disk',
+          'Description=laris disk backup-disk',
           '',
           '[Mount]',
           `What=/dev/disk/by-uuid/${EXT4}`,
