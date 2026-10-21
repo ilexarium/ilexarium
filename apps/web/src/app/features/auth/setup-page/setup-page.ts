@@ -1,7 +1,8 @@
 import { Component, computed, DOCUMENT, inject, signal } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { Router } from '@angular/router';
-import { type SetupForm, setupFormSchema } from '@homelab/shared';
+import { type SetupForm, setupFormSchema, VALIDATION_LIMITS } from '@homelab/shared';
+import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
@@ -10,17 +11,15 @@ import { InsecureContextNotice } from '../../../core/security/insecure-context-n
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
-import { AuthFrame } from '../auth-frame/auth-frame';
-import { TranslatePipe } from '@ngx-translate/core';
-import { VALIDATION_LIMITS } from '@homelab/shared';
 import { Translator } from '../../../core/i18n/translator';
 import { APP_NAME } from '../../../core/page-title/page-title';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
+import { AuthFrame } from '../auth-frame/auth-frame';
 import { SetupPageStore } from './setup-page-store';
 
 /**
- * Reads the setup code from the installer's link (`/setup#token=…`) and removes it from the
- * address bar at once, so it doesn't linger in the visible URL. The fragment never reaches a server.
+ * The installer's link carries the code (`/setup#token=…`; a fragment never reaches a server).
+ * Removed from the address bar at once, so it doesn't linger there.
  */
 function takeTokenFromFragment(document: Document): string {
   const token = new URLSearchParams(document.location.hash.slice(1)).get('token') ?? '';
@@ -62,7 +61,7 @@ export class SetupPage {
   protected readonly appName = APP_NAME;
   protected readonly limits = VALIDATION_LIMITS;
   private readonly translator = inject(Translator);
-  /** Around the command, which the template shows as code. */
+  /** The text around the command, which the template shows as code. */
   protected readonly setupCodeHelp = computed(() =>
     this.translator.around('auth.setup.setupCodeHelp', 'command'),
   );

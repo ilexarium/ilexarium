@@ -138,7 +138,6 @@ export const authStatusResponseSchema = z.object({
 });
 export type AuthStatusResponse = z.infer<typeof authStatusResponseSchema>;
 
-/** Returned by setup and login. */
 export const userResponseSchema = z.object({
   user: publicUserSchema,
 });

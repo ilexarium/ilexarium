@@ -10,7 +10,6 @@ import type {
 } from '@homelab/shared';
 import { firstValueFrom } from 'rxjs';
 
-/** The server's /api/auth endpoints. The session cookie travels automatically (same origin). */
 @Service()
 export class AuthApi {
   private readonly http = inject(HttpClient);
@@ -35,7 +34,6 @@ export class AuthApi {
     return firstValueFrom(this.http.post('/api/auth/logout', null));
   }
 
-  /** Ends every session of the signed-in person, this one too. */
   logoutEverywhere(): Promise<unknown> {
     return firstValueFrom(this.http.post('/api/auth/logout-everywhere', null));
   }

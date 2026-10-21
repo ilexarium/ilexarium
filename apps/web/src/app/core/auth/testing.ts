@@ -1,5 +1,6 @@
 import type { PublicUser } from '@homelab/shared';
 import { AuthApi } from './auth-api';
+import { SIGN_OUT_CHANNEL } from './sign-out-channel';
 
 export const OWNER: PublicUser = {
   id: '0192f3a1-7c2e-7a4b-9d1e-3f5a7c9b2d4e',
@@ -28,4 +29,18 @@ export function fakeAuthApi(
     logoutEverywhere: vi.fn(() => Promise.resolve(null)),
   };
   return { api, provider: { provide: AuthApi, useValue: api }, server };
+}
+
+/** A fake of the other tabs: `receive()` is a message from one of them. */
+export function fakeSignOutChannel() {
+  const channel = {
+    postMessage: vi.fn(),
+    close: vi.fn(),
+    onmessage: null as ((event: MessageEvent) => void) | null,
+  };
+  return {
+    channel,
+    receive: () => channel.onmessage?.(new MessageEvent('message', { data: null })),
+    provider: { provide: SIGN_OUT_CHANNEL, useValue: channel },
+  };
 }

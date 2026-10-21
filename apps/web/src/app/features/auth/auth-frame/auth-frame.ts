@@ -3,7 +3,6 @@ import { HlmCardImports } from '@ui/card';
 import { APP_NAME } from '../../../core/page-title/page-title';
 import { LarisMark } from '../../../shared/brand/laris-mark';
 
-/** The centred card the signed-out pages (login, setup) sit in, below the logo. */
 @Component({
   selector: 'app-auth-frame',
   imports: [HlmCardImports, LarisMark],
