@@ -1,11 +1,13 @@
 import { LoginThrottleService, TooManyAttemptsException } from './login-throttle.service.js';
 
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
+
 function setup() {
-  let now = 1_000_000;
-  const throttle = new LoginThrottleService(() => now);
+  const throttle = new LoginThrottleService();
   return {
     throttle,
-    advance: (ms: number) => (now += ms),
+    advance: (ms: number) => vi.advanceTimersByTime(ms),
     retryAfter: (username: string): number | undefined => {
       try {
         throttle.assertAllowed(username);

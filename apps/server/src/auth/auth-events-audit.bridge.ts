@@ -5,8 +5,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { UsersService } from '../users/users.service.js';
 
 /**
- * Records the package's sign-in and sign-out events in the audit log. Failed sign-ins are
- * recorded by our login code (the package never sees them). Best-effort (`tryRecord`): a broken
+ * Failed sign-ins are audited by `AuthService` (the package never sees them). Best-effort: a broken
  * audit table must not lock everyone out.
  */
 @Injectable()
@@ -27,7 +26,7 @@ export class AuthEventsAuditBridge implements OnModuleInit, OnModuleDestroy {
     this.subscription?.unsubscribe();
   }
 
-  /** Resolves once the event is recorded (or skipped). Exposed for tests. */
+  /** Public for tests: resolves once recorded. */
   async handle(event: AuthenticationEvent): Promise<void> {
     if (event.type !== 'sign-in' && event.type !== 'sign-out') return;
     const user = await this.users.findById(event.userId).catch(() => null);

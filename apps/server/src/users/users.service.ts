@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { publicUserSelect, toPublicUser } from './public-user.js';
 import type { ProfileFields, StoredAvatar, UserCredentials } from './users.model.js';
 
-/** Arbitrary constant identifying the "create the first user" advisory lock. */
+/** Any constant: the "create the first user" advisory lock. */
 const FIRST_USER_LOCK_KEY = 4_401_001;
 
 /** Usernames are stored lowercase; normalise here too so uniqueness never depends on the caller. */
@@ -12,10 +12,7 @@ function normaliseUsername(username: string): string {
   return username.trim().toLowerCase();
 }
 
-/**
- * Owns the User table. Everything returns public fields only, except `findCredentials()`,
- * which is for verifying a password (login, password change) and nothing else.
- */
+/** Everything returns public fields only, except `findCredentials()`: for checking a password. */
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -52,11 +49,7 @@ export class UsersService {
     return toPublicUser(user);
   }
 
-  /**
-   * Creates the first (owner) account — only if no user exists yet. An advisory lock serialises
-   * concurrent attempts, so two simultaneous setups can never both create an owner.
-   * Resolves `null` when a user already exists.
-   */
+  /** `null` when a user exists already. The lock means two setups at once can't both win. */
   async createFirstUser(input: {
     username: string;
     passwordHash: string;
@@ -76,7 +69,6 @@ export class UsersService {
     await this.prisma.user.update({ where: { id }, data: { passwordHash } });
   }
 
-  /** The profile's fields; `null` removes a name or an address. */
   async updateProfile(id: string, profile: ProfileFields): Promise<PublicUser> {
     const user = await this.prisma.user.update({
       where: { id },
@@ -86,7 +78,7 @@ export class UsersService {
     return toPublicUser(user);
   }
 
-  /** The picture, already checked (`inspectPicture`). */
+  /** Only bytes `inspectPicture` has checked. */
   async setAvatar(id: string, bytes: Buffer, type: ProfilePictureType): Promise<PublicUser> {
     const avatar = { bytes: new Uint8Array(bytes), type, updatedAt: new Date() };
     const user = await this.prisma.user.update({
@@ -97,7 +89,6 @@ export class UsersService {
     return toPublicUser(user);
   }
 
-  /** Idempotent. */
   async removeAvatar(id: string): Promise<PublicUser> {
     await this.prisma.userAvatar.deleteMany({ where: { userId: id } });
     const user = await this.prisma.user.findUniqueOrThrow({
