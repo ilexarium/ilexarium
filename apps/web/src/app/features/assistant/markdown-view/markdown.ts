@@ -1,4 +1,5 @@
 import { Marked, type Tokens } from 'marked';
+import { escapeHtml as escape } from '../../../shared/format/escape-html';
 
 const marked = new Marked({
   gfm: true,
@@ -16,13 +17,4 @@ const marked = new Marked({
 /** Markdown to HTML, for Angular's sanitiser to check (`MarkdownView`). */
 export function renderMarkdown(text: string): string {
   return marked.parse(text) as string;
-}
-
-function escape(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }

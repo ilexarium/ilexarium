@@ -263,6 +263,19 @@ describe('SystemMetricsService', () => {
     expect(published.length).toBeGreaterThan(0);
   });
 
+  it('skips a sample that fails to compute, and goes on', async () => {
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    start();
+    await vi.advanceTimersByTimeAsync(FIRST_SAMPLE_DELAY_MS);
+    expect(published).toHaveLength(1);
+    vi.spyOn(reader, 'memory').mockResolvedValueOnce(null as unknown as MemoryInfo);
+    await vi.advanceTimersByTimeAsync(SAMPLE_INTERVAL_MS);
+    expect(published).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(SAMPLE_INTERVAL_MS);
+    expect(published).toHaveLength(2);
+    expect(service.collecting).toBe(true);
+  });
+
   it('registers itself as the system topic source', () => {
     const subscriptions = new RealtimeSubscriptions();
     const register = vi.spyOn(subscriptions, 'registerSource');

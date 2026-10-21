@@ -7,18 +7,10 @@ import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
 import { canDrawCharts } from './can-draw';
 import { ChartColorsService } from './chart-colors';
 import { HISTORY_WINDOW_MS } from '@laris/shared';
-import type { ChartSeries, ChartUnit } from './charts.model';
+import type { ChartSeries, ChartUnit, TooltipItem } from './charts.model';
 import { Translator } from '../../core/i18n/translator';
+import { escapeHtml } from '../format/escape-html';
 import { Formatter } from '../format/formatter';
-
-/** What ECharts hands an axis tooltip, per series (`marker` is its own coloured dot, as HTML). */
-interface TooltipItem {
-  marker: string;
-  seriesName: string;
-  value: [number, number];
-}
-
-const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // Only what these charts use (line chart, grid, tooltip, canvas) — keeps the chunk small.
 echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);

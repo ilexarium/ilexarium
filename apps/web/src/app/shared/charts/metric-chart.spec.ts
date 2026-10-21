@@ -71,15 +71,16 @@ describe('MetricChart', () => {
 
   it('words the tooltip: the time of day, then each series in its unit', async () => {
     const { options } = await render(series, 'rate');
+    const at = new Date(2026, 9, 21, 9, 11, 5).getTime(); // local time, in any time zone
     const html = options.tooltip.formatter([
-      { marker: '<i></i>', seriesName: 'Receiving', value: [11 * MINUTE, 1_200_000] },
-      { marker: '<i></i>', seriesName: '<b>Sending</b>', value: [11 * MINUTE, 42.4] },
+      { marker: '<i></i>', seriesName: 'Receiving', value: [at, 1_200_000] },
+      { marker: '<i></i>', seriesName: '<b>Sending</b>', value: [at, 42.4] },
     ]);
     const [time, ...rows] = html.split('<br>');
-    expect(time).toMatch(/\d:11:00/);
+    expect(time).toMatch(/^9:11:05\sAM$/); // the space before AM differs between ICU versions
     expect(rows).toEqual([
       '<i></i> Receiving <b>1.2 MB/s</b>',
-      '<i></i> &#60;b&#62;Sending&#60;/b&#62; <b>42 B/s</b>',
+      '<i></i> &lt;b&gt;Sending&lt;/b&gt; <b>42 B/s</b>',
     ]);
   });
 
