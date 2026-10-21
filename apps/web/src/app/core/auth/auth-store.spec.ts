@@ -149,6 +149,18 @@ describe('AuthStore', () => {
   });
 
   describe('other tabs', () => {
+    it('are told before the server call (their sockets close meanwhile)', async () => {
+      const { store, api, tabs } = setup({ user: OWNER });
+      await store.load();
+      vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+      api.logout.mockImplementationOnce(async () => {
+        expect(tabs.channel.postMessage).toHaveBeenCalledOnce();
+        return null;
+      });
+      await store.logout();
+      expect(api.logout).toHaveBeenCalledOnce();
+    });
+
     it('are told about a sign-out, also when the server call fails', async () => {
       const { store, api, tabs } = setup({ user: OWNER });
       await store.load();

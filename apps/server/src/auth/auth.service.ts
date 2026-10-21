@@ -65,6 +65,7 @@ export class AuthService {
     private readonly setupToken: SetupService,
   ) {}
 
+  /** Only while no user exists; `createFirstUser` makes sure two at once can't both win. */
   async setup({ setupToken, username, password }: SetupRequest, ip?: string): Promise<PublicUser> {
     if (!this.setupToken.isPending()) throw new ForbiddenException(SETUP_NOT_AVAILABLE);
     if (!this.setupToken.verify(setupToken)) {
@@ -151,7 +152,7 @@ export class AuthService {
     await this.checkPassword(user, password, 'auth.password_confirm', WRONG_PASSWORD, ip);
   }
 
-  /** The signed-in user's password, throttled like sign-in. */
+  /** Throttled like sign-in. Wrong: a 400 on the field, as a 401 would sign the browser out. */
   private async checkPassword(
     user: PublicUser,
     password: string,

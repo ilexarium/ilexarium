@@ -49,6 +49,7 @@ export class AuthController {
     return { user: await this.auth.login(body, ip) };
   }
 
+  /** Public: signing out with a session that already ended is not an error. */
   @Public()
   @Post('logout')
   @HttpCode(204)
