@@ -32,7 +32,8 @@ export class HlmFieldError implements OnDestroy {
   private static _id = 0;
 
   private readonly _field = inject(BrnField, { optional: true });
-  private readonly _a11y = inject(BrnFieldA11yService, { optional: true, host: true });
+  // Homelab: no `host: true`, so the field is found through a wrapper (`app-field-errors`) too.
+  private readonly _a11y = inject(BrnFieldA11yService, { optional: true });
 
   private _registeredId?: string | undefined;
 

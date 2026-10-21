@@ -1,22 +1,13 @@
-import { Component, inject, input } from '@angular/core';
-import { BrnFieldA11yService } from '@spartan-ng/brain/field';
+import { Component, input } from '@angular/core';
 import { HlmFieldError } from '@ui/field';
 import { ErrorTextPipe } from './error-text-pipe';
 import type { WithErrors } from './forms.model';
 
-/**
- * Inside an `hlmField`. `hlm-field-error` finds the field's a11y service with `host: true`, which
- * stops at this component: passed through, so the input's `aria-describedby` still names the error.
- */
+/** `contents`: the errors are the field's own flex items, spaced by its gap, as if written there. */
 @Component({
   selector: 'app-field-errors',
   imports: [HlmFieldError, ErrorTextPipe],
-  viewProviders: [
-    {
-      provide: BrnFieldA11yService,
-      useFactory: () => inject(BrnFieldA11yService, { skipSelf: true }),
-    },
-  ],
+  host: { class: 'contents' },
   templateUrl: './field-errors.html',
 })
 export class FieldErrors {

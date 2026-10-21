@@ -7,6 +7,7 @@ import type { WithErrors } from './forms.model';
 @Component({
   selector: 'app-form-errors',
   imports: [HlmAlertImports, ErrorTextPipe],
+  host: { class: 'contents' },
   templateUrl: './form-errors.html',
 })
 export class FormErrors {
