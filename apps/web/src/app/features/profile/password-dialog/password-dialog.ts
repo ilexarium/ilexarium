@@ -15,15 +15,15 @@ import {
   VALIDATION_LIMITS,
 } from '@homelab/shared';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmDialogImports } from '@ui/dialog';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { AuthStore } from '../../../core/auth/auth-store';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { ProfilePageStore } from '../profile-page/profile-page-store';
 
 const EMPTY: ChangePasswordForm = { currentPassword: '', newPassword: '', confirmNewPassword: '' };
@@ -35,10 +35,10 @@ const EMPTY: ChangePasswordForm = { currentPassword: '', newPassword: '', confir
 @Component({
   selector: 'app-password-dialog',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
-    HlmAlertImports,
     HlmButton,
     HlmDialogImports,
     HlmFieldImports,

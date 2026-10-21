@@ -19,9 +19,10 @@ import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { NotificationsPageStore } from '../notifications-page/notifications-page-store';
 
 /** Submission port when nothing is saved yet: STARTTLS. */
@@ -34,7 +35,8 @@ const DEFAULT_PORT = 587;
 @Component({
   selector: 'app-email-form',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
     HlmAlertImports,

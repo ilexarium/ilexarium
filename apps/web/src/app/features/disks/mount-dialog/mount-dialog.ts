@@ -12,8 +12,9 @@ import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { DisksPageStore } from '../disks-page/disks-page-store';
 import type { MountTarget } from '../disks.model';
 
@@ -25,7 +26,8 @@ import type { MountTarget } from '../disks.model';
 @Component({
   selector: 'app-mount-dialog',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
     HlmAlertDialogImports,

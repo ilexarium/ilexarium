@@ -6,11 +6,7 @@
     <app-insecure-context-notice />
   } @else {
     <form [formRoot]="form" class="grid gap-5">
-      @for (error of form().errors(); track error) {
-        <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error | errorText }}</p>
-        </div>
-      }
+      <app-form-errors [form]="form" />
 
       <div hlmField>
         <label hlmFieldLabel for="setupToken">{{ 'auth.setup.setupCode' | translate }}</label>
@@ -28,9 +24,7 @@
           {{ setupCodeHelp()[0] }}<code dir="ltr">sudo homelab-setup-code</code
           >{{ setupCodeHelp()[1] }}
         </p>
-        @for (error of form.setupToken().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.setupToken" />
       </div>
 
       <div hlmField>
@@ -45,9 +39,7 @@
           spellcheck="false"
         />
         <p hlmFieldDescription>{{ 'auth.setup.usernameHelp' | translate }}</p>
-        @for (error of form.username().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.username" />
       </div>
 
       <div hlmField>
@@ -65,9 +57,7 @@
           <app-password-toggle [(visible)]="showPasswords" />
         </div>
         <p hlmFieldDescription>{{ 'auth.setup.passwordHelp' | translate: limits }}</p>
-        @for (error of form.password().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.password" />
       </div>
 
       <div hlmField>
@@ -82,9 +72,7 @@
           [formField]="form.confirmPassword"
           autocomplete="new-password"
         />
-        @for (error of form.confirmPassword().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.confirmPassword" />
       </div>
 
       <button hlmBtn type="submit" class="w-full" [disabled]="form().submitting()">

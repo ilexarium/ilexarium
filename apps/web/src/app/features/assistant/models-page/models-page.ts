@@ -10,12 +10,12 @@ import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { HlmSkeleton } from '@ui/skeleton';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { Formatter } from '../../../shared/format/formatter';
 import { InstalledModels } from '../installed-models/installed-models';
 import { LibraryResults } from '../library-results/library-results';
 import { PullProgress } from '../pull-progress/pull-progress';
 import { ModelsPageStore } from './models-page-store';
+import { FieldErrors } from '../../../shared/forms/field-errors';
 
 /**
  * The Assistant's models (docs/plans/ai_assistant.md): the installed ones, downloading one by
@@ -25,7 +25,7 @@ import { ModelsPageStore } from './models-page-store';
   selector: 'app-models-page',
   imports: [
     EmptyState,
-    ErrorTextPipe,
+    FieldErrors,
     FormField,
     FormRoot,
     HlmButton,

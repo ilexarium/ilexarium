@@ -2,14 +2,14 @@ import { Component, input, signal } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { type LinuxSignInRequest, linuxSignInRequestSchema } from '@homelab/shared';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 
 /**
  * Signing in as a Linux user of this machine (sshd checks the password), for Files and the
@@ -19,10 +19,10 @@ import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 @Component({
   selector: 'app-linux-sign-in',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
-    HlmAlertImports,
     HlmButton,
     HlmCardImports,
     HlmFieldImports,

@@ -10,11 +10,7 @@
       </div>
     }
     <form [formRoot]="form" class="grid gap-5">
-      @for (error of form().errors(); track error) {
-        <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error | errorText }}</p>
-        </div>
-      }
+      <app-form-errors [form]="form" />
 
       <label class="flex items-center gap-3 text-sm font-medium">
         <input type="checkbox" class="size-4" [formField]="form.enabled" />
@@ -32,9 +28,7 @@
             placeholder="mail.example.com"
             [formField]="form.host"
           />
-          @for (error of form.host().errors(); track error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
+          <app-field-errors [field]="form.host" />
         </div>
         <div hlmField>
           <label hlmFieldLabel for="email-port">{{ 'notifications.email.port' | translate }}</label>
@@ -46,9 +40,7 @@
             dir="ltr"
             [formField]="form.port"
           />
-          @for (error of form.port().errors(); track error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
+          <app-field-errors [field]="form.port" />
         </div>
         <p hlmFieldDescription class="sm:col-span-2 sm:-mt-3">
           {{ 'notifications.email.portHelp' | translate }}
@@ -68,9 +60,7 @@
             [formField]="form.username"
           />
           <p hlmFieldDescription>{{ 'notifications.email.usernameHelp' | translate }}</p>
-          @for (error of form.username().errors(); track error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
+          <app-field-errors [field]="form.username" />
         </div>
         <div hlmField>
           <label hlmFieldLabel for="email-password">{{
@@ -91,9 +81,7 @@
           @if (settings()?.passwordSet) {
             <p hlmFieldDescription>{{ 'notifications.email.passwordSet' | translate }}</p>
           }
-          @for (error of form.password().errors(); track error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
+          <app-field-errors [field]="form.password" />
         </div>
       </div>
 
@@ -109,9 +97,7 @@
             placeholder="laris@example.com"
             [formField]="form.from"
           />
-          @for (error of form.from().errors(); track error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
+          <app-field-errors [field]="form.from" />
         </div>
         <div hlmField>
           <label hlmFieldLabel for="email-to">{{ 'notifications.email.to' | translate }}</label>
@@ -123,9 +109,7 @@
             autocomplete="email"
             [formField]="form.to"
           />
-          @for (error of form.to().errors(); track error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
+          <app-field-errors [field]="form.to" />
         </div>
       </div>
 

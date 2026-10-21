@@ -26,15 +26,15 @@ import {
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideKeyRound } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { HlmSelectImports } from '@ui/select';
 import { Translator } from '../../../core/i18n/translator';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
 import { PassphraseDialog } from '../passphrase-dialog/passphrase-dialog';
 
@@ -45,10 +45,10 @@ import { PassphraseDialog } from '../passphrase-dialog/passphrase-dialog';
 @Component({
   selector: 'app-backup-settings',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
-    HlmAlertImports,
     HlmButton,
     HlmCardImports,
     HlmFieldImports,

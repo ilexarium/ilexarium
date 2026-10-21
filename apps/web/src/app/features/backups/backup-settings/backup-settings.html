@@ -4,11 +4,7 @@
   </div>
   <div hlmCardContent class="grid grid-cols-1 gap-6">
     <form [formRoot]="form" class="grid grid-cols-1 gap-5">
-      @for (error of form().errors(); track error) {
-        <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error | errorText }}</p>
-        </div>
-      }
+      <app-form-errors [form]="form" />
       <div class="flex flex-wrap gap-4">
         <div hlmField class="w-full sm:w-56">
           <label hlmFieldLabel for="settings-frequency">{{
@@ -36,9 +32,7 @@
             dir="ltr"
             [formField]="form.schedule.time"
           />
-          @for (error of form.schedule.time().errors(); track error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
+          <app-field-errors [field]="form.schedule.time" />
         </div>
       </div>
 
@@ -59,9 +53,7 @@
               [id]="'settings-keep-' + part"
               [formField]="keep(part)"
             />
-            @for (error of keep(part)().errors(); track error) {
-              <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-            }
+            <app-field-errors [field]="keep(part)" />
           </div>
         }
       </fieldset>
@@ -84,9 +76,7 @@
             {{ 'backups.settings.newDisk' | translate }}
           </p>
         }
-        @for (error of form.destination().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.destination" />
       </div>
 
       <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">

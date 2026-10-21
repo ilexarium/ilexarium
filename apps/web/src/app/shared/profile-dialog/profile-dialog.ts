@@ -11,14 +11,14 @@ import {
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { type ProfileForm, profileFormSchema, VALIDATION_LIMITS } from '@homelab/shared';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmDialogImports } from '@ui/dialog';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { AuthStore } from '../../core/auth/auth-store';
-import { ErrorTextPipe } from '../forms/error-text-pipe';
 import { toSubmissionErrors } from '../forms/submission-errors';
+import { FieldErrors } from '../forms/field-errors';
+import { FormErrors } from '../forms/form-errors';
 import { AvatarPicker } from './avatar-picker/avatar-picker';
 import { ProfileEditStore } from './profile-edit-store';
 
@@ -30,10 +30,10 @@ import { ProfileEditStore } from './profile-edit-store';
   selector: 'app-profile-dialog',
   imports: [
     AvatarPicker,
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
-    HlmAlertImports,
     HlmButton,
     HlmDialogImports,
     HlmFieldImports,

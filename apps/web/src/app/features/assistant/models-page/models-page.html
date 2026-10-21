@@ -95,9 +95,7 @@
             </div>
             <p hlmFieldDescription>{{ 'assistant.byName.help' | translate }}</p>
             @if (pullForm.model().touched()) {
-              @for (error of pullForm.model().errors(); track error) {
-                <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-              }
+              <app-field-errors [field]="pullForm.model" />
             }
           </div>
         </form>

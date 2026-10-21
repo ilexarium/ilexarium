@@ -19,8 +19,9 @@ import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { NotificationsPageStore } from '../notifications-page/notifications-page-store';
 
 const TOPIC_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -38,7 +39,8 @@ function randomTopic(): string {
 @Component({
   selector: 'app-ntfy-form',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
     HlmAlertImports,

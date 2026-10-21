@@ -5,11 +5,7 @@
   </div>
   <div hlmCardContent>
     <form [formRoot]="form" class="grid gap-5">
-      @for (error of form().errors(); track error) {
-        <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error | errorText }}</p>
-        </div>
-      }
+      <app-form-errors [form]="form" />
       <div hlmField>
         <label hlmFieldLabel for="linux-username">{{ 'files.signIn.username' | translate }}</label>
         <input
@@ -21,9 +17,7 @@
           spellcheck="false"
           [formField]="form.username"
         />
-        @for (error of form.username().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.username" />
       </div>
       <div hlmField>
         <label hlmFieldLabel for="linux-password">{{ 'files.signIn.password' | translate }}</label>
@@ -39,9 +33,7 @@
           />
           <app-password-toggle [(visible)]="showPassword" />
         </div>
-        @for (error of form.password().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.password" />
       </div>
       <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
         {{ (form().submitting() ? 'files.signIn.submitting' : 'files.signIn.submit') | translate }}

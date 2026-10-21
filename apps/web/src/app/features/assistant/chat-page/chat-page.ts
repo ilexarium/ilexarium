@@ -20,10 +20,10 @@ import { HlmTextarea } from '@ui/textarea';
 import { map } from 'rxjs';
 import { LanguageService } from '../../../core/i18n/language';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { ChatList } from '../chat-list/chat-list';
 import { ChatThread } from '../chat-thread/chat-thread';
 import { ChatPageStore } from './chat-page-store';
+import { FieldErrors } from '../../../shared/forms/field-errors';
 
 /**
  * Chat with a local model (docs/plans/ai_assistant.md): the chats beside the conversation (a
@@ -37,7 +37,7 @@ import { ChatPageStore } from './chat-page-store';
     ChatList,
     ChatThread,
     EmptyState,
-    ErrorTextPipe,
+    FieldErrors,
     FormField,
     FormRoot,
     HlmButton,

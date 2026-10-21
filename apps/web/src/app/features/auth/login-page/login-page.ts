@@ -12,7 +12,8 @@ import { InsecureContextNotice } from '../../../core/security/insecure-context-n
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { AuthFrame } from '../auth-frame/auth-frame';
 import { LoginPageStore } from './login-page-store';
 
@@ -20,7 +21,8 @@ import { LoginPageStore } from './login-page-store';
   selector: 'app-login-page',
   imports: [
     AuthFrame,
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
     HlmAlertImports,
