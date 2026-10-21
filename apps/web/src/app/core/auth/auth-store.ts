@@ -1,10 +1,18 @@
 import { computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+import {
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
 import type { PublicUser } from '@homelab/shared';
 import { LanguageService } from '../i18n/language';
 import { AuthApi } from './auth-api';
 import type { AuthStatus } from './auth.model';
+import { SIGN_OUT_CHANNEL } from './sign-out-channel';
 
 interface AuthState {
   user: PublicUser | null;
@@ -13,14 +21,11 @@ interface AuthState {
 }
 
 /**
- * Who is signed in, app-wide, with their profile (name, address, language, picture). The session
- * itself is an HttpOnly cookie the browser handles — no token ever lives in JavaScript. The
- * account's language is applied when it's known (startup, sign-in); `ProfileStore` changes it.
- * Loaded at startup: it imports nothing of `@homelab/shared` but types, so the first download
- * stays small.
+ * The session itself is an HttpOnly cookie: no token ever lives in JavaScript. Loaded at startup,
+ * so it imports nothing of `@homelab/shared` but types (a small first download).
  *
- * Rule for every global store added later: reset it on sign-out, so nothing of the previous
- * user remains in memory.
+ * Every global store resets on sign-out (following `isAuthenticated`), so nothing of the previous
+ * user stays in memory.
  */
 export const AuthStore = signalStore(
   { providedIn: 'root' },
@@ -34,17 +39,31 @@ export const AuthStore = signalStore(
       api = inject(AuthApi),
       languages = inject(LanguageService),
       router = inject(Router),
+      channel = inject(SIGN_OUT_CHANNEL),
     ) => {
       const sessionEnded = () => patchState(store, { user: null, status: 'anonymous' });
       /** Signing out on purpose: the socket closing with 4401 meanwhile isn't an expiry. */
       let leaving = false;
-      /** The account's language, if it has one and it isn't the one shown. Never throws. */
       const applyLanguage = async (user: PublicUser | null) => {
         if (!user?.language || user.language === languages.language()) return;
         await languages.setLanguage(user.language).catch(() => undefined);
       };
+      const toLogin = (expired: boolean) => {
+        if (router.url.startsWith('/login')) return;
+        void router.navigate(['/login'], {
+          queryParams: {
+            ...(router.url !== '/' && { returnUrl: router.url }),
+            ...(expired && { reason: 'expired' }),
+          },
+        });
+      };
+      const signedOut = async () => {
+        sessionEnded();
+        channel?.postMessage(null);
+        await router.navigateByUrl('/login');
+      };
       return {
-        /** Asks the server whether setup is needed and who is signed in. Never throws. */
+        /** Never throws: an unreachable server is never taken for signed out. */
         async load(): Promise<void> {
           patchState(store, { status: 'unknown' });
           try {
@@ -55,7 +74,6 @@ export const AuthStore = signalStore(
             patchState(store, { user: null, status: 'unreachable' });
           }
         },
-        /** After a successful login or setup. */
         signedIn(user: PublicUser): void {
           patchState(store, { user, status: 'authenticated', needsSetup: false });
           void applyLanguage(user);
@@ -64,40 +82,32 @@ export const AuthStore = signalStore(
         updated(user: PublicUser): void {
           if (store.isAuthenticated()) patchState(store, { user });
         },
-        /** The server says the session is missing or ended (a 401). */
         sessionEnded,
-        /**
-         * The session ended while the app was in use (an API 401, a WebSocket 4401): clear it and go
-         * to the login page, remembering where the user was. "Expired" only if they were signed in.
-         */
+        /** An API 401 or a WebSocket 4401 while in use. "Expired" only if they were signed in. */
         sessionExpired(): void {
           if (leaving) return;
           const wasSignedIn = store.status() === 'authenticated';
           sessionEnded();
-          if (!router.url.startsWith('/login')) {
-            void router.navigate(['/login'], {
-              queryParams: {
-                ...(router.url !== '/' && { returnUrl: router.url }),
-                ...(wasSignedIn && { reason: 'expired' }),
-              },
-            });
-          }
+          toLogin(wasSignedIn);
+        },
+        /** Another tab signed out: this one shares its cookie. */
+        signedOutElsewhere(): void {
+          if (!store.isAuthenticated()) return;
+          sessionEnded();
+          toLogin(false);
         },
         async logout(): Promise<void> {
           try {
             await api.logout();
           } finally {
-            sessionEnded();
-            await router.navigateByUrl('/login');
+            await signedOut();
           }
         },
-        /** Ends every session of this person — this one too — and goes to the login page. */
         async logoutEverywhere(): Promise<void> {
           leaving = true;
           try {
             await api.logoutEverywhere();
-            sessionEnded();
-            await router.navigateByUrl('/login');
+            await signedOut();
           } finally {
             leaving = false;
           }
@@ -105,4 +115,12 @@ export const AuthStore = signalStore(
       };
     },
   ),
+  withHooks((store, channel = inject(SIGN_OUT_CHANNEL)) => ({
+    onInit() {
+      if (channel) channel.onmessage = () => store.signedOutElsewhere();
+    },
+    onDestroy() {
+      channel?.close();
+    },
+  })),
 );

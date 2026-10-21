@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { type LoginRequest, loginRequestSchema } from '@homelab/shared';
+import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
@@ -11,9 +12,8 @@ import { InsecureContextNotice } from '../../../core/security/insecure-context-n
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
-import { AuthFrame } from '../auth-frame/auth-frame';
-import { TranslatePipe } from '@ngx-translate/core';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
+import { AuthFrame } from '../auth-frame/auth-frame';
 import { LoginPageStore } from './login-page-store';
 
 @Component({
