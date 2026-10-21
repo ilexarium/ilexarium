@@ -1,8 +1,10 @@
 import {
   formatBytes,
+  formatClock,
   formatDuration,
   formatLogTime,
   formatCount,
+  formatDecimal,
   formatPercent,
   formatRate,
   percentOf,
@@ -28,6 +30,20 @@ describe('formatRate', () => {
   it('is bytes per second', () => {
     expect(formatRate(1_200_000)).toBe('1.2 MB/s');
     expect(formatRate(0)).toBe('0 B/s');
+  });
+});
+
+describe('formatClock', () => {
+  it('shows the time of day with seconds', () => {
+    expect(formatClock(Date.UTC(2026, 9, 21, 19, 56, 22), 'de')).toMatch(/^\d{2}:56:22$/);
+  });
+});
+
+describe('formatDecimal', () => {
+  it('keeps the digits asked for, with the language’s decimal mark', () => {
+    expect(formatDecimal(0.5)).toBe('0.50');
+    expect(formatDecimal(1.234, 'de')).toBe('1,23');
+    expect(formatDecimal(2, 'en', 1)).toBe('2.0');
   });
 });
 

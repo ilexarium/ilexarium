@@ -3,6 +3,9 @@ import { z } from 'zod';
 // Data carried by the `system` and `containers` realtime topics. The server sends raw numbers
 // (bytes, bytes per second, percent; timestamps as epoch milliseconds) — formatting is the web's job.
 
+/** How far back the charts reach, for the system and for each container. */
+export const HISTORY_WINDOW_MS = 15 * 60_000;
+
 const bytes = z.number().nonnegative();
 const bytesPerSec = z.number().nonnegative();
 const percent = z.number().nonnegative();

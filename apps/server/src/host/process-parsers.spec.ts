@@ -7,7 +7,7 @@ import {
   parseProcStat,
   parseProcStatus,
   procHidesProcesses,
-} from './proc-parsers.js';
+} from './process-parsers.js';
 
 const ID = 'a'.repeat(64);
 

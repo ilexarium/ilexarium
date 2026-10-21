@@ -1,22 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type {
-  Container,
-  ContainersSnapshot,
-  ContainerStats,
-  SystemSnapshot,
-  SystemUpdate,
+import {
+  type Container,
+  type ContainersSnapshot,
+  type ContainerStats,
+  HISTORY_WINDOW_MS,
+  type SystemSnapshot,
+  type SystemUpdate,
 } from '@laris/shared';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { RealtimeService } from '../realtime/realtime-service';
 import { fakeSockets } from '../realtime/testing';
-import {
-  applyContainersUpdate,
-  applySystemUpdate,
-  HISTORY_WINDOW_MS,
-  MonitoringStore,
-} from './monitoring-store';
+import { applyContainersUpdate, applySystemUpdate, MonitoringStore } from './monitoring-store';
 
 const MINUTE = 60_000;
 

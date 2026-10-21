@@ -13,7 +13,7 @@ import { Formatter } from '../../../shared/format/formatter';
 /** Alerts shown on the dashboard at most; the rest are counted. */
 const SHOWN = 3;
 
-/** The open alerts on the dashboard (backups' warnings among them), with a link to the Alerts page. */
+/** Shown only when there are any: an empty host would still take a gap in the page's grid. */
 @Component({
   selector: 'laris-alerts-notice',
   imports: [HlmAlertImports, HlmButton, NgIcon, PluralPipe, RouterLink, TranslatePipe],

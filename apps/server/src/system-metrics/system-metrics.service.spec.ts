@@ -1,13 +1,12 @@
 import { Logger } from '@nestjs/common';
-import type { DiskUsage, HostInfo, SystemUpdate } from '@laris/shared';
+import { type DiskUsage, HISTORY_WINDOW_MS, type HostInfo, type SystemUpdate } from '@laris/shared';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import {
   DISK_INTERVAL_MS,
   FIRST_SAMPLE_DELAY_MS,
-  HISTORY_WINDOW_MS,
   SAMPLE_INTERVAL_MS,
-  SystemMetricsService,
-} from './system-metrics.service.js';
+} from './system-metrics.constants.js';
+import { SystemMetricsService } from './system-metrics.service.js';
 import type { SystemReader } from '../host/system-reader.js';
 import type { CpuTimes, MemoryInfo, NetCounters } from '../host/host.model.js';
 import type { Subscription } from 'rxjs';

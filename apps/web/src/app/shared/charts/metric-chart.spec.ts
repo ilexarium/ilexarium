@@ -5,7 +5,7 @@ import type { ChartSeries, ChartUnit } from './charts.model';
 interface Options {
   xAxis: { min?: number; max?: number };
   yAxis: { max?: number; axisLabel: { formatter: (value: number) => string } };
-  tooltip: { valueFormatter: (value: unknown) => string };
+  tooltip: { formatter: (items: unknown) => string };
   series: { name: string; data: [number, number][] }[];
   color: string[];
 }
@@ -67,7 +67,20 @@ describe('MetricChart', () => {
     expect(options.series[0].data).toEqual(series[0].points);
     expect(options.color).toHaveLength(5);
     expect(options.yAxis.axisLabel.formatter(1_500_000)).toBe('1.5 MB/s');
-    expect(options.tooltip.valueFormatter(42.4)).toBe('42 B/s');
+  });
+
+  it('words the tooltip: the time of day, then each series in its unit', async () => {
+    const { options } = await render(series, 'rate');
+    const html = options.tooltip.formatter([
+      { marker: '<i></i>', seriesName: 'Receiving', value: [11 * MINUTE, 1_200_000] },
+      { marker: '<i></i>', seriesName: '<b>Sending</b>', value: [11 * MINUTE, 42.4] },
+    ]);
+    const [time, ...rows] = html.split('<br>');
+    expect(time).toMatch(/\d:11:00/);
+    expect(rows).toEqual([
+      '<i></i> Receiving <b>1.2 MB/s</b>',
+      '<i></i> &#60;b&#62;Sending&#60;/b&#62; <b>42 B/s</b>',
+    ]);
   });
 
   it('caps the axis when given a maximum (100 for percentages)', async () => {

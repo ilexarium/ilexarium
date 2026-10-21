@@ -31,7 +31,7 @@ export class CpuCard {
   protected readonly usage = computed(() => this.formatter.percent(this.cpu().usagePercent));
   protected readonly load = computed(() =>
     this.cpu()
-      .loadAverage.map((value) => value.toFixed(2))
+      .loadAverage.map((value) => this.formatter.decimal(value))
       .join(' · '),
   );
 }

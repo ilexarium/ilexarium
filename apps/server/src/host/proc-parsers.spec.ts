@@ -1,13 +1,10 @@
 import {
   bytesPerSecond,
   cpuUsagePercent,
-  diskMounts,
   isShownInterface,
   parseCpuTimes,
   parseListeningTcpPorts,
   parseMeminfo,
-  parseMountInfo,
-  parseMounts,
   parseNetDev,
   parseOsRelease,
 } from './proc-parsers.js';
@@ -132,58 +129,6 @@ describe('bytesPerSecond', () => {
   it('is 0 after a counter reset or without elapsed time', () => {
     expect(bytesPerSecond(5000, 100, 2)).toBe(0);
     expect(bytesPerSecond(1000, 5000, 0)).toBe(0);
-  });
-});
-
-describe('parseMounts and diskMounts', () => {
-  const mounts = [
-    '/dev/vda2 / ext4 rw,relatime 0 0',
-    'devtmpfs /dev devtmpfs rw,nosuid 0 0',
-    'tmpfs /dev/shm tmpfs rw,nosuid,nodev 0 0',
-    'proc /proc proc rw 0 0',
-    'sysfs /sys sysfs rw 0 0',
-    'cgroup2 /sys/fs/cgroup cgroup2 rw 0 0',
-    '/dev/vda1 /boot vfat rw 0 0',
-    '/dev/sdb1 /mnt/media\\040files ext4 rw 0 0',
-    '/dev/vda2 /var/lib/docker ext4 rw 0 0',
-    'overlay /var/lib/docker/overlay2/abc/merged overlay rw 0 0',
-    '/dev/loop3 /snap/core/123 squashfs ro 0 0',
-    'nas:/export /mnt/nas nfs4 rw 0 0',
-    'tank/data /tank/data zfs rw 0 0',
-    '',
-  ].join('\n');
-
-  it('decodes octal escapes', () => {
-    expect(parseMounts(mounts)).toContainEqual({
-      device: '/dev/sdb1',
-      mount: '/mnt/media files',
-      fsType: 'ext4',
-    });
-  });
-
-  it('keeps real local filesystems, one per device', () => {
-    expect(diskMounts(parseMounts(mounts))).toEqual([
-      { device: '/dev/vda2', mount: '/', fsType: 'ext4' },
-      { device: '/dev/vda1', mount: '/boot', fsType: 'vfat' },
-      { device: '/dev/sdb1', mount: '/mnt/media files', fsType: 'ext4' },
-      { device: 'tank/data', mount: '/tank/data', fsType: 'zfs' },
-    ]);
-  });
-});
-
-describe('parseMountInfo', () => {
-  it('reads mount points, their types and devices, unescaping spaces', () => {
-    const text = [
-      '22 1 259:2 / / rw,relatime shared:1 - ext4 /dev/nvme0n1p2 rw',
-      '95 22 8:17 / /media/alice/My\\040Disk rw,nosuid shared:50 - exfat /dev/sdb1 rw,uid=1000',
-      '96 22 0:45 / /run/user/1000 rw shared:60 - tmpfs tmpfs rw',
-      'garbage',
-    ].join('\n');
-    expect(parseMountInfo(text)).toEqual([
-      { mount: '/', device: '259:2', fsType: 'ext4', source: '/dev/nvme0n1p2' },
-      { mount: '/media/alice/My Disk', device: '8:17', fsType: 'exfat', source: '/dev/sdb1' },
-      { mount: '/run/user/1000', device: '0:45', fsType: 'tmpfs', source: 'tmpfs' },
-    ]);
   });
 });
 

@@ -3,26 +3,30 @@ import os from 'node:os';
 import { join } from 'node:path';
 import type { DiskUsage, HostInfo } from '@laris/shared';
 import {
-  diskMounts,
   isShownInterface,
-  parseBootTime,
-  parseCmdline,
-  parseContainerId,
   parseCpuTimes,
   parseListeningTcpPorts,
   parseMeminfo,
+  parseNetDev,
+  parseOsRelease,
+} from './proc-parsers.js';
+import {
+  diskMounts,
+  parseDiskUnit,
   parseMountInfo,
   parseMounts,
-  parseNetDev,
-  parseDiskUnit,
-  parseOsRelease,
+  parseSwaps,
+  parseUdevData,
+} from './disk-parsers.js';
+import {
+  parseBootTime,
+  parseCmdline,
+  parseContainerId,
   parsePasswd,
   parseProcStat,
   parseProcStatus,
-  parseSwaps,
-  parseUdevData,
   procHidesProcesses,
-} from './proc-parsers.js';
+} from './process-parsers.js';
 import type {
   BlockDevice,
   CpuTimes,
@@ -38,11 +42,7 @@ import type {
 /** /proc/<pid>/ folders read at once (four files each). */
 const PROCESS_BATCH = 64;
 
-/**
- * The only place the host's state is read: plain files under `/proc` and `/etc`, folders,
- * `statfs()` and Node's `os` — no child processes, no privileges. Everything else works on what
- * this returns, so tests use a fake.
- */
+/** The only place the host's state is read: files, `statfs()` and Node's `os` — no commands. */
 export class SystemReader {
   /** `root` is `/` on the host; container mode (later) points it at the host's mounted root. */
   constructor(private readonly root = '/') {}
