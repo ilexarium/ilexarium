@@ -13,9 +13,9 @@ import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { z } from 'zod';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { FilesPageStore } from '../files-page/files-page-store';
 import type { NameRequest } from '../files.model';
+import { FieldErrors } from '../../../shared/forms/field-errors';
 
 /** A new name or path: renaming may also move it (a path, from the folder shown or from /). */
 const renameSchema = z.object({
@@ -32,7 +32,7 @@ const newFolderSchema = z.object({ name: fileNameSchema });
 @Component({
   selector: 'app-file-name-dialog',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
     FormField,
     FormRoot,
     HlmAlertDialogImports,

@@ -5,11 +5,7 @@
   </div>
   <div hlmCardContent>
     <form [formRoot]="form" class="grid gap-8">
-      @for (error of form().errors(); track error) {
-        <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error | errorText }}</p>
-        </div>
-      }
+      <app-form-errors [form]="form" />
 
       <fieldset class="grid gap-3">
         <legend class="mb-2 font-medium">{{ 'backups.setup.disk' | translate }}</legend>
@@ -102,9 +98,7 @@
           <div hlmField class="w-32">
             <label hlmFieldLabel for="time">{{ 'backups.schedule.time' | translate }}</label>
             <input hlmInput id="time" type="time" dir="ltr" [formField]="form.schedule.time" />
-            @for (error of form.schedule.time().errors(); track error) {
-              <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-            }
+            <app-field-errors [field]="form.schedule.time" />
           </div>
         </div>
         <p class="text-sm text-muted-foreground">
@@ -128,9 +122,7 @@
                   [id]="'keep-' + part"
                   [formField]="keep(part)"
                 />
-                @for (error of keep(part)().errors(); track error) {
-                  <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-                }
+                <app-field-errors [field]="keep(part)" />
               </div>
             }
           </div>

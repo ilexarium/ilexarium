@@ -5,11 +5,7 @@
   </div>
   <div hlmCardContent>
     <form [formRoot]="form" class="grid gap-5">
-      @for (error of form().errors(); track error) {
-        <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error | errorText }}</p>
-        </div>
-      }
+      <app-form-errors [form]="form" />
 
       @for (f of mainFields(); track f.key) {
         <ng-container *ngTemplateOutlet="fieldTemplate; context: { $implicit: f }" />
@@ -144,8 +140,6 @@
       }
     }
     <p hlmFieldDescription>{{ 'catalog.' + id() + '.fields.' + f.key + '.help' | translate }}</p>
-    @for (error of field(f.key)().errors(); track error) {
-      <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-    }
+    <app-field-errors [field]="field(f.key)" />
   </div>
 </ng-template>

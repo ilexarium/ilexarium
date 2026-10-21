@@ -1,0 +1,5 @@
+@for (error of form()().errors(); track error) {
+  <div hlmAlert variant="destructive" role="alert">
+    <p hlmAlertDescription>{{ error | errorText }}</p>
+  </div>
+}

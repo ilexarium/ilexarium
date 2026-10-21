@@ -3,7 +3,6 @@ import { form, FormField, FormRoot, validateStandardSchema } from '@angular/form
 import { Router } from '@angular/router';
 import { type SetupForm, setupFormSchema, VALIDATION_LIMITS } from '@homelab/shared';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
@@ -11,9 +10,10 @@ import { InsecureContextNotice } from '../../../core/security/insecure-context-n
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { Translator } from '../../../core/i18n/translator';
 import { APP_NAME } from '../../../core/page-title/page-title';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { AuthFrame } from '../auth-frame/auth-frame';
 import { SetupPageStore } from './setup-page-store';
 
@@ -38,10 +38,10 @@ function takeTokenFromFragment(document: Document): string {
   selector: 'app-setup-page',
   imports: [
     AuthFrame,
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
-    HlmAlertImports,
     HlmButton,
     HlmFieldImports,
     HlmInput,

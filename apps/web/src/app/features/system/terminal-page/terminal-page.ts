@@ -15,9 +15,10 @@ import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { HlmSkeleton } from '@ui/skeleton';
 import { ThemeService } from '../../../core/theme/theme';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { LinuxSignIn } from '../linux-sign-in/linux-sign-in';
 import { TerminalView } from '../terminal-view/terminal-view';
 import type { TerminalSize } from '../terminal.model';
@@ -31,7 +32,8 @@ import { TerminalPageStore } from './terminal-page-store';
 @Component({
   selector: 'app-terminal-page',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
     HlmAlertImports,

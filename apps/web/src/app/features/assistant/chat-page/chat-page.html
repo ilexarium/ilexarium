@@ -155,9 +155,7 @@
                 }
               </div>
               @if (message.content().touched()) {
-                @for (error of message.content().errors(); track error) {
-                  <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-                }
+                <app-field-errors [field]="message.content" />
               }
             </form>
           </section>

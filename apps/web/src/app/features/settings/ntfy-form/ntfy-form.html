@@ -10,11 +10,7 @@
       </div>
     }
     <form [formRoot]="form" class="grid gap-5">
-      @for (error of form().errors(); track error) {
-        <div hlmAlert variant="destructive" role="alert">
-          <p hlmAlertDescription>{{ error | errorText }}</p>
-        </div>
-      }
+      <app-form-errors [form]="form" />
 
       <label class="flex items-center gap-3 text-sm font-medium">
         <input type="checkbox" class="size-4" [formField]="form.enabled" />
@@ -46,9 +42,7 @@
             {{ 'notifications.ntfy.plainHttp' | translate }}
           </p>
         }
-        @for (error of form.topicUrl().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.topicUrl" />
       </div>
 
       <div hlmField>
@@ -69,9 +63,7 @@
             {{ 'notifications.ntfy.clearToken' | translate }}
           </label>
         }
-        @for (error of form.token().errors(); track error) {
-          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-        }
+        <app-field-errors [field]="form.token" />
       </div>
 
       <p class="text-sm text-muted-foreground">{{ 'notifications.ntfy.ios' | translate }}</p>

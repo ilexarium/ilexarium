@@ -22,6 +22,8 @@ import { HlmSelectImports } from '@ui/select';
 import { Translator } from '../../../core/i18n/translator';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { Formatter } from '../../../shared/format/formatter';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
 import type { BackupableService } from '../backups.model';
@@ -37,7 +39,9 @@ import { FolderPicker } from '../folder-picker/folder-picker';
   selector: 'app-backup-setup',
   imports: [
     ErrorTextPipe,
+    FieldErrors,
     FolderPicker,
+    FormErrors,
     FormField,
     FormRoot,
     HlmAlertImports,

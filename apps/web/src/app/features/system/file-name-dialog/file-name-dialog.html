@@ -29,9 +29,7 @@
               {{ 'files.nameDialog.renameHelp' | translate: { name: $any(request()).entry.name } }}
             </p>
           }
-          @for (error of form.name().errors(); track error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
+          <app-field-errors [field]="form.name" />
         </div>
         <hlm-alert-dialog-footer>
           <button hlmBtn type="button" variant="outline" (click)="close()">

@@ -7,9 +7,10 @@ import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
 
 /**
@@ -19,7 +20,8 @@ import { BackupsPageStore } from '../backups-page/backups-page-store';
 @Component({
   selector: 'app-passphrase-dialog',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
     HlmAlertDialogImports,

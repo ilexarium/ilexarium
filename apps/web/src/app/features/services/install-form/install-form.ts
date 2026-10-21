@@ -27,16 +27,16 @@ import {
   valuesSchema,
 } from '@homelab/shared';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { HlmSelectImports } from '@ui/select';
 import { InstallPageStore } from '../install-page/install-page-store';
-import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FormErrors } from '../../../shared/forms/form-errors';
 
 /** One line of the access summary: what the service will be able to do. */
 interface AccessItem {
@@ -56,10 +56,10 @@ interface AccessItem {
 @Component({
   selector: 'app-install-form',
   imports: [
-    ErrorTextPipe,
+    FieldErrors,
+    FormErrors,
     FormField,
     FormRoot,
-    HlmAlertImports,
     HlmButton,
     HlmCardImports,
     HlmFieldImports,
