@@ -13,18 +13,13 @@ import { SetupService } from './setup.service.js';
 
 const USER_AGENT_MAX_LENGTH = 256;
 
-/** Stored with each new session, for a later "where you're signed in" page (and the audit IP). */
+/** For a later "where you're signed in" page, and the audit log's IP. */
 const sessionMetadata: SessionOptions['metadata'] = (request) => ({
   ip: request.ip,
   userAgent: String(request.headers['user-agent'] ?? '').slice(0, USER_AGENT_MAX_LENGTH),
 });
 
-/**
- * Wires @nestjs/authentication (see docs/plans/auth.md): cookie sessions only (`__Host-sid`,
- * HttpOnly, Secure, SameSite=Lax), package-default lifetimes, no access/refresh tokens,
- * scrypt passwords with the package's defaults. Registers the global default-deny guard:
- * every route needs a signed-in user unless @Public().
- */
+/** docs/plans/auth.md. Its guard is global: every route needs a session unless @Public(). */
 @Module({
   imports: [
     AuthenticationModule.forRoot({
@@ -45,10 +40,9 @@ const sessionMetadata: SessionOptions['metadata'] = (request) => ({
     AuthEventsAuditBridge,
     AuthService,
     SetupService,
-    // Factory: its optional clock argument is for tests, not for injection.
-    { provide: LoginThrottleService, useFactory: () => new LoginThrottleService() },
+    LoginThrottleService,
   ],
-  // Other features ask for the password again before something sensitive (the backup passphrase).
+  // Other features ask for the password again (confirmPassword).
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -3,9 +3,9 @@ import { AUTH_ERROR_CODES, type ApiErrorResponse } from '@homelab/shared';
 
 const FIRST_DELAY_MS = 1_000;
 const MAX_DELAY_MS = 60_000;
-/** Forget a username this long after its last failure. */
+/** Forgotten this long after its last failure. */
 const ENTRY_TTL_MS = 15 * 60_000;
-/** Bound on tracked usernames — nonexistent ones are tracked too, so this must be capped. */
+/** Usernames that don't exist are tracked too, so the count needs a cap. */
 const MAX_ENTRIES = 10_000;
 
 interface Entry {
@@ -26,26 +26,22 @@ export class TooManyAttemptsException extends HttpException {
 }
 
 /**
- * Per-username backoff after failed password checks (on top of per-IP throttling): the delay
- * doubles from 1 s and is capped at 60 s — a delay, not a lockout, so nobody on the network can
- * lock the owner out. In memory: one process, forgotten on restart.
+ * On top of the per-IP limit: the delay doubles from 1 s up to 60 s. A delay, not a lockout, so
+ * nobody on the network can lock the owner out. In memory: forgotten on restart.
  */
 @Injectable()
 export class LoginThrottleService {
   private readonly entries = new Map<string, Entry>();
 
-  constructor(private readonly now: () => number = Date.now) {}
-
-  /** Throws `TooManyAttemptsException` while the username is in its delay. */
   assertAllowed(username: string): void {
     const entry = this.live(username);
     if (!entry) return;
-    const waitMs = entry.blockedUntil - this.now();
+    const waitMs = entry.blockedUntil - Date.now();
     if (waitMs > 0) throw new TooManyAttemptsException(Math.ceil(waitMs / 1000));
   }
 
   recordFailure(username: string): void {
-    const now = this.now();
+    const now = Date.now();
     const failures = (this.live(username)?.failures ?? 0) + 1;
     const delay = Math.min(FIRST_DELAY_MS * 2 ** (failures - 1), MAX_DELAY_MS);
     // Re-insert so the Map's insertion order stays least-recently-failed first.
@@ -60,14 +56,13 @@ export class LoginThrottleService {
     this.entries.delete(username);
   }
 
-  /** Number of usernames currently tracked. For tests. */
   get size(): number {
     return this.entries.size;
   }
 
   private live(username: string): Entry | undefined {
     const entry = this.entries.get(username);
-    if (entry && this.now() - entry.lastFailureAt > ENTRY_TTL_MS) {
+    if (entry && Date.now() - entry.lastFailureAt > ENTRY_TTL_MS) {
       this.entries.delete(username);
       return undefined;
     }

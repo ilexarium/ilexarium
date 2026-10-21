@@ -7,7 +7,7 @@ export interface UserCredentials {
   passwordHash: string;
 }
 
-/** The profile's own fields; `null` removes a name or an address, a missing one stays. */
+/** `null` removes a name or an address; a missing one stays as it is. */
 export interface ProfileFields {
   displayName?: string | null;
   email?: string | null;
@@ -19,15 +19,4 @@ export interface StoredAvatar {
   bytes: Uint8Array;
   type: string;
   updatedAt: Date;
-}
-
-/** A user as `publicUserSelect` reads it, before `toPublicUser`. */
-export interface PublicUserRow {
-  id: string;
-  username: string;
-  createdAt: Date;
-  displayName: string | null;
-  email: string | null;
-  language: string | null;
-  avatar: { updatedAt: Date } | null;
 }

@@ -25,10 +25,7 @@ function toRecord(row: SessionRow): SessionRecord {
   };
 }
 
-/**
- * The package's session storage, on Prisma. Follows its store contract: conditional writes as
- * single statements (counted), times from the package's clock, never the database's.
- */
+/** The store contract: conditional writes in one statement, the package's clock (not the DB's). */
 @Injectable()
 export class PrismaSessionStore implements SessionStore {
   constructor(
@@ -38,7 +35,7 @@ export class PrismaSessionStore implements SessionStore {
     storage.registerSource({ sessions: this });
   }
 
-  /** Reads the session and its user (public fields only) in one query, for `SessionAuth`. */
+  /** With its user (public fields only) in one query, for `SessionAuth`. */
   async getSession(id: string): Promise<SessionRecord | undefined> {
     const row = await this.prisma.session.findUnique({
       where: { id },
@@ -49,7 +46,7 @@ export class PrismaSessionStore implements SessionStore {
     return { ...toRecord(session), extra: { user: toPublicUser(user) } };
   }
 
-  /** A plain insert; also clears sessions past their absolute expiry so the table stays bounded. */
+  /** Also clears expired sessions, so the table stays bounded. */
   async createSession(record: SessionRecord): Promise<void> {
     await this.prisma.session.deleteMany({ where: { expiresAt: { lte: record.createdAt } } });
     await this.prisma.session.create({
@@ -65,7 +62,7 @@ export class PrismaSessionStore implements SessionStore {
     });
   }
 
-  /** One conditional write: only an existing session, and only forward. Never an upsert. */
+  /** Only an existing session, and only forward. Never an upsert. */
   async touchSession(id: string, lastActiveAt: Date): Promise<void> {
     await this.prisma.session.updateMany({
       where: { id, lastActiveAt: { lt: lastActiveAt } },
@@ -73,7 +70,7 @@ export class PrismaSessionStore implements SessionStore {
     });
   }
 
-  /** Resolves whether this call deleted it: of two racing deletes, only one wins. */
+  /** Of two racing deletes, only one returns true. */
   async deleteSession(id: string): Promise<boolean> {
     const { count } = await this.prisma.session.deleteMany({ where: { id } });
     return count > 0;

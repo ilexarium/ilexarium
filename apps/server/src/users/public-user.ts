@@ -1,5 +1,5 @@
 import { PROFILE_AVATAR_PATH, type PublicUser, userLanguageSchema } from '@homelab/shared';
-import type { PublicUserRow } from './users.model.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
 /** Prisma `select` for the public user fields. The only shape that may leave the server. */
 export const publicUserSelect = {
@@ -11,6 +11,8 @@ export const publicUserSelect = {
   language: true,
   avatar: { select: { updatedAt: true } },
 } as const;
+
+type PublicUserRow = Prisma.UserGetPayload<{ select: typeof publicUserSelect }>;
 
 export function toPublicUser(user: PublicUserRow): PublicUser {
   const language = userLanguageSchema.safeParse(user.language);

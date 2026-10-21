@@ -49,7 +49,6 @@ export class AuthController {
     return { user: await this.auth.login(body, ip) };
   }
 
-  /** Idempotent: signing out without a session is not an error. */
   @Public()
   @Post('logout')
   @HttpCode(204)
@@ -57,7 +56,7 @@ export class AuthController {
     await this.signIn.signOut();
   }
 
-  /** Every session of this user, this browser's too; sockets and log streams close with them. */
+  /** This browser's session too; sockets and log streams close with them. */
   @Post('logout-everywhere')
   @HttpCode(204)
   async logoutEverywhere(@CurrentUser() user: PublicUser): Promise<void> {

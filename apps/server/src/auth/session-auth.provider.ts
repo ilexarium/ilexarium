@@ -8,10 +8,7 @@ import type { PublicUser } from '@homelab/shared';
 import { UsersService } from '../users/users.service.js';
 import './authentication-types.js';
 
-/**
- * Turns a live session cookie into the signed-in user — always the public shape, so
- * `@CurrentUser()` can never carry the password hash. `null` (user deleted) ends the session.
- */
+/** Always the public shape, so `@CurrentUser()` can't carry the hash. `null` ends the session. */
 @Injectable()
 export class SessionAuth extends SessionCookieProvider<PublicUser> {
   constructor(

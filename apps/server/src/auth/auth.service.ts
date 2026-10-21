@@ -46,7 +46,6 @@ const WRONG_CURRENT_PASSWORD: ApiErrorResponse = {
   ],
 };
 
-/** The same for confirming the password before something sensitive ("Show again"). */
 const WRONG_PASSWORD: ApiErrorResponse = {
   message: 'Validation failed',
   errors: [
@@ -66,10 +65,6 @@ export class AuthService {
     private readonly setupToken: SetupService,
   ) {}
 
-  /**
-   * First-run setup: with the one-time setup token, creates the owner account and signs this
-   * browser in. Only while no user exists; concurrent attempts can't both succeed.
-   */
   async setup({ setupToken, username, password }: SetupRequest, ip?: string): Promise<PublicUser> {
     if (!this.setupToken.isPending()) throw new ForbiddenException(SETUP_NOT_AVAILABLE);
     if (!this.setupToken.verify(setupToken)) {
@@ -97,10 +92,7 @@ export class AuthService {
     return user;
   }
 
-  /**
-   * Verifies the password and signs this browser in (the package sets the session cookie).
-   * Success is audited through the package's sign-in event; failures are audited here.
-   */
+  /** Success is audited through the package's sign-in event (`AuthEventsAuditBridge`). */
   async login({ username, password }: LoginRequest, ip?: string): Promise<PublicUser> {
     this.throttle.assertAllowed(username);
     const credentials = await this.users.findCredentials(username);
@@ -128,31 +120,20 @@ export class AuthService {
     return user;
   }
 
-  /**
-   * Changes the password after checking the current one, ends every other session of the user,
-   * and gives this browser's session a new id (privilege change).
-   */
+  /** Ends every other session of the user, and gives this one a new id (privilege change). */
   async changePassword(
     user: PublicUser,
     currentSessionId: string,
     { currentPassword, newPassword }: ChangePasswordRequest,
     ip?: string,
   ): Promise<void> {
-    this.throttle.assertAllowed(user.username);
-    const credentials = await this.users.findCredentials(user.username);
-    if (!credentials || !(await this.hasher.verify(currentPassword, credentials.passwordHash))) {
-      this.throttle.recordFailure(user.username);
-      await this.audit.tryRecord({
-        action: 'auth.password_change',
-        outcome: 'failure',
-        userId: user.id,
-        username: user.username,
-        ip,
-        details: { reason: AUTH_ERROR_CODES.wrongPassword },
-      });
-      throw new BadRequestException(WRONG_CURRENT_PASSWORD);
-    }
-    this.throttle.reset(user.username);
+    await this.checkPassword(
+      user,
+      currentPassword,
+      'auth.password_change',
+      WRONG_CURRENT_PASSWORD,
+      ip,
+    );
     await this.users.updatePasswordHash(user.id, await this.hasher.hash(newPassword));
     await this.sessions.revokeAll(user.id, { except: currentSessionId });
     await this.signIn.rotateSession();
@@ -165,24 +146,32 @@ export class AuthService {
     });
   }
 
-  /**
-   * The signed-in user's password, asked again before something sensitive (showing the backup
-   * passphrase). Throttled like sign-in; a wrong one is a 400 on the field (never a 401).
-   */
+  /** Asked again before something sensitive (showing the backup passphrase). */
   async confirmPassword(user: PublicUser, password: string, ip?: string): Promise<void> {
+    await this.checkPassword(user, password, 'auth.password_confirm', WRONG_PASSWORD, ip);
+  }
+
+  /** The signed-in user's password, throttled like sign-in. */
+  private async checkPassword(
+    user: PublicUser,
+    password: string,
+    action: 'auth.password_change' | 'auth.password_confirm',
+    wrong: ApiErrorResponse,
+    ip?: string,
+  ): Promise<void> {
     this.throttle.assertAllowed(user.username);
     const credentials = await this.users.findCredentials(user.username);
     if (!credentials || !(await this.hasher.verify(password, credentials.passwordHash))) {
       this.throttle.recordFailure(user.username);
       await this.audit.tryRecord({
-        action: 'auth.password_confirm',
+        action,
         outcome: 'failure',
         userId: user.id,
         username: user.username,
         ip,
         details: { reason: AUTH_ERROR_CODES.wrongPassword },
       });
-      throw new BadRequestException(WRONG_PASSWORD);
+      throw new BadRequestException(wrong);
     }
     this.throttle.reset(user.username);
   }
