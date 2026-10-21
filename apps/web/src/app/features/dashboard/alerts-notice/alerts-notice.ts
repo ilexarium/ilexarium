@@ -13,7 +13,7 @@ import { Formatter } from '../../../shared/format/formatter';
 /** Alerts shown on the dashboard at most; the rest are counted. */
 const SHOWN = 3;
 
-/** Shown only when there are any: an empty host would still take a gap in the page's grid. */
+/** The page shows it only when there are alerts: an empty one would still take a gap in its grid. */
 @Component({
   selector: 'laris-alerts-notice',
   imports: [HlmAlertImports, HlmButton, NgIcon, PluralPipe, RouterLink, TranslatePipe],

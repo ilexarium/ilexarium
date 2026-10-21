@@ -16,3 +16,10 @@ export interface ChartColors {
   /** The interface's font stack (`--font-sans`), for axis labels and tooltips. */
   font: string;
 }
+
+/** What ECharts hands an axis tooltip, per series (`marker` is its own coloured dot, as HTML). */
+export interface TooltipItem {
+  marker: string;
+  seriesName: string;
+  value: [number, number];
+}

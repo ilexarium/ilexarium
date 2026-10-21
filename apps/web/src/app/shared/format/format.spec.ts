@@ -35,7 +35,9 @@ describe('formatRate', () => {
 
 describe('formatClock', () => {
   it('shows the time of day with seconds', () => {
-    expect(formatClock(Date.UTC(2026, 9, 21, 19, 56, 22), 'de')).toMatch(/^\d{2}:56:22$/);
+    const at = new Date(2026, 9, 21, 19, 56, 22).getTime(); // local time, in any time zone
+    expect(formatClock(at, 'de')).toBe('19:56:22');
+    expect(formatClock(at, 'en')).toMatch(/^7:56:22\sPM$/);
   });
 });
 

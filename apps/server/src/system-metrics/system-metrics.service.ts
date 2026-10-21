@@ -10,17 +10,16 @@ import {
 } from '@laris/shared';
 import {
   catchError,
+  concatMap,
   defer,
   EMPTY,
   finalize,
   firstValueFrom,
-  map,
   type Observable,
   pairwise,
   ReplaySubject,
   repeat,
   share,
-  tap,
   timer,
 } from 'rxjs';
 import { RingBuffer } from '../common/ring-buffer.js';
@@ -107,12 +106,7 @@ export class SystemMetricsService implements TopicSource<'system'> {
       }),
       repeat({ delay: () => timer(run.sampled ? SAMPLE_INTERVAL_MS : FIRST_SAMPLE_DELAY_MS) }),
       pairwise(),
-      map(([previous, current]) => toUpdate(previous, current)),
-      tap((update) => {
-        run.sampled = true;
-        this.history.push(toSystemHistoryPoint(update.sample));
-        run.latest$.next(update);
-      }),
+      concatMap(([previous, current]) => this.sample(run, previous, current)),
       finalize(() => this.end(run)),
     );
   }).pipe(share());
@@ -152,6 +146,20 @@ export class SystemMetricsService implements TopicSource<'system'> {
   private end(run: Run): void {
     if (this.run === run) this.run = null;
     run.latest$.error(new Error('System metrics stopped'));
+  }
+
+  /** A failure here skips this sample only: an error must never reach the subscription. */
+  private sample(run: Run, previous: Reading, current: Reading): SystemUpdate[] {
+    try {
+      const update = toUpdate(previous, current);
+      run.sampled = true;
+      this.history.push(toSystemHistoryPoint(update.sample));
+      run.latest$.next(update);
+      return [update];
+    } catch (error) {
+      this.logger.error('Computing system metrics failed', (error as Error).stack);
+      return [];
+    }
   }
 
   private async read(run: Run): Promise<Reading> {
