@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import type { ServerMessage, SystemSnapshot, SystemUpdate } from '@homelab/shared';
+import type { ServerMessage, SystemSnapshot, SystemUpdate } from '@laris/shared';
 import { Observable } from 'rxjs';
 import { WebSocket } from 'ws';
 import { RealtimeSubscriptions, SOURCE_RETRY_MS } from './realtime-subscriptions.js';

@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { BackupItem } from '@homelab/shared';
+import type { BackupItem } from '@laris/shared';
 import type { ItemLabel, ItemRow } from '../backups.model';
 import { BackupItems } from './backup-items';
 
@@ -12,7 +12,7 @@ const row = (change: Partial<BackupItem> = {}): ItemRow => ({
     kind: 'folder',
     serviceId: null,
     catalogId: null,
-    path: '/srv/homelab/docs',
+    path: '/srv/laris/docs',
     excludedFields: [],
     removed: false,
     lastSuccessAt: null,
@@ -25,7 +25,7 @@ const row = (change: Partial<BackupItem> = {}): ItemRow => ({
 
 @Component({
   imports: [BackupItems],
-  template: `<app-backup-items
+  template: `<laris-backup-items
     [active]="active()"
     [removed]="removed()"
     [labels]="labels"
@@ -35,7 +35,7 @@ const row = (change: Partial<BackupItem> = {}): ItemRow => ({
 class Host {
   readonly active = signal<ItemRow[]>([row()]);
   readonly removed = signal<ItemRow[]>([]);
-  readonly labels = new Map<string, ItemLabel>([[ITEM, { text: '/srv/homelab/docs', ltr: true }]]);
+  readonly labels = new Map<string, ItemLabel>([[ITEM, { text: '/srv/laris/docs', ltr: true }]]);
   readonly removals: { itemId: string; deleteArchives: boolean }[] = [];
 }
 

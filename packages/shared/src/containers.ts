@@ -10,7 +10,7 @@ export const containerActionSchema = z.enum(CONTAINER_ACTIONS);
 export type ContainerAction = z.infer<typeof containerActionSchema>;
 
 /** Containers with this label set to `true` can't be stopped or restarted (the platform's own). */
-export const PROTECTED_LABEL = 'homelab.protected';
+export const PROTECTED_LABEL = 'laris.protected';
 
 /** Actions refused on a protected container: those that interrupt it. */
 export const PROTECTED_ACTIONS: readonly ContainerAction[] = ['stop', 'restart'];

@@ -29,7 +29,7 @@
     </div>
   }
   @case ('empty') {
-    <app-empty-state
+    <laris-empty-state
       icon="lucideScrollText"
       role="status"
       [text]="'logs.empty.title' | translate"
@@ -37,6 +37,6 @@
     />
   }
   @case ('lines') {
-    <app-log-view class="min-h-0 flex-1" [entries]="logs.entries()" />
+    <laris-log-view class="min-h-0 flex-1" [entries]="logs.entries()" />
   }
 }

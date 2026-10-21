@@ -1,24 +1,24 @@
 @if (store.system(); as system) {
   <div class="grid grid-cols-1 gap-4 md:gap-6">
     @if (store.alerts().length > 0) {
-      <app-alerts-notice [alerts]="store.alerts()" />
+      <laris-alerts-notice [alerts]="store.alerts()" />
     }
-    <app-host-summary [host]="system.host" [uptimeSeconds]="system.uptimeSeconds" />
+    <laris-host-summary [host]="system.host" [uptimeSeconds]="system.uptimeSeconds" />
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <app-cpu-card
+      <laris-cpu-card
         [cpu]="system.sample.cpu"
         [cores]="system.host.cpuCores"
         [history]="system.history"
       />
-      <app-memory-card [memory]="system.sample.memory" [history]="system.history" />
-      <app-network-card
+      <laris-memory-card [memory]="system.sample.memory" [history]="system.history" />
+      <laris-network-card
         [interfaces]="system.sample.network"
         [history]="system.history"
         class="sm:col-span-2 xl:col-span-1"
       />
     </div>
-    <app-disk-list [disks]="system.disks" />
-    <app-containers-table
+    <laris-disk-list [disks]="system.disks" />
+    <laris-containers-table
       [containers]="store.containers()"
       [now]="system.sample.at"
       [pending]="store.pending()"
@@ -27,7 +27,7 @@
       <a emptyAction hlmBtn variant="outline" size="sm" routerLink="/services">{{
         'containers.noneAction' | translate
       }}</a>
-    </app-containers-table>
+    </laris-containers-table>
   </div>
 } @else {
   <div

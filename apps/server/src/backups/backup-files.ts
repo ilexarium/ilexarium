@@ -11,7 +11,7 @@ import { stateDir } from './backup-paths.js';
 export const BACKUP_FILES_POLL_MS = 5_000;
 const MAX_RESULTS_BYTES = 16 * 1024 * 1024;
 
-// What the backup wrapper writes (system/wrappers/homelab-backup.mts) — root-owned, still checked.
+// What the backup wrapper writes (system/wrappers/laris-backup.mts) — root-owned, still checked.
 
 const status = z.enum(['ok', 'warning', 'failed']);
 const itemResultSchema = z.object({

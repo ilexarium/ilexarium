@@ -14,7 +14,7 @@ import { toast } from '@spartan-ng/brain/sonner';
  * UI only: "I've saved it" reports `saved`, and the page forgets the passphrase.
  */
 @Component({
-  selector: 'app-passphrase-card',
+  selector: 'laris-passphrase-card',
   imports: [HlmAlertImports, HlmButton, HlmCardImports, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideCheck, lucideCopy, lucideKeyRound })],
   templateUrl: './passphrase-card.html',

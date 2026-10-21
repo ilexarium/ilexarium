@@ -1,4 +1,4 @@
-import { healthResponseSchema } from '@homelab/shared';
+import { healthResponseSchema } from '@laris/shared';
 import { HealthController } from './health.controller.js';
 
 describe('HealthController', () => {

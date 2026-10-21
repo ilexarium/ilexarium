@@ -1,6 +1,6 @@
 import { Component, input, output, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { ChatSummary } from '@homelab/shared';
+import type { ChatSummary } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucidePlus, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -13,7 +13,7 @@ import { HlmButton } from '@ui/button';
  * (on phones, the sheet closes).
  */
 @Component({
-  selector: 'app-chat-list',
+  selector: 'laris-chat-list',
   imports: [HlmAlertDialogImports, HlmButton, NgIcon, RouterLink, TranslatePipe],
   providers: [provideIcons({ lucidePlus, lucideTrash2 })],
   host: { class: 'flex min-h-0 flex-col gap-2' },

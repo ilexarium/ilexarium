@@ -1,5 +1,5 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
-import { type Job, type JobPhase, SERVICE_ERROR_CODES, serviceProject } from '@homelab/shared';
+import { type Job, type JobPhase, SERVICE_ERROR_CODES, serviceProject } from '@laris/shared';
 import { type Observable, Subject } from 'rxjs';
 import { DockerService } from '../docker/docker.service.js';
 import type { ComposeOutcome } from '../executor/executor.model.js';

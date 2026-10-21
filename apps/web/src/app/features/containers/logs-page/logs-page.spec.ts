@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { provideRouter, Router, TitleStrategy } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import type { LogLine } from '@homelab/shared';
+import type { LogLine } from '@laris/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { PageTitleStrategy } from '../../../core/page-title/page-title';
@@ -94,7 +94,7 @@ describe('LogsPage', () => {
     expect(el.querySelector('[role="status"]')!.getAttribute('aria-label')).toBe('Loading logs');
     await receive(lines(line(1), line(2)));
     expect(el.querySelector('[aria-label="Loading logs"]')).toBeNull();
-    expect(el.querySelectorAll('app-log-view li')).toHaveLength(2);
+    expect(el.querySelectorAll('laris-log-view li')).toHaveLength(2);
     expect(notice(el)).toBeNull();
   });
 
@@ -104,11 +104,11 @@ describe('LogsPage', () => {
     await new Promise((resolve) => setTimeout(resolve, QUIET_MS + 50));
     await harness.fixture.whenStable();
     expect(el.textContent).toContain('No log output yet');
-    expect(el.querySelector('app-log-view')).toBeNull();
+    expect(el.querySelector('laris-log-view')).toBeNull();
     // Lines that come later replace the message.
     await receive(lines(line(1)));
     expect(el.textContent).not.toContain('No log output yet');
-    expect(el.querySelectorAll('app-log-view li')).toHaveLength(1);
+    expect(el.querySelectorAll('laris-log-view li')).toHaveLength(1);
   });
 
   describe('when the stream ends', () => {
@@ -118,7 +118,7 @@ describe('LogsPage', () => {
       await receive(end('stopped'));
       expect(notice(el)!.textContent).toContain('Container is stopped');
       expect(notice(el)!.getAttribute('role')).toBe('status');
-      expect(el.querySelectorAll('app-log-view li')).toHaveLength(1);
+      expect(el.querySelectorAll('laris-log-view li')).toHaveLength(1);
 
       const follow = [...el.querySelectorAll('button')].find((b) =>
         b.textContent!.includes('Follow again'),
@@ -174,7 +174,7 @@ describe('LogsPage', () => {
 
   it('fills the screen height on every size, so only the log box scrolls', async () => {
     const el = await visit('jellyfin');
-    const page = el.querySelector('app-logs-page') ?? el;
+    const page = el.querySelector('laris-logs-page') ?? el;
     expect(page.className).toContain('h-[calc(100dvh-5.5rem)]');
     expect(page.className).toContain('md:h-[calc(100dvh-6.5rem)]');
   });

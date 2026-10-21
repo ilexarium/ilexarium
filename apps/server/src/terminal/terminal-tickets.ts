@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TERMINAL_LIMITS } from '@homelab/shared';
+import { TERMINAL_LIMITS } from '@laris/shared';
 import { randomBytes } from 'node:crypto';
 
 interface Ticket {

@@ -8,7 +8,7 @@ import {
   type LogLine,
   logsEndSchema,
   logsLinesSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import type { Env } from '../src/config/env.schema.js';
@@ -17,7 +17,7 @@ import { DockerService } from '../src/docker/docker.service.js';
 import { proxyReachable } from './docker-proxy.js';
 import { type SignedIn, signIn, testHasher } from './realtime-client.js';
 
-const POSTGRES = 'homelab-dev-postgres-1';
+const POSTGRES = 'laris-dev-postgres-1';
 const dockerReachable = await proxyReachable();
 
 type LogsEvent =
@@ -206,7 +206,7 @@ describe('container logs over SSE (e2e)', () => {
     });
 
     it('ends with not_found for an unknown container', async () => {
-      const reader = await open('homelab-no-such-container');
+      const reader = await open('laris-no-such-container');
       await reader.ended;
       expect(reader.events).toEqual([{ event: 'end', reason: 'not_found' }]);
     });

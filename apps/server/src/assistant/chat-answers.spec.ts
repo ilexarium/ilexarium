@@ -1,4 +1,4 @@
-import { AI_LIMITS, type ChatMessage, type ChatStreamEvent } from '@homelab/shared';
+import { AI_LIMITS, type ChatMessage, type ChatStreamEvent } from '@laris/shared';
 import { FakeOllama } from '../../test/fake-ollama.js';
 import { ChatAnswers, fitting } from './chat-answers.js';
 import type { ChatStore } from './chat-store.js';

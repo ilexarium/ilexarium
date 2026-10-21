@@ -1,5 +1,5 @@
 import { Component, inject, input, output } from '@angular/core';
-import type { AiLibraryDetail, AiLibraryModel } from '@homelab/shared';
+import type { AiLibraryDetail, AiLibraryModel } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideChevronDown, lucideDownload, lucideHeart } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -15,7 +15,7 @@ import { StatusBadge } from '../../../shared/status-badge/status-badge';
  * for a size.
  */
 @Component({
-  selector: 'app-library-results',
+  selector: 'laris-library-results',
   imports: [EmptyState, HlmButton, HlmSkeleton, NgIcon, StatusBadge, TranslatePipe],
   providers: [provideIcons({ lucideChevronDown, lucideDownload, lucideHeart })],
   host: { class: 'block' },

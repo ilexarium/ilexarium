@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { LOG_LIMITS, type LogLine, logLineSchema } from '@homelab/shared';
+import { LOG_LIMITS, type LogLine, logLineSchema } from '@laris/shared';
 import { logLines, normaliseTimestamp, stripAnsi, toUnixSeconds } from './log-lines.js';
 
 // Real bodies of `GET /containers/{id}/logs?stdout=1&stderr=1&timestamps=1`, captured from

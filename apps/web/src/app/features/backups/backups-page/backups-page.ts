@@ -22,7 +22,7 @@ const RESTORE_SHOWN_MS = 24 * 60 * 60_000;
  * and actions live in its page store; it names the items and chooses what to show.
  */
 @Component({
-  selector: 'app-backups-page',
+  selector: 'laris-backups-page',
   imports: [
     BackupHistory,
     BackupItems,

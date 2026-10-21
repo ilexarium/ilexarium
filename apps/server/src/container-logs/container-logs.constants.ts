@@ -1,4 +1,4 @@
-import type { ContainerState } from '@homelab/shared';
+import type { ContainerState } from '@laris/shared';
 
 /** What `EventSource` waits before reconnecting (its `retry`). */
 export const RETRY_MS = 1_000;

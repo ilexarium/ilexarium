@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { DOCUMENT, inject, Service } from '@angular/core';
-import { TERMINAL_PATH, type TerminalTicket } from '@homelab/shared';
+import { TERMINAL_PATH, type TerminalTicket } from '@laris/shared';
 import { firstValueFrom } from 'rxjs';
 import { WEB_SOCKET_FACTORY } from '../realtime/realtime-service';
 

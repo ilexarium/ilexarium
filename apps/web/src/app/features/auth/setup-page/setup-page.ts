@@ -1,7 +1,7 @@
 import { Component, computed, DOCUMENT, inject, signal } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { Router } from '@angular/router';
-import { type SetupForm, setupFormSchema, VALIDATION_LIMITS } from '@homelab/shared';
+import { type SetupForm, setupFormSchema, VALIDATION_LIMITS } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
@@ -35,7 +35,7 @@ function takeTokenFromFragment(document: Document): string {
 }
 
 @Component({
-  selector: 'app-setup-page',
+  selector: 'laris-setup-page',
   imports: [
     AuthFrame,
     FieldErrors,

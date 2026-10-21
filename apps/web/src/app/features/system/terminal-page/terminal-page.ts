@@ -4,7 +4,7 @@ import {
   type LinuxSignInRequest,
   type TerminalTicketRequest,
   terminalTicketRequestSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideX } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -30,7 +30,7 @@ import { TerminalPageStore } from './terminal-page-store';
  * terminal; why it closed, and opening it again.
  */
 @Component({
-  selector: 'app-terminal-page',
+  selector: 'laris-terminal-page',
   imports: [
     FieldErrors,
     FormErrors,

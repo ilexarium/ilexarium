@@ -7,19 +7,19 @@
         @switch (service().status) {
           @case ('installed') {
             @if (runtime(); as state) {
-              <app-status-badge [tone]="runtimeTones[state]">{{
+              <laris-status-badge [tone]="runtimeTones[state]">{{
                 'services.runtime.' + state | translate
-              }}</app-status-badge>
+              }}</laris-status-badge>
             } @else {
-              <app-status-badge tone="neutral">{{
+              <laris-status-badge tone="neutral">{{
                 'services.status.installed' | translate
-              }}</app-status-badge>
+              }}</laris-status-badge>
             }
           }
           @case ('failed') {
-            <app-status-badge tone="failed">{{
+            <laris-status-badge tone="failed">{{
               'services.status.failed' | translate
-            }}</app-status-badge>
+            }}</laris-status-badge>
           }
           @default {
             <span class="flex items-center gap-1.5" role="status">
@@ -60,7 +60,7 @@
 
   @if (job(); as job) {
     <div hlmCardContent>
-      <app-job-progress [job]="job" />
+      <laris-job-progress [job]="job" />
     </div>
   }
 

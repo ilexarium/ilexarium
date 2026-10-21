@@ -25,7 +25,7 @@ import {
   isUserField,
   type UserField,
   valuesSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
@@ -54,7 +54,7 @@ interface AccessItem {
  * (port in use, folder not allowed) land on their fields.
  */
 @Component({
-  selector: 'app-install-form',
+  selector: 'laris-install-form',
   imports: [
     FieldErrors,
     FormErrors,

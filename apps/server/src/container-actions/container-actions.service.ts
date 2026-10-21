@@ -11,7 +11,7 @@ import {
   type ContainerAction,
   type ContainerActionErrorCode,
   PROTECTED_ACTIONS,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditEntry } from '../audit/audit.model.js';

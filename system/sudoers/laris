@@ -1,4 +1,4 @@
-# /etc/sudoers.d/homelab — REVIEW-REQUIRED (system/CLAUDE.md).
+# /etc/sudoers.d/laris — REVIEW-REQUIRED (system/CLAUDE.md).
 # Install as root:root, mode 0440, after `visudo -cf` accepts it (the installer does both).
 #
 # The app's user may run exactly four programs as root, by absolute path: the deploy wrapper, the
@@ -11,9 +11,9 @@
 # carries services' secrets (passwords), and the backup wrapper's `passphrase` output is the
 # backup passphrase — both would then be written to sudo's logs in plain text.
 
-Defaults:homelab env_reset, !env_keep, secure_path="/usr/sbin:/usr/bin:/sbin:/bin"
+Defaults:laris env_reset, !env_keep, secure_path="/usr/sbin:/usr/bin:/sbin:/bin"
 
-homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-compose.mts
-homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-backup.mts
-homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-disk.mts
-homelab ALL=(root) NOPASSWD: /opt/homelab/libexec/homelab-process.mts
+laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-compose.mts
+laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-backup.mts
+laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-disk.mts
+laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-process.mts

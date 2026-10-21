@@ -2,9 +2,9 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import en from '@homelab/i18n/en.json' with { type: 'json' };
-import type { CatalogMeta } from '@homelab/shared';
-import { flattenMessages } from '@homelab/i18n';
+import en from '@laris/i18n/en.json' with { type: 'json' };
+import type { CatalogMeta } from '@laris/shared';
+import { flattenMessages } from '@laris/i18n';
 import { CatalogError, loadCatalog } from './catalog-loader.js';
 import { checkComposePolicy, checkPlaceholders } from './compose-policy.js';
 
@@ -22,8 +22,8 @@ const meta: CatalogMeta = {
   dataOwner: { uid: 1000, gid: 1000 },
   fields: [
     { key: 'WEB_PORT', type: 'port', default: 8080 },
-    { key: 'MEDIA_DIR', type: 'path', default: '/srv/homelab/demo/media', access: 'read' },
-    { key: 'DATA_DIR', type: 'path', default: '/srv/homelab/demo/data', access: 'write' },
+    { key: 'MEDIA_DIR', type: 'path', default: '/srv/laris/demo/media', access: 'read' },
+    { key: 'DATA_DIR', type: 'path', default: '/srv/laris/demo/data', access: 'write' },
   ],
 };
 
@@ -214,7 +214,7 @@ describe('checkComposePolicy', () => {
     ['no log rotation', (t) => delete t.services.app.logging, /logging: json-file or local/],
     [
       'a protected label',
-      (t) => (t.services.app.labels = { 'homelab.protected': 'true' }),
+      (t) => (t.services.app.labels = { 'laris.protected': 'true' }),
       /reserved label/,
     ],
     [

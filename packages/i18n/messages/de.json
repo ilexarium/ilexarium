@@ -123,7 +123,7 @@
     "portInvalid": "Gib eine Portnummer ein",
     "portRange": "Ein Port von {{portMin}} bis {{portMax}}",
     "pathRequired": "Gib einen Ordner ein",
-    "pathInvalid": "Ein vollständiger Ordnerpfad, z. B. /srv/homelab/music",
+    "pathInvalid": "Ein vollständiger Ordnerpfad, z. B. /srv/laris/music",
     "textRequired": "Gib einen Wert ein",
     "textTooLong": "Höchstens {{textMax}} Zeichen",
     "text": {
@@ -749,7 +749,7 @@
       "inPlace": "An den alten Ort",
       "inPlaceText": "Der Dienst wird gestoppt, seine aktuellen Ordner werden beiseitegelegt (bis du sie löschst), das Backup wird zurückgeschrieben und der Dienst wieder gestartet.",
       "newFolder": "In einen neuen Ordner",
-      "newFolderText": "In einen neuen Ordner unter /srv/homelab/restores. Sonst ändert sich nichts.",
+      "newFolderText": "In einen neuen Ordner unter /srv/laris/restores. Sonst ändert sich nichts.",
       "reinstall": "Installiere den Dienst danach erneut – seine bisherigen Einstellungen sind eingetragen.",
       "cancel": "Abbrechen",
       "confirm": "Wiederherstellen",

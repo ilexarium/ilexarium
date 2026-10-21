@@ -1,5 +1,5 @@
 import { Component, inject, viewChild } from '@angular/core';
-import type { DisconnectedDisk } from '@homelab/shared';
+import type { DisconnectedDisk } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -17,7 +17,7 @@ import { DisksPageStore } from './disks-page-store';
  * data and actions live in its page store; it opens the dialogs.
  */
 @Component({
-  selector: 'app-disks-page',
+  selector: 'laris-disks-page',
   imports: [
     DiskCard,
     HlmAlertImports,

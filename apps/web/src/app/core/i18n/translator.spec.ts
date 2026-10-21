@@ -79,7 +79,7 @@ describe('Translator', () => {
 @Component({
   imports: [PluralPipe, ConnectionStatus],
   template: `<p>{{ 'processes.count' | plural: 3 }}</p>
-    <app-connection-status />`,
+    <laris-connection-status />`,
 })
 class Host {}
 

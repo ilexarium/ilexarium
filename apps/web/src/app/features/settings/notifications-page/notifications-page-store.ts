@@ -5,7 +5,7 @@ import type {
   AlertChannelsResponse,
   EmailChannelUpdate,
   NtfyChannelUpdate,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { Translator } from '../../../core/i18n/translator';

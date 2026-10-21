@@ -1,6 +1,6 @@
 import { HttpClient, HttpEventType, HttpParams } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { FileList, FileSummary, LinuxSession, LinuxSignInRequest } from '@homelab/shared';
+import type { FileList, FileSummary, LinuxSession, LinuxSignInRequest } from '@laris/shared';
 import { filter, firstValueFrom, map, type Observable } from 'rxjs';
 
 /** The Linux sign-in and the file explorer's endpoints. */

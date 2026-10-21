@@ -3,7 +3,7 @@
     {{ 'services.back' | translate }}
   </a>
   @if (store.details(); as details) {
-    <app-install-form [details]="details" />
+    <laris-install-form [details]="details" />
   } @else if (store.problem(); as problem) {
     <p role="alert" class="text-sm text-destructive">
       {{ (problem === 'notFound' ? 'services.notFound' : 'services.catalog.failed') | translate }}

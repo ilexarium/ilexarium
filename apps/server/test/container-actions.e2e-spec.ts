@@ -15,8 +15,8 @@ import { testHasher } from './realtime-client.js';
 // Container actions end to end: the app, the socket proxy and the real Docker daemon. Only the
 // dev sandbox container (npm run db:up) is ever changed; the protected Postgres only refused.
 
-const SANDBOX = 'homelab-dev-sandbox-1';
-const POSTGRES = 'homelab-dev-postgres-1';
+const SANDBOX = 'laris-dev-sandbox-1';
+const POSTGRES = 'laris-dev-postgres-1';
 const PASSWORD = 'correct horse battery staple';
 
 const reachable = await proxyReachable();

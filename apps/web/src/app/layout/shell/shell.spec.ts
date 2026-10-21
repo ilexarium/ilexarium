@@ -120,10 +120,10 @@ describe('Shell (app layout)', () => {
   it('opens the app WebSocket and shows its status in the top bar', async () => {
     const { harness, el, sockets } = await render();
     expect(sockets.sockets).toHaveLength(1);
-    expect(el.querySelector('app-connection-status')!.textContent).toContain('Connecting');
+    expect(el.querySelector('laris-connection-status')!.textContent).toContain('Connecting');
     sockets.latest().open();
     await harness.fixture.whenStable();
-    expect(el.querySelector('app-connection-status')!.textContent).toContain('Live');
+    expect(el.querySelector('laris-connection-status')!.textContent).toContain('Live');
   });
 
   it('renders the routed page and the user menu', async () => {
@@ -141,7 +141,7 @@ describe('Shell (app layout)', () => {
       trigger().click();
       await harness.fixture.whenStable();
       expect(sidebarState()).toBe('collapsed');
-      expect(storage.storage.getItem('homelab.sidebar')).toBe('false');
+      expect(storage.storage.getItem('laris.sidebar')).toBe('false');
     });
 
     it('starts collapsed to icons on medium screens', async () => {
@@ -152,7 +152,7 @@ describe('Shell (app layout)', () => {
 
     it('keeps a remembered choice over the screen size', async () => {
       restoreScreen = stubScreenWidth(900);
-      storage.storage.setItem('homelab.sidebar', 'true');
+      storage.storage.setItem('laris.sidebar', 'true');
       const { sidebarState } = await render();
       expect(sidebarState()).toBe('expanded');
     });

@@ -19,7 +19,7 @@ echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
  * (the card around it shows the current numbers as text anyway).
  */
 @Component({
-  selector: 'app-metric-chart',
+  selector: 'laris-metric-chart',
   imports: [NgxEchartsDirective],
   providers: [provideEchartsCore({ echarts })],
   host: { class: 'block' },

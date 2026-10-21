@@ -17,7 +17,7 @@ export function checkStartup(): string {
   }
   const args = process.argv.slice(2);
   if (args.length !== 1 || !ACTIONS.has(args[0])) {
-    throw new Refusal('invalid_request', `usage: homelab-disk ${[...ACTIONS].join('|')}`);
+    throw new Refusal('invalid_request', `usage: laris-disk ${[...ACTIONS].join('|')}`);
   }
   return args[0];
 }
@@ -42,7 +42,7 @@ export async function main(): Promise<number> {
   throw new Refusal('invalid_request', 'unknown action');
 }
 
-/** Called by the entry (homelab-disk.mts) once it checked these modules. */
+/** Called by the entry (laris-disk.mts) once it checked these modules. */
 export function start(): void {
   finish(main);
 }

@@ -7,7 +7,7 @@ import type {
   BackupsStatus,
   CatalogEntrySummary,
   InstalledService,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsApi } from '../../../core/backups/backups-api';

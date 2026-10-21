@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { PROCESS_LIMITS, type Process, type ProcessesUpdate, processKey } from '@homelab/shared';
+import { PROCESS_LIMITS, type Process, type ProcessesUpdate, processKey } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { Translator } from '../../../core/i18n/translator';
 import { ProcessesApi } from '../../../core/processes/processes-api';

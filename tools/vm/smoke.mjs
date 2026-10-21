@@ -12,7 +12,7 @@ const BASE = 'http://127.0.0.1:3000';
 const ORIGIN = BASE;
 const USER = 'owner';
 const PASSWORD = 'correct horse battery staple';
-const { default: WebSocket } = await import('/opt/homelab/app/node_modules/ws/index.js');
+const { default: WebSocket } = await import('/opt/laris/app/node_modules/ws/index.js');
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -104,8 +104,8 @@ async function signIn() {
 
 async function securitySetup() {
   console.log('\nThe security setup');
-  const app = uidOf('homelab');
-  const appGroup = gidOf('homelab');
+  const app = uidOf('laris');
+  const appGroup = gidOf('laris');
   const expect = (path, want) => {
     const got = mode(path);
     check(
@@ -114,23 +114,23 @@ async function securitySetup() {
       JSON.stringify(got),
     );
   };
-  expect('/etc/homelab/master.key', { mode: '0400', uid: app });
-  expect('/etc/homelab/app.env', { mode: '0640', uid: 0, gid: appGroup });
-  expect('/etc/homelab/database.env', { mode: '0600', uid: 0 });
-  expect('/etc/homelab/wrappers.json', { mode: '0644', uid: 0 });
-  expect('/etc/sudoers.d/homelab', { mode: '0440', uid: 0 });
-  expect('/opt/homelab/libexec', { mode: '0755', uid: 0 });
-  expect('/opt/homelab/libexec/homelab-process.mts', { mode: '0755', uid: 0 });
-  expect('/var/lib/homelab', { mode: '0755', uid: 0 });
-  expect('/var/lib/homelab/app', { mode: '0700', uid: app });
-  expect('/var/lib/homelab/backups', { mode: '0750', uid: 0, gid: appGroup });
-  expect('/run/homelab/proxy', { mode: '0750', uid: 99, gid: appGroup });
+  expect('/etc/laris/master.key', { mode: '0400', uid: app });
+  expect('/etc/laris/app.env', { mode: '0640', uid: 0, gid: appGroup });
+  expect('/etc/laris/database.env', { mode: '0600', uid: 0 });
+  expect('/etc/laris/wrappers.json', { mode: '0644', uid: 0 });
+  expect('/etc/sudoers.d/laris', { mode: '0440', uid: 0 });
+  expect('/opt/laris/libexec', { mode: '0755', uid: 0 });
+  expect('/opt/laris/libexec/laris-process.mts', { mode: '0755', uid: 0 });
+  expect('/var/lib/laris', { mode: '0755', uid: 0 });
+  expect('/var/lib/laris/app', { mode: '0700', uid: app });
+  expect('/var/lib/laris/backups', { mode: '0750', uid: 0, gid: appGroup });
+  expect('/run/laris/proxy', { mode: '0750', uid: 99, gid: appGroup });
   check(
     'the app’s user is not in the docker group',
-    !sh('id', ['-nG', 'homelab']).split(/\s+/).includes('docker'),
+    !sh('id', ['-nG', 'laris']).split(/\s+/).includes('docker'),
   );
-  const appProcess = sh('systemctl', ['show', '-p', 'MainPID', '--value', 'homelab']).trim();
-  check('the app runs as homelab', mode(`/proc/${appProcess}`).uid === app);
+  const appProcess = sh('systemctl', ['show', '-p', 'MainPID', '--value', 'laris']).trim();
+  check('the app runs as laris', mode(`/proc/${appProcess}`).uid === app);
   check(
     'the app listens on 127.0.0.1 only',
     !/0\.0\.0\.0:3000|\[::\]:3000|\*:3000/.test(sh('ss', ['-ltnH'])),
@@ -141,31 +141,29 @@ async function securitySetup() {
   );
   check('the proxy has no TCP port', !/:2375\b/.test(sh('ss', ['-ltnH'])));
   // What the app's user may do with sudo: exactly the four wrappers.
-  const sudo = sh('sudo', ['-l', '-U', 'homelab']);
+  const sudo = sh('sudo', ['-l', '-U', 'laris']);
   const allowed = [...sudo.matchAll(/NOPASSWD:\s*(\S+)/g)].map((m) => m[1]).sort();
   check(
     'sudo: the app may run exactly the four wrappers',
     JSON.stringify(allowed) ===
       JSON.stringify(
-        ['backup', 'compose', 'disk', 'process'].map(
-          (w) => `/opt/homelab/libexec/homelab-${w}.mts`,
-        ),
+        ['backup', 'compose', 'disk', 'process'].map((w) => `/opt/laris/libexec/laris-${w}.mts`),
       ),
     allowed.join(' '),
   );
   check(
     'sudo: not docker',
-    fails('runuser', ['-u', 'homelab', '--', 'sudo', '-n', '/usr/bin/docker', 'ps']),
+    fails('runuser', ['-u', 'laris', '--', 'sudo', '-n', '/usr/bin/docker', 'ps']),
   );
   check(
     'the app can’t read the database owner’s password',
-    fails('runuser', ['-u', 'homelab', '--', 'cat', '/etc/homelab/database.env']),
+    fails('runuser', ['-u', 'laris', '--', 'cat', '/etc/laris/database.env']),
   );
   check(
     'the app can’t open Docker’s socket',
     fails('runuser', [
       '-u',
-      'homelab',
+      'laris',
       '--',
       'curl',
       '-sf',
@@ -178,12 +176,12 @@ async function securitySetup() {
     'the app reaches the proxy’s socket',
     !fails('runuser', [
       '-u',
-      'homelab',
+      'laris',
       '--',
       'curl',
       '-sf',
       '--unix-socket',
-      '/run/homelab/proxy/docker.sock',
+      '/run/laris/proxy/docker.sock',
       'http://d/_ping',
     ]),
   );
@@ -197,7 +195,7 @@ async function securitySetup() {
       'curl',
       '-sf',
       '--unix-socket',
-      '/run/homelab/proxy/docker.sock',
+      '/run/laris/proxy/docker.sock',
       'http://d/_ping',
     ]),
   );
@@ -205,7 +203,7 @@ async function securitySetup() {
     'the proxy still refuses what isn’t allowed',
     sh('runuser', [
       '-u',
-      'homelab',
+      'laris',
       '--',
       'curl',
       '-s',
@@ -214,7 +212,7 @@ async function securitySetup() {
       '-w',
       '%{http_code}',
       '--unix-socket',
-      '/run/homelab/proxy/docker.sock',
+      '/run/laris/proxy/docker.sock',
       '-X',
       'POST',
       'http://d/containers/create',
@@ -223,15 +221,15 @@ async function securitySetup() {
   // The database: the app's role may read and write data, nothing more.
   const role = sh('docker', [
     'exec',
-    'homelab-postgres-1',
+    'laris-postgres-1',
     'psql',
     '-tA',
     '-U',
-    'homelab_owner',
+    'laris_owner',
     '-d',
-    'homelab',
+    'laris',
     '-c',
-    "SELECT rolsuper, rolcreatedb, rolcreaterole, has_table_privilege('homelab', '\"User\"', 'SELECT'), has_table_privilege('homelab', '_prisma_migrations', 'SELECT'), has_schema_privilege('homelab', 'public', 'CREATE') FROM pg_roles WHERE rolname = 'homelab'",
+    "SELECT rolsuper, rolcreatedb, rolcreaterole, has_table_privilege('laris', '\"User\"', 'SELECT'), has_table_privilege('laris', '_prisma_migrations', 'SELECT'), has_schema_privilege('laris', 'public', 'CREATE') FROM pg_roles WHERE rolname = 'laris'",
   ]).trim();
   check(
     'the app’s database role reads data, can’t migrate or create',
@@ -371,7 +369,7 @@ async function install() {
   check('the app answers', (await api('GET', '/health')).status === 200);
   const status = await api('GET', '/auth/status');
   check('needs setup', status.json?.needsSetup === true, status.text);
-  const token = readFileSync('/var/lib/homelab/app/setup-token', 'utf8').trim();
+  const token = readFileSync('/var/lib/laris/app/setup-token', 'utf8').trim();
   const setup = await api('POST', '/auth/setup', {
     setupToken: token,
     username: USER,
@@ -385,7 +383,7 @@ async function install() {
   await signIn();
   check(
     'the web app is served on the same origin',
-    (await fetch(`${BASE}/backups`).then((r) => r.text())).includes('<app-root'),
+    (await fetch(`${BASE}/backups`).then((r) => r.text())).includes('<laris-root'),
   );
 
   await securitySetup();
@@ -400,20 +398,20 @@ async function install() {
   );
   check(
     'the platform’s containers, protected',
-    ['homelab-postgres-1', 'homelab-docker-proxy-1'].every(
+    ['laris-postgres-1', 'laris-docker-proxy-1'].every(
       (n) => containers.containers?.find((c) => c.name === n)?.protected,
     ),
     names.join(', '),
   );
 
   console.log('\nDeploying a service');
-  mkdirSync('/srv/homelab/navidrome/music', { recursive: true });
+  mkdirSync('/srv/laris/navidrome/music', { recursive: true });
   const deploy = await api('POST', '/services', {
     catalogId: 'navidrome',
     values: {
       WEB_PORT: 4533,
-      MUSIC_DIR: '/srv/homelab/navidrome/music',
-      DATA_DIR: '/srv/homelab/navidrome/data',
+      MUSIC_DIR: '/srv/laris/navidrome/music',
+      DATA_DIR: '/srv/laris/navidrome/data',
     },
   });
   check(
@@ -440,7 +438,7 @@ async function install() {
   console.log('\nInstalling Ollama (the Assistant)');
   const ollama = await api('POST', '/services', {
     catalogId: 'ollama',
-    values: { API_PORT: 11434, MODELS_DIR: '/srv/homelab/ollama/models' },
+    values: { API_PORT: 11434, MODELS_DIR: '/srv/laris/ollama/models' },
   });
   check('Ollama deploy started', ollama.status === 202 || ollama.status === 201, ollama.text);
   const ollamaJob = await until(
@@ -566,9 +564,9 @@ async function update() {
   check('backups still set up', (await api('GET', '/backups/status')).json?.configured === true);
   check(
     'a database backup was made before migrating',
-    sh('ls', ['/var/lib/homelab/install-backups']).trim().length > 0,
+    sh('ls', ['/var/lib/laris/install-backups']).trim().length > 0,
   );
-  check('the version recorded', existsSync('/etc/homelab/version'));
+  check('the version recorded', existsSync('/etc/laris/version'));
   await securitySetup();
   await files();
   await profile();

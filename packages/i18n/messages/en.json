@@ -123,7 +123,7 @@
     "portInvalid": "Enter a port number",
     "portRange": "A port from {{portMin}} to {{portMax}}",
     "pathRequired": "Enter a folder",
-    "pathInvalid": "A full folder path, like /srv/homelab/music",
+    "pathInvalid": "A full folder path, like /srv/laris/music",
     "textRequired": "Enter a value",
     "textTooLong": "At most {{textMax}} characters",
     "text": {
@@ -749,7 +749,7 @@
       "inPlace": "Back in place",
       "inPlaceText": "The service is stopped, its current folders are set aside (kept until you delete them), the backup is put back, and the service starts again.",
       "newFolder": "A new folder",
-      "newFolderText": "Into a new folder under /srv/homelab/restores. Nothing else changes.",
+      "newFolderText": "Into a new folder under /srv/laris/restores. Nothing else changes.",
       "reinstall": "Then install the service again — its previous settings are filled in.",
       "cancel": "Cancel",
       "confirm": "Restore",

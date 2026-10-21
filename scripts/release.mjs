@@ -1,5 +1,5 @@
 // Builds a release archive for the installer (docs/plans/installer.md):
-//   release/homelab-<version>.tar.gz and its .sha256
+//   release/laris-<version>.tar.gz and its .sha256
 // holding the built server and web app, their production packages (one archive for amd64 and
 // arm64: no native modules, and Prisma's migration engine for both), the migrations, the catalog
 // and system/ (the installer, wrappers, units). Usage: npm run release
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Version ${version} isn't x.y.z`);
-const NAME = `homelab-${version}`;
+const NAME = `laris-${version}`;
 const OUT = join(ROOT, 'release');
 const STAGE = join(OUT, NAME);
 const APP = join(STAGE, 'app');
@@ -36,8 +36,8 @@ const copy = (from, to, filter) => cpSync(join(ROOT, from), to, { recursive: tru
 
 console.log(`Building ${NAME}`);
 run('npm', ['run', 'build:shared']);
-run('npm', ['run', 'build', '-w', '@homelab/server']);
-run('npm', ['run', 'build', '-w', '@homelab/web']);
+run('npm', ['run', 'build', '-w', '@laris/server']);
+run('npm', ['run', 'build', '-w', '@laris/web']);
 
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(APP, { recursive: true });
@@ -78,11 +78,11 @@ run(
     '--no-audit',
     '--no-fund',
     '-w',
-    '@homelab/server',
+    '@laris/server',
     '-w',
-    '@homelab/shared',
+    '@laris/shared',
     '-w',
-    '@homelab/i18n',
+    '@laris/i18n',
   ],
   APP,
 );
@@ -108,7 +108,7 @@ for (const target of ENGINE_TARGETS) {
 function* files(dir) {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
-    // Links (the workspaces' in node_modules/@homelab) aren't followed: their targets are walked
+    // Links (the workspaces' in node_modules/@laris) aren't followed: their targets are walked
     // where they are.
     const stat = lstatSync(path);
     if (stat.isDirectory()) yield* files(path);

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import type { PublicUser } from '@homelab/shared';
+import type { PublicUser } from '@laris/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { ProfileApi } from '../../../core/profile/profile-api';

@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Alert } from '@homelab/shared';
+import type { Alert } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -12,7 +12,7 @@ import { SEVERITY_TONES } from '../alerts.constants';
 
 /** One alert: what happened, since when, where to look; an open one can be acknowledged. */
 @Component({
-  selector: 'app-alert-card',
+  selector: 'laris-alert-card',
   imports: [StatusBadge, HlmButton, NgIcon, RouterLink, TranslatePipe],
   providers: [provideIcons({ lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert })],
   host: { class: 'block' },

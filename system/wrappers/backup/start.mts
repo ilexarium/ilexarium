@@ -1,9 +1,9 @@
 // backup/start.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
 //
 // `start` ("Back up now"): checks the request, then has systemd start the run as its own unit,
-// homelab-backup-now@<runId>[_<itemId>].service, and returns at once. The run doesn't belong to
+// laris-backup-now@<runId>[_<itemId>].service, and returns at once. The run doesn't belong to
 // the app: it goes on if the app stops, and is followed like a scheduled run (current.jsonl,
-// runs.jsonl). The unit runs `homelab-backup run-requested <instance>`.
+// runs.jsonl). The unit runs `laris-backup run-requested <instance>`.
 
 import { openSync, closeSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -52,7 +52,7 @@ export async function start(config: Config, paths: Paths, input: string): Promis
   if (systemctl) {
     const result = await runProgram(
       systemctl,
-      ['start', '--no-block', `homelab-backup-now@${instance}.service`],
+      ['start', '--no-block', `laris-backup-now@${instance}.service`],
       { env: { PATH: SAFE_PATH, HOME: home(config) } },
     );
     if (result.code !== 0) throw new Refusal('setup', 'systemctl start failed', 6);
@@ -68,7 +68,7 @@ export async function start(config: Config, paths: Paths, input: string): Promis
  */
 function startDetached(config: Config, paths: Paths, instance: string): void {
   const entry = process.argv[1];
-  const configFile = process.env['HOMELAB_WRAPPER_CONFIG'];
+  const configFile = process.env['LARIS_WRAPPER_CONFIG'];
   if (!entry || !isAbsolute(entry) || !configFile) {
     throw new Refusal('setup', 'cannot start the run', 6);
   }
@@ -78,7 +78,7 @@ function startDetached(config: Config, paths: Paths, instance: string): void {
     const child = spawn(process.execPath, [entry, 'run-requested', instance], {
       detached: true,
       stdio: ['ignore', log, log],
-      env: { PATH: SAFE_PATH, LANG: 'C.UTF-8', HOMELAB_WRAPPER_CONFIG: configFile },
+      env: { PATH: SAFE_PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: configFile },
       cwd: '/',
       shell: false,
     });

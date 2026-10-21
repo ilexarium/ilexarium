@@ -1,4 +1,4 @@
-// Tests for the process wrapper (homelab-process.mts) — run in development mode (not root):
+// Tests for the process wrapper (laris-process.mts) — run in development mode (not root):
 // against a pretend /proc for the refusals, and the real /proc for ending a real process (a
 // child of this test). Run by the server's unit tests.
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const WRAPPER = fileURLToPath(new URL('./homelab-process.mts', import.meta.url));
+const WRAPPER = fileURLToPath(new URL('./laris-process.mts', import.meta.url));
 const ME = process.getuid!();
 const PF_KTHREAD = 0x0020_0000;
 
@@ -23,7 +23,7 @@ interface Run {
 function wrapper(args: string[], input: unknown = ''): Promise<Run> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [WRAPPER, ...args], {
-      env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
+      env: { LARIS_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
     });
     let out = '';
     child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
@@ -88,7 +88,7 @@ beforeEach(() => {
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-describe('homelab-process: what it refuses', () => {
+describe('laris-process: what it refuses', () => {
   it('takes exactly one action', async () => {
     expectRefused(await wrapper([]), 'invalid_request');
     expectRefused(await wrapper(['kill']), 'invalid_request');
@@ -184,7 +184,7 @@ describe('homelab-process: what it refuses', () => {
   });
 });
 
-describe('homelab-process: ending a real process', () => {
+describe('laris-process: ending a real process', () => {
   let child: ChildProcess;
 
   /** The real start time of a process (field 22 of /proc/<pid>/stat). */

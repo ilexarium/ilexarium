@@ -12,7 +12,7 @@
     {
       "key": "UPLOAD_DIR",
       "type": "path",
-      "default": "/srv/homelab/immich/library",
+      "default": "/srv/laris/immich/library",
       "access": "write"
     },
     { "key": "TZ", "type": "text", "pattern": "timezone", "default": "UTC", "advanced": true },

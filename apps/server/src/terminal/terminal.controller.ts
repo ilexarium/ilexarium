@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, Ip, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { FILES_ERROR_CODES, type PublicUser, type TerminalTicket } from '@homelab/shared';
+import { FILES_ERROR_CODES, type PublicUser, type TerminalTicket } from '@laris/shared';
 import { AuthService } from '../auth/auth.service.js';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { linuxError } from '../linux-sessions/linux-sessions.js';

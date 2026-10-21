@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { CatalogEntrySummary, Container, InstalledService, Job } from '@homelab/shared';
+import type { CatalogEntrySummary, Container, InstalledService, Job } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
@@ -52,7 +52,7 @@ const immich = (change: Partial<InstalledService> = {}): InstalledService => ({
   catalogId: 'immich',
   name: 'Immich',
   status: 'installed',
-  settings: { WEB_PORT: 2283, UPLOAD_DIR: '/srv/homelab/immich/library' },
+  settings: { WEB_PORT: 2283, UPLOAD_DIR: '/srv/laris/immich/library' },
   webPort: 2283,
   job: null,
   updatedAt: '2026-10-12T10:00:00.000Z',
@@ -115,7 +115,7 @@ describe('ServicesPage', () => {
     const { el, fixture, socket, services } = await render();
     TestBed.inject(BackupsStore).watch();
     await services([immich()]);
-    const card = () => el.querySelector('app-installed-service')!;
+    const card = () => el.querySelector('laris-installed-service')!;
     expect(card().textContent).not.toContain('backed up');
     const status = (items: object[]) => ({
       event: 'backups:update',

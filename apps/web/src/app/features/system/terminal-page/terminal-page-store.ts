@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import { type LinuxSession, type LinuxSignInRequest, TERMINAL_CLOSE_CODES } from '@homelab/shared';
+import { type LinuxSession, type LinuxSignInRequest, TERMINAL_CLOSE_CODES } from '@laris/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { FilesApi } from '../../../core/files/files-api';
 import { TerminalApi } from '../../../core/terminal/terminal-api';

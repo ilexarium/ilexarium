@@ -1,5 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { ALERT_LIMITS, type DiskUsage } from '@homelab/shared';
+import { ALERT_LIMITS, type DiskUsage } from '@laris/shared';
 import { HlmCardImports } from '@ui/card';
 import { HlmProgressImports } from '@ui/progress';
 import { percentOf } from '../../../shared/format/format';
@@ -11,7 +11,7 @@ import { StatusBadge } from '../../../shared/status-badge/status-badge';
 export const DISK_WARNING_PERCENT = 90;
 
 @Component({
-  selector: 'app-disk-list',
+  selector: 'laris-disk-list',
   imports: [HlmCardImports, HlmProgressImports, StatusBadge, TranslatePipe],
   templateUrl: './disk-list.html',
 })

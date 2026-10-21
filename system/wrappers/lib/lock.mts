@@ -14,7 +14,7 @@ import {
 import { dirname } from 'node:path';
 
 /** The lock both wrappers take: one privileged operation at a time, installs and backups alike. */
-export const ROOT_LOCK = '/run/homelab/compose.lock';
+export const ROOT_LOCK = '/run/laris/compose.lock';
 
 /** Takes the lock, or null while another operation holds it. Returns its release. */
 export function tryLock(path: string): (() => void) | null {

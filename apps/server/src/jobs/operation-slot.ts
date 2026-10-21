@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { SERVICE_ERROR_CODES } from '@homelab/shared';
+import { SERVICE_ERROR_CODES } from '@laris/shared';
 import { type Observable, Subject } from 'rxjs';
 import type { OperationKind } from './jobs.model.js';
 

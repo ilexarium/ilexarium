@@ -33,7 +33,7 @@
                       }}</span>
                     </div>
                   } @else {
-                    <app-markdown-view dir="auto" [text]="row.content" />
+                    <laris-markdown-view dir="auto" [text]="row.content" />
                     @if (row.id !== 'streaming' && 'model' in row) {
                       <div hlmMessageFooter class="gap-1 px-0">
                         <span dir="ltr">{{ row.model }}</span>

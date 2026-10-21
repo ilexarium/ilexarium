@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
-import { type AiPullRequest, aiLibrarySearchSchema, aiPullRequestSchema } from '@homelab/shared';
+import { type AiPullRequest, aiLibrarySearchSchema, aiPullRequestSchema } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowLeft, lucideSearch } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -22,7 +22,7 @@ import { FieldErrors } from '../../../shared/forms/field-errors';
  * name or from Hugging Face, and the download's progress.
  */
 @Component({
-  selector: 'app-models-page',
+  selector: 'laris-models-page',
   imports: [
     EmptyState,
     FieldErrors,

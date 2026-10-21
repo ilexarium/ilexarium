@@ -4,7 +4,7 @@ import type {
   AlertSeverity,
   ContainerHealth,
   DeliveryProblem,
-} from '@homelab/shared';
+} from '@laris/shared';
 
 /** A problem a rule sees now: an alert should be open for it. */
 export interface AlertCondition {

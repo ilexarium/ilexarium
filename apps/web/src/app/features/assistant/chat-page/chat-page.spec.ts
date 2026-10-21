@@ -8,7 +8,7 @@ import type {
   ChatMessage,
   ChatStreamEvent,
   ChatSummary,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { Subject } from 'rxjs';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
@@ -129,18 +129,18 @@ describe('ChatPage', () => {
     answer.next({ type: 'text', text: 'Hello' });
     await fixture.whenStable();
     expect(el.textContent).toContain('Say hello');
-    expect(el.querySelector('app-chat-thread')!.textContent).toContain('Hello');
+    expect(el.querySelector('laris-chat-thread')!.textContent).toContain('Hello');
     expect(el.querySelector('button[aria-label="Stop the answer"]')).toBeTruthy();
     expect(router.url).toBe(`/assistant?chat=${CHAT_ID}`);
 
     answer.next({ type: 'done', answer: message('assistant', 'Hello **there**') });
     answer.complete();
     await fixture.whenStable();
-    expect(el.querySelector('app-markdown-view strong')?.textContent).toBe('there');
+    expect(el.querySelector('laris-markdown-view strong')?.textContent).toBe('there');
     expect(el.querySelector('button[aria-label="Send"]')).toBeTruthy();
     // The box is empty again; the chat is first in the list.
     expect(el.querySelector('textarea')!.value).toBe('');
-    expect(el.querySelector('app-chat-list a[aria-current="page"]')?.textContent).toContain(
+    expect(el.querySelector('laris-chat-list a[aria-current="page"]')?.textContent).toContain(
       'Say hello',
     );
   });
@@ -159,7 +159,7 @@ describe('ChatPage', () => {
     el.querySelector<HTMLButtonElement>('button[aria-label="Stop the answer"]')!.click();
     await fixture.whenStable();
     expect(api.answers[0].observed).toBe(false);
-    const thread = el.querySelector('app-chat-thread')!.textContent!;
+    const thread = el.querySelector('laris-chat-thread')!.textContent!;
     expect(thread).toContain('Once upon');
     expect(thread).toContain('stopped');
   });
@@ -204,7 +204,7 @@ describe('ChatPage', () => {
     const { el, api } = await render(fakeApi(), `/assistant?chat=${OLD_ID}`);
     expect(api.chat).toHaveBeenCalledWith(OLD_ID);
     expect(el.textContent).toContain('Old question');
-    expect(el.querySelector('app-markdown-view strong')?.textContent).toBe('answer');
+    expect(el.querySelector('laris-markdown-view strong')?.textContent).toBe('answer');
   });
 
   it('sends with Enter, but Shift+Enter is a new line', async () => {
@@ -221,7 +221,7 @@ describe('ChatPage', () => {
   it('deletes a chat after a confirmation', async () => {
     const { el, fixture, api } = await render(fakeApi(), `/assistant?chat=${OLD_ID}`);
     el.querySelector<HTMLButtonElement>(
-      'app-chat-list button[aria-label^="Delete the chat"]',
+      'laris-chat-list button[aria-label^="Delete the chat"]',
     )!.click();
     await fixture.whenStable();
     const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]')!;
@@ -229,6 +229,6 @@ describe('ChatPage', () => {
     [...dialog.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Delete')!.click();
     await fixture.whenStable();
     expect(api.removeChat).toHaveBeenCalledWith(OLD_ID);
-    expect(el.querySelector('app-chat-list')!.textContent).not.toContain('An older chat');
+    expect(el.querySelector('laris-chat-list')!.textContent).not.toContain('An older chat');
   });
 });

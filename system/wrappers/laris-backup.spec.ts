@@ -1,6 +1,6 @@
-// Tests for the backup wrapper (homelab-backup.mts) — run in development mode (not root), with a
+// Tests for the backup wrapper (laris-backup.mts) — run in development mode (not root), with a
 // fake `borg` and a fake `docker` that record their calls (testing/). The same wrapper against
-// the real Borg: homelab-backup.borg.spec.ts. Run by the server's unit tests.
+// the real Borg: laris-backup.borg.spec.ts. Run by the server's unit tests.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const WRAPPER = fileURLToPath(new URL('./homelab-backup.mts', import.meta.url));
+const WRAPPER = fileURLToPath(new URL('./laris-backup.mts', import.meta.url));
 const WORDLIST = fileURLToPath(new URL('./eff_large_wordlist.txt', import.meta.url));
 const FAKES = fileURLToPath(new URL('./testing/', import.meta.url));
 
@@ -94,9 +94,9 @@ function writeConfig(change: Record<string, unknown> = {}) {
     backup: {
       borgBin: join(dir, 'borg'),
       platform: {
-        container: 'homelab-postgres-1',
-        database: 'homelab',
-        user: 'homelab',
+        container: 'laris-postgres-1',
+        database: 'laris',
+        user: 'laris',
         files: [join(dir, 'etc', 'master.key'), join(dir, 'etc', 'missing.json')],
       },
       dev: {
@@ -128,7 +128,7 @@ interface Run {
 function wrapper(action: string | string[], input: unknown = ''): Promise<Run> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [WRAPPER, ...[action].flat()], {
-      env: { HOMELAB_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
+      env: { LARIS_WRAPPER_CONFIG: join(dir, 'wrappers.json') },
     });
     let out = '';
     child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
@@ -233,7 +233,7 @@ beforeEach(() => {
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-describe('homelab-backup starts safely', () => {
+describe('laris-backup starts safely', () => {
   it('starts through env -i, so the environment is emptied before Node starts', () => {
     expect(readFileSync(WRAPPER, 'utf8').split('\n')[0]).toBe('#!/usr/bin/env -S -i /usr/bin/node');
   });
@@ -262,14 +262,14 @@ describe('homelab-backup starts safely', () => {
   });
 });
 
-describe('homelab-backup configure', () => {
+describe('laris-backup configure', () => {
   it('writes the plan (root-only) and the timer’s schedule', async () => {
     const result = await wrapper('configure', plan());
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(JSON.parse(readFileSync(join(dev, 'backup.json'), 'utf8'))).toEqual(plan());
     expect(statSync(join(dev, 'backup.json')).mode & 0o777).toBe(0o600);
     const timer = readFileSync(
-      join(dev, 'systemd', 'homelab-backup.timer.d', 'schedule.conf'),
+      join(dev, 'systemd', 'laris-backup.timer.d', 'schedule.conf'),
       'utf8',
     );
     expect(timer).toContain('OnCalendar=\nOnCalendar=*-*-* 03:00:00\n');
@@ -283,7 +283,7 @@ describe('homelab-backup configure', () => {
   ])('schedules %s from %s as %s', async (frequency, time, calendar) => {
     expect((await wrapper('configure', plan({ schedule: { frequency, time } }))).code).toBe(0);
     const timer = readFileSync(
-      join(dev, 'systemd', 'homelab-backup.timer.d', 'schedule.conf'),
+      join(dev, 'systemd', 'laris-backup.timer.d', 'schedule.conf'),
       'utf8',
     );
     expect(timer).toContain(`OnCalendar=${calendar}\n`);
@@ -370,7 +370,7 @@ describe('homelab-backup configure', () => {
   });
 });
 
-describe('homelab-backup init', () => {
+describe('laris-backup init', () => {
   beforeEach(async () => {
     expect((await wrapper('configure', plan())).code).toBe(0);
   });
@@ -388,7 +388,7 @@ describe('homelab-backup init', () => {
     expect(words).toHaveLength(6);
     expect(words.every((word) => list.has(word))).toBe(true);
     expect(statSync(join(dev, 'backup.passphrase')).mode & 0o777).toBe(0o400);
-    const repo = join(destination, 'homelab-backups');
+    const repo = join(destination, 'laris-backups');
     expect(calls('borg').map((c) => c.args)).toEqual([
       ['init', '--log-json', '--encryption', 'repokey-blake2', repo],
     ]);
@@ -406,8 +406,8 @@ describe('homelab-backup init', () => {
     expect((await wrapper('init', { destination: other })).code).toBe(0);
     const { repositories } = JSON.parse(readFileSync(join(dev, 'backup-repository.json'), 'utf8'));
     expect(repositories.map((r: { path: string }) => r.path)).toEqual([
-      join(destination, 'homelab-backups'),
-      join(other, 'homelab-backups'),
+      join(destination, 'laris-backups'),
+      join(other, 'laris-backups'),
     ]);
     // The plan still names the first disk (its change never happened): runs still work there.
     expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
@@ -415,7 +415,7 @@ describe('homelab-backup init', () => {
 
   it('reads the first version’s repository file', async () => {
     await wrapper('init', { destination });
-    const repo = join(destination, 'homelab-backups');
+    const repo = join(destination, 'laris-backups');
     writeFileSync(
       join(dev, 'backup-repository.json'),
       JSON.stringify({ path: repo, id: 'a'.repeat(64) }),
@@ -441,7 +441,7 @@ describe('homelab-backup init', () => {
     expect(again.result).toEqual({ repositoryId: 'a'.repeat(64), created: false });
 
     const other = join(dir, 'mnt', 'other');
-    mkdirSync(join(other, 'homelab-backups'), { recursive: true });
+    mkdirSync(join(other, 'laris-backups'), { recursive: true });
     writeMounts([mountLine(destination), mountLine(other)]);
     expectRefused(await wrapper('init', { destination: other }), 'repository_exists');
   });
@@ -476,7 +476,7 @@ describe('homelab-backup init', () => {
   });
 });
 
-describe('homelab-backup run', () => {
+describe('laris-backup run', () => {
   beforeEach(() => setUp());
 
   it('backs up the platform, then services, then folders — one archive each', async () => {
@@ -500,10 +500,10 @@ describe('homelab-backup run', () => {
     await runNow({ runId: RUN });
     expect(calls('docker')[0].args).toEqual([
       'exec',
-      'homelab-postgres-1',
+      'laris-postgres-1',
       'pg_dump',
-      '--username=homelab',
-      '--dbname=homelab',
+      '--username=laris',
+      '--dbname=laris',
       '--format=custom',
       '--exclude-table-data="Session"',
     ]);
@@ -616,7 +616,7 @@ describe('homelab-backup run', () => {
       '4',
       '--keep-monthly',
       '6',
-      join(destination, 'homelab-backups'),
+      join(destination, 'laris-backups'),
     ]);
   });
 
@@ -722,11 +722,11 @@ describe('homelab-backup run', () => {
 
   it('writes nothing to a repository that is not ours (and never creates one)', async () => {
     writeFileSync(
-      join(destination, 'homelab-backups', 'config'),
+      join(destination, 'laris-backups', 'config'),
       `[repository]\nid = ${'b'.repeat(64)}\n`,
     );
     expect((await runNow({ runId: RUN })).markers.at(-1)).toBe('@@error code=repository_mismatch');
-    rmSync(join(destination, 'homelab-backups'), { recursive: true });
+    rmSync(join(destination, 'laris-backups'), { recursive: true });
     expect((await runNow({ runId: RUN })).markers.at(-1)).toBe('@@error code=repository_mismatch');
     expect(calls('borg')).toEqual([]);
   });
@@ -852,7 +852,7 @@ describe('homelab-backup run', () => {
   });
 });
 
-describe('homelab-backup restore', () => {
+describe('laris-backup restore', () => {
   let archive: string;
   let folderArchive: string;
 
@@ -895,7 +895,7 @@ describe('homelab-backup restore', () => {
       'extract',
       '--log-json',
       '--numeric-ids',
-      `${join(destination, 'homelab-backups')}::${archive}`,
+      `${join(destination, 'laris-backups')}::${archive}`,
       data.slice(1),
       join(storage, 'demo', 'media').slice(1),
     ]);
@@ -966,7 +966,7 @@ describe('homelab-backup restore', () => {
   });
 });
 
-describe('homelab-backup discard, forget and passphrase', () => {
+describe('laris-backup discard, forget and passphrase', () => {
   beforeEach(async () => {
     await setUp();
     await runNow({ runId: RUN });
@@ -1006,9 +1006,9 @@ describe('homelab-backup discard, forget and passphrase', () => {
         '--log-json',
         '--glob-archives',
         `${FOLDER}-*`,
-        join(destination, 'homelab-backups'),
+        join(destination, 'laris-backups'),
       ],
-      ['compact', '--log-json', join(destination, 'homelab-backups')],
+      ['compact', '--log-json', join(destination, 'laris-backups')],
     ]);
   });
 
@@ -1019,7 +1019,7 @@ describe('homelab-backup discard, forget and passphrase', () => {
   });
 });
 
-describe('homelab-backup check-scheduled', () => {
+describe('laris-backup check-scheduled', () => {
   beforeEach(() => setUp());
 
   it('checks the repository and records the result', async () => {
@@ -1039,7 +1039,7 @@ describe('homelab-backup check-scheduled', () => {
   });
 });
 
-describe('homelab-backup and the restore area', () => {
+describe('laris-backup and the restore area', () => {
   it('never backs up the restore area, nor a folder holding it (restored secrets live there)', async () => {
     // Storage that holds the development restore area, so only that rule can refuse.
     writeConfig({ storageRoots: [dir] });
@@ -1052,7 +1052,7 @@ describe('homelab-backup and the restore area', () => {
   });
 });
 
-describe('homelab-backup start ("Back up now")', () => {
+describe('laris-backup start ("Back up now")', () => {
   const unitCalls = () => calls('systemctl').filter((c) => c.args[0] === 'start');
 
   it('starts the run as its own systemd unit and returns at once', async () => {
@@ -1062,11 +1062,11 @@ describe('homelab-backup start ("Back up now")', () => {
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(result.result).toEqual({ started: true });
     expect(unitCalls().map((c) => c.args)).toEqual([
-      ['start', '--no-block', `homelab-backup-now@${RUN}_${FOLDER}.service`],
+      ['start', '--no-block', `laris-backup-now@${RUN}_${FOLDER}.service`],
     ]);
     expect(Object.keys(unitCalls()[0].env).sort()).toEqual(['HOME', 'PATH']);
     await wrapper('start', { runId: RUN });
-    expect(unitCalls().at(-1)!.args[2]).toBe(`homelab-backup-now@${RUN}.service`);
+    expect(unitCalls().at(-1)!.args[2]).toBe(`laris-backup-now@${RUN}.service`);
     // systemd runs it, not this call.
     expect(calls('borg')).toEqual([]);
   });

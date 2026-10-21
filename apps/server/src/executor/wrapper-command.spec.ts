@@ -12,7 +12,7 @@ describe('wrapperCommand', () => {
       args: ['-n', INSTALLED_WRAPPER, 'up', 'immich'],
       env: { PATH: '/usr/sbin:/usr/bin:/sbin:/bin', LANG: 'C.UTF-8' },
     });
-    expect(INSTALLED_WRAPPER).toBe('/opt/homelab/libexec/homelab-compose.mts');
+    expect(INSTALLED_WRAPPER).toBe('/opt/laris/libexec/laris-compose.mts');
   });
 
   it('runs the repository’s wrapper with Node in direct mode, naming its config file', () => {
@@ -27,7 +27,7 @@ describe('wrapperCommand', () => {
       env: {
         PATH: '/usr/sbin:/usr/bin:/sbin:/bin',
         LANG: 'C.UTF-8',
-        HOMELAB_WRAPPER_CONFIG: '/c.json',
+        LARIS_WRAPPER_CONFIG: '/c.json',
       },
     });
   });
@@ -49,7 +49,7 @@ describe('wrapperCommand', () => {
       args: ['-n', INSTALLED_BACKUP_WRAPPER, 'start'],
       env: { PATH: '/usr/sbin:/usr/bin:/sbin:/bin', LANG: 'C.UTF-8' },
     });
-    expect(INSTALLED_BACKUP_WRAPPER).toBe('/opt/homelab/libexec/homelab-backup.mts');
+    expect(INSTALLED_BACKUP_WRAPPER).toBe('/opt/laris/libexec/laris-backup.mts');
     expect(
       backupWrapperCommand('direct', 'passphrase', {
         wrapper: '/repo/b.mts',
@@ -61,7 +61,7 @@ describe('wrapperCommand', () => {
       env: {
         PATH: '/usr/sbin:/usr/bin:/sbin:/bin',
         LANG: 'C.UTF-8',
-        HOMELAB_WRAPPER_CONFIG: '/c.json',
+        LARIS_WRAPPER_CONFIG: '/c.json',
       },
     });
   });

@@ -7,7 +7,7 @@ import type {
   DeployResponse,
   RemoveResponse,
   Job,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { firstValueFrom } from 'rxjs';
 
 /** The URL of a catalog entry's icon (an SVG, only ever shown through <img>). */

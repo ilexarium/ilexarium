@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { AI_ERROR_CODES, AI_LIMITS, type ChatMessage, type ChatSend } from '@homelab/shared';
+import { AI_ERROR_CODES, AI_LIMITS, type ChatMessage, type ChatSend } from '@laris/shared';
 import type { AnswerSink, OllamaMessage } from './assistant.model.js';
 import { ChatStore } from './chat-store.js';
 import { OllamaService, unreachable } from './ollama-service.js';

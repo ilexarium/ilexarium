@@ -1,5 +1,5 @@
 import { Component, inject, input, output, signal, viewChild } from '@angular/core';
-import type { BackupFoldersResponse } from '@homelab/shared';
+import type { BackupFoldersResponse } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArchiveRestore,
@@ -28,7 +28,7 @@ import { RUN_STATUS_TONES } from '../backups.constants';
  * backups are kept. UI only: every action goes out through an output.
  */
 @Component({
-  selector: 'app-backup-items',
+  selector: 'laris-backup-items',
   imports: [
     FolderPicker,
     HlmAlertDialogImports,

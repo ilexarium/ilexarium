@@ -5,12 +5,12 @@ import {
   type Language,
   preferredLanguage,
   RTL_LANGUAGES,
-} from '@homelab/i18n';
+} from '@laris/i18n';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { AVAILABLE_LANGUAGES } from './i18n-loader';
 
-export const LANGUAGE_STORAGE_KEY = 'homelab.language';
+export const LANGUAGE_STORAGE_KEY = 'laris.language';
 
 /**
  * The interface language: remembered per browser (a device preference, like the theme — it stays

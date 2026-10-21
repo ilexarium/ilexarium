@@ -164,13 +164,13 @@ describe('ContainerWatch', () => {
   });
 
   it('names the catalog entry; none for the platform’s own containers', () => {
-    watch.died('homelab-postgres', null, 0);
+    watch.died('laris-postgres', null, 0);
     watch.died('immich', 'immich', 0);
     const conditions = watch.conditions(DOWN_AFTER_MS);
     expect(conditions.find((c) => c.subject === 'immich')!.details).toEqual({
       catalogId: 'immich',
     });
-    expect(conditions.find((c) => c.subject === 'homelab-postgres')!.details).toEqual({});
+    expect(conditions.find((c) => c.subject === 'laris-postgres')!.details).toEqual({});
   });
 
   it('picks up alerts still open from before a restart', () => {

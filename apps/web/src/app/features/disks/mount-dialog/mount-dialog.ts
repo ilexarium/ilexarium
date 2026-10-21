@@ -5,7 +5,7 @@ import {
   type DiskMountRequest,
   diskMountRequestSchema,
   suggestDiskName,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
@@ -24,7 +24,7 @@ import type { MountTarget } from '../disks.model';
  * through the page store.
  */
 @Component({
-  selector: 'app-mount-dialog',
+  selector: 'laris-mount-dialog',
   imports: [
     FieldErrors,
     FormErrors,

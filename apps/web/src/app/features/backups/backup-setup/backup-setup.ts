@@ -8,7 +8,7 @@ import {
   backupSettingsFormSchema,
   DEFAULT_BACKUP_RETENTION,
   DEFAULT_BACKUP_SCHEDULE,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideFolderPlus, lucideHardDrive, lucideTrash2 } from '@ng-icons/lucide';
 import { RouterLink } from '@angular/router';
@@ -36,7 +36,7 @@ import { FolderPicker } from '../folder-picker/folder-picker';
  * the repository; its passphrase is shown next. Submits through the page store.
  */
 @Component({
-  selector: 'app-backup-setup',
+  selector: 'laris-backup-setup',
   imports: [
     ErrorTextPipe,
     FieldErrors,

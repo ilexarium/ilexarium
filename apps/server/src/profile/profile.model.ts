@@ -1,4 +1,4 @@
-import type { ProfilePictureType, PublicUser } from '@homelab/shared';
+import type { ProfilePictureType, PublicUser } from '@laris/shared';
 
 /** Who changes their profile, for the audit log. */
 export interface ProfileActor {

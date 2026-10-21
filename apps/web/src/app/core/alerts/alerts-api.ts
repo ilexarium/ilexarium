@@ -7,7 +7,7 @@ import type {
   AlertTestResponse,
   EmailChannelUpdate,
   NtfyChannelUpdate,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { firstValueFrom } from 'rxjs';
 
 /** The server's alert endpoints. Open alerts arrive through the `alerts` topic. */

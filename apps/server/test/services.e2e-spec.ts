@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { InstalledService, Job } from '@homelab/shared';
+import type { InstalledService, Job } from '@laris/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -20,7 +20,7 @@ import { proxyReachable } from './docker-proxy.js';
 import { testHasher } from './realtime-client.js';
 
 // Installing and removing a service end to end: the app, the executor in direct mode, the real
-// wrapper (system/wrappers/homelab-compose.mts) and the real Docker daemon. The catalog is a copy
+// wrapper (system/wrappers/laris-compose.mts) and the real Docker daemon. The catalog is a copy
 // of test/fixtures/catalog (busybox serving a folder); storage lives in a temporary folder.
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/catalog', import.meta.url));

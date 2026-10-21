@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { ProcessSignalRequest } from '@homelab/shared';
+import type { ProcessSignalRequest } from '@laris/shared';
 import { firstValueFrom } from 'rxjs';
 
 /** Ending a process. The list itself arrives through the `processes` topic. */

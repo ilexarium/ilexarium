@@ -10,7 +10,7 @@ import {
   type AlertChannelsResponse,
   type NtfyChannelForm,
   ntfyChannelFormSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -37,7 +37,7 @@ function randomTopic(): string {
  * secrets: they never come back from the server ("saved"), and empty fields keep them.
  */
 @Component({
-  selector: 'app-ntfy-form',
+  selector: 'laris-ntfy-form',
   imports: [
     FieldErrors,
     FormErrors,

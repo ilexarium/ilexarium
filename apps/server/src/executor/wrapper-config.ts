@@ -63,7 +63,7 @@ const REPO_CATALOG = fileURLToPath(new URL('../../../../catalog', import.meta.ur
  * The deploy wrapper's config, read by the app too: the catalog folder (the same reviewed,
  * root-owned copy the wrapper deploys from), the storage roots and reserved ports — so the app's
  * friendly pre-checks and the wrapper's real ones agree. Production: the installer writes
- * /etc/homelab/wrappers.json (root-owned, world-readable). Development: created on first start
+ * /etc/laris/wrappers.json (root-owned, world-readable). Development: created on first start
  * under .dev/, with .dev/srv as the storage root.
  */
 @Injectable()
@@ -136,9 +136,9 @@ export class WrapperConfigService implements OnModuleInit {
     return {
       borgBin: ['/usr/bin/borg', '/usr/local/bin/borg'].find(existsSync) ?? '/usr/bin/borg',
       platform: {
-        container: 'homelab-dev-postgres-1',
-        database: 'homelab',
-        user: 'homelab',
+        container: 'laris-dev-postgres-1',
+        database: 'laris',
+        user: 'laris',
         files: [this.file],
       },
       dev: { dir: backupDir, destinationRoots: [mnt], mountInfo },

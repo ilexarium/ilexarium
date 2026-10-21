@@ -9,13 +9,13 @@ import {
 } from './backup-paths.js';
 
 const config = {
-  storageRoots: ['/srv/homelab'],
-  protectedPaths: ['/opt/homelab', '/etc/homelab', '/var/lib/homelab'],
+  storageRoots: ['/srv/laris'],
+  protectedPaths: ['/opt/laris', '/etc/laris', '/var/lib/laris'],
 } as WrapperConfig;
 
 describe('backup paths', () => {
   it('allows folders in the storage roots and home folders', () => {
-    for (const path of ['/srv/homelab/docs', '/srv/homelab', '/home/alice', '/home/alice/Photos']) {
+    for (const path of ['/srv/laris/docs', '/srv/laris', '/home/alice', '/home/alice/Photos']) {
       expect(isAllowedFolder(config, path), path).toBe(true);
     }
   });
@@ -26,18 +26,18 @@ describe('backup paths', () => {
       '/etc',
       '/root/x',
       '/home',
-      '/var/lib/homelab',
+      '/var/lib/laris',
       '/srv',
-      '/srv/homelab/../../etc',
-      'srv/homelab/docs',
-      '/srv/homelab/docs/',
+      '/srv/laris/../../etc',
+      'srv/laris/docs',
+      '/srv/laris/docs/',
     ]) {
       expect(isAllowedFolder(config, path), path).toBe(false);
     }
   });
 
   it('allows service folders only in the storage roots', () => {
-    expect(isAllowedServiceFolder(config, '/srv/homelab/immich/library')).toBe(true);
+    expect(isAllowedServiceFolder(config, '/srv/laris/immich/library')).toBe(true);
     expect(isAllowedServiceFolder(config, '/home/alice')).toBe(false);
   });
 
@@ -45,14 +45,14 @@ describe('backup paths', () => {
     expect(destinationRoots(config)).toEqual(['/mnt', '/media']);
     expect(isDestinationPath(config, '/mnt/usb')).toBe(true);
     expect(isDestinationPath(config, '/mnt')).toBe(false);
-    expect(isDestinationPath(config, '/srv/homelab')).toBe(false);
+    expect(isDestinationPath(config, '/srv/laris')).toBe(false);
     const dev = {
       ...config,
       backup: { dev: { dir: '/d', destinationRoots: ['/d/mnt'], mountInfo: '/d/m' } },
     };
     expect(isDestinationPath(dev as WrapperConfig, '/d/mnt/usb')).toBe(true);
     expect(stateDir(dev as WrapperConfig)).toBe('/d/state');
-    expect(stateDir(config)).toBe('/var/lib/homelab/backups');
+    expect(stateDir(config)).toBe('/var/lib/laris/backups');
   });
 
   it('reads an archive’s time from its name', () => {

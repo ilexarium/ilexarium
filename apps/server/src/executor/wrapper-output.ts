@@ -1,5 +1,5 @@
 import { StringDecoder } from 'node:string_decoder';
-import { JOB_PHASES, type JobPhase } from '@homelab/shared';
+import { JOB_PHASES, type JobPhase } from '@laris/shared';
 
 /** Longer lines are cut (a runaway program can't fill the job's output with one line). */
 export const MAX_LINE_LENGTH = 4096;

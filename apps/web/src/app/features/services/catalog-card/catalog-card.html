@@ -27,9 +27,9 @@
       </a>
     } @else {
       @if (status(); as status) {
-        <app-status-badge [tone]="statusTones[status]">{{
+        <laris-status-badge [tone]="statusTones[status]">{{
           'services.status.' + status | translate
-        }}</app-status-badge>
+        }}</laris-status-badge>
       }
     }
   </div>

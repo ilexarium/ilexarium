@@ -7,7 +7,7 @@ import { Refusal } from '../lib/output.mts';
 
 export const PINNED_IMAGE = /^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$/;
 
-export const RESERVED_LABEL = /^(homelab\.|com\.docker\.compose\.)/;
+export const RESERVED_LABEL = /^(laris\.|com\.docker\.compose\.)/;
 
 export const SERVICE_KEYS = new Set([
   'image',

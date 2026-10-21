@@ -4,7 +4,7 @@ import { FormErrors } from './form-errors';
 
 @Component({
   imports: [FormErrors],
-  template: `<app-form-errors [form]="form" />`,
+  template: `<laris-form-errors [form]="form" />`,
 })
 class FormHost {
   readonly errors = signal([
@@ -31,6 +31,8 @@ describe('FormErrors', () => {
   it('takes no room of its own: the alerts are the form’s items', async () => {
     const fixture = TestBed.createComponent(FormHost);
     await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('app-form-errors').classList).toContain('contents');
+    expect(fixture.nativeElement.querySelector('laris-form-errors').classList).toContain(
+      'contents',
+    );
   });
 });

@@ -11,7 +11,7 @@ import {
   type BackupItemRequest,
   type FieldError,
   isPlainAbsolutePath,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { WrapperConfigService } from '../executor/wrapper-config.js';
 import { SystemReader } from '../host/system-reader.js';

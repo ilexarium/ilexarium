@@ -4,7 +4,7 @@ import {
   type BackupItem,
   type BackupItemResult,
   type BackupRun,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { apiError } from './backup-errors.js';

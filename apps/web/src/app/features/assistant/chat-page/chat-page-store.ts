@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type { AiModel, AiStatus, Chat, ChatMessage, ChatSummary } from '@homelab/shared';
+import type { AiModel, AiStatus, Chat, ChatMessage, ChatSummary } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import type { Subscription } from 'rxjs';
 import { AssistantApi } from '../../../core/assistant/assistant-api';

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { SERVICE_ERROR_CODES, type ServiceErrorCode } from '@homelab/shared';
+import { SERVICE_ERROR_CODES, type ServiceErrorCode } from '@laris/shared';
 import type { WrapperConfig } from '../executor/executor.model.js';
 import type { FolderState } from '../host/host.model.js';
 
@@ -71,8 +71,8 @@ export function checkFolder(
   return SERVICE_ERROR_CODES.pathNotFound;
 }
 
-/** A folder default written for /srv/homelab, moved to this machine's service root. */
+/** A folder default written for /srv/laris, moved to this machine's service root. */
 export function localFolder(path: string, config: WrapperConfig): string {
-  const standard = '/srv/homelab';
+  const standard = '/srv/laris';
   return inside(path, standard) ? config.serviceRoot + path.slice(standard.length) : path;
 }

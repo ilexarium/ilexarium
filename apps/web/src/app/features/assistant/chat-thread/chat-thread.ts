@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import type { ChatMessage } from '@homelab/shared';
+import type { ChatMessage } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmBubbleImports } from '@ui/bubble';
 import { HlmMarkerImports } from '@ui/marker';
@@ -14,7 +14,7 @@ import { MarkdownView } from '../markdown-view/markdown-view';
  * text while at the bottom; a button jumps back down. Presentational.
  */
 @Component({
-  selector: 'app-chat-thread',
+  selector: 'laris-chat-thread',
   imports: [
     HlmBubbleImports,
     HlmMarkerImports,

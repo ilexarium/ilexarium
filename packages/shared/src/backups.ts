@@ -27,8 +27,8 @@ export const BACKUP_LIMITS = {
 
 /** Where backup disks are mounted; nothing else is a destination. */
 export const BACKUP_DESTINATION_ROOTS = ['/mnt', '/media'] as const;
-/** The repository's folder on the chosen disk: `<mount point>/homelab-backups`. */
-export const BACKUP_REPOSITORY_FOLDER = 'homelab-backups';
+/** The repository's folder on the chosen disk: `<mount point>/laris-backups`. */
+export const BACKUP_REPOSITORY_FOLDER = 'laris-backups';
 /** Disk formats a repository may be on. */
 export const BACKUP_FILESYSTEMS = ['ext4', 'btrfs', 'xfs', 'exfat'] as const;
 
@@ -151,7 +151,7 @@ export const BACKUP_ERROR_CODES = {
   restoreNotFound: 'backup_restore_not_found',
   pathNotAllowed: 'path_not_allowed',
   pathNotFound: 'path_not_found',
-  /** Setting up on a disk that already has a `homelab-backups` folder that isn't ours. */
+  /** Setting up on a disk that already has a `laris-backups` folder that isn't ours. */
   repositoryExists: 'repository_exists',
   /** Restoring in place, but the service uses other folders now: restore to a new folder. */
   pathsChanged: 'paths_changed',
@@ -207,7 +207,7 @@ export type BackupItem = z.infer<typeof backupItemSchema>;
 // The plan.
 
 export const backupPlanSchema = z.object({
-  /** The chosen disk's mount point; the repository is `<mountPoint>/homelab-backups`. */
+  /** The chosen disk's mount point; the repository is `<mountPoint>/laris-backups`. */
   destination: z.string(),
   schedule: backupScheduleSchema,
   retention: backupRetentionSchema,
@@ -305,7 +305,7 @@ export type BackupPassphraseRequest = z.infer<typeof backupPassphraseRequestSche
 
 /**
  * `POST /api/backups/restores`. `inPlace` (services only): the current folders are set aside as
- * `<folder>.before-restore-<date>` first. `newFolder`: into `/srv/homelab/restores/<item>-<date>/`.
+ * `<folder>.before-restore-<date>` first. `newFolder`: into `/srv/laris/restores/<item>-<date>/`.
  * A removed service is installed again with its previous settings first.
  */
 export const BACKUP_RESTORE_TARGETS = ['inPlace', 'newFolder'] as const;

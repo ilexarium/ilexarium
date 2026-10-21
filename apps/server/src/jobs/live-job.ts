@@ -1,4 +1,4 @@
-import type { Job, JobPhase } from '@homelab/shared';
+import type { Job, JobPhase } from '@laris/shared';
 import type { JobRow } from './jobs.model.js';
 
 /** Output kept per job (the end matters most when something failed). */

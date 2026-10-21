@@ -1,4 +1,4 @@
-import type { ChatStreamEvent, PublicUser } from '@homelab/shared';
+import type { ChatStreamEvent, PublicUser } from '@laris/shared';
 
 /** Where Ollama runs: its loopback address and the models' folder. */
 export interface OllamaLocation {

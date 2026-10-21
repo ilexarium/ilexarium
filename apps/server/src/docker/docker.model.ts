@@ -1,4 +1,4 @@
-import type { Container } from '@homelab/shared';
+import type { Container } from '@laris/shared';
 
 /** A container without its live stats. */
 export type DockerContainer = Omit<Container, 'stats'>;

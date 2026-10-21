@@ -15,7 +15,7 @@ import { NAV_ICONS, NAVIGATION } from '../navigation';
  * a slide-out sheet on phones, closed again when a page is chosen.
  */
 @Component({
-  selector: 'app-sidebar',
+  selector: 'laris-sidebar',
   imports: [HlmSidebarImports, LarisMark, NgIcon, RouterLink, RouterLinkActive, TranslatePipe],
   providers: [provideIcons(NAV_ICONS)],
   templateUrl: './app-sidebar.html',

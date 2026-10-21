@@ -4,8 +4,8 @@ import { AuthFrame } from './auth-frame';
 
 @Component({
   imports: [AuthFrame],
-  template: `<app-auth-frame heading="Sign in" description="With your account"
-    >form</app-auth-frame
+  template: `<laris-auth-frame heading="Sign in" description="With your account"
+    >form</laris-auth-frame
   >`,
 })
 class Host {}
@@ -15,7 +15,7 @@ describe('AuthFrame', () => {
     const fixture = TestBed.createComponent(Host);
     await fixture.whenStable();
     const el: HTMLElement = fixture.nativeElement;
-    expect(el.querySelector('app-laris-mark svg path')).toBeTruthy();
+    expect(el.querySelector('laris-mark svg path')).toBeTruthy();
     expect(el.textContent).toContain('Laris');
     expect(el.querySelector('h1')?.textContent).toBe('Sign in');
     expect(el.querySelector('main')?.textContent).toContain('form');

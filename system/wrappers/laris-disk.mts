@@ -1,9 +1,9 @@
 #!/usr/bin/env -S -i /usr/bin/node
-// homelab-disk — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root, through sudo (the app).
+// laris-disk — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root, through sudo (the app).
 //
-//   homelab-disk mount     {"uuid", "name"} on stdin → mounts the disk at /mnt/<name>, kept after
+//   laris-disk mount     {"uuid", "name"} on stdin → mounts the disk at /mnt/<name>, kept after
 //                          a restart (its own systemd unit, mnt-<name>.mount — not /etc/fstab)
-//   homelab-disk unmount   {"name"} on stdin → unmounts a disk this program mounted; removes its
+//   laris-disk unmount   {"name"} on stdin → unmounts a disk this program mounted; removes its
 //                          unit, and its folder if empty
 //
 // Every partition of the disk the system runs from is refused, and anything mounted, swap, part of

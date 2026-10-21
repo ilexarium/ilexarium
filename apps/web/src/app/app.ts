@@ -8,7 +8,7 @@ import { APP_NAME } from './core/page-title/page-title';
 
 @Component({
   imports: [RouterOutlet, HlmButton, HlmToaster, TranslatePipe],
-  selector: 'app-root',
+  selector: 'laris-root',
   templateUrl: './app.html',
 })
 export class App {

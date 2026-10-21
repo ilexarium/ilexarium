@@ -37,7 +37,7 @@ describe('isBackupDestinationPath', () => {
       '/media',
       '/mnt/',
       '/mntx/backup',
-      '/srv/homelab',
+      '/srv/laris',
       '/',
       '/mnt/../etc',
       '/mnt/./x',

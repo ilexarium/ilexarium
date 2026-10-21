@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Alert } from '@homelab/shared';
+import type { Alert } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideTriangleAlert } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -15,7 +15,7 @@ const SHOWN = 3;
 
 /** The open alerts on the dashboard (backups' warnings among them), with a link to the Alerts page. */
 @Component({
-  selector: 'app-alerts-notice',
+  selector: 'laris-alerts-notice',
   imports: [HlmAlertImports, HlmButton, NgIcon, PluralPipe, RouterLink, TranslatePipe],
   providers: [provideIcons({ lucideTriangleAlert })],
   templateUrl: './alerts-notice.html',

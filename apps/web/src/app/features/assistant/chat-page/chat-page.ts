@@ -2,7 +2,7 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { type ChatMessageForm, chatMessageFormSchema } from '@homelab/shared';
+import { type ChatMessageForm, chatMessageFormSchema } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowUp,
@@ -32,7 +32,7 @@ import { FieldErrors } from '../../../shared/forms/field-errors';
  * URL on the open chat.
  */
 @Component({
-  selector: 'app-chat-page',
+  selector: 'laris-chat-page',
   imports: [
     ChatList,
     ChatThread,

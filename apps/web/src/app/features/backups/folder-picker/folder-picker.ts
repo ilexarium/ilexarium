@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import type { BackupFoldersResponse } from '@homelab/shared';
+import type { BackupFoldersResponse } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCornerLeftUp, lucideFolder } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -14,7 +14,7 @@ import { HlmSkeleton } from '@ui/skeleton';
  * closed (Cancel, Escape).
  */
 @Component({
-  selector: 'app-folder-picker',
+  selector: 'laris-folder-picker',
   imports: [HlmAlertDialogImports, HlmButton, HlmSkeleton, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideCornerLeftUp, lucideFolder })],
   templateUrl: './folder-picker.html',

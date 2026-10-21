@@ -4,7 +4,7 @@ import {
   SessionCookieProvider,
   type SessionRecord,
 } from '@nestjs/authentication';
-import type { PublicUser } from '@homelab/shared';
+import type { PublicUser } from '@laris/shared';
 import { UsersService } from '../users/users.service.js';
 import './authentication-types.js';
 

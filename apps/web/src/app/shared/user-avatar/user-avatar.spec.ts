@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import type { PublicUser } from '@homelab/shared';
+import type { PublicUser } from '@laris/shared';
 import { OWNER } from '../../core/auth/testing';
 import { displayNameOf, initialsOf, UserAvatar } from './user-avatar';
 

@@ -10,7 +10,7 @@ import {
   containerNameSchema,
   type LogLine,
   PROTECTED_LABEL,
-} from '@homelab/shared';
+} from '@laris/shared';
 import Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
 import { toContainerStats } from './container-stats.js';
@@ -146,7 +146,7 @@ export class DockerService {
   }
 
   /**
-   * Whether a container is labelled `homelab.protected=true` (can't be stopped or restarted),
+   * Whether a container is labelled `laris.protected=true` (can't be stopped or restarted),
    * by name; null if there is no such container.
    */
   async isProtected(name: string): Promise<boolean | null> {

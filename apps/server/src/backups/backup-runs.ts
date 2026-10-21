@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { BACKUP_ERROR_CODES, type BackupRun, type BackupRunRequest } from '@homelab/shared';
+import { BACKUP_ERROR_CODES, type BackupRun, type BackupRunRequest } from '@laris/shared';
 import { Observable, Subject } from 'rxjs';
 import type { ExecutorActor } from '../executor/executor.model.js';
 import { ExecutorService } from '../executor/executor.service.js';

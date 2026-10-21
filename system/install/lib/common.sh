@@ -22,7 +22,7 @@ confirm() {
 # renamed into place — never a moment with the content readable by the wrong user.
 write_file() {
   local dest="$1" owner="$2" mode="$3" tmp
-  tmp="$(mktemp "$(dirname "$dest")/.homelab-install.XXXXXX")"
+  tmp="$(mktemp "$(dirname "$dest")/.laris-install.XXXXXX")"
   chown "$owner" "$tmp"
   chmod "$mode" "$tmp"
   cat >"$tmp"

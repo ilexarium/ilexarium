@@ -3,7 +3,7 @@ import {
   alertIdParamsSchema,
   emailChannelUpdateSchema,
   ntfyChannelUpdateSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class AlertIdParamsDto extends zodDto(alertIdParamsSchema) {}

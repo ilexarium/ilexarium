@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { SystemSnapshot, SystemUpdate } from '@homelab/shared';
+import type { SystemSnapshot, SystemUpdate } from '@laris/shared';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
 import { alertsStatus, testAlert } from '../../../core/alerts/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -34,7 +34,7 @@ const update: SystemUpdate = {
 const snapshot: SystemSnapshot = {
   ...update,
   host: {
-    hostname: 'homelab',
+    hostname: 'laris',
     os: 'Debian GNU/Linux 13',
     kernel: '6.12.0',
     arch: 'arm64',
@@ -79,8 +79,8 @@ describe('DashboardPage', () => {
     socket.receive({ event: 'system:snapshot', data: snapshot });
     await fixture.whenStable();
 
-    expect(el.querySelector('app-host-summary')!.textContent).toContain('homelab');
-    expect(el.querySelector('app-host-summary')!.textContent).toContain('up 3 days, 4 hours');
+    expect(el.querySelector('laris-host-summary')!.textContent).toContain('laris');
+    expect(el.querySelector('laris-host-summary')!.textContent).toContain('up 3 days, 4 hours');
     expect(card('cpu').textContent).toContain('12%');
     expect(card('cpu').textContent).toContain('4 cores');
     expect(card('cpu').textContent).toContain('0.52 · 0.41 · 0.33');
@@ -112,7 +112,7 @@ describe('DashboardPage', () => {
     socket.receive({ event: 'containers:snapshot', data: { dockerAvailable: false } });
     await fixture.whenStable();
     expect(card('containers').textContent).toContain("Docker isn't reachable");
-    const charts = [...el.querySelectorAll('app-metric-chart [role="img"]')].map((c) =>
+    const charts = [...el.querySelectorAll('laris-metric-chart [role="img"]')].map((c) =>
       c.getAttribute('aria-label'),
     );
     expect(charts).toEqual([
@@ -141,7 +141,7 @@ describe('DashboardPage', () => {
     TestBed.inject(AlertsStore).watch();
     socket.receive({ event: 'system:snapshot', data: snapshot });
     await fixture.whenStable();
-    expect(el.querySelector('app-alerts-notice')).toBeNull();
+    expect(el.querySelector('laris-alerts-notice')).toBeNull();
     socket.receive({
       event: 'alerts:update',
       data: alertsStatus({
@@ -174,7 +174,7 @@ describe('DashboardPage', () => {
       }),
     });
     await fixture.whenStable();
-    const notice = el.querySelector('app-alerts-notice')!;
+    const notice = el.querySelector('laris-alerts-notice')!;
     expect(notice.querySelector('h2')!.textContent).toContain('4 open alerts');
     expect(notice.textContent).toContain('Immich has stopped');
     expect(notice.textContent).toContain("The backup disk isn't connected");

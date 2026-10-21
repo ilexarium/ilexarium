@@ -5,7 +5,7 @@ import type { StatusTone } from './status-badge.model';
 
 @Component({
   imports: [StatusBadge],
-  template: `<app-status-badge [tone]="tone()">Label</app-status-badge>`,
+  template: `<laris-status-badge [tone]="tone()">Label</laris-status-badge>`,
 })
 class Host {
   readonly tone = signal<StatusTone>('healthy');
@@ -16,7 +16,7 @@ describe('StatusBadge', () => {
     const fixture = TestBed.createComponent(Host);
     fixture.componentInstance.tone.set(tone);
     await fixture.whenStable();
-    return fixture.nativeElement.querySelector('app-status-badge') as HTMLElement;
+    return fixture.nativeElement.querySelector('laris-status-badge') as HTMLElement;
   }
 
   it.each([

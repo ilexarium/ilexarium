@@ -1,11 +1,11 @@
 import { Component, computed, inject, input } from '@angular/core';
-import type { HostInfo } from '@homelab/shared';
+import type { HostInfo } from '@laris/shared';
 import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
 
 /** One line about the machine: name, OS, kernel, CPU, uptime. */
 @Component({
-  selector: 'app-host-summary',
+  selector: 'laris-host-summary',
   host: { class: 'block text-sm text-muted-foreground' },
   templateUrl: './host-summary.html',
 })

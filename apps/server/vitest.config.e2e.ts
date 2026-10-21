@@ -3,7 +3,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 // Same default as the test:db:deploy script; override both with TEST_DATABASE_URL.
 const testDatabaseUrl =
-  process.env.TEST_DATABASE_URL ?? 'postgresql://homelab:homelab-dev@127.0.0.1:5432/homelab_test';
+  process.env.TEST_DATABASE_URL ?? 'postgresql://laris:laris-dev@127.0.0.1:5432/laris_test';
 
 export default defineConfig({
   plugins: [tsconfigPaths()],

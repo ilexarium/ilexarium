@@ -11,7 +11,7 @@ import {
   type ProcessSignalRequest,
   SERVICE_ERROR_CODES,
   type ServiceErrorCode,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditAction } from '../audit/audit-actions.js';
 import type { Env } from '../config/env.schema.js';

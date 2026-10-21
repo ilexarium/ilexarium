@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import type { CatalogEntryDetails, DeployResponse, FieldValues } from '@homelab/shared';
+import type { CatalogEntryDetails, DeployResponse, FieldValues } from '@laris/shared';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { ServicesApi } from '../../../core/services/services-api';
 

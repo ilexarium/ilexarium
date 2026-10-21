@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { TERMINAL_CLOSE_CODES, TERMINAL_PATH } from '@homelab/shared';
+import { TERMINAL_CLOSE_CODES, TERMINAL_PATH } from '@laris/shared';
 import request from 'supertest';
 import { WebSocket } from 'ws';
 import { AppModule } from '../src/app.module.js';

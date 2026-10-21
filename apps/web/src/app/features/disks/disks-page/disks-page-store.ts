@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type { DiskMountRequest, DisksStatus } from '@homelab/shared';
+import type { DiskMountRequest, DisksStatus } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { DisksApi } from '../../../core/disks/disks-api';
 import { Translator } from '../../../core/i18n/translator';

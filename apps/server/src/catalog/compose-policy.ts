@@ -1,4 +1,4 @@
-import type { CatalogMeta } from '@homelab/shared';
+import type { CatalogMeta } from '@laris/shared';
 
 /**
  * The Compose policy for catalog recipes, checked on the template itself (placeholders not yet
@@ -198,7 +198,7 @@ const PINNED_IMAGE = /^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$/;
 const PORT_ENTRY = /^(?:127\.0\.0\.1:)?\$\{([A-Z][A-Z0-9_]*)\}:[0-9]{1,5}(?:\/(?:tcp|udp))?$/;
 const PLACEHOLDER_ONLY = /^\$\{([A-Z][A-Z0-9_]*)\}$/;
 /** Ours, and Compose's own (a recipe must not pose as another project). */
-const RESERVED_LABEL = /^(homelab\.|com\.docker\.compose\.)/;
+const RESERVED_LABEL = /^(laris\.|com\.docker\.compose\.)/;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

@@ -1,27 +1,28 @@
 #!/usr/bin/env -S -i /usr/bin/node
-// homelab-process — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root, through sudo (the app).
+// laris-compose — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root through sudo.
 //
-//   homelab-process signal   {"pid", "startTicks", "signal"} on stdin → sends SIGTERM or SIGKILL
-//                            to a person's process, as that person
+//   laris-compose up   <catalog id>    values as JSON on stdin
+//   laris-compose down <catalog id>    nothing on stdin
 //
-// Only a person's process: its owner's uids all at least `minUid` (1000) and none the app's own;
-// never PID 1, a kernel thread, a process in a container (a service is stopped on the Containers
-// page), root's or a system account's. PID and start time (clock ticks since boot, field 22 of
-// /proc/<pid>/stat) must both match: a PID used again by another process is refused. Everything
-// is read again here from /proc — nothing the app says about the process is trusted. Before the
-// signal it takes on the owner's uid and gid, so the kernel only lets it signal that person's
-// processes: it never signals anything as root (its group is `nogroup`, never the process's).
-// Design: docs/plans/process_list.md.
+// The app (user "laris") may run this one program as root, nothing else. It treats the app as
+// a possible attacker: it deploys only reviewed recipes from the root-owned catalog, fills their
+// ${KEY} blanks only with values that pass its own checks (written independently of the app's),
+// checks Compose's final rendered config against the policy, and runs Compose in one fixed way.
+// Design: docs/plans/service_deploys.md (decisions 1, 2, 5, 6).
 //
 // Zero dependencies on purpose: only node: built-ins — any package it loaded would run as root.
-// `env -i` in the shebang empties the environment before Node starts.
+// `env -i` in the shebang empties the environment before Node starts (NODE_OPTIONS could
+// otherwise load code); sudo's env_reset does the same.
 //
-// Output (stdout): `@@error code=<code>`, `@@info <text>`, `@@result <json>`.
+// Output (stdout): its own markers — `@@phase <phase>`, `@@error code=<code>[ field=<KEY>]`,
+// `@@info <text>` — and Compose's output, every line prefixed with "> ", so only this program
+// can write a line starting with "@@".
 //
-// Exit codes: 0 done · 2 refused input · 5 failed · 6 setup problem.
+// Exit codes: 0 done · 2 refused input · 3 busy · 4 policy violation · 5 Compose failed ·
+// 6 setup problem (config, catalog) · 143 stopped by SIGTERM.
 //
-// This file is only the entry: before loading the rest of the program (lib/, process/ — all of
-// it runs as root too), it checks that each of those files belongs to root and that only root can
+// This file is only the entry: before loading the rest of the program (lib/, compose/ — all of it
+// runs as root too), it checks that each of those files belongs to root and that only root can
 // change it, or anything above it. Until then, only node: built-ins run.
 
 import { lstatSync, readdirSync, writeSync } from 'node:fs';
@@ -29,7 +30,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MODULES = ['lib', 'process'];
+const MODULES = ['lib', 'compose'];
 
 /**
  * Every module file and its folder: no symlinks, writable by nobody but its owner, owned by root
@@ -65,5 +66,5 @@ if (untrusted) {
   writeSync(1, '@@error code=setup\n');
   process.exit(6);
 }
-const { start } = (await import('./process/main.mts')) as { start: () => void };
+const { start } = (await import('./compose/main.mts')) as { start: () => void };
 start();

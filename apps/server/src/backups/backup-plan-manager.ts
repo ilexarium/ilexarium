@@ -16,7 +16,7 @@ import {
   type BackupRetention,
   type BackupSchedule,
   type BackupSetupRequest,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { Observable, Subject } from 'rxjs';
 import { AuthService } from '../auth/auth.service.js';
 import { CatalogService } from '../catalog/catalog.service.js';

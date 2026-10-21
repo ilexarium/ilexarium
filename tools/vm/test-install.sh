@@ -30,24 +30,24 @@ mkdir -p "$HERE/run"
 echo '==> Building the release'
 (cd "$ROOT" && npm run release >"$HERE/run/release.log" 2>&1) || { tail -20 "$HERE/run/release.log"; exit 1; }
 VERSION="$(node -p "require('$ROOT/package.json').version")"
-ARCHIVE="$ROOT/release/homelab-$VERSION.tar.gz"
-(cd "$ROOT/release" && sha256sum -c "homelab-$VERSION.tar.gz.sha256" >/dev/null)
+ARCHIVE="$ROOT/release/laris-$VERSION.tar.gz"
+(cd "$ROOT/release" && sha256sum -c "laris-$VERSION.tar.gz.sha256" >/dev/null)
 
 if [[ "$MODE" == container ]]; then
-  NAME=homelab-install-test
+  NAME=laris-install-test
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker volume rm -f "$NAME-docker" "$NAME-containerd" "$NAME-backup" >/dev/null 2>&1 || true
   echo '==> Starting the test machine (a Debian 13 container with systemd)'
-  docker build -q -t homelab-test-machine -f "$HERE/Dockerfile.machine" "$HERE" >/dev/null
+  docker build -q -t laris-test-machine -f "$HERE/Dockerfile.machine" "$HERE" >/dev/null
   # Privileged with its own cgroup namespace: systemd and Docker inside it. /var/lib/docker and
   # /var/lib/containerd (Docker 29 keeps image layers there) are volumes: overlay can't be nested
   # in the container's own overlay. /mnt/backup another volume — a real mount point on a real
   # filesystem, for the backup.
-  docker run -d --name "$NAME" --hostname homelab-test --privileged --cgroupns=private \
+  docker run -d --name "$NAME" --hostname laris-test --privileged --cgroupns=private \
     --tmpfs /run --tmpfs /run/lock \
     -v "$NAME-docker:/var/lib/docker" -v "$NAME-containerd:/var/lib/containerd" \
     -v "$NAME-backup:/mnt/backup" \
-    homelab-test-machine >/dev/null
+    laris-test-machine >/dev/null
   run_in() { docker exec -i "$NAME" "$@"; }
   copy_in() { docker cp "$1" "$NAME:$2"; }
   cleanup() {
@@ -79,10 +79,10 @@ step 'Copying the release in'
 copy_in "$ARCHIVE" /root/
 copy_in "$ARCHIVE.sha256" /root/
 copy_in "$HERE/smoke.mjs" /root/smoke.mjs
-run_in bash -c "cd /root && sha256sum -c homelab-$VERSION.tar.gz.sha256 && tar xzf homelab-$VERSION.tar.gz" >>"$LOG" 2>&1
+run_in bash -c "cd /root && sha256sum -c laris-$VERSION.tar.gz.sha256 && tar xzf laris-$VERSION.tar.gz" >>"$LOG" 2>&1
 
 step 'Installing'
-if ! run_in bash -c "cd /root/homelab-$VERSION && ./install.sh --yes --no-tailscale" >>"$LOG" 2>&1; then
+if ! run_in bash -c "cd /root/laris-$VERSION && ./install.sh --yes --no-tailscale" >>"$LOG" 2>&1; then
   tail -40 "$LOG"
   exit 1
 fi
@@ -99,7 +99,7 @@ if [[ "$MODE" == vm ]]; then
 fi
 
 step 'Installing again (update)'
-if ! run_in bash -c "cd /root/homelab-$VERSION && ./install.sh --yes --no-tailscale" >>"$LOG" 2>&1; then
+if ! run_in bash -c "cd /root/laris-$VERSION && ./install.sh --yes --no-tailscale" >>"$LOG" 2>&1; then
   tail -40 "$LOG"
   exit 1
 fi

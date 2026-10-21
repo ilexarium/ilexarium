@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { BackupSchedule, BackupsStatus } from '@homelab/shared';
+import type { BackupSchedule, BackupsStatus } from '@laris/shared';
 import { SystemReader } from '../host/system-reader.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BackupChecks } from './backup-checks.js';

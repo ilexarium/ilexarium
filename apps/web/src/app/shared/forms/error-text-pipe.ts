@@ -1,6 +1,6 @@
 import { inject, Pipe, type PipeTransform } from '@angular/core';
 import type { ValidationError } from '@angular/forms/signals';
-import { VALIDATION_LIMITS } from '@homelab/shared';
+import { VALIDATION_LIMITS } from '@laris/shared';
 import { Translator } from '../../core/i18n/translator';
 import type { FormError } from './forms.model';
 

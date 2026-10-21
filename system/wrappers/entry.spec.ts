@@ -35,45 +35,43 @@ function start(entry: string) {
   return { code: result.status, out: result.stdout.toString() };
 }
 
-describe.each([
-  'homelab-backup.mts',
-  'homelab-compose.mts',
-  'homelab-disk.mts',
-  'homelab-process.mts',
-])('%s', (entry) => {
-  const area = entry.slice('homelab-'.length, -'.mts'.length);
+describe.each(['laris-backup.mts', 'laris-compose.mts', 'laris-disk.mts', 'laris-process.mts'])(
+  '%s',
+  (entry) => {
+    const area = entry.slice('laris-'.length, -'.mts'.length);
 
-  it('loads its modules when only their owner can change them', () => {
-    // Past the module check: the program itself answers (no config, or not an action of it).
-    const { out } = start(entry);
-    expect(out).toMatch(/@@error code=(setup|invalid_request)/);
-    expect(out).not.toContain('must belong to root');
-  });
+    it('loads its modules when only their owner can change them', () => {
+      // Past the module check: the program itself answers (no config, or not an action of it).
+      const { out } = start(entry);
+      expect(out).toMatch(/@@error code=(setup|invalid_request)/);
+      expect(out).not.toContain('must belong to root');
+    });
 
-  it.each([
-    ['a shared module others may change', 'lib/output.mts'],
-    [`one of its own modules others may change`, `${area}/main.mts`],
-  ])('refuses %s — before running any of it', (_, module) => {
-    chmodSync(join(dir, module), 0o664);
-    const { code, out } = start(entry);
-    expect(code).toBe(6);
-    expect(out).toContain(`${join(dir, module)} must belong to root`);
-    expect(out.trim().split('\n').at(-1)).toBe('@@error code=setup');
-  });
+    it.each([
+      ['a shared module others may change', 'lib/output.mts'],
+      [`one of its own modules others may change`, `${area}/main.mts`],
+    ])('refuses %s — before running any of it', (_, module) => {
+      chmodSync(join(dir, module), 0o664);
+      const { code, out } = start(entry);
+      expect(code).toBe(6);
+      expect(out).toContain(`${join(dir, module)} must belong to root`);
+      expect(out.trim().split('\n').at(-1)).toBe('@@error code=setup');
+    });
 
-  it('refuses a module folder others may change (a module could be added or swapped)', () => {
-    chmodSync(join(dir, 'lib'), 0o777);
-    expect(start(entry).code).toBe(6);
-  });
+    it('refuses a module folder others may change (a module could be added or swapped)', () => {
+      chmodSync(join(dir, 'lib'), 0o777);
+      expect(start(entry).code).toBe(6);
+    });
 
-  it('refuses a module replaced by a symlink', () => {
-    const module = join(dir, area, 'main.mts');
-    const elsewhere = join(dir, 'elsewhere.mts');
-    writeFileSync(elsewhere, 'console.log("@@phase done")');
-    unlinkSync(module);
-    symlinkSync(elsewhere, module);
-    const { code, out } = start(entry);
-    expect(code).toBe(6);
-    expect(out).not.toContain('@@phase done');
-  });
-});
+    it('refuses a module replaced by a symlink', () => {
+      const module = join(dir, area, 'main.mts');
+      const elsewhere = join(dir, 'elsewhere.mts');
+      writeFileSync(elsewhere, 'console.log("@@phase done")');
+      unlinkSync(module);
+      symlinkSync(elsewhere, module);
+      const { code, out } = start(entry);
+      expect(code).toBe(6);
+      expect(out).not.toContain('@@phase done');
+    });
+  },
+);

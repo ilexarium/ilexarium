@@ -25,7 +25,7 @@ export function checkStartup(): { action: 'up' | 'down'; id: string } {
   const args = process.argv.slice(2);
   const [action, id] = args;
   if (args.length !== 2 || (action !== 'up' && action !== 'down')) {
-    throw new Refusal('invalid_request', 'usage: homelab-compose up|down <catalog id>');
+    throw new Refusal('invalid_request', 'usage: laris-compose up|down <catalog id>');
   }
   if (!ID_PATTERN.test(id)) throw new Refusal('invalid_request', 'not a catalog id');
   return { action, id };
@@ -34,7 +34,7 @@ export function checkStartup(): { action: 'up' | 'down'; id: string } {
 /**
  * Root mode: the config, and every folder above it, must belong to root and be writable by no
  * one else — otherwise the app could have written it. Development mode (not root): the file
- * named by HOMELAB_WRAPPER_CONFIG, for tests and a machine without sudoers.
+ * named by LARIS_WRAPPER_CONFIG, for tests and a machine without sudoers.
  */
 
 export async function main(): Promise<number> {
@@ -110,7 +110,7 @@ export async function main(): Promise<number> {
   }
 }
 
-/** Called by the entry (homelab-compose.mts) once it checked these modules. */
+/** Called by the entry (laris-compose.mts) once it checked these modules. */
 export function start(): void {
   finish(main);
 }

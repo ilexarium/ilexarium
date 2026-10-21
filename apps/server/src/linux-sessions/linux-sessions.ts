@@ -15,7 +15,7 @@ import {
   type FilesErrorCode,
   type LinuxSession,
   type LinuxSignInRequest,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Subscription } from 'rxjs';

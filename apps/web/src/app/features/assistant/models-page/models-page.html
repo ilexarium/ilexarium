@@ -6,7 +6,7 @@
 
   @if (store.status(); as status) {
     @if (status.state !== 'ready') {
-      <app-empty-state
+      <laris-empty-state
         icon="lucideBot"
         [text]="
           (status.state === 'not_installed' ? 'assistant.notInstalled' : 'assistant.notRunning')
@@ -31,14 +31,14 @@
             }}</a>
           </div>
         }
-      </app-empty-state>
+      </laris-empty-state>
     } @else {
       @if (store.pull(); as pull) {
         <section class="grid gap-3" aria-labelledby="pull-title">
           <h2 id="pull-title" class="text-lg font-semibold">
             {{ 'assistant.pull.title' | translate }}
           </h2>
-          <app-pull-progress [pull]="pull" />
+          <laris-pull-progress [pull]="pull" />
         </section>
       }
 
@@ -56,13 +56,13 @@
           }
         </div>
         @if (store.models().length === 0) {
-          <app-empty-state
+          <laris-empty-state
             icon="lucidePackage"
             [text]="'assistant.noModels' | translate"
             [detail]="'assistant.noModelsHere' | translate"
           />
         } @else {
-          <app-installed-models
+          <laris-installed-models
             [models]="store.models()"
             [removing]="store.removing()"
             (remove)="store.remove($event)"
@@ -95,7 +95,7 @@
             </div>
             <p hlmFieldDescription>{{ 'assistant.byName.help' | translate }}</p>
             @if (pullForm.model().touched()) {
-              <app-field-errors [field]="pullForm.model" />
+              <laris-field-errors [field]="pullForm.model" />
             }
           </div>
         </form>
@@ -135,7 +135,7 @@
             }
           </div>
         } @else if (store.results(); as results) {
-          <app-library-results
+          <laris-library-results
             [results]="results"
             [opened]="store.opened()"
             [downloading]="store.downloading()"

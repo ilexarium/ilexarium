@@ -5,7 +5,9 @@
         <p class="flex flex-wrap items-center gap-2 font-medium">
           <span class="min-w-0 break-all" dir="ltr">{{ model.name }}</span>
           @if (model.loaded) {
-            <app-status-badge tone="info">{{ 'assistant.loaded' | translate }}</app-status-badge>
+            <laris-status-badge tone="info">{{
+              'assistant.loaded' | translate
+            }}</laris-status-badge>
           }
         </p>
         <p class="flex flex-wrap gap-x-2 text-sm text-muted-foreground" dir="ltr">

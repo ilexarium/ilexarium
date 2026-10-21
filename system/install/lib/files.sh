@@ -1,21 +1,21 @@
 # system/install/lib/files.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
 # The app's user, the release's files, the settings. Sourced by install.sh.
 
-APP_USER=homelab
-OPT=/opt/homelab
-ETC=/etc/homelab
-VAR=/var/lib/homelab
-SRV=/srv/homelab
+APP_USER=laris
+OPT=/opt/laris
+ETC=/etc/laris
+VAR=/var/lib/laris
+SRV=/srv/laris
 
 # A system user without a login shell. Its home, the only folder it may write, is
-# /var/lib/homelab/app: /var/lib/homelab itself is root's, so the app can't swap the backups'
+# /var/lib/laris/app: /var/lib/laris itself is root's, so the app can't swap the backups'
 # state folder (written as root) for something else.
 ensure_user() {
   log 'The app’s user'
   if ! getent group "$APP_USER" >/dev/null; then groupadd --system "$APP_USER"; fi
   if ! id -u "$APP_USER" >/dev/null 2>&1; then
     useradd --system --gid "$APP_USER" --home-dir "$VAR/app" --no-create-home \
-      --shell /usr/sbin/nologin --comment 'Homelab platform' "$APP_USER"
+      --shell /usr/sbin/nologin --comment 'Laris platform' "$APP_USER"
   fi
   check_not_in_docker_group
   APP_UID="$(id -u "$APP_USER")"
@@ -35,7 +35,7 @@ ensure_folders() {
 }
 
 # The platform's own files — needed before the database starts: its compose file and the
-# proxy's config, the units, the /run/homelab folders.
+# proxy's config, the units, the /run/laris folders.
 install_platform_files() {
   log 'The platform’s files'
   ensure_dir "$OPT/platform" root:root 0755
@@ -45,8 +45,8 @@ install_platform_files() {
   for unit in "$RELEASE"/system/systemd/*.service "$RELEASE"/system/systemd/*.timer; do
     install -o root -g root -m 0644 "$unit" "/etc/systemd/system/$(basename "$unit")"
   done
-  install -o root -g root -m 0644 "$RELEASE/system/install/tmpfiles.conf" /etc/tmpfiles.d/homelab.conf
-  systemd-tmpfiles --create /etc/tmpfiles.d/homelab.conf
+  install -o root -g root -m 0644 "$RELEASE/system/install/tmpfiles.conf" /etc/tmpfiles.d/laris.conf
+  systemd-tmpfiles --create /etc/tmpfiles.d/laris.conf
   info "$OPT/platform, the units"
 }
 
@@ -62,10 +62,10 @@ install_release() {
   local staged
   staged="$(mktemp -d)"
   cp -a "$RELEASE/system/wrappers/." "$staged/"
-  chmod 0755 "$staged"/homelab-*.mts
+  chmod 0755 "$staged"/laris-*.mts
   replace_tree "$staged" "$OPT/libexec"
   rm -rf "$staged"
-  install -o root -g root -m 0755 "$RELEASE/system/install/homelab-setup-code" /usr/local/bin/homelab-setup-code
+  install -o root -g root -m 0755 "$RELEASE/system/install/laris-setup-code" /usr/local/bin/laris-setup-code
   install_sudoers
   info "$OPT"
 }
@@ -75,15 +75,15 @@ install_release() {
 # half-copied file across filesystems) and named with a dot, which sudo ignores in sudoers.d.
 install_sudoers() {
   local tmp
-  tmp="$(mktemp /etc/sudoers.d/.homelab.XXXXXX)"
-  cp "$RELEASE/system/sudoers/homelab" "$tmp"
+  tmp="$(mktemp /etc/sudoers.d/.laris.XXXXXX)"
+  cp "$RELEASE/system/sudoers/laris" "$tmp"
   chmod 0440 "$tmp"
   visudo -cqf "$tmp" || {
     rm -f "$tmp"
     die 'The sudoers file was refused by visudo (nothing changed)'
   }
   chown root:root "$tmp"
-  mv -f "$tmp" /etc/sudoers.d/homelab
+  mv -f "$tmp" /etc/sudoers.d/laris
   info 'sudoers: the four wrappers'
 }
 
@@ -93,15 +93,15 @@ write_settings() {
   local owner_password app_password docker_gid borg_bin trust_proxy
   owner_password="$(read_setting "$ETC/database.env" POSTGRES_PASSWORD)"
   [[ -n "$owner_password" ]] || owner_password="$(random_hex 24)"
-  app_password="$(read_setting "$ETC/app.env" DATABASE_URL | sed -n 's|^postgresql://homelab:\([0-9a-f]*\)@.*|\1|p' || true)"
+  app_password="$(read_setting "$ETC/app.env" DATABASE_URL | sed -n 's|^postgresql://laris:\([0-9a-f]*\)@.*|\1|p' || true)"
   [[ -n "$app_password" ]] || app_password="$(random_hex 24)"
-  OWNER_DATABASE_URL="postgresql://homelab_owner:$owner_password@127.0.0.1:5432/homelab"
+  OWNER_DATABASE_URL="postgresql://laris_owner:$owner_password@127.0.0.1:5432/laris"
   APP_DB_PASSWORD="$app_password"
 
   write_file "$ETC/database.env" root:root 0600 <<CONF
-POSTGRES_USER=homelab_owner
+POSTGRES_USER=laris_owner
 POSTGRES_PASSWORD=$owner_password
-POSTGRES_DB=homelab
+POSTGRES_DB=laris
 CONF
 
   docker_gid="$(getent group docker | cut -d: -f3 || true)"
@@ -116,8 +116,8 @@ CONF
 NODE_ENV=production
 PORT=3000
 HOST=127.0.0.1
-DATABASE_URL=postgresql://homelab:$app_password@127.0.0.1:5432/homelab
-DOCKER_HOST=unix:///run/homelab/proxy/docker.sock
+DATABASE_URL=postgresql://laris:$app_password@127.0.0.1:5432/laris
+DOCKER_HOST=unix:///run/laris/proxy/docker.sock
 TRUST_PROXY=$trust_proxy
 WEB_ROOT=$OPT/app/apps/web/browser
 SETUP_TOKEN_FILE=$VAR/app/setup-token
@@ -126,11 +126,11 @@ CONF
   borg_bin="$(command -v borg)"
   APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" node --input-type=module -e '
     const config = {
-      catalogDir: "/opt/homelab/catalog",
-      storageRoots: ["/srv/homelab"],
-      serviceRoot: "/srv/homelab",
+      catalogDir: "/opt/laris/catalog",
+      storageRoots: ["/srv/laris"],
+      serviceRoot: "/srv/laris",
       reservedPorts: [22, 53, 2375, 3000, 5432, 41641],
-      protectedPaths: ["/opt/homelab", "/etc/homelab", "/var/lib/homelab", "/srv/homelab/restores"],
+      protectedPaths: ["/opt/laris", "/etc/laris", "/var/lib/laris", "/srv/laris/restores"],
       dockerBin: "/usr/bin/docker",
       disk: { systemctlBin: "/usr/bin/systemctl" },
       backup: {
@@ -139,15 +139,15 @@ CONF
         appUid: Number(process.env.APP_UID),
         appGid: Number(process.env.APP_GID),
         platform: {
-          container: "homelab-postgres-1",
-          database: "homelab",
-          user: "homelab_owner",
+          container: "laris-postgres-1",
+          database: "laris",
+          user: "laris_owner",
           files: [
-            "/etc/homelab/master.key",
-            "/etc/homelab/wrappers.json",
-            "/etc/homelab/backup.json",
-            "/etc/homelab/backup-repository.json",
-            "/etc/systemd/system/homelab-backup.timer.d/schedule.conf",
+            "/etc/laris/master.key",
+            "/etc/laris/wrappers.json",
+            "/etc/laris/backup.json",
+            "/etc/laris/backup-repository.json",
+            "/etc/systemd/system/laris-backup.timer.d/schedule.conf",
           ],
         },
       },

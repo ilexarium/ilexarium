@@ -5,7 +5,7 @@
   </div>
   <div hlmCardContent>
     <form [formRoot]="form" class="grid gap-5">
-      <app-form-errors [form]="form" />
+      <laris-form-errors [form]="form" />
 
       @for (f of mainFields(); track f.key) {
         <ng-container *ngTemplateOutlet="fieldTemplate; context: { $implicit: f }" />
@@ -111,7 +111,7 @@
                 [attr.placeholder]="kept(f) ? ('services.form.secretKept' | translate) : null"
                 [formField]="textField(f.key)"
               />
-              <app-password-toggle [(visible)]="showSecrets" />
+              <laris-password-toggle [(visible)]="showSecrets" />
             </div>
           }
           @case ('enum') {
@@ -140,6 +140,6 @@
       }
     }
     <p hlmFieldDescription>{{ 'catalog.' + id() + '.fields.' + f.key + '.help' | translate }}</p>
-    <app-field-errors [field]="field(f.key)" />
+    <laris-field-errors [field]="field(f.key)" />
   </div>
 </ng-template>

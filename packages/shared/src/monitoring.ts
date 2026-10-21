@@ -160,7 +160,7 @@ export const containerSchema = z.object({
   /** ISO timestamp of the last start; null if it never started. */
   startedAt: z.iso.datetime().nullable(),
   ports: z.array(containerPortSchema),
-  /** Labelled `homelab.protected=true`: can't be stopped or restarted from the app. */
+  /** Labelled `laris.protected=true`: can't be stopped or restarted from the app. */
   protected: z.boolean(),
   /** Compose's project label (`hl-<catalog id>` for an installed service); null outside Compose. */
   composeProject: z.string().nullable(),

@@ -1,4 +1,4 @@
-# Homelab
+# Laris
 
 A friendly web UI for running self-hosted services — and the Linux host underneath — without the terminal. See `../docs/` for vision and technical decisions.
 

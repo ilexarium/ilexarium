@@ -1,15 +1,15 @@
 # Local development only. Production Postgres is provisioned by the install script.
 # Start with `npm run db:up` (it passes DOCKER_GID, the group of the Docker socket on this machine).
-# Creates `homelab` (dev) and `homelab_test` (tests); init scripts run only on a fresh volume.
-name: homelab-dev
+# Creates `laris` (dev) and `laris_test` (tests); init scripts run only on a fresh volume.
+name: laris-dev
 
 services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: homelab
-      POSTGRES_PASSWORD: homelab-dev
-      POSTGRES_DB: homelab
+      POSTGRES_USER: laris
+      POSTGRES_PASSWORD: laris-dev
+      POSTGRES_DB: laris
     ports:
       - '127.0.0.1:5432:5432'
     volumes:
@@ -17,9 +17,9 @@ services:
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     labels:
       # The app refuses to stop or restart it (its own database).
-      homelab.protected: 'true'
+      laris.protected: 'true'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U homelab -d homelab']
+      test: ['CMD-SHELL', 'pg_isready -U laris -d laris']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -40,7 +40,7 @@ services:
     ports:
       - '127.0.0.1:2375:2375'
     labels:
-      homelab.protected: 'true'
+      laris.protected: 'true'
     read_only: true
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']

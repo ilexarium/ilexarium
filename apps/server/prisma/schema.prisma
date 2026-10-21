@@ -148,7 +148,7 @@ enum JobStatus {
 /// every change goes to the backup wrapper's `configure`, which writes the timer's copy.
 model BackupPlan {
   id           Int      @id @default(1)
-  /// The chosen disk's mount point; the repository is <destination>/homelab-backups.
+  /// The chosen disk's mount point; the repository is <destination>/laris-backups.
   destination  String
   repositoryId String
   /// { frequency, time }
@@ -293,7 +293,7 @@ enum AlertSeverity {
 /// Closed alerts are kept 30 days.
 model Alert {
   id               String        @id @default(uuid(7)) @db.Uuid
-  /// `ALERT_KINDS` in @homelab/shared.
+  /// `ALERT_KINDS` in @laris/shared.
   kind             String
   /// The container's name, the mount point or the backup warning.
   subject          String

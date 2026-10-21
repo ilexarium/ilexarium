@@ -1,4 +1,4 @@
-import type { Alert, AlertsStatus } from '@homelab/shared';
+import type { Alert, AlertsStatus } from '@laris/shared';
 
 let next = 0;
 

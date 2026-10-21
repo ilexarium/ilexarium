@@ -1,6 +1,6 @@
 import { Component, inject, signal, viewChild } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
-import { type BackupPassphraseRequest, backupPassphraseRequestSchema } from '@homelab/shared';
+import { type BackupPassphraseRequest, backupPassphraseRequestSchema } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
@@ -18,7 +18,7 @@ import { BackupsPageStore } from '../backups-page/backups-page-store';
  * sign-in; audited). On success the page shows the passphrase card. Submits through the page store.
  */
 @Component({
-  selector: 'app-passphrase-dialog',
+  selector: 'laris-passphrase-dialog',
   imports: [
     FieldErrors,
     FormErrors,

@@ -1,4 +1,4 @@
-import { ALERT_LIMITS, type ContainerHealth } from '@homelab/shared';
+import { ALERT_LIMITS, type ContainerHealth } from '@laris/shared';
 import type { AlertCondition, OpenAlert, WatchedContainer } from './alerts.model.js';
 
 /** A container that died and didn't come back within this long has stopped (a restart policy brings it back sooner). */

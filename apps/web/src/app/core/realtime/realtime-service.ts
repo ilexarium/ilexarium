@@ -14,7 +14,7 @@ import {
   type ServerMessage,
   serverMessageSchema,
   WS_CLOSE_CODES,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { AuthApi } from '../auth/auth-api';
 import { AuthStore } from '../auth/auth-store';
 import type { ConnectionStatus } from './realtime.model';

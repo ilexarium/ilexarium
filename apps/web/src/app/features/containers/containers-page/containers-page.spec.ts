@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Container } from '@homelab/shared';
+import type { Container } from '@laris/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { RealtimeService } from '../../../core/realtime/realtime-service';

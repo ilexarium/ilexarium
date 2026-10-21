@@ -19,7 +19,7 @@ import {
   type Job,
   TEXT_PATTERNS,
   valuesSchema,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { BackupPlanManager } from '../backups/backup-plan-manager.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import type { CatalogEntry } from '../catalog/catalog.model.js';

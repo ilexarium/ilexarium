@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import type { DiskUsage, HostInfo, SystemUpdate } from '@homelab/shared';
+import type { DiskUsage, HostInfo, SystemUpdate } from '@laris/shared';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import {
   DISK_INTERVAL_MS,
@@ -14,7 +14,7 @@ import type { Subscription } from 'rxjs';
 
 const GiB = 1024 ** 3;
 const host: HostInfo = {
-  hostname: 'homelab',
+  hostname: 'laris',
   os: 'Debian GNU/Linux 13',
   kernel: '6.12.0',
   arch: 'arm64',

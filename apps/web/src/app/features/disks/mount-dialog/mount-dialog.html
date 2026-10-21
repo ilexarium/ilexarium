@@ -7,7 +7,7 @@
       <p hlmAlertDialogDescription>{{ 'disks.mountDialog.text' | translate }}</p>
     </hlm-alert-dialog-header>
     <form [formRoot]="form" class="grid gap-4">
-      <app-form-errors [form]="form" />
+      <laris-form-errors [form]="form" />
       <div hlmField>
         <label hlmFieldLabel for="disk-name">{{ 'disks.mountDialog.name' | translate }}</label>
         <input
@@ -18,7 +18,7 @@
           spellcheck="false"
           [formField]="form.name"
         />
-        <app-field-errors [field]="form.name" />
+        <laris-field-errors [field]="form.name" />
       </div>
       <p class="text-sm">
         {{ 'disks.mountDialog.path' | translate }}

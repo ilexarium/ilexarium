@@ -13,7 +13,7 @@ import {
   type ChangePasswordForm,
   changePasswordFormSchema,
   VALIDATION_LIMITS,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmDialogImports } from '@ui/dialog';
@@ -33,7 +33,7 @@ const EMPTY: ChangePasswordForm = { currentPassword: '', newPassword: '', confir
  * through the page's store; empty again each time it opens.
  */
 @Component({
-  selector: 'app-password-dialog',
+  selector: 'laris-password-dialog',
   imports: [
     FieldErrors,
     FormErrors,

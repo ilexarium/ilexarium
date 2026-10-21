@@ -1,7 +1,7 @@
 import { readdir, readFile, stat, statfs } from 'node:fs/promises';
 import os from 'node:os';
 import { join } from 'node:path';
-import type { DiskUsage, HostInfo } from '@homelab/shared';
+import type { DiskUsage, HostInfo } from '@laris/shared';
 import {
   diskMounts,
   isShownInterface,

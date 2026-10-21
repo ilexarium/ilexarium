@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import type { ContainerStats, ContainersUpdate } from '@homelab/shared';
+import type { ContainerStats, ContainersUpdate } from '@laris/shared';
 import type { Subscription } from 'rxjs';
 import type { DockerService } from '../docker/docker.service.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';

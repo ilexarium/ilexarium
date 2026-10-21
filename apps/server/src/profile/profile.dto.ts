@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { profileUpdateSchema } from '@homelab/shared';
+import { profileUpdateSchema } from '@laris/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class ProfileUpdateDto extends zodDto(profileUpdateSchema) {}

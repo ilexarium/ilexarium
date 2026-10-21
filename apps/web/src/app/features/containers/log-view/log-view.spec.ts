@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { LOG_LIMITS, type LogLine } from '@homelab/shared';
+import { LOG_LIMITS, type LogLine } from '@laris/shared';
 import { stubLocalStorage, stubScreenWidth } from '../../../layout/testing';
 import { formatLogTime } from '../../../shared/format/format';
 import { LOG_TIMESTAMPS_KEY, LOG_WRAP_KEY } from './log-preferences';
@@ -16,7 +16,7 @@ function entry(text: string, stream: LogLine['stream'] = 'stdout'): LogEntry {
 
 @Component({
   imports: [LogView],
-  template: `<app-log-view [entries]="entries()" />`,
+  template: `<laris-log-view [entries]="entries()" />`,
 })
 class Host {
   readonly entries = signal<LogEntry[]>([]);

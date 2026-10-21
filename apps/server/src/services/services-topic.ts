@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ServicesList } from '@homelab/shared';
+import type { ServicesList } from '@laris/shared';
 import { auditTime, catchError, EMPTY, from, type Observable, switchMap } from 'rxjs';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';

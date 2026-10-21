@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { REALTIME_PATH, type ServerMessage, serverMessageSchema } from '@homelab/shared';
+import { REALTIME_PATH, type ServerMessage, serverMessageSchema } from '@laris/shared';
 import request from 'supertest';
 import { WebSocket } from 'ws';
 import { PrismaService } from '../src/prisma/prisma.service.js';

@@ -1,4 +1,4 @@
-import type { JobKind, JobStatus } from '@homelab/shared';
+import type { JobKind, JobStatus } from '@laris/shared';
 
 /**
  * What holds the one slot for privileged operations: a job (install, removal, restore), a backup

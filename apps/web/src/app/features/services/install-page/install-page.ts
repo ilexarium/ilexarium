@@ -13,7 +13,7 @@ import { InstallPageStore } from './install-page-store';
  * to do. UI only: loading and installing live in its page store.
  */
 @Component({
-  selector: 'app-install-page',
+  selector: 'laris-install-page',
   imports: [HlmButton, HlmSkeleton, InstallForm, RouterLink, TranslatePipe],
   providers: [InstallPageStore],
   templateUrl: './install-page.html',

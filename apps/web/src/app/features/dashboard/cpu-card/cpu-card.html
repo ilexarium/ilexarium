@@ -15,7 +15,7 @@
       {{ 'dashboard.cpu.load' | translate: { values: load() } }}
       <span class="whitespace-nowrap">{{ 'dashboard.cpu.loadPeriods' | translate }}</span>
     </p>
-    <app-metric-chart
+    <laris-metric-chart
       [series]="chart()"
       unit="percent"
       [max]="100"

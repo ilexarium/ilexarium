@@ -7,7 +7,7 @@ import { ContainersPageStore } from './containers-page-store';
 
 /** Every container, running or stopped, with an actions menu each (View logs, …). UI only. */
 @Component({
-  selector: 'app-containers-page',
+  selector: 'laris-containers-page',
   imports: [ContainersTable, HlmButton, RouterLink, TranslatePipe],
   providers: [ContainersPageStore],
   templateUrl: './containers-page.html',

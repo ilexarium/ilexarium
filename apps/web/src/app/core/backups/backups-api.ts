@@ -18,7 +18,7 @@ import type {
   BackupRunsResponse,
   BackupRunStartedResponse,
   BackupSetupRequest,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { firstValueFrom } from 'rxjs';
 
 const id = encodeURIComponent;

@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { apiErrorResponseSchema, loginRequestSchema } from '@homelab/shared';
+import { apiErrorResponseSchema, loginRequestSchema } from '@laris/shared';
 import { z } from 'zod';
 import { isZodDto, zodDto } from './zod-dto.js';
 import { ZodValidationPipe } from './zod-validation.pipe.js';

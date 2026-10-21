@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
-import { type LoginRequest, loginRequestSchema } from '@homelab/shared';
+import { type LoginRequest, loginRequestSchema } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -18,7 +18,7 @@ import { AuthFrame } from '../auth-frame/auth-frame';
 import { LoginPageStore } from './login-page-store';
 
 @Component({
-  selector: 'app-login-page',
+  selector: 'laris-login-page',
   imports: [
     AuthFrame,
     FieldErrors,

@@ -1,4 +1,4 @@
-import { ALERT_LIMITS, type DiskUsage } from '@homelab/shared';
+import { ALERT_LIMITS, type DiskUsage } from '@laris/shared';
 import type { AlertCondition, OpenAlert } from './alerts.model.js';
 
 const FULL_FOR_MS = ALERT_LIMITS.diskFullMinutes * 60_000;

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AiLibraryDetail, AiModel, AiPull } from '@homelab/shared';
+import type { AiLibraryDetail, AiModel, AiPull } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -94,7 +94,7 @@ describe('ModelsPage', () => {
 
   it('lists the installed models with their size and whether they’re loaded', async () => {
     const { el } = await render();
-    const row = el.querySelector('app-installed-models li')!;
+    const row = el.querySelector('laris-installed-models li')!;
     expect(row.textContent).toContain('llama3.2:3b');
     expect(row.textContent).toContain('2.0 GB');
     expect(row.textContent).toContain('3.2B');
@@ -108,14 +108,14 @@ describe('ModelsPage', () => {
 
   it('removes a model after a confirmation', async () => {
     const { el, fixture, api } = await render();
-    el.querySelector<HTMLButtonElement>('app-installed-models button')!.click();
+    el.querySelector<HTMLButtonElement>('laris-installed-models button')!.click();
     await fixture.whenStable();
     const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]')!;
     expect(dialog.textContent).toContain('Remove llama3.2:3b?');
     [...dialog.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Remove')!.click();
     await fixture.whenStable();
     expect(api.removeModel).toHaveBeenCalledWith('llama3.2:3b');
-    expect(el.querySelector('app-installed-models')).toBeNull();
+    expect(el.querySelector('laris-installed-models')).toBeNull();
   });
 
   it('downloads by name, shows the progress, then the new model', async () => {
@@ -124,12 +124,16 @@ describe('ModelsPage', () => {
     await fill('#model-name', 'qwen2.5:0.5b');
     expect(api.pull).toHaveBeenCalledWith('qwen2.5:0.5b');
     await topic(pull({ completedBytes: 200_000_000, totalBytes: 400_000_000 }));
-    expect(el.querySelector('app-pull-progress')!.textContent).toContain('200 MB of 400 MB (50%)');
+    expect(el.querySelector('laris-pull-progress')!.textContent).toContain(
+      '200 MB of 400 MB (50%)',
+    );
     api.models.mockResolvedValue({ models: [model('llama3.2:3b', true), model('qwen2.5:0.5b')] });
     await topic(
       pull({ status: 'succeeded', completedBytes: 400_000_000, totalBytes: 400_000_000 }),
     );
-    await vi.waitFor(() => expect(el.querySelectorAll('app-installed-models li')).toHaveLength(2));
+    await vi.waitFor(() =>
+      expect(el.querySelectorAll('laris-installed-models li')).toHaveLength(2),
+    );
     expect(success).toHaveBeenCalledWith('qwen2.5:0.5b is ready');
   });
 
@@ -141,7 +145,7 @@ describe('ModelsPage', () => {
     await topic(pull({ status: 'succeeded', completedBytes: 400, totalBytes: 400 }));
     reply(pull());
     await fixture.whenStable();
-    expect(el.querySelector('app-pull-progress')!.textContent).toContain('Downloaded');
+    expect(el.querySelector('laris-pull-progress')!.textContent).toContain('Downloaded');
     expect(el.querySelector<HTMLButtonElement>('#model-name ~ button')!.disabled).toBe(false);
   });
 
@@ -166,15 +170,15 @@ describe('ModelsPage', () => {
     const { el, fixture, api, fill } = await render();
     await fill('#library-search', 'smollm');
     expect(api.search).toHaveBeenCalledWith('smollm');
-    const result = el.querySelector<HTMLButtonElement>('app-library-results li > button')!;
+    const result = el.querySelector<HTMLButtonElement>('laris-library-results li > button')!;
     expect(result.textContent).toContain('52.6K');
     result.click();
     await vi.waitFor(() =>
-      expect(el.querySelector('app-library-results')!.textContent).toContain('Q8_0'),
+      expect(el.querySelector('laris-library-results')!.textContent).toContain('Q8_0'),
     );
     expect(api.libraryDetail).toHaveBeenCalledWith(DETAIL.id);
     const download = [
-      ...el.querySelectorAll<HTMLButtonElement>('app-library-results li li button'),
+      ...el.querySelectorAll<HTMLButtonElement>('laris-library-results li li button'),
     ][0];
     download.click();
     await fixture.whenStable();

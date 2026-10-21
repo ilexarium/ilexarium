@@ -17,7 +17,7 @@ import { ProcessesPageStore } from './processes-page-store';
  * pause, system processes on demand — and ending a person's runaway process, confirmed.
  */
 @Component({
-  selector: 'app-processes-page',
+  selector: 'laris-processes-page',
   imports: [
     EndProcessDialog,
     HlmAlertImports,

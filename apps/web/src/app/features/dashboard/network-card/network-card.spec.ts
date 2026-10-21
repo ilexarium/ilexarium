@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import type { NetworkInterfaceStats } from '@homelab/shared';
+import type { NetworkInterfaceStats } from '@laris/shared';
 import { NetworkCard } from './network-card';
 
 async function render(interfaces: NetworkInterfaceStats[]) {

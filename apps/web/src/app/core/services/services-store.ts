@@ -1,6 +1,6 @@
 import { effect, inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import type { InstalledService } from '@homelab/shared';
+import type { InstalledService } from '@laris/shared';
 import { AuthStore } from '../auth/auth-store';
 import { RealtimeService } from '../realtime/realtime-service';
 

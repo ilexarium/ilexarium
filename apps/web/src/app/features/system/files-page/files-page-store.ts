@@ -8,7 +8,7 @@ import {
   type FileSummary,
   type LinuxSession,
   type LinuxSignInRequest,
-} from '@homelab/shared';
+} from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { lastValueFrom, tap } from 'rxjs';
 import { FilesApi } from '../../../core/files/files-api';

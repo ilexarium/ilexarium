@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
-import type { PublicUser } from '@homelab/shared';
+import type { PublicUser } from '@laris/shared';
 import { resetDatabase } from '../../test/database.js';
 import { loadCatalog } from '../catalog/catalog-loader.js';
 import type { BackupPlanManager } from '../backups/backup-plan-manager.js';

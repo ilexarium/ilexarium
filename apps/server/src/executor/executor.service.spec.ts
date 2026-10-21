@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ConfigService } from '@nestjs/config';
-import type { JobPhase, PublicUser } from '@homelab/shared';
+import type { JobPhase, PublicUser } from '@laris/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { AuditEntry } from '../audit/audit.model.js';
 import type { Env } from '../config/env.schema.js';
@@ -283,7 +283,7 @@ describe('ExecutorService backups', () => {
     const setAside = Array.from(
       { length: 60 },
       (_, i) =>
-        `/srv/homelab/${'a-rather-long-folder-name-'.repeat(4)}${i}.before-restore-20261014-030000`,
+        `/srv/laris/${'a-rather-long-folder-name-'.repeat(4)}${i}.before-restore-20261014-030000`,
     );
     const line = `@@result ${JSON.stringify({ targetPath: null, setAside })}`;
     expect(line.length).toBeGreaterThan(4096);

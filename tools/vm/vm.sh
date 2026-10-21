@@ -60,7 +60,7 @@ disk_setup: { /dev/vdb: { table_type: gpt, layout: true } }
 fs_setup: [{ label: backup, filesystem: ext4, device: /dev/vdb1 }]
 mounts: [[ /dev/vdb1, /mnt/backup, ext4, "defaults,nofail", "0", "2" ]]
 EOF
-  printf 'instance-id: homelab-test\nlocal-hostname: homelab-test\n' >"$VM_DIR/meta-data"
+  printf 'instance-id: laris-test\nlocal-hostname: laris-test\n' >"$VM_DIR/meta-data"
   cloud-localds "$VM_DIR/seed.img" "$VM_DIR/user-data" "$VM_DIR/meta-data"
   local qemu machine firmware=()
   if [[ "$cpu" == amd64 ]]; then

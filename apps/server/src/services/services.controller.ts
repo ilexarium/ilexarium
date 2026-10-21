@@ -20,7 +20,7 @@ import type {
   RemoveResponse,
   Job,
   ServicesList,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { Response } from 'express';
 import { CatalogIdParamsDto, DeployDto, ServiceIdParamsDto } from './services.dto.js';
 import { ServiceManager } from './service-manager.js';

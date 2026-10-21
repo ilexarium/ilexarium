@@ -2,7 +2,7 @@ import { computed, DestroyRef, DOCUMENT, effect, inject, Service, signal } from 
 import { THEME_COLORS } from './theme.constants';
 import type { ThemeChoice } from './theme.model';
 
-export const THEME_STORAGE_KEY = 'homelab.theme';
+export const THEME_STORAGE_KEY = 'laris.theme';
 const CHOICES: readonly ThemeChoice[] = ['light', 'dark', 'system'];
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 

@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import type { ChatStreamEvent } from '@homelab/shared';
+import type { ChatStreamEvent } from '@laris/shared';
 
 /**
  * Writes JSON lines to a response, the headers first. A write the browser can't take yet waits

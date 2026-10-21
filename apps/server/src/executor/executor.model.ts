@@ -9,7 +9,7 @@ import type {
   JobPhase,
   PublicUser,
   ServiceErrorCode,
-} from '@homelab/shared';
+} from '@laris/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 
 /** The deploy wrapper's config file (the same file the wrapper reads, as root, in production). */

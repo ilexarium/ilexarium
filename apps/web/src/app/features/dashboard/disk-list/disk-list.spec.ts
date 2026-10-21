@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import type { DiskUsage } from '@homelab/shared';
+import type { DiskUsage } from '@laris/shared';
 import { DiskList } from './disk-list';
 
 const GB = 1e9;
@@ -38,9 +38,9 @@ describe('DiskList', () => {
     expect(root.hasAttribute('data-warning')).toBe(false);
     for (const item of [data, backup]) expect(item.textContent).toContain('Almost full');
     // A warning, then red from the alerts' critical limit (97%), like the alert it raises.
-    expect(data.querySelector('app-status-badge')!.getAttribute('data-tone')).toBe('warning');
+    expect(data.querySelector('laris-status-badge')!.getAttribute('data-tone')).toBe('warning');
     expect(data.querySelector('hlm-progress-indicator')!.className).toContain('bg-warning');
-    expect(backup.querySelector('app-status-badge')!.getAttribute('data-tone')).toBe('failed');
+    expect(backup.querySelector('laris-status-badge')!.getAttribute('data-tone')).toBe('failed');
     expect(backup.querySelector('hlm-progress-indicator')!.className).toContain('bg-destructive');
   });
 

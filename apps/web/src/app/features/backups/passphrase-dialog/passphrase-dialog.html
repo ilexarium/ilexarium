@@ -5,7 +5,7 @@
       <p hlmAlertDialogDescription>{{ 'backups.passphrase.againText' | translate }}</p>
     </hlm-alert-dialog-header>
     <form [formRoot]="form" class="grid gap-4">
-      <app-form-errors [form]="form" />
+      <laris-form-errors [form]="form" />
       <div hlmField>
         <label hlmFieldLabel for="confirm-password">{{
           'backups.passphrase.password' | translate
@@ -20,9 +20,9 @@
             [type]="showPassword() ? 'text' : 'password'"
             [formField]="form.password"
           />
-          <app-password-toggle [(visible)]="showPassword" />
+          <laris-password-toggle [(visible)]="showPassword" />
         </div>
-        <app-field-errors [field]="form.password" />
+        <laris-field-errors [field]="form.password" />
       </div>
       <hlm-alert-dialog-footer>
         <button hlmBtn type="button" variant="outline" (click)="close()">

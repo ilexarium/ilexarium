@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { LinuxSession } from '@homelab/shared';
+import type { LinuxSession } from '@laris/shared';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
@@ -16,7 +16,7 @@ import { TerminalPage } from './terminal-page';
 const ANNA: LinuxSession = { username: 'anna', home: '/home/anna' };
 
 /** xterm needs a canvas jsdom lacks: a stand-in with the same inputs and outputs. */
-@Component({ selector: 'app-terminal-view', template: '<div data-terminal></div>' })
+@Component({ selector: 'laris-terminal-view', template: '<div data-terminal></div>' })
 class FakeTerminalView {
   static last: FakeTerminalView | null = null;
   readonly dark = input(false);

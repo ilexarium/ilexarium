@@ -4,7 +4,7 @@ import {
   Injectable,
   type PipeTransform,
 } from '@nestjs/common';
-import type { ApiErrorResponse, FieldError } from '@homelab/shared';
+import type { ApiErrorResponse, FieldError } from '@laris/shared';
 import type { z } from 'zod';
 import { isZodDto } from './zod-dto.js';
 

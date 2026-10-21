@@ -8,7 +8,7 @@ import { Refusal } from '../lib/output.mts';
 import { assertRootOwned, isPlainAbsolutePath } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
-export const ROOT_CONFIG = '/etc/homelab/wrappers.json';
+export const ROOT_CONFIG = '/etc/laris/wrappers.json';
 export const DEFAULT_MIN_UID = 1000;
 /** People's accounts end here (`UID_MAX`); above it `nobody` (65534) and the like. */
 export const MAX_UID = 60000;
@@ -19,7 +19,7 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
 const uid = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0;
 
 export function loadConfig(): Config {
-  const path = isRoot ? ROOT_CONFIG : process.env['HOMELAB_WRAPPER_CONFIG'];
+  const path = isRoot ? ROOT_CONFIG : process.env['LARIS_WRAPPER_CONFIG'];
   if (!path) throw new Refusal('setup', 'no configuration', 6);
   if (isRoot) assertRootOwned(path);
   const config = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
