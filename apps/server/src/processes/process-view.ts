@@ -1,5 +1,5 @@
 import { PROCESS_LIMITS, type Process, processKey, type ProcessState } from '@laris/shared';
-import { isKernelThread } from '../host/proc-parsers.js';
+import { isKernelThread } from '../host/process-parsers.js';
 import type { RawProcess } from '../host/host.model.js';
 import type { EndRules, ProcessContext } from './processes.model.js';
 

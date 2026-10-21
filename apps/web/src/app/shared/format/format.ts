@@ -42,6 +42,13 @@ export function formatCount(count: number, locale = 'en'): string {
   );
 }
 
+export function formatDecimal(value: number, locale = 'en', digits = 2): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
 export function formatPercent(percent: number, locale = 'en'): string {
   const format = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
   if (percent > 0 && percent < 1) return `<${format.format(0.01)}`;
@@ -107,6 +114,11 @@ export function formatDateTime(at: string, locale = 'en'): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
     new Date(at),
   );
+}
+
+/** The time of day with seconds, in the language's own way (e.g. "21:56:22", "9:56:22 PM"). */
+export function formatClock(at: number, locale = 'en'): string {
+  return new Intl.DateTimeFormat(locale, { timeStyle: 'medium' }).format(new Date(at));
 }
 
 /** A day, in the language's own way (e.g. "14 Oct 2026"). */

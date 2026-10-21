@@ -5,6 +5,7 @@ import {
   type ContainersSnapshot,
   type ContainersUpdate,
   type ContainerStats,
+  HISTORY_WINDOW_MS,
   toContainerHistoryPoint,
 } from '@laris/shared';
 import {
@@ -37,7 +38,6 @@ export const PUBLISH_INTERVAL_MS = 2_000;
 export const REFRESH_INTERVAL_MS = 10_000;
 /** Events come in bursts (stop → die → stop); one refresh for the burst. */
 export const EVENT_DEBOUNCE_MS = 250;
-export const HISTORY_WINDOW_MS = 15 * 60_000;
 const HISTORY_CAPACITY = HISTORY_WINDOW_MS / PUBLISH_INTERVAL_MS;
 
 /** State of one collecting period: while `updates$` is subscribed. */

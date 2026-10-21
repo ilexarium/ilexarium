@@ -7,9 +7,6 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { Formatter } from '../../../shared/format/formatter';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 
-/** At or above this, a disk is flagged as almost full. */
-export const DISK_WARNING_PERCENT = 90;
-
 @Component({
   selector: 'laris-disk-list',
   imports: [HlmCardImports, HlmProgressImports, StatusBadge, TranslatePipe],
@@ -26,8 +23,8 @@ export class DiskList {
         ...disk,
         percent,
         percentText: this.formatter.percent(percent),
-        warning: percent >= DISK_WARNING_PERCENT,
-        // Past the alerts' critical limit: red, like the alert it raises.
+        // The alerts' limits: "Almost full" here exactly when the alert says so.
+        warning: percent >= ALERT_LIMITS.diskFullPercent,
         critical: percent >= ALERT_LIMITS.diskCriticalPercent,
         used: this.formatter.bytes(disk.usedBytes),
         size: this.formatter.bytes(disk.sizeBytes),

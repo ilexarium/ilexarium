@@ -1,12 +1,11 @@
 import { Logger } from '@nestjs/common';
-import type { ContainerStats, ContainersUpdate } from '@laris/shared';
+import { type ContainerStats, type ContainersUpdate, HISTORY_WINDOW_MS } from '@laris/shared';
 import type { Subscription } from 'rxjs';
 import type { DockerService } from '../docker/docker.service.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import {
   ContainersService,
   EVENT_DEBOUNCE_MS,
-  HISTORY_WINDOW_MS,
   PUBLISH_INTERVAL_MS,
   REFRESH_INTERVAL_MS,
 } from './containers.service.js';

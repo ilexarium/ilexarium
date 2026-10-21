@@ -5,11 +5,6 @@ import { ContainerActionsStore } from '../../../core/containers/container-action
 import type { ContainerActionRequest } from '../../../core/containers/containers.model';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 
-/**
- * The dashboard's data, provided by the page and gone with it: the host and every container,
- * live (the `system` and `containers` topics while the page is open), container actions, and
- * the open alerts.
- */
 export const DashboardPageStore = signalStore(
   withComputed(
     (
@@ -19,7 +14,7 @@ export const DashboardPageStore = signalStore(
       alerts = inject(AlertsStore),
     ) => ({
       system: computed(() => monitoring.system()),
-      /** What needs attention, backups' warnings among it (the shell follows the alerts all along). */
+      /** The shell follows the alerts all along; the page only reads them. */
       alerts: computed(() => alerts.open()),
       containers: computed(() => monitoring.containers()),
       pending: computed(() => actions.pending()),

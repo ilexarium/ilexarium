@@ -5,6 +5,7 @@ import {
   type RealtimeTopic,
   type ContainersSnapshot,
   type ContainersUpdate,
+  HISTORY_WINDOW_MS,
   type SystemSnapshot,
   type SystemUpdate,
   toContainerHistoryPoint,
@@ -12,9 +13,6 @@ import {
 } from '@laris/shared';
 import { AuthStore } from '../auth/auth-store';
 import { RealtimeService } from '../realtime/realtime-service';
-
-/** How much chart history is kept — the same window the server sends. */
-export const HISTORY_WINDOW_MS = 15 * 60_000;
 
 interface MonitoringState {
   /** Null until the first snapshot. */
@@ -61,16 +59,11 @@ export function applyContainersUpdate(
   return { dockerAvailable: true, containers: update.containers, history };
 }
 
-/**
- * Live system and container data, fed by the realtime topics a page `watch()`es (the dashboard
- * both, the Containers page only containers). Global, so returning to the dashboard shows the last values at once (a fresh
- * snapshot follows); reset on sign-out like every global store.
- */
+/** Global, so returning to the dashboard shows the last values at once (a fresh snapshot follows). */
 export const MonitoringStore = signalStore(
   { providedIn: 'root' },
   withState<MonitoringState>(initialState),
   withMethods((store, realtime = inject(RealtimeService)) => ({
-    /** Subscribes to the given topics until the returned function is called. */
     watch(topics: readonly RealtimeTopic[]): () => void {
       const stops: (() => void)[] = [];
       if (topics.includes('system')) stops.push(watchSystem());

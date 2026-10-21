@@ -3,9 +3,11 @@ import { LanguageService } from '../../core/i18n/language';
 import { Translator } from '../../core/i18n/translator';
 import {
   formatBytes,
+  formatClock,
   formatCount,
   formatDate,
   formatDateTime,
+  formatDecimal,
   formatDuration,
   formatLogTime,
   formatPercent,
@@ -32,6 +34,14 @@ export class Formatter {
 
   count(count: number): string {
     return this.ltr(formatCount(count, this.locale()));
+  }
+
+  decimal(value: number, digits = 2): string {
+    return this.ltr(formatDecimal(value, this.locale(), digits));
+  }
+
+  clock(at: number): string {
+    return this.ltr(formatClock(at, this.locale()));
   }
 
   percent(percent: number): string {
