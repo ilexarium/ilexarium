@@ -37,7 +37,7 @@ export const AuthStore = signalStore(
     (
       store,
       api = inject(AuthApi),
-      languages = inject(LanguageService),
+      languageService = inject(LanguageService),
       router = inject(Router),
       channel = inject(SIGN_OUT_CHANNEL),
     ) => {
@@ -45,8 +45,8 @@ export const AuthStore = signalStore(
       /** Signing out on purpose: the socket closing with 4401 meanwhile isn't an expiry. */
       let leaving = false;
       const applyLanguage = async (user: PublicUser | null) => {
-        if (!user?.language || user.language === languages.language()) return;
-        await languages.setLanguage(user.language).catch(() => undefined);
+        if (!user?.language || user.language === languageService.language()) return;
+        await languageService.setLanguage(user.language).catch(() => undefined);
       };
       const toLogin = (expired: boolean) => {
         if (router.url.startsWith('/login')) return;

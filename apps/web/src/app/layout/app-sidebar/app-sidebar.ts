@@ -24,8 +24,8 @@ export class AppSidebar {
   protected readonly appName = APP_NAME;
   protected readonly navigation = NAVIGATION;
   /** Right to left: the sidebar sits on the right, its tooltips open to the left. */
-  private readonly language = inject(LanguageService);
-  protected readonly rtl = computed(() => this.language.dir() === 'rtl');
+  private readonly languageService = inject(LanguageService);
+  protected readonly rtl = computed(() => this.languageService.dir() === 'rtl');
   private readonly backups = inject(BackupsStore);
   private readonly alerts = inject(AlertsStore);
   /** Parts of the app that need attention: a badge beside their entry. */

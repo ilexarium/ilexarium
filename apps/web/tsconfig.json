@@ -10,7 +10,8 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "ES2022",
-    "lib": ["ES2022", "ES2025.Intl", "DOM", "DOM.Iterable"],
+    // With `target`: the same ES year, plus Intl.DurationFormat (ES2025.Intl). Raise both together.
+    "lib": ["ES2022", "ES2025.Intl", "DOM"],
     "module": "preserve",
     "resolveJsonModule": true,
     "paths": {

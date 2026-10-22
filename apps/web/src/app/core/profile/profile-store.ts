@@ -20,13 +20,13 @@ export const ProfileStore = signalStore(
       _,
       auth = inject(AuthStore),
       api = inject(ProfileApi),
-      languages = inject(LanguageService),
+      languageService = inject(LanguageService),
       translator = inject(Translator),
     ) => ({
       /** Shows the app in `language`, and keeps it for the account (it follows to other browsers). */
       async chooseLanguage(language: UserLanguage): Promise<void> {
         try {
-          await languages.setLanguage(language);
+          await languageService.setLanguage(language);
         } catch (error) {
           // Its file didn't load (offline, an update under way): the language stays as it was.
           const [key, params] = apiErrorText(error);

@@ -64,7 +64,7 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
 export class TopBar {
   protected readonly auth = inject(AuthStore);
   protected readonly alerts = inject(AlertsStore);
-  protected readonly languages = inject(LanguageService);
+  protected readonly languageService = inject(LanguageService);
   protected readonly profile = inject(ProfileStore);
   /** Each language in itself — the same in every interface language. */
   protected readonly names = LANGUAGE_NAMES;

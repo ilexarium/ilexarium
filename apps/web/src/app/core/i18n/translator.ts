@@ -2,7 +2,7 @@ import { inject, Service } from '@angular/core';
 import { pluralKey } from '@laris/i18n';
 import { TranslateService } from '@ngx-translate/core';
 import { LanguageService } from './language';
-import { MARK } from './translator.constants';
+import { PLACEHOLDER_MARK } from './translator.constants';
 
 /** For TypeScript; templates use the `translate` and `plural` pipes. */
 @Service()
@@ -26,8 +26,8 @@ export class Translator {
    * placeholder may sit anywhere in each language; translations never contain HTML.
    */
   around(key: string, placeholder: string, params?: Record<string, unknown>): [string, string] {
-    const text = this.t(key, { ...params, [placeholder]: MARK });
-    const at = text.indexOf(MARK);
-    return at < 0 ? [text, ''] : [text.slice(0, at), text.slice(at + MARK.length)];
+    const text = this.t(key, { ...params, [placeholder]: PLACEHOLDER_MARK });
+    const at = text.indexOf(PLACEHOLDER_MARK);
+    return at < 0 ? [text, ''] : [text.slice(0, at), text.slice(at + PLACEHOLDER_MARK.length)];
   }
 }

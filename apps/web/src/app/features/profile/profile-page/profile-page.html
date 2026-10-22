@@ -45,13 +45,13 @@
         {{ 'profile.preferences.language' | translate }}
       </legend>
       <div class="flex flex-wrap gap-2">
-        @for (language of languages.available; track language) {
+        @for (language of languageService.available; track language) {
           <button
             hlmBtn
             type="button"
             size="sm"
-            [variant]="languages.language() === language ? 'default' : 'outline'"
-            [attr.aria-pressed]="languages.language() === language"
+            [variant]="languageService.language() === language ? 'default' : 'outline'"
+            [attr.aria-pressed]="languageService.language() === language"
             [attr.lang]="language"
             (click)="profile.chooseLanguage(language)"
           >

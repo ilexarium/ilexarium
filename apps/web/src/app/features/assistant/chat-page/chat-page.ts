@@ -60,8 +60,10 @@ import { FieldErrors } from '../../../shared/forms/field-errors';
 export class ChatPage {
   protected readonly store = inject(ChatPageStore);
   private readonly router = inject(Router);
-  private readonly language = inject(LanguageService);
-  protected readonly sheetSide = computed(() => (this.language.dir() === 'rtl' ? 'right' : 'left'));
+  private readonly languageService = inject(LanguageService);
+  protected readonly sheetSide = computed(() =>
+    this.languageService.dir() === 'rtl' ? 'right' : 'left',
+  );
 
   /**
    * The chat in the URL (`?chat=<id>`); null for a new one. A query parameter, not a path: the
