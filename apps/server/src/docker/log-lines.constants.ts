@@ -19,3 +19,8 @@ export const ANSI =
 /** Control characters left after the escapes (keeps tabs). */
 // oxlint-disable-next-line no-control-regex
 export const CONTROL = /[\x00-\x08\x0a-\x1f\x7f-\x9f]/;
+/**
+ * Docker cuts a message into frames of at most 16 KB (its log copier's buffer), plus the
+ * timestamp it puts in front: a bigger frame isn't Docker's, and is refused rather than read.
+ */
+export const MAX_FRAME_BYTES = 16 * 1024 + PREFIX_BYTES;

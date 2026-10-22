@@ -36,6 +36,20 @@ function frame(type: number, payload: string | Buffer): Buffer {
   return Buffer.concat([header, body]);
 }
 
+/** A long message the way Docker frames it: 16 KB parts, each with the timestamp, the last with `\n`. */
+function dockerFrames(type: number, text: string): Buffer[] {
+  const bytes = Buffer.from(text);
+  const parts: Buffer[] = [];
+  for (let i = 0; i < bytes.length; i += 16 * 1024) {
+    const part = bytes.subarray(i, i + 16 * 1024);
+    const last = i + 16 * 1024 >= bytes.length;
+    parts.push(
+      frame(type, Buffer.concat([Buffer.from(`${AT} `), part, Buffer.from(last ? '\n' : '')])),
+    );
+  }
+  return parts;
+}
+
 const multiplexedLines: LogLine[] = [
   { at: '2026-10-11T17:59:34.314225079Z', stream: 'stdout', text: 'out one' },
   { at: '2026-10-11T17:59:34.314258704Z', stream: 'stderr', text: 'err café' },
@@ -118,7 +132,7 @@ describe('logLines — multiplexed (no TTY)', () => {
   it('cuts a long line without splitting a character', async () => {
     for (const char of ['é', '€', '😀']) {
       const text = char.repeat(MAX); // 2–4 bytes each: far over the limit
-      const [line] = await collect([frame(1, `${AT} ${text}\n`)], { tty: false });
+      const [line] = await collect(dockerFrames(1, text), { tty: false });
       expect(line.truncated, char).toBe(true);
       expect(Buffer.byteLength(line.text), char).toBeLessThanOrEqual(MAX);
       expect(Buffer.byteLength(line.text), char).toBeGreaterThan(MAX - 4);
@@ -132,15 +146,18 @@ describe('logLines — multiplexed (no TTY)', () => {
     expect(line.truncated).toBeUndefined();
   });
 
-  it('keeps memory bounded for a huge frame, and marks it cut', async () => {
-    const huge = frame(1, `${AT} ${'y'.repeat(4 * 1024 * 1024)}`);
-    const lines = await collect([...chunked(huge, 64 * 1024), frame(1, `${AT} next\n`)], {
-      tty: false,
-    });
+  it('keeps memory bounded for a huge message in 16 KB frames, and marks it cut', async () => {
+    const huge = dockerFrames(1, 'y'.repeat(4 * 1024 * 1024));
+    const lines = await collect([...huge, frame(1, `${AT} next\n`)], { tty: false });
     expect(lines).toEqual([
       { at: AT, stream: 'stdout', text: 'y'.repeat(MAX), truncated: true },
       { at: AT, stream: 'stdout', text: 'next' },
     ]);
+  });
+
+  it('refuses a frame bigger than Docker sends, before reading it', async () => {
+    const header = Buffer.from([1, 0, 0, 0, 0x40, 0, 0, 0]); // 1 GB announced
+    await expect(collect([header], { tty: false })).rejects.toThrow(/more than Docker sends/);
   });
 
   it('strips ANSI escapes and control characters', async () => {
