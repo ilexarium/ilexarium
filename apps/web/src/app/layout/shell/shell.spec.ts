@@ -6,7 +6,7 @@ import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
 import { fakeSockets } from '../../core/realtime/testing';
-import { LANGUAGE_STORAGE_KEY } from '../../core/i18n/language';
+import { LANGUAGE_STORAGE_KEY } from '../../core/i18n/language.constants';
 import { stubLocalStorage, stubScreenWidth } from '../testing';
 import { Shell } from './shell';
 

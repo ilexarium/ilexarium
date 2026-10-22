@@ -15,13 +15,13 @@ import {
 } from './format';
 
 /**
- * The `format.ts` functions in the current language, always with Latin digits (the owner's
- * decision: Arabic too shows 1,234, not ١٬٢٣٤ — `-u-nu-latn` makes it so in every browser). Reads
- * the language as a signal, so a `computed()` built on it follows a language switch.
+ * Latin digits in every language (the owner's decision: Arabic too shows 1,234, not ١٬٢٣٤ —
+ * `-u-nu-latn` makes it so in every browser). Reads the language as a signal, so a `computed()`
+ * built on it follows a language switch.
  */
 @Service()
 export class Formatter {
-  private readonly language = inject(LanguageService);
+  private readonly languageService = inject(LanguageService);
   private readonly translator = inject(Translator);
 
   bytes(bytes: number): string {
@@ -67,6 +67,11 @@ export class Formatter {
     return this.duration(Math.max(0, (now - Date.parse(at)) / 1000));
   }
 
+  /** One fixed, sortable form in every language (machine text). */
+  logTime(at: string): string {
+    return formatLogTime(at);
+  }
+
   /**
    * Machine text (a path, a container's name) inside a translated sentence, kept left to right:
    * without the isolate, Arabic text shows "/mnt/usb" as "mnt/usb/".
@@ -81,16 +86,11 @@ export class Formatter {
    * changes nothing).
    */
   private ltr(text: string): string {
-    return this.language.dir() === 'rtl' ? `\u2066${text}\u2069` : text;
-  }
-
-  /** One fixed, sortable form in every language (machine text). */
-  logTime(at: string): string {
-    return formatLogTime(at);
+    return this.languageService.dir() === 'rtl' ? `\u2066${text}\u2069` : text;
   }
 
   /** The current language, with Latin digits. */
   private locale(): string {
-    return `${this.language.language()}-u-nu-latn`;
+    return `${this.languageService.language()}-u-nu-latn`;
   }
 }

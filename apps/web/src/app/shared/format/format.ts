@@ -2,7 +2,7 @@
 // language's own number format (`Formatter` passes the current one). Decimal units (1 GB = 1000³
 // bytes), as GNOME, macOS and disk makers show them; unit symbols aren't translated.
 
-const UNITS = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
+import { UNITS } from './format.constants';
 
 function scaled(bytes: number): { value: number; unit: string } {
   let value = Math.max(0, bytes);
@@ -34,7 +34,6 @@ export function formatRate(bytesPerSecond: number, locale = 'en'): string {
   return `${formatBytes(bytesPerSecond, locale)}/s`;
 }
 
-/** "42%" ("42 %" in German) — "<1%" for a small non-zero share, so it never reads as idle. */
 /** A count, short: "52K", "1.2M" (downloads, likes). */
 export function formatCount(count: number, locale = 'en'): string {
   return new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(
@@ -49,6 +48,7 @@ export function formatDecimal(value: number, locale = 'en', digits = 2): string 
   }).format(value);
 }
 
+/** "42%" ("42 %" in German) — "<1%" for a small non-zero share, so it never reads as idle. */
 export function formatPercent(percent: number, locale = 'en'): string {
   const format = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
   if (percent > 0 && percent < 1) return `<${format.format(0.01)}`;
@@ -77,18 +77,8 @@ export function formatDuration(seconds: number, locale: string, lessThanAMinute:
     }
   }
   if (Object.keys(parts).length === 0) return lessThanAMinute;
-  return new DurationFormat(locale, { style: 'long' }).format(parts);
+  return new Intl.DurationFormat(locale, { style: 'long' }).format(parts);
 }
-
-/** `Intl.DurationFormat` (in every current browser) — not yet in TypeScript's ES2022 library. */
-const DurationFormat = (
-  Intl as unknown as {
-    DurationFormat: new (
-      locale: string,
-      options: { style: 'long' },
-    ) => { format(duration: Record<string, number>): string };
-  }
-).DurationFormat;
 
 /** Used share of a total as a percentage (0 for an empty total). */
 export function percentOf(used: number, total: number): number {
