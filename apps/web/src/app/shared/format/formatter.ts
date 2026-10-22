@@ -9,7 +9,6 @@ import {
   formatDateTime,
   formatDecimal,
   formatDuration,
-  formatLogTime,
   formatPercent,
   formatRate,
 } from './format';
@@ -87,10 +86,5 @@ export class Formatter {
   /** The current language, with Latin digits. */
   private locale(): string {
     return `${this.language.language()}-u-nu-latn`;
-  }
-
-  /** Log times stay in one fixed, sortable form in every language (machine text). */
-  logTime(at: string): string {
-    return formatLogTime(at);
   }
 }

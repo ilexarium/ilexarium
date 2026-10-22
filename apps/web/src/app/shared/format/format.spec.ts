@@ -116,7 +116,7 @@ describe('formatLogTime', () => {
     const pad = (n: number) => String(n).padStart(2, '0');
     expect(formatLogTime(at)).toBe(
       `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())} ` +
-        `${pad(local.getHours())}:03:22.123`,
+        `${pad(local.getHours())}:${pad(local.getMinutes())}:22.123`,
     );
   });
 

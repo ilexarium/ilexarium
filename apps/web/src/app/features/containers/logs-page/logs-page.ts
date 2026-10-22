@@ -23,12 +23,7 @@ interface Notice {
   retry: boolean;
 }
 
-/**
- * One container's logs, live (`/containers/:name/logs`, titled "Logs · <name>"). Fills the screen
- * height below the top bar, so the log box scrolls, not the page. Says in plain words why there
- * are no (more) lines: loading, no output yet, stopped, removed, not found, not readable, Docker
- * not reachable, too many log views.
- */
+/** Fills the screen height below the top bar, so the log box scrolls, not the page. */
 @Component({
   selector: 'laris-logs-page',
   imports: [
@@ -49,7 +44,7 @@ interface Notice {
   templateUrl: './logs-page.html',
 })
 export class LogsPage {
-  protected readonly logs = inject(LogsPageStore);
+  protected readonly logsPageStore = inject(LogsPageStore);
   protected readonly name = toSignal(
     inject(ActivatedRoute).paramMap.pipe(map((params) => params.get('name') ?? '')),
     { requireSync: true },
@@ -58,8 +53,8 @@ export class LogsPage {
 
   /** What the main area shows; `none` when the notice says it all. */
   protected readonly view = computed(() => {
-    const { status } = this.logs.state();
-    if (this.logs.entries().length > 0) return 'lines';
+    const { status } = this.logsPageStore.state();
+    if (this.logsPageStore.entries().length > 0) return 'lines';
     if (status === 'loading') return 'loading';
     if (status === 'live') return 'empty';
     return 'none';
@@ -67,7 +62,7 @@ export class LogsPage {
 
   protected readonly notice = computed<Notice | null>(() => {
     if (!this.validName()) return endNotice('not_found', this.name());
-    const state = this.logs.state();
+    const state = this.logsPageStore.state();
     return state.status === 'ended' ? endNotice(state.reason, this.name()) : null;
   });
 
@@ -76,12 +71,12 @@ export class LogsPage {
     effect(() => {
       const name = this.name();
       const valid = this.validName();
-      untracked(() => (valid ? this.logs.open(name) : this.logs.close()));
+      untracked(() => (valid ? this.logsPageStore.open(name) : this.logsPageStore.close()));
     });
   }
 
   protected openLogs(): void {
-    this.logs.open(this.name());
+    this.logsPageStore.open(this.name());
   }
 }
 

@@ -1,9 +1,6 @@
 import { DOCUMENT, inject, Service, signal } from '@angular/core';
 
-export const LOG_TIMESTAMPS_KEY = 'laris.logs.timestamps';
-export const LOG_WRAP_KEY = 'laris.logs.wrap';
-/** Below the `md` breakpoint, like the layout's phone sheet. */
-const PHONE_QUERY = '(max-width: 767px)';
+import { LOG_TIMESTAMPS_KEY, LOG_WRAP_KEY, PHONE_QUERY } from './log-preferences.constants';
 
 /**
  * The log view's toggles, remembered per browser — device preferences, not user data, so they

@@ -5,8 +5,6 @@ import {
   type ElementRef,
   inject,
   input,
-  Pipe,
-  type PipeTransform,
   signal,
   viewChild,
 } from '@angular/core';
@@ -22,38 +20,20 @@ import {
 } from '@ng-icons/lucide';
 import { HlmButton } from '@ui/button';
 import { HlmInput } from '@ui/input';
-import { formatLogTime } from '../../../shared/format/format';
 import { LogPreferences } from './log-preferences';
+import { LogTimePipe } from './log-time-pipe';
+import { BOTTOM_SLACK_PX } from './log-view.constants';
 import type { LogEntry } from '../containers.model';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Translator } from '../../../core/i18n/translator';
 
-/** Within this many pixels of the bottom counts as "at the bottom" (following). */
-const BOTTOM_SLACK_PX = 16;
-
-/** Pure: each line's time is formatted once, not on every batch. */
-@Pipe({ name: 'logTime' })
-export class LogTimePipe implements PipeTransform {
-  transform(at: string): string {
-    return formatLogTime(at);
-  }
-}
-
 /**
- * A container's log lines, following new ones like `docker logs -f`:
- *
- * - **Following:** keeps the newest line in view while at the bottom. Scrolling up stops it and
- *   offers **Jump to latest**; **Pause** stops it explicitly.
- * - **Filter:** case-insensitive, over the lines loaded.
  * - **stderr** lines carry an icon and the word "stderr", not colour alone. The line itself isn't
  *   tinted: many services (Navidrome, most Go and Python programs) write all their logs to
  *   stderr, so it marks the channel, not an error.
- * - **Timestamps** (local time) and **wrap** are toggles, remembered per browser. Without wrap,
- *   long lines scroll sideways inside the log box — never the page.
- *
- * A plain list, not virtual scrolling: lines may wrap to any height, and Ctrl+F and copying many
- * lines keep working. Off-screen lines skip rendering (`content-visibility: auto`); at most
- * `LOG_LIMITS.maxLinesInView` lines are kept. Log text is always rendered as text, never HTML.
+ * - A plain list, not virtual scrolling: lines may wrap to any height, and Ctrl+F and copying many
+ *   lines keep working. Off-screen lines skip rendering (`content-visibility: auto`).
+ * - Log text is always rendered as text, never HTML (it can hold anything).
  */
 @Component({
   selector: 'laris-log-view',
@@ -73,10 +53,9 @@ export class LogTimePipe implements PipeTransform {
   templateUrl: './log-view.html',
 })
 export class LogView {
-  /** Oldest first. */
   readonly entries = input.required<LogEntry[]>();
 
-  protected readonly prefs = inject(LogPreferences);
+  protected readonly logPreferences = inject(LogPreferences);
   private readonly translator = inject(Translator);
   protected readonly filter = signal('');
   /** Following stopped with the Pause button. */

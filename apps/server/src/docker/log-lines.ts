@@ -1,23 +1,13 @@
 import { LOG_LIMITS, type LogLine, type LogStream } from '@laris/shared';
-
-const HEADER_BYTES = 8;
-const NEWLINE = 0x0a;
-/** `2026-10-11T17:59:34.077485265Z ` — what `timestamps=1` puts before every message. */
-const TIMESTAMP = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d{1,9}))?Z /;
-/** Room for the timestamp prefix on top of the text limit. */
-const PREFIX_BYTES = 64;
-/**
- * ANSI escape sequences: CSI (`ESC [ … m`, also the 8-bit form), OSC (`ESC ] … BEL`, `ESC \` or
- * the 8-bit `ST`), then any other `ESC`, optional intermediates and a final byte (e.g. the
- * charset switch `ESC ( B`, save cursor `ESC 7`). Node's `util.stripVTControlCharacters` was
- * considered: it also removes the character after `ESC 7` / `ESC 8`, losing log text.
- */
-const ANSI =
-  // oxlint-disable-next-line no-control-regex
-  /\x1b\[[0-?]*[ -/]*[@-~]|\x9b[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b\x9c]*(?:\x07|\x1b\\|\x9c)?|\x1b[ -/]*[0-~]/g;
-/** Control characters left after the escapes (keeps tabs). */
-// oxlint-disable-next-line no-control-regex
-const CONTROL = /[\x00-\x08\x0a-\x1f\x7f-\x9f]/g;
+import {
+  ANSI,
+  CONTROL,
+  HEADER_BYTES,
+  NEWLINE,
+  PREFIX_BYTES,
+  TIMESTAMP,
+  TIMESTAMP_PREFIX,
+} from './log-lines.constants.js';
 
 /**
  * Turns the body of `GET /containers/{id}/logs?timestamps=1` into lines. Chunks may split it
@@ -52,8 +42,13 @@ export async function* byteChunks(body: AsyncIterable<Buffer | string>): AsyncGe
 
 /** Docker's timestamp with exactly 9 fraction digits, or null if it isn't one. */
 export function normaliseTimestamp(value: string): string | null {
-  const match = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d{1,9}))?Z$/.exec(value);
-  return match ? `${match[1]}.${(match[2] ?? '').padEnd(9, '0')}Z` : null;
+  const match = TIMESTAMP.exec(value);
+  return match && padded(match);
+}
+
+/** 9 fraction digits, so timestamps compare correctly as strings. */
+function padded([, time, fraction = '']: RegExpExecArray): string {
+  return `${time}.${fraction.padEnd(9, '0')}Z`;
 }
 
 /** For Docker's `since`, which takes Unix seconds: `1791741574.315449738`. */
@@ -69,36 +64,57 @@ export function stripAnsi(text: string): string {
   return text.replace(ANSI, '').replace(CONTROL, '');
 }
 
-/** One line being put together, its bytes capped. */
-class PendingLine {
-  private readonly parts: Buffer[] = [];
+/** Bytes collected up to `limit`; what doesn't fit is dropped, and that is remembered. */
+class CappedBytes {
+  private parts: Buffer[] = [];
   private size = 0;
-  private truncated = false;
+  dropped = false;
 
-  constructor(
-    readonly at: string,
-    private readonly limit: number,
-  ) {}
+  constructor(private readonly limit: number) {}
 
-  /** Bytes were dropped before they got here. */
-  markTruncated(): void {
-    this.truncated = true;
+  get length(): number {
+    return this.size;
   }
 
   append(bytes: Buffer): void {
-    const room = this.limit - this.size;
-    if (bytes.length > room) this.truncated = true;
-    const kept = bytes.subarray(0, Math.max(0, room));
+    const kept = bytes.subarray(0, Math.max(0, this.limit - this.size));
+    if (kept.length < bytes.length) this.dropped = true;
     if (kept.length === 0) return;
     this.parts.push(kept);
     this.size += kept.length;
   }
 
+  /** The bytes so far; it starts empty again. */
+  take(): Buffer {
+    const bytes = Buffer.concat(this.parts, this.size);
+    this.parts = [];
+    this.size = 0;
+    this.dropped = false;
+    return bytes;
+  }
+}
+
+/** One line being put together, its bytes capped. */
+class PendingLine {
+  private readonly bytes = new CappedBytes(LOG_LIMITS.maxLineBytes);
+
+  constructor(readonly at: string) {}
+
+  /** Bytes were dropped before they got here. */
+  markTruncated(): void {
+    this.bytes.dropped = true;
+  }
+
+  append(bytes: Buffer): void {
+    this.bytes.append(bytes);
+  }
+
   toLine(stream: LogStream): LogLine {
-    let bytes = Buffer.concat(this.parts, this.size);
-    if (this.truncated) bytes = bytes.subarray(0, charBoundary(bytes));
+    const truncated = this.bytes.dropped;
+    let bytes = this.bytes.take();
+    if (truncated) bytes = bytes.subarray(0, charBoundary(bytes));
     const text = stripAnsi(bytes.toString('utf8'));
-    return { at: this.at, stream, text, ...(this.truncated && { truncated: true }) };
+    return { at: this.at, stream, text, ...(truncated && { truncated: true }) };
   }
 }
 
@@ -116,12 +132,9 @@ function charBoundary(bytes: Buffer): number {
 /** Splits `bytes` (one message, or a run of raw text) into its timestamp and the rest. */
 function splitTimestamp(bytes: Buffer, fallback: string): { at: string; rest: Buffer } {
   const head = bytes.subarray(0, PREFIX_BYTES).toString('latin1');
-  const match = TIMESTAMP.exec(head);
+  const match = TIMESTAMP_PREFIX.exec(head);
   if (!match) return { at: fallback, rest: bytes };
-  return {
-    at: `${match[1]}.${(match[2] ?? '').padEnd(9, '0')}Z`,
-    rest: bytes.subarray(match[0].length),
-  };
+  return { at: padded(match), rest: bytes.subarray(match[0].length) };
 }
 
 /** Lines without a timestamp of their own (shouldn't happen) get the previous one, or now. */
@@ -136,27 +149,21 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
   // The current frame: its stream, the bytes still to come, and what's kept of it.
   let stream: LogStream = 'stdout';
   let remaining = 0;
-  let frame: Buffer[] = [];
-  let frameKept = 0;
-  let frameDropped = false;
-  const frameLimit = LOG_LIMITS.maxLineBytes + PREFIX_BYTES;
+  const frame = new CappedBytes(LOG_LIMITS.maxLineBytes + PREFIX_BYTES);
 
   function* endFrame(): Generator<LogLine> {
-    const bytes = Buffer.concat(frame, frameKept);
-    const dropped = frameDropped;
-    frame = [];
-    frameKept = 0;
-    frameDropped = false;
+    const dropped = frame.dropped;
+    const bytes = frame.take();
     const open = pending[stream];
     // A continuation of a split message repeats the timestamp: drop it, keep the first.
     const { at, rest } = splitTimestamp(bytes, open?.at ?? lastAt ?? now());
     lastAt = at;
-    let line = open ?? new PendingLine(at, LOG_LIMITS.maxLineBytes);
+    let line = open ?? new PendingLine(at);
     let start = 0;
     for (let i = rest.indexOf(NEWLINE); i !== -1; i = rest.indexOf(NEWLINE, start)) {
       line.append(rest.subarray(start, i));
       yield line.toLine(stream);
-      line = new PendingLine(at, LOG_LIMITS.maxLineBytes);
+      line = new PendingLine(at);
       start = i + 1;
     }
     if (dropped) {
@@ -190,12 +197,7 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
         if (remaining === 0) continue;
       }
       const take = Math.min(remaining, chunk.length - offset);
-      const keep = Math.min(take, frameLimit - frameKept);
-      if (keep < take) frameDropped = true;
-      if (keep > 0) {
-        frame.push(chunk.subarray(offset, offset + keep));
-        frameKept += keep;
-      }
+      frame.append(chunk.subarray(offset, offset + take));
       offset += take;
       remaining -= take;
       if (remaining === 0) yield* endFrame();
@@ -209,43 +211,28 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
 }
 
 async function* ttyLines(body: AsyncIterable<Buffer>): AsyncGenerator<LogLine> {
-  // Raw text: the line's bytes so far (capped), and whether more were dropped.
-  let parts: Buffer[] = [];
-  let kept = 0;
-  let dropped = false;
+  // Raw text: the line so far, with room for its timestamp prefix.
+  const raw = new CappedBytes(LOG_LIMITS.maxLineBytes + PREFIX_BYTES);
   let lastAt: string | null = null;
-  const limit = LOG_LIMITS.maxLineBytes + PREFIX_BYTES;
 
   const finish = (): LogLine => {
-    const bytes = Buffer.concat(parts, kept);
-    parts = [];
-    kept = 0;
-    const { at, rest } = splitTimestamp(bytes, lastAt ?? now());
+    const dropped = raw.dropped;
+    const { at, rest } = splitTimestamp(raw.take(), lastAt ?? now());
     lastAt = at;
-    const line = new PendingLine(at, LOG_LIMITS.maxLineBytes);
+    const line = new PendingLine(at);
     line.append(rest);
     if (dropped) line.markTruncated();
-    dropped = false;
     return line.toLine('stdout');
   };
 
   for await (const chunk of body) {
     let start = 0;
     for (let i = chunk.indexOf(NEWLINE); i !== -1; i = chunk.indexOf(NEWLINE, start)) {
-      append(chunk.subarray(start, i));
+      raw.append(chunk.subarray(start, i));
       yield finish();
       start = i + 1;
     }
-    append(chunk.subarray(start));
+    raw.append(chunk.subarray(start));
   }
-  if (kept > 0 || dropped) yield finish();
-
-  function append(bytes: Buffer): void {
-    const keep = Math.min(bytes.length, limit - kept);
-    if (keep < bytes.length) dropped = true;
-    if (keep > 0) {
-      parts.push(bytes.subarray(0, keep));
-      kept += keep;
-    }
-  }
+  if (raw.length > 0 || raw.dropped) yield finish();
 }

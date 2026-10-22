@@ -31,8 +31,8 @@
   <button
     hlmBtn
     variant="outline"
-    [attr.aria-pressed]="prefs.timestamps()"
-    (click)="prefs.setTimestamps(!prefs.timestamps())"
+    [attr.aria-pressed]="logPreferences.timestamps()"
+    (click)="logPreferences.setTimestamps(!logPreferences.timestamps())"
   >
     <ng-icon name="lucideClock" aria-hidden="true" />
     <span class="sr-only sm:not-sr-only">{{ 'logs.timestamps' | translate }}</span>
@@ -40,8 +40,8 @@
   <button
     hlmBtn
     variant="outline"
-    [attr.aria-pressed]="prefs.wrap()"
-    (click)="prefs.setWrap(!prefs.wrap())"
+    [attr.aria-pressed]="logPreferences.wrap()"
+    (click)="logPreferences.setWrap(!logPreferences.wrap())"
   >
     <ng-icon name="lucideWrapText" aria-hidden="true" />
     <span class="sr-only sm:not-sr-only">{{ 'logs.wrap' | translate }}</span>
@@ -63,11 +63,11 @@
     @for (entry of visible(); track entry.id) {
       <li
         class="flex min-w-full flex-col px-3 [contain-intrinsic-block-size:auto_1.25rem] [content-visibility:auto] sm:flex-row sm:gap-3"
-        [class]="{ 'w-max': !prefs.wrap() }"
+        [class]="{ 'w-max': !logPreferences.wrap() }"
       >
-        @if (prefs.timestamps() || entry.stream === 'stderr') {
+        @if (logPreferences.timestamps() || entry.stream === 'stderr') {
           <span class="flex shrink-0 items-center gap-2">
-            @if (prefs.timestamps()) {
+            @if (logPreferences.timestamps()) {
               <time class="text-muted-foreground" [attr.datetime]="entry.at">{{
                 entry.at | logTime
               }}</time>
@@ -81,7 +81,7 @@
         }
         <span
           class="min-w-0"
-          [class]="prefs.wrap() ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'"
+          [class]="logPreferences.wrap() ? 'whitespace-pre-wrap wrap-anywhere' : 'whitespace-pre'"
           >{{ entry.text }}</span
         >
       </li>

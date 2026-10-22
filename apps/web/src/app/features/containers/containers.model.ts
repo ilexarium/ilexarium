@@ -3,12 +3,7 @@ import type { LogLine, LogsEndReason } from '@laris/shared';
 /** A log line; `id` is unique per stream. */
 export type LogEntry = { id: number } & LogLine;
 
-/**
- * - `idle`: not opened. `loading`: waiting for the first lines.
- * - `live`: following (possibly no output yet).
- * - `ended`: the server ended the stream — the container stopped, was removed, too many log
- *   views are open, … (`reason`).
- */
+/** `live` may have no output yet; `ended` is the server's decision, with its reason. */
 export type LogStreamState =
   | { status: 'idle' }
   | { status: 'loading' }
