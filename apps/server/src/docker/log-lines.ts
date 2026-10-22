@@ -1,3 +1,4 @@
+import { StringDecoder } from 'node:string_decoder';
 import { LOG_LIMITS, type LogLine, type LogStream } from '@laris/shared';
 import {
   ANSI,
@@ -125,22 +126,13 @@ class PendingLine {
   /** The finished line; this one is used up (start a new one for the next line). */
   finish(stream: LogStream): LogLine {
     const truncated = this.bytes.dropped;
-    let bytes = this.bytes.take();
-    if (truncated) bytes = bytes.subarray(0, charBoundary(bytes));
-    const text = stripAnsi(bytes.toString('utf8'));
+    const bytes = this.bytes.take();
+    // Cut at a byte limit: a character cut off at the end is left out, not shown as `�`.
+    const text = stripAnsi(
+      truncated ? new StringDecoder('utf8').write(bytes) : bytes.toString('utf8'),
+    );
     return { at: this.at, stream, text, ...(truncated && { truncated: true }) };
   }
-}
-
-/** The length of `bytes` without a UTF-8 character cut off at the end. */
-function charBoundary(bytes: Buffer): number {
-  // Back up over up to 3 continuation bytes (10xxxxxx) to the last character's lead byte.
-  let lead = bytes.length - 1;
-  while (lead >= 0 && bytes.length - lead <= 3 && (bytes[lead] & 0xc0) === 0x80) lead--;
-  if (lead < 0) return bytes.length;
-  const byte = bytes[lead];
-  const length = byte >= 0xf0 ? 4 : byte >= 0xe0 ? 3 : byte >= 0xc0 ? 2 : 1;
-  return lead + length > bytes.length ? lead : bytes.length;
 }
 
 /** Splits `bytes` (one message, or a run of raw text) into its timestamp and the rest. */
