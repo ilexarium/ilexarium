@@ -1,12 +1,8 @@
-import type { Messages } from '@laris/i18n';
-import type { Language } from '@laris/i18n';
+import type { Language, Messages } from '@laris/i18n';
 import type { TranslateLoader, TranslationObject } from '@ngx-translate/core';
 import { from, map, type Observable } from 'rxjs';
 
-/**
- * The language files from `@laris/i18n`, each its own lazy chunk — loaded only when that
- * language is used. A new language joins here with its file.
- */
+/** Each its own lazy chunk, loaded only when used. A new language joins here with its file. */
 const FILES: Partial<Record<Language, () => Promise<{ default: Messages }>>> = {
   en: () => import('@laris/i18n/en.json'),
   de: () => import('@laris/i18n/de.json'),

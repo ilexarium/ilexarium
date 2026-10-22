@@ -10,14 +10,11 @@ import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { AVAILABLE_LANGUAGES } from './i18n-loader';
 import { readStored, writeStored } from '../storage/browser-storage';
-
-export const LANGUAGE_STORAGE_KEY = 'laris.language';
+import { LANGUAGE_STORAGE_KEY } from './language.constants';
 
 /**
- * The interface language: remembered per browser (a device preference, like the theme — it stays
- * after sign-out); without a choice, the browser's language if there is a file for it, else
- * English. `<html lang dir>` follow it, so screen readers and the right-to-left layout do too.
- * English is always loaded as well: missing keys fall back to it.
+ * A device preference, like the theme: it stays after sign-out. `<html lang dir>` follow it, so
+ * screen readers and the right-to-left layout do too.
  */
 @Service()
 export class LanguageService {

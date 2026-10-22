@@ -2,27 +2,22 @@ import { inject, Service } from '@angular/core';
 import { pluralKey } from '@laris/i18n';
 import { TranslateService } from '@ngx-translate/core';
 import { LanguageService } from './language';
+import { MARK } from './translator.constants';
 
-/** Marks where a placeholder sat, to cut a translation around it. */
-const MARK = '\u0000';
-
-/**
- * Translations for TypeScript (templates use the `translate` and `plural` pipes). Reads the
- * current language as a signal, so a `computed()` built on it follows a language switch.
- */
+/** For TypeScript; templates use the `translate` and `plural` pipes. */
 @Service()
 export class Translator {
-  private readonly translate = inject(TranslateService);
-  private readonly language = inject(LanguageService);
+  private readonly translateService = inject(TranslateService);
+  private readonly languageService = inject(LanguageService);
 
   t(key: string, params?: Record<string, unknown>): string {
-    this.language.language(); // tracked: re-run after a switch
-    return this.translate.instant(key, params) as string;
+    this.languageService.language(); // tracked: re-run after a switch
+    return this.translateService.instant(key, params) as string;
   }
 
   /** `plural('logs.skipped', 3)` → the language's form for 3 (`logs.skipped_other` in English). */
   plural(key: string, count: number, params?: Record<string, unknown>): string {
-    return this.t(pluralKey(key, count, this.language.language()), { ...params, count });
+    return this.t(pluralKey(key, count, this.languageService.language()), { ...params, count });
   }
 
   /**

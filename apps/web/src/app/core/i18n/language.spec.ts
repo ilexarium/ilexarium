@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
 import { stubLocalStorage } from '../../layout/testing';
-import { LANGUAGE_STORAGE_KEY, LanguageService } from './language';
+import { LanguageService } from './language';
+import { LANGUAGE_STORAGE_KEY } from './language.constants';
 
 function stubBrowserLanguages(languages: string[]): () => void {
   const original = Object.getOwnPropertyDescriptor(Navigator.prototype, 'languages');
