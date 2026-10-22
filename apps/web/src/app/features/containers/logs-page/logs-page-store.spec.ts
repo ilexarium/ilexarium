@@ -15,7 +15,7 @@ function line(i: number, stream: LogLine['stream'] = 'stdout'): LogLine {
 /** A page that provides its own store, like the logs page. */
 @Component({ selector: 'laris-host', template: '', providers: [LogsPageStore] })
 class Host {
-  readonly logs = inject(LogsPageStore);
+  readonly logsPageStore = inject(LogsPageStore);
 }
 
 function setVisibility(state: 'visible' | 'hidden') {
@@ -236,7 +236,7 @@ describe('LogsPageStore', () => {
   it('closes when its page goes away', async () => {
     const { sources } = await setup();
     const fixture = TestBed.createComponent(Host);
-    fixture.componentInstance.logs.open('web');
+    fixture.componentInstance.logsPageStore.open('web');
     fixture.destroy();
     expect(sources.at(-1)!.closed).toBe(true);
   });

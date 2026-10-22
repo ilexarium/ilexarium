@@ -21,7 +21,7 @@ export const LANGUAGE_STORAGE_KEY = 'laris.language';
  */
 @Service()
 export class LanguageService {
-  private readonly translate = inject(TranslateService);
+  private readonly translateService = inject(TranslateService);
   private readonly document = inject(DOCUMENT);
   private readonly window = this.document.defaultView;
   private readonly current = signal<Language>(this.initial());
@@ -40,19 +40,19 @@ export class LanguageService {
 
   /** Before the app starts: English and the chosen language, so no key ever shows. */
   async init(): Promise<void> {
-    await firstValueFrom(this.translate.setFallbackLang(DEFAULT_LANGUAGE));
+    await firstValueFrom(this.translateService.setFallbackLang(DEFAULT_LANGUAGE));
     try {
-      await firstValueFrom(this.translate.use(this.current()));
+      await firstValueFrom(this.translateService.use(this.current()));
     } catch {
       // Its file didn't load (offline, a failed chunk): English, until chosen again.
       this.current.set(DEFAULT_LANGUAGE);
-      await firstValueFrom(this.translate.use(DEFAULT_LANGUAGE));
+      await firstValueFrom(this.translateService.use(DEFAULT_LANGUAGE));
     }
   }
 
   /** Switches once the language's file has loaded; remembered for this browser. */
   async setLanguage(language: Language): Promise<void> {
-    await firstValueFrom(this.translate.use(language));
+    await firstValueFrom(this.translateService.use(language));
     this.current.set(language);
     writeStored(this.window, LANGUAGE_STORAGE_KEY, language);
   }

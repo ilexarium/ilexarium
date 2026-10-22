@@ -1,23 +1,24 @@
+import { stubLocalStorage } from '../../layout/testing';
 import { readStored, writeStored } from './browser-storage';
 
-function fakeWindow(): Window {
-  const items = new Map<string, string>();
-  const localStorage = {
-    getItem: (key: string) => items.get(key) ?? null,
-    setItem: (key: string, value: string) => void items.set(key, value),
-  };
-  return { localStorage } as unknown as Window;
-}
-
 describe('browser storage', () => {
+  let stub: ReturnType<typeof stubLocalStorage> | undefined;
+  afterEach(() => stub?.restore());
+
   it('reads back what was written', () => {
-    const window = fakeWindow();
+    stub = stubLocalStorage();
     writeStored(window, 'laris.test', 'dark');
     expect(readStored(window, 'laris.test')).toBe('dark');
     expect(readStored(window, 'laris.missing')).toBeNull();
   });
 
-  it('never throws when storage is blocked', () => {
+  it('never throws when reading or writing is refused', () => {
+    stub = stubLocalStorage({ blocked: true });
+    expect(readStored(window, 'laris.test')).toBeNull();
+    expect(() => writeStored(window, 'laris.test', 'dark')).not.toThrow();
+  });
+
+  it('never throws when storage itself is refused', () => {
     const blocked = {
       get localStorage(): Storage {
         throw new DOMException('denied', 'SecurityError');

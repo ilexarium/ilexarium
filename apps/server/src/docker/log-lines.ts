@@ -59,16 +59,20 @@ export function toUnixSeconds(timestamp: string): string {
   return `${seconds}.${normalised.slice(20, 29)}`;
 }
 
+// Global copies kept here: a shared `/g` pattern carries `lastIndex` from one caller to the next.
+const ANSI_ALL = new RegExp(ANSI, 'g');
+const CONTROL_ALL = new RegExp(CONTROL, 'g');
+
 /** Plain text: ANSI escapes and control characters removed. */
 export function stripAnsi(text: string): string {
-  return text.replace(ANSI, '').replace(CONTROL, '');
+  return text.replace(ANSI_ALL, '').replace(CONTROL_ALL, '');
 }
 
 /** Bytes collected up to `limit`; what doesn't fit is dropped, and that is remembered. */
 class CappedBytes {
   private parts: Buffer[] = [];
   private size = 0;
-  dropped = false;
+  private lost = false;
 
   constructor(private readonly limit: number) {}
 
@@ -76,9 +80,18 @@ class CappedBytes {
     return this.size;
   }
 
+  /** Some bytes didn't fit (or were lost before they got here). */
+  get dropped(): boolean {
+    return this.lost;
+  }
+
+  markDropped(): void {
+    this.lost = true;
+  }
+
   append(bytes: Buffer): void {
     const kept = bytes.subarray(0, Math.max(0, this.limit - this.size));
-    if (kept.length < bytes.length) this.dropped = true;
+    if (kept.length < bytes.length) this.lost = true;
     if (kept.length === 0) return;
     this.parts.push(kept);
     this.size += kept.length;
@@ -89,7 +102,7 @@ class CappedBytes {
     const bytes = Buffer.concat(this.parts, this.size);
     this.parts = [];
     this.size = 0;
-    this.dropped = false;
+    this.lost = false;
     return bytes;
   }
 }
@@ -102,14 +115,15 @@ class PendingLine {
 
   /** Bytes were dropped before they got here. */
   markTruncated(): void {
-    this.bytes.dropped = true;
+    this.bytes.markDropped();
   }
 
   append(bytes: Buffer): void {
     this.bytes.append(bytes);
   }
 
-  toLine(stream: LogStream): LogLine {
+  /** The finished line; this one is used up (start a new one for the next line). */
+  finish(stream: LogStream): LogLine {
     const truncated = this.bytes.dropped;
     let bytes = this.bytes.take();
     if (truncated) bytes = bytes.subarray(0, charBoundary(bytes));
@@ -162,7 +176,7 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
     let start = 0;
     for (let i = rest.indexOf(NEWLINE); i !== -1; i = rest.indexOf(NEWLINE, start)) {
       line.append(rest.subarray(start, i));
-      yield line.toLine(stream);
+      yield line.finish(stream);
       line = new PendingLine(at);
       start = i + 1;
     }
@@ -170,7 +184,7 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
       // Over the frame cap: the rest of this message is lost, so it ends here, cut.
       line.append(rest.subarray(start));
       line.markTruncated();
-      yield line.toLine(stream);
+      yield line.finish(stream);
       pending[stream] = null;
     } else if (start < rest.length) {
       line.append(rest.subarray(start));
@@ -206,7 +220,7 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
   if (header.length > 0 || remaining > 0) throw new Error('Docker log stream ended mid-frame');
   for (const name of ['stdout', 'stderr'] as const) {
     const line = pending[name];
-    if (line) yield line.toLine(name);
+    if (line) yield line.finish(name);
   }
 }
 
@@ -222,7 +236,7 @@ async function* ttyLines(body: AsyncIterable<Buffer>): AsyncGenerator<LogLine> {
     const line = new PendingLine(at);
     line.append(rest);
     if (dropped) line.markTruncated();
-    return line.toLine('stdout');
+    return line.finish('stdout');
   };
 
   for await (const chunk of body) {

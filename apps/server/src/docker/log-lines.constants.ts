@@ -15,7 +15,7 @@ export const PREFIX_BYTES = 64;
  */
 export const ANSI =
   // oxlint-disable-next-line no-control-regex
-  /\x1b\[[0-?]*[ -/]*[@-~]|\x9b[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b\x9c]*(?:\x07|\x1b\\|\x9c)?|\x1b[ -/]*[0-~]/g;
+  /\x1b\[[0-?]*[ -/]*[@-~]|\x9b[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b\x9c]*(?:\x07|\x1b\\|\x9c)?|\x1b[ -/]*[0-~]/;
 /** Control characters left after the escapes (keeps tabs). */
 // oxlint-disable-next-line no-control-regex
-export const CONTROL = /[\x00-\x08\x0a-\x1f\x7f-\x9f]/g;
+export const CONTROL = /[\x00-\x08\x0a-\x1f\x7f-\x9f]/;
