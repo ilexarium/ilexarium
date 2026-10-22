@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { WRAPPER_FILES } from './wrapper-command.constants.js';
 import { wrapperCommand } from './wrapper-command.js';
 
@@ -10,13 +11,13 @@ describe('wrapperCommand', () => {
     });
   });
 
-  it('names exactly the paths the sudoers rule and the installer use', () => {
-    expect(Object.values(WRAPPER_FILES).map((file) => file.installed)).toEqual([
-      '/opt/laris/libexec/laris-compose.mts',
-      '/opt/laris/libexec/laris-backup.mts',
-      '/opt/laris/libexec/laris-disk.mts',
-      '/opt/laris/libexec/laris-process.mts',
-    ]);
+  it('names exactly the wrappers the sudoers rule allows', () => {
+    const sudoers = readFileSync(
+      new URL('../../../../system/sudoers/laris', import.meta.url),
+      'utf8',
+    );
+    const allowed = [...sudoers.matchAll(/NOPASSWD: (\S+)$/gm)].map((match) => match[1]);
+    expect(Object.values(WRAPPER_FILES).map((file) => file.installed)).toEqual(allowed);
   });
 
   it('runs the repository’s wrapper with Node in direct mode, naming its config file', () => {

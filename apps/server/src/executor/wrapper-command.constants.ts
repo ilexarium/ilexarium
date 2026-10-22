@@ -16,3 +16,5 @@ export const WRAPPER_FILES = {
   disk: { installed: '/opt/laris/libexec/laris-disk.mts', repo: repo('laris-disk.mts') },
   process: { installed: '/opt/laris/libexec/laris-process.mts', repo: repo('laris-process.mts') },
 } as const;
+
+export type WrapperName = keyof typeof WRAPPER_FILES;

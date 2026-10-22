@@ -16,7 +16,6 @@ import {
   OPERATION_TIMEOUT_MS,
   PROCESS,
   PROCESS_TIMEOUT_MS,
-  type WrapperKind,
 } from './executor.constants.js';
 import type {
   BackupOutcome,
@@ -28,6 +27,7 @@ import type {
   JobCallbacks,
   ProcessOutcome,
   WrapperBackupPlan,
+  WrapperKind,
 } from './executor.model.js';
 import { WrapperConfigService } from './wrapper-config.js';
 import {
@@ -35,10 +35,11 @@ import {
   type DiskWrapperAction,
   type ExecutorMode,
   type WrapperAction,
+  type WrapperArgs,
   type WrapperCommand,
   wrapperCommand,
-  type WrapperName,
 } from './wrapper-command.js';
+import type { WrapperName } from './wrapper-command.constants.js';
 import { cleanLine, LineSplitter, maskSecrets, parseWrapperLine } from './wrapper-output.js';
 
 /** What one wrapper run printed and how it ended, before it means anything. */
@@ -54,14 +55,6 @@ interface RawRun {
   results: Record<string, unknown>[];
   /** Its last `@@info` line: why it refused (logged with an unexpected refusal). */
   lastInfo: string | null;
-}
-
-interface SpawnOptions {
-  stdin: string;
-  timeoutMs: number;
-  secrets?: readonly string[];
-  onPhase?: JobCallbacks['onPhase'];
-  onOutput?: JobCallbacks['onOutput'];
 }
 
 interface SpawnOptions {
@@ -272,7 +265,7 @@ export class ExecutorService {
   protected timeoutMs = OPERATION_TIMEOUT_MS;
 
   /** The command for one call; tests replace the wrapper. */
-  protected command(wrapper: WrapperName, args: readonly string[]): WrapperCommand {
+  protected command<W extends WrapperName>(wrapper: W, args: WrapperArgs[W]): WrapperCommand {
     return wrapperCommand(this.mode, wrapper, args, this.wrapperConfig.file);
   }
 
@@ -341,9 +334,9 @@ export class ExecutorService {
   }
 
   /** Records the request (fail closed: no record, no run), runs the wrapper, records the outcome. */
-  private async run<Code extends string, T>(
-    kind: WrapperKind<Code>,
-    args: readonly string[],
+  private async run<Code extends string, T, W extends WrapperName>(
+    kind: WrapperKind<Code, W>,
+    args: WrapperArgs[W],
     { audit, read, fields = [], callbacks, ...spawnOptions }: RunOptions<T>,
   ): Promise<Result<Code, T>> {
     const entry = {
@@ -368,7 +361,7 @@ export class ExecutorService {
   }
 
   private outcome<Code extends string, T>(
-    kind: WrapperKind<Code>,
+    kind: WrapperKind<Code, WrapperName>,
     raw: RawRun,
     value: T | undefined,
     fields: readonly string[],
@@ -387,11 +380,9 @@ export class ExecutorService {
       const known = Object.hasOwn(kind.codes, raw.lastError.code)
         ? kind.codes[raw.lastError.code]
         : undefined;
-      // Its reasons hold paths and field names, never a value (and are masked like the output).
       if (!known) {
-        this.logger.error(
-          `The ${kind.label} wrapper refused: ${raw.lastError.code} (${raw.lastInfo ?? ''})`,
-        );
+        const reason = kind.logsReason ? ` (${raw.lastInfo ?? ''})` : '';
+        this.logger.error(`The ${kind.label} wrapper refused: ${raw.lastError.code}${reason}`);
       }
       const field =
         raw.lastError.field && fields.includes(raw.lastError.field) ? raw.lastError.field : null;

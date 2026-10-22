@@ -100,19 +100,26 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('ExecutorService', () => {
-  it('masks secrets in the reason it logs for an unexpected refusal', async () => {
+  it('logs only the code of an unexpected deploy refusal — its reason may hold values', async () => {
     const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-    script(['@@info DB_PASSWORD: Secret0Secret0Secret0 refused', '@@error code=brand_new'], 2);
-    const { req } = request();
-    expect(await executor().composeUp(req)).toEqual({
-      ok: false,
-      code: 'executor_unavailable',
-      field: null,
-    });
-    const text = logged.mock.calls.flat().join(' ');
-    expect(text).toContain('brand_new');
-    expect(text).not.toContain('Secret0Secret0Secret0');
-    logged.mockRestore();
+    try {
+      script(
+        ['@@info DB_PASSWORD: Secret0Secret0Secret0 at /srv/x refused', '@@error code=brand_new'],
+        2,
+      );
+      const { req } = request();
+      expect(await executor().composeUp(req)).toEqual({
+        ok: false,
+        code: 'executor_unavailable',
+        field: null,
+      });
+      const text = logged.mock.calls.flat().join(' ');
+      expect(text).toContain('brand_new');
+      expect(text).not.toContain('Secret0Secret0Secret0');
+      expect(text).not.toContain('/srv/x');
+    } finally {
+      logged.mockRestore();
+    }
   });
 
   it('runs the wrapper with the values on stdin — never in its arguments — and reports phases and output', async () => {
