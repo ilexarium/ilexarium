@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { JobPhase, PublicUser } from '@laris/shared';
 import type { AuditService } from '../audit/audit.service.js';
@@ -8,12 +9,7 @@ import type { AuditEntry } from '../audit/audit.model.js';
 import type { Env } from '../config/env.schema.js';
 import type { ComposeRequest } from './executor.model.js';
 import { ExecutorService } from './executor.service.js';
-import type {
-  BackupWrapperAction,
-  DiskWrapperAction,
-  WrapperAction,
-  WrapperCommand,
-} from './wrapper-command.js';
+import type { WrapperCommand } from './wrapper-command.js';
 import type { WrapperConfigService } from './wrapper-config.js';
 
 const USER: PublicUser = {
@@ -49,32 +45,11 @@ let entries: AuditEntry[];
 class TestExecutor extends ExecutorService {
   file = process.execPath;
   override timeoutMs = 10_000;
-  protected override command(action: WrapperAction, catalogId: string): WrapperCommand {
-    return {
-      file: this.file,
-      args: [join(dir, 'wrapper.cjs'), action, catalogId],
-      env: { PATH: '/usr/bin:/bin' },
-    };
-  }
-  protected override backupCommand(action: BackupWrapperAction): WrapperCommand {
-    return {
-      file: this.file,
-      args: [join(dir, 'wrapper.cjs'), action],
-      env: { PATH: '/usr/bin:/bin' },
-    };
-  }
-  protected override processCommand(): WrapperCommand {
-    return {
-      file: this.file,
-      args: [join(dir, 'wrapper.cjs'), 'signal'],
-      env: { PATH: '/usr/bin:/bin' },
-    };
-  }
   override diskTimeoutMs = 10_000;
-  protected override diskCommand(action: DiskWrapperAction): WrapperCommand {
+  protected override command(_wrapper: string, args: readonly string[]): WrapperCommand {
     return {
       file: this.file,
-      args: [join(dir, 'wrapper.cjs'), action],
+      args: [join(dir, 'wrapper.cjs'), ...args],
       env: { PATH: '/usr/bin:/bin' },
     };
   }
@@ -125,6 +100,21 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('ExecutorService', () => {
+  it('masks secrets in the reason it logs for an unexpected refusal', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    script(['@@info DB_PASSWORD: Secret0Secret0Secret0 refused', '@@error code=brand_new'], 2);
+    const { req } = request();
+    expect(await executor().composeUp(req)).toEqual({
+      ok: false,
+      code: 'executor_unavailable',
+      field: null,
+    });
+    const text = logged.mock.calls.flat().join(' ');
+    expect(text).toContain('brand_new');
+    expect(text).not.toContain('Secret0Secret0Secret0');
+    logged.mockRestore();
+  });
+
   it('runs the wrapper with the values on stdin — never in its arguments — and reports phases and output', async () => {
     script(['@@phase pulling', '> Pulling immich-server', '@@phase starting', '@@phase done']);
     const { req, phases, output } = request();

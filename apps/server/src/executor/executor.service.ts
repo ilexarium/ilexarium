@@ -1,20 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { spawn } from 'node:child_process';
-import {
-  BACKUP_ERROR_CODES,
-  type BackupErrorCode,
-  DISK_ERROR_CODES,
-  type DiskErrorCode,
-  PROCESS_ERROR_CODES,
-  type ProcessErrorCode,
-  type ProcessSignalRequest,
-  SERVICE_ERROR_CODES,
-  type ServiceErrorCode,
-} from '@laris/shared';
+import type { ProcessSignalRequest } from '@laris/shared';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditAction } from '../audit/audit-actions.js';
+import type { AuditEntry } from '../audit/audit.model.js';
 import type { Env } from '../config/env.schema.js';
+import {
+  BACKUP,
+  BACKUP_TASK_TIMEOUT_MS,
+  BACKUP_TIMEOUT_MS,
+  COMPOSE,
+  DISK,
+  DISK_TIMEOUT_MS,
+  OPERATION_TIMEOUT_MS,
+  PROCESS,
+  PROCESS_TIMEOUT_MS,
+  type WrapperKind,
+} from './executor.constants.js';
 import type {
   BackupOutcome,
   BackupRestoreInput,
@@ -29,81 +32,14 @@ import type {
 import { WrapperConfigService } from './wrapper-config.js';
 import {
   type BackupWrapperAction,
-  backupWrapperCommand,
   type DiskWrapperAction,
-  diskWrapperCommand,
   type ExecutorMode,
-  processWrapperCommand,
-  REPO_BACKUP_WRAPPER,
-  REPO_DISK_WRAPPER,
-  REPO_PROCESS_WRAPPER,
-  REPO_WRAPPER,
   type WrapperAction,
   type WrapperCommand,
   wrapperCommand,
+  type WrapperName,
 } from './wrapper-command.js';
 import { cleanLine, LineSplitter, maskSecrets, parseWrapperLine } from './wrapper-output.js';
-
-/** Pulling Immich's images can take long; past this, the wrapper is told to stop. */
-export const OPERATION_TIMEOUT_MS = 30 * 60_000;
-/** A restore of a big photo library takes hours; deleting its archives can take long too. */
-export const BACKUP_TIMEOUT_MS = 24 * 60 * 60_000;
-/** Setting up, changing the plan, reading the passphrase: quick. */
-const BACKUP_TASK_TIMEOUT_MS = 5 * 60_000;
-
-/** The deploy wrapper's `@@error` codes → ours. Anything unknown is a setup problem, never "success". */
-const WRAPPER_CODES: Record<string, ServiceErrorCode> = {
-  invalid_values: SERVICE_ERROR_CODES.invalidValues,
-  port_in_use: SERVICE_ERROR_CODES.portInUse,
-  port_reserved: SERVICE_ERROR_CODES.portReserved,
-  path_not_allowed: SERVICE_ERROR_CODES.pathNotAllowed,
-  path_not_found: SERVICE_ERROR_CODES.pathNotFound,
-  policy_violation: SERVICE_ERROR_CODES.policyViolation,
-  compose_failed: SERVICE_ERROR_CODES.composeFailed,
-  busy: SERVICE_ERROR_CODES.busy,
-  unknown_entry: SERVICE_ERROR_CODES.catalogEntryNotFound,
-};
-
-/** The backup wrapper's `@@error` codes → ours (most are the same words). */
-const BACKUP_WRAPPER_CODES: Record<string, BackupErrorCode> = {
-  destination_unavailable: BACKUP_ERROR_CODES.destinationUnavailable,
-  destination_not_allowed: BACKUP_ERROR_CODES.destinationNotAllowed,
-  repository_mismatch: BACKUP_ERROR_CODES.repositoryMismatch,
-  repository_exists: BACKUP_ERROR_CODES.repositoryExists,
-  passphrase_invalid: BACKUP_ERROR_CODES.passphraseInvalid,
-  disk_full: BACKUP_ERROR_CODES.diskFull,
-  source_missing: BACKUP_ERROR_CODES.sourceMissing,
-  service_not_restarted: BACKUP_ERROR_CODES.serviceNotRestarted,
-  service_not_stopped: BACKUP_ERROR_CODES.serviceNotStopped,
-  dump_failed: BACKUP_ERROR_CODES.dumpFailed,
-  busy: BACKUP_ERROR_CODES.busy,
-  repository_damaged: BACKUP_ERROR_CODES.repositoryDamaged,
-  borg_failed: BACKUP_ERROR_CODES.borgFailed,
-  interrupted: BACKUP_ERROR_CODES.interrupted,
-  archive_not_found: BACKUP_ERROR_CODES.archiveNotFound,
-  path_not_allowed: BACKUP_ERROR_CODES.pathNotAllowed,
-  paths_changed: BACKUP_ERROR_CODES.pathsChanged,
-  item_not_found: BACKUP_ERROR_CODES.itemNotFound,
-  not_configured: BACKUP_ERROR_CODES.notConfigured,
-  not_found: BACKUP_ERROR_CODES.restoreNotFound,
-  invalid_plan: BACKUP_ERROR_CODES.invalidPlan,
-};
-
-/** The disk wrapper's `@@error` codes → ours (the same words). */
-const DISK_WRAPPER_CODES: Record<string, DiskErrorCode> = Object.fromEntries(
-  Object.values(DISK_ERROR_CODES).map((code) => [code, code]),
-);
-
-/** The process wrapper's `@@error` codes → ours (the same words). */
-const PROCESS_WRAPPER_CODES: Record<string, ProcessErrorCode> = Object.fromEntries(
-  Object.values(PROCESS_ERROR_CODES).map((code) => [code, code]),
-);
-
-/** Sending a signal is instant; this only covers a stuck start. */
-const PROCESS_TIMEOUT_MS = 30_000;
-
-/** Mounting waits for systemd; a slow USB disk takes seconds. */
-const DISK_TIMEOUT_MS = 2 * 60_000;
 
 /** What one wrapper run printed and how it ended, before it means anything. */
 interface RawRun {
@@ -128,12 +64,32 @@ interface SpawnOptions {
   onOutput?: JobCallbacks['onOutput'];
 }
 
+interface SpawnOptions {
+  stdin: string;
+  timeoutMs: number;
+  secrets?: readonly string[];
+  onPhase?: JobCallbacks['onPhase'];
+  onOutput?: JobCallbacks['onOutput'];
+}
+
+/** One run, before it is put in the caller's outcome type. */
+type Result<Code extends string, T> =
+  { ok: true; value: T } | { ok: false; code: Code; field: string | null; value: T | null };
+
+interface RunOptions<T> extends Omit<SpawnOptions, 'onPhase' | 'onOutput'> {
+  audit: { action: AuditAction; actor: ExecutorActor; details: AuditEntry['details'] };
+  /** The value its last `@@result` must hold: `undefined` if it's missing, `null` if none is expected. */
+  read: (result: Record<string, unknown> | undefined) => T | undefined;
+  /** The fields an `@@error field=…` may name (others are dropped). */
+  fields?: readonly string[];
+  callbacks?: JobCallbacks;
+}
+
 /**
  * The only way into privileged territory (docs/plans/service_deploys.md, decision 4), and the
- * only code that starts a program (lint-enforced). One typed method per wrapper call. Each
- * records the request in the audit log **first** — if that fails, nothing runs — then runs the
- * wrapper (values on stdin), reports its phases and output (cleaned, secrets masked), and records
- * the outcome. Never throws for a failed operation: it returns a typed outcome.
+ * only code that starts a program (lint-enforced). Every call records the request in the audit
+ * log **first** — if that fails, nothing runs, and the call rejects — then runs the wrapper
+ * (values on stdin) and records the outcome. A failed operation is a typed outcome, never a throw.
  */
 @Injectable()
 export class ExecutorService {
@@ -142,27 +98,24 @@ export class ExecutorService {
 
   constructor(
     config: ConfigService<Env, true>,
-    private readonly audit: AuditService,
+    private readonly auditService: AuditService,
     private readonly wrapperConfig: WrapperConfigService,
   ) {
     this.mode = config.get('EXECUTOR_MODE', { infer: true });
   }
 
-  /** Deploys a catalog entry with its values. Rejects only if the audit log can't be written. */
   composeUp(request: ComposeRequest): Promise<ComposeOutcome> {
-    return this.runCompose('up', 'service.deploy', request);
+    return this.compose('up', 'service.deploy', request);
   }
 
-  /** Removes a service's containers (its data stays). Rejects only if the audit log can't be written. */
+  /** Its data stays. */
   composeDown(request: Omit<ComposeRequest, 'values'>): Promise<ComposeOutcome> {
-    return this.runCompose('down', 'service.remove', request);
+    return this.compose('down', 'service.remove', request);
   }
-
-  // Backups. Each rejects only if the audit log can't record the request (then nothing ran).
 
   /** Writes the plan for the timer (the wrapper checks it all again). */
   backupConfigure(plan: WrapperBackupPlan, actor: ExecutorActor): Promise<BackupOutcome<null>> {
-    return this.runBackup('configure', 'backup.configure', actor, plan, {
+    return this.backup('configure', actor, 'backup.configure', plan, {
       audit: { destination: plan.destination, items: plan.items.length },
       read: () => null,
     });
@@ -173,10 +126,10 @@ export class ExecutorService {
     destination: string,
     actor: ExecutorActor,
   ): Promise<BackupOutcome<{ repositoryId: string; created: boolean }>> {
-    return this.runBackup(
+    return this.backup(
       'init',
-      'backup.init',
       actor,
+      'backup.init',
       { destination },
       {
         audit: { destination },
@@ -197,19 +150,19 @@ export class ExecutorService {
     input: { runId: string; itemId?: string },
     actor: ExecutorActor,
   ): Promise<BackupOutcome<null>> {
-    return this.runBackup('start', 'backup.run', actor, input, {
+    return this.backup('start', actor, 'backup.run', input, {
       audit: { ...input },
       read: () => null,
     });
   }
 
-  /** Restores an archive in place or to a new folder — a job, with phases and output. */
+  /** In place or to a new folder — a job, with phases and output. */
   backupRestore(
     input: BackupRestoreInput,
     actor: ExecutorActor,
     callbacks: JobCallbacks,
   ): Promise<BackupOutcome<{ targetPath: string | null; setAside: string[] }>> {
-    return this.runBackup('restore', 'backup.restore', actor, input, {
+    return this.backup('restore', actor, 'backup.restore', input, {
       audit: { ...input },
       timeoutMs: BACKUP_TIMEOUT_MS,
       callbacks,
@@ -225,10 +178,10 @@ export class ExecutorService {
 
   /** Deletes a folder a restore set aside ("Delete previous version"). */
   backupDiscard(path: string, actor: ExecutorActor): Promise<BackupOutcome<null>> {
-    return this.runBackup(
+    return this.backup(
       'discard',
-      'backup.discard',
       actor,
+      'backup.discard',
       { path },
       {
         audit: { path },
@@ -239,10 +192,10 @@ export class ExecutorService {
 
   /** Deletes all archives of an item that is no longer backed up. */
   backupForget(itemId: string, actor: ExecutorActor): Promise<BackupOutcome<null>> {
-    return this.runBackup(
+    return this.backup(
       'forget',
-      'backup.forget',
       actor,
+      'backup.forget',
       { itemId },
       {
         audit: { itemId },
@@ -253,14 +206,14 @@ export class ExecutorService {
   }
 
   /**
-   * Reads the backup passphrase back ("Show again", and once at setup). It reaches the caller
-   * only: never the output callbacks, the audit details or a log.
+   * "Show again", and once at setup. The passphrase reaches the caller only: never the output
+   * callbacks, the audit details or a log.
    */
   backupPassphrase(
     actor: ExecutorActor,
     reason: 'setup' | 'show',
   ): Promise<BackupOutcome<{ passphrase: string }>> {
-    return this.runBackup('passphrase', 'backup.passphrase', actor, null, {
+    return this.backup('passphrase', actor, 'backup.passphrase', null, {
       audit: { reason },
       read: (result) =>
         typeof result?.['passphrase'] === 'string'
@@ -269,304 +222,192 @@ export class ExecutorService {
     });
   }
 
-  // Disks. Each rejects only if the audit log can't record the request (then nothing ran).
-
-  /** Mounts a disk at /mnt/<name>, kept after a restart (the wrapper checks it all again). */
+  /** At /mnt/<name>, kept after a restart (the wrapper checks it all again). */
   diskMount(
     input: { uuid: string; name: string },
     actor: ExecutorActor,
   ): Promise<DiskOutcome<{ mountPoint: string }>> {
-    return this.runDisk('mount', 'disk.mount', actor, input, (result) =>
+    return this.disk('mount', actor, 'disk.mount', input, (result) =>
       typeof result?.['mountPoint'] === 'string' ? { mountPoint: result['mountPoint'] } : undefined,
     );
   }
 
   /** Unmounts a disk mounted here, and forgets it. */
   diskUnmount(name: string, actor: ExecutorActor): Promise<DiskOutcome<null>> {
-    return this.runDisk('unmount', 'disk.unmount', actor, { name }, () => null);
+    return this.disk('unmount', actor, 'disk.unmount', { name }, () => null);
   }
 
-  // Processes. Rejects only if the audit log can't record the request (then nothing ran).
-
   /**
-   * Ends a person's process (TERM) or forces it (KILL), through the process wrapper — which reads
-   * the process again, refuses anything but a person's, and signals it as that person.
-   * `audit` names it in the log: never its command line (it may hold passwords).
+   * TERM, or KILL to force it, through the process wrapper — which reads the process again,
+   * refuses anything but a person's, and signals it as that person. `audit` names it in the log:
+   * never its command line (it may hold passwords).
    */
   async processSignal(
     request: ProcessSignalRequest,
     audit: { name: string; user: string | null },
     actor: ExecutorActor,
   ): Promise<ProcessOutcome> {
-    const entry = {
-      action: 'process.end' as const,
-      userId: actor.user.id,
-      username: actor.user.username,
-      ip: actor.ip,
-    };
-    const details = {
-      pid: request.pid,
-      name: audit.name,
-      user: audit.user ?? '',
-      signal: request.signal,
-    };
-    // Fail closed: no record, no action.
-    await this.audit.record({ ...entry, outcome: 'requested', details });
-    const raw = await this.spawnRaw(this.processCommand(), 'process', {
+    const result = await this.run(PROCESS, ['signal'], {
+      audit: {
+        action: 'process.end',
+        actor,
+        details: {
+          pid: request.pid,
+          name: audit.name,
+          user: audit.user ?? '',
+          signal: request.signal,
+        },
+      },
       stdin: JSON.stringify(request),
       timeoutMs: PROCESS_TIMEOUT_MS,
+      read: (last) => (last?.['signalled'] === true ? null : undefined),
     });
-    const outcome = this.processOutcome(raw);
-    await this.audit.tryRecord({
-      ...entry,
-      outcome: outcome.ok ? 'success' : 'failure',
-      details: outcome.ok ? details : { ...details, reason: outcome.code },
-    });
-    return outcome;
+    return result.ok ? { ok: true } : { ok: false, code: result.code };
   }
 
   /** How long mounting or unmounting may take; tests shorten it. */
   protected diskTimeoutMs = DISK_TIMEOUT_MS;
 
-  /** How long one operation may take before the wrapper is told to stop; tests shorten it. */
+  /** How long a deploy or removal may take; tests shorten it. */
   protected timeoutMs = OPERATION_TIMEOUT_MS;
 
   /** The command for one call; tests replace the wrapper. */
-  protected command(action: WrapperAction, catalogId: string): WrapperCommand {
-    return wrapperCommand(this.mode, action, catalogId, {
-      wrapper: REPO_WRAPPER,
-      configFile: this.wrapperConfig.file,
-    });
+  protected command(wrapper: WrapperName, args: readonly string[]): WrapperCommand {
+    return wrapperCommand(this.mode, wrapper, args, this.wrapperConfig.file);
   }
 
-  /** The backup wrapper's command for one call; tests replace the wrapper. */
-  protected backupCommand(action: BackupWrapperAction): WrapperCommand {
-    return backupWrapperCommand(this.mode, action, {
-      wrapper: REPO_BACKUP_WRAPPER,
-      configFile: this.wrapperConfig.file,
-    });
-  }
-
-  /** The process wrapper's command; tests replace the wrapper. */
-  protected processCommand(): WrapperCommand {
-    return processWrapperCommand(this.mode, {
-      wrapper: REPO_PROCESS_WRAPPER,
-      configFile: this.wrapperConfig.file,
-    });
-  }
-
-  /** The disk wrapper's command for one call; tests replace the wrapper. */
-  protected diskCommand(action: DiskWrapperAction): WrapperCommand {
-    return diskWrapperCommand(this.mode, action, {
-      wrapper: REPO_DISK_WRAPPER,
-      configFile: this.wrapperConfig.file,
-    });
-  }
-
-  private async runCompose(
+  private async compose(
     action: WrapperAction,
     auditAction: AuditAction,
     request: ComposeRequest,
   ): Promise<ComposeOutcome> {
-    const entry = {
-      action: auditAction,
-      userId: request.actor.user.id,
-      username: request.actor.user.username,
-      ip: request.actor.ip,
-    };
-    const details = {
-      catalogId: request.catalogId,
-      serviceId: request.serviceId,
-      ...request.audit,
-    };
-    // Fail closed: no record, no action.
-    await this.audit.record({ ...entry, outcome: 'requested', details });
-
-    const raw = await this.spawnRaw(this.command(action, request.catalogId), 'deploy', {
+    const result = await this.run(COMPOSE, [action, request.catalogId], {
+      audit: {
+        action: auditAction,
+        actor: request.actor,
+        details: { catalogId: request.catalogId, serviceId: request.serviceId, ...request.audit },
+      },
       stdin: action === 'up' ? JSON.stringify(request.values ?? {}) : '',
       timeoutMs: this.timeoutMs,
       secrets: request.secrets,
-      onPhase: request.onPhase,
-      onOutput: request.onOutput,
+      fields: request.fields,
+      callbacks: { onPhase: request.onPhase, onOutput: request.onOutput },
+      read: () => null,
     });
-    const outcome = this.composeOutcome(raw, request.fields);
-    await this.audit.tryRecord({
-      ...entry,
-      outcome: outcome.ok ? 'success' : 'failure',
-      details: outcome.ok ? details : { ...details, reason: outcome.code },
-    });
-    return outcome;
+    return result.ok ? { ok: true } : { ok: false, code: result.code, field: result.field };
   }
 
-  private composeOutcome(raw: RawRun, fields: readonly string[]): ComposeOutcome {
-    if (raw.notStarted)
-      return { ok: false, code: SERVICE_ERROR_CODES.executorUnavailable, field: null };
-    if (raw.exitCode === 0) return { ok: true };
-    if (raw.timedOut) return { ok: false, code: SERVICE_ERROR_CODES.timedOut, field: null };
-    if (raw.lastError) {
-      // Own keys only: a code like `constructor` must count as unknown, not as Object's own.
-      const known = Object.hasOwn(WRAPPER_CODES, raw.lastError.code)
-        ? WRAPPER_CODES[raw.lastError.code]
-        : undefined;
-      if (!known) this.logger.error(`The deploy wrapper refused: ${raw.lastError.code}`);
-      const field =
-        raw.lastError.field && fields.includes(raw.lastError.field) ? raw.lastError.field : null;
-      return { ok: false, code: known ?? SERVICE_ERROR_CODES.executorUnavailable, field };
-    }
-    // No marker at all: the wrapper never ran (e.g. sudo refused: no sudoers rule).
-    if (!raw.sawMarker) this.logger.error(`The deploy wrapper did not run (exit ${raw.exitCode})`);
-    return {
-      ok: false,
-      code: raw.sawMarker
-        ? SERVICE_ERROR_CODES.composeFailed
-        : SERVICE_ERROR_CODES.executorUnavailable,
-      field: null,
-    };
-  }
-
-  private async runBackup<T>(
+  private async backup<T>(
     action: BackupWrapperAction,
-    auditAction: AuditAction,
     actor: ExecutorActor,
+    auditAction: AuditAction,
     input: unknown,
     options: {
       audit: Record<string, string | number | boolean | undefined>;
-      read: (result: Record<string, unknown> | undefined) => T | undefined;
+      read: RunOptions<T>['read'];
       timeoutMs?: number;
       callbacks?: JobCallbacks;
     },
   ): Promise<BackupOutcome<T>> {
-    const entry = {
-      action: auditAction,
-      userId: actor.user.id,
-      username: actor.user.username,
-      ip: actor.ip,
-    };
     const details = Object.fromEntries(
       Object.entries(options.audit).filter(([, value]) => value !== undefined),
     ) as Record<string, string | number | boolean>;
-    // Fail closed: no record, no action.
-    await this.audit.record({ ...entry, outcome: 'requested', details });
-
-    const raw = await this.spawnRaw(this.backupCommand(action), 'backup', {
+    const result = await this.run(BACKUP, [action], {
+      audit: { action: auditAction, actor, details },
       stdin: input === null ? '' : JSON.stringify(input),
       timeoutMs: options.timeoutMs ?? BACKUP_TASK_TIMEOUT_MS,
-      onPhase: options.callbacks?.onPhase,
-      onOutput: options.callbacks?.onOutput,
+      callbacks: options.callbacks,
+      read: options.read,
     });
-    // `undefined`: the result it should have printed is missing; `null`: none is expected.
-    const value = options.read(raw.results.at(-1));
-    const outcome = this.backupOutcome(raw, value);
-    await this.audit.tryRecord({
-      ...entry,
-      outcome: outcome.ok ? 'success' : 'failure',
-      details: outcome.ok ? details : { ...details, reason: outcome.code },
-    });
-    return outcome;
+    return result.ok
+      ? { ok: true, result: result.value }
+      : { ok: false, code: result.code, result: result.value };
   }
 
-  private backupOutcome<T>(raw: RawRun, value: T | undefined): BackupOutcome<T> {
-    const result = value ?? null;
-    const fail = (code: BackupErrorCode): BackupOutcome<T> => ({ ok: false, code, result });
-    if (raw.notStarted) return fail(BACKUP_ERROR_CODES.executorUnavailable);
-    if (raw.timedOut) return fail(BACKUP_ERROR_CODES.timedOut);
-    if (value !== undefined && raw.exitCode === 0) {
-      return { ok: true, result: value };
-    }
-    if (raw.lastError) {
-      const known = Object.hasOwn(BACKUP_WRAPPER_CODES, raw.lastError.code)
-        ? BACKUP_WRAPPER_CODES[raw.lastError.code]
-        : undefined;
-      // Its reasons hold paths, never the passphrase (only `passphrase`'s result holds that).
-      if (!known) {
-        this.logger.error(
-          `The backup wrapper refused: ${raw.lastError.code} (${raw.lastInfo ?? ''})`,
-        );
-      }
-      return fail(known ?? BACKUP_ERROR_CODES.executorUnavailable);
-    }
-    if (!raw.sawMarker) this.logger.error(`The backup wrapper did not run (exit ${raw.exitCode})`);
-    return fail(
-      raw.sawMarker ? BACKUP_ERROR_CODES.borgFailed : BACKUP_ERROR_CODES.executorUnavailable,
-    );
-  }
-
-  private async runDisk<T>(
+  private async disk<T>(
     action: DiskWrapperAction,
-    auditAction: AuditAction,
     actor: ExecutorActor,
+    auditAction: AuditAction,
     input: Record<string, string>,
-    read: (result: Record<string, unknown> | undefined) => T | undefined,
+    read: RunOptions<T>['read'],
   ): Promise<DiskOutcome<T>> {
-    const entry = {
-      action: auditAction,
-      userId: actor.user.id,
-      username: actor.user.username,
-      ip: actor.ip,
-    };
-    // Fail closed: no record, no action.
-    await this.audit.record({ ...entry, outcome: 'requested', details: input });
-    const raw = await this.spawnRaw(this.diskCommand(action), 'disk', {
+    const result = await this.run(DISK, [action], {
+      audit: { action: auditAction, actor, details: input },
       stdin: JSON.stringify(input),
       timeoutMs: this.diskTimeoutMs,
+      read,
     });
-    const outcome = this.diskOutcome(raw, read(raw.results.at(-1)));
-    await this.audit.tryRecord({
+    return result.ok ? { ok: true, result: result.value } : { ok: false, code: result.code };
+  }
+
+  /** Records the request (fail closed: no record, no run), runs the wrapper, records the outcome. */
+  private async run<Code extends string, T>(
+    kind: WrapperKind<Code>,
+    args: readonly string[],
+    { audit, read, fields = [], callbacks, ...spawnOptions }: RunOptions<T>,
+  ): Promise<Result<Code, T>> {
+    const entry = {
+      action: audit.action,
+      userId: audit.actor.user.id,
+      username: audit.actor.user.username,
+      ip: audit.actor.ip,
+    };
+    await this.auditService.record({ ...entry, outcome: 'requested', details: audit.details });
+    const raw = await this.spawnRaw(this.command(kind.name, args), kind.label, {
+      ...spawnOptions,
+      onPhase: callbacks?.onPhase,
+      onOutput: callbacks?.onOutput,
+    });
+    const result = this.outcome(kind, raw, read(raw.results.at(-1)), fields);
+    await this.auditService.tryRecord({
       ...entry,
-      outcome: outcome.ok ? 'success' : 'failure',
-      details: outcome.ok ? input : { ...input, reason: outcome.code },
+      outcome: result.ok ? 'success' : 'failure',
+      details: result.ok ? audit.details : { ...audit.details, reason: result.code },
     });
-    return outcome;
+    return result;
   }
 
-  private diskOutcome<T>(raw: RawRun, value: T | undefined): DiskOutcome<T> {
-    const fail = (code: DiskErrorCode): DiskOutcome<T> => ({ ok: false, code });
-    if (raw.notStarted) return fail(DISK_ERROR_CODES.executorUnavailable);
-    if (raw.timedOut) return fail(DISK_ERROR_CODES.timedOut);
-    if (value !== undefined && raw.exitCode === 0) return { ok: true, result: value };
+  private outcome<Code extends string, T>(
+    kind: WrapperKind<Code>,
+    raw: RawRun,
+    value: T | undefined,
+    fields: readonly string[],
+  ): Result<Code, T> {
+    const fail = (code: Code, field: string | null = null): Result<Code, T> => ({
+      ok: false,
+      code,
+      field,
+      value: value ?? null,
+    });
+    if (raw.notStarted) return fail(kind.unavailable);
+    if (raw.timedOut) return fail(kind.timedOut);
+    if (value !== undefined && raw.exitCode === 0) return { ok: true, value };
     if (raw.lastError) {
-      const known = Object.hasOwn(DISK_WRAPPER_CODES, raw.lastError.code)
-        ? DISK_WRAPPER_CODES[raw.lastError.code]
+      // Own keys only: a code like `constructor` must count as unknown, not as Object's own.
+      const known = Object.hasOwn(kind.codes, raw.lastError.code)
+        ? kind.codes[raw.lastError.code]
         : undefined;
+      // Its reasons hold paths and field names, never a value (and are masked like the output).
       if (!known) {
         this.logger.error(
-          `The disk wrapper refused: ${raw.lastError.code} (${raw.lastInfo ?? ''})`,
+          `The ${kind.label} wrapper refused: ${raw.lastError.code} (${raw.lastInfo ?? ''})`,
         );
       }
-      return fail(known ?? DISK_ERROR_CODES.executorUnavailable);
+      const field =
+        raw.lastError.field && fields.includes(raw.lastError.field) ? raw.lastError.field : null;
+      return fail(known ?? kind.unavailable, field);
     }
-    if (!raw.sawMarker) this.logger.error(`The disk wrapper did not run (exit ${raw.exitCode})`);
-    return fail(
-      raw.sawMarker ? DISK_ERROR_CODES.mountFailed : DISK_ERROR_CODES.executorUnavailable,
-    );
-  }
-
-  private processOutcome(raw: RawRun): ProcessOutcome {
-    const fail = (code: ProcessErrorCode): ProcessOutcome => ({ ok: false, code });
-    if (raw.notStarted) return fail(PROCESS_ERROR_CODES.executorUnavailable);
-    if (raw.timedOut) return fail(PROCESS_ERROR_CODES.timedOut);
-    if (raw.exitCode === 0 && raw.results.at(-1)?.['signalled'] === true) return { ok: true };
-    if (raw.lastError) {
-      const known = Object.hasOwn(PROCESS_WRAPPER_CODES, raw.lastError.code)
-        ? PROCESS_WRAPPER_CODES[raw.lastError.code]
-        : undefined;
-      if (!known) {
-        this.logger.error(
-          `The process wrapper refused: ${raw.lastError.code} (${raw.lastInfo ?? ''})`,
-        );
-      }
-      return fail(known ?? PROCESS_ERROR_CODES.executorUnavailable);
+    // No marker at all: the wrapper never ran (e.g. sudo refused: no sudoers rule).
+    if (!raw.sawMarker) {
+      this.logger.error(`The ${kind.label} wrapper did not run (exit ${raw.exitCode})`);
     }
-    if (!raw.sawMarker) this.logger.error(`The process wrapper did not run (exit ${raw.exitCode})`);
-    return fail(
-      raw.sawMarker ? PROCESS_ERROR_CODES.signalFailed : PROCESS_ERROR_CODES.executorUnavailable,
-    );
+    return fail(raw.sawMarker ? kind.failed : kind.unavailable);
   }
 
   /** Runs one wrapper call: stdin in, markers and output (cleaned, masked) out. Never rejects. */
   private spawnRaw(
     { file, args, env }: WrapperCommand,
-    name: 'deploy' | 'backup' | 'disk' | 'process',
+    label: string,
     options: SpawnOptions,
   ): Promise<RawRun> {
     return new Promise((resolve) => {
@@ -611,8 +452,9 @@ export class ExecutorService {
           raw.lastError = { code: parsed.code, field: parsed.field };
         } else {
           if (line.startsWith('@@')) raw.sawMarker = true;
-          if (line.startsWith('@@info ')) raw.lastInfo = parsed.text.slice(0, 500);
-          options.onOutput?.(maskSecrets(parsed.text, options.secrets ?? []));
+          const text = maskSecrets(parsed.text, options.secrets ?? []);
+          if (line.startsWith('@@info ')) raw.lastInfo = text.slice(0, 500);
+          options.onOutput?.(text);
         }
       };
       for (const stream of [child.stdout, child.stderr]) {
@@ -622,7 +464,7 @@ export class ExecutorService {
       }
 
       child.on('error', (error) => {
-        this.logger.error(`Could not start the ${name} wrapper (${file}): ${error.message}`);
+        this.logger.error(`Could not start the ${label} wrapper (${file}): ${error.message}`);
         raw.notStarted = true;
         finish();
       });
