@@ -44,7 +44,7 @@ interface Row {
 }
 
 /**
- * A table from extra-large screens up (beside the sidebar it needs about 930 px); a list of cards
+ * Shared by the dashboard and the Containers page. A table from extra-large screens up (beside the sidebar it needs about 930 px); a list of cards
  * below, so nothing scrolls sideways on phones and tablets.
  */
 @Component({

@@ -1,7 +1,11 @@
-import type { ContainerActionParams } from '@laris/shared';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import type { Container, ContainerAction, ContainersSnapshot } from '@laris/shared';
+import type {
+  Container,
+  ContainerAction,
+  ContainersSnapshot,
+  ContainerActionParams,
+} from '@laris/shared';
 import { ContainersTable } from './containers-table';
 
 const NOW = Date.parse('2026-10-11T15:00:00Z');

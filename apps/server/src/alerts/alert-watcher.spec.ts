@@ -1,5 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
-import type { BackupWarning, DiskUsage } from '@laris/shared';
+import type { BackupWarning, DiskUsage, ContainerActionParams } from '@laris/shared';
 import { Subject } from 'rxjs';
 import type { BackupPlanManager } from '../backups/backup-plan-manager.js';
 import type { BackupResults } from '../backups/backup-results.js';
@@ -7,7 +7,6 @@ import type { BackupRuns } from '../backups/backup-runs.js';
 import type { BackupStatusReader } from '../backups/backup-status-reader.js';
 import type { Env } from '../config/env.schema.js';
 import type { ContainerActionsService } from '../container-actions/container-actions.service.js';
-import type { ContainerActionParams } from '@laris/shared';
 import type { DiskManager } from '../disks/disk-manager.js';
 import type { DockerContainer, DockerContainerEvent } from '../docker/docker.model.js';
 import type { DockerService } from '../docker/docker.service.js';

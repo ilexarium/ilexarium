@@ -1,14 +1,14 @@
 import { HttpStatus } from '@nestjs/common';
-import type { ContainerActionErrorCode } from '@laris/shared';
+import { CONTAINER_ACTION_ERROR_CODES, type ContainerActionErrorCode } from '@laris/shared';
 import type { ContainerActionFailure } from '../docker/docker.model.js';
 
 /** Per IP: plenty for clicking through the menu, not for a script stopping everything in a loop. */
 export const ACTION_LIMIT = { default: { limit: 20, ttl: 60_000 } };
 
 export const FAILURE_CODES: Record<ContainerActionFailure, ContainerActionErrorCode> = {
-  not_found: 'container_not_found',
-  failed: 'action_failed',
-  unavailable: 'docker_unavailable',
+  not_found: CONTAINER_ACTION_ERROR_CODES.notFound,
+  failed: CONTAINER_ACTION_ERROR_CODES.actionFailed,
+  unavailable: CONTAINER_ACTION_ERROR_CODES.dockerUnavailable,
 };
 
 /** 403, not 401, for a protected one: only a 401 signs the web app out. */
