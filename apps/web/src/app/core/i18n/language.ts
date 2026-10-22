@@ -13,8 +13,9 @@ import { readStored, writeStored } from '../storage/browser-storage';
 import { LANGUAGE_STORAGE_KEY } from './language.constants';
 
 /**
- * A device preference, like the theme: it stays after sign-out. `<html lang dir>` follow it, so
- * screen readers and the right-to-left layout do too.
+ * The stored choice, else the browser's language if there is a file for it, else English; English
+ * is always loaded too, for missing keys. A device preference, like the theme: it stays after
+ * sign-out. `<html lang dir>` follow it, so screen readers and the right-to-left layout do too.
  */
 @Service()
 export class LanguageService {

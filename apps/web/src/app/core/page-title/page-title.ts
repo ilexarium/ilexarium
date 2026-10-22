@@ -16,18 +16,18 @@ export const APP_NAME = 'Laris';
 @Service()
 export class PageTitleStrategy extends TitleStrategy {
   private readonly title = inject(Title);
-  private readonly translate = inject(TranslateService);
+  private readonly translateService = inject(TranslateService);
   private readonly current = signal<{ key: string; params: Record<string, string> } | null>(null);
   /** Changes when the language or its translations do. */
   private readonly revision = toSignal(
-    merge(this.translate.onLangChange, this.translate.onTranslationChange),
+    merge(this.translateService.onLangChange, this.translateService.onTranslationChange),
   );
 
   /** The current route's title, '' when it has none. */
   readonly pageTitle = computed(() => {
     this.revision();
     const current = this.current();
-    return current ? (this.translate.instant(current.key, current.params) as string) : '';
+    return current ? (this.translateService.instant(current.key, current.params) as string) : '';
   });
 
   override updateTitle(snapshot: RouterStateSnapshot): void {
@@ -38,7 +38,7 @@ export class PageTitleStrategy extends TitleStrategy {
 
   constructor() {
     super();
-    this.translate.onLangChange.subscribe(() => this.setDocumentTitle());
+    this.translateService.onLangChange.subscribe(() => this.setDocumentTitle());
   }
 
   private setDocumentTitle(): void {

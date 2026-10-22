@@ -43,14 +43,16 @@
         #languageItem
         hlmDropdownMenuItem
         [hlmDropdownMenuSubTrigger]="languageMenu"
-        [side]="languages.dir() === 'rtl' ? 'right' : 'left'"
+        [side]="languageService.dir() === 'rtl' ? 'right' : 'left'"
         (click)="keepLanguagesOpen()"
       >
         <ng-icon name="lucideGlobe" aria-hidden="true" />
         {{ 'userMenu.language' | translate }}
-        <span class="ms-auto text-xs text-muted-foreground" [attr.lang]="languages.language()">{{
-          names[languages.language()]
-        }}</span>
+        <span
+          class="ms-auto text-xs text-muted-foreground"
+          [attr.lang]="languageService.language()"
+          >{{ names[languageService.language()] }}</span
+        >
       </button>
     </div>
     <hlm-dropdown-menu-separator />
@@ -68,10 +70,10 @@
 </ng-template>
 <ng-template #languageMenu>
   <hlm-dropdown-menu-sub class="w-44">
-    @for (language of languages.available; track language) {
+    @for (language of languageService.available; track language) {
       <button
         hlmDropdownMenuRadio
-        [checked]="languages.language() === language"
+        [checked]="languageService.language() === language"
         [keepOpen]="false"
         [attr.lang]="language"
         (triggered)="profile.chooseLanguage(language)"

@@ -38,7 +38,7 @@ import { ProfilePageStore } from './profile-page-store';
 export class ProfilePage {
   protected readonly auth = inject(AuthStore);
   protected readonly store = inject(ProfilePageStore);
-  protected readonly languages = inject(LanguageService);
+  protected readonly languageService = inject(LanguageService);
   protected readonly profile = inject(ProfileStore);
   private readonly format = inject(Formatter);
   protected readonly names = LANGUAGE_NAMES;

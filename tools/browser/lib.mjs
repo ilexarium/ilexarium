@@ -31,6 +31,7 @@ export async function openPage({ lang = 'en', theme = 'light', size = 'desktop' 
   const context = await browser.newContext({ viewport: SIZES[size], storageState: session });
   await context.addInitScript(
     ([l, t]) => {
+      // The app's keys: LANGUAGE_STORAGE_KEY and THEME_STORAGE_KEY (apps/web/src/app/core/…).
       localStorage.setItem('laris.language', l);
       localStorage.setItem('laris.theme', t);
     },
