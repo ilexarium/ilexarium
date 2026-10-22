@@ -1,30 +1,25 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, output } from '@angular/core';
-import type { Container, ContainerAction, ContainersSnapshot, ContainerState } from '@laris/shared';
+import type {
+  Container,
+  ContainerAction,
+  ContainersSnapshot,
+  ContainerState,
+  ContainerActionParams,
+} from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideLoaderCircle } from '@ng-icons/lucide';
 import { HlmCardImports } from '@ui/card';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTableImports } from '@ui/table';
-import type { ContainerActionRequest } from '../../core/containers/containers.model';
 import { ContainerActions } from './container-actions';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Translator } from '../../core/i18n/translator';
 import { Formatter } from '../format/formatter';
 import { StatusBadge } from '../status-badge/status-badge';
-import { HEALTH_TONES } from './containers-table.constants';
+import { HEALTH_TONES, STATE_DOTS } from './containers-table.constants';
 import type { StatusTone } from '../status-badge/status-badge.model';
 import { EmptyState } from '../empty-state/empty-state';
-
-const STATE_DOTS: Record<ContainerState, string> = {
-  running: 'bg-success',
-  created: 'bg-muted-foreground',
-  restarting: 'bg-warning',
-  paused: 'bg-warning',
-  removing: 'bg-muted-foreground',
-  exited: 'bg-muted-foreground',
-  dead: 'bg-destructive',
-};
 
 interface Row {
   id: string;
@@ -49,9 +44,8 @@ interface Row {
 }
 
 /**
- * Every container with its state, health and live resource use, and an actions menu per
- * container. A table from extra-large screens up (beside the sidebar it needs about 930 px); a
- * list of cards below, so nothing scrolls sideways on phones and tablets. Shared by the dashboard and the Containers page.
+ * A table from extra-large screens up (beside the sidebar it needs about 930 px); a list of cards
+ * below, so nothing scrolls sideways on phones and tablets.
  */
 @Component({
   selector: 'laris-containers-table',
@@ -80,7 +74,7 @@ export class ContainersTable {
   /** The action in progress for each container name (from the page's store). */
   readonly pending = input<ReadonlyMap<string, ContainerAction>>(new Map());
   /** A chosen container action — the page's store runs it. */
-  readonly action = output<ContainerActionRequest>();
+  readonly action = output<ContainerActionParams>();
 
   private readonly translator = inject(Translator);
   private readonly formatter = inject(Formatter);

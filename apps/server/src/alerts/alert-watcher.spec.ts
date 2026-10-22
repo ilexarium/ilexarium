@@ -7,7 +7,7 @@ import type { BackupRuns } from '../backups/backup-runs.js';
 import type { BackupStatusReader } from '../backups/backup-status-reader.js';
 import type { Env } from '../config/env.schema.js';
 import type { ContainerActionsService } from '../container-actions/container-actions.service.js';
-import type { ContainerActionRequest } from '../container-actions/container-actions.model.js';
+import type { ContainerActionParams } from '@laris/shared';
 import type { DiskManager } from '../disks/disk-manager.js';
 import type { DockerContainer, DockerContainerEvent } from '../docker/docker.model.js';
 import type { DockerService } from '../docker/docker.service.js';
@@ -70,7 +70,7 @@ describe('AlertWatcher', () => {
   let list: DockerContainer[];
   let installed: Set<string>;
   let slotTaken: string | null;
-  let requests: Subject<ContainerActionRequest>;
+  let requests: Subject<ContainerActionParams>;
   let disks: DiskUsage[];
   let disconnected: { mountPoint: string }[];
   let warnings: BackupWarning[];

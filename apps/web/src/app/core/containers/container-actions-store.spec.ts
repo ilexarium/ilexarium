@@ -8,7 +8,6 @@ import { ContainerActionsStore } from './container-actions-store';
 import { ContainersApi } from './containers-api';
 
 /** A name kept left to right inside a translated toast. */
-const isolated = (name: string) => `⁨${name}⁩`;
 
 async function setup() {
   const api = { act: vi.fn(async () => null) };
@@ -46,7 +45,7 @@ describe('ContainerActionsStore', () => {
     finish();
     await running;
     expect(store.pending()).toEqual(new Map());
-    expect(success).toHaveBeenCalledWith(`${isolated('jellyfin')} stopped`);
+    expect(success).toHaveBeenCalledWith(`jellyfin stopped`);
   });
 
   it.each([
@@ -65,7 +64,7 @@ describe('ContainerActionsStore', () => {
     const { store, api, error } = await setup();
     api.act.mockRejectedValueOnce(new HttpErrorResponse(response));
     await store.run('old-app', 'start');
-    expect(error).toHaveBeenCalledWith(`Couldn't start ${isolated('old-app')}`, {
+    expect(error).toHaveBeenCalledWith(`Couldn't start old-app`, {
       description: text.replaceAll('’', "'"),
     });
     expect(store.pending()).toEqual(new Map());

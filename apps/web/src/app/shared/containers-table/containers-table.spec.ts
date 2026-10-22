@@ -1,7 +1,7 @@
+import type { ContainerActionParams } from '@laris/shared';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import type { Container, ContainerAction, ContainersSnapshot } from '@laris/shared';
-import type { ContainerActionRequest } from '../../core/containers/containers.model';
 import { ContainersTable } from './containers-table';
 
 const NOW = Date.parse('2026-10-11T15:00:00Z');
@@ -47,7 +47,7 @@ async function render(containers: ContainersSnapshot | null, now: number | null 
   fixture.componentRef.setInput('containers', containers);
   if (now !== null) fixture.componentRef.setInput('now', NOW);
   // What the table reports: the page's store runs it.
-  const emitted: ContainerActionRequest[] = [];
+  const emitted: ContainerActionParams[] = [];
   fixture.componentInstance.action.subscribe((request) => emitted.push(request));
   await fixture.whenStable();
   const el = fixture.nativeElement as HTMLElement;

@@ -5,7 +5,6 @@ import { HlmButton } from '@ui/button';
 import { ContainersTable } from '../../../shared/containers-table/containers-table';
 import { ContainersPageStore } from './containers-page-store';
 
-/** Every container, running or stopped, with an actions menu each (View logs, …). UI only. */
 @Component({
   selector: 'laris-containers-page',
   imports: [ContainersTable, HlmButton, RouterLink, TranslatePipe],
