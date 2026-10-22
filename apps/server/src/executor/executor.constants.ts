@@ -8,7 +8,7 @@ import {
   SERVICE_ERROR_CODES,
   type ServiceErrorCode,
 } from '@laris/shared';
-import type { WrapperName } from './wrapper-command.js';
+import type { WrapperKind } from './executor.model.js';
 
 /** Pulling Immich's images can take long; past this, the wrapper is told to stop. */
 export const OPERATION_TIMEOUT_MS = 30 * 60_000;
@@ -71,22 +71,11 @@ export const PROCESS_TIMEOUT_MS = 30_000;
 /** Mounting waits for systemd; a slow USB disk takes seconds. */
 export const DISK_TIMEOUT_MS = 2 * 60_000;
 
-/** How a wrapper's run is read: its `@@error` codes and the codes for the cases every run has. */
-export interface WrapperKind<Code extends string> {
-  name: WrapperName;
-  /** In log lines: "the deploy wrapper did not run". */
-  label: string;
-  codes: Record<string, Code>;
-  /** It ran and failed without saying why. */
-  failed: Code;
-  /** It didn't run, or said something unknown: a setup problem, never "success". */
-  unavailable: Code;
-  timedOut: Code;
-}
-
 export const COMPOSE: WrapperKind<ServiceErrorCode> = {
   name: 'compose',
   label: 'deploy',
+  // Its reasons may name a form's values: only the code is logged.
+  logsReason: false,
   codes: COMPOSE_CODES,
   failed: SERVICE_ERROR_CODES.composeFailed,
   unavailable: SERVICE_ERROR_CODES.executorUnavailable,
@@ -96,6 +85,7 @@ export const COMPOSE: WrapperKind<ServiceErrorCode> = {
 export const BACKUP: WrapperKind<BackupErrorCode> = {
   name: 'backup',
   label: 'backup',
+  logsReason: true,
   codes: BACKUP_CODES,
   failed: BACKUP_ERROR_CODES.borgFailed,
   unavailable: BACKUP_ERROR_CODES.executorUnavailable,
@@ -105,6 +95,7 @@ export const BACKUP: WrapperKind<BackupErrorCode> = {
 export const DISK: WrapperKind<DiskErrorCode> = {
   name: 'disk',
   label: 'disk',
+  logsReason: true,
   codes: DISK_CODES,
   failed: DISK_ERROR_CODES.mountFailed,
   unavailable: DISK_ERROR_CODES.executorUnavailable,
@@ -114,6 +105,7 @@ export const DISK: WrapperKind<DiskErrorCode> = {
 export const PROCESS: WrapperKind<ProcessErrorCode> = {
   name: 'process',
   label: 'process',
+  logsReason: true,
   codes: PROCESS_CODES,
   failed: PROCESS_ERROR_CODES.signalFailed,
   unavailable: PROCESS_ERROR_CODES.executorUnavailable,

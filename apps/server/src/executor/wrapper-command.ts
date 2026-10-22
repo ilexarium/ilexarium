@@ -1,7 +1,6 @@
-import { PATH, SUDO, WRAPPER_FILES } from './wrapper-command.constants.js';
+import { PATH, SUDO, WRAPPER_FILES, type WrapperName } from './wrapper-command.constants.js';
 
 export type ExecutorMode = 'sudo' | 'direct';
-export type WrapperName = keyof typeof WRAPPER_FILES;
 export type WrapperAction = 'up' | 'down';
 /**
  * The backup wrapper's actions the app may call. Runs are systemd's: `start` has systemd start
@@ -10,6 +9,14 @@ export type WrapperAction = 'up' | 'down';
 export type BackupWrapperAction =
   'configure' | 'init' | 'start' | 'restore' | 'discard' | 'forget' | 'passphrase';
 export type DiskWrapperAction = 'mount' | 'unmount';
+
+/** Each wrapper's exact arguments: an action (and the compose wrapper's catalog id) — never a value. */
+export interface WrapperArgs {
+  compose: [WrapperAction, catalogId: string];
+  backup: [BackupWrapperAction];
+  disk: [DiskWrapperAction];
+  process: ['signal'];
+}
 
 export interface WrapperCommand {
   file: string;
@@ -23,10 +30,10 @@ export interface WrapperCommand {
  * stdin (`ps` shows arguments to every user). `sudo -n` never asks for a password: a missing
  * sudoers rule fails at once.
  */
-export function wrapperCommand(
+export function wrapperCommand<W extends WrapperName>(
   mode: ExecutorMode,
-  wrapper: WrapperName,
-  args: readonly string[],
+  wrapper: W,
+  args: WrapperArgs[W],
   configFile = '',
 ): WrapperCommand {
   const { installed, repo } = WRAPPER_FILES[wrapper];

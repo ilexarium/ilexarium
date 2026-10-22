@@ -1,3 +1,4 @@
+import type { WrapperName } from './wrapper-command.constants.js';
 import type {
   BackupErrorCode,
   DiskErrorCode,
@@ -126,3 +127,18 @@ export type BackupOutcome<T> =
 export type DiskOutcome<T> = { ok: true; result: T } | { ok: false; code: DiskErrorCode };
 
 export type ProcessOutcome = { ok: true } | { ok: false; code: ProcessErrorCode };
+
+/** How a wrapper's run is read: its `@@error` codes and the codes for the cases every run has. */
+export interface WrapperKind<Code extends string, W extends WrapperName = WrapperName> {
+  name: W;
+  /** In log lines: "the deploy wrapper did not run". */
+  label: string;
+  codes: Record<string, Code>;
+  /** It ran and failed without saying why. */
+  failed: Code;
+  /** It didn't run, or said something unknown: a setup problem, never "success". */
+  unavailable: Code;
+  timedOut: Code;
+  /** Whether an unexpected refusal's `@@info` reason goes to the log with its code. */
+  logsReason: boolean;
+}
