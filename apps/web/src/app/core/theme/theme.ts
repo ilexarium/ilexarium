@@ -1,6 +1,7 @@
 import { computed, DestroyRef, DOCUMENT, effect, inject, Service, signal } from '@angular/core';
 import { THEME_COLORS } from './theme.constants';
 import type { ThemeChoice } from './theme.model';
+import { readStored, writeStored } from '../storage/browser-storage';
 
 export const THEME_STORAGE_KEY = 'laris.theme';
 const CHOICES: readonly ThemeChoice[] = ['light', 'dark', 'system'];
@@ -41,19 +42,11 @@ export class ThemeService {
 
   setChoice(choice: ThemeChoice): void {
     this.current.set(choice);
-    try {
-      this.window?.localStorage.setItem(THEME_STORAGE_KEY, choice);
-    } catch {
-      // Storage unavailable: the choice lasts until the page is reloaded.
-    }
+    writeStored(this.window, THEME_STORAGE_KEY, choice);
   }
 
   private stored(): ThemeChoice {
-    try {
-      const value = this.window?.localStorage.getItem(THEME_STORAGE_KEY);
-      return CHOICES.find((choice) => choice === value) ?? 'system';
-    } catch {
-      return 'system';
-    }
+    const value = readStored(this.window, THEME_STORAGE_KEY);
+    return CHOICES.find((choice) => choice === value) ?? 'system';
   }
 }

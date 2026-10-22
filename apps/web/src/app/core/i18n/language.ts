@@ -9,6 +9,7 @@ import {
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { AVAILABLE_LANGUAGES } from './i18n-loader';
+import { readStored, writeStored } from '../storage/browser-storage';
 
 export const LANGUAGE_STORAGE_KEY = 'laris.language';
 
@@ -53,20 +54,11 @@ export class LanguageService {
   async setLanguage(language: Language): Promise<void> {
     await firstValueFrom(this.translate.use(language));
     this.current.set(language);
-    try {
-      this.window?.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-    } catch {
-      // Storage unavailable: the choice lasts until the page is reloaded.
-    }
+    writeStored(this.window, LANGUAGE_STORAGE_KEY, language);
   }
 
   private initial(): Language {
-    let stored: string | null = null;
-    try {
-      stored = this.window?.localStorage.getItem(LANGUAGE_STORAGE_KEY) ?? null;
-    } catch {
-      // Storage unavailable: no stored choice.
-    }
+    const stored = readStored(this.window, LANGUAGE_STORAGE_KEY);
     const choice = isLanguage(stored)
       ? stored
       : preferredLanguage(this.window?.navigator.languages ?? []);

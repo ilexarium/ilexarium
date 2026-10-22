@@ -1,6 +1,7 @@
 import { DOCUMENT, inject, Service, signal } from '@angular/core';
 
 import { LOG_TIMESTAMPS_KEY, LOG_WRAP_KEY, PHONE_QUERY } from './log-preferences.constants';
+import { readStored, writeStored } from '../../../core/storage/browser-storage';
 
 /**
  * The log view's toggles, remembered per browser — device preferences, not user data, so they
@@ -33,19 +34,11 @@ export class LogPreferences {
   }
 
   private stored(key: string): boolean | null {
-    try {
-      const value = this.window?.localStorage.getItem(key);
-      return value === 'true' ? true : value === 'false' ? false : null;
-    } catch {
-      return null;
-    }
+    const value = readStored(this.window, key);
+    return value === 'true' ? true : value === 'false' ? false : null;
   }
 
   private store(key: string, value: boolean): void {
-    try {
-      this.window?.localStorage.setItem(key, String(value));
-    } catch {
-      // Storage unavailable: the choice lasts until the page is reloaded.
-    }
+    writeStored(this.window, key, String(value));
   }
 }
