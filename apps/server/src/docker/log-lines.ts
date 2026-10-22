@@ -4,6 +4,7 @@ import {
   ANSI,
   CONTROL,
   HEADER_BYTES,
+  MAX_FRAME_BYTES,
   NEWLINE,
   PREFIX_BYTES,
   TIMESTAMP,
@@ -14,13 +15,25 @@ import {
  * Turns the body of `GET /containers/{id}/logs?timestamps=1` into lines. Chunks may split it
  * anywhere — mid-header, mid-line, mid-character.
  *
- * - Without a TTY, Docker multiplexes stdout and stderr: each message is a frame with an 8-byte
- *   header (stream type, 3 zero bytes, big-endian length). A message over 16 KB is split into
- *   several frames that don't end in a newline, each with its own timestamp; the parts are joined.
- * - With a TTY (`Config.Tty`), the body is raw text (all stdout), lines ending in `\r\n`.
+ * Without a TTY (most containers), each message is a frame: an 8-byte header, then the message
+ * with Docker's timestamp in front.
  *
- * Every line is cut at `LOG_LIMITS.maxLineBytes`, so memory stays bounded whatever arrives.
- * Timestamps are normalised to 9 fraction digits, so they compare correctly as strings.
+ *     01 00 00 00 00 00 00 25  2026-10-11T17:59:34.077485265Z hello\n
+ *     │           └ length, big-endian: 37 bytes follow
+ *     └ 1 stdout, 2 stderr
+ *
+ * A message over 16 KB comes as several frames of the same stream; only the last ends in `\n`,
+ * and each repeats the timestamp. They are joined into one line:
+ *
+ *     02 … 2026-…Z aaaa…a       (16 KB, no newline)   kept, waits for the rest
+ *     01 … 2026-…Z ok\n                               a stdout line in between, as it comes
+ *     02 … 2026-…Z aaa\n                              joined: one stderr line, cut and marked
+ *
+ * With a TTY the body is plain text, stdout only: `2026-…Z hello\r\n`.
+ *
+ * Every line is cut at `LOG_LIMITS.maxLineBytes` (a container may write a line of any length,
+ * without a newline), so memory stays bounded. Timestamps get 9 fraction digits, so they compare
+ * correctly as strings.
  */
 export function logLines(
   body: AsyncIterable<Buffer | string>,
@@ -152,14 +165,14 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
   const pending: Record<LogStream, PendingLine | null> = { stdout: null, stderr: null };
   let lastAt: string | null = null;
   let header = Buffer.alloc(0);
-  // The current frame: its stream, the bytes still to come, and what's kept of it.
+  // The current frame: its stream, the bytes still to come, and those read so far.
   let stream: LogStream = 'stdout';
   let remaining = 0;
-  const frame = new CappedBytes(LOG_LIMITS.maxLineBytes + PREFIX_BYTES);
+  let frame: Buffer[] = [];
 
   function* endFrame(): Generator<LogLine> {
-    const dropped = frame.dropped;
-    const bytes = frame.take();
+    const bytes = Buffer.concat(frame);
+    frame = [];
     const open = pending[stream];
     // A continuation of a split message repeats the timestamp: drop it, keep the first.
     const { at, rest } = splitTimestamp(bytes, open?.at ?? lastAt ?? now());
@@ -172,13 +185,7 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
       line = new PendingLine(at);
       start = i + 1;
     }
-    if (dropped) {
-      // Over the frame cap: the rest of this message is lost, so it ends here, cut.
-      line.append(rest.subarray(start));
-      line.markTruncated();
-      yield line.finish(stream);
-      pending[stream] = null;
-    } else if (start < rest.length) {
+    if (start < rest.length) {
       line.append(rest.subarray(start));
       pending[stream] = line;
     } else {
@@ -199,11 +206,14 @@ async function* multiplexedLines(body: AsyncIterable<Buffer>): AsyncGenerator<Lo
         }
         stream = header[0] === 2 || header[0] === 3 ? 'stderr' : 'stdout';
         remaining = header.readUInt32BE(4);
+        if (remaining > MAX_FRAME_BYTES) {
+          throw new Error(`Docker log frame of ${remaining} bytes: more than Docker sends`);
+        }
         header = Buffer.alloc(0);
         if (remaining === 0) continue;
       }
       const take = Math.min(remaining, chunk.length - offset);
-      frame.append(chunk.subarray(offset, offset + take));
+      frame.push(chunk.subarray(offset, offset + take));
       offset += take;
       remaining -= take;
       if (remaining === 0) yield* endFrame();
