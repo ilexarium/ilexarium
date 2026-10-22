@@ -19,7 +19,11 @@ import { ICONS } from './container-actions.constants';
 /** Actions that interrupt the container: they ask first. Starting interrupts nothing. */
 type ConfirmedAction = Exclude<ContainerAction, 'start'>;
 
-/** Items are buttons, not links: the menu handles Enter itself and would cancel a link's navigation. */
+/**
+ * Protected containers (the platform's own) only offer the logs. Stop and restart ask first; start
+ * interrupts nothing. Items are buttons, not links: the menu handles Enter itself and would cancel
+ * a link's navigation.
+ */
 @Component({
   selector: 'laris-container-actions',
   imports: [HlmAlertDialogImports, HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],

@@ -21,6 +21,7 @@ export class ContainerActionError extends Error {
 /**
  * **Exactly** start, stop and restart — nothing else (a test pins it); the socket proxy allows the
  * same three requests. Callers check protection and audit first (`ContainerActionsService`).
+ * "Already started/stopped" (304) counts as done.
  */
 @Injectable()
 export class DockerControl {

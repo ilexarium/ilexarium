@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { containerActionParamsSchema } from './containers.js';
+import { containerActionParamsSchema, containerActionPath } from './containers.js';
 
 describe('containerActionParamsSchema', () => {
   it('accepts the three actions on a container name', () => {
@@ -32,5 +32,16 @@ describe('containerActionParamsSchema', () => {
     expect(
       containerActionParamsSchema.safeParse({ name: 'jellyfin', action: 'stop', t: '0' }).success,
     ).toBe(false);
+  });
+});
+
+describe('containerActionPath', () => {
+  it('puts the encoded name and the action in the path', () => {
+    expect(containerActionPath({ name: 'jellyfin', action: 'stop' })).toBe(
+      '/api/containers/jellyfin/stop',
+    );
+    expect(containerActionPath({ name: 'a/../b', action: 'start' })).toBe(
+      '/api/containers/a%2F..%2Fb/start',
+    );
   });
 });

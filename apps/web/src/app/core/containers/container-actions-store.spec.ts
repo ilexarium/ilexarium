@@ -1,15 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
+import { LanguageService } from '../i18n/language';
 import { ContainerActionsStore } from './container-actions-store';
 import { ContainersApi } from './containers-api';
 
-/** A name kept left to right inside a translated toast. */
-
-async function setup() {
+async function setup({ rtl = false } = {}) {
   const api = { act: vi.fn(async () => null) };
   const auth = fakeAuthApi({ user: OWNER });
   TestBed.configureTestingModule({
@@ -17,6 +17,9 @@ async function setup() {
       provideRouter([{ path: 'login', children: [] }]),
       auth.provider,
       { provide: ContainersApi, useValue: api },
+      ...(rtl
+        ? [{ provide: LanguageService, useValue: { language: signal('ar'), dir: signal('rtl') } }]
+        : []),
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -29,6 +32,13 @@ async function setup() {
 
 describe('ContainerActionsStore', () => {
   afterEach(() => vi.restoreAllMocks());
+
+  it('keeps the name left to right inside a right-to-left toast', async () => {
+    const { store, success } = await setup({ rtl: true });
+    await store.run('jellyfin', 'stop');
+    // The words are English here (the test's language file); the isolate is what's checked.
+    expect(success).toHaveBeenCalledWith('\u2066jellyfin\u2069 stopped');
+  });
 
   it('runs an action, marks the container as busy meanwhile, then says so', async () => {
     const { store, api, success } = await setup();
