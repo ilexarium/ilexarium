@@ -14,22 +14,12 @@ import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
 import { Translator } from '../../core/i18n/translator';
+import { ICONS } from './container-actions.constants';
 
 /** Actions that interrupt the container: they ask first. Starting interrupts nothing. */
 type ConfirmedAction = Exclude<ContainerAction, 'start'>;
 
-const ICONS: Record<ContainerAction, string> = {
-  start: 'lucidePlay',
-  stop: 'lucideSquare',
-  restart: 'lucideRotateCw',
-};
-
-/**
- * A container's actions: a "⋯" button opening a menu — View logs, and what fits the state:
- * Stop and Restart while running (after a confirmation), Start when stopped. Protected
- * containers (the platform's own) only offer the logs. Items are buttons, not links — the menu
- * handles Enter itself and would cancel a link's navigation.
- */
+/** Items are buttons, not links: the menu handles Enter itself and would cancel a link's navigation. */
 @Component({
   selector: 'laris-container-actions',
   imports: [HlmAlertDialogImports, HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],
@@ -42,12 +32,12 @@ export class ContainerActions {
   readonly name = input.required<string>();
   readonly state = input.required<ContainerState>();
   readonly protected = input(false);
-
-  private readonly router = inject(Router);
   /** An action is running for this container (no other is offered meanwhile). */
   readonly busy = input(false);
   /** The chosen action — after the confirmation where one is asked. */
   readonly action = output<ContainerAction>();
+
+  private readonly router = inject(Router);
   private readonly translator = inject(Translator);
   private readonly dialog = viewChild.required(HlmAlertDialog);
 

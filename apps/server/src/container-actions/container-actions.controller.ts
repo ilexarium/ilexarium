@@ -3,20 +3,15 @@ import { CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { PublicUser } from '@laris/shared';
 import { ContainerActionParamsDto } from './container-actions.dto.js';
+import { ACTION_LIMIT } from './container-actions.constants.js';
 import { ContainerActionsService } from './container-actions.service.js';
-
-/** Per IP: plenty for clicking through the menu, not for a script stopping everything in a loop. */
-const ACTION_LIMIT = { default: { limit: 20, ttl: 60_000 } };
 
 @Controller('containers')
 @UseGuards(ThrottlerGuard)
 export class ContainerActionsController {
-  constructor(private readonly actions: ContainerActionsService) {}
+  constructor(private readonly containerActionsService: ContainerActionsService) {}
 
-  /**
-   * Start, stop or restart a container; 204 once Docker is done ("already running/stopped"
-   * counts). The page sees the new state through the `containers` topic, not this answer.
-   */
+  /** 204 once Docker is done; the page sees the new state through the `containers` topic. */
   @Post(':name/:action')
   @HttpCode(204)
   @Throttle(ACTION_LIMIT)
@@ -25,6 +20,6 @@ export class ContainerActionsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    await this.actions.act(action, name, { user, ip });
+    await this.containerActionsService.act(action, name, { user, ip });
   }
 }

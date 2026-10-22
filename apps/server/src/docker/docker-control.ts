@@ -3,14 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { containerNameSchema } from '@laris/shared';
 import type Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
+import { ACTION_TIMEOUT_MS } from './docker-control.constants.js';
 import { createDockerClient } from './docker-client.js';
 import type { ContainerActionFailure } from './docker.model.js';
-
-/**
- * Stop and restart wait for the container's grace period (10 s unless it sets its own), then
- * Docker kills it. Generous, so a slow but normal stop isn't reported as a failure.
- */
-const ACTION_TIMEOUT_MS = 120_000;
 
 /** Why a container action didn't happen (or may not have). */
 export class ContainerActionError extends Error {
@@ -24,10 +19,8 @@ export class ContainerActionError extends Error {
 }
 
 /**
- * Changing Docker: **exactly** start, stop and restart a container, by name — nothing else (a
- * test pins it). The socket proxy allows the same three requests and refuses every other write.
- * Callers check protection and audit first (`ContainerActionsService`); this only acts.
- * Answers when Docker is done; "already started/stopped" counts as done.
+ * **Exactly** start, stop and restart — nothing else (a test pins it); the socket proxy allows the
+ * same three requests. Callers check protection and audit first (`ContainerActionsService`).
  */
 @Injectable()
 export class DockerControl {

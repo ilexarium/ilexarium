@@ -22,6 +22,10 @@ export const containerActionParamsSchema = z.strictObject({
 });
 export type ContainerActionParams = z.infer<typeof containerActionParamsSchema>;
 
+export function containerActionPath({ name, action }: ContainerActionParams): string {
+  return `/api/containers/${encodeURIComponent(name)}/${action}`;
+}
+
 export const CONTAINER_ACTION_ERROR_CODES = {
   notFound: 'container_not_found',
   protected: 'container_protected',
