@@ -25,14 +25,8 @@ interface LogsPageState {
 const initialState: LogsPageState = { entries: [], state: { status: 'idle' } };
 
 /**
- * The logs page's data — one container's logs, live, over Server-Sent Events
- * (`GET /api/containers/:name/logs`) — provided by the page and gone with it:
- *
- * - the last `tail` lines first, then new ones; at most `LOG_LIMITS.maxLinesInView` kept, and a
- *   flood lands in at most one update per frame;
- * - **resumes** after a dropped connection (`EventSource` reconnects by itself, from its last
- *   event id) and when a hidden tab is shown again (closed while hidden, reopened with `since`);
- * - closed on `close()`, when the page goes away, and on sign-out (its lines are cleared).
+ * `EventSource` resumes a dropped connection by itself, from its last event id; a hidden tab is
+ * closed and reopened with `since` when shown again. A flood lands in at most one update per frame.
  */
 export const LogsPageStore = signalStore(
   withState<LogsPageState>(initialState),
@@ -64,7 +58,6 @@ export const LogsPageStore = signalStore(
       quietTimer = null;
     };
 
-    /** Shows the lines that arrived since the last frame. */
     const showArrived = () => {
       if (frame !== null) document.defaultView?.cancelAnimationFrame(frame);
       frame = null;
@@ -161,11 +154,11 @@ export const LogsPageStore = signalStore(
       close,
     };
   }),
-  withHooks((store, auth = inject(AuthStore)) => ({
+  withHooks((store, authStore = inject(AuthStore)) => ({
     onInit() {
       effect(() => {
         // Untracked: close() reads and sets the state, which must not re-run this effect.
-        if (!auth.isAuthenticated()) untracked(() => store.close());
+        if (!authStore.isAuthenticated()) untracked(() => store.close());
       });
     },
     onDestroy() {

@@ -1,5 +1,5 @@
 import { BadRequestException, Controller, Get, Headers, Param, Query, Res } from '@nestjs/common';
-import { CurrentSession, CurrentUser } from '@nestjs/authentication';
+import { CurrentSession, CurrentUser, type SessionRecord } from '@nestjs/authentication';
 import type { Response } from 'express';
 import { logTimestampSchema, type PublicUser } from '@laris/shared';
 import { ContainerLogsParamsDto, ContainerLogsQueryDto } from './container-logs.dto.js';
@@ -7,18 +7,15 @@ import { ContainerLogStreams } from './container-log-streams.js';
 
 @Controller('containers')
 export class ContainerLogsController {
-  constructor(private readonly streams: ContainerLogStreams) {}
+  constructor(private readonly containerLogStreams: ContainerLogStreams) {}
 
-  /**
-   * A container's logs, live, as Server-Sent Events (`lines`, then `end` once over). A reconnect
-   * continues after its `Last-Event-ID` (the last line's time), in place of `since`.
-   */
+  /** A reconnect continues after its `Last-Event-ID` (the last line's time), in place of `since`. */
   @Get(':name/logs')
   async logs(
     @Param() { name }: ContainerLogsParamsDto,
     @Query() { tail, since }: ContainerLogsQueryDto,
     @Headers('last-event-id') lastEventId: string | undefined,
-    @CurrentSession() session: { id: string },
+    @CurrentSession() session: SessionRecord,
     @CurrentUser() user: PublicUser,
     @Res() res: Response,
   ): Promise<void> {
@@ -26,7 +23,7 @@ export class ContainerLogsController {
       throw new BadRequestException('Invalid Last-Event-ID');
     }
     const from = lastEventId ?? since;
-    await this.streams.serve(
+    await this.containerLogStreams.serve(
       res,
       { name, tail, ...(from !== undefined && { since: from }) },
       { sessionId: session.id, userId: user.id },

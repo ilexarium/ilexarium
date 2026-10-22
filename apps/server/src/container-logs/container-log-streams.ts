@@ -28,8 +28,6 @@ interface Stream {
 }
 
 /**
- * Container logs as Server-Sent Events: one response per log view, one Docker stream behind it.
- *
  * - **Backpressure:** the next line is read from Docker only once the browser takes what was
  *   written, so a slow viewer slows the reading (Docker keeps the lines in its log file).
  * - **End:** Docker ends a follow stream when the container stops, is removed, or (through the
@@ -50,12 +48,12 @@ export class ContainerLogStreams implements OnModuleInit, OnModuleDestroy {
   private signOuts?: Subscription;
 
   constructor(
-    private readonly docker: DockerService,
-    private readonly authEvents: AuthenticationEvents,
+    private readonly dockerService: DockerService,
+    private readonly authenticationEvents: AuthenticationEvents,
   ) {}
 
   onModuleInit(): void {
-    this.signOuts = this.authEvents.events$.subscribe((event) => {
+    this.signOuts = this.authenticationEvents.events$.subscribe((event) => {
       if (event.type !== 'sign-out') return;
       for (const stream of this.streams) {
         const ended = event.everywhere
@@ -71,12 +69,10 @@ export class ContainerLogStreams implements OnModuleInit, OnModuleDestroy {
     for (const stream of this.streams) stream.controller.abort();
   }
 
-  /** Open Docker streams, over all viewers. */
   get openCount(): number {
     return this.streams.size;
   }
 
-  /** Answers the request until the stream ends, the browser leaves, or the response's time is up. */
   async serve(res: Response, request: LogsRequest, viewer: LogViewer): Promise<void> {
     const controller = new AbortController();
     const { signal } = controller;
@@ -118,7 +114,7 @@ export class ContainerLogStreams implements OnModuleInit, OnModuleDestroy {
     // Resuming: everything after the last line, as much as Docker gives at once.
     const options = since === undefined ? { tail } : { tail: LOG_LIMITS.maxTail, since };
     try {
-      await this.send(sse, this.docker.containerLogs(name, options, signal), signal);
+      await this.send(sse, this.dockerService.containerLogs(name, options, signal), signal);
     } catch (error) {
       if (signal.aborted) return null;
       if (error instanceof ContainerLogsError) {
@@ -141,7 +137,7 @@ export class ContainerLogStreams implements OnModuleInit, OnModuleDestroy {
 
   /** The container's state; null if it's gone, undefined if Docker didn't answer. */
   private state(name: string): Promise<ContainerState | null | undefined> {
-    return this.docker.containerState(name).catch(() => undefined);
+    return this.dockerService.containerState(name).catch(() => undefined);
   }
 
   /**

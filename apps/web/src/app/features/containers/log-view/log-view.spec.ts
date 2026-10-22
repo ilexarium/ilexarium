@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { LOG_LIMITS, type LogLine } from '@laris/shared';
 import { stubLocalStorage, stubScreenWidth } from '../../../layout/testing';
 import { formatLogTime } from '../../../shared/format/format';
-import { LOG_TIMESTAMPS_KEY, LOG_WRAP_KEY } from './log-preferences';
+import { LOG_TIMESTAMPS_KEY, LOG_WRAP_KEY } from './log-preferences.constants';
 import { LogView } from './log-view';
 import type { LogEntry } from '../containers.model';
 
