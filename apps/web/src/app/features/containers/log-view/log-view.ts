@@ -28,6 +28,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { Translator } from '../../../core/i18n/translator';
 
 /**
+ * Follows new lines while at the bottom, like `docker logs -f`; scrolling up or Pause stops it.
+ *
  * - **stderr** lines carry an icon and the word "stderr", not colour alone. The line itself isn't
  *   tinted: many services (Navidrome, most Go and Python programs) write all their logs to
  *   stderr, so it marks the channel, not an error.
@@ -53,6 +55,7 @@ import { Translator } from '../../../core/i18n/translator';
   templateUrl: './log-view.html',
 })
 export class LogView {
+  /** Oldest first. */
   readonly entries = input.required<LogEntry[]>();
 
   protected readonly logPreferences = inject(LogPreferences);

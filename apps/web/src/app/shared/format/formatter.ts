@@ -9,6 +9,7 @@ import {
   formatDateTime,
   formatDecimal,
   formatDuration,
+  formatLogTime,
   formatPercent,
   formatRate,
 } from './format';
@@ -81,6 +82,11 @@ export class Formatter {
    */
   private ltr(text: string): string {
     return this.language.dir() === 'rtl' ? `\u2066${text}\u2069` : text;
+  }
+
+  /** One fixed, sortable form in every language (machine text). */
+  logTime(at: string): string {
+    return formatLogTime(at);
   }
 
   /** The current language, with Latin digits. */

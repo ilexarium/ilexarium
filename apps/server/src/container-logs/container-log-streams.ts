@@ -28,6 +28,8 @@ interface Stream {
 }
 
 /**
+ * One response per log view, one Docker stream behind it.
+ *
  * - **Backpressure:** the next line is read from Docker only once the browser takes what was
  *   written, so a slow viewer slows the reading (Docker keeps the lines in its log file).
  * - **End:** Docker ends a follow stream when the container stops, is removed, or (through the
