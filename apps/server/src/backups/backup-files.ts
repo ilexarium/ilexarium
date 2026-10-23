@@ -6,10 +6,11 @@ import { z } from 'zod';
 import { watchFolder } from '../common/watch-folder.js';
 import { WrapperConfigService } from '../executor/wrapper-config.js';
 import { stateDir } from './backup-paths.js';
-
-/** How often the files are looked at when no change notice arrives (fs.watch can miss some). */
-export const BACKUP_FILES_POLL_MS = 5_000;
-const MAX_RESULTS_BYTES = 16 * 1024 * 1024;
+import {
+  BACKUP_FILES_POLL_MS,
+  MAX_PROGRESS_READ_BYTES,
+  MAX_RESULTS_BYTES,
+} from './backups.constants.js';
 
 // What the backup wrapper writes (system/wrappers/laris-backup.mts) — root-owned, still checked.
 
@@ -106,6 +107,8 @@ export function parseLines<T>(
 @Injectable()
 export class BackupFiles {
   private readonly logger = new Logger(BackupFiles.name);
+  /** runs.jsonl as last read, and which version of the file that was. */
+  private lastResults: { version: string; results: WrapperResult[] } | null = null;
 
   /**
    * The files may have changed: a watch on their folder, and a poll as a fallback (fs.watch can
@@ -114,7 +117,7 @@ export class BackupFiles {
    */
   readonly changes$: Observable<void>;
 
-  constructor(private readonly wrapperConfig: WrapperConfigService) {
+  constructor(private readonly wrapperConfigService: WrapperConfigService) {
     this.changes$ = merge(
       watchFolder(() => this.dir, BACKUP_FILES_POLL_MS),
       interval(BACKUP_FILES_POLL_MS),
@@ -125,19 +128,26 @@ export class BackupFiles {
   }
 
   get dir(): string {
-    return stateDir(this.wrapperConfig.config);
+    return stateDir(this.wrapperConfigService.config);
   }
 
-  /** Every result in runs.jsonl, oldest first (missing file: none). */
+  /**
+   * Every result in runs.jsonl, oldest first (missing file: none). The same array as last time
+   * while the file hasn't changed — the poll asks every few seconds, the file rarely changes.
+   */
   async results(): Promise<WrapperResult[]> {
     const file = join(this.dir, 'runs.jsonl');
     try {
-      if ((await stat(file)).size > MAX_RESULTS_BYTES) {
+      const { size, mtimeMs, ino } = await stat(file);
+      if (size > MAX_RESULTS_BYTES) {
         this.logger.error(`${file} is larger than expected; not read`);
         return [];
       }
+      const version = `${ino}:${size}:${mtimeMs}`;
+      if (this.lastResults?.version === version) return this.lastResults.results;
       const { values, skipped } = parseLines(await readFile(file, 'utf8'), resultSchema);
       if (skipped > 0) this.logger.warn(`${skipped} lines of ${file} were not understood`);
+      this.lastResults = { version, results: values };
       return values;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -159,7 +169,7 @@ export class BackupFiles {
         const { size, dev, ino } = await handle.stat();
         const file = `${dev}:${ino}`;
         if (size <= from) return { text: '', size, file };
-        const length = Math.min(size - from, 2 * 1024 * 1024);
+        const length = Math.min(size - from, MAX_PROGRESS_READ_BYTES);
         const buffer = Buffer.alloc(length);
         await handle.read(buffer, 0, length, from);
         // Only whole lines: the rest is read next time.

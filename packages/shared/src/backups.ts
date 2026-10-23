@@ -145,10 +145,12 @@ export const BACKUP_ERROR_CODES = {
   alreadyConfigured: 'backups_already_configured',
   itemNotFound: 'backup_item_not_found',
   itemExists: 'backup_item_exists',
+  tooManyItems: 'backup_too_many_items',
   /** The platform item is always backed up. */
   itemFixed: 'backup_item_fixed',
   archiveNotFound: 'backup_archive_not_found',
   restoreNotFound: 'backup_restore_not_found',
+  runNotFound: 'backup_run_not_found',
   pathNotAllowed: 'path_not_allowed',
   pathNotFound: 'path_not_found',
   /** Setting up on a disk that already has a `laris-backups` folder that isn't ours. */

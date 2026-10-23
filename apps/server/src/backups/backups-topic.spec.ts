@@ -8,7 +8,8 @@ import type { BackupRestores } from './backup-restores.js';
 import type { BackupResults } from './backup-results.js';
 import type { BackupRuns } from './backup-runs.js';
 import type { BackupStatusReader } from './backup-status-reader.js';
-import { BACKUPS_PUBLISH_MS, BackupsTopic } from './backups-topic.js';
+import { BackupsTopic } from './backups-topic.js';
+import { BACKUPS_PUBLISH_MS } from './backups.constants.js';
 
 const STATUS = { configured: true } as BackupsStatus;
 

@@ -19,11 +19,7 @@ import { BackupRestores } from './backup-restores.js';
 import { BackupResults } from './backup-results.js';
 import { BackupRuns } from './backup-runs.js';
 import { BackupStatusReader } from './backup-status-reader.js';
-
-/** Changes come in bursts (progress lines, restore output): at most one update this often. */
-export const BACKUPS_PUBLISH_MS = 500;
-/** Also now and then without a change: "last backed up" ages, the disk fills. */
-const REFRESH_MS = 60_000;
+import { BACKUPS_PUBLISH_MS, BACKUPS_REFRESH_MS } from './backups.constants.js';
 
 /**
  * The `backups` topic: the plan's status and warnings, the running run's live progress (scheduled
@@ -37,33 +33,33 @@ export class BackupsTopic implements TopicSource<'backups'> {
   readonly updates$: Observable<BackupsStatus>;
 
   constructor(
-    private readonly statusReader: BackupStatusReader,
-    plans: BackupPlanManager,
-    runs: BackupRuns,
-    progress: BackupProgressFollower,
-    results: BackupResults,
-    restores: BackupRestores,
-    slot: OperationSlot,
-    subscriptions: RealtimeSubscriptions,
+    private readonly backupStatusReader: BackupStatusReader,
+    backupPlanManager: BackupPlanManager,
+    backupRuns: BackupRuns,
+    backupProgressFollower: BackupProgressFollower,
+    backupResults: BackupResults,
+    backupRestores: BackupRestores,
+    operationSlot: OperationSlot,
+    realtimeSubscriptions: RealtimeSubscriptions,
   ) {
     this.updates$ = merge(
-      plans.changes$,
-      runs.changes$,
-      progress.changes$,
-      results.changes$,
-      restores.changes$,
-      slot.changes$,
-      interval(REFRESH_MS),
+      backupPlanManager.changes$,
+      backupRuns.changes$,
+      backupProgressFollower.changes$,
+      backupResults.changes$,
+      backupRestores.changes$,
+      operationSlot.changes$,
+      interval(BACKUPS_REFRESH_MS),
     ).pipe(
       // The first change opens a window; at its end, one snapshot of everything.
       auditTime(BACKUPS_PUBLISH_MS),
       // A newer snapshot replaces one still being taken; a failed one waits for the next change.
       switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
     );
-    subscriptions.registerSource(this);
+    realtimeSubscriptions.registerSource(this);
   }
 
   snapshot(): Promise<BackupsStatus> {
-    return this.statusReader.status();
+    return this.backupStatusReader.status();
   }
 }

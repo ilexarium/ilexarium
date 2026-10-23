@@ -20,9 +20,7 @@ import { OperationSlot } from '../jobs/operation-slot.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { apiError, backupError, wrapperCallRaw } from './backup-errors.js';
 import { requireItem, requirePlan } from './backup-records.js';
-
-const RESTORES_KEPT = 50;
-const RESTORES_SHOWN = 20;
+import { RESTORES_KEPT, RESTORES_SHOWN } from './backups.constants.js';
 
 /**
  * Restores: starting one (a job in the one slot for privileged operations, its phase and output
@@ -38,8 +36,8 @@ export class BackupRestores implements OnApplicationBootstrap {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly executor: ExecutorService,
-    private readonly slot: OperationSlot,
+    private readonly executorService: ExecutorService,
+    private readonly operationSlot: OperationSlot,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -115,11 +113,11 @@ export class BackupRestores implements OnApplicationBootstrap {
         apiError('Nothing set aside', BACKUP_ERROR_CODES.restoreNotFound),
       );
     }
-    const release = this.slot.claim('backupTask');
+    const release = this.operationSlot.claim('backupTask');
     try {
       for (const path of row.setAside) {
         const outcome = await wrapperCallRaw(this.logger, () =>
-          this.executor.backupDiscard(path, actor),
+          this.executorService.backupDiscard(path, actor),
         );
         // Already gone (deleted by hand): fine.
         if (!outcome.ok && outcome.code !== BACKUP_ERROR_CODES.restoreNotFound) {
@@ -158,14 +156,14 @@ export class BackupRestores implements OnApplicationBootstrap {
     actor: ExecutorActor,
   ): Promise<void> {
     const outcome = await wrapperCallRaw(this.logger, () =>
-      this.executor.backupRestore({ restoreId: id, ...request }, actor, this.callbacks()),
+      this.executorService.backupRestore({ restoreId: id, ...request }, actor, this.callbacks()),
     );
     await this.finish(outcome);
   }
 
   /** Takes the slot before any await; `start` once the row exists, `release` if it never will. */
   private claim(): { start: (id: string) => void; release: () => void } {
-    const job = { live: new LiveJob(), release: this.slot.claim('restore') };
+    const job = { live: new LiveJob(), release: this.operationSlot.claim('restore') };
     this.active = job;
     return {
       start: (id) => {

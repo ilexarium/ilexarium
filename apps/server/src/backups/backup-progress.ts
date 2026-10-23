@@ -8,10 +8,8 @@ import {
   progressEventSchema,
   type ProgressEvent,
 } from './backup-files.js';
+import { MAX_RUN_MS } from './backups.constants.js';
 import type { FollowedRun } from './backups.model.js';
-
-/** Longer than the timer's own limit (24 hours): not running, whatever its pid says. */
-const MAX_RUN_MS = 25 * 60 * 60_000;
 
 /** Whether a process is alive (root's too: that's "permission denied", not "no such process"). */
 export function processAlive(pid: number): boolean {
@@ -106,15 +104,15 @@ export class BackupProgressFollower implements OnModuleInit, OnModuleDestroy {
   readonly interrupted$: Observable<FollowedRun> = this.interrupted.asObservable();
 
   constructor(
-    private readonly files: BackupFiles,
-    slot: OperationSlot,
+    private readonly backupFiles: BackupFiles,
+    operationSlot: OperationSlot,
   ) {
-    slot.followExternal(() => (this.running() ? 'backup' : null));
+    operationSlot.followExternal(() => (this.running() ? 'backup' : null));
   }
 
   onModuleInit(): void {
     // A read at a time: notices during a read are covered by it or by the next notice.
-    this.following = this.files.changes$
+    this.following = this.backupFiles.changes$
       .pipe(
         exhaustMap(() =>
           from(this.refresh()).pipe(
@@ -154,12 +152,12 @@ export class BackupProgressFollower implements OnModuleInit, OnModuleDestroy {
   }
 
   private async read(): Promise<void> {
-    let { text, size, file } = await this.files.progressFrom(this.offset);
+    let { text, size, file } = await this.backupFiles.progressFrom(this.offset);
     if (file !== this.file || size < this.offset) {
       // A new run wrote a new file: read it from the start.
       this.file = file;
       this.offset = 0;
-      ({ text, size } = await this.files.progressFrom(0));
+      ({ text, size } = await this.backupFiles.progressFrom(0));
     }
     let changed = false;
     if (text) {

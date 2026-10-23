@@ -4,7 +4,8 @@ import { OperationSlot } from '../jobs/operation-slot.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { BackupFiles } from './backup-files.js';
 import { BackupProgressFollower } from './backup-progress.js';
-import { BackupResults, START_GRACE_MS } from './backup-results.js';
+import { BackupResults } from './backup-results.js';
+import { START_GRACE_MS } from './backups.constants.js';
 
 const RUN = '55555555-5555-4555-8555-555555555555';
 const DEAD_PID = 2 ** 22 + 12345; // above the usual pid limit: no such process
@@ -59,9 +60,9 @@ describe('BackupResults', () => {
     const prisma = {
       backupRun: {
         findUnique: vi.fn(async () => row),
-        findMany: vi.fn(async (query: { where: { finishedAt?: unknown } }) =>
+        findMany: vi.fn(async (query: { where?: { finishedAt?: unknown } }) =>
           // The import asks which runs are finished; the sweep, which are not.
-          query.where.finishedAt === null && row && !row['finishedAt'] ? [{ id: RUN }] : [],
+          query.where?.finishedAt === null && row && !row['finishedAt'] ? [{ id: RUN }] : [],
         ),
         upsert: vi.fn(async () => undefined),
         updateMany,
@@ -134,5 +135,51 @@ describe('BackupResults', () => {
     });
     await results.import();
     expect(updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('BackupResults, runs.jsonl unchanged', () => {
+  it('imports the same results only once', async () => {
+    const results = [
+      {
+        type: 'run',
+        runId: RUN,
+        trigger: 'scheduled',
+        itemId: null,
+        status: 'ok',
+        errorCode: null,
+        startedAt: new Date().toISOString(),
+        finishedAt: new Date().toISOString(),
+        items: [],
+        output: [],
+      },
+    ];
+    const files = {
+      progressFrom: async () => ({ text: '', size: 0, file: null }),
+      changes$: NEVER,
+      results: async () => results,
+    } as unknown as BackupFiles;
+    const upsert = vi.fn(async () => undefined);
+    const prisma = {
+      backupRun: {
+        findUnique: vi.fn(async () => null),
+        findMany: vi.fn(async () => []),
+        upsert,
+        deleteMany: vi.fn(async () => undefined),
+        updateMany: vi.fn(async () => ({ count: 0 })),
+      },
+      backupCheck: { findMany: vi.fn(async () => []) },
+      backupItem: { findMany: vi.fn(async () => []) },
+      $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(prisma),
+    } as unknown as PrismaService;
+    const imports = new BackupResults(
+      prisma,
+      files,
+      { tryRecord: vi.fn(async () => undefined) } as unknown as AuditService,
+      new BackupProgressFollower(files, new OperationSlot()),
+    );
+    await imports.import();
+    await imports.import();
+    expect(upsert).toHaveBeenCalledTimes(1);
   });
 });

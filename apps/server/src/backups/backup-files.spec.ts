@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Subscription } from 'rxjs';
 import type { WrapperConfigService } from '../executor/wrapper-config.js';
-import { BACKUP_FILES_POLL_MS, BackupFiles } from './backup-files.js';
+import { BackupFiles } from './backup-files.js';
+import { BACKUP_FILES_POLL_MS } from './backups.constants.js';
 
 /** Every watcher made, to see that it's closed. */
 const watchers = vi.hoisted(() => [] as FSWatcher[]);
@@ -77,5 +78,34 @@ describe('BackupFiles.changes$', () => {
     second.unsubscribe();
     expect(close).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('BackupFiles.results', () => {
+  const line = (checkId: string) =>
+    `${JSON.stringify({
+      type: 'check',
+      checkId,
+      full: false,
+      status: 'ok',
+      errorCode: null,
+      startedAt: '2026-10-23T03:00:00.000Z',
+      finishedAt: '2026-10-23T03:01:00.000Z',
+    })}\n`;
+
+  it('returns the same results again while runs.jsonl is unchanged, and reads it once it changes', async () => {
+    mkdirSync(join(dir, 'state'));
+    const file = join(dir, 'state', 'runs.jsonl');
+    writeFileSync(file, line('11111111-1111-4111-8111-111111111111'));
+    const files = filesIn(dir);
+
+    const first = await files.results();
+    expect(first).toHaveLength(1);
+    expect(await files.results()).toBe(first);
+
+    writeFileSync(file, line('22222222-2222-4222-8222-222222222222'), { flag: 'a' });
+    const second = await files.results();
+    expect(second).not.toBe(first);
+    expect(second).toHaveLength(2);
   });
 });

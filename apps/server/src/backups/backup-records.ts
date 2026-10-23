@@ -8,9 +8,7 @@ import {
 import type { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { apiError } from './backup-errors.js';
-
-/** Results looked at per item for "last backed up" (a day's runs every 6 hours, and then some). */
-const RESULTS_PER_ITEM = 30;
+import { RESULTS_PER_ITEM } from './backups.constants.js';
 
 /** An item with what its views need: its service, its latest results. */
 export const itemInclude = {
