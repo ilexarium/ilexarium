@@ -29,9 +29,12 @@ export const VOLUME_KEYS = new Set(['type', 'source', 'target', 'read_only']);
 export const LOG_DRIVERS = new Set(['json-file', 'local']);
 /** name[:tag]@sha256:<64 hex> */
 export const PINNED_IMAGE = /^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$/;
-/** Published on every address, or on loopback only (a service without its own sign-in, e.g. Ollama). */
-export const PORT_ENTRY =
-  /^(?:127\.0\.0\.1:)?\$\{([A-Z][A-Z0-9_]*)\}:[0-9]{1,5}(?:\/(?:tcp|udp))?$/;
+/** Where a port may be published besides every address: loopback only (a service without its own sign-in, e.g. Ollama). */
+export const PORT_HOST_ADDRESSES = ['127.0.0.1'];
+const hostAddress = PORT_HOST_ADDRESSES.map((a) => a.replaceAll('.', '\\.')).join('|');
+export const PORT_ENTRY = new RegExp(
+  `^(?:(?:${hostAddress}):)?\\$\\{([A-Z][A-Z0-9_]*)\\}:[0-9]{1,5}(?:\\/(?:tcp|udp))?$`,
+);
 export const PLACEHOLDER_ONLY = /^\$\{([A-Z][A-Z0-9_]*)\}$/;
 /** Ours, and Compose's own (a recipe must not pose as another project). */
 export const RESERVED_LABEL = /^(laris\.|com\.docker\.compose\.)/;

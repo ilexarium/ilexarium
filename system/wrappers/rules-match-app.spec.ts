@@ -7,9 +7,12 @@ import {
   TEXT_PATTERNS,
 } from '@laris/shared';
 import {
+  LOG_DRIVERS,
   PINNED_IMAGE,
+  PORT_HOST_ADDRESSES,
   RESERVED_LABEL,
   SERVICE_KEYS,
+  VOLUME_KEYS,
 } from '../../apps/server/src/catalog/compose-policy.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
 import * as wrapperCatalog from './compose/catalog.mts';
@@ -25,6 +28,12 @@ describe('the app and the root wrappers check the same rules', () => {
     expect([...wrapperPolicy.SERVICE_KEYS].sort()).toEqual([...SERVICE_KEYS, 'networks'].sort());
   });
 
+  it('log drivers, volume entry keys, and where a port may be published (every address or loopback only)', () => {
+    expect(new Set(wrapperPolicy.LOG_DRIVERS)).toEqual(LOG_DRIVERS);
+    expect(new Set(wrapperPolicy.VOLUME_KEYS)).toEqual(VOLUME_KEYS);
+    expect(wrapperPolicy.PORT_HOST_ADDRESSES).toEqual(PORT_HOST_ADDRESSES);
+  });
+
   it('images pinned by digest, and the reserved labels', () => {
     expect(String(wrapperPolicy.PINNED_IMAGE)).toBe(String(PINNED_IMAGE));
     expect(String(wrapperPolicy.RESERVED_LABEL)).toBe(String(RESERVED_LABEL));
@@ -37,6 +46,7 @@ describe('the app and the root wrappers check the same rules', () => {
   });
 
   it('ports, secrets, text patterns, ids, field keys and enum options', () => {
+    expect(wrapperValues.TEXT_MAX).toBe(CATALOG_LIMITS.textMax);
     expect([wrapperValues.PORT_MIN, wrapperValues.PORT_MAX]).toEqual([
       CATALOG_LIMITS.portMin,
       CATALOG_LIMITS.portMax,
