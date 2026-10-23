@@ -6,7 +6,6 @@ export interface Connection {
   readonly sessionId: string;
   readonly userId: string;
   readonly limiter: MessageRateLimiter;
-  readonly recheck: NodeJS.Timeout;
 }
 
 export interface RealtimeOptions {

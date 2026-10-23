@@ -15,7 +15,7 @@ import { RealtimeExceptionFilter } from './realtime-exception.filter.js';
 import { RealtimeSubscriptions } from './realtime-subscriptions.js';
 import { TopicRequestDto } from './realtime.dto.js';
 import { RealtimeGuard } from './realtime.guard.js';
-import { MAX_MESSAGE_BYTES } from './realtime.options.js';
+import { MAX_MESSAGE_BYTES } from './realtime.constants.js';
 
 /**
  * The app's single WebSocket (`/api/ws`, on the HTTP server — the global prefix doesn't apply to
@@ -30,18 +30,18 @@ export class RealtimeGateway
   implements OnGatewayConnection<WebSocket>, OnGatewayDisconnect<WebSocket>
 {
   constructor(
-    private readonly connections: RealtimeConnections,
-    private readonly subscriptions: RealtimeSubscriptions,
+    private readonly realtimeConnections: RealtimeConnections,
+    private readonly realtimeSubscriptions: RealtimeSubscriptions,
   ) {}
 
   /** Synchronous up to the admission's first await — see `RealtimeConnections`. */
   handleConnection(client: WebSocket, request: IncomingMessage): Promise<unknown> {
-    return this.connections.admit(client, request);
+    return this.realtimeConnections.admit(client, request);
   }
 
   handleDisconnect(client: WebSocket): void {
-    this.connections.release(client);
-    this.subscriptions.removeClient(client);
+    this.realtimeConnections.release(client);
+    this.realtimeSubscriptions.removeClient(client);
   }
 
   @SubscribeMessage('subscribe')
@@ -49,11 +49,11 @@ export class RealtimeGateway
     @ConnectedSocket() client: WebSocket,
     @MessageBody() body: TopicRequestDto,
   ): Promise<void> {
-    await this.subscriptions.subscribe(client, body.topic);
+    await this.realtimeSubscriptions.subscribe(client, body.topic);
   }
 
   @SubscribeMessage('unsubscribe')
   unsubscribe(@ConnectedSocket() client: WebSocket, @MessageBody() body: TopicRequestDto): void {
-    this.subscriptions.unsubscribe(client, body.topic);
+    this.realtimeSubscriptions.unsubscribe(client, body.topic);
   }
 }

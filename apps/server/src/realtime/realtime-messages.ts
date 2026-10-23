@@ -1,9 +1,7 @@
 import { REALTIME_ERROR_CODES, type RealtimeError, type ServerMessage } from '@laris/shared';
 import { WebSocket } from 'ws';
+import { MAX_BUFFERED_BYTES } from './realtime.constants.js';
 import type { RealtimeClient } from './realtime.model.js';
-
-/** Above this much unsent data the client isn't keeping up: updates are skipped, not queued. */
-const MAX_BUFFERED_BYTES = 1024 * 1024;
 
 /** Sends one typed message; silently skipped if the socket is no longer open or is backed up. */
 export function sendMessage(client: RealtimeClient, message: ServerMessage): void {

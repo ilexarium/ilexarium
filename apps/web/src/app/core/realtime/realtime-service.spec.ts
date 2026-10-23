@@ -3,7 +3,8 @@ import { provideRouter, Router } from '@angular/router';
 import type { ServerMessage, SystemUpdate } from '@laris/shared';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
-import { FIRST_RETRY_MS, MAX_RETRY_MS, RealtimeService } from './realtime-service';
+import { RealtimeService } from './realtime-service';
+import { FIRST_RETRY_MS, MAX_RETRY_MS } from './realtime.constants';
 import { fakeSockets } from './testing';
 
 const update = {

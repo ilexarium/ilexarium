@@ -14,12 +14,13 @@ import { Client } from './realtime-client.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { RealtimeConnections } from '../src/realtime/realtime-connections.js';
 import { RealtimeSubscriptions } from '../src/realtime/realtime-subscriptions.js';
 import {
   DEFAULT_REALTIME_OPTIONS,
   MAX_MESSAGE_BYTES,
   REALTIME_OPTIONS,
-} from '../src/realtime/realtime.options.js';
+} from '../src/realtime/realtime.constants.js';
 import { SystemMetricsService } from '../src/system-metrics/system-metrics.service.js';
 import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
@@ -313,12 +314,14 @@ describe('realtime WebSocket (e2e)', () => {
 
     /** Re-checks far apart, so a close can only come from the sign-out itself. */
     async function withoutRecheck<T>(run: () => Promise<T>): Promise<T> {
-      const recheckMs = OPTIONS.sessionRecheckMs;
-      OPTIONS.sessionRecheckMs = 60_000; // read at admission: affects sockets opened in `run`
+      const connections = app.get(RealtimeConnections) as unknown as {
+        recheck(): Promise<void>;
+      };
+      const recheck = vi.spyOn(connections, 'recheck').mockResolvedValue();
       try {
         return await run();
       } finally {
-        OPTIONS.sessionRecheckMs = recheckMs;
+        recheck.mockRestore();
       }
     }
 

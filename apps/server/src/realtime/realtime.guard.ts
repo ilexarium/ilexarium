@@ -9,11 +9,11 @@ import { DropMessageException, RealtimeException } from './realtime-messages.js'
  */
 @Injectable()
 export class RealtimeGuard implements CanActivate {
-  constructor(private readonly connections: RealtimeConnections) {}
+  constructor(private readonly realtimeConnections: RealtimeConnections) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const client = context.switchToWs().getClient<WebSocket>();
-    const connection = await this.connections.admitted(client);
+    const connection = await this.realtimeConnections.admitted(client);
     if (!connection) throw new DropMessageException();
     switch (connection.limiter.hit()) {
       case 'allowed':
@@ -21,7 +21,7 @@ export class RealtimeGuard implements CanActivate {
       case 'limited':
         throw RealtimeException.rateLimited();
       case 'abusive':
-        this.connections.closeForViolation(client, 'Too many messages');
+        this.realtimeConnections.closeForViolation(client, 'Too many messages');
         throw new DropMessageException();
     }
   }

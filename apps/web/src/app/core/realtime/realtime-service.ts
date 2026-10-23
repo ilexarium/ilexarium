@@ -17,6 +17,7 @@ import {
 } from '@laris/shared';
 import { AuthApi } from '../auth/auth-api';
 import { AuthStore } from '../auth/auth-store';
+import { FIRST_RETRY_MS, MAX_RETRY_MS, OPEN } from './realtime.constants';
 import type { ConnectionStatus } from './realtime.model';
 
 /** How sockets are made — tests swap in a fake. */
@@ -24,12 +25,6 @@ export const WEB_SOCKET_FACTORY = new InjectionToken<(url: string) => WebSocket>
   'WEB_SOCKET_FACTORY',
   { providedIn: 'root', factory: () => (url: string) => new WebSocket(url) },
 );
-
-/** `WebSocket.OPEN`, without needing the global (tests use a fake socket). */
-const OPEN = 1;
-
-export const FIRST_RETRY_MS = 1_000;
-export const MAX_RETRY_MS = 30_000;
 
 type Listener = (message: ServerMessage) => void;
 
@@ -47,7 +42,7 @@ type Listener = (message: ServerMessage) => void;
  */
 @Service()
 export class RealtimeService {
-  private readonly auth = inject(AuthStore);
+  private readonly authStore = inject(AuthStore);
   private readonly authApi = inject(AuthApi);
   private readonly document = inject(DOCUMENT);
   private readonly createSocket = inject(WEB_SOCKET_FACTORY);
@@ -63,7 +58,7 @@ export class RealtimeService {
 
   constructor() {
     effect(() => {
-      if (!this.auth.isAuthenticated()) this.disconnect();
+      if (!this.authStore.isAuthenticated()) this.disconnect();
     });
     const onVisibilityChange = () => this.sendAll(this.visible() ? 'subscribe' : 'unsubscribe');
     this.document.addEventListener('visibilitychange', onVisibilityChange);
@@ -152,7 +147,7 @@ export class RealtimeService {
       const { user } = await this.authApi.me();
       if (!this.wanted) return;
       if (user) this.retryLater();
-      else this.auth.sessionExpired(); // signs out, which disconnects
+      else this.authStore.sessionExpired(); // signs out, which disconnects
     } catch {
       if (this.wanted) this.retryLater(); // server unreachable: keep trying
     }
