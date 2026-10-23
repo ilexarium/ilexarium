@@ -42,6 +42,8 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
   private readonly connections = new Map<WebSocket, Connection>();
   private signOuts?: Subscription;
   private recheckTimer?: NodeJS.Timeout;
+  /** A re-check still going: the next tick is skipped (a slow session store mustn't pile them up). */
+  private rechecking = false;
 
   constructor(
     private readonly wsAuthenticator: WsAuthenticator,
@@ -138,14 +140,20 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
   }
 
   private recheckAll(): void {
-    for (const client of this.connections.keys()) void this.recheck(client);
+    if (this.rechecking) return;
+    this.rechecking = true;
+    void Promise.all([...this.connections.keys()].map((client) => this.recheck(client))).finally(
+      () => (this.rechecking = false),
+    );
   }
 
   private async recheck(client: WebSocket): Promise<void> {
     try {
       const result = await this.authenticate(client);
-      if (!this.connections.has(client)) return; // closed meanwhile
-      if (!result) this.closeForEndedSession(client);
+      const connection = this.connections.get(client);
+      if (!connection) return; // closed meanwhile
+      // As at admission: the session it was admitted with, still there.
+      if (result?.session?.id !== connection.sessionId) this.closeForEndedSession(client);
     } catch (error) {
       this.logger.error('Re-checking a WebSocket session failed', (error as Error).stack);
     }
