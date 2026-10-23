@@ -91,7 +91,7 @@
         </div>
         <laris-terminal-view
           #view
-          [dark]="theme.dark()"
+          [dark]="themeService.dark()"
           (ready)="connect($event)"
           (resized)="terminalPageStore.resize($event)"
           (data)="terminalPageStore.send($event)"

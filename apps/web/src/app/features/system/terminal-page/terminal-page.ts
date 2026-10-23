@@ -54,7 +54,7 @@ import { TerminalPageStore } from './terminal-page-store';
 })
 export class TerminalPage {
   protected readonly terminalPageStore = inject(TerminalPageStore);
-  protected readonly theme = inject(ThemeService);
+  protected readonly themeService = inject(ThemeService);
   private readonly view = viewChild<TerminalView>('view');
 
   protected readonly signIn = (request: LinuxSignInRequest) =>

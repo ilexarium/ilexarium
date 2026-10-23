@@ -9,3 +9,6 @@ export const KEEPALIVE_INTERVAL_MS = 15_000;
 export const KEEPALIVE_COUNT_MAX = 3;
 /** The server's host keys, in its key folder: `ssh_host_<type>_key.pub`. */
 export const HOST_KEY_FILE = /^ssh_host_\w+_key\.pub$/;
+
+/** Linux sign-in: few tries (sshd counts too). */
+export const SIGN_IN_LIMIT = { default: { limit: 5, ttl: 60_000 } };

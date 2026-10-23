@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
+import { HttpErrorResponse } from '@angular/common/http';
 import { type LinuxSession, type LinuxSignInRequest, TERMINAL_CLOSE_CODES } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -69,6 +70,8 @@ export const TerminalPageStore = signalStore(
             patchState(store, { session, checked: true });
           } catch (error) {
             patchState(store, { checked: true });
+            // A 401: the app session is gone, and the app signs out on its own.
+            if (error instanceof HttpErrorResponse && error.status === 401) return;
             toast.error(translator.t('files.actionFailed'), {
               description: translator.t(...apiErrorText(error)),
             });

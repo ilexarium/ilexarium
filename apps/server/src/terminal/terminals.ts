@@ -161,12 +161,23 @@ export class Terminals implements OnModuleDestroy {
         ? end(TERMINAL_CLOSE_CODES.sessionEnded, 'app-sign-out')
         : end(TERMINAL_CLOSE_CODES.linuxSessionEnded, `linux-${why}`),
     );
+    // A re-check still going: the next one is skipped (a slow session store mustn't pile them up).
+    let rechecking = false;
     const recheck = setInterval(() => {
-      this.authenticate(client).then(
-        (result) => !result && end(TERMINAL_CLOSE_CODES.sessionEnded, 'session-ended'),
-        (error: unknown) =>
-          this.logger.error('Re-checking a terminal session failed', (error as Error).stack),
-      );
+      if (rechecking) return;
+      rechecking = true;
+      this.authenticate(client)
+        .then(
+          (result) => {
+            // As at admission: the app session it was opened with, still there.
+            if (result?.session?.id !== appSessionId) {
+              end(TERMINAL_CLOSE_CODES.sessionEnded, 'session-ended');
+            }
+          },
+          (error: unknown) =>
+            this.logger.error('Re-checking a terminal session failed', (error as Error).stack),
+        )
+        .finally(() => (rechecking = false));
     }, SESSION_RECHECK_MS);
     recheck.unref();
 

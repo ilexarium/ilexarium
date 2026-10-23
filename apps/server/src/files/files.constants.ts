@@ -9,6 +9,3 @@ export const SFTP_NO_SUCH_FILE = 2;
 export const SFTP_PERMISSION_DENIED = 3;
 export const SFTP_NO_CONNECTION = 6;
 export const SFTP_CONNECTION_LOST = 7;
-
-/** Linux sign-in: few tries (sshd counts too). */
-export const SIGN_IN_LIMIT = { default: { limit: 5, ttl: 60_000 } };
