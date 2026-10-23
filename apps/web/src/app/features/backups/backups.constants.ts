@@ -8,3 +8,9 @@ export const RUN_STATUS_TONES: Record<BackupRunStatus, StatusTone> = {
   warning: 'warning',
   failed: 'failed',
 };
+
+/** The retention's parts, in the order they're shown. */
+export const RETENTION_PARTS = ['daily', 'weekly', 'monthly'] as const;
+
+/** A finished restore stays shown this long (one with folders set aside, until they're deleted). */
+export const RESTORE_SHOWN_MS = 24 * 60 * 60_000;

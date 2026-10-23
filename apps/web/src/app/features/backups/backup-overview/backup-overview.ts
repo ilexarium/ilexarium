@@ -46,7 +46,7 @@ export class BackupOverview {
 
   readonly runNow = output<void>();
 
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
 
   protected readonly running = computed(() => this.status().running);
   protected readonly done = computed(() => {

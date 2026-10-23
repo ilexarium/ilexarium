@@ -1,7 +1,6 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
-import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
+import { form, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import {
-  BACKUP_FREQUENCIES,
   type BackupDestination,
   type BackupFoldersResponse,
   type BackupSettingsForm,
@@ -17,17 +16,15 @@ import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { HlmFieldImports } from '@ui/field';
-import { HlmInput } from '@ui/input';
-import { HlmSelectImports } from '@ui/select';
-import { Translator } from '../../../core/i18n/translator';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
-import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { Formatter } from '../../../shared/format/formatter';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
 import type { BackupableService } from '../backups.model';
 import { FolderPicker } from '../folder-picker/folder-picker';
+import { RetentionFields } from '../retention-fields/retention-fields';
+import { ScheduleFields } from '../schedule-fields/schedule-fields';
 
 /**
  * Setting backups up, once: the disk (mounted ones under /mnt and /media, free space, a warning
@@ -39,19 +36,17 @@ import { FolderPicker } from '../folder-picker/folder-picker';
   selector: 'laris-backup-setup',
   imports: [
     ErrorTextPipe,
-    FieldErrors,
     FolderPicker,
     FormErrors,
-    FormField,
     FormRoot,
     HlmAlertImports,
     HlmButton,
     HlmCardImports,
     HlmFieldImports,
-    HlmInput,
-    HlmSelectImports,
     NgIcon,
+    RetentionFields,
     RouterLink,
+    ScheduleFields,
     TranslatePipe,
   ],
   providers: [provideIcons({ lucideFolderPlus, lucideHardDrive, lucideTrash2 })],
@@ -67,14 +62,8 @@ export class BackupSetup {
   readonly browse = output<string | undefined>();
   readonly closeBrowser = output<void>();
 
-  private readonly store = inject(BackupsPageStore);
-  protected readonly format = inject(Formatter);
-  protected readonly frequencies = BACKUP_FREQUENCIES;
-  private readonly translator = inject(Translator);
-  /** What the select shows for the chosen frequency. */
-  protected readonly frequencyLabel = (frequency: string) =>
-    this.translator.t(`backups.schedule.${frequency}`);
-  protected readonly keepParts = ['daily', 'weekly', 'monthly'] as const;
+  private readonly backupsPageStore = inject(BackupsPageStore);
+  protected readonly formatter = inject(Formatter);
 
   /** Services switched off (all are on at first). */
   protected readonly skippedServices = signal<string[]>([]);
@@ -97,7 +86,7 @@ export class BackupSetup {
           const value = tree().value();
           const skipped = this.skippedServices();
           try {
-            await this.store.setup({
+            await this.backupsPageStore.setup({
               ...value,
               items: [
                 ...this.services()
@@ -123,10 +112,6 @@ export class BackupSetup {
     () =>
       (this.destinations() ?? []).find((d) => d.mountPoint === this.model().destination) ?? null,
   );
-
-  protected keep(part: (typeof this.keepParts)[number]) {
-    return this.form.retention[part];
-  }
 
   protected checked(event: Event): boolean {
     return (event.target as HTMLInputElement).checked;

@@ -14,7 +14,7 @@
                 <summary
                   class="flex min-h-11 cursor-pointer flex-wrap items-center gap-2 px-3 py-2 text-sm select-none"
                 >
-                  <span class="font-medium">{{ format.dateTime(run.startedAt) }}</span>
+                  <span class="font-medium">{{ formatter.dateTime(run.startedAt) }}</span>
                   <span class="text-muted-foreground">{{
                     'backups.history.' + run.trigger | translate
                   }}</span>
@@ -42,7 +42,7 @@
                         @if (item.addedBytes !== null) {
                           <span class="text-muted-foreground">{{
                             'backups.history.added'
-                              | translate: { size: format.bytes(item.addedBytes) }
+                              | translate: { size: formatter.bytes(item.addedBytes) }
                           }}</span>
                         }
                       </li>

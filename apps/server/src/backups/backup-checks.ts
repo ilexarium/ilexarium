@@ -259,10 +259,7 @@ export class BackupChecks {
     path: string,
     destination: string,
   ): Promise<Omit<FieldError, 'field'> | null> {
-    if (
-      !isAllowedFolder(this.wrapperConfigService.config, path) ||
-      overlaps(path, destination)
-    ) {
+    if (!isAllowedFolder(this.wrapperConfigService.config, path) || overlaps(path, destination)) {
       return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' };
     }
     const state = await this.systemReader.folder(path);

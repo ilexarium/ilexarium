@@ -27,7 +27,7 @@
                   [checked]="chosen() === archive.name"
                   (change)="choose($event)"
                 />
-                {{ format.dateTime(archive.createdAt) }}
+                {{ formatter.dateTime(archive.createdAt) }}
               </label>
             }
           </div>

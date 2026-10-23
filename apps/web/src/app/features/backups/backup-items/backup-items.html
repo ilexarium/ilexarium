@@ -21,13 +21,13 @@
                 }
                 @if (row.item.lastSuccessAt; as at) {
                   <span>{{
-                    'backups.items.lastSuccess' | translate: { time: format.ago(at) }
+                    'backups.items.lastSuccess' | translate: { time: formatter.ago(at) }
                   }}</span>
                 } @else {
                   <span>{{ 'backups.items.never' | translate }}</span>
                 }
                 @if (last?.originalBytes; as size) {
-                  <span>· {{ format.bytes(size) }}</span>
+                  <span>· {{ formatter.bytes(size) }}</span>
                 }
               </p>
               @if (last?.errorCode; as code) {

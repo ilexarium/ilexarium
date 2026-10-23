@@ -35,7 +35,7 @@ import { BackupsPageStore } from '../backups-page/backups-page-store';
   templateUrl: './passphrase-dialog.html',
 })
 export class PassphraseDialog {
-  private readonly store = inject(BackupsPageStore);
+  private readonly backupsPageStore = inject(BackupsPageStore);
   private readonly dialog = viewChild.required(HlmAlertDialog);
   protected readonly showPassword = signal(false);
 
@@ -47,7 +47,7 @@ export class PassphraseDialog {
       submission: {
         action: async (tree) => {
           try {
-            await this.store.showPassphrase(tree().value().password);
+            await this.backupsPageStore.showPassphrase(tree().value().password);
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }

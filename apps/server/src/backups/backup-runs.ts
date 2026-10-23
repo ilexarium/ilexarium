@@ -111,10 +111,7 @@ export class BackupRuns {
    * looked at again whenever the follower or the results import report a change.
    */
   private async handOver(runId: string): Promise<void> {
-    const settled$ = merge(
-      this.backupProgressFollower.changes$,
-      this.backupResults.changes$,
-    ).pipe(
+    const settled$ = merge(this.backupProgressFollower.changes$, this.backupResults.changes$).pipe(
       startWith(undefined),
       concatMap(() => from(this.handedOver(runId))),
       first(Boolean),
