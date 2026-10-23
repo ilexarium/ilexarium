@@ -1,8 +1,6 @@
 import type { Job, JobPhase } from '@laris/shared';
+import { MAX_JOB_OUTPUT_BYTES } from './jobs.constants.js';
 import type { JobRow } from './jobs.model.js';
-
-/** Output kept per job (the end matters most when something failed). */
-export const MAX_JOB_OUTPUT_BYTES = 256 * 1024;
 
 /** The running job's phase and newest output lines, in memory until it's saved. */
 export class LiveJob {

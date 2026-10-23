@@ -107,13 +107,21 @@ let storage: string;
 let fake: string;
 let lockFile: string;
 
-/** A free TCP port, by asking the kernel for one. */
+/**
+ * A free TCP port below the kernel's ephemeral range (32768+ here): `listen(0)` would pick from
+ * that range, which the kernel also hands out for outgoing connections — another test's connection
+ * could take the port before the wrapper checks it, and the test would see `port_in_use`.
+ */
 function freePort(): number {
-  const result = spawnSync(process.execPath, [
-    '-e',
-    "const s=require('net').createServer().listen(0,'127.0.0.1',()=>{console.log(s.address().port);s.close()})",
-  ]);
-  return Number(result.stdout.toString().trim());
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const candidate = 20_000 + Math.floor(Math.random() * 10_000);
+    const result = spawnSync(process.execPath, [
+      '-e',
+      `const s=require('net').createServer().once('error',()=>process.exit(1)).listen(${candidate},()=>s.close())`,
+    ]);
+    if (result.status === 0) return candidate;
+  }
+  throw new Error('No free test port in 20000–29999');
 }
 
 let port: number;

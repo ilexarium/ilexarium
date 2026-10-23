@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OperationSlot } from './operation-slot.js';
 
-/** What deploys and backups share: the one slot for privileged operations. */
+/** One privileged operation at a time (`OperationSlot`), and a running job's progress (`LiveJob`). */
 @Module({
   providers: [OperationSlot],
   exports: [OperationSlot],

@@ -24,22 +24,20 @@ import type {
 import type { Response } from 'express';
 import { CatalogIdParamsDto, DeployDto, ServiceIdParamsDto } from './services.dto.js';
 import { ServiceManager } from './service-manager.js';
-
-/** Per IP, for installs and removals only (slow and rare); reads aren't limited — pages poll them. */
-const CHANGE_LIMIT = { default: { limit: 10, ttl: 60_000 } };
+import { CHANGE_LIMIT } from './services.constants.js';
 
 @Controller()
 export class ServicesController {
-  constructor(private readonly services: ServiceManager) {}
+  constructor(private readonly serviceManager: ServiceManager) {}
 
   @Get('catalog')
   catalog(): Promise<CatalogEntrySummary[]> {
-    return this.services.listCatalog();
+    return this.serviceManager.listCatalog();
   }
 
   @Get('catalog/:id')
   details(@Param() { id }: CatalogIdParamsDto): Promise<CatalogEntryDetails> {
-    return this.services.catalogDetails(id);
+    return this.serviceManager.catalogDetails(id);
   }
 
   /** Only ever used in <img>; the headers make sure nothing in it could run anyway. */
@@ -52,12 +50,12 @@ export class ServicesController {
         'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'private, max-age=3600',
       })
-      .send(this.services.icon(id));
+      .send(this.serviceManager.icon(id));
   }
 
   @Get('services')
   async list(): Promise<ServicesList> {
-    return { services: await this.services.list() };
+    return { services: await this.serviceManager.list() };
   }
 
   /** 202: the job runs on; progress arrives through the `services` topic. */
@@ -70,7 +68,7 @@ export class ServicesController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<DeployResponse> {
-    return this.services.deploy(body, { user, ip });
+    return this.serviceManager.deploy(body, { user, ip });
   }
 
   /** 202: removes the containers; data and settings stay for a reinstall. */
@@ -83,11 +81,11 @@ export class ServicesController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<RemoveResponse> {
-    return this.services.remove(id, { user, ip });
+    return this.serviceManager.remove(id, { user, ip });
   }
 
   @Get('services/jobs/:id')
   job(@Param() { id }: ServiceIdParamsDto): Promise<Job> {
-    return this.services.job(id);
+    return this.serviceManager.job(id);
   }
 }
