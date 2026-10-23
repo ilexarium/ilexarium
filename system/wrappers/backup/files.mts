@@ -53,7 +53,6 @@ export function shareWithApp(config: Config, file: string): void {
  * The live progress of the run: one JSON event per line, started fresh each run. The app follows
  * it (scheduled and manual runs alike); it holds no secrets. Output lines stop past a size cap.
  */
-
 export class Progress {
   private bytes = 0;
   private readonly file: string;

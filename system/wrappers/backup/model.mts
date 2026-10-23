@@ -100,13 +100,7 @@ export interface Ran {
   logs: BorgLog[];
 }
 
-/**
- * Runs a program (no shell). Its stdout is captured (`capture`) or relayed; its stderr is relayed
- * line by line — Borg's JSON log lines (`--log-json`) as their message — each prefixed "> ".
- */
-
-// restore
-
+/** A folder a restore in place moved aside: `discard` deletes only what's listed. */
 export interface SetAside {
   path: string;
   restoreId: string;

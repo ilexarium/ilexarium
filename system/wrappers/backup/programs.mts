@@ -46,6 +46,11 @@ export function borgEnv(config: Config, paths: Paths): Record<string, string> {
   };
 }
 
+/**
+ * Runs a program (no shell). Its stdout is captured (`capture`), written to a file (`stdoutFd`) or
+ * relayed; its stderr is relayed line by line — Borg's JSON log lines (`--log-json`) as their
+ * message — each prefixed "> ".
+ */
 export function runProgram(
   file: string,
   args: string[],

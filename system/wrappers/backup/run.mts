@@ -31,8 +31,6 @@ export const RESULT_OUTPUT_LINES = 200;
 
 export const MAX_WARNINGS = 20;
 
-// run
-
 export const ORDER: Record<ItemKind, number> = { platform: 0, service: 1, folder: 2 };
 
 export async function run(

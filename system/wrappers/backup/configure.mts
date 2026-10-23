@@ -9,8 +9,6 @@ import { home, runProgram } from './programs.mts';
 import { Refusal } from '../lib/output.mts';
 import { SAFE_PATH } from '../lib/paths.mts';
 
-// configure
-
 export function onCalendar(schedule: Plan['schedule']): string {
   const [hour, minute] = schedule.time.split(':').map(Number);
   const step = { daily: 24, every12h: 12, every6h: 6 }[schedule.frequency];

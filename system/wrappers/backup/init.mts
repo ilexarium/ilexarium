@@ -26,8 +26,6 @@ export const WORDLIST = fileURLToPath(new URL('../eff_large_wordlist.txt', impor
 
 export const PASSPHRASE_WORDS = 6;
 
-// init
-
 /** Six words from the EFF large word list (7776 words: ~77 bits), chosen without bias. */
 export function generatePassphrase(): string {
   if (isRoot) assertRootOwned(WORDLIST);
