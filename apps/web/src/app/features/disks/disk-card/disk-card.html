@@ -17,7 +17,7 @@
       }
     </h2>
     <p hlmCardDescription>
-      <span dir="ltr">{{ disk().device }}</span> · {{ format.bytes(disk().sizeBytes) }}
+      <span dir="ltr">{{ disk().device }}</span> · {{ formatter.bytes(disk().sizeBytes) }}
     </p>
   </div>
   <div hlmCardContent class="grid gap-3">
@@ -43,7 +43,7 @@
                   <span dir="ltr">{{ partition.fsType }}</span>
                 }
                 <span aria-hidden="true">·</span>
-                <span>{{ format.bytes(partition.sizeBytes) }}</span>
+                <span>{{ formatter.bytes(partition.sizeBytes) }}</span>
               </p>
             </div>
             @if (partition.state === 'available' && !disk().system && !partition.duplicateUuid) {

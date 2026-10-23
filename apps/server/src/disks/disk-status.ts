@@ -6,16 +6,9 @@ import {
   type DiskPartitionState,
   type DisksStatus,
 } from '@laris/shared';
+import { inside } from '../host/folders.js';
 import type { BlockDevice, MountPoint } from '../host/host.model.js';
-
-/** Folders whose disk is the system's: every partition on such a disk is shown as `system`. */
-export const SYSTEM_MOUNTS = ['/', '/boot', '/boot/efi', '/efi', '/home', '/var', '/usr'];
-
-/** Filesystem types of devices that belong to something else (swap, RAID, LVM, encryption). */
-const MEMBER_TYPES = new Set(['swap', 'linux_raid_member', 'LVM2_member', 'crypto_LUKS']);
-
-/** Layers made of other devices, not disks of their own (device-mapper, software RAID). */
-const VIRTUAL = /^(dm-|md)/;
+import { MEMBER_TYPES, SYSTEM_MOUNTS, VIRTUAL } from './disks.constants.js';
 
 export interface DisksInput {
   devices: BlockDevice[];
@@ -26,8 +19,6 @@ export interface DisksInput {
   /** Where the backups are kept (the database's plan), if set up. */
   backupDestination: string | null;
 }
-
-const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
 
 /** The mounts of a device: by its number, or by name as their source (btrfs shows `0:n`). */
 function mountsOf(device: BlockDevice, mounts: MountPoint[]): MountPoint[] {

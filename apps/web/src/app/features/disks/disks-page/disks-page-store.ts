@@ -42,10 +42,10 @@ export const DisksPageStore = signalStore(
       ].filter((name): name is string => name !== null);
     }),
   })),
-  withMethods((store, api = inject(DisksApi), translator = inject(Translator)) => ({
+  withMethods((store, disksApi = inject(DisksApi), translator = inject(Translator)) => ({
     async load(): Promise<void> {
       try {
-        patchState(store, { status: await api.status(), failed: false });
+        patchState(store, { status: await disksApi.status(), failed: false });
       } catch {
         if (!store.status()) patchState(store, { failed: true });
       }
@@ -57,7 +57,7 @@ export const DisksPageStore = signalStore(
 
     /** Mounts a disk; rejects with the server's error (the dialog puts it on its field). */
     async mount(request: DiskMountRequest): Promise<void> {
-      const { mountPoint } = await api.mount(request);
+      const { mountPoint } = await disksApi.mount(request);
       toast.success(translator.t('disks.mounted', { path: mountPoint }));
       await this.load();
     },
@@ -66,7 +66,7 @@ export const DisksPageStore = signalStore(
     async unmount(name: string, connected: boolean): Promise<void> {
       patchState(store, { pending: [...store.pending(), name] });
       try {
-        await api.unmount(name);
+        await disksApi.unmount(name);
         toast.success(translator.t(connected ? 'disks.unmounted' : 'disks.forgotten'));
         await this.load();
       } catch (error) {
@@ -78,12 +78,12 @@ export const DisksPageStore = signalStore(
       }
     },
   })),
-  withHooks((store, realtime = inject(RealtimeService)) => {
+  withHooks((store, realtimeService = inject(RealtimeService)) => {
     let stop: (() => void) | null = null;
     return {
       onInit() {
         void store.load();
-        stop = realtime.subscribe('disks', (message) => {
+        stop = realtimeService.subscribe('disks', (message) => {
           if (message.event === 'disks:snapshot' || message.event === 'disks:update') {
             store.update(message.data);
           }

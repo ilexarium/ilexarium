@@ -29,7 +29,7 @@ export class DiskCard {
   readonly mount = output<MountTarget>();
   readonly unmount = output<UnmountTarget>();
 
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
   private readonly translator = inject(Translator);
 
   /** The disk's name on the page: its model, or "Disk sdb". */

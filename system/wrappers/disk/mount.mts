@@ -4,7 +4,6 @@
 // records — nothing the app says about a disk is trusted.
 
 import {
-  appendFileSync,
   chmodSync,
   existsSync,
   lstatSync,
@@ -26,6 +25,7 @@ import {
   systemDisks,
   udevProperties,
 } from './devices.mts';
+import { pretendMount, pretendUnmount } from './development.mts';
 import type { Config, Paths } from './model.mts';
 import { systemctl } from './programs.mts';
 import { FILESYSTEMS, NAME, isOurs, unitContent, unitName, unitPath } from './units.mts';
@@ -199,12 +199,7 @@ async function start(
   where: string,
 ): Promise<void> {
   const bin = config.disk.systemctlBin;
-  if (!bin) {
-    // Development without systemd: the mount is only pretended, in the pretend mountinfo.
-    const line = `${900 + readMounts(paths).length} 1 ${number} / ${where.replace(/ /g, '\\040')} rw - ${fsType} /dev/${device} rw\n`;
-    appendFileSync(join(paths.host, 'proc/self/mountinfo'), line);
-    return;
-  }
+  if (!bin) return pretendMount(paths, where, { device, number, fsType });
   const unit = unitName(name);
   for (const args of [['daemon-reload'], ['enable', '--now', unit]]) {
     const ran = await systemctl(bin, args);
@@ -220,14 +215,7 @@ async function start(
 
 async function stop(config: Config, paths: Paths, name: string, where: string): Promise<void> {
   const bin = config.disk.systemctlBin;
-  if (!bin) {
-    const file = join(paths.host, 'proc/self/mountinfo');
-    const lines = readFileSync(file, 'utf8')
-      .split('\n')
-      .filter((l) => l && l.split(' ')[4] !== where.replace(/ /g, '\\040'));
-    writeFileSync(file, lines.length ? `${lines.join('\n')}\n` : '');
-    return;
-  }
+  if (!bin) return pretendUnmount(paths, where);
   const unit = unitName(name);
   const ran = await systemctl(bin, ['disable', '--now', unit]);
   if (ran.code !== 0 || readMounts(paths).some((m) => m.point === where)) {
