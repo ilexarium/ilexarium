@@ -1,9 +1,9 @@
-@if (!store.checked()) {
+@if (!filesPageStore.checked()) {
   <div class="grid gap-2" role="status" [attr.aria-label]="'files.signIn.checking' | translate">
     <hlm-skeleton class="h-10 w-full max-w-md" />
     <hlm-skeleton class="h-48 w-full max-w-md" />
   </div>
-} @else if (!store.session()) {
+} @else if (!filesPageStore.session()) {
   <laris-linux-sign-in title="files.signIn.title" text="files.signIn.text" [submit]="signIn" />
 } @else {
   <div
@@ -17,16 +17,16 @@
         hlmBtn
         variant="outline"
         size="icon"
-        [disabled]="!store.list()?.parent || store.loading()"
+        [disabled]="!filesPageStore.list()?.parent || filesPageStore.loading()"
         [attr.aria-label]="'files.up' | translate"
-        (click)="store.open(store.list()!.parent!)"
+        (click)="filesPageStore.open(filesPageStore.list()!.parent!)"
       >
         <ng-icon name="lucideArrowUp" class="rtl:rotate-0" aria-hidden="true" />
       </button>
       <p class="min-w-0 flex-1 basis-48">
         <span class="sr-only">{{ 'files.path' | translate }}</span>
         <code class="block truncate rounded bg-muted px-2 py-1.5 text-sm" dir="ltr">{{
-          store.list()?.path ?? store.session()!.home
+          filesPageStore.list()?.path ?? filesPageStore.session()!.home
         }}</code>
       </p>
       <div class="flex flex-wrap items-center gap-2">
@@ -34,9 +34,9 @@
           hlmBtn
           variant="outline"
           size="icon"
-          [disabled]="store.loading()"
+          [disabled]="filesPageStore.loading()"
           [attr.aria-label]="'files.refresh' | translate"
-          (click)="store.refresh()"
+          (click)="filesPageStore.refresh()"
         >
           <ng-icon name="lucideRefreshCw" aria-hidden="true" />
         </button>
@@ -57,22 +57,22 @@
           aria-hidden="true"
           (change)="chosen($event)"
         />
-        <button hlmBtn variant="ghost" (click)="store.signOut()">
+        <button hlmBtn variant="ghost" (click)="filesPageStore.signOut()">
           <ng-icon name="lucideLogOut" class="rtl:-scale-x-100" aria-hidden="true" />
           {{ 'files.close' | translate }}
           <span class="text-muted-foreground"
-            >(<span dir="ltr">{{ store.session()!.username }}</span
+            >(<span dir="ltr">{{ filesPageStore.session()!.username }}</span
             >)</span
           >
         </button>
       </div>
     </div>
 
-    @if (store.uploads().length) {
+    @if (filesPageStore.uploads().length) {
       <section class="grid gap-2 rounded-lg border p-3" aria-labelledby="uploads-title">
         <h2 id="uploads-title" class="text-sm font-medium">{{ 'files.uploads' | translate }}</h2>
         <ul class="grid gap-2">
-          @for (upload of store.uploads(); track upload.id) {
+          @for (upload of filesPageStore.uploads(); track upload.id) {
             <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-sm">
               <span class="truncate" dir="ltr">{{ upload.name }}</span>
               @switch (upload.state) {
@@ -109,7 +109,7 @@
       </section>
     }
 
-    @if (store.list(); as list) {
+    @if (filesPageStore.list(); as list) {
       @if (list.entries.length) {
         <laris-file-list
           [entries]="list.entries"
@@ -121,7 +121,7 @@
       } @else {
         <laris-empty-state icon="lucideFolderOpen" [text]="'files.empty' | translate" />
       }
-    } @else if (store.loading()) {
+    } @else if (filesPageStore.loading()) {
       <div class="grid gap-2" role="status" [attr.aria-label]="'files.loading' | translate">
         @for (row of [1, 2, 3, 4]; track row) {
           <hlm-skeleton class="h-10 w-full" />
@@ -140,7 +140,7 @@
 }
 
 <laris-file-name-dialog />
-<laris-file-delete-dialog (confirm)="store.delete($event)" />
+<laris-file-delete-dialog (confirm)="filesPageStore.delete($event)" />
 
 <hlm-alert-dialog #replaceDialog>
   <hlm-alert-dialog-content *hlmAlertDialogPortal>

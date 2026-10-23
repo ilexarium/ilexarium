@@ -11,14 +11,14 @@ import { AuditService } from '../audit/audit.service.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import { isSameOrigin } from '../realtime/same-origin.js';
 import { TerminalTickets } from './terminal-tickets.js';
-
-/** RFC 6455 §7.4.1. */
-const GOING_AWAY = 1001;
-const POLICY_VIOLATION = 1008;
-/** Output waiting for a slow browser: the shell pauses above HIGH, resumes below LOW. */
-const HIGH_WATER = 1024 * 1024;
-const LOW_WATER = 256 * 1024;
-const SESSION_RECHECK_MS = 30_000;
+import {
+  GOING_AWAY,
+  HIGH_WATER,
+  INTERNAL_ERROR,
+  LOW_WATER,
+  POLICY_VIOLATION,
+  SESSION_RECHECK_MS,
+} from './terminal.constants.js';
 
 interface OpenTerminal {
   client: WebSocket;
@@ -45,10 +45,10 @@ export class Terminals implements OnModuleDestroy {
   private readonly terminals = new Map<string, OpenTerminal>();
 
   constructor(
-    private readonly wsAuth: WsAuthenticator,
-    private readonly linux: LinuxSessions,
-    private readonly tickets: TerminalTickets,
-    private readonly audit: AuditService,
+    private readonly wsAuthenticator: WsAuthenticator,
+    private readonly linuxSessions: LinuxSessions,
+    private readonly terminalTickets: TerminalTickets,
+    private readonly auditService: AuditService,
   ) {}
 
   onModuleDestroy(): void {
@@ -63,7 +63,8 @@ export class Terminals implements OnModuleDestroy {
       await this.admit(client, request);
     } catch (error) {
       this.logger.error('Opening a terminal failed', (error as Error).stack);
-      if (client.readyState === WebSocket.OPEN) closeSocket(client, 1011, 'Internal Error');
+      if (client.readyState === WebSocket.OPEN)
+        closeSocket(client, INTERNAL_ERROR, 'Internal Error');
     }
   }
 
@@ -79,10 +80,10 @@ export class Terminals implements OnModuleDestroy {
     if (!auth?.session)
       return closeSocket(client, TERMINAL_CLOSE_CODES.sessionEnded, 'Session required');
     const appSessionId = auth.session.id;
-    if (!this.tickets.take(query.data.ticket, appSessionId)) {
+    if (!this.terminalTickets.take(query.data.ticket, appSessionId)) {
       return closeSocket(client, TERMINAL_CLOSE_CODES.ticketRefused, 'Ticket refused');
     }
-    const shell = await this.linux
+    const shell = await this.linuxSessions
       .shell(appSessionId, { cols: query.data.cols, rows: query.data.rows })
       .catch(() => null);
     if (client.readyState !== WebSocket.OPEN) {
@@ -112,7 +113,7 @@ export class Terminals implements OnModuleDestroy {
       if (client.readyState === WebSocket.OPEN || client.readyState === WebSocket.CONNECTING) {
         closeSocket(client, code, reason);
       }
-      void this.audit.tryRecord({
+      void this.auditService.tryRecord({
         action: 'terminal.close',
         outcome: 'success',
         ...actor,
@@ -141,7 +142,7 @@ export class Terminals implements OnModuleDestroy {
       if (ended) return;
       const bytes = Array.isArray(data) ? Buffer.concat(data) : Buffer.from(data as Buffer);
       if (isBinary) {
-        this.linux.touch(appSessionId);
+        this.linuxSessions.touch(appSessionId);
         if (!channel.write(bytes)) {
           client.pause();
           channel.once('drain', () => client.resume());
@@ -170,7 +171,7 @@ export class Terminals implements OnModuleDestroy {
     recheck.unref();
 
     this.terminals.set(appSessionId, { client, end });
-    await this.audit.tryRecord({
+    await this.auditService.tryRecord({
       action: 'terminal.open',
       outcome: 'success',
       ...actor,
@@ -184,7 +185,9 @@ export class Terminals implements OnModuleDestroy {
     client: WebSocket,
     request?: IncomingMessage,
   ): Promise<AuthenticationResult | null> {
-    const result = await this.wsAuth.authenticateConnection(client, request, { required: false });
+    const result = await this.wsAuthenticator.authenticateConnection(client, request, {
+      required: false,
+    });
     return result as AuthenticationResult | null;
   }
 }

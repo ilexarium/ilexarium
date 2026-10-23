@@ -28,10 +28,8 @@ import {
   LinuxSignInDto,
   NewFolderDto,
 } from './files.dto.js';
+import { SIGN_IN_LIMIT } from './files.constants.js';
 import { FilesService } from './files.service.js';
-
-/** Linux sign-in: few tries (sshd counts too). */
-const SIGN_IN_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 
 /**
  * Linux sign-in and the file explorer (docs/plans/files_and_terminal.md). Every route needs an
@@ -42,13 +40,13 @@ const SIGN_IN_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 @UseFilters(TooManyAttemptsFilter)
 export class FilesController {
   constructor(
-    private readonly linux: LinuxSessions,
-    private readonly files: FilesService,
+    private readonly linuxSessions: LinuxSessions,
+    private readonly filesService: FilesService,
   ) {}
 
   @Get('session')
   session(@CurrentSession() session: { id: string }): { session: LinuxSession | null } {
-    return { session: this.linux.current(session.id) };
+    return { session: this.linuxSessions.current(session.id) };
   }
 
   /** Sign in as a Linux user (the password goes to sshd, nowhere else). */
@@ -62,7 +60,7 @@ export class FilesController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<LinuxSession> {
-    return this.linux.signIn(session.id, body, { user, ip });
+    return this.linuxSessions.signIn(session.id, body, { user, ip });
   }
 
   @Delete('session')
@@ -72,7 +70,7 @@ export class FilesController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.linux.signOut(session.id, { user, ip });
+    return this.linuxSessions.signOut(session.id, { user, ip });
   }
 
   @Get('list')
@@ -80,7 +78,7 @@ export class FilesController {
     @Query() { path }: FilePathQueryDto,
     @CurrentSession() session: { id: string },
   ): Promise<FileList> {
-    return this.files.list(session.id, path);
+    return this.filesService.list(session.id, path);
   }
 
   @Get('summary')
@@ -88,7 +86,7 @@ export class FilesController {
     @Query() { path }: FilePathQueryDto,
     @CurrentSession() session: { id: string },
   ): Promise<FileSummary> {
-    return this.files.summary(session.id, path);
+    return this.filesService.summary(session.id, path);
   }
 
   /** Always an attachment, never shown in the browser: a file from a disk never runs as the app. */
@@ -98,7 +96,7 @@ export class FilesController {
     @CurrentSession() session: { id: string },
     @Res() res: Response,
   ): Promise<void> {
-    const file = await this.files.download(session.id, path);
+    const file = await this.filesService.download(session.id, path);
     res.status(200).set({
       'Content-Type': 'application/octet-stream',
       // RFC 6266 for any name: a Latin-1 fallback, and the real name encoded when it needs it.
@@ -123,7 +121,7 @@ export class FilesController {
   ): Promise<void> {
     const length = req.headers['content-length'];
     const size = length !== undefined && /^\d+$/.test(length) ? Number(length) : null;
-    return this.files.upload(
+    return this.filesService.upload(
       session.id,
       { folder: query.folder, name: query.name, replace: query.replace === 'true' },
       req,
@@ -135,7 +133,7 @@ export class FilesController {
   @Post('folder')
   @HttpCode(204)
   newFolder(@Body() body: NewFolderDto, @CurrentSession() session: { id: string }): Promise<void> {
-    return this.files.newFolder(session.id, body.parent, body.name);
+    return this.filesService.newFolder(session.id, body.parent, body.name);
   }
 
   @Post('rename')
@@ -146,7 +144,7 @@ export class FilesController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.files.rename(session.id, body.from, body.to, { user, ip });
+    return this.filesService.rename(session.id, body.from, body.to, { user, ip });
   }
 
   @Delete()
@@ -157,6 +155,6 @@ export class FilesController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.files.delete(session.id, path, { user, ip });
+    return this.filesService.delete(session.id, path, { user, ip });
   }
 }

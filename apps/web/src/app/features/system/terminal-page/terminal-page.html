@@ -1,10 +1,10 @@
-@if (!store.checked()) {
+@if (!terminalPageStore.checked()) {
   <div class="grid gap-2" role="status" [attr.aria-label]="'terminal.connecting' | translate">
     <hlm-skeleton class="h-48 w-full max-w-md" />
   </div>
-} @else if (!store.session()) {
+} @else if (!terminalPageStore.session()) {
   <div class="grid gap-4">
-    @if (store.closedReason(); as reason) {
+    @if (terminalPageStore.closedReason(); as reason) {
       <div hlmAlert class="max-w-md" role="status">
         <p hlmAlertDescription>{{ 'terminal.closed.' + reason | translate }}</p>
       </div>
@@ -16,7 +16,7 @@
     />
   </div>
 } @else {
-  @switch (store.phase()) {
+  @switch (terminalPageStore.phase()) {
     @case ('locked') {
       <section hlmCard class="max-w-md" aria-labelledby="terminal-unlock-title">
         <div hlmCardHeader>
@@ -65,9 +65,11 @@
       <div class="grid max-w-md gap-4">
         <div hlmAlert role="status">
           <h2 hlmAlertTitle>{{ 'terminal.closed.title' | translate }}</h2>
-          <p hlmAlertDescription>{{ 'terminal.closed.' + store.closedReason() | translate }}</p>
+          <p hlmAlertDescription>
+            {{ 'terminal.closed.' + terminalPageStore.closedReason() | translate }}
+          </p>
         </div>
-        <button hlmBtn class="justify-self-start" (click)="store.lock()">
+        <button hlmBtn class="justify-self-start" (click)="terminalPageStore.lock()">
           {{ 'terminal.openAgain' | translate }}
         </button>
       </div>
@@ -76,13 +78,13 @@
       <div class="flex min-h-0 flex-1 flex-col gap-2">
         <div class="flex flex-wrap items-center gap-2">
           <p class="flex-1 text-sm text-muted-foreground" aria-live="polite">
-            @if (store.phase() === 'connecting') {
+            @if (terminalPageStore.phase() === 'connecting') {
               {{ 'terminal.connecting' | translate }}
             } @else {
-              <span dir="ltr">{{ store.session()!.username }}</span>
+              <span dir="ltr">{{ terminalPageStore.session()!.username }}</span>
             }
           </p>
-          <button hlmBtn variant="outline" size="sm" (click)="store.close()">
+          <button hlmBtn variant="outline" size="sm" (click)="terminalPageStore.close()">
             <ng-icon name="lucideX" aria-hidden="true" />
             {{ 'terminal.close' | translate }}
           </button>
@@ -91,8 +93,8 @@
           #view
           [dark]="theme.dark()"
           (ready)="connect($event)"
-          (resized)="store.resize($event)"
-          (data)="store.send($event)"
+          (resized)="terminalPageStore.resize($event)"
+          (data)="terminalPageStore.send($event)"
         />
       </div>
     }

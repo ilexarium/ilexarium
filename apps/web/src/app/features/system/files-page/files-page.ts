@@ -20,7 +20,8 @@ import { FileList } from '../file-list/file-list';
 import { FileNameDialog } from '../file-name-dialog/file-name-dialog';
 import { LinuxSignIn } from '../linux-sign-in/linux-sign-in';
 import type { FileAction } from '../files.model';
-import { FilesPageStore, joinPath } from './files-page-store';
+import { joinPath } from '../files-paths';
+import { FilesPageStore } from './files-page-store';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 /**
@@ -59,7 +60,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
   templateUrl: './files-page.html',
 })
 export class FilesPage {
-  protected readonly store = inject(FilesPageStore);
+  protected readonly filesPageStore = inject(FilesPageStore);
   private readonly nameDialog = viewChild.required(FileNameDialog);
   private readonly deleteDialog = viewChild.required(FileDeleteDialog);
   private readonly replaceDialog = viewChild.required<HlmAlertDialog>('replaceDialog');
@@ -68,26 +69,26 @@ export class FilesPage {
   protected readonly dragging = signal(false);
   /** Uploads whose name is taken there: one question for all of them. */
   protected readonly taken = signal<File[]>([]);
-  protected readonly signIn = (request: LinuxSignInRequest) => this.store.signIn(request);
-  protected readonly urlFor = (entry: FileEntry) => this.store.downloadUrl(entry);
+  protected readonly signIn = (request: LinuxSignInRequest) => this.filesPageStore.signIn(request);
+  protected readonly urlFor = (entry: FileEntry) => this.filesPageStore.downloadUrl(entry);
   /** The names in the folder shown that are being renamed or deleted. */
   protected readonly busy = computed(() => {
-    const folder = this.store.list()?.path;
+    const folder = this.filesPageStore.list()?.path;
     if (!folder) return [];
-    return this.store
+    return this.filesPageStore
       .list()!
       .entries.map((e) => e.name)
-      .filter((name) => this.store.pending().includes(joinPath(folder, name)));
+      .filter((name) => this.filesPageStore.pending().includes(joinPath(folder, name)));
   });
 
   protected openEntry(entry: FileEntry): void {
-    const folder = this.store.list()?.path;
-    if (folder) void this.store.open(joinPath(folder, entry.name));
+    const folder = this.filesPageStore.list()?.path;
+    if (folder) void this.filesPageStore.open(joinPath(folder, entry.name));
   }
 
   protected act(action: FileAction): void {
     if (action.kind === 'rename') this.nameDialog().open({ kind: 'rename', entry: action.entry });
-    else this.deleteDialog().open(action.entry, this.store.summary(action.entry));
+    else this.deleteDialog().open(action.entry, this.filesPageStore.summary(action.entry));
   }
 
   protected newFolder(): void {
@@ -122,11 +123,11 @@ export class FilesPage {
   /** The question's confirm: uploads the taken files again, replacing what's there. */
   protected async replace(): Promise<void> {
     this.replaceDialog().close();
-    await this.store.upload(this.taken(), true);
+    await this.filesPageStore.upload(this.taken(), true);
   }
 
   private async upload(files: File[]): Promise<void> {
-    const taken = await this.store.upload(files);
+    const taken = await this.filesPageStore.upload(files);
     if (taken.length) {
       this.taken.set(taken);
       this.replaceDialog().open();
