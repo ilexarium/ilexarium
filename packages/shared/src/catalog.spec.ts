@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  type CatalogMeta,
+  CATALOG_PATH,
+  catalogEntryPath,
+  catalogIconPath,
   catalogMetaSchema,
   defaultValues,
   isPlainAbsolutePath,
   templatePlaceholders,
   TEXT_PATTERNS,
+  type CatalogMeta,
   valuesSchema,
 } from './catalog.js';
 
@@ -258,5 +261,14 @@ describe('defaultValues', () => {
       LOG_LEVEL: 'info',
       TELEMETRY: false,
     });
+  });
+});
+
+describe('catalog paths', () => {
+  it('put the encoded id in the path', () => {
+    expect(CATALOG_PATH).toBe('/api/catalog');
+    expect(catalogEntryPath('immich')).toBe('/api/catalog/immich');
+    expect(catalogIconPath('immich')).toBe('/api/catalog/immich/icon');
+    expect(catalogEntryPath('a/../b')).toBe('/api/catalog/a%2F..%2Fb');
   });
 });

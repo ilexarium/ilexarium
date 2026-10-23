@@ -324,3 +324,16 @@ export function defaultValues(meta: CatalogMeta): FieldValues {
   }
   return values;
 }
+
+/** The catalog: `GET` its entries. */
+export const CATALOG_PATH = '/api/catalog';
+
+/** One catalog entry: `GET` its details. */
+export function catalogEntryPath(id: string): string {
+  return `${CATALOG_PATH}/${encodeURIComponent(id)}`;
+}
+
+/** An entry's icon: an SVG, only ever shown through <img>. */
+export function catalogIconPath(id: string): string {
+  return `${catalogEntryPath(id)}/icon`;
+}

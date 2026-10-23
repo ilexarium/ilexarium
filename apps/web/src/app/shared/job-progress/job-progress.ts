@@ -1,23 +1,15 @@
 import { Component, computed, input } from '@angular/core';
 import type { JobPhase, Job } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import {
-  lucideCircleCheck,
-  lucideCircleDashed,
-  lucideCircleX,
-  lucideLoaderCircle,
-} from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
-import { STEP_ICONS, STEPS } from './job-progress.constants';
+import { JOB_ICONS, JOB_STEPS, STEP_ICONS } from './job-progress.constants';
 import type { StepState } from './job-progress.model';
 
 /** Its output is always shown as text, left to right (it can hold anything). */
 @Component({
   selector: 'laris-job-progress',
   imports: [NgIcon, TranslatePipe],
-  providers: [
-    provideIcons({ lucideCircleCheck, lucideCircleDashed, lucideCircleX, lucideLoaderCircle }),
-  ],
+  providers: [provideIcons(JOB_ICONS)],
   templateUrl: './job-progress.html',
 })
 export class JobProgress {
@@ -27,7 +19,7 @@ export class JobProgress {
 
   protected readonly steps = computed(() => {
     const job = this.job();
-    const steps = this.phases() ?? STEPS[job.kind];
+    const steps = this.phases() ?? JOB_STEPS[job.kind];
     const reached = job.phase ? steps.indexOf(job.phase) : -1;
     return steps.map((phase, i): { phase: JobPhase; state: StepState } => {
       if (job.status === 'succeeded') return { phase, state: 'done' };

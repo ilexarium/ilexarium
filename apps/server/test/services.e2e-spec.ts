@@ -18,6 +18,13 @@ import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
 import { proxyReachable } from './docker-proxy.js';
 import { testHasher } from './realtime-client.js';
+import {
+  CATALOG_PATH,
+  catalogEntryPath,
+  catalogIconPath,
+  SERVICES_PATH,
+  servicePath,
+} from '@laris/shared';
 
 // Installing and removing a service end to end: the app, the executor in direct mode, the real
 // wrapper (system/wrappers/laris-compose.mts) and the real Docker daemon. The catalog is a copy
@@ -39,15 +46,15 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
   let port: number;
 
   const api = () => ({
-    get: (path: string) => request(origin).get(`/api${path}`).set('Cookie', cookie),
+    get: (path: string) => request(origin).get(path).set('Cookie', cookie),
     post: (path: string, body: object) =>
-      request(origin).post(`/api${path}`).set('Origin', origin).set('Cookie', cookie).send(body),
+      request(origin).post(path).set('Origin', origin).set('Cookie', cookie).send(body),
     delete: (path: string) =>
-      request(origin).delete(`/api${path}`).set('Origin', origin).set('Cookie', cookie),
+      request(origin).delete(path).set('Origin', origin).set('Cookie', cookie),
   });
 
   async function service(): Promise<InstalledService | undefined> {
-    const res = await api().get('/services').expect(200);
+    const res = await api().get(SERVICES_PATH).expect(200);
     return (res.body.services as InstalledService[]).find((s) => s.catalogId === 'test-hello');
   }
 
@@ -55,7 +62,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
   async function settled(timeoutMs = 180_000): Promise<{ service?: InstalledService; job: Job }> {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
-      const res = await api().get('/catalog/test-hello').expect(200);
+      const res = await api().get(catalogEntryPath('test-hello')).expect(200);
       if (!['installing', 'removing'].includes(res.body.status)) break;
       if (Date.now() > deadline) throw new Error('job did not finish');
       await new Promise((r) => setTimeout(r, 500));
@@ -63,7 +70,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
     const jobs = await app
       .get(PrismaService)
       .serviceJob.findMany({ orderBy: { startedAt: 'desc' }, take: 1 });
-    const job = (await api().get(`/services/jobs/${jobs[0].id}`).expect(200)).body as Job;
+    const job = (await api().get(`${SERVICES_PATH}/jobs/${jobs[0].id}`).expect(200)).body as Job;
     return { service: await service(), job };
   }
 
@@ -153,7 +160,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
   }, 60_000);
 
   it('lists the catalog and suggests values for this machine', async () => {
-    const list = await api().get('/catalog').expect(200);
+    const list = await api().get(CATALOG_PATH).expect(200);
     expect(list.body).toEqual([
       {
         id: 'test-hello',
@@ -165,11 +172,11 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
         backupRestoreNote: false,
       },
     ]);
-    const details = await api().get('/catalog/test-hello').expect(200);
+    const details = await api().get(catalogEntryPath('test-hello')).expect(200);
     expect(details.body.suggested.SITE_DIR).toBe(join(storage, 'test-hello', 'site'));
     expect(details.body.images).toEqual([expect.stringMatching(/^busybox:1\.37@sha256:/)]);
     expect(details.body.keptSecrets).toEqual([]);
-    const icon = await api().get('/catalog/test-hello/icon').expect(200);
+    const icon = await api().get(catalogIconPath('test-hello')).expect(200);
     expect(icon.headers['content-type']).toMatch(/^image\/svg\+xml/);
     expect(icon.headers['content-security-policy']).toContain("default-src 'none'");
   });
@@ -177,7 +184,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
   it('installs, serves, refuses a second install, removes keeping the data — and reinstalls with the same secret', async () => {
     const site = join(storage, 'test-hello', 'site');
     const deploy = await api()
-      .post('/services', { catalogId: 'test-hello', values: { WEB_PORT: port, SITE_DIR: site } })
+      .post(SERVICES_PATH, { catalogId: 'test-hello', values: { WEB_PORT: port, SITE_DIR: site } })
       .expect(202);
     expect(deploy.body).toEqual({ serviceId: expect.any(String), jobId: expect.any(String) });
 
@@ -219,20 +226,20 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
     expect(JSON.stringify(audit)).not.toContain(token);
 
     const again = await api()
-      .post('/services', {
+      .post(SERVICES_PATH, {
         catalogId: 'test-hello',
         values: { WEB_PORT: port + 1, SITE_DIR: site },
       })
       .expect(409);
     expect(again.body.code).toBe('service_already_installed');
 
-    await api().delete(`/services/${deploy.body.serviceId}`).expect(202);
+    await api().delete(servicePath(deploy.body.serviceId)).expect(202);
     const removed = await settled();
     expect(removed.job).toMatchObject({ kind: 'remove', status: 'succeeded' });
     expect(removed.service).toBeUndefined(); // no longer listed as installed
     expect(await projectContainers()).toEqual([]);
     expect(existsSync(join(site, 'index.html'))).toBe(true); // data kept
-    const catalog = await api().get('/catalog/test-hello').expect(200);
+    const catalog = await api().get(catalogEntryPath('test-hello')).expect(200);
     expect(catalog.body).toMatchObject({
       status: 'removed',
       suggested: { WEB_PORT: port, SITE_DIR: site },
@@ -240,7 +247,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
 
     // Reinstall: the previous settings and the same generated secret.
     const reinstall = await api()
-      .post('/services', { catalogId: 'test-hello', values: { WEB_PORT: port, SITE_DIR: site } })
+      .post(SERVICES_PATH, { catalogId: 'test-hello', values: { WEB_PORT: port, SITE_DIR: site } })
       .expect(202);
     expect(reinstall.body.serviceId).toBe(deploy.body.serviceId);
     expect((await settled()).service?.status).toBe('installed');
@@ -251,7 +258,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
       app.get(SecretsService).decrypt(restored[0].value, `service:${deploy.body.serviceId}:TOKEN`),
     ).toBe(token);
 
-    await api().delete(`/services/${deploy.body.serviceId}`).expect(202);
+    await api().delete(servicePath(deploy.body.serviceId)).expect(202);
     expect((await settled()).job.status).toBe('succeeded');
   }, 300_000);
 
@@ -260,7 +267,7 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
     await new Promise<void>((r) => server.listen(port, '127.0.0.1', r));
     try {
       const inUse = await api()
-        .post('/services', {
+        .post(SERVICES_PATH, {
           catalogId: 'test-hello',
           values: { WEB_PORT: port, SITE_DIR: join(storage, 'test-hello', 'site') },
         })
@@ -272,26 +279,29 @@ describe.skipIf(!reachable)('services (e2e, real Docker)', () => {
       server.close();
     }
     const outside = await api()
-      .post('/services', { catalogId: 'test-hello', values: { WEB_PORT: port, SITE_DIR: '/etc' } })
+      .post(SERVICES_PATH, {
+        catalogId: 'test-hello',
+        values: { WEB_PORT: port, SITE_DIR: '/etc' },
+      })
       .expect(400);
     expect(outside.body.errors).toEqual([
       { field: 'SITE_DIR', code: 'path_not_allowed', message: 'errors.path_not_allowed' },
     ]);
     const bad = await api()
-      .post('/services', {
+      .post(SERVICES_PATH, {
         catalogId: 'test-hello',
         values: { WEB_PORT: 80, SITE_DIR: '/x', TOKEN: 'mine' },
       })
       .expect(400);
     expect(bad.body.errors.map((e: { field: string }) => e.field).sort()).toEqual(['', 'WEB_PORT']);
-    await api().post('/services', { catalogId: 'nope', values: {} }).expect(404);
+    await api().post(SERVICES_PATH, { catalogId: 'nope', values: {} }).expect(404);
     expect(await projectContainers()).toEqual([]);
   });
 
   it('needs a session, and refuses other origins', async () => {
-    await request(origin).get('/api/services').expect(401);
+    await request(origin).get(SERVICES_PATH).expect(401);
     await request(origin)
-      .post('/api/services')
+      .post(SERVICES_PATH)
       .set('Origin', 'https://evil.example')
       .set('Cookie', cookie)
       .send({ catalogId: 'test-hello', values: {} })

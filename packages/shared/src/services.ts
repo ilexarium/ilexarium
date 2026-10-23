@@ -16,12 +16,13 @@ import { jobSchema } from './jobs.js';
 /** Compose project of an installed service: `hl-<catalog id>` (never the platform's own stack). */
 export const serviceProject = (catalogId: string) => `hl-${catalogId}`;
 
-export const CATALOG_PATH = '/api/catalog';
+/** Installed services: `GET` the list, `POST` an install (`DeployRequest`). */
 export const SERVICES_PATH = '/api/services';
-export const catalogEntryPath = (id: string) => `${CATALOG_PATH}/${encodeURIComponent(id)}`;
-/** An SVG, only ever shown through <img>. */
-export const catalogIconPath = (id: string) => `${catalogEntryPath(id)}/icon`;
-export const servicePath = (id: string) => `${SERVICES_PATH}/${encodeURIComponent(id)}`;
+
+/** One installed service: `DELETE` removes it. */
+export function servicePath(id: string): string {
+  return `${SERVICES_PATH}/${encodeURIComponent(id)}`;
+}
 
 const fieldValueSchema = z.union([z.string(), z.number(), z.boolean()]);
 const fieldValuesSchema = z.record(z.string().regex(FIELD_KEY_PATTERN), fieldValueSchema);
@@ -82,7 +83,7 @@ export type DeployRequest = z.infer<typeof deployRequestSchema>;
 export const catalogIdParamsSchema = z.strictObject({ id: z.string().regex(CATALOG_ID_PATTERN) });
 export type CatalogIdParams = z.infer<typeof catalogIdParamsSchema>;
 
-/** Route parameter of `DELETE /api/services/:id` and `GET /api/services/jobs/:id`. */
+/** Route parameter of `DELETE /api/services/:id`, and of `GET /api/services/jobs/:id` (the install test reads a job's whole output there). */
 export const serviceIdParamsSchema = z.strictObject({ id: z.uuid() });
 export type ServiceIdParams = z.infer<typeof serviceIdParamsSchema>;
 

@@ -17,5 +17,5 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
   templateUrl: './services-page.html',
 })
 export class ServicesPage {
-  protected readonly store = inject(ServicesPageStore);
+  protected readonly servicesPageStore = inject(ServicesPageStore);
 }

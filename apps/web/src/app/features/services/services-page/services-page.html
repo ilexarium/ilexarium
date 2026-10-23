@@ -3,7 +3,7 @@
     <h2 id="installed-title" class="text-lg font-semibold">
       {{ 'services.installed.title' | translate }}
     </h2>
-    @if (store.installed(); as services) {
+    @if (servicesPageStore.installed(); as services) {
       @if (services.length === 0) {
         <laris-empty-state icon="lucidePackage" [text]="'services.installed.none' | translate" />
       } @else {
@@ -11,9 +11,9 @@
           @for (service of services; track service.id) {
             <laris-installed-service
               [service]="service"
-              [runtime]="store.runtimes().get(service.catalogId) ?? null"
-              [backup]="store.backups().get(service.id) ?? null"
-              (remove)="store.remove(service)"
+              [runtime]="servicesPageStore.runtimes().get(service.catalogId) ?? null"
+              [backup]="servicesPageStore.backups().get(service.id) ?? null"
+              (remove)="servicesPageStore.remove(service)"
             />
           }
         </div>
@@ -32,13 +32,16 @@
       </h2>
       <p class="text-sm text-muted-foreground">{{ 'services.catalog.description' | translate }}</p>
     </div>
-    @if (store.catalog(); as entries) {
+    @if (servicesPageStore.catalog(); as entries) {
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         @for (entry of entries; track entry.id) {
-          <laris-catalog-card [entry]="entry" [status]="store.statuses().get(entry.id) ?? null" />
+          <laris-catalog-card
+            [entry]="entry"
+            [status]="servicesPageStore.statuses().get(entry.id) ?? null"
+          />
         }
       </div>
-    } @else if (store.catalogFailed()) {
+    } @else if (servicesPageStore.catalogFailed()) {
       <p role="alert" class="text-sm text-destructive">
         {{ 'services.catalog.failed' | translate }}
       </p>
