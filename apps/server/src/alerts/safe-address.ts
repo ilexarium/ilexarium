@@ -1,7 +1,7 @@
 import { BlockList, isIP } from 'node:net';
 import ipaddr from 'ipaddr.js';
 import { lookup as dnsLookup } from 'node:dns/promises';
-import { LOOPBACK_RANGES, PRIVATE_RANGES, REFUSED_RANGES } from './alerts.constants.js';
+import { LOOPBACK_RANGES, PRIVATE_RANGES, REFUSED_RANGES } from './safe-address.constants.js';
 import { DeliveryError } from './alerts.model.js';
 
 /** Resolves a name to all of its addresses (Node's `dns.promises.lookup` with `all: true`). */
@@ -18,7 +18,7 @@ export interface SafeTarget {
 
 export const systemLookup: Lookup = (host) => dnsLookup(host, { all: true, verbatim: true });
 
-function blockList(entries: [string, number, 'ipv4' | 'ipv6'][]): BlockList {
+function blockList(entries: readonly (readonly [string, number, 'ipv4' | 'ipv6'])[]): BlockList {
   const list = new BlockList();
   for (const [network, prefix, family] of entries) list.addSubnet(network, prefix, family);
   return list;

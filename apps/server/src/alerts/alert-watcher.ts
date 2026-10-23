@@ -101,10 +101,10 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
 
   private start(): void {
     const containerRules$ = merge(
-      this.dockerEvents().pipe(concatMap((event) => this.safely(this.onEvent(event), 'event'))),
+      this.dockerEvents().pipe(concatMap((event) => this.step(() => this.onEvent(event), 'event'))),
       interval(CONTAINER_POLL_MS).pipe(
         startWith(0),
-        exhaustMap(() => this.safely(this.listContainers(), 'list')),
+        exhaustMap(() => this.step(() => this.listContainers(), 'list')),
       ),
       this.containerActionsService.requests$.pipe(
         concatMap(async (request) => {
@@ -114,11 +114,12 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
       interval(CONTAINER_TICK_MS),
     ).pipe(
       exhaustMap(() =>
-        this.safely(
-          this.alertRecords.reconcile(
-            CONTAINER_ALERT_KINDS,
-            this.containers.conditions(Date.now()),
-          ),
+        this.step(
+          () =>
+            this.alertRecords.reconcile(
+              CONTAINER_ALERT_KINDS,
+              this.containers.conditions(Date.now()),
+            ),
           'containers',
         ),
       ),
@@ -126,12 +127,12 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
 
     const diskUsage$ = interval(SLOW_POLL_MS).pipe(
       startWith(0),
-      exhaustMap(() => this.safely(this.checkDiskUsage(), 'disk usage')),
+      exhaustMap(() => this.step(() => this.checkDiskUsage(), 'disk usage')),
     );
 
     const disksMissing$ = merge(interval(SLOW_POLL_MS), this.diskManager.changes$).pipe(
       startWith(0),
-      exhaustMap(() => this.safely(this.checkDisksMissing(), 'disks')),
+      exhaustMap(() => this.step(() => this.checkDisksMissing(), 'disks')),
     );
 
     const backups$ = merge(
@@ -142,12 +143,12 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
     ).pipe(
       auditTime(BACKUP_SETTLE_MS),
       startWith(0),
-      exhaustMap(() => this.safely(this.checkBackups(), 'backups')),
+      exhaustMap(() => this.step(() => this.checkBackups(), 'backups')),
     );
 
     const prune$ = interval(PRUNE_MS).pipe(
       startWith(0),
-      exhaustMap(() => this.safely(this.alertRecords.prune(new Date()), 'prune')),
+      exhaustMap(() => this.step(() => this.alertRecords.prune(new Date()), 'prune')),
     );
 
     for (const stream of [containerRules$, diskUsage$, disksMissing$, backups$, prune$]) {
@@ -265,7 +266,7 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   /** One step of a stream: its error is logged, never reaches the subscription. */
-  private safely<T>(work: Promise<T>, what: string): Observable<T> {
+  private step<T>(work: () => Promise<T>, what: string): Observable<T> {
     return safely(work, (error) =>
       this.logger.warn(`Watching ${what} failed: ${(error as Error).message}`),
     );

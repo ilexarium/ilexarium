@@ -40,8 +40,10 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
       this.alertRecords.events$
         .pipe(
           concatMap((event) =>
-            safely(this.handle(event), (error) =>
-              this.logger.error('Sending an alert message failed', (error as Error).stack),
+            safely(
+              () => this.handle(event),
+              (error) =>
+                this.logger.error('Sending an alert message failed', (error as Error).stack),
             ),
           ),
         )
@@ -49,8 +51,9 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
       interval(REMINDER_CHECK_MS)
         .pipe(
           exhaustMap(() =>
-            safely(this.remind(), (error) =>
-              this.logger.error('Sending reminders failed', (error as Error).stack),
+            safely(
+              () => this.remind(),
+              (error) => this.logger.error('Sending reminders failed', (error as Error).stack),
             ),
           ),
         )

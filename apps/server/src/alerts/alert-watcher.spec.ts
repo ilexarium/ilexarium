@@ -15,9 +15,8 @@ import type { OperationSlot } from '../jobs/operation-slot.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { AlertRecords } from './alert-records.js';
 import { AlertWatcher } from './alert-watcher.js';
-import { CONTAINER_TICK_MS, SLOW_POLL_MS } from './alerts.constants.js';
+import { CONTAINER_TICK_MS, DOWN_AFTER_MS, SLOW_POLL_MS } from './alerts.constants.js';
 import type { AlertCondition } from './alerts.model.js';
-import { DOWN_AFTER_MS } from './alerts.constants.js';
 
 /** Docker's events as an abortable stream the test pushes into. */
 class EventFeed {

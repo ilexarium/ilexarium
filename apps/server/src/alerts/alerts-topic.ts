@@ -1,16 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { AlertsStatus } from '@laris/shared';
-import {
-  auditTime,
-  catchError,
-  EMPTY,
-  from,
-  interval,
-  merge,
-  type Observable,
-  switchMap,
-} from 'rxjs';
+import { auditTime, interval, merge, type Observable, switchMap } from 'rxjs';
 import { CatalogService } from '../catalog/catalog.service.js';
+import { safely } from '../common/safely.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { AlertChannels } from './alert-channels.js';
@@ -20,6 +12,7 @@ import { ALERTS_PUBLISH_MS, ALERTS_REFRESH_MS } from './alerts.constants.js';
 /** The `alerts` topic: open alerts, recently closed ones, the last delivery problem. */
 @Injectable()
 export class AlertsTopic implements TopicSource<'alerts'> {
+  private readonly logger = new Logger(AlertsTopic.name);
   readonly topic = 'alerts';
   readonly updates$: Observable<AlertsStatus>;
 
@@ -35,7 +28,12 @@ export class AlertsTopic implements TopicSource<'alerts'> {
       interval(ALERTS_REFRESH_MS),
     ).pipe(
       auditTime(ALERTS_PUBLISH_MS),
-      switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
+      switchMap(() =>
+        safely(
+          () => this.snapshot(),
+          (error) => this.logger.warn(`The alerts snapshot failed: ${(error as Error).message}`),
+        ),
+      ),
     );
     realtimeSubscriptions.registerSource(this);
   }
