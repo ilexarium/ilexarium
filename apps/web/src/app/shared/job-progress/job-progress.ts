@@ -8,19 +8,10 @@ import {
   lucideLoaderCircle,
 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
+import { STEP_ICONS, STEPS } from './job-progress.constants';
+import type { StepState } from './job-progress.model';
 
-type StepState = 'done' | 'current' | 'failed' | 'waiting';
-
-const STEPS: Record<Job['kind'], JobPhase[]> = {
-  deploy: ['pulling', 'starting', 'done'],
-  remove: ['removing', 'done'],
-  restore: ['stopping', 'restoring', 'starting', 'done'],
-};
-
-/**
- * A job's progress: its steps (Downloading → Starting → Ready, or Removing → Done), what went
- * wrong if it failed, and its output — always shown as text, left to right.
- */
+/** Its output is always shown as text, left to right (it can hold anything). */
 @Component({
   selector: 'laris-job-progress',
   imports: [NgIcon, TranslatePipe],
@@ -48,10 +39,5 @@ export class JobProgress {
     });
   });
 
-  protected readonly icons: Record<StepState, string> = {
-    done: 'lucideCircleCheck',
-    current: 'lucideLoaderCircle',
-    failed: 'lucideCircleX',
-    waiting: 'lucideCircleDashed',
-  };
+  protected readonly icons = STEP_ICONS;
 }

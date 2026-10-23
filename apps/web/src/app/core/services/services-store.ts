@@ -11,28 +11,23 @@ interface ServicesState {
 
 const initialState: ServicesState = { services: null };
 
-/**
- * The installed services and their running job, fed by the `services` topic while a page
- * `watch()`es it (the server pushes every change). Global, so the list is there at once when
- * coming back; reset on sign-out like every global store.
- */
+/** Global, so the list is there at once when coming back to a page. */
 export const ServicesStore = signalStore(
   { providedIn: 'root' },
   withState<ServicesState>(initialState),
-  withMethods((store, realtime = inject(RealtimeService)) => ({
-    /** Subscribes until the returned function is called. */
+  withMethods((store, realtimeService = inject(RealtimeService)) => ({
     watch(): () => void {
-      return realtime.subscribe('services', (message) => {
+      return realtimeService.subscribe('services', (message) => {
         if (message.event === 'services:snapshot' || message.event === 'services:update') {
           patchState(store, { services: message.data.services });
         }
       });
     },
   })),
-  withHooks((store, auth = inject(AuthStore)) => ({
+  withHooks((store, authStore = inject(AuthStore)) => ({
     onInit() {
       effect(() => {
-        if (!auth.isAuthenticated()) patchState(store, initialState);
+        if (!authStore.isAuthenticated()) patchState(store, initialState);
       });
     },
   })),

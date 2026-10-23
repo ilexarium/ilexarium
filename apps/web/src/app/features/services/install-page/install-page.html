@@ -2,9 +2,9 @@
   <a hlmBtn variant="link" class="justify-self-start px-0" routerLink="/services">
     {{ 'services.back' | translate }}
   </a>
-  @if (store.details(); as details) {
+  @if (installPageStore.details(); as details) {
     <laris-install-form [details]="details" />
-  } @else if (store.problem(); as problem) {
+  } @else if (installPageStore.problem(); as problem) {
     <p role="alert" class="text-sm text-destructive">
       {{ (problem === 'notFound' ? 'services.notFound' : 'services.catalog.failed') | translate }}
     </p>

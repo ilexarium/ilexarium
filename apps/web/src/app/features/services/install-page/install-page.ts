@@ -8,10 +8,6 @@ import { map } from 'rxjs';
 import { InstallForm } from '../install-form/install-form';
 import { InstallPageStore } from './install-page-store';
 
-/**
- * Installing one catalog entry (`/services/install/:id`): its settings, then what it will be able
- * to do. UI only: loading and installing live in its page store.
- */
 @Component({
   selector: 'laris-install-page',
   imports: [HlmButton, HlmSkeleton, InstallForm, RouterLink, TranslatePipe],
@@ -19,7 +15,7 @@ import { InstallPageStore } from './install-page-store';
   templateUrl: './install-page.html',
 })
 export class InstallPage {
-  protected readonly store = inject(InstallPageStore);
+  protected readonly installPageStore = inject(InstallPageStore);
 
   /** The route's `:id`. */
   private readonly id = toSignal(
@@ -30,7 +26,7 @@ export class InstallPage {
   constructor() {
     effect(() => {
       const id = this.id();
-      if (id) void this.store.load(id);
+      if (id) void this.installPageStore.load(id);
     });
   }
 }

@@ -23,27 +23,21 @@ interface ServicesPageState {
   catalogFailed: boolean;
 }
 
-/**
- * The Services page's data, provided by the page and gone with it (not global): the catalog,
- * each entry's state, each installed service's runtime state, and Remove. Follows the
- * `services` topic (our installs and jobs) and the `containers` topic (what Docker is doing)
- * while the page is open.
- */
 export const ServicesPageStore = signalStore(
   withState<ServicesPageState>({ catalog: null, catalogFailed: false }),
   withComputed(
     (
       store,
-      services = inject(ServicesStore),
-      monitoring = inject(MonitoringStore),
-      backups = inject(BackupsStore),
+      servicesStore = inject(ServicesStore),
+      monitoringStore = inject(MonitoringStore),
+      backupsStore = inject(BackupsStore),
     ) => ({
       /** The installed services, live; null until the first snapshot. */
-      installed: computed(() => services.services()),
+      installed: computed(() => servicesStore.services()),
 
       /** Each catalog entry's state: an installed one's own, else removed or never installed. */
       statuses: computed(() => {
-        const installed = services.services();
+        const installed = servicesStore.services();
         const statuses = new Map((store.catalog() ?? []).map((entry) => [entry.id, entry.status]));
         if (!installed) return statuses;
         // Not in the installed list (any more): never installed, or removed — its settings stay.
@@ -54,10 +48,10 @@ export const ServicesPageStore = signalStore(
 
       /** What each installed service's containers (Compose project `hl-<id>`) are doing. */
       runtimes: computed(() => {
-        const snapshot = monitoring.containers();
+        const snapshot = monitoringStore.containers();
         const runtimes = new Map<string, ServiceRuntime>();
         if (!snapshot?.dockerAvailable) return runtimes;
-        for (const service of services.services() ?? []) {
+        for (const service of servicesStore.services() ?? []) {
           const project = serviceProject(service.catalogId);
           const containers = snapshot.containers.filter((c) => c.composeProject === project);
           const running = containers.filter((c) => c.state === 'running');
@@ -78,9 +72,9 @@ export const ServicesPageStore = signalStore(
       /** Each installed service's backups, by service id — only once backups are set up. */
       backups: computed(() => {
         const result = new Map<string, ServiceBackup>();
-        if (!backups.configured()) return result;
-        const items = backups.services();
-        for (const service of services.services() ?? []) {
+        if (!backupsStore.configured()) return result;
+        const items = backupsStore.services();
+        for (const service of servicesStore.services() ?? []) {
           const item = items.get(service.id);
           result.set(
             service.id,
@@ -97,10 +91,10 @@ export const ServicesPageStore = signalStore(
       }),
     }),
   ),
-  withMethods((store, api = inject(ServicesApi), translator = inject(Translator)) => ({
+  withMethods((store, servicesApi = inject(ServicesApi), translator = inject(Translator)) => ({
     async loadCatalog(): Promise<void> {
       try {
-        patchState(store, { catalog: await api.catalog(), catalogFailed: false });
+        patchState(store, { catalog: await servicesApi.catalog(), catalogFailed: false });
       } catch {
         patchState(store, { catalogFailed: true });
       }
@@ -109,7 +103,7 @@ export const ServicesPageStore = signalStore(
     /** Starts the removal (already confirmed); its progress arrives through the topic. */
     async remove(service: InstalledService): Promise<void> {
       try {
-        await api.remove(service.id);
+        await servicesApi.remove(service.id);
       } catch (error) {
         toast.error(translator.t('services.remove.failed', { name: service.name }), {
           description: translator.t(...apiErrorText(error)),
@@ -117,16 +111,18 @@ export const ServicesPageStore = signalStore(
       }
     },
   })),
-  withHooks((store, services = inject(ServicesStore), monitoring = inject(MonitoringStore)) => {
-    const stops: (() => void)[] = [];
-    return {
-      onInit() {
-        stops.push(services.watch(), monitoring.watch(['containers']));
-        void store.loadCatalog();
-      },
-      onDestroy() {
-        for (const stop of stops) stop();
-      },
-    };
-  }),
+  withHooks(
+    (store, servicesStore = inject(ServicesStore), monitoringStore = inject(MonitoringStore)) => {
+      const stops: (() => void)[] = [];
+      return {
+        onInit() {
+          stops.push(servicesStore.watch(), monitoringStore.watch(['containers']));
+          void store.loadCatalog();
+        },
+        onDestroy() {
+          for (const stop of stops) stop();
+        },
+      };
+    },
+  ),
 );

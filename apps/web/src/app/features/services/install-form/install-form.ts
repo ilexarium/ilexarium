@@ -46,13 +46,7 @@ interface AccessItem {
   ltr: string | null;
 }
 
-/**
- * The install form of one catalog entry, built from its fields: the main ones first, advanced
- * ones folded away (their defaults work). It ends with what the service will be able to do —
- * ports, folders (read or read and write), its own volumes — and the Install button below that
- * summary is the confirmation. Validated with the shared schema; the server's field errors
- * (port in use, folder not allowed) land on their fields.
- */
+/** The Install button below the access summary is the confirmation. */
 @Component({
   selector: 'laris-install-form',
   imports: [
@@ -74,15 +68,14 @@ interface AccessItem {
 export class InstallForm implements OnInit {
   readonly details = input.required<CatalogEntryDetails>();
 
-  /** The form submits through its page's store (the one data path of the page). */
-  private readonly store = inject(InstallPageStore);
+  private readonly installPageStore = inject(InstallPageStore);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
 
   protected readonly showSecrets = signal(false);
   /** "Include in backups" (ticked; only shown when a backup plan exists). */
   protected readonly includeInBackups = signal(true);
-  protected readonly canIncludeInBackups = this.store.canIncludeInBackups;
+  protected readonly canIncludeInBackups = this.installPageStore.canIncludeInBackups;
   protected model!: WritableSignal<FieldValues>;
   protected form!: FieldTree<FieldValues>;
 
@@ -108,7 +101,7 @@ export class InstallForm implements OnInit {
       submission: {
         action: async (tree) => {
           try {
-            await this.store.deploy(tree().value(), this.includeInBackups());
+            await this.installPageStore.deploy(tree().value(), this.includeInBackups());
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }
