@@ -50,10 +50,10 @@ export type TextPattern = keyof typeof TEXT_PATTERNS;
 const textPatternSchema = z.enum(Object.keys(TEXT_PATTERNS) as [TextPattern, ...TextPattern[]]);
 
 /** An `enum` option: plain machine text, also safe as a Compose value. */
-const ENUM_OPTION_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/;
+export const ENUM_OPTION_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/;
 
 /** Control characters, ":" (Compose's mount separator) and "," never appear in a folder. */
-const PATH_FORBIDDEN = /[\x00-\x1f\x7f:,]/;
+export const PATH_FORBIDDEN = /[\x00-\x1f\x7f:,]/;
 /** A secret: printable, one line. */
 const SECRET_PATTERN = /^[^\x00-\x1f\x7f]+$/;
 

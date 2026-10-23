@@ -3,12 +3,8 @@ import { join } from 'node:path';
 import { CATALOG_ID_PATTERN, catalogMetaSchema } from '@laris/shared';
 import { parse } from 'yaml';
 import { checkComposePolicy, checkPlaceholders } from './compose-policy.js';
+import { MAX_FILE_BYTES, MAX_ICON_BYTES, UNSAFE_SVG } from './catalog-loader.constants.js';
 import type { CatalogEntry } from './catalog.model.js';
-
-const MAX_FILE_BYTES = 256 * 1024;
-const MAX_ICON_BYTES = 64 * 1024;
-/** What an icon must not contain, though it is only ever shown through <img> (where nothing runs). */
-const UNSAFE_SVG = /<script|<foreignObject|\son[a-z]+\s*=|href\s*=|url\(|<!ENTITY/i;
 
 /** Why the catalog can't be used: every problem in every entry, so one run shows them all. */
 export class CatalogError extends Error {
@@ -18,11 +14,7 @@ export class CatalogError extends Error {
   }
 }
 
-/**
- * Loads every entry under `dir` (one folder per entry) and checks it completely: the meta
- * schema, placeholders, the Compose policy, the icon. Throws `CatalogError` listing every problem
- * — the server refuses to start on a bad catalog.
- */
+/** Every problem in every entry at once: the server refuses to start on a bad catalog. */
 export async function loadCatalog(dir: string): Promise<CatalogEntry[]> {
   const problems: string[] = [];
   const entries: CatalogEntry[] = [];
