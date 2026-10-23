@@ -1,4 +1,4 @@
-// disk/development.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// disk/development.mts — runs as root.
 //
 // Development without systemd (no `systemctlBin` — never in root mode, the configuration requires
 // it there): a mount is only pretended, as a line in the pretend host's mountinfo.

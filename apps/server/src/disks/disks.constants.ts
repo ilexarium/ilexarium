@@ -1,7 +1,16 @@
-import { DISK_ERROR_CODES, type DiskErrorCode, type DiskPartitionState } from '@laris/shared';
+import {
+  DISK_ERROR_CODES,
+  DISK_MOUNT_ROOT,
+  type DiskErrorCode,
+  type DiskPartitionState,
+} from '@laris/shared';
 
 /** Production places; development reads and writes under the config's pretend host. */
-export const ROOT_PLACES = { host: '/', mountRoot: '/mnt', unitDir: '/etc/systemd/system' };
+export const ROOT_PLACES = {
+  host: '/',
+  mountRoot: DISK_MOUNT_ROOT,
+  unitDir: '/etc/systemd/system',
+};
 
 /** Per IP, for changes (privileged, rare); reads aren't limited. */
 export const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
