@@ -427,11 +427,7 @@ async function install() {
     },
     15 * 60_000,
   );
-  check(
-    'Navidrome installed',
-    job.value.status === 'succeeded',
-    JSON.stringify(job.value).slice(0, 400),
-  );
+  check('Navidrome installed', job.value.status === 'succeeded', jobSummary(job.value));
 
   // Ollama: its API published on loopback only (docs/plans/ai_assistant.md) — the root wrapper
   // accepts host_ip 127.0.0.1 and nothing else; nothing on the network may reach it.
@@ -449,11 +445,7 @@ async function install() {
     },
     20 * 60_000,
   );
-  check(
-    'Ollama installed',
-    ollamaJob.value.status === 'succeeded',
-    JSON.stringify(ollamaJob.value).slice(0, 400),
-  );
+  check('Ollama installed', ollamaJob.value.status === 'succeeded', jobSummary(ollamaJob.value));
   // Reached from the machine itself, refused on its network address.
   const answers = async (host) => {
     try {
@@ -574,3 +566,10 @@ async function update() {
 }
 
 await (process.argv[2] === 'update' ? update() : install());
+
+/** A failed job, readably: its status and error, then the end of its output (where the reason is). */
+function jobSummary(job) {
+  if (!job) return 'no job';
+  const tail = (job.output ?? []).slice(-15).join('\n    ');
+  return `${job.status} ${job.errorCode ?? ''} ${job.errorField ?? ''}\n    … ${tail}`;
+}
