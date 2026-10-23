@@ -40,7 +40,7 @@ import type { MountTarget } from '../disks.model';
   templateUrl: './mount-dialog.html',
 })
 export class MountDialog {
-  private readonly store = inject(DisksPageStore);
+  private readonly disksPageStore = inject(DisksPageStore);
   private readonly dialog = viewChild.required(HlmAlertDialog);
 
   protected readonly target = signal<MountTarget | null>(null);
@@ -52,7 +52,7 @@ export class MountDialog {
       submission: {
         action: async (tree) => {
           try {
-            await this.store.mount(tree().value());
+            await this.disksPageStore.mount(tree().value());
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }

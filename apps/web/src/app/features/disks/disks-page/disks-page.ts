@@ -32,12 +32,12 @@ import { DisksPageStore } from './disks-page-store';
   templateUrl: './disks-page.html',
 })
 export class DisksPage {
-  protected readonly store = inject(DisksPageStore);
+  protected readonly disksPageStore = inject(DisksPageStore);
   private readonly mountDialog = viewChild.required(MountDialog);
   private readonly unmountDialog = viewChild.required(UnmountDialog);
 
   protected openMount(target: MountTarget): void {
-    this.mountDialog().open(target, this.store.takenNames());
+    this.mountDialog().open(target, this.disksPageStore.takenNames());
   }
 
   protected openUnmount(target: UnmountTarget): void {
@@ -49,6 +49,6 @@ export class DisksPage {
   }
 
   protected unmount(target: UnmountTarget): void {
-    void this.store.unmount(target.name, target.connected);
+    void this.disksPageStore.unmount(target.name, target.connected);
   }
 }

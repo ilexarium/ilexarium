@@ -17,11 +17,7 @@ import { OperationSlot } from '../jobs/operation-slot.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { DiskManager } from './disk-manager.js';
-
-/** Changes come in bursts (a disk's partitions appear one by one): at most one update this often. */
-export const DISKS_PUBLISH_MS = 300;
-/** Looked at again this often anyway (mounts made outside the app, a missed notice). */
-export const DISKS_POLL_MS = 5_000;
+import { DISKS_POLL_MS, DISKS_PUBLISH_MS } from './disks.constants.js';
 
 /**
  * The `disks` topic: the disks and their partitions — a disk plugged in appears at once (a watch
@@ -33,24 +29,24 @@ export class DisksTopic implements TopicSource<'disks'> {
   readonly updates$: Observable<DisksStatus>;
 
   constructor(
-    private readonly disks: DiskManager,
-    slot: OperationSlot,
-    subscriptions: RealtimeSubscriptions,
+    private readonly diskManager: DiskManager,
+    operationSlot: OperationSlot,
+    realtimeSubscriptions: RealtimeSubscriptions,
   ) {
     this.updates$ = merge(
-      watchFolder(() => join(disks.places.host, 'dev/disk/by-uuid'), DISKS_POLL_MS),
+      watchFolder(() => join(diskManager.places.host, 'dev/disk/by-uuid'), DISKS_POLL_MS),
       interval(DISKS_POLL_MS),
-      disks.changes$,
-      slot.changes$,
+      diskManager.changes$,
+      operationSlot.changes$,
     ).pipe(
       auditTime(DISKS_PUBLISH_MS),
       switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
       distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
     );
-    subscriptions.registerSource(this);
+    realtimeSubscriptions.registerSource(this);
   }
 
   snapshot(): Promise<DisksStatus> {
-    return this.disks.status();
+    return this.diskManager.status();
   }
 }

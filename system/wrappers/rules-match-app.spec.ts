@@ -6,6 +6,10 @@ import {
   BACKUP_REPOSITORY_FOLDER,
   BACKUP_TIME_PATTERN,
   CATALOG_ID_PATTERN,
+  DISK_FILESYSTEMS,
+  DISK_MOUNT_ROOT,
+  DISK_NAME_PATTERN,
+  DISK_UUID_PATTERN,
   CATALOG_LIMITS,
   ENUM_OPTION_PATTERN,
   FIELD_KEY_PATTERN,
@@ -21,11 +25,16 @@ import {
   VOLUME_KEYS,
 } from '../../apps/server/src/catalog/compose-policy.constants.ts';
 import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
+import { SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
 import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
 import * as wrapperPlan from './backup/plan.mts';
+import * as wrapperDiskConfig from './disk/config.mts';
+import * as wrapperDiskDevices from './disk/devices.mts';
+import * as wrapperDiskMount from './disk/mount.mts';
+import * as wrapperDiskUnits from './disk/units.mts';
 import * as wrapperCatalog from './compose/catalog.mts';
 import * as wrapperPolicy from './compose/policy.mts';
 import * as wrapperValues from './compose/values.mts';
@@ -94,5 +103,13 @@ describe('the app and the root wrappers check the same rules', () => {
         );
       }
     }
+  });
+
+  it('disks: the system disk, the file systems, the mount folder, names and UUIDs', () => {
+    expect(new Set(wrapperDiskDevices.SYSTEM_MOUNTS)).toEqual(new Set(SYSTEM_MOUNTS));
+    expect(new Set(wrapperDiskUnits.FILESYSTEMS)).toEqual(new Set(DISK_FILESYSTEMS));
+    expect(wrapperDiskConfig.ROOT_PATHS.mountRoot).toBe(DISK_MOUNT_ROOT);
+    expect(String(wrapperDiskUnits.NAME)).toBe(String(DISK_NAME_PATTERN));
+    expect(String(wrapperDiskMount.UUID)).toBe(String(DISK_UUID_PATTERN));
   });
 });
