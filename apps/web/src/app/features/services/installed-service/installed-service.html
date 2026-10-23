@@ -40,7 +40,7 @@
           >
             @switch (backup.state) {
               @case ('ok') {
-                {{ 'services.backup.ok' | translate: { time: format.ago(backup.at) } }}
+                {{ 'services.backup.ok' | translate: { time: formatter.ago(backup.at) } }}
               }
               @case ('failed') {
                 {{ 'services.backup.failed' | translate }}

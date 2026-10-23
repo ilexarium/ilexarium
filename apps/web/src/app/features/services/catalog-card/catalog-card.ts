@@ -1,10 +1,9 @@
 import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { CatalogEntrySummary, ServiceStatus } from '@laris/shared';
+import { type CatalogEntrySummary, type ServiceStatus, catalogIconPath } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
-import { catalogIconUrl } from '../../../core/services/services-api';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 import { SERVICE_STATUS_TONES } from '../services.constants';
 
@@ -22,7 +21,7 @@ export class CatalogCard {
   /** Its current state (live from the installed list), null if never installed. */
   readonly status = input<ServiceStatus | null>(null);
 
-  protected readonly iconUrl = computed(() => catalogIconUrl(this.entry().id));
+  protected readonly iconUrl = computed(() => catalogIconPath(this.entry().id));
   /** Install, or install again after a removal or a failure (the previous settings come back). */
   protected readonly installable = computed(() => {
     const status = this.status();

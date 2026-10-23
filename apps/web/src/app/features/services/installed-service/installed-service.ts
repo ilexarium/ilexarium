@@ -1,24 +1,18 @@
 import { Component, computed, DOCUMENT, inject, input, output, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { InstalledService } from '@laris/shared';
+import { type InstalledService, catalogIconPath } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideExternalLink, lucideLoaderCircle, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
-import { catalogIconUrl } from '../../../core/services/services-api';
 import { JobProgress } from '../../../shared/job-progress/job-progress';
 import { Formatter } from '../../../shared/format/formatter';
 import type { ServiceBackup, ServiceRuntime } from '../services.model';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 import { RUNTIME_TONES } from '../services.constants';
 
-/**
- * One installed service: its state, an Open link to its web page, Remove (after a confirmation —
- * its data and settings stay), and the progress of a running job or what went wrong in the last.
- * UI only: it reports a confirmed Remove through `remove`; the page's store does it.
- */
 @Component({
   selector: 'laris-installed-service',
   // Fills its grid cell, so the cards of a row line up.
@@ -48,10 +42,10 @@ export class InstalledServiceCard {
   readonly remove = output<void>();
 
   private readonly location = inject(DOCUMENT).location;
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
   private readonly dialog = viewChild.required(HlmAlertDialog);
 
-  protected readonly iconUrl = computed(() => catalogIconUrl(this.service().catalogId));
+  protected readonly iconUrl = computed(() => catalogIconPath(this.service().catalogId));
   protected readonly busy = computed(() =>
     ['installing', 'removing'].includes(this.service().status),
   );
