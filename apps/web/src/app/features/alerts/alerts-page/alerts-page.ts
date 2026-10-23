@@ -33,18 +33,18 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
   templateUrl: './alerts-page.html',
 })
 export class AlertsPage {
-  protected readonly store = inject(AlertsPageStore);
-  protected readonly alerts = inject(AlertsStore);
+  protected readonly alertsPageStore = inject(AlertsPageStore);
+  protected readonly alertsStore = inject(AlertsStore);
   private readonly translator = inject(Translator);
-  private readonly format = inject(Formatter);
+  private readonly formatter = inject(Formatter);
 
   /** "The last message by email couldn't be sent (17 Oct, 14:02). The server refused the login." */
   protected readonly deliveryText = computed(() => {
-    const failure = this.alerts.deliveryFailure();
+    const failure = this.alertsStore.deliveryFailure();
     if (!failure) return null;
     return this.translator.t('alerts.delivery.text', {
       channel: this.translator.t(`alerts.channel.${failure.channel}`),
-      time: this.format.dateTime(failure.at),
+      time: this.formatter.dateTime(failure.at),
       problem: this.translator.t(`alerts.problem.${failure.problem}`),
     });
   });

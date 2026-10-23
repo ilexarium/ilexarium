@@ -1,7 +1,6 @@
 import { ALERT_LIMITS, type DiskUsage } from '@laris/shared';
 import type { AlertCondition, OpenAlert } from './alerts.model.js';
-
-const FULL_FOR_MS = ALERT_LIMITS.diskFullMinutes * 60_000;
+import { FULL_FOR_MS } from './alerts.constants.js';
 
 /** How full a disk is, in whole percent (rounded down: 89.9 % isn't 90 %). */
 export function usedPercent(disk: Pick<DiskUsage, 'sizeBytes' | 'usedBytes'>): number {

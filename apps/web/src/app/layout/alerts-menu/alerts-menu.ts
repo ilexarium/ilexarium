@@ -29,7 +29,7 @@ export class AlertsMenu {
   /** Resolved in the last 7 days, newest first. */
   readonly resolved = input.required<Alert[]>();
 
-  private readonly format = inject(Formatter);
+  private readonly formatter = inject(Formatter);
   /** Bumped when the menu opens, so "… ago" is measured again then (and on every update). */
   private readonly openings = signal(0);
 
@@ -55,10 +55,10 @@ export class AlertsMenu {
     const { icon, color } = alertIcon(alert);
     return {
       id: alert.id,
-      title: alertTitle(alert, this.format),
+      title: alertTitle(alert, this.formatter),
       when: alert.closedAt
-        ? ['alerts.menu.resolvedAgo', { time: this.format.ago(alert.closedAt, now) }]
-        : ['alerts.menu.ago', { time: this.format.ago(alert.openedAt, now) }],
+        ? ['alerts.menu.resolvedAgo', { time: this.formatter.ago(alert.closedAt, now) }]
+        : ['alerts.menu.ago', { time: this.formatter.ago(alert.openedAt, now) }],
       icon,
       iconClass: color,
       link: alertLink(alert).link,

@@ -32,7 +32,7 @@
           [formField]="form.topicUrl"
         />
         <p hlmFieldDescription class="break-words">
-          {{ 'notifications.ntfy.topicHelp' | translate: { url: format.machine(exampleUrl) } }}
+          {{ 'notifications.ntfy.topicHelp' | translate: { url: formatter.machine(exampleUrl) } }}
         </p>
         @if (settings()?.topicSet) {
           <p hlmFieldDescription>{{ 'notifications.ntfy.topicSet' | translate }}</p>
@@ -77,7 +77,7 @@
           type="button"
           variant="outline"
           [disabled]="!settings() || testing()"
-          (click)="store.test('ntfy')"
+          (click)="notificationsPageStore.test('ntfy')"
         >
           {{ (testing() ? 'notifications.testing' : 'notifications.test') | translate }}
         </button>

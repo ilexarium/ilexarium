@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { type ProcessesUpdate, processKey } from '@laris/shared';
+import { catalogIdOfProject, type ProcessesUpdate, processKey } from '@laris/shared';
 import {
   defer,
   filter,
@@ -22,7 +22,6 @@ import type { ContainerName } from './processes.model.js';
 export const PROCESSES_INTERVAL_MS = 2_000;
 /** Containers' names and the accounts are looked up again this often (they rarely change). */
 export const NAMES_MS = 10_000;
-const COMPOSE_PREFIX = 'hl-';
 
 /** State of one collecting period: while `updates$` is subscribed. */
 interface Run {
@@ -148,9 +147,7 @@ export class ProcessesTopic implements TopicSource<'processes'> {
             id,
             {
               name,
-              catalogId: composeProject?.startsWith(COMPOSE_PREFIX)
-                ? composeProject.slice(COMPOSE_PREFIX.length)
-                : null,
+              catalogId: catalogIdOfProject(composeProject),
             },
           ]),
         );

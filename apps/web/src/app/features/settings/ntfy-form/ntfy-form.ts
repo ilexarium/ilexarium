@@ -56,15 +56,17 @@ export class NtfyForm implements OnInit {
   readonly settings = input.required<AlertChannelsResponse['ntfy']>();
 
   /** The form submits through its page's store. */
-  protected readonly store = inject(NotificationsPageStore);
+  protected readonly notificationsPageStore = inject(NotificationsPageStore);
   private readonly injector = inject(Injector);
   private readonly translator = inject(Translator);
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
   protected readonly exampleUrl = `https://ntfy.sh/${randomTopic()}`;
   protected model!: ReturnType<typeof signal<NtfyChannelForm>>;
   protected form!: FieldTree<NtfyChannelForm>;
 
-  protected readonly testing = computed(() => this.store.testing().includes('ntfy'));
+  protected readonly testing = computed(() =>
+    this.notificationsPageStore.testing().includes('ntfy'),
+  );
   protected readonly plainHttp = computed(() =>
     this.model().topicUrl.trim().toLowerCase().startsWith('http://'),
   );
@@ -72,7 +74,7 @@ export class NtfyForm implements OnInit {
     const failure = this.settings()?.lastFailure;
     if (!failure) return null;
     return this.translator.t('notifications.lastFailure', {
-      time: this.format.dateTime(failure.at),
+      time: this.formatter.dateTime(failure.at),
       problem: this.translator.t(`alerts.problem.${failure.problem}`),
     });
   });
@@ -90,7 +92,7 @@ export class NtfyForm implements OnInit {
         action: async (tree) => {
           const { enabled, topicUrl, token, clearToken } = tree().value();
           try {
-            await this.store.saveNtfy({
+            await this.notificationsPageStore.saveNtfy({
               enabled,
               ...(topicUrl && { topicUrl }),
               ...(clearToken ? { token: null } : token ? { token } : {}),

@@ -34,10 +34,10 @@ export const AlertsStore = signalStore(
     closed: computed(() => store.status()?.closed ?? []),
     deliveryFailure: computed(() => store.status()?.deliveryFailure ?? null),
   })),
-  withMethods((store, realtime = inject(RealtimeService)) => ({
+  withMethods((store, realtimeService = inject(RealtimeService)) => ({
     /** Subscribes until the returned function is called. */
     watch(): () => void {
-      return realtime.subscribe('alerts', (message) => {
+      return realtimeService.subscribe('alerts', (message) => {
         if (message.event === 'alerts:snapshot' || message.event === 'alerts:update') {
           patchState(store, { status: message.data });
         }
@@ -63,10 +63,10 @@ export const AlertsStore = signalStore(
       });
     },
   })),
-  withHooks((store, auth = inject(AuthStore)) => ({
+  withHooks((store, authStore = inject(AuthStore)) => ({
     onInit() {
       effect(() => {
-        if (!auth.isAuthenticated()) patchState(store, initialState);
+        if (!authStore.isAuthenticated()) patchState(store, initialState);
       });
     },
   })),

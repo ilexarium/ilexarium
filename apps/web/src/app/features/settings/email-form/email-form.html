@@ -122,7 +122,7 @@
           type="button"
           variant="outline"
           [disabled]="!settings() || testing()"
-          (click)="store.test('email')"
+          (click)="notificationsPageStore.test('email')"
         >
           {{ (testing() ? 'notifications.testing' : 'notifications.test') | translate }}
         </button>

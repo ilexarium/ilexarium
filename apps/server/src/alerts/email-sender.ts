@@ -3,11 +3,8 @@ import { createTransport } from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { DeliveryError } from './alerts.model.js';
 import type { AlertMessage, ChannelConfig, ChannelSender } from './alerts.model.js';
-import { SEND_TIMEOUT_MS } from './ntfy-sender.js';
 import { checkTarget, type Lookup } from './safe-address.js';
-
-/** The port of implicit TLS (SMTPS); any other port must offer STARTTLS. */
-export const IMPLICIT_TLS_PORT = 465;
+import { IMPLICIT_TLS_PORT, SEND_TIMEOUT_MS } from './alerts.constants.js';
 
 type EmailConfig = Extract<ChannelConfig, { kind: 'email' }>;
 

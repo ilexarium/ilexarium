@@ -27,10 +27,10 @@ const initialState: NotificationsPageState = { channels: null, failed: false, te
  */
 export const NotificationsPageStore = signalStore(
   withState<NotificationsPageState>(initialState),
-  withMethods((store, api = inject(AlertsApi), translator = inject(Translator)) => ({
+  withMethods((store, alertsApi = inject(AlertsApi), translator = inject(Translator)) => ({
     async load(): Promise<void> {
       try {
-        patchState(store, { channels: await api.channels(), failed: false });
+        patchState(store, { channels: await alertsApi.channels(), failed: false });
       } catch {
         if (!store.channels()) patchState(store, { failed: true });
       }
@@ -38,14 +38,14 @@ export const NotificationsPageStore = signalStore(
 
     /** Saves the mail settings; rejects with the server's error (the form puts it on its fields). */
     async saveEmail(update: EmailChannelUpdate): Promise<void> {
-      await api.updateEmail(update);
+      await alertsApi.updateEmail(update);
       toast.success(translator.t('notifications.saved'));
       await this.load();
     },
 
     /** Saves the ntfy settings; rejects with the server's error. */
     async saveNtfy(update: NtfyChannelUpdate): Promise<void> {
-      await api.updateNtfy(update);
+      await alertsApi.updateNtfy(update);
       toast.success(translator.t('notifications.saved'));
       await this.load();
     },
@@ -54,7 +54,7 @@ export const NotificationsPageStore = signalStore(
     async test(channel: AlertChannel): Promise<void> {
       patchState(store, { testing: [...store.testing(), channel] });
       try {
-        const { sent, problem } = await api.test(channel);
+        const { sent, problem } = await alertsApi.test(channel);
         if (sent) toast.success(translator.t('notifications.testSent'));
         else {
           toast.error(translator.t('notifications.testFailed'), {

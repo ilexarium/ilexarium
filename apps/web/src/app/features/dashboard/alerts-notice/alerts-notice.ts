@@ -24,11 +24,11 @@ export class AlertsNotice {
   /** Critical first. */
   readonly alerts = input.required<Alert[]>();
 
-  private readonly format = inject(Formatter);
+  private readonly formatter = inject(Formatter);
   protected readonly shown = computed(() =>
     this.alerts()
       .slice(0, SHOWN)
-      .map((alert) => ({ id: alert.id, title: alertTitle(alert, this.format) })),
+      .map((alert) => ({ id: alert.id, title: alertTitle(alert, this.formatter) })),
   );
   protected readonly more = computed(() => Math.max(0, this.alerts().length - SHOWN));
   protected readonly critical = computed(() =>

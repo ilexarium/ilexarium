@@ -1,18 +1,14 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ALERT_LIMITS } from '@laris/shared';
 import { hostname } from 'node:os';
-import { catchError, concatMap, EMPTY, exhaustMap, from, interval, type Subscription } from 'rxjs';
+import { concatMap, exhaustMap, interval, type Subscription } from 'rxjs';
 import { CatalogService } from '../catalog/catalog.service.js';
+import { safely } from '../common/safely.js';
 import { alertMessage, groupedMessage } from './alert-messages.js';
 import { AlertChannels } from './alert-channels.js';
 import { AlertRecords } from './alert-records.js';
 import type { AlertEvent, AlertMessage, ChannelConfig } from './alerts.model.js';
-
-const HOUR_MS = 3_600_000;
-/** A message not delivered is tried once more after this long. */
-export const RETRY_AFTER_MS = 60_000;
-/** How often due reminders are looked for. */
-export const REMINDER_CHECK_MS = 10 * 60_000;
+import { HOUR_MS, REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.js';
 
 /**
  * Sends the alerts' messages (docs/plans/health_alerts.md) through the channels switched on —
@@ -34,21 +30,18 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   private readonly subscriptions: Subscription[] = [];
 
   constructor(
-    private readonly records: AlertRecords,
-    private readonly channels: AlertChannels,
-    private readonly catalog: CatalogService,
+    private readonly alertRecords: AlertRecords,
+    private readonly alertChannels: AlertChannels,
+    private readonly catalogService: CatalogService,
   ) {}
 
   onModuleInit(): void {
     this.subscriptions.push(
-      this.records.events$
+      this.alertRecords.events$
         .pipe(
           concatMap((event) =>
-            from(this.handle(event)).pipe(
-              catchError((error: unknown) => {
-                this.logger.error('Sending an alert message failed', (error as Error).stack);
-                return EMPTY;
-              }),
+            safely(this.handle(event), (error) =>
+              this.logger.error('Sending an alert message failed', (error as Error).stack),
             ),
           ),
         )
@@ -56,11 +49,8 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
       interval(REMINDER_CHECK_MS)
         .pipe(
           exhaustMap(() =>
-            from(this.remind()).pipe(
-              catchError((error: unknown) => {
-                this.logger.error('Sending reminders failed', (error as Error).stack);
-                return EMPTY;
-              }),
+            safely(this.remind(), (error) =>
+              this.logger.error('Sending reminders failed', (error as Error).stack),
             ),
           ),
         )
@@ -88,7 +78,7 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
    */
   async remind(): Promise<void> {
     const waiting = new Set(this.held.map((h) => h.alertId));
-    for (const alert of await this.records.dueReminders(new Date())) {
+    for (const alert of await this.alertRecords.dueReminders(new Date())) {
       if (waiting.has(alert.id)) continue;
       await this.send(this.message({ type: 'reminder', alert }), alert.id);
     }
@@ -98,7 +88,7 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     return alertMessage(event, {
       host: this.host,
       now: new Date(),
-      serviceName: (id) => this.catalog.get(id)?.meta.name ?? id,
+      serviceName: (id) => this.catalogService.get(id)?.meta.name ?? id,
     });
   }
 
@@ -107,7 +97,7 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
    * The alert counts as sent (`lastSentAt`) only once its message has gone out.
    */
   private async send(message: AlertMessage, alertId: string | null): Promise<void> {
-    const channels = await this.channels.enabled();
+    const channels = await this.alertChannels.enabled();
     if (channels.length === 0) return;
     if (!this.takeSlot()) {
       this.held.push({ message, alertId });
@@ -115,16 +105,16 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
       return;
     }
     await this.deliver(channels, message);
-    if (alertId) await this.records.markSent(alertId, new Date());
+    if (alertId) await this.alertRecords.markSent(alertId, new Date());
   }
 
   private async deliver(channels: ChannelConfig[], message: AlertMessage): Promise<void> {
     await Promise.all(
       channels.map(async (config) => {
-        if ((await this.channels.sendTo(config, message)) === null) return;
+        if ((await this.alertChannels.sendTo(config, message)) === null) return;
         const timer = setTimeout(() => {
           this.retries.delete(timer);
-          void this.channels.sendTo(config, message).catch(() => undefined);
+          void this.alertChannels.sendTo(config, message).catch(() => undefined);
         }, RETRY_AFTER_MS);
         this.retries.add(timer);
       }),
@@ -161,7 +151,7 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     const held = this.held;
     this.held = [];
     // Switched off meanwhile: dropped, not counted as sent (critical ones are reminded later).
-    const channels = await this.channels.enabled();
+    const channels = await this.alertChannels.enabled();
     if (channels.length === 0) return;
     const messages = held.map((h) => h.message);
     await this.deliver(
@@ -169,6 +159,6 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
       messages.length === 1 ? messages[0] : groupedMessage(messages, this.host),
     );
     const now = new Date();
-    for (const { alertId } of held) if (alertId) await this.records.markSent(alertId, now);
+    for (const { alertId } of held) if (alertId) await this.alertRecords.markSent(alertId, now);
   }
 }

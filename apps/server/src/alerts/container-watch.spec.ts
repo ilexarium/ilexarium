@@ -1,5 +1,6 @@
 import type { OpenAlert } from './alerts.model.js';
-import { ContainerWatch, DOWN_AFTER_MS, EXPECTED_FOR_MS } from './container-watch.js';
+import { DOWN_AFTER_MS, EXPECTED_FOR_MS } from './alerts.constants.js';
+import { ContainerWatch } from './container-watch.js';
 
 const MINUTE = 60_000;
 const kinds = (watch: ContainerWatch, now: number) =>
