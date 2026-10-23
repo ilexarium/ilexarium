@@ -25,7 +25,7 @@ export class BackupHistory {
 
   readonly openOutput = output<string>();
 
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
 
   protected toggled(run: BackupRun, event: Event): void {
     if ((event.target as HTMLDetailsElement).open && !this.outputs()[run.id]) {

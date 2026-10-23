@@ -75,14 +75,16 @@ const initialState: BackupsPageState = {
  */
 export const BackupsPageStore = signalStore(
   withState<BackupsPageState>(initialState),
-  withComputed((store, backups = inject(BackupsStore), services = inject(ServicesStore)) => ({
-    status: computed(() => backups.status()),
-    running: computed(() => backups.running()),
-
+  withComputed((store, backupsStore = inject(BackupsStore)) => ({
+    status: computed(() => backupsStore.status()),
+    running: computed(() => backupsStore.running()),
+    catalogById: computed(() => new Map((store.catalog() ?? []).map((entry) => [entry.id, entry]))),
+  })),
+  withComputed((store, servicesStore = inject(ServicesStore)) => ({
     /** Installed services whose recipe has a backup. */
     backupable: computed((): BackupableService[] => {
-      const catalog = new Map((store.catalog() ?? []).map((entry) => [entry.id, entry]));
-      return (services.services() ?? [])
+      const catalog = store.catalogById();
+      return (servicesStore.services() ?? [])
         .filter(
           (s) =>
             s.status === 'installed' && (catalog.get(s.catalogId)?.backupFolders.length ?? 0) > 0,
@@ -97,7 +99,7 @@ export const BackupsPageStore = signalStore(
 
     /** The plan's items as shown: active ones and removed ones (backups kept). */
     rows: computed((): { active: ItemRow[]; removed: ItemRow[] } => {
-      const catalog = new Map((store.catalog() ?? []).map((entry) => [entry.id, entry]));
+      const catalog = store.catalogById();
       const row = (item: BackupItem): ItemRow => ({
         item,
         name: item.catalogId ? (catalog.get(item.catalogId)?.name ?? item.catalogId) : null,
@@ -125,7 +127,7 @@ export const BackupsPageStore = signalStore(
   withMethods(
     (
       store,
-      api = inject(BackupsApi),
+      backupsApi = inject(BackupsApi),
       servicesApi = inject(ServicesApi),
       translator = inject(Translator),
     ) => {
@@ -159,7 +161,7 @@ export const BackupsPageStore = signalStore(
 
       async function loadPlan(): Promise<void> {
         try {
-          const { plan } = await api.plan();
+          const { plan } = await backupsApi.plan();
           patchState(store, { plan, loaded: true, failed: false });
         } catch {
           patchState(store, { loaded: true, failed: true });
@@ -169,7 +171,10 @@ export const BackupsPageStore = signalStore(
       async function loadHistory(): Promise<void> {
         if (!store.plan()) return;
         try {
-          const [{ runs }, { restores }] = await Promise.all([api.runs(), api.restores()]);
+          const [{ runs }, { restores }] = await Promise.all([
+            backupsApi.runs(),
+            backupsApi.restores(),
+          ]);
           patchState(store, { runs, restores });
         } catch {
           // The page shows the last known history; the next change tries again.
@@ -197,7 +202,7 @@ export const BackupsPageStore = signalStore(
 
         async loadDestinations(): Promise<void> {
           try {
-            patchState(store, { destinations: (await api.destinations()).destinations });
+            patchState(store, { destinations: (await backupsApi.destinations()).destinations });
           } catch {
             patchState(store, { destinations: [] });
           }
@@ -205,7 +210,7 @@ export const BackupsPageStore = signalStore(
 
         /** Sets backups up; rejects with the server's error (the form puts it on its fields). */
         async setup(request: BackupSetupRequest): Promise<void> {
-          const { passphrase } = await api.setup(request);
+          const { passphrase } = await backupsApi.setup(request);
           patchState(store, { passphrase, passphraseFirst: true });
           await loadPlan();
           toast.success(translator.t('backups.setup.done'));
@@ -218,20 +223,20 @@ export const BackupsPageStore = signalStore(
 
         /** "Show again"; rejects with the server's error (wrong password: on its field). */
         async showPassphrase(password: string): Promise<void> {
-          const { passphrase } = await api.passphrase(password);
+          const { passphrase } = await backupsApi.passphrase(password);
           patchState(store, { passphrase, passphraseFirst: false });
         },
 
         /** Saves schedule, retention or disk; rejects with the server's error. */
         async updatePlan(update: BackupPlanUpdate): Promise<void> {
-          const plan = await api.updatePlan(update);
+          const plan = await backupsApi.updatePlan(update);
           patchState(store, { plan });
           toast.success(translator.t('backups.settings.saved'));
         },
 
         async runNow(itemId?: string): Promise<void> {
           const key = itemId ? `run:${itemId}` : 'run';
-          if (await act(key, 'backups.run.failed', () => api.runNow(itemId))) {
+          if (await act(key, 'backups.run.failed', () => backupsApi.runNow(itemId))) {
             toast.success(translator.t('backups.run.started'));
           }
         },
@@ -239,7 +244,7 @@ export const BackupsPageStore = signalStore(
         async addService(serviceId: string): Promise<void> {
           if (
             await act(`add:${serviceId}`, 'backups.items.addFailed', () =>
-              api.addItem({ kind: 'service', serviceId }),
+              backupsApi.addItem({ kind: 'service', serviceId }),
             )
           ) {
             await loadPlan();
@@ -249,7 +254,7 @@ export const BackupsPageStore = signalStore(
         async addFolder(path: string): Promise<void> {
           if (
             await act(`add:${path}`, 'backups.items.addFailed', () =>
-              api.addItem({ kind: 'folder', path }),
+              backupsApi.addItem({ kind: 'folder', path }),
             )
           ) {
             patchState(store, { folders: null });
@@ -260,7 +265,7 @@ export const BackupsPageStore = signalStore(
         async setFolders(itemId: string, excludedFields: string[]): Promise<void> {
           if (
             await act(`folders:${itemId}`, 'backups.items.foldersFailed', () =>
-              api.updateItem(itemId, excludedFields),
+              backupsApi.updateItem(itemId, excludedFields),
             )
           ) {
             await loadPlan();
@@ -273,7 +278,9 @@ export const BackupsPageStore = signalStore(
             ? 'backups.items.deleteFailed'
             : 'backups.items.removeFailed';
           if (
-            await act(`remove:${itemId}`, failure, () => api.removeItem(itemId, deleteArchives))
+            await act(`remove:${itemId}`, failure, () =>
+              backupsApi.removeItem(itemId, deleteArchives),
+            )
           ) {
             await loadPlan();
           }
@@ -282,7 +289,7 @@ export const BackupsPageStore = signalStore(
         async loadArchives(itemId: string): Promise<void> {
           patchState(store, { archives: { itemId, list: null } });
           try {
-            const { archives } = await api.archives(itemId);
+            const { archives } = await backupsApi.archives(itemId);
             if (store.archives()?.itemId === itemId)
               patchState(store, { archives: { itemId, list: archives } });
           } catch {
@@ -292,7 +299,7 @@ export const BackupsPageStore = signalStore(
 
         /** Starts a restore (already confirmed); its progress arrives through the topic. */
         async restore(choice: RestoreChoice): Promise<void> {
-          if (await act('restore', 'backups.restore.failed', () => api.restore(choice))) {
+          if (await act('restore', 'backups.restore.failed', () => backupsApi.restore(choice))) {
             toast.success(translator.t('backups.restore.started'));
             await loadHistory();
           }
@@ -301,7 +308,7 @@ export const BackupsPageStore = signalStore(
         async discardPrevious(restoreId: string): Promise<void> {
           if (
             await act(`discard:${restoreId}`, 'backups.restore.discardFailed', () =>
-              api.discardPrevious(restoreId),
+              backupsApi.discardPrevious(restoreId),
             )
           ) {
             toast.success(translator.t('backups.restore.discarded'));
@@ -311,7 +318,7 @@ export const BackupsPageStore = signalStore(
 
         async loadOutput(runId: string): Promise<void> {
           try {
-            const { output } = await api.runOutput(runId);
+            const { output } = await backupsApi.runOutput(runId);
             patchState(store, { outputs: { ...store.outputs(), [runId]: output } });
           } catch {
             patchState(store, { outputs: { ...store.outputs(), [runId]: [] } });
@@ -321,7 +328,7 @@ export const BackupsPageStore = signalStore(
         /** The folder picker: the starting places, or inside a folder. */
         async browse(path?: string): Promise<void> {
           try {
-            patchState(store, { folders: await api.folders(path) });
+            patchState(store, { folders: await backupsApi.folders(path) });
           } catch (error) {
             failed('backups.folders.failed', error);
           }
@@ -333,29 +340,33 @@ export const BackupsPageStore = signalStore(
       };
     },
   ),
-  withHooks((store, services = inject(ServicesStore), backups = inject(BackupsStore)) => {
+  withHooks((store, servicesStore = inject(ServicesStore), backupsStore = inject(BackupsStore)) => {
     let stop: (() => void) | null = null;
     return {
       onInit() {
-        stop = services.watch();
+        stop = servicesStore.watch();
         void store.load();
         // What the topic says changed (a run ended, a restore moved on, setup elsewhere): reload.
-        let last = '';
+        // The key is a string, so the effect runs only when it really changes.
+        const changes = computed(() => {
+          const status = backupsStore.status();
+          return status
+            ? [
+                status.configured,
+                status.lastRun?.id,
+                status.lastRun?.status,
+                status.restore?.id,
+                status.restore?.job.status,
+                status.running?.runId,
+              ].join('|')
+            : null;
+        });
+        let seen: string | null = null;
         effect(() => {
-          const status = backups.status();
-          const key = [
-            status?.configured,
-            status?.lastRun?.id,
-            status?.lastRun?.status,
-            status?.restore?.id,
-            status?.restore?.job.status,
-            status?.running?.runId,
-          ].join('|');
-          if (status && key !== last) {
-            const first = last === '';
-            last = key;
-            if (!first) untracked(() => void store.reload());
-          }
+          const key = changes();
+          if (key === null) return;
+          if (seen !== null) untracked(() => void store.reload());
+          seen = key;
         });
       },
       onDestroy() {

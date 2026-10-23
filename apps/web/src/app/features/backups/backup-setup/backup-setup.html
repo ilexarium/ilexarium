@@ -38,8 +38,8 @@
                     'backups.setup.diskSpace'
                       | translate
                         : {
-                            free: format.bytes(disk.freeBytes),
-                            total: format.bytes(disk.totalBytes),
+                            free: formatter.bytes(disk.freeBytes),
+                            total: formatter.bytes(disk.totalBytes),
                             filesystem: disk.filesystem,
                           }
                   }}
@@ -78,28 +78,7 @@
       <fieldset class="grid gap-4">
         <legend class="mb-2 font-medium">{{ 'backups.setup.when' | translate }}</legend>
         <div class="flex flex-wrap gap-4">
-          <div hlmField class="w-full sm:w-56">
-            <label hlmFieldLabel for="frequency">{{
-              'backups.schedule.frequency' | translate
-            }}</label>
-            <hlm-select [formField]="form.schedule.frequency" [itemToString]="frequencyLabel">
-              <hlm-select-trigger buttonId="frequency" class="w-full"
-                ><hlm-select-value
-              /></hlm-select-trigger>
-              <hlm-select-content *hlmSelectPortal>
-                @for (frequency of frequencies; track frequency) {
-                  <hlm-select-item [value]="frequency">{{
-                    'backups.schedule.' + frequency | translate
-                  }}</hlm-select-item>
-                }
-              </hlm-select-content>
-            </hlm-select>
-          </div>
-          <div hlmField class="w-32">
-            <label hlmFieldLabel for="time">{{ 'backups.schedule.time' | translate }}</label>
-            <input hlmInput id="time" type="time" dir="ltr" [formField]="form.schedule.time" />
-            <laris-field-errors [field]="form.schedule.time" />
-          </div>
+          <laris-schedule-fields [schedule]="form.schedule" idPrefix="setup" />
         </div>
         <p class="text-sm text-muted-foreground">
           {{ 'backups.retention.summary' | translate: form.retention().value() }}
@@ -109,22 +88,7 @@
             {{ 'backups.retention.advanced' | translate }}
           </summary>
           <div class="mt-4 flex flex-wrap gap-4">
-            @for (part of keepParts; track part) {
-              <div hlmField class="w-32">
-                <label hlmFieldLabel [for]="'keep-' + part">{{
-                  'backups.retention.' + part | translate
-                }}</label>
-                <input
-                  hlmInput
-                  type="number"
-                  inputmode="numeric"
-                  dir="ltr"
-                  [id]="'keep-' + part"
-                  [formField]="keep(part)"
-                />
-                <laris-field-errors [field]="keep(part)" />
-              </div>
-            }
+            <laris-retention-fields [retention]="form.retention" idPrefix="setup" />
           </div>
         </details>
       </fieldset>

@@ -41,20 +41,20 @@ export const BackupsStore = signalStore(
       );
     }),
   })),
-  withMethods((store, realtime = inject(RealtimeService)) => ({
+  withMethods((store, realtimeService = inject(RealtimeService)) => ({
     /** Subscribes until the returned function is called. */
     watch(): () => void {
-      return realtime.subscribe('backups', (message) => {
+      return realtimeService.subscribe('backups', (message) => {
         if (message.event === 'backups:snapshot' || message.event === 'backups:update') {
           patchState(store, { status: message.data });
         }
       });
     },
   })),
-  withHooks((store, auth = inject(AuthStore)) => ({
+  withHooks((store, authStore = inject(AuthStore)) => ({
     onInit() {
       effect(() => {
-        if (!auth.isAuthenticated()) patchState(store, initialState);
+        if (!authStore.isAuthenticated()) patchState(store, initialState);
       });
     },
   })),

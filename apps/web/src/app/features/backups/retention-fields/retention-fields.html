@@ -1,0 +1,16 @@
+@for (part of parts; track part) {
+  <div hlmField class="w-32">
+    <label hlmFieldLabel [for]="idPrefix() + '-keep-' + part">{{
+      'backups.retention.' + part | translate
+    }}</label>
+    <input
+      hlmInput
+      type="number"
+      inputmode="numeric"
+      dir="ltr"
+      [id]="idPrefix() + '-keep-' + part"
+      [formField]="retention()[part]"
+    />
+    <laris-field-errors [field]="retention()[part]" />
+  </div>
+}

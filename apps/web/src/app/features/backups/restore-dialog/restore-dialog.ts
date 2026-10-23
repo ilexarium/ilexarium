@@ -24,7 +24,7 @@ export class RestoreDialog {
 
   readonly restore = output<RestoreChoice>();
 
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
   private readonly dialog = viewChild.required(HlmAlertDialog);
 
   protected readonly row = signal<ItemRow | null>(null);

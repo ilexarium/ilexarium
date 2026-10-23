@@ -6,56 +6,14 @@
     <form [formRoot]="form" class="grid grid-cols-1 gap-5">
       <laris-form-errors [form]="form" />
       <div class="flex flex-wrap gap-4">
-        <div hlmField class="w-full sm:w-56">
-          <label hlmFieldLabel for="settings-frequency">{{
-            'backups.schedule.frequency' | translate
-          }}</label>
-          <hlm-select [formField]="form.schedule.frequency" [itemToString]="frequencyLabel">
-            <hlm-select-trigger buttonId="settings-frequency" class="w-full"
-              ><hlm-select-value
-            /></hlm-select-trigger>
-            <hlm-select-content *hlmSelectPortal>
-              @for (frequency of frequencies; track frequency) {
-                <hlm-select-item [value]="frequency">{{
-                  'backups.schedule.' + frequency | translate
-                }}</hlm-select-item>
-              }
-            </hlm-select-content>
-          </hlm-select>
-        </div>
-        <div hlmField class="w-32">
-          <label hlmFieldLabel for="settings-time">{{ 'backups.schedule.time' | translate }}</label>
-          <input
-            hlmInput
-            id="settings-time"
-            type="time"
-            dir="ltr"
-            [formField]="form.schedule.time"
-          />
-          <laris-field-errors [field]="form.schedule.time" />
-        </div>
+        <laris-schedule-fields [schedule]="form.schedule" idPrefix="settings" />
       </div>
 
       <fieldset class="flex flex-wrap gap-4">
         <legend class="mb-2 text-sm font-medium">
           {{ 'backups.retention.title' | translate }}
         </legend>
-        @for (part of keepParts; track part) {
-          <div hlmField class="w-32">
-            <label hlmFieldLabel [for]="'settings-keep-' + part">{{
-              'backups.retention.' + part | translate
-            }}</label>
-            <input
-              hlmInput
-              type="number"
-              inputmode="numeric"
-              dir="ltr"
-              [id]="'settings-keep-' + part"
-              [formField]="keep(part)"
-            />
-            <laris-field-errors [field]="keep(part)" />
-          </div>
-        }
+        <laris-retention-fields [retention]="form.retention" idPrefix="settings" />
       </fieldset>
 
       <div hlmField class="min-w-0 max-w-md">

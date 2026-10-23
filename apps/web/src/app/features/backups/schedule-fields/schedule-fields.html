@@ -1,0 +1,24 @@
+<div hlmField class="w-full sm:w-56">
+  <label hlmFieldLabel [for]="idPrefix() + '-frequency'">{{
+    'backups.schedule.frequency' | translate
+  }}</label>
+  <hlm-select [formField]="schedule().frequency" [itemToString]="frequencyLabel">
+    <hlm-select-trigger [buttonId]="idPrefix() + '-frequency'" class="w-full"
+      ><hlm-select-value
+    /></hlm-select-trigger>
+    <hlm-select-content *hlmSelectPortal>
+      @for (frequency of frequencies; track frequency) {
+        <hlm-select-item [value]="frequency">{{
+          'backups.schedule.' + frequency | translate
+        }}</hlm-select-item>
+      }
+    </hlm-select-content>
+  </hlm-select>
+</div>
+<div hlmField class="w-32">
+  <label hlmFieldLabel [for]="idPrefix() + '-time'">{{
+    'backups.schedule.time' | translate
+  }}</label>
+  <input hlmInput type="time" dir="ltr" [id]="idPrefix() + '-time'" [formField]="schedule().time" />
+  <laris-field-errors [field]="schedule().time" />
+</div>

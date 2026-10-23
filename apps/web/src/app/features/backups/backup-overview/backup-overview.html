@@ -4,12 +4,12 @@
       <h2 hlmCardTitle id="overview-title">{{ 'backups.overview.title' | translate }}</h2>
       <p hlmCardDescription>
         @if (status().lastSuccessAt; as at) {
-          {{ 'backups.overview.lastSuccess' | translate: { time: format.ago(at) } }}
+          {{ 'backups.overview.lastSuccess' | translate: { time: formatter.ago(at) } }}
         } @else {
           {{ 'backups.overview.never' | translate }}
         }
         @if (status().nextRunAt; as next) {
-          · {{ 'backups.overview.next' | translate: { time: format.dateTime(next) } }}
+          · {{ 'backups.overview.next' | translate: { time: formatter.dateTime(next) } }}
         }
       </p>
     </div>
@@ -82,7 +82,7 @@
           {{
             'backups.overview.space'
               | translate
-                : { free: format.bytes(disk.freeBytes), total: format.bytes(disk.totalBytes) }
+                : { free: formatter.bytes(disk.freeBytes), total: formatter.bytes(disk.totalBytes) }
           }}
         </p>
         <hlm-progress
@@ -103,7 +103,7 @@
             (check.status === 'failed'
               ? 'backups.overview.checkFailed'
               : 'backups.overview.checkOk'
-            ) | translate: { time: format.dateTime(check.at) }
+            ) | translate: { time: formatter.dateTime(check.at) }
           }}
         </p>
       }

@@ -71,7 +71,7 @@ export class BackupItems {
   readonly browse = output<string | undefined>();
   readonly closeBrowser = output<void>();
 
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
   private readonly dialog = viewChild.required(HlmAlertDialog);
 
   /** The item a removal is being confirmed for, and whether its backups go too. */

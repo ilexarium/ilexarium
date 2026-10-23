@@ -1,27 +1,27 @@
-@if (!store.loaded()) {
+@if (!backupsPageStore.loaded()) {
   <div class="grid gap-4" role="status" [attr.aria-label]="'backups.loading' | translate">
     <hlm-skeleton class="h-40 w-full max-w-3xl rounded-xl" />
     <hlm-skeleton class="h-64 w-full max-w-3xl rounded-xl" />
   </div>
-} @else if (store.failed()) {
+} @else if (backupsPageStore.failed()) {
   <p role="alert" class="text-sm text-destructive">{{ 'backups.failed' | translate }}</p>
-} @else if (store.plan(); as plan) {
+} @else if (backupsPageStore.plan(); as plan) {
   <div class="grid grid-cols-1 gap-4 md:gap-6">
-    @if (store.passphrase(); as passphrase) {
+    @if (backupsPageStore.passphrase(); as passphrase) {
       <laris-passphrase-card
         [passphrase]="passphrase"
-        [first]="store.passphraseFirst()"
-        (saved)="store.hidePassphrase()"
+        [first]="backupsPageStore.passphraseFirst()"
+        (saved)="backupsPageStore.hidePassphrase()"
       />
     }
-    @if (store.status(); as status) {
+    @if (backupsPageStore.status(); as status) {
       <laris-backup-overview
         [status]="status"
         [destination]="plan.destinationStatus"
         [destinationPath]="plan.destination"
         [labels]="labels()"
-        [pending]="store.pending().includes('run')"
-        (runNow)="store.runNow()"
+        [pending]="backupsPageStore.pending().includes('run')"
+        (runNow)="backupsPageStore.runNow()"
       />
     }
     @if (restore(); as latest) {
@@ -29,46 +29,46 @@
         [restore]="latest"
         [label]="labels().get(latest.itemId) ?? { text: '', ltr: false }"
         [note]="restoreNote()"
-        [pending]="store.pending().includes('discard:' + latest.id)"
-        (discard)="store.discardPrevious(latest.id)"
+        [pending]="backupsPageStore.pending().includes('discard:' + latest.id)"
+        (discard)="backupsPageStore.discardPrevious(latest.id)"
       />
     }
     <laris-backup-items
-      [active]="store.rows().active"
-      [removed]="store.rows().removed"
-      [addable]="store.addable()"
+      [active]="backupsPageStore.rows().active"
+      [removed]="backupsPageStore.rows().removed"
+      [addable]="backupsPageStore.addable()"
       [labels]="labels()"
-      [pending]="store.pending()"
-      [running]="store.running() !== null"
-      [folderListing]="store.folders()"
-      (runNow)="store.runNow($event)"
+      [pending]="backupsPageStore.pending()"
+      [running]="backupsPageStore.running() !== null"
+      [folderListing]="backupsPageStore.folders()"
+      (runNow)="backupsPageStore.runNow($event)"
       (restore)="openRestore($event)"
-      (setFolders)="store.setFolders($event.itemId, $event.excludedFields)"
-      (remove)="store.removeItem($event.itemId, $event.deleteArchives)"
-      (addService)="store.addService($event)"
-      (addFolder)="store.addFolder($event)"
-      (browse)="store.browse($event)"
-      (closeBrowser)="store.closeBrowser()"
+      (setFolders)="backupsPageStore.setFolders($event.itemId, $event.excludedFields)"
+      (remove)="backupsPageStore.removeItem($event.itemId, $event.deleteArchives)"
+      (addService)="backupsPageStore.addService($event)"
+      (addFolder)="backupsPageStore.addFolder($event)"
+      (browse)="backupsPageStore.browse($event)"
+      (closeBrowser)="backupsPageStore.closeBrowser()"
     />
     <laris-backup-history
-      [runs]="store.runs()"
-      [outputs]="store.outputs()"
+      [runs]="backupsPageStore.runs()"
+      [outputs]="backupsPageStore.outputs()"
       [labels]="labels()"
-      (openOutput)="store.loadOutput($event)"
+      (openOutput)="backupsPageStore.loadOutput($event)"
     />
-    <laris-backup-settings [plan]="plan" [destinations]="store.destinations()" />
+    <laris-backup-settings [plan]="plan" [destinations]="backupsPageStore.destinations()" />
   </div>
   <laris-restore-dialog
-    [archives]="store.archives()?.list ?? null"
+    [archives]="backupsPageStore.archives()?.list ?? null"
     [labels]="labels()"
-    (restore)="store.restore($event)"
+    (restore)="backupsPageStore.restore($event)"
   />
 } @else {
   <laris-backup-setup
-    [destinations]="store.destinations()"
-    [services]="store.backupable()"
-    [folderListing]="store.folders()"
-    (browse)="store.browse($event)"
-    (closeBrowser)="store.closeBrowser()"
+    [destinations]="backupsPageStore.destinations()"
+    [services]="backupsPageStore.backupable()"
+    [folderListing]="backupsPageStore.folders()"
+    (browse)="backupsPageStore.browse($event)"
+    (closeBrowser)="backupsPageStore.closeBrowser()"
   />
 }

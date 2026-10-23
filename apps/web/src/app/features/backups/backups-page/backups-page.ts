@@ -11,10 +11,8 @@ import type { ItemLabel, ItemRow } from '../backups.model';
 import { PassphraseCard } from '../passphrase-card/passphrase-card';
 import { RestoreDialog } from '../restore-dialog/restore-dialog';
 import { RestoreStatus } from '../restore-status/restore-status';
+import { RESTORE_SHOWN_MS } from '../backups.constants';
 import { BackupsPageStore } from './backups-page-store';
-
-/** A finished restore stays shown this long (one with folders set aside, until they're deleted). */
-const RESTORE_SHOWN_MS = 24 * 60 * 60_000;
 
 /**
  * Backups: set up once (disk, schedule, what), then where they stand — the running backup,
@@ -39,14 +37,14 @@ const RESTORE_SHOWN_MS = 24 * 60 * 60_000;
   templateUrl: './backups-page.html',
 })
 export class BackupsPage {
-  protected readonly store = inject(BackupsPageStore);
+  protected readonly backupsPageStore = inject(BackupsPageStore);
   private readonly translator = inject(Translator);
   private readonly restoreDialog = viewChild(RestoreDialog);
 
   /** What each item is called (removed ones too, for the history). */
   protected readonly labels = computed(() => {
     const labels = new Map<string, ItemLabel>();
-    const { active, removed } = this.store.rows();
+    const { active, removed } = this.backupsPageStore.rows();
     for (const row of [...active, ...removed]) {
       const { item } = row;
       labels.set(
@@ -63,7 +61,7 @@ export class BackupsPage {
 
   /** The latest restore, while it's worth showing. */
   protected readonly restore = computed(() => {
-    const restore = this.store.status()?.restore;
+    const restore = this.backupsPageStore.status()?.restore;
     if (!restore) return null;
     const waiting = restore.setAside.length > 0 && !restore.setAsideDeleted;
     const finished = restore.job.finishedAt ? Date.parse(restore.job.finishedAt) : Date.now();
@@ -75,17 +73,17 @@ export class BackupsPage {
   /** The service's note after a restore (e.g. "restore the database in Immich"). */
   protected readonly restoreNote = computed(() => {
     const restore = this.restore();
-    const row = this.store
+    const row = this.backupsPageStore
       .rows()
-      .active.concat(this.store.rows().removed)
+      .active.concat(this.backupsPageStore.rows().removed)
       .find((r) => r.item.id === restore?.itemId);
     const catalogId = row?.item.catalogId;
-    const entry = (this.store.catalog() ?? []).find((e) => e.id === catalogId);
+    const entry = catalogId ? this.backupsPageStore.catalogById().get(catalogId) : undefined;
     return entry?.backupRestoreNote ? `catalog.${entry.id}.backup.restoreNote` : null;
   });
 
   protected openRestore(row: ItemRow): void {
     this.restoreDialog()?.open(row);
-    void this.store.loadArchives(row.item.id);
+    void this.backupsPageStore.loadArchives(row.item.id);
   }
 }

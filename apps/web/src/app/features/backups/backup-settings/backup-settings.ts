@@ -2,22 +2,13 @@ import {
   Component,
   computed,
   inject,
-  Injector,
   input,
-  type OnInit,
-  signal,
+  linkedSignal,
+  untracked,
   viewChild,
-  type WritableSignal,
 } from '@angular/core';
+import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import {
-  type FieldTree,
-  form,
-  FormField,
-  FormRoot,
-  validateStandardSchema,
-} from '@angular/forms/signals';
-import {
-  BACKUP_FREQUENCIES,
   type BackupDestination,
   type BackupPlan,
   type BackupSettingsForm,
@@ -29,14 +20,14 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { HlmFieldImports } from '@ui/field';
-import { HlmInput } from '@ui/input';
 import { HlmSelectImports } from '@ui/select';
-import { Translator } from '../../../core/i18n/translator';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
 import { PassphraseDialog } from '../passphrase-dialog/passphrase-dialog';
+import { RetentionFields } from '../retention-fields/retention-fields';
+import { ScheduleFields } from '../schedule-fields/schedule-fields';
 
 /**
  * The plan's settings: when backups run, how many are kept, the disk (another disk starts a new
@@ -52,56 +43,49 @@ import { PassphraseDialog } from '../passphrase-dialog/passphrase-dialog';
     HlmButton,
     HlmCardImports,
     HlmFieldImports,
-    HlmInput,
     HlmSelectImports,
     NgIcon,
     PassphraseDialog,
+    RetentionFields,
+    ScheduleFields,
     TranslatePipe,
   ],
   providers: [provideIcons({ lucideKeyRound })],
   templateUrl: './backup-settings.html',
 })
-export class BackupSettings implements OnInit {
+export class BackupSettings {
   readonly plan = input.required<BackupPlan>();
   readonly destinations = input<BackupDestination[] | null>(null);
 
-  private readonly store = inject(BackupsPageStore);
-  private readonly injector = inject(Injector);
+  private readonly backupsPageStore = inject(BackupsPageStore);
   private readonly passphraseDialog = viewChild.required(PassphraseDialog);
-  protected readonly frequencies = BACKUP_FREQUENCIES;
-  private readonly translator = inject(Translator);
-  /** What the select shows for the chosen frequency. */
-  protected readonly frequencyLabel = (frequency: string) =>
-    this.translator.t(`backups.schedule.${frequency}`);
-  protected readonly keepParts = ['daily', 'weekly', 'monthly'] as const;
 
-  protected model!: WritableSignal<BackupSettingsForm>;
-  protected form!: FieldTree<BackupSettingsForm>;
-
-  /** The disks to choose from: the supported mounted ones, and the current one even if it's gone. */
-  protected readonly disks = computed(() => {
-    const current = this.plan().destination;
-    const mounted = (this.destinations() ?? []).filter((d) => d.supported).map((d) => d.mountPoint);
-    return mounted.includes(current) ? mounted : [current, ...mounted];
+  /**
+   * The saved plan, until it's saved again (here or elsewhere): the page reloads the plan after
+   * every run, and that mustn't throw away what's being typed.
+   */
+  // A computed, not a plain function: linkedSignal would recompute for every new plan object.
+  private readonly savedAt = computed(() => this.plan().updatedAt);
+  private readonly model = linkedSignal<string, BackupSettingsForm>({
+    source: this.savedAt,
+    computation: () => {
+      const plan = untracked(this.plan);
+      return {
+        destination: plan.destination,
+        schedule: { ...plan.schedule },
+        retention: { ...plan.retention },
+      };
+    },
   });
-  protected readonly diskChanged = computed(
-    () => this.model?.().destination !== this.plan().destination,
-  );
-
-  ngOnInit(): void {
-    const plan = this.plan();
-    this.model = signal<BackupSettingsForm>({
-      destination: plan.destination,
-      schedule: { ...plan.schedule },
-      retention: { ...plan.retention },
-    });
-    this.form = form(this.model, (path) => validateStandardSchema(path, backupSettingsFormSchema), {
-      injector: this.injector,
+  protected readonly form = form(
+    this.model,
+    (path) => validateStandardSchema(path, backupSettingsFormSchema),
+    {
       submission: {
         action: async (tree) => {
           const { destination, schedule, retention } = tree().value();
           try {
-            await this.store.updatePlan({
+            await this.backupsPageStore.updatePlan({
               schedule,
               retention,
               ...(destination !== this.plan().destination ? { destination } : {}),
@@ -112,12 +96,18 @@ export class BackupSettings implements OnInit {
           return undefined;
         },
       },
-    });
-  }
+    },
+  );
 
-  protected keep(part: (typeof this.keepParts)[number]) {
-    return this.form.retention[part];
-  }
+  /** The disks to choose from: the supported mounted ones, and the current one even if it's gone. */
+  protected readonly disks = computed(() => {
+    const current = this.plan().destination;
+    const mounted = (this.destinations() ?? []).filter((d) => d.supported).map((d) => d.mountPoint);
+    return mounted.includes(current) ? mounted : [current, ...mounted];
+  });
+  protected readonly diskChanged = computed(
+    () => this.model().destination !== this.plan().destination,
+  );
 
   protected showPassphrase(): void {
     this.passphraseDialog().open();
