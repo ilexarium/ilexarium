@@ -37,17 +37,22 @@ function setUp(options = DEFAULT_REALTIME_OPTIONS) {
     options,
   );
   connections.onModuleInit();
+  current = connections;
   const open = async (sessionId: string | null, userId = 'u1', origin?: string) => {
     const client = socket();
     sessions.set(client, sessionId ? { session: { id: sessionId }, user: { id: userId } } : null);
     const connection = await connections.admit(client as unknown as WebSocket, request(origin));
     return { client, connection };
   };
-  return { connections, events, open };
+  return { connections, events, open, authenticator };
 }
+
+let current: RealtimeConnections | null = null;
 
 describe('RealtimeConnections', () => {
   afterEach(() => {
+    current?.onModuleDestroy();
+    current = null;
     sessions.clear();
     vi.useRealTimers();
   });
@@ -116,5 +121,32 @@ describe('RealtimeConnections', () => {
 
     connections.onModuleDestroy();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('closes a socket whose re-check finds another session or none, as admission would', async () => {
+    vi.useFakeTimers();
+    const { open } = setUp();
+    const replaced = await open('s1');
+    const userOnly = await open('s2');
+    sessions.set(replaced.client, { session: { id: 's9' }, user: { id: 'u1' } });
+    sessions.set(userOnly.client, { user: { id: 'u1' } } as never);
+
+    await vi.advanceTimersByTimeAsync(DEFAULT_REALTIME_OPTIONS.sessionRecheckMs);
+    expect(replaced.client.closedWith).toBe(WS_CLOSE_CODES.sessionEnded);
+    expect(userOnly.client.closedWith).toBe(WS_CLOSE_CODES.sessionEnded);
+  });
+
+  it('skips a re-check while the previous one is still going', async () => {
+    vi.useFakeTimers();
+    const { open, authenticator } = setUp();
+    await open('s1');
+    let finish = () => {};
+    vi.mocked(authenticator.authenticateConnection).mockImplementation(
+      () => new Promise((resolve) => (finish = () => resolve(null))),
+    );
+    const calls = vi.mocked(authenticator.authenticateConnection).mock.calls.length;
+    await vi.advanceTimersByTimeAsync(DEFAULT_REALTIME_OPTIONS.sessionRecheckMs * 3);
+    expect(vi.mocked(authenticator.authenticateConnection).mock.calls.length).toBe(calls + 1);
+    finish();
   });
 });

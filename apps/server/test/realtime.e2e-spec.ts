@@ -318,6 +318,8 @@ describe('realtime WebSocket (e2e)', () => {
         recheck(): Promise<void>;
       };
       const recheck = vi.spyOn(connections, 'recheck').mockResolvedValue();
+      // A re-check already under way finishes before the test starts.
+      await new Promise((resolve) => setTimeout(resolve, 100));
       try {
         return await run();
       } finally {
