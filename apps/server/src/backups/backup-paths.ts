@@ -4,30 +4,12 @@ import {
   isPlainAbsolutePath,
 } from '@laris/shared';
 import type { WrapperConfig } from '../executor/executor.model.js';
+import { SYSTEM_FOLDERS } from '../host/host.constants.js';
 
 /**
  * Where things may be, as the app checks them — friendly errors before anything runs. The backup
  * wrapper checks all of it again, with its own code (system/wrappers/laris-backup.mts).
  */
-
-/** Never backed up, whatever is configured. */
-const DENIED_PATHS = [
-  '/bin',
-  '/boot',
-  '/dev',
-  '/etc',
-  '/lib',
-  '/lib32',
-  '/lib64',
-  '/proc',
-  '/root',
-  '/run',
-  '/sbin',
-  '/sys',
-  '/usr',
-  '/var/lib/docker',
-  '/var/run',
-];
 
 /** The production places of the wrapper's files (development: under the config's dev folder). */
 const STATE_DIR = '/var/lib/laris/backups';
@@ -39,7 +21,7 @@ export const inside = (path: string, root: string) => path === root || path.star
 export function notSystem(config: WrapperConfig, path: string): boolean {
   return (
     path !== '/' &&
-    !DENIED_PATHS.some((denied) => inside(path, denied) || inside(denied, path)) &&
+    !SYSTEM_FOLDERS.some((denied) => inside(path, denied) || inside(denied, path)) &&
     !config.protectedPaths.some((denied) => inside(path, denied) || inside(denied, path))
   );
 }

@@ -31,34 +31,21 @@ import { SystemReader } from '../host/system-reader.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { checkFolder, checkPort, localFolder } from './host-checks.js';
 import { ServiceJobs } from './service-jobs.js';
-import { ServiceSecrets } from './service-secrets.js';
+import { ServiceSecrets, type StoredSecrets } from './service-secrets.js';
+import { CLEAN_UP_AFTER, TOPIC_LINES } from './services.constants.js';
 
-/** Output lines the topic carries per running job. */
-const TOPIC_LINES = 50;
-/** Failures where Compose may have created something: a first install is cleaned up after them. */
-const CLEAN_UP_AFTER: readonly ServiceErrorCode[] = [
-  SERVICE_ERROR_CODES.composeFailed,
-  SERVICE_ERROR_CODES.timedOut,
-];
-
-/**
- * Installing and removing catalog services (docs/plans/service_deploys.md) — the orchestration:
- * checks the values (the shared schema plus friendly port and folder pre-checks), stores settings
- * and encrypted secrets (`ServiceSecrets`), and runs one job at a time (`ServiceJobs`) through the
- * executor — which audits and runs the root wrapper. A service's runtime state comes from the
- * `containers` topic (Compose project `hl-<id>`).
- */
+/** docs/plans/service_deploys.md. A service's runtime state comes from the `containers` topic. */
 @Injectable()
 export class ServiceManager {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly catalog: CatalogService,
-    private readonly executor: ExecutorService,
-    private readonly jobs: ServiceJobs,
+    private readonly catalogService: CatalogService,
+    private readonly executorService: ExecutorService,
+    private readonly serviceJobs: ServiceJobs,
     private readonly serviceSecrets: ServiceSecrets,
-    private readonly wrapperConfig: WrapperConfigService,
-    private readonly host: SystemReader,
-    private readonly backups: BackupPlanManager,
+    private readonly wrapperConfigService: WrapperConfigService,
+    private readonly systemReader: SystemReader,
+    private readonly backupPlanManager: BackupPlanManager,
   ) {}
 
   // Catalog.
@@ -68,7 +55,7 @@ export class ServiceManager {
       select: { catalogId: true, status: true },
     });
     const status = new Map(services.map((s) => [s.catalogId, s.status]));
-    return this.catalog.list().map(({ meta }) => ({
+    return this.catalogService.list().map(({ meta }) => ({
       id: meta.id,
       name: meta.name,
       category: meta.category,
@@ -84,7 +71,7 @@ export class ServiceManager {
       where: { catalogId: id },
       include: { secrets: { select: { key: true } } },
     });
-    const config = this.wrapperConfig.config;
+    const config = this.wrapperConfigService.config;
     const taken = await this.takenPorts(existing?.id);
     const suggested: FieldValues = {};
     for (const field of entry.meta.fields) {
@@ -122,7 +109,7 @@ export class ServiceManager {
       include: { jobs: { orderBy: { startedAt: 'desc' }, take: 1 } },
     });
     return services.map((service) => {
-      const entry = this.catalog.get(service.catalogId);
+      const entry = this.catalogService.get(service.catalogId);
       const settings = service.settings as FieldValues;
       const webPort = entry?.meta.webPort ? settings[entry.meta.webPort] : undefined;
       const latest = service.jobs[0];
@@ -133,7 +120,7 @@ export class ServiceManager {
         status: service.status,
         settings,
         webPort: typeof webPort === 'number' ? webPort : null,
-        job: latest ? this.jobs.view(latest, TOPIC_LINES) : null,
+        job: latest ? this.serviceJobs.view(latest, TOPIC_LINES) : null,
         updatedAt: service.updatedAt.toISOString(),
       };
     });
@@ -143,7 +130,7 @@ export class ServiceManager {
     const job = await this.prisma.serviceJob.findUnique({ where: { id } });
     if (!job)
       throw new NotFoundException(error('No such job', SERVICE_ERROR_CODES.serviceNotFound));
-    return this.jobs.view(job);
+    return this.serviceJobs.view(job);
   }
 
   async deploy(
@@ -151,7 +138,7 @@ export class ServiceManager {
     actor: ExecutorActor,
   ): Promise<DeployResponse> {
     const entry = this.requireEntry(catalogId);
-    const claim = this.jobs.claim('deploy');
+    const claim = this.serviceJobs.claim('deploy');
     try {
       const existing = await this.prisma.service.findUnique({
         where: { catalogId },
@@ -163,23 +150,11 @@ export class ServiceManager {
         );
       }
       const stored = new Map(existing?.secrets.map((s) => [s.key, s.value]) ?? []);
-      const checked = valuesSchema(entry.meta, {
-        keptSecrets: this.serviceSecrets.keptKeys(entry, [...stored.keys()]),
-      }).safeParse(values);
-      if (!checked.success) {
-        throw new BadRequestException(
-          fieldErrors(
-            checked.error.issues.map((i) => [String(i.path[0] ?? ''), i.code, i.message]),
-          ),
-        );
-      }
-      const problems = await this.preCheck(entry, checked.data, existing?.id);
-      if (problems.length > 0) throw new BadRequestException(fieldErrors(problems));
-
+      const checked = await this.checkRequest(entry, values, existing?.id, [...stored.keys()]);
       const { settings, secretValues } = this.serviceSecrets.resolve(
         entry,
-        checked.data,
-        existing ? { serviceId: existing.id, values: stored } : null,
+        checked,
+        existing ? ({ serviceId: existing.id, values: stored } satisfies StoredSecrets) : null,
       );
 
       const { service, job } = await this.prisma.$transaction(async (tx) => {
@@ -215,7 +190,7 @@ export class ServiceManager {
       void this.runDeploy(entry, service.id, settings, secretValues, actor, firstInstall).then(
         (installed) => {
           if (installed && includeInBackups)
-            void this.backups.includeInstalledService(service.id, actor);
+            void this.backupPlanManager.includeInstalledService(service.id, actor);
         },
       );
       return { serviceId: service.id, jobId: job.id };
@@ -233,7 +208,7 @@ export class ServiceManager {
       throw new ConflictException(error('Not installed', SERVICE_ERROR_CODES.notInstalled));
     }
     const entry = this.requireEntry(service.catalogId);
-    const claim = this.jobs.claim('remove');
+    const claim = this.serviceJobs.claim('remove');
     try {
       const job = await this.prisma.$transaction(async (tx) => {
         await tx.service.update({ where: { id: serviceId }, data: { status: 'removing' } });
@@ -261,9 +236,9 @@ export class ServiceManager {
     firstInstall: boolean,
   ): Promise<boolean> {
     const secrets = Object.values(secretValues);
-    const outcome = await this.jobs.execute(() =>
-      this.executor.composeUp({
-        ...this.jobs.callbacks(),
+    const outcome = await this.serviceJobs.execute(() =>
+      this.executorService.composeUp({
+        ...this.serviceJobs.callbacks(),
         catalogId: entry.meta.id,
         serviceId,
         values: { ...settings, ...secretValues },
@@ -275,15 +250,15 @@ export class ServiceManager {
     );
     if (!outcome.ok && firstInstall && CLEAN_UP_AFTER.includes(outcome.code)) {
       // No half-created containers left behind (volumes and folders stay).
-      this.jobs.appendOutput('— cleaning up —');
-      await this.jobs.execute(() =>
-        this.executor.composeDown({
-          ...this.jobs.callbacks(),
+      this.serviceJobs.appendOutput('— cleaning up —');
+      await this.serviceJobs.execute(() =>
+        this.executorService.composeDown({
+          ...this.serviceJobs.callbacks(),
           ...this.downRequest(entry, serviceId, secrets, actor),
         }),
       );
     }
-    await this.jobs.finish(outcome, outcome.ok ? 'installed' : 'failed');
+    await this.serviceJobs.finish(outcome, outcome.ok ? 'installed' : 'failed');
     return outcome.ok;
   }
 
@@ -293,13 +268,13 @@ export class ServiceManager {
     previous: 'installed' | 'failed',
     actor: ExecutorActor,
   ): Promise<void> {
-    const outcome = await this.jobs.execute(() =>
-      this.executor.composeDown({
-        ...this.jobs.callbacks(),
+    const outcome = await this.serviceJobs.execute(() =>
+      this.executorService.composeDown({
+        ...this.serviceJobs.callbacks(),
         ...this.downRequest(entry, serviceId, [], actor),
       }),
     );
-    await this.jobs.finish(outcome, outcome.ok ? 'removed' : previous);
+    await this.serviceJobs.finish(outcome, outcome.ok ? 'removed' : previous);
   }
 
   private downRequest(
@@ -320,8 +295,28 @@ export class ServiceManager {
 
   // Checks.
 
+  /** The values against the recipe (the shared schema), then against this machine; 400 per field. */
+  private async checkRequest(
+    entry: CatalogEntry,
+    values: unknown,
+    ownServiceId: string | undefined,
+    storedKeys: string[],
+  ): Promise<FieldValues> {
+    const checked = valuesSchema(entry.meta, {
+      keptSecrets: this.serviceSecrets.keptKeys(entry, storedKeys),
+    }).safeParse(values);
+    if (!checked.success) {
+      throw new BadRequestException(
+        fieldErrors(checked.error.issues.map((i) => [String(i.path[0] ?? ''), i.code, i.message])),
+      );
+    }
+    const problems = await this.preCheck(entry, checked.data, ownServiceId);
+    if (problems.length > 0) throw new BadRequestException(fieldErrors(problems));
+    return checked.data;
+  }
+
   private requireEntry(id: string): CatalogEntry {
-    const entry = this.catalog.get(id);
+    const entry = this.catalogService.get(id);
     if (!entry)
       throw new NotFoundException(
         error('No such catalog entry', SERVICE_ERROR_CODES.catalogEntryNotFound),
@@ -334,7 +329,7 @@ export class ServiceManager {
     values: FieldValues,
     ownServiceId: string | undefined,
   ): Promise<[string, string, string][]> {
-    const config = this.wrapperConfig.config;
+    const config = this.wrapperConfigService.config;
     const taken = await this.takenPorts(ownServiceId);
     const problems: [string, string, string][] = [];
     const seen = new Set<number>();
@@ -348,7 +343,7 @@ export class ServiceManager {
         seen.add(value as number);
       } else if (field.type === 'path') {
         const path = value as string;
-        code = checkFolder(path, entry.meta.id, config, await this.host.folder(path));
+        code = checkFolder(path, entry.meta.id, config, await this.systemReader.folder(path));
       }
       if (code) problems.push([field.key, code, `errors.${code}`]);
     }
@@ -357,7 +352,7 @@ export class ServiceManager {
 
   /** Ports something listens on, plus those other installed services were given (even if stopped). */
   private async takenPorts(exceptServiceId?: string): Promise<Set<number>> {
-    const taken = await this.host.listeningTcpPorts();
+    const taken = await this.systemReader.listeningTcpPorts();
     const others = await this.prisma.service.findMany({
       where: {
         status: { in: ['installing', 'installed', 'removing'] },
@@ -365,7 +360,7 @@ export class ServiceManager {
       },
     });
     for (const other of others) {
-      const entry = this.catalog.get(other.catalogId);
+      const entry = this.catalogService.get(other.catalogId);
       const settings = other.settings as FieldValues;
       for (const field of entry?.meta.fields ?? []) {
         if (field.type === 'port' && typeof settings[field.key] === 'number')
@@ -376,7 +371,7 @@ export class ServiceManager {
   }
 
   private freePortFrom(port: number, taken: ReadonlySet<number>): number {
-    const config = this.wrapperConfig.config;
+    const config = this.wrapperConfigService.config;
     for (let candidate = port; candidate < port + 100 && candidate <= 65535; candidate++) {
       if (!checkPort(candidate, config, taken)) return candidate;
     }

@@ -1,6 +1,7 @@
 import { Subject } from 'rxjs';
 import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
-import { SERVICES_PUBLISH_MS, ServicesTopic } from './services-topic.js';
+import { SERVICES_PUBLISH_MS } from './services.constants.js';
+import { ServicesTopic } from './services-topic.js';
 import type { ServiceJobs } from './service-jobs.js';
 import type { ServiceManager } from './service-manager.js';
 

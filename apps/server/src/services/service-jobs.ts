@@ -7,16 +7,12 @@ import type { ServiceJob as ServiceJobRow } from '../generated/prisma/client.js'
 import { jobView, LiveJob } from '../jobs/live-job.js';
 import { OperationSlot } from '../jobs/operation-slot.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { JOBS_KEPT } from './services.constants.js';
 import type { ActiveJob } from './services.model.js';
 
-const JOBS_KEPT = 20;
-
 /**
- * Running install and removal jobs: in the one slot for privileged operations (`OperationSlot`,
- * shared with backups; the wrappers' lock enforces the same as root); the running job's phase and
- * output, live; saving its result; keeping the last 20 per service; and, after a restart, marking
- * jobs that were running as interrupted and reading their services' state back from Docker. Every
- * change goes out on `changes$` (the `services` topic).
+ * At most one running install or removal, in the slot shared with backups and disks. After a
+ * restart, jobs still `running` are interrupted and their services read back from Docker.
  */
 @Injectable()
 export class ServiceJobs implements OnApplicationBootstrap {
@@ -29,8 +25,8 @@ export class ServiceJobs implements OnApplicationBootstrap {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly docker: DockerService,
-    private readonly slot: OperationSlot,
+    private readonly dockerService: DockerService,
+    private readonly operationSlot: OperationSlot,
   ) {}
 
   /** Jobs the app was running when it stopped are `interrupted`; their services are read back from Docker. */
@@ -66,7 +62,11 @@ export class ServiceJobs implements OnApplicationBootstrap {
     start: (id: string, serviceId: string) => void;
     release: () => void;
   } {
-    const job: ActiveJob = { live: new LiveJob(), serviceId: null, release: this.slot.claim(kind) };
+    const job: ActiveJob = {
+      live: new LiveJob(),
+      serviceId: null,
+      release: this.operationSlot.claim(kind),
+    };
     this.active = job;
     return {
       start: (id, serviceId) => {
@@ -162,7 +162,7 @@ export class ServiceJobs implements OnApplicationBootstrap {
   ): Promise<'installed' | 'failed' | 'removed'> {
     const project = serviceProject(catalogId);
     try {
-      const containers = (await this.docker.listContainers()).filter(
+      const containers = (await this.dockerService.listContainers()).filter(
         (c) => c.composeProject === project,
       );
       if (kind === 'remove') return containers.length === 0 ? 'removed' : 'installed';

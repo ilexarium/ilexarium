@@ -12,14 +12,10 @@ export interface StoredSecrets {
   values: ReadonlyMap<string, Uint8Array>;
 }
 
-/**
- * A service's secrets: which ones a previous install already has, the value of each for a deploy
- * (entered, kept or generated), and their encrypted form for the database. Plain text exists only
- * in memory, on its way to the wrapper's stdin.
- */
+/** Plain text exists only in memory, on its way to the wrapper's stdin. */
 @Injectable()
 export class ServiceSecrets {
-  constructor(private readonly secrets: SecretsService) {}
+  constructor(private readonly secretsService: SecretsService) {}
 
   /** Secret fields (entered by the user) a previous install has a value for: may be left empty. */
   keptKeys(entry: CatalogEntry, storedKeys: readonly string[]): string[] {
@@ -44,11 +40,11 @@ export class ServiceSecrets {
       const value = values[field.key];
       const stored = previous?.values.get(field.key);
       const reuse = () =>
-        this.secrets.decrypt(stored!, secretContext(previous!.serviceId, field.key));
+        this.secretsService.decrypt(stored!, secretContext(previous!.serviceId, field.key));
       if (field.type === 'secret') {
         secretValues[field.key] = value === '' && stored ? reuse() : String(value);
       } else if (field.type === 'generatedSecret') {
-        secretValues[field.key] = stored ? reuse() : this.secrets.generate();
+        secretValues[field.key] = stored ? reuse() : this.secretsService.generate();
       } else {
         settings[field.key] = value;
       }
@@ -64,7 +60,7 @@ export class ServiceSecrets {
     return Object.entries(secretValues).map(([key, value]) => ({
       serviceId,
       key,
-      value: new Uint8Array(this.secrets.encrypt(value, secretContext(serviceId, key))),
+      value: new Uint8Array(this.secretsService.encrypt(value, secretContext(serviceId, key))),
     }));
   }
 }

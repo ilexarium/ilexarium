@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { SERVICE_ERROR_CODES, type ServiceErrorCode } from '@laris/shared';
 import type { WrapperConfig } from '../executor/executor.model.js';
 import type { FolderState } from '../host/host.model.js';
+import { SYSTEM_FOLDERS } from '../host/host.constants.js';
 
 /**
  * The app's friendly pre-checks of ports and folders, so the form can show "port in use" on the
@@ -9,25 +10,6 @@ import type { FolderState } from '../host/host.model.js';
  * `SystemReader` (`host/`). The root wrapper checks the same things again, for real — these may be
  * wrong in edge cases; the wrapper decides.
  */
-
-/** Never mounted, whatever the config says (the wrapper keeps the same list). */
-const DENIED_PATHS = [
-  '/bin',
-  '/boot',
-  '/dev',
-  '/etc',
-  '/lib',
-  '/lib32',
-  '/lib64',
-  '/proc',
-  '/root',
-  '/run',
-  '/sbin',
-  '/sys',
-  '/usr',
-  '/var/lib/docker',
-  '/var/run',
-];
 
 const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
 
@@ -46,7 +28,7 @@ export function folderAllowed(path: string, config: WrapperConfig): boolean {
   return (
     path !== '/' &&
     config.storageRoots.some((root) => inside(path, root)) &&
-    !DENIED_PATHS.some((denied) => inside(path, denied) || inside(denied, path)) &&
+    !SYSTEM_FOLDERS.some((denied) => inside(path, denied) || inside(denied, path)) &&
     !config.protectedPaths.some((p) => inside(path, p) || inside(p, path))
   );
 }
