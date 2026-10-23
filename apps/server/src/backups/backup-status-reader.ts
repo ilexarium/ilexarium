@@ -18,23 +18,23 @@ import { TOPIC_LINES } from '../jobs/jobs.constants.js';
 export class BackupStatusReader {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly reader: SystemReader,
-    private readonly checks: BackupChecks,
-    private readonly progress: BackupProgressFollower,
-    private readonly restores: BackupRestores,
+    private readonly systemReader: SystemReader,
+    private readonly backupChecks: BackupChecks,
+    private readonly backupProgressFollower: BackupProgressFollower,
+    private readonly backupRestores: BackupRestores,
   ) {}
 
   async status(): Promise<BackupsStatus> {
     const plan = await this.prisma.backupPlan.findUnique({ where: { id: 1 } });
     const restore = await this.prisma.backupRestore.findFirst({ orderBy: { startedAt: 'desc' } });
-    const restoreView = restore ? this.restores.view(restore, TOPIC_LINES) : null;
+    const restoreView = restore ? this.backupRestores.view(restore, TOPIC_LINES) : null;
     if (!plan) {
       return {
         configured: false,
         warnings: [],
         lastSuccessAt: null,
         nextRunAt: null,
-        running: this.progress.running(),
+        running: this.backupProgressFollower.running(),
         lastRun: null,
         items: [],
         restore: restoreView,
@@ -49,8 +49,8 @@ export class BackupStatusReader {
         include: { items: true },
       }),
       this.prisma.backupCheck.findFirst({ orderBy: { finishedAt: 'desc' } }),
-      this.reader.space(plan.destination),
-      this.checks.destinationMounted(plan.destination),
+      this.systemReader.space(plan.destination),
+      this.backupChecks.destinationMounted(plan.destination),
     ]);
     const now = new Date();
     const itemStates = items.map((item) => ({
@@ -82,7 +82,7 @@ export class BackupStatusReader {
           ? new Date(Math.min(...successes.map((s) => s!.getTime()))).toISOString()
           : null,
       nextRunAt: nextRunAt(plan.schedule as BackupSchedule, now).toISOString(),
-      running: this.progress.running(),
+      running: this.backupProgressFollower.running(),
       lastRun: lastRun ? runView(lastRun) : null,
       items: itemStates.map(({ item, lastSuccess: success, last }) => ({
         id: item.id,

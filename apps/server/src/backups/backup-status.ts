@@ -5,10 +5,8 @@ import {
   type BackupSchedule,
   type BackupWarning,
 } from '@laris/shared';
+import { LOW_SPACE_SHARE } from './backups.constants.js';
 import type { WarningInput } from './backups.model.js';
-
-/** Less free space than this share of the disk: a warning. */
-export const LOW_SPACE_SHARE = 0.1;
 
 /**
  * The problems shown across the app (dashboard, a badge on "Backups"), most serious first:

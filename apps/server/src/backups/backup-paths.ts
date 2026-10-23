@@ -5,15 +5,12 @@ import {
 } from '@laris/shared';
 import type { WrapperConfig } from '../executor/executor.model.js';
 import { inside, notSystem } from '../host/folders.js';
+import { ARCHIVE_TIME_LENGTH, MOUNT_INFO, STATE_DIR } from './backups.constants.js';
 
 /**
  * Where things may be, as the app checks them — friendly errors before anything runs. The backup
  * wrapper checks all of it again, with its own code (system/wrappers/laris-backup.mts).
  */
-
-/** The production places of the wrapper's files (development: under the config's dev folder). */
-const STATE_DIR = '/var/lib/laris/backups';
-const MOUNT_INFO = '/proc/self/mountinfo';
 
 /** A service's folder: inside a storage root. */
 export function isAllowedServiceFolder(config: WrapperConfig, path: string): boolean {
@@ -64,5 +61,5 @@ export function stateDir(config: WrapperConfig): string {
 
 /** An archive's time, from its name (`<item id>-<UTC time>`). */
 export function archiveTime(name: string): string {
-  return `${name.slice(37)}.000Z`;
+  return `${name.slice(-ARCHIVE_TIME_LENGTH)}.000Z`;
 }

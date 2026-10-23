@@ -1,4 +1,10 @@
 import {
+  BACKUP_DESTINATION_ROOTS,
+  BACKUP_FILESYSTEMS,
+  BACKUP_FREQUENCIES,
+  BACKUP_LIMITS,
+  BACKUP_REPOSITORY_FOLDER,
+  BACKUP_TIME_PATTERN,
   CATALOG_ID_PATTERN,
   CATALOG_LIMITS,
   ENUM_OPTION_PATTERN,
@@ -14,7 +20,12 @@ import {
   SERVICE_KEYS,
   VOLUME_KEYS,
 } from '../../apps/server/src/catalog/compose-policy.constants.ts';
+import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
+import * as wrapperConfigure from './backup/configure.mts';
+import * as wrapperBackupConfig from './backup/config.mts';
+import * as wrapperDestination from './backup/destination.mts';
+import * as wrapperPlan from './backup/plan.mts';
 import * as wrapperCatalog from './compose/catalog.mts';
 import * as wrapperPolicy from './compose/policy.mts';
 import * as wrapperValues from './compose/values.mts';
@@ -62,5 +73,26 @@ describe('the app and the root wrappers check the same rules', () => {
     expect(String(wrapperCatalog.ID_PATTERN)).toBe(String(CATALOG_ID_PATTERN));
     expect(String(wrapperCatalog.KEY_PATTERN)).toBe(String(FIELD_KEY_PATTERN));
     expect(String(wrapperCatalog.ENUM_OPTION_PATTERN)).toBe(String(ENUM_OPTION_PATTERN));
+  });
+
+  it('backups: where disks may be, their formats, the repository folder, the item limit, the time', () => {
+    expect(wrapperBackupConfig.DESTINATION_ROOTS).toEqual([...BACKUP_DESTINATION_ROOTS]);
+    expect(wrapperDestination.FILESYSTEMS).toEqual(new Set(BACKUP_FILESYSTEMS));
+    expect(wrapperDestination.REPOSITORY_FOLDER).toBe(BACKUP_REPOSITORY_FOLDER);
+    expect(wrapperPlan.MAX_ITEMS).toBe(BACKUP_LIMITS.maxItems);
+    expect(String(wrapperPlan.TIME_PATTERN)).toBe(String(BACKUP_TIME_PATTERN));
+  });
+
+  it('backups: the timer runs at the hours the app shows as the next run', () => {
+    for (const frequency of BACKUP_FREQUENCIES) {
+      for (const time of ['00:00', '03:15', '13:45', '23:59']) {
+        const hours = scheduleHours({ frequency, time })
+          .map((h) => String(h).padStart(2, '0'))
+          .join(',');
+        expect(wrapperConfigure.onCalendar({ frequency, time })).toBe(
+          `*-*-* ${hours}:${time.slice(3)}:00`,
+        );
+      }
+    }
   });
 });

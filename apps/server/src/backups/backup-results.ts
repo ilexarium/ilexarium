@@ -4,6 +4,7 @@ import {
   type OnApplicationBootstrap,
   type OnModuleDestroy,
 } from '@nestjs/common';
+import { BACKUP_ERROR_CODES } from '@laris/shared';
 import { Observable, Subject, Subscription } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -15,16 +16,8 @@ import {
   type WrapperRunResult,
 } from './backup-files.js';
 import { BackupProgressFollower } from './backup-progress.js';
+import { RUNS_KEPT, START_GRACE_MS } from './backups.constants.js';
 import type { FollowedRun } from './backups.model.js';
-
-/** Runs kept in the history; older ones (and their item results) go. */
-export const RUNS_KEPT = 500;
-
-/**
- * A "Back up now" run that hasn't shown up by then never started (systemd couldn't run the
- * wrapper): recorded as failed. A run that started shows within seconds — it doesn't wait.
- */
-export const START_GRACE_MS = 2 * 60_000;
 
 /**
  * Brings the wrapper's results into the app's history: each run (scheduled or manual) and each
@@ -38,6 +31,8 @@ export class BackupResults implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(BackupResults.name);
   private importing: Promise<void> | null = null;
   private again = false;
+  /** The results last imported: the same array again means runs.jsonl hasn't changed. */
+  private imported: WrapperResult[] | null = null;
   private readonly changed = new Subject<void>();
   private readonly subscriptions = new Subscription();
 
@@ -46,20 +41,20 @@ export class BackupResults implements OnApplicationBootstrap, OnModuleDestroy {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly files: BackupFiles,
-    private readonly audit: AuditService,
-    private readonly progress: BackupProgressFollower,
+    private readonly backupFiles: BackupFiles,
+    private readonly auditService: AuditService,
+    private readonly backupProgressFollower: BackupProgressFollower,
   ) {
     // Listening from the start: the follower may find a crashed run during startup (its
     // onModuleInit), before this service's bootstrap — and it reports each run only once.
     this.subscriptions.add(
-      progress.interrupted$.subscribe((run) => void this.recordInterrupted(run)),
+      backupProgressFollower.interrupted$.subscribe((run) => void this.recordInterrupted(run)),
     );
   }
 
   onApplicationBootstrap(): void {
     // `import` never fails, and runs once more for notices that arrive while it imports.
-    this.subscriptions.add(this.files.changes$.subscribe(() => void this.import()));
+    this.subscriptions.add(this.backupFiles.changes$.subscribe(() => void this.import()));
     void this.import();
   }
 
@@ -86,8 +81,11 @@ export class BackupResults implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private async importOnce(): Promise<void> {
-    const results = await this.files.results();
-    await this.importResults(results);
+    const results = await this.backupFiles.results();
+    if (results !== this.imported) {
+      await this.importResults(results);
+      this.imported = results;
+    }
     await this.recordNotStarted(results);
   }
 
@@ -156,7 +154,7 @@ export class BackupResults implements OnApplicationBootstrap, OnModuleDestroy {
     // started (its row, waiting for this result) ends — as the user who started it.
     const manual = result.trigger === 'manual';
     if (manual ? !existing || existing.finishedAt : existing) return;
-    await this.audit.tryRecord({
+    await this.auditService.tryRecord({
       action: 'backup.run',
       outcome: result.status === 'failed' ? 'failure' : 'success',
       ...(manual
@@ -224,7 +222,7 @@ export class BackupResults implements OnApplicationBootstrap, OnModuleDestroy {
         trigger: run.progress.trigger,
         itemId: run.itemId,
         status: 'failed' as const,
-        errorCode: 'interrupted',
+        errorCode: BACKUP_ERROR_CODES.interrupted,
         output: run.progress.output.join('\n'),
         startedAt: new Date(run.progress.startedAt),
         finishedAt: new Date(),
@@ -258,12 +256,12 @@ export class BackupResults implements OnApplicationBootstrap, OnModuleDestroy {
       select: { id: true },
     });
     const reported = new Set(results.filter((r) => r.type === 'run').map((r) => r.runId));
-    const followed = this.progress.followedRunId();
+    const followed = this.backupProgressFollower.followedRunId();
     const never = stale.filter((run) => run.id !== followed && !reported.has(run.id));
     if (never.length === 0) return;
     await this.prisma.backupRun.updateMany({
       where: { id: { in: never.map((run) => run.id) }, finishedAt: null },
-      data: { status: 'failed', errorCode: 'interrupted', finishedAt: new Date() },
+      data: { status: 'failed', errorCode: BACKUP_ERROR_CODES.interrupted, finishedAt: new Date() },
     });
     this.logger.warn(`${never.length} backup run(s) started with "Back up now" never ran`);
     this.notify();

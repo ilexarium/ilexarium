@@ -1,7 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { BACKUP_ERROR_CODES, type BackupRun, type BackupRunRequest } from '@laris/shared';
-import { Observable, Subject } from 'rxjs';
+import {
+  concatMap,
+  first,
+  firstValueFrom,
+  from,
+  merge,
+  Observable,
+  startWith,
+  Subject,
+  timeout,
+  TimeoutError,
+} from 'rxjs';
 import type { ExecutorActor } from '../executor/executor.model.js';
 import { ExecutorService } from '../executor/executor.service.js';
 import { OperationSlot } from '../jobs/operation-slot.js';
@@ -10,14 +21,7 @@ import { apiError, backupError, wrapperCallRaw } from './backup-errors.js';
 import { BackupProgressFollower } from './backup-progress.js';
 import { requireItem, requirePlan, runView } from './backup-records.js';
 import { BackupResults } from './backup-results.js';
-
-const RUNS_SHOWN = 50;
-/**
- * "Back up now" keeps the one-operation slot until its run shows in the progress file (or has a
- * result): then the follower holds it, like for a scheduled run. Seconds, normally.
- */
-export const HANDOVER_MS = 30_000;
-const HANDOVER_POLL_MS = 200;
+import { HANDOVER_MS, RUNS_SHOWN } from './backups.constants.js';
 
 /**
  * Backup runs: "Back up now" (started through the executor; systemd runs it as its own unit) and
@@ -31,19 +35,16 @@ export class BackupRuns {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly executor: ExecutorService,
-    private readonly slot: OperationSlot,
-    private readonly progress: BackupProgressFollower,
-    private readonly results: BackupResults,
+    private readonly executorService: ExecutorService,
+    private readonly operationSlot: OperationSlot,
+    private readonly backupProgressFollower: BackupProgressFollower,
+    private readonly backupResults: BackupResults,
   ) {}
 
   /** A run was started. */
   readonly changes$: Observable<void> = this.changed.asObservable();
 
-  /**
-   * "Back up now": everything or one item. systemd runs it as its own unit (it goes on if the app
-   * stops); its progress and result arrive through the wrapper's files, like a scheduled run's.
-   */
+  /** "Back up now": everything or one item. It goes on if the app stops. */
   async runNow(request: BackupRunRequest, actor: ExecutorActor): Promise<{ runId: string }> {
     await requirePlan(this.prisma);
     if (request.itemId) {
@@ -54,7 +55,7 @@ export class BackupRuns {
         );
       }
     }
-    const release = this.slot.claim('backup');
+    const release = this.operationSlot.claim('backup');
     const runId = randomUUID();
     let handedOver = false;
     try {
@@ -69,7 +70,7 @@ export class BackupRuns {
         },
       });
       const outcome = await wrapperCallRaw(this.logger, () =>
-        this.executor.backupStart(
+        this.executorService.backupStart(
           { runId, ...(request.itemId ? { itemId: request.itemId } : {}) },
           actor,
         ),
@@ -86,7 +87,7 @@ export class BackupRuns {
     } finally {
       if (!handedOver) release();
     }
-    this.notify();
+    this.changed.next();
     return { runId };
   }
 
@@ -101,28 +102,38 @@ export class BackupRuns {
 
   async runOutput(id: string): Promise<{ output: string[]; omitted: number }> {
     const run = await this.prisma.backupRun.findUnique({ where: { id }, select: { output: true } });
-    if (!run) throw new NotFoundException(apiError('No such run', BACKUP_ERROR_CODES.itemNotFound));
+    if (!run) throw new NotFoundException(apiError('No such run', BACKUP_ERROR_CODES.runNotFound));
     return { output: run.output ? run.output.split('\n') : [], omitted: 0 };
   }
 
-  /** Waits until the started run shows in the progress file, or has finished (refused at once). */
+  /**
+   * Waits until the started run shows in the progress file, or has finished (refused at once) —
+   * looked at again whenever the follower or the results import report a change.
+   */
   private async handOver(runId: string): Promise<void> {
-    const deadline = Date.now() + HANDOVER_MS;
-    while (Date.now() < deadline) {
-      await this.progress.refresh();
-      if (this.progress.followedRunId() === runId) return;
-      await this.results.import();
-      const run = await this.prisma.backupRun.findUnique({
-        where: { id: runId },
-        select: { finishedAt: true },
-      });
-      if (!run || run.finishedAt) return;
-      await new Promise((resolve) => setTimeout(resolve, HANDOVER_POLL_MS));
+    const settled$ = merge(
+      this.backupProgressFollower.changes$,
+      this.backupResults.changes$,
+    ).pipe(
+      startWith(undefined),
+      concatMap(() => from(this.handedOver(runId))),
+      first(Boolean),
+      timeout({ first: HANDOVER_MS }),
+    );
+    try {
+      await firstValueFrom(settled$);
+    } catch (error) {
+      if (!(error instanceof TimeoutError)) throw error;
+      this.logger.warn(`Backup run ${runId} hasn't started after ${HANDOVER_MS / 1000} s`);
     }
-    this.logger.warn(`Backup run ${runId} hasn't started after ${HANDOVER_MS / 1000} s`);
   }
 
-  private notify(): void {
-    this.changed.next();
+  private async handedOver(runId: string): Promise<boolean> {
+    if (this.backupProgressFollower.followedRunId() === runId) return true;
+    const run = await this.prisma.backupRun.findUnique({
+      where: { id: runId },
+      select: { finishedAt: true },
+    });
+    return !run || run.finishedAt !== null;
   }
 }
