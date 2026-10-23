@@ -15,7 +15,6 @@ export const below = (path: string, root: string) => path.startsWith(`${root}/`)
  * The restore area (set at start): never backed up, never a service's folder — a restored
  * platform backup holds the master key and the database dump.
  */
-
 export let restoreArea: string | null = null;
 
 export function setRestoreArea(path: string): void {
@@ -45,7 +44,6 @@ export const allowedFolder = (config: Config, path: string) =>
  * in an allowed place once every symlink above it is resolved. Borg stores symlinks inside it as
  * links (never follows them), so a link can't pull another folder in.
  */
-
 export function resolveSource(path: string, allowed: (p: string) => boolean): string | null {
   if (!isPlainAbsolutePath(path) || !allowed(path)) return null;
   if (!existsSync(path)) return null;
@@ -60,7 +58,6 @@ export function resolveSource(path: string, allowed: (p: string) => boolean): st
  * but root (development: root or this user) — otherwise it could be swapped for a symlink between
  * a check and the write.
  */
-
 export function assertParentsSafe(path: string, devStopAt: string[]): void {
   const me = process.getuid?.() ?? 0;
   for (let parent = dirname(path); ; parent = dirname(parent)) {

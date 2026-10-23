@@ -227,8 +227,6 @@ export function archiveSources(infoJson: string, archive: string): string[] {
   }
 }
 
-// discard, forget, passphrase
-
 export async function discard(config: Config, paths: Paths, input: string): Promise<void> {
   const { path } = parseInput(input, ['path']);
   if (!absolute(path) || !SET_ASIDE_PATTERN.test(path))

@@ -36,7 +36,6 @@ export function mounts(file: string): Map<string, string> {
  * a mount point (else a run would fill the system disk), of a supported format, and nothing on
  * the way to it writable by the app (its user, its group) or by everyone.
  */
-
 export function checkDestination(config: Config, paths: Paths, destination: string): void {
   const refuse = (why: string): never => {
     throw new Refusal('destination_unavailable', `${destination}: ${why}`, 5);
@@ -76,7 +75,6 @@ export function repositoryId(path: string): string | null {
  * so a plan change refused after `init` never leaves the plan's disk without its record.
  * Reads the first version's single `{ path, id }` too.
  */
-
 export function loadRepositories(paths: Paths): Repository[] {
   if (!existsSync(paths.repository)) return [];
   if (isRoot) assertRootOwned(paths.repository);
@@ -102,7 +100,6 @@ export function saveRepository(paths: Paths, repo: Repository): void {
  * ours (the id stored at setup). Otherwise nothing is written — a repository is never created
  * here, only by `init`.
  */
-
 export function openRepository(config: Config, paths: Paths, plan: Plan): Repository {
   checkDestination(config, paths, plan.destination);
   const expected = join(plan.destination, REPOSITORY_FOLDER);

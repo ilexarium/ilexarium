@@ -11,8 +11,6 @@ import { loadPlan } from './plan.mts';
 import { borg, borgFailure, takeLock } from './programs.mts';
 import { emit, oneLine, Refusal } from '../lib/output.mts';
 
-// check (weekly; the first one of a month also reads every chunk of data)
-
 export async function check(config: Config, paths: Paths): Promise<number> {
   const release = await takeLock(paths, true);
   let plan: Plan;
