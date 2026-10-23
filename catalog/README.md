@@ -11,7 +11,7 @@ catalog/<service-id>/
 
 Texts (description, field labels and help) are translation keys in `packages/i18n/messages/*.json`: `catalog.<id>.description`, `catalog.<id>.fields.<KEY>.label` and `.help` (not for `generatedSecret` fields).
 
-How it's used and why: `docs/plans/service_deploys.md`. In production the catalog is installed root-owned; the root wrapper (`system/wrappers/laris-compose.ts`) reads recipes only from there — the app never hands it a Compose file, only an id and values.
+How it's used and why: `docs/plans/service_deploys.md`. In production the catalog is installed root-owned; the root wrapper (`system/wrappers/laris-compose.mts`) reads recipes only from there — the app never hands it a Compose file, only an id and values.
 
 ## Rules (checked by `apps/server/src/catalog/` at startup and in its tests, and again by the wrapper)
 

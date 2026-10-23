@@ -1,11 +1,19 @@
 import type { CatalogMeta } from '@laris/shared';
+import {
+  LOG_DRIVERS,
+  PINNED_IMAGE,
+  PLACEHOLDER_ONLY,
+  PORT_ENTRY,
+  RESERVED_LABEL,
+  SERVICE_KEYS,
+  VOLUME_KEYS,
+} from './compose-policy.constants.js';
 
 /**
- * The Compose policy for catalog recipes, checked on the template itself (placeholders not yet
- * filled in). An **allow-list**: a service may use only the keys below, in the forms below —
- * anything Compose adds later, or nobody thought of, is refused. The root wrapper checks the same
- * rules again, independently, on `docker compose config` output (docs/plans/service_deploys.md,
- * decision 6). Returns every violation found, as text for the startup error and the tests.
+ * On the template itself (placeholders not yet filled in). An **allow-list**: anything Compose adds
+ * later, or nobody thought of, is refused. The root wrapper checks the same rules again,
+ * independently, on `docker compose config` output (`system/wrappers/rules-match-app.spec.ts`
+ * keeps the two the same).
  */
 export function checkComposePolicy(template: unknown, meta: CatalogMeta): string[] {
   const problems: string[] = [];
@@ -162,43 +170,6 @@ export function checkPlaceholders(templateText: string, meta: CatalogMeta): stri
   for (const key of keys) if (!used.has(key)) problems.push(`${key}: declared but never used`);
   return problems;
 }
-
-/** Keys a service may use. Everything else is refused (privileged, cap_add, devices, network_mode, volumes_from, …). */
-const SERVICE_KEYS = new Set([
-  'image',
-  'command',
-  'entrypoint',
-  'environment',
-  'user',
-  'working_dir',
-  'ports',
-  'expose',
-  'volumes',
-  'tmpfs',
-  'depends_on',
-  'restart',
-  'healthcheck',
-  'logging',
-  'labels',
-  'shm_size',
-  'init',
-  'read_only',
-  'stop_grace_period',
-  'stop_signal',
-  'mem_limit',
-  'cpus',
-  'pids_limit',
-  'ulimits',
-]);
-const VOLUME_KEYS = new Set(['type', 'source', 'target', 'read_only']);
-const LOG_DRIVERS = new Set(['json-file', 'local']);
-/** name[:tag]@sha256:<64 hex> */
-const PINNED_IMAGE = /^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$/;
-/** Published on every address, or on loopback only (a service without its own sign-in, e.g. Ollama). */
-const PORT_ENTRY = /^(?:127\.0\.0\.1:)?\$\{([A-Z][A-Z0-9_]*)\}:[0-9]{1,5}(?:\/(?:tcp|udp))?$/;
-const PLACEHOLDER_ONLY = /^\$\{([A-Z][A-Z0-9_]*)\}$/;
-/** Ours, and Compose's own (a recipe must not pose as another project). */
-const RESERVED_LABEL = /^(laris\.|com\.docker\.compose\.)/;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
