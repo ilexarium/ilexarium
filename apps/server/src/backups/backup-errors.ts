@@ -6,7 +6,6 @@ import {
   type FieldError,
 } from '@laris/shared';
 import type { BackupOutcome } from '../executor/executor.model.js';
-import { BACKUP_ERROR_STATUS } from './backups.constants.js';
 
 export function apiError(message: string, code: BackupErrorCode): ApiErrorResponse {
   return { message, code };
@@ -19,6 +18,22 @@ export function validationFailed(errors: FieldError[]): BadRequestException {
     errors,
   } satisfies ApiErrorResponse);
 }
+
+/** The HTTP status of a failed wrapper call, by its code (others: 500). */
+const BACKUP_ERROR_STATUS: Partial<Record<BackupErrorCode, HttpStatus>> = {
+  [BACKUP_ERROR_CODES.busy]: HttpStatus.CONFLICT,
+  [BACKUP_ERROR_CODES.repositoryExists]: HttpStatus.CONFLICT,
+  [BACKUP_ERROR_CODES.pathsChanged]: HttpStatus.CONFLICT,
+  [BACKUP_ERROR_CODES.setAsideKept]: HttpStatus.CONFLICT,
+  [BACKUP_ERROR_CODES.invalidPlan]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [BACKUP_ERROR_CODES.destinationUnavailable]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [BACKUP_ERROR_CODES.destinationNotAllowed]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [BACKUP_ERROR_CODES.repositoryMismatch]: HttpStatus.UNPROCESSABLE_ENTITY,
+  [BACKUP_ERROR_CODES.archiveNotFound]: HttpStatus.NOT_FOUND,
+  [BACKUP_ERROR_CODES.itemNotFound]: HttpStatus.NOT_FOUND,
+  [BACKUP_ERROR_CODES.executorUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
+  [BACKUP_ERROR_CODES.auditUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
+};
 
 /** A failed backup wrapper call as an HTTP error the web app can word. */
 export function backupError(code: BackupErrorCode): HttpException {

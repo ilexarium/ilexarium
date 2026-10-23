@@ -29,11 +29,12 @@ import { ExecutorService } from '../executor/executor.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { OperationSlot } from '../jobs/operation-slot.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { BackupChecks, type NewItemRow } from './backup-checks.js';
+import { BackupChecks } from './backup-checks.js';
 import { apiError, wrapperCall } from './backup-errors.js';
 import { archiveTime } from './backup-paths.js';
 import { itemInclude, itemView, requireItem, requirePlan } from './backup-records.js';
 import { PLAN_CHANGE_TIMEOUT_MS } from './backups.constants.js';
+import type { NewItemRow } from './backups.model.js';
 
 type ItemWithService = Prisma.BackupItemGetPayload<{ include: { service: true } }>;
 
@@ -260,9 +261,12 @@ export class BackupPlanManager {
 
   // Inside.
 
-  /** Plan changes one after another: each writes the whole plan. */
+  /**
+   * Plan changes one after another: each writes the whole plan. Listeners hear of it once the
+   * change has finished — setup's included, passphrase and all — or failed partway.
+   */
   private changePlan<T>(change: () => Promise<T>): Promise<T> {
-    const next = this.planChanges.then(change, change);
+    const next = this.planChanges.then(change, change).finally(() => this.changed.next());
     this.planChanges = next.catch(() => undefined);
     return next;
   }
@@ -283,7 +287,6 @@ export class BackupPlanManager {
       },
       { timeout: PLAN_CHANGE_TIMEOUT_MS },
     );
-    this.changed.next();
   }
 
   /** Writes the whole plan, as `tx` sees it, through the wrapper's `configure`. */

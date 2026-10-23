@@ -18,17 +18,13 @@ import { inside } from '../host/folders.js';
 import { SystemReader } from '../host/system-reader.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { apiError, validationFailed } from './backup-errors.js';
+import type { NewItemRow } from './backups.model.js';
 import {
   isAllowedFolder,
   isDestinationPath,
   mountInfoFile,
   repositoryPath,
 } from './backup-paths.js';
-
-/** A checked new item, ready to be saved. */
-export type NewItemRow =
-  | { id: string; kind: 'service'; serviceId: string; excludedFields: string[] }
-  | { id: string; kind: 'folder'; path: string };
 
 /**
  * Where backups can go and what can be backed up: the disk and folder pickers, and the app's
@@ -142,7 +138,8 @@ export class BackupChecks {
   async checkNewItems(requests: BackupItemRequest[], destination: string): Promise<NewItemRow[]> {
     const problems: FieldError[] = [];
     const rows: NewItemRow[] = [];
-    const active = await this.prisma.backupItem.findMany({ where: { removedAt: null } });
+    const items = await this.prisma.backupItem.findMany();
+    const active = items.filter((item) => !item.removedAt);
     for (const [i, request] of requests.entries()) {
       const field = `items.${i}`;
       const problem =
@@ -173,7 +170,10 @@ export class BackupChecks {
       );
     }
     if (problems.length > 0) throw validationFailed(problems);
-    if (active.length + rows.length > BACKUP_LIMITS.maxItems) {
+    // Counted as the wrapper counts the plan: removed items too (their backups are kept), and the
+    // platform item setup adds (no items yet: this is setup).
+    const total = items.length + rows.length + (items.length === 0 ? 1 : 0);
+    if (total > BACKUP_LIMITS.maxItems) {
       throw new BadRequestException(apiError('Too many items', BACKUP_ERROR_CODES.tooManyItems));
     }
     return rows;

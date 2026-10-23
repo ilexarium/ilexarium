@@ -364,7 +364,7 @@ export const BackupsPageStore = signalStore(
         let seen: string | null = null;
         effect(() => {
           const key = changes();
-          if (key === null) return;
+          if (key === null || key === seen) return;
           if (seen !== null) untracked(() => void store.reload());
           seen = key;
         });

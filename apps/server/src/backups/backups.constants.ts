@@ -1,6 +1,3 @@
-import { HttpStatus } from '@nestjs/common';
-import { BACKUP_ERROR_CODES, type BackupErrorCode } from '@laris/shared';
-
 /** Per IP, for changes (slow, privileged, rare); reads aren't limited. */
 export const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
 
@@ -56,19 +53,3 @@ export const MAX_PROGRESS_READ_BYTES = 2 * 1024 * 1024;
 export const BACKUPS_PUBLISH_MS = 500;
 /** Also now and then without a change: "last backed up" ages, the disk fills. */
 export const BACKUPS_REFRESH_MS = 60_000;
-
-/** The HTTP status of a failed wrapper call, by its code (others: 500). */
-export const BACKUP_ERROR_STATUS: Partial<Record<BackupErrorCode, HttpStatus>> = {
-  [BACKUP_ERROR_CODES.busy]: HttpStatus.CONFLICT,
-  [BACKUP_ERROR_CODES.repositoryExists]: HttpStatus.CONFLICT,
-  [BACKUP_ERROR_CODES.pathsChanged]: HttpStatus.CONFLICT,
-  [BACKUP_ERROR_CODES.setAsideKept]: HttpStatus.CONFLICT,
-  [BACKUP_ERROR_CODES.invalidPlan]: HttpStatus.UNPROCESSABLE_ENTITY,
-  [BACKUP_ERROR_CODES.destinationUnavailable]: HttpStatus.UNPROCESSABLE_ENTITY,
-  [BACKUP_ERROR_CODES.destinationNotAllowed]: HttpStatus.UNPROCESSABLE_ENTITY,
-  [BACKUP_ERROR_CODES.repositoryMismatch]: HttpStatus.UNPROCESSABLE_ENTITY,
-  [BACKUP_ERROR_CODES.archiveNotFound]: HttpStatus.NOT_FOUND,
-  [BACKUP_ERROR_CODES.itemNotFound]: HttpStatus.NOT_FOUND,
-  [BACKUP_ERROR_CODES.executorUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
-  [BACKUP_ERROR_CODES.auditUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
-};
