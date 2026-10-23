@@ -4,7 +4,7 @@ import {
   isPlainAbsolutePath,
 } from '@laris/shared';
 import type { WrapperConfig } from '../executor/executor.model.js';
-import { SYSTEM_FOLDERS } from '../host/host.constants.js';
+import { inside, notSystem } from '../host/folders.js';
 
 /**
  * Where things may be, as the app checks them — friendly errors before anything runs. The backup
@@ -14,17 +14,6 @@ import { SYSTEM_FOLDERS } from '../host/host.constants.js';
 /** The production places of the wrapper's files (development: under the config's dev folder). */
 const STATE_DIR = '/var/lib/laris/backups';
 const MOUNT_INFO = '/proc/self/mountinfo';
-
-export const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
-
-/** Not a system folder, not the platform's own, neither inside one nor holding one. */
-export function notSystem(config: WrapperConfig, path: string): boolean {
-  return (
-    path !== '/' &&
-    !SYSTEM_FOLDERS.some((denied) => inside(path, denied) || inside(denied, path)) &&
-    !config.protectedPaths.some((denied) => inside(path, denied) || inside(denied, path))
-  );
-}
 
 /** A service's folder: inside a storage root. */
 export function isAllowedServiceFolder(config: WrapperConfig, path: string): boolean {

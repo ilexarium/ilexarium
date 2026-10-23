@@ -25,6 +25,8 @@ describe('checkFolder', () => {
     ['/var', 'folder', 'path_not_allowed'],
     ['/home/alice', 'folder', 'path_not_allowed'],
     ['/srv/laris/.platform/keys', 'folder', 'path_not_allowed'],
+    // A restore's master key and database dump: never mounted (the wrappers deny it too).
+    ['/srv/laris/restores/2026-10-23', 'folder', 'path_not_allowed'],
     ['/mnt/disk/music', 'folder', null],
     ['/mnt/disk/music', 'missing', 'path_not_found'],
     ['/mnt/disk/music', 'other', 'path_not_found'],

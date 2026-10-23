@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { SERVICE_ERROR_CODES, type ServiceErrorCode } from '@laris/shared';
 import type { WrapperConfig } from '../executor/executor.model.js';
 import type { FolderState } from '../host/host.model.js';
-import { SYSTEM_FOLDERS } from '../host/host.constants.js';
+import { inside, notSystem } from '../host/folders.js';
 
 /**
  * The app's friendly pre-checks of ports and folders, so the form can show "port in use" on the
@@ -10,8 +10,6 @@ import { SYSTEM_FOLDERS } from '../host/host.constants.js';
  * `SystemReader` (`host/`). The root wrapper checks the same things again, for real — these may be
  * wrong in edge cases; the wrapper decides.
  */
-
-const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
 
 export function checkPort(
   port: number,
@@ -25,12 +23,7 @@ export function checkPort(
 
 /** Where a folder may be: inside a storage root, never a system or platform folder (nor containing one). */
 export function folderAllowed(path: string, config: WrapperConfig): boolean {
-  return (
-    path !== '/' &&
-    config.storageRoots.some((root) => inside(path, root)) &&
-    !SYSTEM_FOLDERS.some((denied) => inside(path, denied) || inside(denied, path)) &&
-    !config.protectedPaths.some((p) => inside(path, p) || inside(p, path))
-  );
+  return config.storageRoots.some((root) => inside(path, root)) && notSystem(config, path);
 }
 
 /** A folder inside the service's own area (`<serviceRoot>/<id>/…`): created on deploy if missing. */

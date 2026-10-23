@@ -1,8 +1,5 @@
 import { SERVICE_ERROR_CODES, type ServiceErrorCode } from '@laris/shared';
 
-/** Output lines the topic carries per running job. */
-export const TOPIC_LINES = 50;
-
 /** Failures where Compose may have created something: a first install is cleaned up after them. */
 export const CLEAN_UP_AFTER: readonly ServiceErrorCode[] = [
   SERVICE_ERROR_CODES.composeFailed,

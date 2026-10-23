@@ -108,20 +108,29 @@ let fake: string;
 let lockFile: string;
 
 /**
- * A free TCP port below the kernel's ephemeral range (32768+ here): `listen(0)` would pick from
- * that range, which the kernel also hands out for outgoing connections — another test's connection
- * could take the port before the wrapper checks it, and the test would see `port_in_use`.
+ * A free TCP port below the kernel's ephemeral range: `listen(0)` would pick from that range,
+ * which the kernel also hands out for outgoing connections — another test's connection could take
+ * the port before the wrapper checks it, and the test would see `port_in_use`.
  */
 function freePort(): number {
+  let ephemeralStart = 32_768;
+  try {
+    ephemeralStart = Number(
+      readFileSync('/proc/sys/net/ipv4/ip_local_port_range', 'utf8').split(/\s+/)[0],
+    );
+  } catch {
+    // Not Linux: the usual start.
+  }
+  const low = Math.max(1024, ephemeralStart - 12_000);
   for (let attempt = 0; attempt < 50; attempt++) {
-    const candidate = 20_000 + Math.floor(Math.random() * 10_000);
+    const candidate = low + Math.floor(Math.random() * 10_000);
     const result = spawnSync(process.execPath, [
       '-e',
       `const s=require('net').createServer().once('error',()=>process.exit(1)).listen(${candidate},()=>s.close())`,
     ]);
     if (result.status === 0) return candidate;
   }
-  throw new Error('No free test port in 20000–29999');
+  throw new Error(`No free test port from ${low}`);
 }
 
 let port: number;

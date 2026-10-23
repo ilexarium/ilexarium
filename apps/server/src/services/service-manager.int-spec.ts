@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -214,6 +215,25 @@ describe('ServiceManager (database)', () => {
       status: 'failed',
       errorCode: 'audit_unavailable',
     });
+  });
+
+  it('logs a failed backup inclusion after an install — never an unhandled rejection', async () => {
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    try {
+      backups.includeInstalledService.mockRejectedValueOnce(new Error('configure failed'));
+      const { jobId } = await services.deploy(
+        { catalogId: 'test-hello', values: values(), includeInBackups: true },
+        actor(),
+      );
+      await vi.waitFor(() => expect(executor.up).toHaveLength(1));
+      executor.settle({ ok: true });
+      expect((await finished(jobId)).status).toBe('succeeded');
+      await vi.waitFor(() =>
+        expect(logged).toHaveBeenCalledWith('After installing test-hello', expect.any(String)),
+      );
+    } finally {
+      logged.mockRestore();
+    }
   });
 
   it('removes, keeps settings and secrets, and reinstalls with the same generated secret', async () => {

@@ -11,8 +11,10 @@ import { JOBS_KEPT } from './services.constants.js';
 import type { ActiveJob } from './services.model.js';
 
 /**
- * At most one running install or removal, in the slot shared with backups and disks. After a
- * restart, jobs still `running` are interrupted and their services read back from Docker.
+ * At most one running install or removal, in the slot shared with backups and disks. Every change
+ * (phase, output, status) goes out on `changes$`, which the `services` topic follows; a finished
+ * job is saved and only the last `JOBS_KEPT` per service are kept. After a restart, jobs still
+ * `running` are interrupted and their services read back from Docker.
  */
 @Injectable()
 export class ServiceJobs implements OnApplicationBootstrap {

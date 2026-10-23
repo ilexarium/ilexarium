@@ -15,7 +15,7 @@ const config = {
 
 describe('backup paths', () => {
   it('allows folders in the storage roots and home folders', () => {
-    for (const path of ['/srv/laris/docs', '/srv/laris', '/home/alice', '/home/alice/Photos']) {
+    for (const path of ['/srv/laris/docs', '/home/alice', '/home/alice/Photos']) {
       expect(isAllowedFolder(config, path), path).toBe(true);
     }
   });
@@ -28,6 +28,10 @@ describe('backup paths', () => {
       '/home',
       '/var/lib/laris',
       '/srv',
+      // All of it would take in the restore area (a restored master key, a database dump) —
+      // as the wrapper refuses it.
+      '/srv/laris',
+      '/srv/laris/restores/2026-10-23',
       '/srv/laris/../../etc',
       'srv/laris/docs',
       '/srv/laris/docs/',
