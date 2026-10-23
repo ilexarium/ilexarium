@@ -2,10 +2,8 @@ import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import type { RealtimeTopic, ServerMessage } from '@laris/shared';
 import { retry, type Subscription, timer } from 'rxjs';
 import { sendMessage } from './realtime-messages.js';
+import { SOURCE_RETRY_MS } from './realtime.constants.js';
 import type { RealtimeClient, TopicSource, UpdateData } from './realtime.model.js';
-
-/** A source whose updates failed is subscribed again after this long. */
-export const SOURCE_RETRY_MS = 5_000;
 
 /**
  * Who is subscribed to which topic, and the only place topic sources are started and stopped:
@@ -55,8 +53,8 @@ export class RealtimeSubscriptions implements OnModuleDestroy {
 
   /** Idempotent. Stops the source when this was its last subscriber. */
   unsubscribe(client: RealtimeClient, topic: RealtimeTopic): void {
-    const subscribers = this.subscribersOf(topic);
-    if (!subscribers.delete(client) || subscribers.size > 0) return;
+    const subscribers = this.subscribers.get(topic);
+    if (!subscribers?.delete(client) || subscribers.size > 0) return;
     const source = this.sources.get(topic);
     if (source) this.stop(source);
   }
@@ -67,7 +65,7 @@ export class RealtimeSubscriptions implements OnModuleDestroy {
   }
 
   subscriberCount(topic: RealtimeTopic): number {
-    return this.subscribersOf(topic).size;
+    return this.subscribers.get(topic)?.size ?? 0;
   }
 
   onModuleDestroy(): void {
@@ -86,7 +84,7 @@ export class RealtimeSubscriptions implements OnModuleDestroy {
 
   private publish(topic: RealtimeTopic, update: UpdateData<RealtimeTopic>): void {
     const message = { event: `${topic}:update`, data: update } as ServerMessage;
-    for (const [client, { ready }] of this.subscribersOf(topic)) {
+    for (const [client, { ready }] of this.subscribers.get(topic) ?? []) {
       if (ready) sendMessage(client, message);
     }
   }

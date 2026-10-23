@@ -12,17 +12,13 @@ import {
   type AuthenticationSignOutEvent,
   WsAuthenticator,
 } from '@nestjs/authentication';
-import type { Subscription } from 'rxjs';
+import { filter, type Subscription } from 'rxjs';
 import { WS_CLOSE_CODES } from '@laris/shared';
 import { WebSocket } from 'ws';
 import { MessageRateLimiter } from './message-rate-limiter.js';
-import { REALTIME_OPTIONS } from './realtime.options.js';
+import { INTERNAL_ERROR, POLICY_VIOLATION, REALTIME_OPTIONS } from './realtime.constants.js';
 import { isSameOrigin } from './same-origin.js';
 import type { Connection, RealtimeOptions } from './realtime.model.js';
-
-/** RFC 6455 §7.4.1. */
-const POLICY_VIOLATION = 1008;
-const INTERNAL_ERROR = 1011;
 
 /**
  * Admits or refuses each socket and keeps the admitted ones in check:
@@ -32,9 +28,9 @@ const INTERNAL_ERROR = 1011;
  *   anything is sent, `4401` without a session, 1008 otherwise.
  * - **Sign-out** — a session signed out (or every session of a user, "everywhere") closes its
  *   sockets at once with `4401`, so nothing more reaches them — log lines can hold secrets.
- * - **Re-check** — the session again every `sessionRecheckMs`; ended → closed with `4401`. This
- *   catches sessions that end without a sign-out event (expiry, revoked with the password change).
- *   (Every message is also checked by the global authentication guard.)
+ * - **Re-check** — every open socket's session again every `sessionRecheckMs`; ended → closed with
+ *   `4401`. This catches sessions that end without a sign-out event (expiry, revoked with the
+ *   password change). (Every message is also checked by the global authentication guard.)
  *
  * Nest starts delivering messages before the async connection hook finishes, so message handling
  * waits for {@link admitted} — otherwise a cross-site page could subscribe in that gap.
@@ -44,19 +40,21 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RealtimeConnections.name);
   private readonly admissions = new WeakMap<WebSocket, Promise<Connection | null>>();
   private readonly connections = new Map<WebSocket, Connection>();
-  private readonly bySession = new Map<string, Set<WebSocket>>();
   private signOuts?: Subscription;
+  private recheckTimer?: NodeJS.Timeout;
 
   constructor(
-    private readonly wsAuth: WsAuthenticator,
-    private readonly authEvents: AuthenticationEvents,
-    @Inject(REALTIME_OPTIONS) private readonly options: RealtimeOptions,
+    private readonly wsAuthenticator: WsAuthenticator,
+    private readonly authenticationEvents: AuthenticationEvents,
+    @Inject(REALTIME_OPTIONS) private readonly realtimeOptions: RealtimeOptions,
   ) {}
 
   onModuleInit(): void {
-    this.signOuts = this.authEvents.events$.subscribe((event) => {
-      if (event.type === 'sign-out') this.closeSignedOut(event);
-    });
+    this.signOuts = this.authenticationEvents.events$
+      .pipe(filter((event) => event.type === 'sign-out'))
+      .subscribe((event) => this.closeSignedOut(event));
+    this.recheckTimer = setInterval(() => this.recheckAll(), this.realtimeOptions.sessionRecheckMs);
+    this.recheckTimer.unref();
   }
 
   /** Call synchronously when the socket opens, before any message can arrive. Never rejects. */
@@ -78,13 +76,7 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
 
   /** Forgets a closed socket. Idempotent. */
   release(client: WebSocket): void {
-    const connection = this.connections.get(client);
-    if (!connection) return;
-    clearInterval(connection.recheck);
     this.connections.delete(client);
-    const sessionClients = this.bySession.get(connection.sessionId);
-    sessionClients?.delete(client);
-    if (sessionClients?.size === 0) this.bySession.delete(connection.sessionId);
   }
 
   /** Closes for a policy violation (e.g. message flooding). */
@@ -101,7 +93,8 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy(): void {
     this.signOuts?.unsubscribe();
-    for (const client of this.connections.keys()) this.release(client); // deleting while iterating a Map is safe
+    clearInterval(this.recheckTimer);
+    this.connections.clear();
   }
 
   private async check(client: WebSocket, request: IncomingMessage): Promise<Connection | null> {
@@ -117,21 +110,19 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
       return null;
     }
     const sessionId = result.session.id;
-    const sessionClients = this.bySession.get(sessionId) ?? new Set<WebSocket>();
-    if (sessionClients.size >= this.options.maxConnectionsPerSession) {
+    const open = [...this.connections.values()].filter((c) => c.sessionId === sessionId).length;
+    if (open >= this.realtimeOptions.maxConnectionsPerSession) {
       client.close(POLICY_VIOLATION, 'Too many connections');
       return null;
     }
-    const recheck = setInterval(() => void this.recheck(client), this.options.sessionRecheckMs);
-    recheck.unref();
     const connection: Connection = {
       sessionId,
       userId: result.user.id,
-      limiter: new MessageRateLimiter(this.options.messageLimit, this.options.messageWindowMs),
-      recheck,
+      limiter: new MessageRateLimiter(
+        this.realtimeOptions.messageLimit,
+        this.realtimeOptions.messageWindowMs,
+      ),
     };
-    sessionClients.add(client);
-    this.bySession.set(sessionId, sessionClients);
     this.connections.set(client, connection);
     return connection;
   }
@@ -144,6 +135,10 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
         : connection.sessionId === event.sessionId;
       if (ended) this.closeForEndedSession(client); // deleting while iterating a Map is safe
     }
+  }
+
+  private recheckAll(): void {
+    for (const client of this.connections.keys()) void this.recheck(client);
   }
 
   private async recheck(client: WebSocket): Promise<void> {
@@ -161,7 +156,9 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
     client: WebSocket,
     request?: IncomingMessage,
   ): Promise<AuthenticationResult | null> {
-    const result = await this.wsAuth.authenticateConnection(client, request, { required: false });
+    const result = await this.wsAuthenticator.authenticateConnection(client, request, {
+      required: false,
+    });
     return result as AuthenticationResult | null;
   }
 }

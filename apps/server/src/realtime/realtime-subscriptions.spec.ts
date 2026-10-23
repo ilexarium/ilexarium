@@ -2,7 +2,8 @@ import { Logger } from '@nestjs/common';
 import type { ServerMessage, SystemSnapshot, SystemUpdate } from '@laris/shared';
 import { Observable } from 'rxjs';
 import { WebSocket } from 'ws';
-import { RealtimeSubscriptions, SOURCE_RETRY_MS } from './realtime-subscriptions.js';
+import { RealtimeSubscriptions } from './realtime-subscriptions.js';
+import { SOURCE_RETRY_MS } from './realtime.constants.js';
 import type { RealtimeClient, TopicSource } from './realtime.model.js';
 
 const update = { uptimeSeconds: 1 } as SystemUpdate;

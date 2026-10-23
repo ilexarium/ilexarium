@@ -25,7 +25,7 @@ import { DropMessageException, RealtimeException, sendMessage } from './realtime
 export class RealtimeExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(RealtimeExceptionFilter.name);
 
-  constructor(private readonly connections: RealtimeConnections) {}
+  constructor(private readonly realtimeConnections: RealtimeConnections) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const client = host.switchToWs().getClient<WebSocket>();
@@ -35,7 +35,7 @@ export class RealtimeExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof BadRequestException) {
       sendMessage(client, { event: 'error', data: RealtimeException.invalidMessage().error });
     } else if (isUnauthorized(exception)) {
-      this.connections.closeForEndedSession(client);
+      this.realtimeConnections.closeForEndedSession(client);
     } else {
       this.logger.error('A WebSocket message failed', (exception as Error)?.stack);
     }
