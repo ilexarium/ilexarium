@@ -28,9 +28,8 @@ const sessions = new Map<FakeSocket, { session: { id: string }; user: { id: stri
 
 function setUp(options = DEFAULT_REALTIME_OPTIONS) {
   const events = new Subject<Record<string, unknown>>();
-  const authenticator = {
-    authenticateConnection: vi.fn(async (client: FakeSocket) => sessions.get(client) ?? null),
-  } as unknown as WsAuthenticator;
+  const authenticateConnection = vi.fn(async (client: FakeSocket) => sessions.get(client) ?? null);
+  const authenticator = { authenticateConnection } as unknown as WsAuthenticator;
   const connections = new RealtimeConnections(
     authenticator,
     { events$: events.asObservable() } as unknown as AuthenticationEvents,
@@ -44,7 +43,7 @@ function setUp(options = DEFAULT_REALTIME_OPTIONS) {
     const connection = await connections.admit(client as unknown as WebSocket, request(origin));
     return { client, connection };
   };
-  return { connections, events, open, authenticator };
+  return { connections, events, open, authenticateConnection };
 }
 
 let current: RealtimeConnections | null = null;
@@ -138,15 +137,15 @@ describe('RealtimeConnections', () => {
 
   it('skips a re-check while the previous one is still going', async () => {
     vi.useFakeTimers();
-    const { open, authenticator } = setUp();
+    const { open, authenticateConnection } = setUp();
     await open('s1');
     let finish = () => {};
-    vi.mocked(authenticator.authenticateConnection).mockImplementation(
+    authenticateConnection.mockImplementation(
       () => new Promise((resolve) => (finish = () => resolve(null))),
     );
-    const calls = vi.mocked(authenticator.authenticateConnection).mock.calls.length;
+    const calls = authenticateConnection.mock.calls.length;
     await vi.advanceTimersByTimeAsync(DEFAULT_REALTIME_OPTIONS.sessionRecheckMs * 3);
-    expect(vi.mocked(authenticator.authenticateConnection).mock.calls.length).toBe(calls + 1);
+    expect(authenticateConnection.mock.calls.length).toBe(calls + 1);
     finish();
   });
 });

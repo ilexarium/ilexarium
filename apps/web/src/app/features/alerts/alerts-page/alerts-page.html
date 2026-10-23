@@ -3,7 +3,7 @@
     @if (deliveryText(); as text) {
       <div hlmAlert variant="destructive" role="alert">
         <ng-icon name="lucideMailWarning" aria-hidden="true" />
-        <h2 hlmAlertTitle>{{ 'alertsStore.delivery.title' | translate }}</h2>
+        <h2 hlmAlertTitle>{{ 'alerts.delivery.title' | translate }}</h2>
         <div hlmAlertDescription class="grid gap-2">
           <p>{{ text }}</p>
           <a
@@ -12,14 +12,14 @@
             size="sm"
             class="justify-self-start"
             routerLink="/settings/notifications"
-            >{{ 'alertsStore.delivery.settings' | translate }}</a
+            >{{ 'alerts.delivery.settings' | translate }}</a
           >
         </div>
       </div>
     }
 
     <section class="grid gap-3" aria-labelledby="alerts-open">
-      <h2 id="alerts-open" class="text-lg font-semibold">{{ 'alertsStore.open' | translate }}</h2>
+      <h2 id="alerts-open" class="text-lg font-semibold">{{ 'alerts.open' | translate }}</h2>
       @for (alert of alertsStore.open(); track alert.id) {
         <laris-alert-card
           [alert]="alert"
@@ -27,29 +27,29 @@
           (acknowledge)="alertsPageStore.acknowledge($event)"
         />
       } @empty {
-        <laris-empty-state icon="lucideCircleCheck" [text]="'alertsStore.noneOpen' | translate" />
+        <laris-empty-state icon="lucideCircleCheck" [text]="'alerts.noneOpen' | translate" />
       }
     </section>
 
     <section class="grid gap-3" aria-labelledby="alerts-closed">
       <h2 id="alerts-closed" class="text-lg font-semibold">
-        {{ 'alertsStore.closed' | translate }}
+        {{ 'alerts.closed' | translate }}
       </h2>
       @for (alert of alertsStore.closed(); track alert.id) {
         <laris-alert-card [alert]="alert" />
       } @empty {
-        <p class="text-sm text-muted-foreground">{{ 'alertsStore.noneClosed' | translate }}</p>
+        <p class="text-sm text-muted-foreground">{{ 'alerts.noneClosed' | translate }}</p>
       }
     </section>
 
     <p class="text-sm">
       <a class="underline underline-offset-4" routerLink="/settings/notifications">{{
-        'alertsStore.settingsLink' | translate
+        'alerts.settingsLink' | translate
       }}</a>
     </p>
   </div>
 } @else {
-  <div class="grid gap-3" role="status" [attr.aria-label]="'alertsStore.loading' | translate">
+  <div class="grid gap-3" role="status" [attr.aria-label]="'alerts.loading' | translate">
     <hlm-skeleton class="h-6 w-40" />
     <hlm-skeleton class="h-24 rounded-lg" />
     <hlm-skeleton class="h-24 rounded-lg" />
