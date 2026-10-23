@@ -116,6 +116,7 @@ describe('TerminalPage', () => {
     const error = vi.spyOn(toast, 'error');
     const { el } = await render(null, true);
     expect(error).toHaveBeenCalled();
+    expect(el.querySelector('input[autocomplete="username"]')).not.toBeNull();
     expect(el.querySelector('#terminal-password')).toBeNull();
     error.mockRestore();
   });

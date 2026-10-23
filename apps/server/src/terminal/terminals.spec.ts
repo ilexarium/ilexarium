@@ -5,6 +5,7 @@ import { WebSocket } from 'ws';
 import type { AuditService } from '../audit/audit.service.js';
 import type { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import { TerminalTickets } from './terminal-tickets.js';
+import { SESSION_RECHECK_MS } from './terminal.constants.js';
 import { Terminals } from './terminals.js';
 
 /** A socket and a shell channel with just what the terminal uses. */
@@ -85,10 +86,44 @@ async function setup() {
     socket: { remoteAddress: '127.0.0.1' },
   } as unknown as IncomingMessage;
   await terminals.open(socket as unknown as WebSocket, request);
-  return { socket, channel, linux, audit, closeSession: (why: string) => closeSession(why) };
+  return {
+    socket,
+    channel,
+    linux,
+    audit,
+    wsAuth,
+    closeSession: (why: string) => closeSession(why),
+  };
 }
 
 describe('Terminals', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('closes (4401) when the re-check finds no session, another one, or only a user', async () => {
+    vi.useFakeTimers();
+    for (const answer of [
+      null,
+      { session: { id: 's2' }, user: { id: 'u1' } },
+      { user: { id: 'u1' } },
+    ]) {
+      const { socket, wsAuth } = await setup();
+      wsAuth.authenticateConnection.mockResolvedValue(answer as never);
+      await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS);
+      expect(socket.closedWith).toBe(4401);
+    }
+  });
+
+  it('keeps it open while the re-check finds its session, and never runs two re-checks at once', async () => {
+    vi.useFakeTimers();
+    const { socket, wsAuth } = await setup();
+    await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS);
+    expect(socket.closedWith).toBeNull();
+    const calls = wsAuth.authenticateConnection.mock.calls.length;
+    wsAuth.authenticateConnection.mockImplementation(() => new Promise(() => {}));
+    await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS * 3);
+    expect(wsAuth.authenticateConnection.mock.calls.length).toBe(calls + 1);
+  });
+
   it('holds input until the shell is there, then passes keystrokes on (counting as use)', async () => {
     const { socket, channel, linux } = await setup();
     expect(linux.shell).toHaveBeenCalledWith('s1', { cols: 80, rows: 24 });

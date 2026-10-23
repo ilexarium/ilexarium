@@ -19,11 +19,11 @@ export class FileDeleteDialog {
   readonly confirm = output<FileEntry>();
 
   private readonly dialog = viewChild.required(HlmAlertDialog);
-  private readonly format = inject(Formatter);
+  private readonly formatter = inject(Formatter);
   protected readonly entry = signal<FileEntry | null>(null);
   /** Null while counting. */
   protected readonly summary = signal<FileSummary | null>(null);
-  protected readonly size = computed(() => this.format.bytes(this.summary()?.bytes ?? 0));
+  protected readonly size = computed(() => this.formatter.bytes(this.summary()?.bytes ?? 0));
   protected readonly count = computed(() => {
     const summary = this.summary();
     return summary ? summary.files + summary.folders : 0;

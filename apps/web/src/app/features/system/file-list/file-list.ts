@@ -27,9 +27,9 @@ import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
 import { HlmTableImports } from '@ui/table';
 import { Formatter } from '../../../shared/format/formatter';
 import type { FileAction } from '../files.model';
+import { WIDE } from './file-list.constants';
 
 /** Where the table starts (Tailwind's `xl`): below it, a list. */
-const WIDE = '(min-width: 1280px)';
 
 interface Row {
   entry: FileEntry;
@@ -81,7 +81,7 @@ export class FileList {
   readonly open = output<FileEntry>();
   readonly action = output<FileAction>();
 
-  private readonly format = inject(Formatter);
+  private readonly formatter = inject(Formatter);
   protected readonly wide = signal(true);
 
   protected readonly rows = computed<Row[]>(() => {
@@ -95,8 +95,8 @@ export class FileList {
         file,
         icon: entry.type === 'link' ? 'lucideLink' : folder ? 'lucideFolder' : 'lucideFile',
         // A link's own size is its target's path length: only real files show one.
-        size: entry.type === 'file' ? this.format.bytes(entry.size) : '—',
-        modified: this.format.dateTime(entry.modifiedAt),
+        size: entry.type === 'file' ? this.formatter.bytes(entry.size) : '—',
+        modified: this.formatter.dateTime(entry.modifiedAt),
         busy: busy.has(entry.name),
       };
     });

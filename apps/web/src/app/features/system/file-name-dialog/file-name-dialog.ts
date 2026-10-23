@@ -44,7 +44,7 @@ const newFolderSchema = z.object({ name: fileNameSchema });
   templateUrl: './file-name-dialog.html',
 })
 export class FileNameDialog {
-  private readonly store = inject(FilesPageStore);
+  private readonly filesPageStore = inject(FilesPageStore);
   private readonly injector = inject(Injector);
   private readonly dialog = viewChild.required(HlmAlertDialog);
   protected readonly request = signal<NameRequest | null>(null);
@@ -65,8 +65,8 @@ export class FileNameDialog {
               const { name } = tree().value();
               const done =
                 request.kind === 'rename'
-                  ? await this.store.rename(request.entry, name)
-                  : await this.store.newFolder(name.trim());
+                  ? await this.filesPageStore.rename(request.entry, name)
+                  : await this.filesPageStore.newFolder(name.trim());
               if (done) this.close();
               return undefined;
             },
