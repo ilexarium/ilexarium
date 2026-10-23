@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OperationSlot } from './operation-slot.js';
 
-/** One privileged operation at a time (`OperationSlot`), and a running job's progress (`LiveJob`). */
+/** The one slot for privileged operations; `LiveJob` and `jobView()` beside it are plain helpers. */
 @Module({
   providers: [OperationSlot],
   exports: [OperationSlot],

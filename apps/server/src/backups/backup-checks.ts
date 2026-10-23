@@ -17,8 +17,8 @@ import { WrapperConfigService } from '../executor/wrapper-config.js';
 import { SystemReader } from '../host/system-reader.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { apiError } from './backup-errors.js';
+import { inside } from '../host/folders.js';
 import {
-  inside,
   isAllowedFolder,
   isDestinationPath,
   mountInfoFile,

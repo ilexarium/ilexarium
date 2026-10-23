@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -32,11 +33,14 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { checkFolder, checkPort, localFolder } from './host-checks.js';
 import { ServiceJobs } from './service-jobs.js';
 import { ServiceSecrets, type StoredSecrets } from './service-secrets.js';
-import { CLEAN_UP_AFTER, TOPIC_LINES } from './services.constants.js';
+import { TOPIC_LINES } from '../jobs/jobs.constants.js';
+import { CLEAN_UP_AFTER } from './services.constants.js';
 
 /** docs/plans/service_deploys.md. A service's runtime state comes from the `containers` topic. */
 @Injectable()
 export class ServiceManager {
+  private readonly logger = new Logger(ServiceManager.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalogService: CatalogService,
@@ -187,12 +191,17 @@ export class ServiceManager {
       // Always true today (an installed service can't be deployed again, see above). Kept for a
       // later "change settings" or update: a failed deploy must not remove a running service.
       const firstInstall = !existing || existing.status !== 'installed';
-      void this.runDeploy(entry, service.id, settings, secretValues, actor, firstInstall).then(
-        (installed) => {
-          if (installed && includeInBackups)
-            void this.backupPlanManager.includeInstalledService(service.id, actor);
-        },
-      );
+      // In the background, after the 202; a rejection here must never reach Node unhandled (it
+      // would stop the server).
+      void this.runDeploy(entry, service.id, settings, secretValues, actor, firstInstall)
+        .then(async (installed) => {
+          if (installed && includeInBackups) {
+            await this.backupPlanManager.includeInstalledService(service.id, actor);
+          }
+        })
+        .catch((failure: unknown) =>
+          this.logger.error(`After installing ${catalogId}`, (failure as Error).stack),
+        );
       return { serviceId: service.id, jobId: job.id };
     } catch (failure) {
       claim.release();
@@ -217,7 +226,9 @@ export class ServiceManager {
         });
       });
       claim.start(job.id, serviceId);
-      void this.runRemove(entry, serviceId, service.status, actor);
+      void this.runRemove(entry, serviceId, service.status, actor).catch((failure: unknown) =>
+        this.logger.error(`Removing ${service.catalogId}`, (failure as Error).stack),
+      );
       return { jobId: job.id };
     } catch (failure) {
       claim.release();

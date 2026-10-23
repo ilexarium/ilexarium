@@ -7,9 +7,7 @@ import { BackupProgressFollower } from './backup-progress.js';
 import { itemInclude, lastSuccess, runView } from './backup-records.js';
 import { BackupRestores } from './backup-restores.js';
 import { backupWarnings, nextRunAt } from './backup-status.js';
-
-/** Lines of the running restore's output in the topic (all of them from its own route). */
-const TOPIC_LINES = 50;
+import { TOPIC_LINES } from '../jobs/jobs.constants.js';
 
 /**
  * The backups' status (the `backups` topic and `GET /backups/status`): warnings, when everything
