@@ -14,16 +14,12 @@ import { pipeline } from 'node:stream/promises';
 import type { SFTPWrapper, Stats } from 'ssh2';
 import { AuditService } from '../audit/audit.service.js';
 import { SystemReader } from '../host/system-reader.js';
-import { linuxError } from '../linux-sessions/linux-sessions.js';
+import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { LinuxActor } from '../linux-sessions/linux-sessions.model.js';
 import { filesCode, toFilesError } from './files-errors.js';
+import { S_IFDIR, S_IFLNK, S_IFMT, S_IFREG } from './files.constants.js';
 import type { Download } from './files.model.js';
-
-const S_IFMT = 0o170000;
-const S_IFDIR = 0o040000;
-const S_IFREG = 0o100000;
-const S_IFLNK = 0o120000;
 
 function typeOf(mode: number): FileType {
   switch (mode & S_IFMT) {
@@ -67,6 +63,8 @@ function call<T>(
 
 const lstat = (sftp: SFTPWrapper, path: string) => call<Stats>((done) => sftp.lstat(path, done));
 const stat = (sftp: SFTPWrapper, path: string) => call<Stats>((done) => sftp.stat(path, done));
+const readdir = (sftp: SFTPWrapper, path: string) =>
+  call<{ filename: string; attrs: Stats }[]>((done) => sftp.readdir(path, done));
 const exists = (sftp: SFTPWrapper, path: string) =>
   lstat(sftp, path).then(
     () => true,
@@ -86,23 +84,20 @@ const exists = (sftp: SFTPWrapper, path: string) =>
 @Injectable()
 export class FilesService {
   constructor(
-    private readonly linux: LinuxSessions,
-    private readonly reader: SystemReader,
-    private readonly audit: AuditService,
+    private readonly linuxSessions: LinuxSessions,
+    private readonly systemReader: SystemReader,
+    private readonly auditService: AuditService,
   ) {}
 
   /** A folder's contents, folders (and links to them) first, then by name. */
   async list(appSessionId: string, path: string): Promise<FileList> {
-    const { sftp } = this.linux.sftp(appSessionId);
+    const { sftp } = this.linuxSessions.sftp(appSessionId);
     const folder = posix.normalize(path);
     const target = await stat(sftp, folder);
     if (typeOf(target.mode) !== 'folder') {
       throw linuxError(FILES_ERROR_CODES.wrongType, 'Not a folder');
     }
-    const [raw, users] = await Promise.all([
-      call<{ filename: string; attrs: Stats }[]>((done) => sftp.readdir(folder, done)),
-      this.reader.users(),
-    ]);
+    const [raw, users] = await Promise.all([readdir(sftp, folder), this.systemReader.users()]);
     const entries = await Promise.all(
       raw.map(async ({ filename, attrs }): Promise<FileEntry> => {
         const type = typeOf(attrs.mode);
@@ -132,7 +127,7 @@ export class FilesService {
 
   /** What deleting `path` would remove; counting stops at 10,000 entries. */
   async summary(appSessionId: string, path: string): Promise<FileSummary> {
-    const { sftp } = this.linux.sftp(appSessionId);
+    const { sftp } = this.linuxSessions.sftp(appSessionId);
     const target = posix.normalize(path);
     const own = await lstat(sftp, target);
     const type = typeOf(own.mode);
@@ -143,10 +138,7 @@ export class FilesService {
       return result;
     }
     const walk = async (folder: string): Promise<void> => {
-      const entries = await call<{ filename: string; attrs: Stats }[]>((done) =>
-        sftp.readdir(folder, done),
-      );
-      for (const { filename, attrs } of entries) {
+      for (const { filename, attrs } of await readdir(sftp, folder)) {
         if (result.files + result.folders >= FILES_LIMITS.summaryMaxEntries) {
           result.truncated = true;
           return;
@@ -169,7 +161,7 @@ export class FilesService {
    * before anything is sent, so a file Linux won't let this account read is a clear 403.
    */
   async download(appSessionId: string, path: string): Promise<Download> {
-    const { sftp } = this.linux.sftp(appSessionId);
+    const { sftp } = this.linuxSessions.sftp(appSessionId);
     const target = posix.normalize(path);
     const info = await stat(sftp, target);
     if (typeOf(info.mode) !== 'file') {
@@ -195,7 +187,7 @@ export class FilesService {
     size: number | null,
     actor: LinuxActor,
   ): Promise<void> {
-    const { sftp, username } = this.linux.sftp(appSessionId);
+    const { sftp, username } = this.linuxSessions.sftp(appSessionId);
     if (size !== null && size > FILES_LIMITS.uploadMaxBytes) {
       throw linuxError(FILES_ERROR_CODES.tooLarge, 'Larger than 10 GB');
     }
@@ -245,7 +237,7 @@ export class FilesService {
   }
 
   async newFolder(appSessionId: string, parent: string, name: string): Promise<void> {
-    const { sftp } = this.linux.sftp(appSessionId);
+    const { sftp } = this.linuxSessions.sftp(appSessionId);
     const path = posix.join(posix.normalize(parent), name);
     if (await exists(sftp, path)) {
       throw linuxError(FILES_ERROR_CODES.exists, 'Something of that name is there');
@@ -255,7 +247,7 @@ export class FilesService {
 
   /** Renames or moves — never onto something that exists. */
   async rename(appSessionId: string, from: string, to: string, actor: LinuxActor): Promise<void> {
-    const { sftp, username } = this.linux.sftp(appSessionId);
+    const { sftp, username } = this.linuxSessions.sftp(appSessionId);
     const source = posix.normalize(from);
     const destination = posix.normalize(to);
     if (await exists(sftp, destination)) {
@@ -270,7 +262,7 @@ export class FilesService {
    * contents first; stops at the first thing Linux refuses (what's deleted stays deleted).
    */
   async delete(appSessionId: string, path: string, actor: LinuxActor): Promise<void> {
-    const { sftp, username } = this.linux.sftp(appSessionId);
+    const { sftp, username } = this.linuxSessions.sftp(appSessionId);
     const target = posix.normalize(path);
     if (target === '/') throw linuxError(FILES_ERROR_CODES.permissionDenied, 'Not /');
     const remove = async (item: string, mode: number): Promise<void> => {
@@ -278,11 +270,9 @@ export class FilesService {
         await call<void>((done) => sftp.unlink(item, done));
         return;
       }
-      const entries = await call<{ filename: string; attrs: Stats }[]>((done) =>
-        sftp.readdir(item, done),
-      );
-      for (const { filename, attrs } of entries)
+      for (const { filename, attrs } of await readdir(sftp, item)) {
         await remove(posix.join(item, filename), attrs.mode);
+      }
       await call<void>((done) => sftp.rmdir(item, done));
     };
     await remove(target, (await lstat(sftp, target)).mode);
@@ -295,7 +285,7 @@ export class FilesService {
     linuxUser: string,
     details: Record<string, string | number | boolean>,
   ): Promise<void> {
-    return this.audit.tryRecord({
+    return this.auditService.tryRecord({
       action,
       outcome: 'success',
       userId: actor.user.id,

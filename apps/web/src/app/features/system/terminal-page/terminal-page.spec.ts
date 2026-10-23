@@ -3,6 +3,7 @@ import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { LinuxSession } from '@laris/shared';
+import { toast } from '@spartan-ng/brain/sonner';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
@@ -61,11 +62,14 @@ class FakeSocket {
   }
 }
 
-async function render(session: LinuxSession | null = ANNA) {
+async function render(session: LinuxSession | null = ANNA, sessionCheckFails = false) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets: FakeSocket[] = [];
   const files = {
-    session: vi.fn(async () => ({ session })),
+    session: vi.fn(async () => {
+      if (sessionCheckFails) throw new HttpErrorResponse({ status: 503 });
+      return { session };
+    }),
     signIn: vi.fn(async () => ANNA),
   };
   TestBed.configureTestingModule({
@@ -108,6 +112,14 @@ async function render(session: LinuxSession | null = ANNA) {
 }
 
 describe('TerminalPage', () => {
+  it('says so when checking for a Linux session fails, and shows the sign-in', async () => {
+    const error = vi.spyOn(toast, 'error');
+    const { el } = await render(null, true);
+    expect(error).toHaveBeenCalled();
+    expect(el.querySelector('#terminal-password')).toBeNull();
+    error.mockRestore();
+  });
+
   let restoreScreen: () => void;
   beforeEach(() => (restoreScreen = stubScreenWidth(1440)));
   afterEach(() => restoreScreen());

@@ -14,27 +14,8 @@ import { lastValueFrom, tap } from 'rxjs';
 import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
+import { joinPath, renameTarget } from '../files-paths';
 import type { Upload } from '../files.model';
-
-/** A path's parts resolved (`.`, `..`, doubled slashes), always absolute. */
-export function normalizePath(path: string): string {
-  const parts: string[] = [];
-  for (const part of path.split('/')) {
-    if (part === '' || part === '.') continue;
-    if (part === '..') parts.pop();
-    else parts.push(part);
-  }
-  return `/${parts.join('/')}`;
-}
-
-/** `name` in `folder`. */
-export const joinPath = (folder: string, name: string) => normalizePath(`${folder}/${name}`);
-
-/** Where a rename goes: a plain new name stays in the folder; a path is taken from there (or from /). */
-export function renameTarget(folder: string, input: string): string {
-  const value = input.trim();
-  return value.startsWith('/') ? normalizePath(value) : joinPath(folder, value);
-}
 
 const codeOf = (error: unknown) =>
   error instanceof HttpErrorResponse ? (error.error as { code?: string } | null)?.code : undefined;
@@ -68,7 +49,7 @@ let nextUpload = 0;
  */
 export const FilesPageStore = signalStore(
   withState<FilesPageState>(initialState),
-  withMethods((store, api = inject(FilesApi), translator = inject(Translator)) => {
+  withMethods((store, filesApi = inject(FilesApi), translator = inject(Translator)) => {
     /** A failure in a toast — or, when the Linux session ended, back to the sign-in. */
     const failed = (error: unknown) => {
       if (codeOf(error) === FILES_ERROR_CODES.linuxSessionRequired) {
@@ -83,7 +64,7 @@ export const FilesPageStore = signalStore(
     const methods = {
       async check(): Promise<void> {
         try {
-          const { session } = await api.session();
+          const { session } = await filesApi.session();
           patchState(store, { session, checked: true });
           if (session) await methods.open(session.home);
         } catch (error) {
@@ -94,14 +75,14 @@ export const FilesPageStore = signalStore(
 
       /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
       async signIn(request: LinuxSignInRequest): Promise<void> {
-        const session = await api.signIn(request);
+        const session = await filesApi.signIn(request);
         patchState(store, { session });
         await methods.open(session.home);
       },
 
       async signOut(): Promise<void> {
         try {
-          await api.signOut();
+          await filesApi.signOut();
           patchState(store, { session: null, list: null, uploads: [] });
           toast.success(translator.t('files.closed'));
         } catch (error) {
@@ -112,7 +93,7 @@ export const FilesPageStore = signalStore(
       async open(path: string): Promise<void> {
         patchState(store, { loading: true });
         try {
-          patchState(store, { list: await api.list(path), loading: false });
+          patchState(store, { list: await filesApi.list(path), loading: false });
         } catch (error) {
           patchState(store, { loading: false });
           failed(error);
@@ -124,12 +105,12 @@ export const FilesPageStore = signalStore(
       },
 
       downloadUrl(entry: FileEntry): string {
-        return api.downloadUrl(joinPath(folder(), entry.name));
+        return filesApi.downloadUrl(joinPath(folder(), entry.name));
       },
 
       async newFolder(name: string): Promise<boolean> {
         try {
-          await api.newFolder(folder(), name);
+          await filesApi.newFolder(folder(), name);
           toast.success(translator.t('files.created', { name }));
           await methods.refresh();
           return true;
@@ -143,7 +124,7 @@ export const FilesPageStore = signalStore(
         const from = joinPath(folder(), entry.name);
         patchState(store, { pending: [...store.pending(), from] });
         try {
-          await api.rename(from, renameTarget(folder(), input));
+          await filesApi.rename(from, renameTarget(folder(), input));
           toast.success(translator.t('files.renamed'));
           await methods.refresh();
           return true;
@@ -158,7 +139,7 @@ export const FilesPageStore = signalStore(
       /** What deleting it would remove (for the confirmation); a failure says why in a toast. */
       async summary(entry: FileEntry): Promise<FileSummary> {
         try {
-          return await api.summary(joinPath(folder(), entry.name));
+          return await filesApi.summary(joinPath(folder(), entry.name));
         } catch (error) {
           failed(error);
           throw error;
@@ -169,7 +150,7 @@ export const FilesPageStore = signalStore(
         const path = joinPath(folder(), entry.name);
         patchState(store, { pending: [...store.pending(), path] });
         try {
-          await api.delete(path);
+          await filesApi.delete(path);
           toast.success(translator.t('files.deleted', { name: entry.name }));
         } catch (error) {
           failed(error);
@@ -198,7 +179,7 @@ export const FilesPageStore = signalStore(
           });
           try {
             await lastValueFrom(
-              api.upload(target, file, replace).pipe(tap((progress) => set({ progress }))),
+              filesApi.upload(target, file, replace).pipe(tap((progress) => set({ progress }))),
               { defaultValue: 1 },
             );
             set({ progress: 1, state: 'done' });

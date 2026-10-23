@@ -9,7 +9,6 @@ import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
 import { stubScreenWidth } from '../../../layout/testing';
 import { FilesPage } from './files-page';
-import { normalizePath, renameTarget } from './files-page-store';
 
 const entry = (change: Partial<FileEntry>): FileEntry => ({
   name: 'notes.txt',
@@ -297,19 +296,5 @@ describe('FilesPage', () => {
     expect(el.querySelector('table')).toBeNull();
     expect(el.querySelectorAll('li')).toHaveLength(3);
     expect(el.querySelector('li')!.textContent).toContain('Photos');
-  });
-});
-
-describe('paths', () => {
-  it.each([
-    ['/home//anna/./x', '/home/anna/x'],
-    ['/home/anna/../..', '/'],
-    ['/../etc', '/etc'],
-  ])('normalizePath(%s) = %s', (path, expected) => expect(normalizePath(path)).toBe(expected));
-
-  it('renameTarget: a name stays in the folder; a path from there, or from /', () => {
-    expect(renameTarget('/home/anna', 'new.txt')).toBe('/home/anna/new.txt');
-    expect(renameTarget('/home/anna', ' ../bob/x ')).toBe('/home/bob/x');
-    expect(renameTarget('/home/anna', '/srv/music/x')).toBe('/srv/music/x');
   });
 });

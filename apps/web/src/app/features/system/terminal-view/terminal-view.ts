@@ -22,34 +22,16 @@ import {
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { FitAddon } from '@xterm/addon-fit';
-import { type ITheme, Terminal } from '@xterm/xterm';
+import { Terminal } from '@xterm/xterm';
 import type { TerminalSize } from '../terminal.model';
 import { loadTerminalFonts } from './terminal-fonts';
-import { TERMINAL_FONT_FAMILY, TERMINAL_FONT_SIZE } from './terminal-view.constants';
-
-/** Fixed palettes (xterm needs plain colours; the app's tokens are oklch): the theme's text and primary as hex. */
-const LIGHT: ITheme = {
-  background: '#ffffff',
-  foreground: '#151628',
-  cursor: '#544ccb',
-  selectionBackground: '#d5daff',
-};
-const DARK: ITheme = {
-  background: '#0d0e16',
-  foreground: '#f2f3f9',
-  cursor: '#a8afff',
-  selectionBackground: '#353766',
-};
-
-/** What the phone key bar's keys send. */
-const KEYS = {
-  esc: '\x1b',
-  tab: '\t',
-  up: '\x1b[A',
-  down: '\x1b[B',
-  right: '\x1b[C',
-  left: '\x1b[D',
-} as const;
+import {
+  DARK,
+  KEYS,
+  LIGHT,
+  TERMINAL_FONT_FAMILY,
+  TERMINAL_FONT_SIZE,
+} from './terminal-view.constants';
 
 /** A key typed with Ctrl as the terminal sends it (Ctrl+C: \x03), or null if it has none. */
 export function controlCharacter(key: string): string | null {

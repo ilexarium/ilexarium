@@ -1,25 +1,23 @@
 import { Body, Controller, HttpCode, Ip, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { FILES_ERROR_CODES, type PublicUser, type TerminalTicket } from '@laris/shared';
+import type { PublicUser, TerminalTicket } from '@laris/shared';
 import { AuthService } from '../auth/auth.service.js';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
-import { linuxError } from '../linux-sessions/linux-sessions.js';
+import { linuxSessionRequired } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
+import { TICKET_LIMIT } from './terminal.constants.js';
 import { TerminalTicketDto } from './terminal.dto.js';
 import { TerminalTickets } from './terminal-tickets.js';
-
-/** The app password is checked: few tries. */
-const TICKET_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 
 /** The web terminal's HTTP side (docs/plans/files_and_terminal.md, step 2). */
 @Controller('terminal')
 @UseFilters(TooManyAttemptsFilter)
 export class TerminalController {
   constructor(
-    private readonly auth: AuthService,
-    private readonly linux: LinuxSessions,
-    private readonly tickets: TerminalTickets,
+    private readonly authService: AuthService,
+    private readonly linuxSessions: LinuxSessions,
+    private readonly terminalTickets: TerminalTickets,
   ) {}
 
   /** The app password again, then a one-time ticket for `/api/terminal` (a Linux session needed). */
@@ -33,10 +31,8 @@ export class TerminalController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<TerminalTicket> {
-    await this.auth.confirmPassword(user, password, ip);
-    if (!this.linux.current(session.id)) {
-      throw linuxError(FILES_ERROR_CODES.linuxSessionRequired, 'Sign in as a Linux user first');
-    }
-    return { ticket: this.tickets.issue(session.id) };
+    await this.authService.confirmPassword(user, password, ip);
+    if (!this.linuxSessions.current(session.id)) throw linuxSessionRequired();
+    return { ticket: this.terminalTickets.issue(session.id) };
   }
 }

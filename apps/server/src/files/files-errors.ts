@@ -1,12 +1,12 @@
 import { HttpException } from '@nestjs/common';
 import { FILES_ERROR_CODES } from '@laris/shared';
-import { linuxError } from '../linux-sessions/linux-sessions.js';
-
-/** SFTP's status codes (draft-ietf-secsh-filexfer, ssh2's `STATUS_CODE`). */
-const NO_SUCH_FILE = 2;
-const PERMISSION_DENIED = 3;
-const NO_CONNECTION = 6;
-const CONNECTION_LOST = 7;
+import { linuxError } from '../linux-sessions/linux-session-errors.js';
+import {
+  SFTP_CONNECTION_LOST,
+  SFTP_NO_CONNECTION,
+  SFTP_NO_SUCH_FILE,
+  SFTP_PERMISSION_DENIED,
+} from './files.constants.js';
 
 /**
  * An SFTP error as ours: not found, permission denied (what Linux refused), the connection gone,
@@ -17,12 +17,12 @@ export function toFilesError(error: unknown): HttpException {
   if (error instanceof HttpException) return error;
   const code = (error as { code?: unknown }).code;
   switch (code) {
-    case NO_SUCH_FILE:
+    case SFTP_NO_SUCH_FILE:
       return linuxError(FILES_ERROR_CODES.notFound, 'No such file or folder');
-    case PERMISSION_DENIED:
+    case SFTP_PERMISSION_DENIED:
       return linuxError(FILES_ERROR_CODES.permissionDenied, 'Linux refused it for this account');
-    case NO_CONNECTION:
-    case CONNECTION_LOST:
+    case SFTP_NO_CONNECTION:
+    case SFTP_CONNECTION_LOST:
     case 'ECONNRESET':
     case 'ERR_STREAM_PREMATURE_CLOSE':
       return linuxError(

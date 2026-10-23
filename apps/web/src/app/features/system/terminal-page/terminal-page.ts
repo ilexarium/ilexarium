@@ -53,11 +53,12 @@ import { TerminalPageStore } from './terminal-page-store';
   host: { class: 'flex min-h-[calc(100dvh-7rem)] flex-col' },
 })
 export class TerminalPage {
-  protected readonly store = inject(TerminalPageStore);
+  protected readonly terminalPageStore = inject(TerminalPageStore);
   protected readonly theme = inject(ThemeService);
   private readonly view = viewChild<TerminalView>('view');
 
-  protected readonly signIn = (request: LinuxSignInRequest) => this.store.signIn(request);
+  protected readonly signIn = (request: LinuxSignInRequest) =>
+    this.terminalPageStore.signIn(request);
   protected readonly showPassword = signal(false);
   private readonly model = signal<TerminalTicketRequest>({ password: '' });
   protected readonly unlockForm = form(
@@ -67,7 +68,7 @@ export class TerminalPage {
       submission: {
         action: async (tree) => {
           try {
-            await this.store.unlock(tree().value().password);
+            await this.terminalPageStore.unlock(tree().value().password);
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }
@@ -79,6 +80,6 @@ export class TerminalPage {
   );
 
   protected connect(size: TerminalSize): void {
-    this.store.connect(size, (bytes) => this.view()?.write(bytes));
+    this.terminalPageStore.connect(size, (bytes) => this.view()?.write(bytes));
   }
 }
