@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { BACKUP_ERROR_CODES, type BackupRun, type BackupRunRequest } from '@laris/shared';
 import {
-  concatMap,
   first,
   firstValueFrom,
   from,
@@ -10,6 +9,7 @@ import {
   Observable,
   startWith,
   Subject,
+  switchMap,
   timeout,
   TimeoutError,
 } from 'rxjs';
@@ -113,7 +113,7 @@ export class BackupRuns {
   private async handOver(runId: string): Promise<void> {
     const settled$ = merge(this.backupProgressFollower.changes$, this.backupResults.changes$).pipe(
       startWith(undefined),
-      concatMap(() => from(this.handedOver(runId))),
+      switchMap(() => from(this.handedOver(runId))),
       first(Boolean),
       timeout({ first: HANDOVER_MS }),
     );

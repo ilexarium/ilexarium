@@ -7,7 +7,9 @@ import { BackupChecks } from './backup-checks.js';
 
 const DISK = '/mnt/backup';
 
-function checksWith(active: { serviceId?: string | null; path?: string | null }[]) {
+function checksWith(
+  active: { serviceId?: string | null; path?: string | null; removedAt?: Date | null }[],
+) {
   const prisma = {
     backupItem: { findMany: vi.fn(async () => active) },
     service: {
@@ -78,6 +80,26 @@ describe('BackupChecks.checkNewItems', () => {
     const response = await problems(
       checksWith(active).checkNewItems([{ kind: 'folder', path: '/srv/laris/new' }], DISK),
     );
+    expect(response.code).toBe(BACKUP_ERROR_CODES.tooManyItems);
+  });
+
+  it('counts removed items too, as the wrapper does', async () => {
+    const items = Array.from({ length: BACKUP_LIMITS.maxItems }, (_, i) => ({
+      path: `/srv/laris/f${i}`,
+      removedAt: i < 10 ? new Date() : null,
+    }));
+    const response = await problems(
+      checksWith(items).checkNewItems([{ kind: 'folder', path: '/srv/laris/new' }], DISK),
+    );
+    expect(response.code).toBe(BACKUP_ERROR_CODES.tooManyItems);
+  });
+
+  it('counts the platform item setup adds', async () => {
+    const requests = Array.from({ length: BACKUP_LIMITS.maxItems }, (_, i) => ({
+      kind: 'folder' as const,
+      path: `/srv/laris/f${i}`,
+    }));
+    const response = await problems(checksWith([]).checkNewItems(requests, DISK));
     expect(response.code).toBe(BACKUP_ERROR_CODES.tooManyItems);
   });
 

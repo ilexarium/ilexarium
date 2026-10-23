@@ -19,3 +19,8 @@ export interface WarningInput {
   lastCheck: { status: BackupStatus; errorCode: string | null } | null;
   destination: { mounted: boolean; totalBytes: number; freeBytes: number } | null;
 }
+
+/** A checked new item, ready to be saved. */
+export type NewItemRow =
+  | { id: string; kind: 'service'; serviceId: string; excludedFields: string[] }
+  | { id: string; kind: 'folder'; path: string };
