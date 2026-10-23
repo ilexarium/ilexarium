@@ -1,7 +1,8 @@
 import { Subject } from 'rxjs';
 import type { CatalogService } from '../catalog/catalog.service.js';
 import type { AlertChannels } from './alert-channels.js';
-import { AlertNotifier, REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alert-notifier.js';
+import { AlertNotifier } from './alert-notifier.js';
+import { REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.js';
 import type { AlertRecords } from './alert-records.js';
 import type { AlertEvent, AlertMessage, ChannelConfig, OpenAlert } from './alerts.model.js';
 

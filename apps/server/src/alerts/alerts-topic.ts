@@ -15,11 +15,7 @@ import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { AlertChannels } from './alert-channels.js';
 import { AlertRecords } from './alert-records.js';
-
-/** Changes come in bursts (a disk's alerts, a backup's): at most one update this often. */
-export const ALERTS_PUBLISH_MS = 300;
-/** Also now and then: closed alerts age out of the list. */
-const REFRESH_MS = 60_000;
+import { ALERTS_PUBLISH_MS, ALERTS_REFRESH_MS } from './alerts.constants.js';
 
 /** The `alerts` topic: open alerts, recently closed ones, the last delivery problem. */
 @Injectable()
@@ -28,22 +24,26 @@ export class AlertsTopic implements TopicSource<'alerts'> {
   readonly updates$: Observable<AlertsStatus>;
 
   constructor(
-    private readonly records: AlertRecords,
-    private readonly channels: AlertChannels,
-    private readonly catalog: CatalogService,
-    subscriptions: RealtimeSubscriptions,
+    private readonly alertRecords: AlertRecords,
+    private readonly alertChannels: AlertChannels,
+    private readonly catalogService: CatalogService,
+    realtimeSubscriptions: RealtimeSubscriptions,
   ) {
-    this.updates$ = merge(records.changes$, channels.changes$, interval(REFRESH_MS)).pipe(
+    this.updates$ = merge(
+      alertRecords.changes$,
+      alertChannels.changes$,
+      interval(ALERTS_REFRESH_MS),
+    ).pipe(
       auditTime(ALERTS_PUBLISH_MS),
       switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),
     );
-    subscriptions.registerSource(this);
+    realtimeSubscriptions.registerSource(this);
   }
 
   async snapshot(): Promise<AlertsStatus> {
     const [{ open, closed }, deliveryFailure] = await Promise.all([
-      this.records.view((id) => this.catalog.get(id)?.meta.name ?? null),
-      this.channels.deliveryFailure(),
+      this.alertRecords.view((id) => this.catalogService.get(id)?.meta.name ?? null),
+      this.alertChannels.deliveryFailure(),
     ]);
     return { open, closed, deliveryFailure };
   }

@@ -1,22 +1,15 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import {
-  ALERT_LIMITS,
-  type Alert,
-  type AlertKind,
-  type AlertSeverity,
-  type BackupWarning,
-} from '@laris/shared';
+import { ALERT_LIMITS, type Alert, type AlertKind, type BackupWarning } from '@laris/shared';
 import { type Observable, Subject } from 'rxjs';
 import type { Alert as AlertRow } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AlertCondition, AlertDetails, AlertEvent, OpenAlert } from './alerts.model.js';
-
-/** Closed alerts shown on the Alerts page. */
-const CLOSED_SHOWN_DAYS = 7;
-const CLOSED_SHOWN_MAX = 50;
-/** A critical alert never sent is sent as a reminder after this long. */
-export const NEVER_SENT_AFTER_MS = 15 * 60_000;
-const SEVERITY_RANK: Record<AlertSeverity, number> = { warning: 0, critical: 1 };
+import {
+  CLOSED_SHOWN_DAYS,
+  CLOSED_SHOWN_MAX,
+  NEVER_SENT_AFTER_MS,
+  SEVERITY_RANK,
+} from './alerts.constants.js';
 
 const key = (kind: string, subject: string) => `${kind}\u0000${subject}`;
 

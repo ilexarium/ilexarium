@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { NtfySender, SEND_TIMEOUT_MS } from './ntfy-sender.js';
+import { SEND_TIMEOUT_MS } from './alerts.constants.js';
+import { NtfySender } from './ntfy-sender.js';
 import type { Lookup } from './safe-address.js';
 
 interface Received {

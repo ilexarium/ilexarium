@@ -20,10 +20,11 @@
       @if (alert().closedAt; as closedAt) {
         {{
           'alerts.resolved'
-            | translate: { from: format.dateTime(alert().openedAt), to: format.dateTime(closedAt) }
+            | translate
+              : { from: formatter.dateTime(alert().openedAt), to: formatter.dateTime(closedAt) }
         }}
       } @else {
-        {{ 'alerts.since' | translate: { time: format.dateTime(alert().openedAt) } }}
+        {{ 'alerts.since' | translate: { time: formatter.dateTime(alert().openedAt) } }}
       }
       @if (alert().kind !== 'backup') {
         · <span dir="ltr">{{ alert().subject }}</span>

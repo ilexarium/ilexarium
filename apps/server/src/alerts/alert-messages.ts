@@ -1,14 +1,6 @@
 import type { BackupWarning } from '@laris/shared';
 import type { AlertEvent, AlertMessage, OpenAlert } from './alerts.model.js';
-
-const BACKUP_TITLES: Record<BackupWarning, string> = {
-  serviceNotRestarted: "A service wasn't started again after the backup",
-  repositoryDamaged: 'The backup repository is damaged',
-  lastRunFailed: 'The last backup failed',
-  noRecentBackup: 'Nothing has been backed up for more than two days',
-  destinationUnavailable: 'The backup disk is not connected',
-  lowSpace: 'The backup disk is almost full',
-};
+import { BACKUP_TITLES } from './alerts.constants.js';
 
 /** What happened, in a few words: "Immich has stopped", "Disk /mnt/usb is 93 % full". */
 export function alertTitle(alert: OpenAlert, serviceName: (catalogId: string) => string): string {

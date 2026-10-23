@@ -79,11 +79,11 @@ export class AlertChannels {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly secrets: SecretsService,
-    private readonly audit: AuditService,
-    wrapperConfig: WrapperConfigService,
+    private readonly secretsService: SecretsService,
+    private readonly auditService: AuditService,
+    wrapperConfigService: WrapperConfigService,
   ) {
-    this.reservedPorts = () => wrapperConfig.config.reservedPorts;
+    this.reservedPorts = () => wrapperConfigService.config.reservedPorts;
     this.senders = this.createSenders();
   }
 
@@ -149,14 +149,7 @@ export class AlertChannels {
       to: update.to,
     };
     await this.save('email', update.enabled, { ...settings }, { password } satisfies EmailSecrets);
-    await this.audit.record({
-      action: 'alerts.channel.update',
-      outcome: 'success',
-      userId: actor.user.id,
-      username: actor.user.username,
-      ip: actor.ip,
-      details: { channel: 'email', enabled: update.enabled },
-    });
+    await this.recordUpdate('email', update.enabled, actor);
   }
 
   async updateNtfy(update: NtfyChannelUpdate, actor: ChannelActor): Promise<void> {
@@ -173,13 +166,17 @@ export class AlertChannels {
     }
     const token = update.token === undefined ? (stored?.token ?? null) : update.token;
     await this.save('ntfy', update.enabled, {}, { topicUrl, token } satisfies NtfySecrets);
-    await this.audit.record({
+    await this.recordUpdate('ntfy', update.enabled, actor);
+  }
+
+  private recordUpdate(channel: AlertChannel, enabled: boolean, actor: ChannelActor) {
+    return this.auditService.record({
       action: 'alerts.channel.update',
       outcome: 'success',
       userId: actor.user.id,
       username: actor.user.username,
       ip: actor.ip,
-      details: { channel: 'ntfy', enabled: update.enabled },
+      details: { channel, enabled },
     });
   }
 
@@ -195,7 +192,7 @@ export class AlertChannels {
       body: `On ${hostname()}: alerts will reach you this way.`,
       severity: 'warning',
     });
-    await this.audit.tryRecord({
+    await this.auditService.tryRecord({
       action: 'alerts.channel.test',
       outcome: problem ? 'failure' : 'success',
       userId: actor.user.id,
@@ -272,7 +269,7 @@ export class AlertChannels {
     secrets: EmailSecrets | NtfySecrets,
   ): Promise<void> {
     const encrypted = new Uint8Array(
-      this.secrets.encrypt(JSON.stringify(secrets), secretContext(channel)),
+      this.secretsService.encrypt(JSON.stringify(secrets), secretContext(channel)),
     );
     await this.prisma.alertChannel.upsert({
       where: { kind: channel },
@@ -287,7 +284,7 @@ export class AlertChannels {
     if (!row.secrets) return null;
     try {
       return JSON.parse(
-        this.secrets.decrypt(row.secrets, secretContext(row.kind as AlertChannel)),
+        this.secretsService.decrypt(row.secrets, secretContext(row.kind as AlertChannel)),
       ) as T;
     } catch (error) {
       this.logger.error(`The ${row.kind} settings can't be decrypted: ${(error as Error).message}`);

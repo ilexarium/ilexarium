@@ -3,7 +3,8 @@ import { resetDatabase } from '../../test/database.js';
 import { ConfigModule } from '../config/config.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AlertRecords, NEVER_SENT_AFTER_MS } from './alert-records.js';
+import { AlertRecords } from './alert-records.js';
+import { NEVER_SENT_AFTER_MS } from './alerts.constants.js';
 import type { AlertCondition, AlertEvent } from './alerts.model.js';
 
 const down = (subject: string, catalogId = subject): AlertCondition => ({

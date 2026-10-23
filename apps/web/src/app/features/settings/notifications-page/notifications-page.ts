@@ -16,5 +16,5 @@ import { NotificationsPageStore } from './notifications-page-store';
   templateUrl: './notifications-page.html',
 })
 export class NotificationsPage {
-  protected readonly store = inject(NotificationsPageStore);
+  protected readonly notificationsPageStore = inject(NotificationsPageStore);
 }

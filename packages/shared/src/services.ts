@@ -13,8 +13,17 @@ import { jobSchema } from './jobs.js';
  * docs/plans/service_deploys.md.
  */
 
-/** Compose project of an installed service: `hl-<catalog id>` (never the platform's own stack). */
-export const serviceProject = (catalogId: string) => `hl-${catalogId}`;
+/** Compose projects of installed services start with this (never the platform's own stack). */
+export const SERVICE_PROJECT_PREFIX = 'hl-';
+
+/** Compose project of an installed service: `hl-<catalog id>`. */
+export const serviceProject = (catalogId: string) => `${SERVICE_PROJECT_PREFIX}${catalogId}`;
+
+/** The catalog id a Compose project belongs to, or null when it isn't a service's. */
+export const catalogIdOfProject = (project: string | null | undefined): string | null =>
+  project?.startsWith(SERVICE_PROJECT_PREFIX) && project.length > SERVICE_PROJECT_PREFIX.length
+    ? project.slice(SERVICE_PROJECT_PREFIX.length)
+    : null;
 
 /** Installed services: `GET` the list, `POST` an install (`DeployRequest`). */
 export const SERVICES_PATH = '/api/services';

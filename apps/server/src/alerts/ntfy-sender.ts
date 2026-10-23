@@ -3,17 +3,7 @@ import { Agent, fetch } from 'undici';
 import { DeliveryError } from './alerts.model.js';
 import type { AlertMessage, ChannelConfig, ChannelSender } from './alerts.model.js';
 import { checkTarget, type Lookup } from './safe-address.js';
-
-/** No answer within this long: given up. */
-export const SEND_TIMEOUT_MS = 10_000;
-
-/** ntfy's priorities: 4 high, 3 default, 2 low. */
-const PRIORITY: Record<AlertMessage['severity'], number> = { critical: 4, warning: 3, resolved: 2 };
-const TAGS: Record<AlertMessage['severity'], string> = {
-  critical: 'rotating_light',
-  warning: 'warning',
-  resolved: 'white_check_mark',
-};
+import { NTFY_PRIORITY, NTFY_TAGS, SEND_TIMEOUT_MS } from './alerts.constants.js';
 
 type NtfyConfig = Extract<ChannelConfig, { kind: 'ntfy' }>;
 
@@ -49,8 +39,8 @@ export class NtfySender implements ChannelSender<NtfyConfig> {
       topic,
       title: message.title,
       message: message.body,
-      priority: PRIORITY[message.severity],
-      tags: [TAGS[message.severity]],
+      priority: NTFY_PRIORITY[message.severity],
+      tags: [NTFY_TAGS[message.severity]],
     });
     // The checked address, never a second lookup (a name could answer differently the second time).
     const pinned: LookupFunction = (_host, options, callback) => {

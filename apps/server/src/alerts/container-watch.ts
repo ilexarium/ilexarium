@@ -1,21 +1,12 @@
 import { ALERT_LIMITS, type ContainerHealth } from '@laris/shared';
 import type { AlertCondition, OpenAlert, WatchedContainer } from './alerts.model.js';
-
-/** A container that died and didn't come back within this long has stopped (a restart policy brings it back sooner). */
-export const DOWN_AFTER_MS = 30_000;
-/** A stop or restart from the app: its `die` within this long doesn't count. */
-export const EXPECTED_FOR_MS = 60_000;
-const RESTART_WINDOW_MS = ALERT_LIMITS.restartWindowMinutes * 60_000;
-const UNHEALTHY_MS = ALERT_LIMITS.unhealthyMinutes * 60_000;
-const OUT_OF_MEMORY_MS = ALERT_LIMITS.outOfMemoryHours * 3_600_000;
-
-/** The kinds this watch decides. */
-export const CONTAINER_ALERT_KINDS = [
-  'serviceDown',
-  'restartLoop',
-  'unhealthy',
-  'outOfMemory',
-] as const;
+import {
+  DOWN_AFTER_MS,
+  EXPECTED_FOR_MS,
+  OUT_OF_MEMORY_MS,
+  RESTART_WINDOW_MS,
+  UNHEALTHY_MS,
+} from './alerts.constants.js';
 
 interface ContainerState {
   catalogId: string | null;

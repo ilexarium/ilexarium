@@ -30,25 +30,21 @@ import {
   EmailChannelUpdateDto,
   NtfyChannelUpdateDto,
 } from './alerts.dto.js';
-
-/** Per IP, for changes; reads aren't limited. */
-const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
-/** A test sends a real message: few per minute. */
-const TEST_LIMIT = { default: { limit: 5, ttl: 60_000 } };
+import { CHANGE_LIMIT, TEST_LIMIT } from './alerts.constants.js';
 
 /** Health alerts (docs/plans/health_alerts.md). Every route needs a session. */
 @Controller('alerts')
 @UseFilters(TooManyAttemptsFilter)
 export class AlertsController {
   constructor(
-    private readonly records: AlertRecords,
-    private readonly channels: AlertChannels,
-    private readonly topic: AlertsTopic,
+    private readonly alertRecords: AlertRecords,
+    private readonly alertChannels: AlertChannels,
+    private readonly alertsTopic: AlertsTopic,
   ) {}
 
   @Get()
   status(): Promise<AlertsStatus> {
-    return this.topic.snapshot();
+    return this.alertsTopic.snapshot();
   }
 
   /** Stops the reminders of an open alert. */
@@ -60,7 +56,7 @@ export class AlertsController {
     @Param() { id }: AlertIdParamsDto,
     @CurrentUser() user: PublicUser,
   ): Promise<void> {
-    if (!(await this.records.acknowledge(id, user))) {
+    if (!(await this.alertRecords.acknowledge(id, user))) {
       throw new NotFoundException({
         message: 'No such open alert',
         code: ALERT_ERROR_CODES.alertNotFound,
@@ -70,7 +66,7 @@ export class AlertsController {
 
   @Get('channels')
   channelSettings(): Promise<AlertChannelsResponse> {
-    return this.channels.view();
+    return this.alertChannels.view();
   }
 
   @Put('channels/email')
@@ -82,7 +78,7 @@ export class AlertsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.channels.updateEmail(body, { user, ip });
+    return this.alertChannels.updateEmail(body, { user, ip });
   }
 
   @Put('channels/ntfy')
@@ -94,7 +90,7 @@ export class AlertsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.channels.updateNtfy(body, { user, ip });
+    return this.alertChannels.updateNtfy(body, { user, ip });
   }
 
   /** Sends a test message through a channel (switched on or not). */
@@ -107,6 +103,6 @@ export class AlertsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<AlertTestResponse> {
-    return this.channels.test(channel, { user, ip });
+    return this.alertChannels.test(channel, { user, ip });
   }
 }

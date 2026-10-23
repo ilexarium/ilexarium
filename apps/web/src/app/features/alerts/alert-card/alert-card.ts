@@ -25,8 +25,8 @@ export class AlertCard {
   readonly pending = input(false);
   readonly acknowledge = output<string>();
 
-  protected readonly format = inject(Formatter);
-  protected readonly title = computed(() => alertTitle(this.alert(), this.format));
+  protected readonly formatter = inject(Formatter);
+  protected readonly title = computed(() => alertTitle(this.alert(), this.formatter));
   protected readonly text = computed(() => alertText(this.alert()));
   protected readonly link = computed(() => alertLink(this.alert()));
   protected readonly icon = computed(() => alertIcon(this.alert()));

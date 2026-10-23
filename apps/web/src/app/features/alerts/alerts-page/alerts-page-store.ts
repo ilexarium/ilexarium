@@ -22,14 +22,14 @@ export const AlertsPageStore = signalStore(
   withMethods(
     (
       store,
-      api = inject(AlertsApi),
-      alerts = inject(AlertsStore),
-      auth = inject(AuthStore),
+      alertsApi = inject(AlertsApi),
+      alertsStore = inject(AlertsStore),
+      authStore = inject(AuthStore),
       translator = inject(Translator),
     ) => ({
       async load(): Promise<void> {
         try {
-          alerts.fill(await api.status());
+          alertsStore.fill(await alertsApi.status());
         } catch {
           // The topic brings them when it can; the page shows its loading state until then.
         }
@@ -39,8 +39,8 @@ export const AlertsPageStore = signalStore(
       async acknowledge(id: string): Promise<void> {
         patchState(store, { pending: [...store.pending(), id] });
         try {
-          await api.acknowledge(id);
-          alerts.acknowledged(id, auth.user()?.username ?? '', new Date().toISOString());
+          await alertsApi.acknowledge(id);
+          alertsStore.acknowledged(id, authStore.user()?.username ?? '', new Date().toISOString());
         } catch (error) {
           toast.error(translator.t('alerts.acknowledgeFailed'), {
             description: translator.t(...apiErrorText(error)),
@@ -51,9 +51,9 @@ export const AlertsPageStore = signalStore(
       },
     }),
   ),
-  withHooks((store, alerts = inject(AlertsStore)) => ({
+  withHooks((store, alertsStore = inject(AlertsStore)) => ({
     onInit() {
-      if (!alerts.loaded()) void store.load();
+      if (!alertsStore.loaded()) void store.load();
     },
   })),
 );

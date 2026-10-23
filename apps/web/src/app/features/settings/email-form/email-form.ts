@@ -53,20 +53,22 @@ export class EmailForm implements OnInit {
   readonly settings = input.required<AlertChannelsResponse['email']>();
 
   /** The form submits through its page's store. */
-  protected readonly store = inject(NotificationsPageStore);
+  protected readonly notificationsPageStore = inject(NotificationsPageStore);
   private readonly injector = inject(Injector);
   private readonly translator = inject(Translator);
-  private readonly format = inject(Formatter);
+  private readonly formatter = inject(Formatter);
   protected readonly showPassword = signal(false);
   protected model!: ReturnType<typeof signal<EmailChannelForm>>;
   protected form!: FieldTree<EmailChannelForm>;
 
-  protected readonly testing = computed(() => this.store.testing().includes('email'));
+  protected readonly testing = computed(() =>
+    this.notificationsPageStore.testing().includes('email'),
+  );
   protected readonly lastFailure = computed(() => {
     const failure = this.settings()?.lastFailure;
     if (!failure) return null;
     return this.translator.t('notifications.lastFailure', {
-      time: this.format.dateTime(failure.at),
+      time: this.formatter.dateTime(failure.at),
       problem: this.translator.t(`alerts.problem.${failure.problem}`),
     });
   });
@@ -88,7 +90,7 @@ export class EmailForm implements OnInit {
         action: async (tree) => {
           const { password, ...rest } = tree().value();
           try {
-            await this.store.saveEmail({ ...rest, ...(password && { password }) });
+            await this.notificationsPageStore.saveEmail({ ...rest, ...(password && { password }) });
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }

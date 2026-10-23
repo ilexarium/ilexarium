@@ -1,6 +1,7 @@
 import { BlockList, isIP } from 'node:net';
 import ipaddr from 'ipaddr.js';
 import { lookup as dnsLookup } from 'node:dns/promises';
+import { LOOPBACK_RANGES, PRIVATE_RANGES, REFUSED_RANGES } from './alerts.constants.js';
 import { DeliveryError } from './alerts.model.js';
 
 /** Resolves a name to all of its addresses (Node's `dns.promises.lookup` with `all: true`). */
@@ -23,32 +24,9 @@ function blockList(entries: [string, number, 'ipv4' | 'ipv6'][]): BlockList {
   return list;
 }
 
-/** Never: cloud metadata and other link-local services, multicast, broadcast, "this host". */
-const REFUSED = blockList([
-  ['0.0.0.0', 8, 'ipv4'],
-  ['169.254.0.0', 16, 'ipv4'],
-  ['224.0.0.0', 4, 'ipv4'],
-  ['240.0.0.0', 4, 'ipv4'],
-  ['::', 128, 'ipv6'],
-  ['fe80::', 10, 'ipv6'],
-  ['ff00::', 8, 'ipv6'],
-  // Translated to IPv4 by a gateway (NAT64, SIIT): the IPv4 address inside can't be checked here.
-  ['64:ff9b::', 96, 'ipv6'],
-  ['64:ff9b:1::', 48, 'ipv6'],
-  ['::ffff:0:0:0', 96, 'ipv6'],
-]);
-const LOOPBACK = blockList([
-  ['127.0.0.0', 8, 'ipv4'],
-  ['::1', 128, 'ipv6'],
-]);
-/** LAN ranges, Tailscale's (100.64.0.0/10, fd7a:115c:a1e0::/48 inside fc00::/7). */
-const PRIVATE = blockList([
-  ['10.0.0.0', 8, 'ipv4'],
-  ['172.16.0.0', 12, 'ipv4'],
-  ['192.168.0.0', 16, 'ipv4'],
-  ['100.64.0.0', 10, 'ipv4'],
-  ['fc00::', 7, 'ipv6'],
-]);
+const REFUSED = blockList(REFUSED_RANGES);
+const LOOPBACK = blockList(LOOPBACK_RANGES);
+const PRIVATE = blockList(PRIVATE_RANGES);
 
 /**
  * An IPv4 address written as IPv6 is checked as the IPv4 address: mapped (`::ffff:10.0.0.1`, also
