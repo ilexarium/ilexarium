@@ -9,6 +9,11 @@ export const PINNED_IMAGE = /^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$/;
 
 export const RESERVED_LABEL = /^(laris\.|com\.docker\.compose\.)/;
 
+export const LOG_DRIVERS = ['json-file', 'local'];
+export const VOLUME_KEYS = ['type', 'source', 'target', 'read_only'];
+/** Where a port may be published besides every address: loopback only (a service without its own sign-in). */
+export const PORT_HOST_ADDRESSES = ['127.0.0.1'];
+
 export const SERVICE_KEYS = new Set([
   'image',
   'command',
@@ -91,7 +96,7 @@ export function checkPolicy(config: unknown, project: string, values: CheckedVal
     const options = isObject(logging) ? logging['options'] : undefined;
     if (
       !isObject(logging) ||
-      !['json-file', 'local'].includes(String(logging['driver'])) ||
+      !LOG_DRIVERS.includes(String(logging['driver'])) ||
       !isObject(options) ||
       !options['max-size']
     ) {
@@ -111,7 +116,8 @@ export function checkPolicy(config: unknown, project: string, values: CheckedVal
         ['mode', 'target', 'published', 'protocol', 'host_ip'].includes(k),
       );
       // On every address, or on loopback only (a service without its own sign-in); no other address.
-      const addressOk = port['host_ip'] === undefined || port['host_ip'] === '127.0.0.1';
+      const addressOk =
+        port['host_ip'] === undefined || PORT_HOST_ADDRESSES.includes(String(port['host_ip']));
       if (
         !keysOk ||
         !addressOk ||
@@ -132,7 +138,7 @@ export function checkPolicy(config: unknown, project: string, values: CheckedVal
           volume['type'] === 'volume' &&
           isObject(volume['volume']) &&
           Object.keys(volume['volume']).length === 0;
-        if (!['type', 'source', 'target', 'read_only'].includes(key) && !emptyVolumeOptions) {
+        if (!VOLUME_KEYS.includes(key) && !emptyVolumeOptions) {
           fail(`${at}.volumes.${key}`, 'not allowed');
         }
       }

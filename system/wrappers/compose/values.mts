@@ -25,6 +25,7 @@ export const PORT_MIN = 1024;
 export const PORT_MAX = 65535;
 
 export const SECRET_PATTERN = /^[^\x00-\x1f\x7f]{12,128}$/;
+export const TEXT_MAX = 128;
 
 export interface CheckedValues {
   /** Field key → the text Compose substitutes. */
@@ -88,7 +89,7 @@ export function checkValues(input: string, meta: Meta, config: Config): CheckedV
         const name = field.pattern as string;
         const pattern = Object.hasOwn(TEXT_PATTERNS, name) ? TEXT_PATTERNS[name] : undefined;
         if (!pattern) return refuse();
-        if (typeof value !== 'string' || value.length > 128 || !pattern.test(value)) refuse();
+        if (typeof value !== 'string' || value.length > TEXT_MAX || !pattern.test(value)) refuse();
         checked.env[field.key] = value as string;
         break;
       }
