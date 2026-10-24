@@ -31,7 +31,11 @@ import {
 import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
 import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
-import { isKernelThread, parseContainerId } from '../../apps/server/src/host/process-parsers.ts';
+import {
+  CONTAINER_CGROUP,
+  isKernelThread,
+  parseContainerId,
+} from '../../apps/server/src/host/process-parsers.ts';
 import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
@@ -129,9 +133,17 @@ describe('the app and the root wrappers check the same rules', () => {
     expect(isKernelThread({ flags: 0 })).toBe(false);
   });
 
-  it('processes: the same cgroups count as "in a container" (written differently on each side)', () => {
+  it('processes: the same rule for "in a container", and the same answers on real cgroups', () => {
+    expect(String(wrapperProc.CONTAINER_CGROUP)).toBe(String(CONTAINER_CGROUP));
     const id = 'a'.repeat(64);
     const cgroups = [
+      // Where the two sides once disagreed: Podman without systemd, containerd, Docker without
+      // `.scope`, Docker's own subtrees, a containerd scope without a full ID.
+      `0::/libpod_parent/libpod-${id}`,
+      `0::/containerd/${id}`,
+      `0::/x/docker-${id}`,
+      '0::/docker/buildkit/xyz',
+      '0::/system.slice/cri-containerd-abc.scope',
       `0::/system.slice/docker-${id}.scope`,
       `12:pids:/docker/${id}\n11:memory:/docker/${id}`,
       `0::/machine.slice/libpod-${id}.scope/container`,

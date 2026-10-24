@@ -78,6 +78,10 @@ describe('process parsers', () => {
       `0::/user.slice/user-1000.slice/user@1000.service/app.slice/docker-${ID}.scope`,
       ID,
     ],
+    ['Podman without systemd', `0::/libpod_parent/libpod-${ID}`, ID],
+    ['containerd without systemd', `0::/containerd/${ID}`, ID],
+    ['a Docker subtree without an ID', '0::/docker/buildkit/xyz', ''],
+    ['a containerd scope without a full ID', '0::/system.slice/cri-containerd-abc.scope', ''],
     ['the Docker daemon itself', '0::/system.slice/docker.service', null],
     ['containerd itself', '0::/system.slice/containerd.service', null],
     [
