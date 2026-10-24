@@ -56,7 +56,6 @@
   },
   "connection": {
     "offline": "Offline",
-    "kernel": "Kernel {{kernel}}",
     "connecting": "Connecting…",
     "live": "Live",
     "reconnecting": "Reconnecting…"
@@ -996,7 +995,6 @@
       "idle": "Idle",
       "other": "Other"
     },
-    "kernel": "Kernel thread",
     "container": "Container {{name}}",
     "unknownContainer": "In a container",
     "commandLine": "Command line",
