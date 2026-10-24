@@ -17,11 +17,8 @@ import { SystemReader } from '../host/system-reader.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { endRules, toProcess } from './process-view.js';
+import { NAMES_MS, PROCESSES_INTERVAL_MS } from './processes.constants.js';
 import type { ContainerName } from './processes.model.js';
-
-export const PROCESSES_INTERVAL_MS = 2_000;
-/** Containers' names and the accounts are looked up again this often (they rarely change). */
-export const NAMES_MS = 10_000;
 
 /** State of one collecting period: while `updates$` is subscribed. */
 interface Run {
@@ -61,12 +58,12 @@ export class ProcessesTopic implements TopicSource<'processes'> {
   }).pipe(share());
 
   constructor(
-    private readonly reader: SystemReader,
-    private readonly docker: DockerService,
-    private readonly wrapperConfig: WrapperConfigService,
-    subscriptions: RealtimeSubscriptions,
+    private readonly systemReader: SystemReader,
+    private readonly dockerService: DockerService,
+    private readonly wrapperConfigService: WrapperConfigService,
+    realtimeSubscriptions: RealtimeSubscriptions,
   ) {
-    subscriptions.registerSource(this);
+    realtimeSubscriptions.registerSource(this);
   }
 
   /** Waits for the first reading when collecting has only just started. */
@@ -101,12 +98,12 @@ export class ProcessesTopic implements TopicSource<'processes'> {
         const refresh = this.refreshNames();
         if (this.namesAt === -Infinity) await refresh;
       }
-      run.bootTime ??= await this.reader.bootTime();
+      run.bootTime ??= await this.systemReader.bootTime();
       const [raw, cpu, memory, partial] = await Promise.all([
-        this.reader.processes(),
-        this.reader.cpuTimes(),
-        this.reader.memory(),
-        this.reader.procHidden(),
+        this.systemReader.processes(),
+        this.systemReader.cpuTimes(),
+        this.systemReader.memory(),
+        this.systemReader.procHidden(),
       ]);
       if (run !== this.run) return null;
       const context = {
@@ -116,7 +113,7 @@ export class ProcessesTopic implements TopicSource<'processes'> {
         cpuTotalTicks: run.previousTotal === null ? 0 : cpu.total - run.previousTotal,
         previousTicks: run.previousTicks,
         containers: this.containers,
-        rules: endRules(this.wrapperConfig.config.process),
+        rules: endRules(this.wrapperConfigService.config.process),
       };
       const update: ProcessesUpdate = {
         processes: raw.map((process) => toProcess(process, context)),
@@ -140,8 +137,8 @@ export class ProcessesTopic implements TopicSource<'processes'> {
   private refreshNames(): Promise<void> {
     this.refreshingNames ??= (async () => {
       try {
-        this.users = await this.reader.users();
-        const names = await this.docker.containerNames();
+        this.users = await this.systemReader.users();
+        const names = await this.dockerService.containerNames();
         this.containers = new Map(
           [...names].map(([id, { name, composeProject }]) => [
             id,

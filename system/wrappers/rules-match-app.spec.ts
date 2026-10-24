@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   BACKUP_DESTINATION_ROOTS,
   BACKUP_FILESYSTEMS,
@@ -13,6 +16,7 @@ import {
   DISK_UUID_PATTERN,
   ENUM_OPTION_PATTERN,
   FIELD_KEY_PATTERN,
+  PROCESS_LIMITS,
   PATH_FORBIDDEN,
   TEXT_PATTERNS,
 } from '@laris/shared';
@@ -27,6 +31,7 @@ import {
 import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
 import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
+import { isKernelThread, parseContainerId } from '../../apps/server/src/host/process-parsers.ts';
 import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
@@ -39,6 +44,8 @@ import * as wrapperDiskDevices from './disk/devices.mts';
 import * as wrapperDiskMount from './disk/mount.mts';
 import * as wrapperDiskUnits from './disk/units.mts';
 import * as wrapperPaths from './lib/paths.mts';
+import * as wrapperProcessConfig from './process/config.mts';
+import * as wrapperProc from './process/proc.mts';
 
 // The app's rules and the root wrappers' are written twice on purpose (the wrappers share no code
 // with the app). This keeps the two copies the same; that they are right is the wrappers' own
@@ -113,5 +120,48 @@ describe('the app and the root wrappers check the same rules', () => {
     expect(ROOT_PLACES.unitDir).toBe(wrapperDiskConfig.ROOT_PATHS.unitDir);
     expect(String(wrapperDiskUnits.NAME)).toBe(String(DISK_NAME_PATTERN));
     expect(String(wrapperDiskMount.UUID)).toBe(String(DISK_UUID_PATTERN));
+  });
+
+  it('processes: whose processes are people’s, and what a kernel thread is', () => {
+    expect(wrapperProcessConfig.DEFAULT_MIN_UID).toBe(PROCESS_LIMITS.minUid);
+    expect(wrapperProcessConfig.MAX_UID).toBe(PROCESS_LIMITS.maxUid);
+    expect(isKernelThread({ flags: wrapperProc.PF_KTHREAD })).toBe(true);
+    expect(isKernelThread({ flags: 0 })).toBe(false);
+  });
+
+  it('processes: the same cgroups count as "in a container" (written differently on each side)', () => {
+    const id = 'a'.repeat(64);
+    const cgroups = [
+      `0::/system.slice/docker-${id}.scope`,
+      `12:pids:/docker/${id}\n11:memory:/docker/${id}`,
+      `0::/machine.slice/libpod-${id}.scope/container`,
+      `0::/kubepods/besteffort/pod1/cri-containerd-${id}.scope`,
+      '0::/kubepods/burstable/pod1/abc',
+      '0::/machine.slice/machine-web.scope/payload',
+      '0::/lxc/web/init.scope',
+      `0::/user.slice/user-1000.slice/user@1000.service/app.slice/docker-${id}.scope`,
+      '0::/system.slice/docker.service',
+      '0::/system.slice/containerd.service',
+      '0::/user.slice/user-1000.slice/user@1000.service/app.slice/docker.service',
+      '0::/user.slice/user-1000.slice/session-2.scope',
+      '0::/system.slice/sshd.service',
+    ];
+    const proc = mkdtempSync(join(tmpdir(), 'rules-proc-'));
+    try {
+      for (const [i, cgroup] of cgroups.entries()) {
+        const pid = 100 + i;
+        const dir = join(proc, String(pid));
+        mkdirSync(dir);
+        // Enough of /proc/<pid> for the wrapper's reader: stat (start time, flags), uids, cgroup.
+        const fields = Array.from({ length: 50 }, () => '0');
+        writeFileSync(join(dir, 'stat'), `${pid} (sh) S ${fields.join(' ')}\n`);
+        writeFileSync(join(dir, 'status'), 'Uid:\t1000\t1000\t1000\t1000\n');
+        writeFileSync(join(dir, 'cgroup'), `${cgroup}\n`);
+        const app = parseContainerId(cgroup) !== null;
+        expect(wrapperProc.readProcess(proc, pid)?.inContainer, cgroup).toBe(app);
+      }
+    } finally {
+      rmSync(proc, { recursive: true, force: true });
+    }
   });
 });

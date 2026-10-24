@@ -63,7 +63,7 @@ export class ProcessList {
   readonly now = input.required<number>();
   readonly end = output<EndRequest>();
 
-  private readonly format = inject(Formatter);
+  private readonly formatter = inject(Formatter);
   /** Wide enough for the table (without `matchMedia`, as in tests: yes). */
   protected readonly wide = signal(true);
   private readonly translator = inject(Translator);
@@ -77,12 +77,12 @@ export class ProcessList {
         key,
         process,
         user: process.user ?? this.translator.t('processes.unknownUser', { uid: process.uid }),
-        cpu: this.format.percent(process.cpuPercent),
-        memory: this.format.bytes(process.memoryBytes),
-        memoryShare: this.format.percent(process.memoryPercent),
+        cpu: this.formatter.percent(process.cpuPercent),
+        memory: this.formatter.bytes(process.memoryBytes),
+        memoryShare: this.formatter.percent(process.memoryPercent),
         started: process.startedAt
           ? this.translator.t('processes.startedAgo', {
-              duration: this.format.ago(process.startedAt, this.now()),
+              duration: this.formatter.ago(process.startedAt, this.now()),
             })
           : '—',
         container: container
