@@ -19,7 +19,7 @@ export class EndProcessDialog {
 
   private readonly dialog = viewChild.required(HlmAlertDialog);
   private readonly translator = inject(Translator);
-  private readonly format = inject(Formatter);
+  private readonly formatter = inject(Formatter);
   protected readonly request = signal<EndRequest | null>(null);
 
   open(request: EndRequest): void {
@@ -28,7 +28,7 @@ export class EndProcessDialog {
   }
 
   protected user(request: EndRequest): string {
-    return this.format.machine(
+    return this.formatter.machine(
       request.process.user ??
         this.translator.t('processes.unknownUser', { uid: request.process.uid }),
     );

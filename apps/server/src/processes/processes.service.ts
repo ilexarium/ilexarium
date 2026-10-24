@@ -34,23 +34,23 @@ function failure(code: ProcessErrorCode): HttpException {
 @Injectable()
 export class ProcessesService {
   constructor(
-    private readonly reader: SystemReader,
-    private readonly executor: ExecutorService,
-    private readonly wrapperConfig: WrapperConfigService,
+    private readonly systemReader: SystemReader,
+    private readonly executorService: ExecutorService,
+    private readonly wrapperConfigService: WrapperConfigService,
   ) {}
 
   async signal(request: ProcessSignalRequest, actor: ExecutorActor): Promise<void> {
-    const raw = await this.reader.process(request.pid);
+    const raw = await this.systemReader.process(request.pid);
     if (!raw || raw.startTicks !== request.startTicks) {
       throw failure(PROCESS_ERROR_CODES.processNotFound);
     }
-    if (!isEndable(raw, endRules(this.wrapperConfig.config.process))) {
+    if (!isEndable(raw, endRules(this.wrapperConfigService.config.process))) {
       throw failure(PROCESS_ERROR_CODES.processProtected);
     }
-    const user = (await this.reader.users()).get(raw.uids[0]) ?? null;
+    const user = (await this.systemReader.users()).get(raw.uids[0]) ?? null;
     let outcome;
     try {
-      outcome = await this.executor.processSignal(request, { name: raw.name, user }, actor);
+      outcome = await this.executorService.processSignal(request, { name: raw.name, user }, actor);
     } catch {
       // The request couldn't be recorded: nothing was done.
       throw failure(PROCESS_ERROR_CODES.auditUnavailable);

@@ -1,20 +1,8 @@
-import { PROCESS_LIMITS, type Process, processKey, type ProcessState } from '@laris/shared';
+import { PROCESS_LIMITS, type Process, processKey } from '@laris/shared';
 import { isKernelThread } from '../host/process-parsers.js';
 import type { RawProcess } from '../host/host.model.js';
+import { STATES, TICKS_PER_SECOND } from './processes.constants.js';
 import type { EndRules, ProcessContext } from './processes.model.js';
-
-/** Linux reports times in /proc in USER_HZ ticks: 100 a second on every architecture. */
-export const TICKS_PER_SECOND = 100;
-
-const STATES: Record<string, ProcessState> = {
-  R: 'running',
-  S: 'sleeping',
-  D: 'waiting',
-  Z: 'zombie',
-  T: 'stopped',
-  t: 'stopped',
-  I: 'idle',
-};
 
 const isPerson = (uid: number, minUid: number = PROCESS_LIMITS.minUid) =>
   uid >= minUid && uid <= PROCESS_LIMITS.maxUid;

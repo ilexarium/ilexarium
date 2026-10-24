@@ -14,9 +14,7 @@ import { ProcessesApi } from '../../../core/processes/processes-api';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
 import type { EndRequest, ProcessSort } from '../processes.model';
-
-/** Rows shown at first (the busiest, as sorted): a long list is slow and endless on a phone. */
-export const SHOWN_FIRST = 50;
+import { SHOWN_FIRST, SORT_ORDER } from './processes-page.constants';
 
 interface ProcessesPageState {
   /** The latest from the topic; null until the first. */
@@ -50,13 +48,6 @@ const initialState: ProcessesPageState = {
   now: 0,
 };
 
-const compare: Record<ProcessSort, (a: Process, b: Process) => number> = {
-  cpu: (a, b) => b.cpuPercent - a.cpuPercent || b.memoryBytes - a.memoryBytes,
-  memory: (a, b) => b.memoryBytes - a.memoryBytes,
-  name: (a, b) => a.name.localeCompare(b.name) || a.pid - b.pid,
-  pid: (a, b) => a.pid - b.pid,
-};
-
 /**
  * The Processes page's data, provided by the page and gone with it: every process (the
  * `processes` topic while the page is open), searching, sorting, pausing, and ending one — with
@@ -79,7 +70,7 @@ export const ProcessesPageStore = signalStore(
             p.command.toLowerCase().includes(query) ||
             (p.user ?? '').toLowerCase().includes(query),
         )
-        .sort(compare[store.sort()]);
+        .sort(SORT_ORDER[store.sort()]);
     }),
     /** Processes asked to stop that still run after the wait: offered "Force end". */
     forceable: computed(() => {
@@ -100,7 +91,7 @@ export const ProcessesPageStore = signalStore(
       store.showAll() ? 0 : Math.max(0, store.rows().length - SHOWN_FIRST),
     ),
   })),
-  withMethods((store, api = inject(ProcessesApi), translator = inject(Translator)) => ({
+  withMethods((store, processesApi = inject(ProcessesApi), translator = inject(Translator)) => ({
     update(update: ProcessesUpdate): void {
       const running = new Set(update.processes.map(processKey));
       // Forget asked processes that have ended.
@@ -137,7 +128,7 @@ export const ProcessesPageStore = signalStore(
       const key = processKey(process);
       patchState(store, { pending: [...store.pending(), key] });
       try {
-        await api.signal({ pid: process.pid, startTicks: process.startTicks, signal });
+        await processesApi.signal({ pid: process.pid, startTicks: process.startTicks, signal });
         if (signal === 'TERM') {
           patchState(store, { asked: { ...store.asked(), [key]: Date.now() } });
           toast.success(translator.t('processes.ended', { name: process.name }));
@@ -153,11 +144,11 @@ export const ProcessesPageStore = signalStore(
       }
     },
   })),
-  withHooks((store, realtime = inject(RealtimeService)) => {
+  withHooks((store, realtimeService = inject(RealtimeService)) => {
     let stop: (() => void) | null = null;
     return {
       onInit() {
-        stop = realtime.subscribe('processes', (message) => {
+        stop = realtimeService.subscribe('processes', (message) => {
           if (message.event === 'processes:snapshot' || message.event === 'processes:update') {
             store.update(message.data);
           }
