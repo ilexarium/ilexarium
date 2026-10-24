@@ -56,7 +56,6 @@
   },
   "connection": {
     "offline": "غير متصل",
-    "kernel": "النواة {{kernel}}",
     "connecting": "جارٍ الاتصال…",
     "live": "مباشر",
     "reconnecting": "جارٍ إعادة الاتصال…"
@@ -1030,7 +1029,6 @@
       "idle": "خاملة",
       "other": "أخرى"
     },
-    "kernel": "خيط نواة",
     "container": "الحاوية {{name}}",
     "unknownContainer": "داخل حاوية",
     "commandLine": "سطر الأوامر",

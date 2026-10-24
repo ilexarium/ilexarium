@@ -61,7 +61,7 @@ describe('ConnectionStatus', () => {
     await fixture.whenStable();
     expect(label.getAttribute('tabindex')).toBe('0');
     label.focus();
-    await vi.waitFor(() => expect(document.body.textContent).toContain('Kernel 6.12.48-1-amd64'));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('6.12.48-1-amd64'));
     el.remove();
   });
 });
