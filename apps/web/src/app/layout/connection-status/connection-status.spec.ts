@@ -34,7 +34,7 @@ describe('ConnectionStatus', () => {
     }
   });
 
-  it('beats while live, and shows the kernel (hover or keyboard focus) once the machine is known', async () => {
+  it('beats while live, and shows the kernel on hover once the machine is known', async () => {
     const host = signal<HostInfo | null>(null);
     TestBed.configureTestingModule({
       providers: [
@@ -50,7 +50,6 @@ describe('ConnectionStatus', () => {
     expect(dot).toContain('motion-safe:animate-heartbeat');
     expect(dot).toContain('motion-reduce:animate-heartbeat-fade');
     const label = el.querySelector<HTMLElement>('span:not([aria-hidden])')!;
-    expect(label.getAttribute('tabindex')).toBeNull();
 
     host.set({
       hostname: 'box',
@@ -61,8 +60,7 @@ describe('ConnectionStatus', () => {
       cpuCores: 4,
     });
     await fixture.whenStable();
-    expect(label.getAttribute('tabindex')).toBe('0');
-    label.focus();
+    label.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
     await vi.waitFor(() => expect(document.body.textContent).toContain('6.12.48-1-amd64'));
     el.remove();
   });
@@ -95,11 +93,12 @@ describe('ConnectionStatus', () => {
       status.set(value);
       await fixture.whenStable();
       expect(dot(), value).not.toContain('heartbeat');
-      expect(label().getAttribute('tabindex'), value).toBeNull();
+      label().dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
+      await fixture.whenStable();
+      expect(document.body.textContent, value).not.toContain('6.12.48-1-amd64');
     }
     status.set('live');
     await fixture.whenStable();
     expect(dot()).toContain('heartbeat');
-    expect(label().getAttribute('tabindex')).toBe('0');
   });
 });

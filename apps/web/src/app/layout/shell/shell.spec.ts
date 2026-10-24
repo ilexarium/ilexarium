@@ -4,6 +4,7 @@ import { provideRouter, TitleStrategy } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
+import { MonitoringApi } from '../../core/monitoring/monitoring-api';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
 import { fakeSockets } from '../../core/realtime/testing';
 import { LANGUAGE_STORAGE_KEY } from '../../core/i18n/language.constants';
@@ -16,6 +17,14 @@ class Page {}
 async function render(url = '/') {
   const fake = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
+  const host = vi.fn(async () => ({
+    hostname: 'box',
+    os: 'Debian GNU/Linux 13',
+    kernel: '6.12.48-1-amd64',
+    arch: 'x64',
+    cpuModel: null,
+    cpuCores: 4,
+  }));
   TestBed.configureTestingModule({
     providers: [
       provideRouter([
@@ -33,6 +42,7 @@ async function render(url = '/') {
       { provide: TitleStrategy, useExisting: PageTitleStrategy },
       fake.provider,
       sockets.provider,
+      { provide: MonitoringApi, useValue: { host } },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -42,6 +52,7 @@ async function render(url = '/') {
     harness,
     el,
     sockets,
+    host,
     navLink: (label: string) =>
       [...el.querySelectorAll<HTMLAnchorElement>('nav a')].find(
         (a) => a.textContent?.trim() === label,
@@ -52,6 +63,11 @@ async function render(url = '/') {
 }
 
 describe('Shell (app layout)', () => {
+  it('asks once for the machine, for the kernel in the top bar', async () => {
+    const { host } = await render();
+    expect(host).toHaveBeenCalledTimes(1);
+  });
+
   let restoreScreen: (() => void) | null = null;
   let storage: ReturnType<typeof stubLocalStorage>;
 
