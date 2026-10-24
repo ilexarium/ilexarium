@@ -19,35 +19,27 @@ const types = {
   '.webmanifest': 'application/manifest+json',
 };
 
-// The server's own security headers (helmet: the CSP and the rest), sent with the page too —
-// production serves the page from the server, so the browser check should see the same.
-const SECURITY = [
-  'content-security-policy',
-  'cross-origin-opener-policy',
-  'cross-origin-resource-policy',
-  'origin-agent-cluster',
-  'referrer-policy',
-  'x-content-type-options',
-  'x-dns-prefetch-control',
-  'x-download-options',
-  'x-frame-options',
-  'x-permitted-cross-domain-policies',
-  'x-xss-protection',
-];
+// The server's own headers (helmet: the CSP and the rest), sent with the page too — production
+// serves the page from the server, so the browser check sees the same. All of them but those
+// about the answer itself; read once. Without them no page is served (a check would test nothing).
+const NOT_COPIED = new Set([
+  'content-type',
+  'content-length',
+  'etag',
+  'date',
+  'connection',
+  'keep-alive',
+  'cache-control',
+  'transfer-encoding',
+  'vary',
+]);
 let security = null;
 async function securityHeaders() {
   if (security) return security;
-  try {
-    const answer = await fetch(`http://127.0.0.1:${target}/api/health`);
-    security = Object.fromEntries(
-      SECURITY.filter((name) => answer.headers.has(name)).map((name) => [
-        name,
-        answer.headers.get(name),
-      ]),
-    );
-  } catch {
-    return {};
-  }
+  const answer = await fetch(`http://127.0.0.1:${target}/api/health`);
+  await answer.arrayBuffer();
+  if (!answer.ok) throw new Error(`/api/health answered ${answer.status}`);
+  security = Object.fromEntries([...answer.headers].filter(([name]) => !NOT_COPIED.has(name)));
   return security;
 }
 
@@ -65,11 +57,18 @@ const server = createServer(async (req, res) => {
     return;
   }
   const path = normalize(decodeURIComponent(req.url.split('?')[0])).replace(/^(\.\.[/\\])+/, '');
+  let headers;
+  try {
+    headers = await securityHeaders();
+  } catch (error) {
+    console.error(`No security headers from the server (${error.message}): page not served`);
+    return res.writeHead(503).end();
+  }
   for (const file of [join(root, path), join(root, 'index.html')]) {
     try {
       const body = await readFile(file);
       res.writeHead(200, {
-        ...(await securityHeaders()),
+        ...headers,
         'Content-Type': types[extname(file)] ?? 'application/octet-stream',
       });
       return res.end(body);
