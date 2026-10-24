@@ -13,17 +13,17 @@ export class AssistantTopic implements TopicSource<'assistant'> {
   readonly updates$: Observable<AiTopic>;
 
   constructor(
-    private readonly pulls: ModelPulls,
+    private readonly modelPulls: ModelPulls,
     subscriptions: RealtimeSubscriptions,
   ) {
-    this.updates$ = pulls.changes$.pipe(
+    this.updates$ = modelPulls.changes$.pipe(
       auditTime(PULL_PUBLISH_MS),
-      map(() => ({ pull: this.pulls.view() })),
+      map(() => ({ pull: this.modelPulls.view() })),
     );
     subscriptions.registerSource(this);
   }
 
   snapshot(): Promise<AiTopic> {
-    return Promise.resolve({ pull: this.pulls.view() });
+    return Promise.resolve({ pull: this.modelPulls.view() });
   }
 }

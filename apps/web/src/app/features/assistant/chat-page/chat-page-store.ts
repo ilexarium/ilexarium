@@ -56,14 +56,18 @@ export const ChatPageStore = signalStore(
       store,
       assistantApi = inject(AssistantApi),
       translator = inject(Translator),
-      window = inject(DOCUMENT).defaultView,
+      defaultView = inject(DOCUMENT).defaultView,
     ) => {
       let answer: Subscription | null = null;
+      /** Settles `send()`'s promise while the message isn't accepted yet (no `chat` line). */
+      let unaccepted: ((error?: unknown) => void) | null = null;
+      /** The chat asked for last: an earlier one answering later is ignored. */
+      let opening: string | null = null;
 
       /** A model that is installed: the wished one, else the last chosen here, else the first. */
       const pick = (wished: string | null): string | null => {
         const names = store.models().map((model) => model.name);
-        for (const name of [wished, store.model(), readStored(window, MODEL_STORAGE_KEY)]) {
+        for (const name of [wished, store.model(), readStored(defaultView, MODEL_STORAGE_KEY)]) {
           if (name && names.includes(name)) return name;
         }
         return names[0] ?? null;
@@ -80,6 +84,9 @@ export const ChatPageStore = signalStore(
         if (!answer) return;
         answer.unsubscribe();
         answer = null;
+        // Stopped before the server took it: the form keeps the text.
+        unaccepted?.(new Error('stopped'));
+        unaccepted = null;
         const text = store.streaming()?.text ?? '';
         const model = store.model();
         if (text && model) {
@@ -117,6 +124,7 @@ export const ChatPageStore = signalStore(
           // Already open: the URL just caught up with a new chat (its answer goes on).
           if (id && store.chat()?.id === id) return;
           stop();
+          opening = id;
           if (!id) {
             patchState(store, { chat: null, loadingChat: false });
             return;
@@ -124,18 +132,20 @@ export const ChatPageStore = signalStore(
           patchState(store, { loadingChat: true });
           try {
             const chat = await assistantApi.chat(id);
+            if (opening !== id) return; // another chat was opened meanwhile
             patchState(store, { chat, model: pick(chat.model) });
           } catch (error) {
+            if (opening !== id) return;
             patchState(store, { chat: null });
             failed('assistant.openFailed', error);
           } finally {
-            patchState(store, { loadingChat: false });
+            if (opening === id) patchState(store, { loadingChat: false });
           }
         },
 
         setModel(model: string): void {
           patchState(store, { model });
-          writeStored(window, MODEL_STORAGE_KEY, model);
+          writeStored(defaultView, MODEL_STORAGE_KEY, model);
         },
 
         /**
@@ -147,6 +157,7 @@ export const ChatPageStore = signalStore(
           if (!model || answer) return Promise.resolve();
           patchState(store, { streaming: { text: '' } });
           return new Promise<void>((resolve, reject) => {
+            unaccepted = (error) => (error ? reject(error) : resolve());
             answer = assistantApi
               .send({ chatId: store.chat()?.id ?? null, model, content })
               .subscribe({
@@ -162,6 +173,8 @@ export const ChatPageStore = signalStore(
                         chat: { ...chat, messages: [...chat.messages, event.question] },
                         chats: [event.chat, ...store.chats().filter((c) => c.id !== event.chat.id)],
                       });
+                      opening = event.chat.id;
+                      unaccepted = null;
                       resolve();
                       break;
                     }
@@ -183,6 +196,7 @@ export const ChatPageStore = signalStore(
                 },
                 error: (error: unknown) => {
                   answer = null;
+                  unaccepted = null;
                   patchState(store, { streaming: null });
                   failed('assistant.sendFailed', error);
                   reject(error);
@@ -190,6 +204,9 @@ export const ChatPageStore = signalStore(
                 complete: () => {
                   answer = null;
                   patchState(store, { streaming: null });
+                  // Ended without taking the message (no `chat` line): the form keeps the text.
+                  unaccepted?.(new Error('not accepted'));
+                  unaccepted = null;
                 },
               });
           });

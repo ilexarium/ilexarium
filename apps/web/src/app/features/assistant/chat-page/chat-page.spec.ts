@@ -13,6 +13,7 @@ import { toast } from '@spartan-ng/brain/sonner';
 import { Subject } from 'rxjs';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
 import { ChatPage } from './chat-page';
+import { ChatPageStore } from './chat-page-store';
 
 const CHAT_ID = '0199f000-0000-7000-8000-000000000001';
 const OLD_ID = '0199f000-0000-7000-8000-0000000000aa';
@@ -198,6 +199,49 @@ describe('ChatPage', () => {
       description: 'An answer is still being written. Wait for it or stop it.',
     });
     expect(el.querySelector('textarea')!.value).toBe('Hi');
+  });
+
+  it('settles a message not yet taken when the answer is stopped (the form isn’t left waiting)', async () => {
+    const { fixture } = await render();
+    const store = fixture.debugElement.injector.get(ChatPageStore);
+    const sent = store.send('Hi');
+    store.stop();
+    await expect(sent).rejects.toThrow('stopped');
+  });
+
+  it('settles a message the server ended without taking', async () => {
+    const { fixture, api } = await render();
+    const store = fixture.debugElement.injector.get(ChatPageStore);
+    const sent = store.send('Hi');
+    api.answers[0].complete();
+    await expect(sent).rejects.toThrow('not accepted');
+  });
+
+  it('shows the chat opened last, even when an earlier one answers later', async () => {
+    const api = fakeApi();
+    const later = '0199f000-0000-7000-8000-0000000000bb';
+    let answerOld: (chat: Chat) => void = () => undefined;
+    api.chat.mockImplementation((id: string) =>
+      id === OLD_ID
+        ? new Promise<Chat>((resolve) => (answerOld = resolve))
+        : Promise.resolve({
+            ...summary(id, 'The later chat'),
+            createdAt: '2026-10-19T11:00:00.000Z',
+            messages: [message('user', 'Later question')],
+          }),
+    );
+    const { fixture } = await render(api);
+    const store = fixture.debugElement.injector.get(ChatPageStore);
+    const first = store.open(OLD_ID);
+    await store.open(later);
+    answerOld({
+      ...summary(OLD_ID, 'An older chat'),
+      createdAt: '2026-10-19T11:00:00.000Z',
+      messages: [message('user', 'Old question')],
+    });
+    await first;
+    expect(store.chat()?.id).toBe(later);
+    expect(store.loadingChat()).toBe(false);
   });
 
   it('opens a chat from the URL, with its model chosen', async () => {

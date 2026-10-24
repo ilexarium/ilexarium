@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Logger,
   Ip,
   NotFoundException,
   Param,
@@ -49,6 +50,8 @@ import {
 @Controller('assistant')
 @UseFilters(TooManyAttemptsFilter)
 export class AssistantController {
+  private readonly logger = new Logger(AssistantController.name);
+
   constructor(
     private readonly ollamaService: OllamaService,
     private readonly modelPulls: ModelPulls,
@@ -164,6 +167,7 @@ export class AssistantController {
     } catch (error) {
       // Before the first line: an ordinary HTTP error (Nest's filter answers it).
       if (!writer.started) throw error;
+      this.logger.error('An answer failed after it started', (error as Error).stack);
     }
     if (!res.writableEnded) res.end();
   }
