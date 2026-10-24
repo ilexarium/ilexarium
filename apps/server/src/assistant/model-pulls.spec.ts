@@ -124,6 +124,16 @@ describe('ModelPulls', () => {
     expect(audit.tryRecord).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'failure' }));
   });
 
+  it('calls a failed fetch of the manifest a failed download, not a missing model', async () => {
+    ollama.pull = {
+      lines: [{ status: 'pulling manifest' }],
+      error: 'pull model manifest: Get "https://registry.ollama.ai/v2/x": dial tcp: no such host',
+    };
+    await pulls.start('smollm2:135m', BY);
+    await finished();
+    expect(pulls.view()).toMatchObject({ status: 'failed', errorCode: 'pull_failed' });
+  });
+
   it('refuses when Ollama isn’t installed', async () => {
     const service = new OllamaService({} as never);
     vi.spyOn(service, 'location').mockResolvedValue(null);

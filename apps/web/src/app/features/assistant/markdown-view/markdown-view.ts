@@ -29,14 +29,14 @@ export class MarkdownView {
 
   protected readonly html = computed(() => renderMarkdown(this.text()));
 
-  private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly elementRef = inject(ElementRef<HTMLElement>);
   private readonly document = inject(DOCUMENT);
   private readonly translator = inject(Translator);
 
   constructor() {
     afterRenderEffect(() => {
       this.html();
-      const root = this.host.nativeElement as HTMLElement;
+      const root = this.elementRef.nativeElement as HTMLElement;
       for (const link of root.querySelectorAll('a')) {
         link.target = '_blank';
         link.rel = 'noopener noreferrer';

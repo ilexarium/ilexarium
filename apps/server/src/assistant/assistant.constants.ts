@@ -10,9 +10,10 @@ export const OLLAMA_IDLE_MS = 5 * 60_000;
 
 /**
  * A download refused because the model doesn't exist: Ollama says so only in its message
- * ("pull model manifest: file does not exist"), with no code to go by.
+ * ("pull model manifest: file does not exist"), with no code to go by. Not "manifest" alone:
+ * every failure fetching it starts so, a network one too ("pull model manifest: Get …: no such host").
  */
-export const PULL_NOT_FOUND = /not exist|not found|manifest/i;
+export const PULL_NOT_FOUND = /does not exist|not found/i;
 
 /** Kept free on the models' disk beyond a download's size. */
 export const FREE_SPACE_MARGIN_BYTES = 1024 ** 3;

@@ -137,6 +137,13 @@ describe('ChatAnswers', () => {
     expect(store.messages.map((m) => m.role)).toEqual(['user']);
   });
 
+  it('ends with an error line when reading the conversation fails after the first line', async () => {
+    store.history.mockRejectedValueOnce(new Error('database gone'));
+    await answers.answer('u1', send(), sink, new AbortController().signal);
+    expect(events[0]).toMatchObject({ type: 'chat' });
+    expect(events.at(-1)).toMatchObject({ type: 'error', code: 'answer_failed', answer: null });
+  });
+
   it('ends with an error line when the model fails, keeping the part written', async () => {
     ollama.answer = { pieces: ['Part'], error: 'model crashed' };
     await answers.answer('u1', send(), sink, new AbortController().signal);

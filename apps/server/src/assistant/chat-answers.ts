@@ -62,9 +62,10 @@ export class ChatAnswers {
     }
     await sink.write({ type: 'chat', ...asked });
 
-    const conversation = fitting(await this.chatStore.history(asked.chat.id));
     let text = '';
     try {
+      // Inside the try: past the first line, a failure must still reach the browser as `error`.
+      const conversation = fitting(await this.chatStore.history(asked.chat.id));
       for await (const piece of client.chat(
         send.model,
         conversation,
