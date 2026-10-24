@@ -49,12 +49,7 @@ export class ProfileService {
     if (bytes.length > PROFILE_LIMITS.pictureMaxBytes) throw pictureTooLarge();
     const picture = inspectPicture(bytes);
     const size = PROFILE_LIMITS.pictureSize;
-    if (!picture || picture.width !== size || picture.height !== size) {
-      throw new BadRequestException({
-        message: `A WebP, JPEG or PNG picture of ${size}×${size} pixels`,
-        code: PROFILE_ERROR_CODES.invalidPicture,
-      });
-    }
+    if (!picture || picture.width !== size || picture.height !== size) throw invalidPicture();
     const updated = await this.usersService.setAvatar(user.id, bytes, picture.type);
     await this.auditService.tryRecord({
       action: 'profile.avatar',
@@ -83,6 +78,14 @@ export class ProfileService {
   avatar(userId: string): Promise<StoredAvatar | null> {
     return this.usersService.findAvatar(userId);
   }
+}
+
+export function invalidPicture(): BadRequestException {
+  const size = PROFILE_LIMITS.pictureSize;
+  return new BadRequestException({
+    message: `A WebP, JPEG or PNG picture of ${size}×${size} pixels`,
+    code: PROFILE_ERROR_CODES.invalidPicture,
+  });
 }
 
 export function pictureTooLarge(): PayloadTooLargeException {

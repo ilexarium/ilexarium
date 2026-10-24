@@ -86,8 +86,9 @@ export const ProfileEditStore = signalStore(
           const email = form.email.trim();
           if (displayName !== (user?.displayName ?? '')) update.displayName = displayName;
           if (email !== (user?.email ?? '')) update.email = email;
-          if (Object.keys(update).length > 0)
+          if (Object.keys(update).length > 0) {
             authStore.updated((await profileApi.update(update)).user);
+          }
           forgetPreview();
           patchState(store, initialState);
           toast.success(translator.t('profile.saved'));

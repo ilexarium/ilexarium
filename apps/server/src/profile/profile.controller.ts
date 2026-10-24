@@ -18,7 +18,7 @@ import { PROFILE_LIMITS, type PublicUser, type UserResponse } from '@laris/share
 import type { Request, Response } from 'express';
 import { CHANGE_LIMIT } from './profile.constants.js';
 import { AvatarQueryDto, ProfileUpdateDto } from './profile.dto.js';
-import { pictureTooLarge, ProfileService } from './profile.service.js';
+import { invalidPicture, pictureTooLarge, ProfileService } from './profile.service.js';
 import { readBody } from './read-body.js';
 
 /** Changes to the signed-in person's profile; reading it is `GET /api/auth/me`. */
@@ -46,7 +46,10 @@ export class ProfileController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<UserResponse> {
-    const bytes = await readBody(req, PROFILE_LIMITS.pictureMaxBytes, pictureTooLarge);
+    const bytes = await readBody(req, PROFILE_LIMITS.pictureMaxBytes, {
+      tooLarge: pictureTooLarge,
+      unreadable: invalidPicture,
+    });
     return { user: await this.profileService.setAvatar(bytes, { user, ip }) };
   }
 
