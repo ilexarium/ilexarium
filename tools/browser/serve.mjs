@@ -19,6 +19,38 @@ const types = {
   '.webmanifest': 'application/manifest+json',
 };
 
+// The server's own security headers (helmet: the CSP and the rest), sent with the page too —
+// production serves the page from the server, so the browser check should see the same.
+const SECURITY = [
+  'content-security-policy',
+  'cross-origin-opener-policy',
+  'cross-origin-resource-policy',
+  'origin-agent-cluster',
+  'referrer-policy',
+  'x-content-type-options',
+  'x-dns-prefetch-control',
+  'x-download-options',
+  'x-frame-options',
+  'x-permitted-cross-domain-policies',
+  'x-xss-protection',
+];
+let security = null;
+async function securityHeaders() {
+  if (security) return security;
+  try {
+    const answer = await fetch(`http://127.0.0.1:${target}/api/health`);
+    security = Object.fromEntries(
+      SECURITY.filter((name) => answer.headers.has(name)).map((name) => [
+        name,
+        answer.headers.get(name),
+      ]),
+    );
+  } catch {
+    return {};
+  }
+  return security;
+}
+
 const server = createServer(async (req, res) => {
   if (req.url.startsWith('/api')) {
     const upstream = request(
@@ -36,7 +68,10 @@ const server = createServer(async (req, res) => {
   for (const file of [join(root, path), join(root, 'index.html')]) {
     try {
       const body = await readFile(file);
-      res.writeHead(200, { 'Content-Type': types[extname(file)] ?? 'application/octet-stream' });
+      res.writeHead(200, {
+        ...(await securityHeaders()),
+        'Content-Type': types[extname(file)] ?? 'application/octet-stream',
+      });
       return res.end(body);
     } catch {}
   }

@@ -141,6 +141,8 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
     expect(download.headers['content-type']).toBe('application/octet-stream');
     expect(download.headers['content-disposition']).toMatch(/^attachment; filename="page.html"/);
     expect(download.headers['x-content-type-options']).toBe('nosniff');
+    // Its own CSP, stricter than the app's: a file never runs as part of the app.
+    expect(download.headers['content-security-policy']).toBe("default-src 'none'; sandbox");
 
     // Any name comes back whole: quotes, brackets, umlauts, other scripts.
     const odd = `it's (1)* März "x" 日本.txt`;
