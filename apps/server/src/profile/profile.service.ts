@@ -19,8 +19,8 @@ import type { ProfileActor } from './profile.model.js';
 @Injectable()
 export class ProfileService {
   constructor(
-    private readonly users: UsersService,
-    private readonly audit: AuditService,
+    private readonly usersService: UsersService,
+    private readonly auditService: AuditService,
   ) {}
 
   /** An empty name or address removes it. */
@@ -29,8 +29,8 @@ export class ProfileService {
     if (update.displayName !== undefined) fields.displayName = update.displayName || null;
     if (update.email !== undefined) fields.email = update.email || null;
     if (update.language !== undefined) fields.language = update.language;
-    const updated = await this.users.updateProfile(user.id, fields);
-    await this.audit.tryRecord({
+    const updated = await this.usersService.updateProfile(user.id, fields);
+    await this.auditService.tryRecord({
       action: 'profile.update',
       outcome: 'success',
       userId: user.id,
@@ -55,8 +55,8 @@ export class ProfileService {
         code: PROFILE_ERROR_CODES.invalidPicture,
       });
     }
-    const updated = await this.users.setAvatar(user.id, bytes, picture.type);
-    await this.audit.tryRecord({
+    const updated = await this.usersService.setAvatar(user.id, bytes, picture.type);
+    await this.auditService.tryRecord({
       action: 'profile.avatar',
       outcome: 'success',
       userId: user.id,
@@ -68,8 +68,8 @@ export class ProfileService {
   }
 
   async removeAvatar({ user, ip }: ProfileActor): Promise<PublicUser> {
-    const updated = await this.users.removeAvatar(user.id);
-    await this.audit.tryRecord({
+    const updated = await this.usersService.removeAvatar(user.id);
+    await this.auditService.tryRecord({
       action: 'profile.avatar',
       outcome: 'success',
       userId: user.id,
@@ -81,7 +81,7 @@ export class ProfileService {
   }
 
   avatar(userId: string): Promise<StoredAvatar | null> {
-    return this.users.findAvatar(userId);
+    return this.usersService.findAvatar(userId);
   }
 }
 

@@ -55,8 +55,8 @@ export class PasswordDialog {
   /** Follows `open`; set false here to close (the dialog then says `closed` once). */
   protected readonly shown = linkedSignal(() => this.open());
 
-  private readonly store = inject(ProfilePageStore);
-  protected readonly auth = inject(AuthStore);
+  private readonly profilePageStore = inject(ProfilePageStore);
+  protected readonly authStore = inject(AuthStore);
   protected readonly showPasswords = signal(false);
   protected readonly limits = VALIDATION_LIMITS;
 
@@ -69,7 +69,7 @@ export class PasswordDialog {
         action: async (field) => {
           const { currentPassword, newPassword } = field().value();
           try {
-            await this.store.changePassword({ currentPassword, newPassword });
+            await this.profilePageStore.changePassword({ currentPassword, newPassword });
           } catch (error) {
             return toSubmissionErrors(error, field);
           }

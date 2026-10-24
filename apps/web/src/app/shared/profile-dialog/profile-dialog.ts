@@ -50,8 +50,8 @@ export class ProfileDialog {
   /** Follows `open`; set false here to close (the dialog then says `closed` once). */
   protected readonly shown = linkedSignal(() => this.open());
 
-  protected readonly auth = inject(AuthStore);
-  protected readonly edit = inject(ProfileEditStore);
+  protected readonly authStore = inject(AuthStore);
+  protected readonly profileEditStore = inject(ProfileEditStore);
   protected readonly limits = VALIDATION_LIMITS;
 
   private readonly model = signal<ProfileForm>({ displayName: '', email: '' });
@@ -62,7 +62,7 @@ export class ProfileDialog {
       submission: {
         action: async (field) => {
           try {
-            await this.edit.save(field().value());
+            await this.profileEditStore.save(field().value());
           } catch (error) {
             return toSubmissionErrors(error, field);
           }
@@ -77,15 +77,15 @@ export class ProfileDialog {
     effect(() => {
       if (!this.open()) return;
       untracked(() => {
-        const user = this.auth.user();
-        this.edit.reset();
+        const user = this.authStore.user();
+        this.profileEditStore.reset();
         this.form().reset({ displayName: user?.displayName ?? '', email: user?.email ?? '' });
       });
     });
   }
 
   protected picture() {
-    const picture = this.edit.picture();
+    const picture = this.profileEditStore.picture();
     return picture.kind === 'set' ? picture.url : null;
   }
 }

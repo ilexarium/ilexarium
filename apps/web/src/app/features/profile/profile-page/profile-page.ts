@@ -36,18 +36,18 @@ import { ProfilePageStore } from './profile-page-store';
   templateUrl: './profile-page.html',
 })
 export class ProfilePage {
-  protected readonly auth = inject(AuthStore);
-  protected readonly store = inject(ProfilePageStore);
+  protected readonly authStore = inject(AuthStore);
+  protected readonly profilePageStore = inject(ProfilePageStore);
   protected readonly languageService = inject(LanguageService);
-  protected readonly profile = inject(ProfileStore);
-  private readonly format = inject(Formatter);
+  protected readonly profileStore = inject(ProfileStore);
+  private readonly formatter = inject(Formatter);
   protected readonly names = LANGUAGE_NAMES;
   protected readonly editing = signal(false);
   protected readonly changingPassword = signal(false);
 
-  protected readonly name = computed(() => displayNameOf(this.auth.user()));
+  protected readonly name = computed(() => displayNameOf(this.authStore.user()));
   protected readonly memberSince = computed(() => {
-    const createdAt = this.auth.user()?.createdAt;
-    return createdAt ? this.format.date(createdAt) : '';
+    const createdAt = this.authStore.user()?.createdAt;
+    return createdAt ? this.formatter.date(createdAt) : '';
   });
 }
