@@ -109,24 +109,33 @@
   --color-destructive-muted: var(--destructive-muted);
 }
 
-/* The live dot's heartbeat (connection status): two quick beats, then rest — every 2 s. */
+/*
+ * The live dot's heartbeat (connection status): 2 s still, then one beat — it grows and back
+ * (0.6 s). With reduced motion the same rhythm as a fade instead: no movement.
+ */
 @theme {
-  --animate-heartbeat: heartbeat 2s ease-in-out infinite;
+  --animate-heartbeat: heartbeat 2.6s ease-in-out infinite;
+  --animate-heartbeat-fade: heartbeat-fade 2.6s ease-in-out infinite;
 
   @keyframes heartbeat {
     0%,
-    40%,
+    77%,
     100% {
       transform: scale(1);
     }
-    10% {
-      transform: scale(1.4);
+    88% {
+      transform: scale(1.35);
     }
-    20% {
-      transform: scale(1);
+  }
+
+  @keyframes heartbeat-fade {
+    0%,
+    77%,
+    100% {
+      opacity: 1;
     }
-    30% {
-      transform: scale(1.25);
+    88% {
+      opacity: 0.4;
     }
   }
 }

@@ -3,7 +3,7 @@
   class="size-2 rounded-full"
   [class]="
     status() === 'live'
-      ? 'bg-success motion-safe:animate-heartbeat'
+      ? 'bg-success motion-safe:animate-heartbeat motion-reduce:animate-heartbeat-fade'
       : status() === 'offline'
         ? 'bg-muted-foreground'
         : 'animate-pulse bg-warning'
