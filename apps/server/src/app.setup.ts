@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { join } from 'node:path';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { config as rxjsConfig } from 'rxjs';
+import { securityHeaders } from './common/security-headers.js';
 import { applyTrustProxy } from './common/trust-proxy.js';
 import type { Env } from './config/env.schema.js';
 
@@ -22,6 +23,8 @@ export function configureApp(app: NestExpressApplication): NestExpressApplicatio
       error instanceof Error ? error.stack : error,
     );
   app.setGlobalPrefix('api');
+  // First, so every response has them: the web app's files, its page, the API.
+  app.use(securityHeaders());
   const webRoot = config.get('WEB_ROOT', { infer: true });
   if (webRoot) serveWebApp(app, webRoot);
   applyTrustProxy(app, config.get('TRUST_PROXY', { infer: true }));

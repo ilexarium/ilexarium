@@ -381,9 +381,13 @@ async function install() {
     `${setup.status} ${setup.text}`,
   );
   await signIn();
+  const page = await fetch(`${BASE}/backups`);
+  check('the web app is served on the same origin', (await page.text()).includes('<laris-root'));
+  const csp = page.headers.get('content-security-policy') ?? '';
   check(
-    'the web app is served on the same origin',
-    (await fetch(`${BASE}/backups`).then((r) => r.text())).includes('<laris-root'),
+    'the page has its Content Security Policy (scripts only its own)',
+    csp.includes("script-src 'self'") && !/script-src[^;]*'unsafe-/.test(csp),
+    csp,
   );
 
   await securitySetup();

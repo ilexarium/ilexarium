@@ -79,4 +79,21 @@ describe('web app (e2e)', () => {
       expect(res.text, path).not.toContain('never');
     }
   });
+
+  it('sends the security headers with the page, its files and the API', async () => {
+    for (const path of ['/', '/backups', '/main-ABCDEFGH.js', '/api/health']) {
+      const res = await request(origin).get(path);
+      const csp = res.headers['content-security-policy'];
+      expect(csp, path).toContain("script-src 'self'");
+      expect(csp, path).toContain("frame-ancestors 'none'");
+      expect(csp, path).toContain("connect-src 'self'");
+      expect(csp, path).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
+      expect(res.headers['x-frame-options'], path).toBe('DENY');
+      expect(res.headers['x-content-type-options'], path).toBe('nosniff');
+      expect(res.headers['referrer-policy'], path).toBe('no-referrer');
+      expect(res.headers['x-powered-by'], path).toBeUndefined();
+      // HTTPS is the front's job: the app sends no HSTS of its own.
+      expect(res.headers['strict-transport-security'], path).toBeUndefined();
+    }
+  });
 });
