@@ -5,9 +5,11 @@ import {
   type ContainersSnapshot,
   type ContainerStats,
   HISTORY_WINDOW_MS,
+  type HostInfo,
   type SystemSnapshot,
   type SystemUpdate,
 } from '@laris/shared';
+import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { RealtimeService } from '../realtime/realtime-service';
@@ -222,13 +224,15 @@ describe('MonitoringStore', () => {
     expect(store.containers()).toBeNull();
   });
 
-  it('loads the machine once — also when asked twice at the same time — and forgets it on sign-out', async () => {
+  it('loads the machine once — also when asked again while asking — and forgets it on sign-out', async () => {
     const { store } = await setup();
-    const host = vi
-      .spyOn(TestBed.inject(MonitoringApi), 'host')
-      .mockResolvedValue(systemSnapshot(0).host);
-    await Promise.all([store.loadHost(), store.loadHost()]);
-    await store.loadHost();
+    const answer = new Subject<HostInfo>();
+    const host = vi.spyOn(TestBed.inject(MonitoringApi), 'host').mockReturnValue(answer);
+    store.loadHost();
+    store.loadHost();
+    answer.next(systemSnapshot(0).host);
+    answer.complete();
+    store.loadHost();
     expect(host).toHaveBeenCalledTimes(1);
     expect(store.host()?.kernel).toBe(systemSnapshot(0).host.kernel);
 
@@ -237,17 +241,27 @@ describe('MonitoringStore', () => {
     expect(store.host()).toBeNull();
   });
 
+  it('asks again after a failure', async () => {
+    const { store } = await setup();
+    const host = vi
+      .spyOn(TestBed.inject(MonitoringApi), 'host')
+      .mockReturnValueOnce(throwError(() => new Error('down')))
+      .mockReturnValueOnce(of(systemSnapshot(0).host));
+    store.loadHost();
+    expect(store.host()).toBeNull();
+    store.loadHost();
+    expect(host).toHaveBeenCalledTimes(2);
+    expect(store.host()).not.toBeNull();
+  });
+
   it('keeps nothing of an answer that arrives after sign-out', async () => {
     const { store } = await setup();
-    let answer: (value: ReturnType<typeof systemSnapshot>['host']) => void = () => undefined;
-    vi.spyOn(TestBed.inject(MonitoringApi), 'host').mockReturnValue(
-      new Promise((resolve) => (answer = resolve)),
-    );
-    const loading = store.loadHost();
+    const answer = new Subject<HostInfo>();
+    vi.spyOn(TestBed.inject(MonitoringApi), 'host').mockReturnValue(answer);
+    store.loadHost();
     await TestBed.inject(AuthStore).logout();
     TestBed.tick();
-    answer(systemSnapshot(0).host);
-    await loading;
+    answer.next(systemSnapshot(0).host);
     expect(store.host()).toBeNull();
   });
 });
