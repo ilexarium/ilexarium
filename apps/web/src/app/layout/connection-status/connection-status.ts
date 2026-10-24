@@ -5,7 +5,7 @@ import { MonitoringStore } from '../../core/monitoring/monitoring-store';
 import { RealtimeService } from '../../core/realtime/realtime-service';
 
 /**
- * Whether live data is flowing: a dot (beating while live; still for people who turn motion off)
+ * Whether live data is flowing: a dot (beating while live; for people who reduce motion, fading instead)
  * plus a label (hidden on phones, but kept for screen readers, which hear changes through
  * `role="status"`). Hovering the label shows the machine's kernel — extra, also on the dashboard.
  */

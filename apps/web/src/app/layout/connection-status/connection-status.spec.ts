@@ -46,7 +46,9 @@ describe('ConnectionStatus', () => {
     const el = fixture.nativeElement as HTMLElement;
     document.body.appendChild(el);
     await fixture.whenStable();
-    expect(el.querySelector('[aria-hidden="true"]')!.className).toContain('animate-heartbeat');
+    const dot = el.querySelector('[aria-hidden="true"]')!.className;
+    expect(dot).toContain('motion-safe:animate-heartbeat');
+    expect(dot).toContain('motion-reduce:animate-heartbeat-fade');
     const label = el.querySelector<HTMLElement>('span:not([aria-hidden])')!;
     expect(label.getAttribute('tabindex')).toBeNull();
 
