@@ -1,10 +1,14 @@
 import { Component, computed, inject } from '@angular/core';
+import { HlmTooltipImports } from '@ui/tooltip';
 import { Translator } from '../../core/i18n/translator';
+import { MonitoringStore } from '../../core/monitoring/monitoring-store';
 import { RealtimeService } from '../../core/realtime/realtime-service';
+import { Formatter } from '../../shared/format/formatter';
 
 /**
- * Whether live data is flowing: a dot plus a label (the label is hidden on phones, but stays
- * for screen readers, which hear changes through `role="status"`).
+ * Whether live data is flowing: a dot (beating while live; still for people who turn motion off)
+ * plus a label (hidden on phones, but kept for screen readers, which hear changes through
+ * `role="status"`). Hovering the label shows the machine's kernel — extra, also on the dashboard.
  */
 @Component({
   selector: 'laris-connection-status',
@@ -13,10 +17,21 @@ import { RealtimeService } from '../../core/realtime/realtime-service';
     class: 'flex items-center gap-2 text-sm text-muted-foreground',
     '[attr.data-status]': 'status()',
   },
+  imports: [HlmTooltipImports],
   templateUrl: './connection-status.html',
 })
 export class ConnectionStatus {
   protected readonly status = inject(RealtimeService).status;
   private readonly translator = inject(Translator);
+  private readonly monitoringStore = inject(MonitoringStore);
+  private readonly formatter = inject(Formatter);
   protected readonly label = computed(() => this.translator.t(`connection.${this.status()}`));
+  /** "Kernel 6.12.48-1", or empty until the machine's info is known. */
+  protected readonly kernel = computed(() => {
+    const kernel = this.monitoringStore.host()?.kernel;
+    // Machine text: kept left to right inside an Arabic sentence.
+    return kernel
+      ? this.translator.t('connection.kernel', { kernel: this.formatter.machine(kernel) })
+      : '';
+  });
 }

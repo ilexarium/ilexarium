@@ -12,6 +12,7 @@ import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { RealtimeService } from '../realtime/realtime-service';
 import { fakeSockets } from '../realtime/testing';
+import { MonitoringApi } from './monitoring-api';
 import { applyContainersUpdate, applySystemUpdate, MonitoringStore } from './monitoring-store';
 
 const MINUTE = 60_000;
@@ -219,5 +220,26 @@ describe('MonitoringStore', () => {
     TestBed.tick();
     expect(store.system()).toBeNull();
     expect(store.containers()).toBeNull();
+  });
+
+  it('takes the machine from a snapshot, or loads it once, and forgets it on sign-out', async () => {
+    const { store, socket } = await setup();
+    const host = vi
+      .spyOn(TestBed.inject(MonitoringApi), 'host')
+      .mockResolvedValue(systemSnapshot(0).host);
+    const stop = store.watch(['system']);
+    socket.receive({ event: 'system:snapshot', data: systemSnapshot(0) });
+    stop();
+    await store.loadHost();
+    expect(host).not.toHaveBeenCalled(); // known already
+    expect(store.host()?.kernel).toBe(systemSnapshot(0).host.kernel);
+
+    await TestBed.inject(AuthStore).logout();
+    TestBed.tick();
+    expect(store.host()).toBeNull();
+    await store.loadHost();
+    await store.loadHost();
+    expect(host).toHaveBeenCalledTimes(1);
+    expect(store.host()).not.toBeNull();
   });
 });

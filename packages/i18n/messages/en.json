@@ -56,6 +56,7 @@
   },
   "connection": {
     "offline": "Offline",
+    "kernel": "Kernel {{kernel}}",
     "connecting": "Connecting…",
     "live": "Live",
     "reconnecting": "Reconnecting…"

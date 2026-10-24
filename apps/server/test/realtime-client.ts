@@ -18,6 +18,8 @@ export class Client {
   readonly closed: Promise<{ code: number; reason: string }>;
   /** Signs this socket's session out over HTTP (set by `connectSignedIn`). */
   signOut: () => Promise<void> = () => Promise.reject(new Error('Not signed in'));
+  /** The signed-in session, for HTTP requests beside the socket (set by `connectSignedIn`). */
+  session: { origin: string; cookie: string } | null = null;
   private waiters: (() => void)[] = [];
 
   constructor(readonly socket: WebSocket) {
@@ -113,6 +115,7 @@ export async function connectSignedIn(app: NestExpressApplication): Promise<Clie
     }),
   );
   client.signOut = signOut;
+  client.session = { origin, cookie };
   await new Promise((resolve) => client.socket.once('open', resolve));
   return client;
 }

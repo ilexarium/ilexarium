@@ -109,6 +109,28 @@
   --color-destructive-muted: var(--destructive-muted);
 }
 
+/* The live dot's heartbeat (connection status): two quick beats, then rest — every 2 s. */
+@theme {
+  --animate-heartbeat: heartbeat 2s ease-in-out infinite;
+
+  @keyframes heartbeat {
+    0%,
+    40%,
+    100% {
+      transform: scale(1);
+    }
+    10% {
+      transform: scale(1.4);
+    }
+    20% {
+      transform: scale(1);
+    }
+    30% {
+      transform: scale(1.25);
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

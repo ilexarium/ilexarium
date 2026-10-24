@@ -3,6 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { HlmSidebarImports } from '@ui/sidebar';
 import { AlertsStore } from '../../core/alerts/alerts-store';
 import { BackupsStore } from '../../core/backups/backups-store';
+import { MonitoringStore } from '../../core/monitoring/monitoring-store';
 import { RealtimeService } from '../../core/realtime/realtime-service';
 import { AppSidebar } from '../app-sidebar/app-sidebar';
 import { TopBar } from '../top-bar/top-bar';
@@ -25,5 +26,7 @@ export class Shell {
     inject(BackupsStore).watch();
     // The open alerts: the bell in the top bar, the dashboard notice.
     inject(AlertsStore).watch();
+    // The machine's kernel, for the top bar's status.
+    void inject(MonitoringStore).loadHost();
   }
 }
