@@ -1,34 +1,23 @@
+import { BadRequestException } from '@nestjs/common';
 import type { Request } from 'express';
+import getRawBody from 'raw-body';
 
 /**
- * The request's body, up to `limit` bytes; rejects with `tooLarge()` as soon as it's clear there is
- * more — from `Content-Length` before reading, or while reading. Past the limit the rest is read
- * and dropped (memory stays bounded), so the connection stays whole for the 413 answer.
+ * The request's body, up to `limit` bytes (`raw-body`, as Express's own body parser): more —
+ * by `Content-Length` before reading, or while reading — rejects with `tooLarge()`; a body that
+ * doesn't match its `Content-Length` is a 400.
  */
-export function readBody(req: Request, limit: number, tooLarge: () => Error): Promise<Buffer> {
-  const length = Number(req.headers['content-length']);
-  if (Number.isFinite(length) && length > limit) {
-    req.resume(); // dropped, not read
-    return Promise.reject(tooLarge());
+export async function readBody(
+  req: Request,
+  limit: number,
+  tooLarge: () => Error,
+): Promise<Buffer> {
+  try {
+    return await getRawBody(req, { limit, length: req.headers['content-length'] });
+  } catch (error) {
+    // raw-body stops reading at the error: the rest is dropped, so the answer still gets through.
+    req.resume();
+    if ((error as { type?: string }).type === 'entity.too.large') throw tooLarge();
+    throw new BadRequestException('The request body was cut short or longer than it said');
   }
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    let over = false;
-    req.on('data', (chunk: Buffer) => {
-      if (over) return;
-      size += chunk.length;
-      if (size > limit) {
-        over = true;
-        chunks.length = 0;
-        reject(tooLarge());
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (!over) resolve(Buffer.concat(chunks));
-    });
-    req.on('error', reject);
-  });
 }

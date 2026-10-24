@@ -14,10 +14,15 @@ import { apiErrorText } from '../../../shared/forms/submission-errors';
  */
 export const ProfilePageStore = signalStore(
   withMethods(
-    (_, auth = inject(AuthStore), api = inject(AuthApi), translator = inject(Translator)) => ({
+    (
+      _,
+      authStore = inject(AuthStore),
+      authApi = inject(AuthApi),
+      translator = inject(Translator),
+    ) => ({
       /** Changes the password and says so; rejects with the server's error (put on the fields). */
       async changePassword(request: ChangePasswordRequest): Promise<void> {
-        await api.changePassword(request);
+        await authApi.changePassword(request);
         toast.success(translator.t('account.changed'), {
           description: translator.t('account.changedText'),
         });
@@ -25,7 +30,7 @@ export const ProfilePageStore = signalStore(
       /** Ends every session, this one too; the app goes to the login page. */
       async signOutEverywhere(): Promise<void> {
         try {
-          await auth.logoutEverywhere();
+          await authStore.logoutEverywhere();
         } catch (error) {
           const [key, params] = apiErrorText(error);
           toast.error(translator.t('profile.signOutEverywhere.failed'), {

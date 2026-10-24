@@ -17,13 +17,13 @@
           {{ 'profile.picture.title' | translate }}
         </h3>
         <laris-avatar-picker
-          [user]="auth.user()"
+          [user]="authStore.user()"
           [preview]="picture()"
-          [removed]="edit.picture().kind === 'remove'"
-          [problem]="edit.pictureProblem()"
-          [preparing]="edit.preparing()"
-          (choose)="edit.choosePicture($event)"
-          (remove)="edit.removePicture()"
+          [removed]="profileEditStore.picture().kind === 'remove'"
+          [problem]="profileEditStore.pictureProblem()"
+          [preparing]="profileEditStore.preparing()"
+          (choose)="profileEditStore.choosePicture($event)"
+          (remove)="profileEditStore.removePicture()"
         />
       </section>
 
@@ -64,7 +64,7 @@
         hlmBtn
         type="submit"
         form="profile-form"
-        [disabled]="form().submitting() || edit.preparing()"
+        [disabled]="form().submitting() || profileEditStore.preparing()"
       >
         {{ (form().submitting() ? 'profile.dialog.saving' : 'profile.dialog.save') | translate }}
       </button>

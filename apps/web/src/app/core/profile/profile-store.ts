@@ -18,8 +18,8 @@ export const ProfileStore = signalStore(
   withMethods(
     (
       _,
-      auth = inject(AuthStore),
-      api = inject(ProfileApi),
+      authStore = inject(AuthStore),
+      profileApi = inject(ProfileApi),
       languageService = inject(LanguageService),
       translator = inject(Translator),
     ) => ({
@@ -35,9 +35,9 @@ export const ProfileStore = signalStore(
           });
           return;
         }
-        if (!auth.isAuthenticated() || auth.user()?.language === language) return;
+        if (!authStore.isAuthenticated() || authStore.user()?.language === language) return;
         try {
-          auth.updated((await api.update({ language })).user);
+          authStore.updated((await profileApi.update({ language })).user);
         } catch (error) {
           // Shown here all the same; only other browsers won't know.
           const [key, params] = apiErrorText(error);

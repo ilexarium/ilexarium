@@ -24,7 +24,7 @@ import { readBody } from './read-body.js';
 /** Changes to the signed-in person's profile; reading it is `GET /api/auth/me`. */
 @Controller('profile')
 export class ProfileController {
-  constructor(private readonly profile: ProfileService) {}
+  constructor(private readonly profileService: ProfileService) {}
 
   @Patch()
   @UseGuards(ThrottlerGuard)
@@ -34,7 +34,7 @@ export class ProfileController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<UserResponse> {
-    return { user: await this.profile.update(body, { user, ip }) };
+    return { user: await this.profileService.update(body, { user, ip }) };
   }
 
   /** The body is the picture itself, judged by its bytes (`Content-Type` is ignored). */
@@ -47,14 +47,14 @@ export class ProfileController {
     @Ip() ip: string,
   ): Promise<UserResponse> {
     const bytes = await readBody(req, PROFILE_LIMITS.pictureMaxBytes, pictureTooLarge);
-    return { user: await this.profile.setAvatar(bytes, { user, ip }) };
+    return { user: await this.profileService.setAvatar(bytes, { user, ip }) };
   }
 
   @Delete('avatar')
   @UseGuards(ThrottlerGuard)
   @Throttle(CHANGE_LIMIT)
   async removeAvatar(@CurrentUser() user: PublicUser, @Ip() ip: string): Promise<UserResponse> {
-    return { user: await this.profile.removeAvatar({ user, ip }) };
+    return { user: await this.profileService.removeAvatar({ user, ip }) };
   }
 
   /**
@@ -67,7 +67,7 @@ export class ProfileController {
     @CurrentUser() user: PublicUser,
     @Res() res: Response,
   ): Promise<void> {
-    const avatar = await this.profile.avatar(user.id);
+    const avatar = await this.profileService.avatar(user.id);
     if (!avatar) throw new NotFoundException('No picture');
     const current = v === String(avatar.updatedAt.getTime());
     res.status(200).set({

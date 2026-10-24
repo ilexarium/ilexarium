@@ -32,9 +32,9 @@ export const ProfileEditStore = signalStore(
   withMethods(
     (
       store,
-      auth = inject(AuthStore),
-      api = inject(ProfileApi),
-      encode = inject(PICTURE_ENCODER),
+      authStore = inject(AuthStore),
+      profileApi = inject(ProfileApi),
+      pictureEncoder = inject(PICTURE_ENCODER),
       translator = inject(Translator),
     ) => {
       const forgetPreview = () => {
@@ -54,7 +54,7 @@ export const ProfileEditStore = signalStore(
           }
           patchState(store, { preparing: true, pictureProblem: null });
           try {
-            const picture = await encode(file);
+            const picture = await pictureEncoder(file);
             forgetPreview();
             patchState(store, {
               picture: { kind: 'set', picture, url: URL.createObjectURL(picture) },
@@ -73,20 +73,21 @@ export const ProfileEditStore = signalStore(
         async save(form: ProfileForm): Promise<void> {
           const picture = store.picture();
           if (picture.kind === 'set') {
-            auth.updated((await api.setAvatar(picture.picture)).user);
-          } else if (picture.kind === 'remove' && auth.user()?.avatar) {
-            auth.updated((await api.removeAvatar()).user);
+            authStore.updated((await profileApi.setAvatar(picture.picture)).user);
+          } else if (picture.kind === 'remove' && authStore.user()?.avatar) {
+            authStore.updated((await profileApi.removeAvatar()).user);
           }
           // Saved: if the fields fail now, trying again doesn't send the picture again.
           forgetPreview();
           patchState(store, { picture: { kind: 'keep' } });
-          const user = auth.user();
+          const user = authStore.user();
           const update: ProfileUpdate = {};
           const displayName = form.displayName.trim();
           const email = form.email.trim();
           if (displayName !== (user?.displayName ?? '')) update.displayName = displayName;
           if (email !== (user?.email ?? '')) update.email = email;
-          if (Object.keys(update).length > 0) auth.updated((await api.update(update)).user);
+          if (Object.keys(update).length > 0)
+            authStore.updated((await profileApi.update(update)).user);
           forgetPreview();
           patchState(store, initialState);
           toast.success(translator.t('profile.saved'));

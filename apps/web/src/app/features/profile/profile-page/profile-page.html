@@ -1,10 +1,10 @@
 <section hlmCard>
   <div hlmCardContent class="flex flex-col gap-6 sm:flex-row sm:items-center">
-    <laris-user-avatar class="size-20 text-2xl" [user]="auth.user()" />
+    <laris-user-avatar class="size-20 text-2xl" [user]="authStore.user()" />
     <div class="grid min-w-0 flex-1 gap-1">
       <h2 dir="auto" class="truncate text-lg font-semibold">{{ name() }}</h2>
       <p class="text-sm text-muted-foreground">
-        <span dir="ltr">{{ auth.user()?.username }}</span>
+        <span dir="ltr">{{ authStore.user()?.username }}</span>
         · {{ 'profile.memberSince' | translate: { date: memberSince() } }}
       </p>
     </div>
@@ -18,13 +18,13 @@
       <div class="grid gap-1">
         <dt class="text-muted-foreground">{{ 'profile.displayName' | translate }}</dt>
         <dd dir="auto" class="break-words">
-          {{ auth.user()?.displayName ?? ('profile.notSet' | translate) }}
+          {{ authStore.user()?.displayName ?? ('profile.notSet' | translate) }}
         </dd>
       </div>
       <div class="grid gap-1">
         <dt class="text-muted-foreground">{{ 'profile.email' | translate }}</dt>
         <dd class="break-all">
-          @if (auth.user()?.email; as email) {
+          @if (authStore.user()?.email; as email) {
             <span dir="ltr">{{ email }}</span>
           } @else {
             {{ 'profile.notSet' | translate }}
@@ -53,7 +53,7 @@
             [variant]="languageService.language() === language ? 'default' : 'outline'"
             [attr.aria-pressed]="languageService.language() === language"
             [attr.lang]="language"
-            (click)="profile.chooseLanguage(language)"
+            (click)="profileStore.chooseLanguage(language)"
           >
             {{ names[language] }}
           </button>
@@ -108,7 +108,7 @@
             <button hlmAlertDialogCancel>
               {{ 'profile.signOutEverywhere.cancel' | translate }}
             </button>
-            <button hlmAlertDialogAction (click)="store.signOutEverywhere()">
+            <button hlmAlertDialogAction (click)="profilePageStore.signOutEverywhere()">
               {{ 'profile.signOutEverywhere.confirm' | translate }}
             </button>
           </hlm-alert-dialog-footer>
