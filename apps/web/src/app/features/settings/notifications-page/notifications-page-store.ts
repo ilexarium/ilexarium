@@ -8,7 +8,7 @@ import type {
 } from '@laris/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, finalize, firstValueFrom, mergeMap, pipe, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { Translator } from '../../../core/i18n/translator';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
@@ -62,33 +62,25 @@ export const NotificationsPageStore = signalStore(
       },
 
       /** Sends a test message through a saved channel and says whether it got through. */
-      test: rxMethod<AlertChannel>(
-        pipe(
-          tap((channel) => patchState(store, { testing: [...store.testing(), channel] })),
-          mergeMap((channel) =>
-            alertsApi.test(channel).pipe(
-              tap(({ sent, problem }) => {
-                if (sent) toast.success(translator.t('notifications.testSent'));
-                else {
-                  toast.error(translator.t('notifications.testFailed'), {
-                    description: translator.t(`alerts.problem.${problem ?? 'failed'}`),
-                  });
-                }
-              }),
-              catchError((error: unknown) => {
-                toast.error(translator.t('notifications.testFailed'), {
-                  description: translator.t(...apiErrorText(error)),
-                });
-                return EMPTY;
-              }),
-              finalize(() => {
-                patchState(store, { testing: store.testing().filter((c) => c !== channel) });
-                load();
-              }),
-            ),
-          ),
-        ),
-      ),
+      async test(channel: AlertChannel): Promise<void> {
+        patchState(store, { testing: [...store.testing(), channel] });
+        try {
+          const { sent, problem } = await firstValueFrom(alertsApi.test(channel));
+          if (sent) toast.success(translator.t('notifications.testSent'));
+          else {
+            toast.error(translator.t('notifications.testFailed'), {
+              description: translator.t(`alerts.problem.${problem ?? 'failed'}`),
+            });
+          }
+        } catch (error) {
+          toast.error(translator.t('notifications.testFailed'), {
+            description: translator.t(...apiErrorText(error)),
+          });
+        } finally {
+          patchState(store, { testing: store.testing().filter((c) => c !== channel) });
+        }
+        load();
+      },
     };
   }),
   withHooks((store) => ({

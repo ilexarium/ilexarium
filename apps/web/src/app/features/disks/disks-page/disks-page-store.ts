@@ -10,7 +10,7 @@ import {
 import type { DiskMountRequest, DisksStatus } from '@laris/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, firstValueFrom, finalize, mergeMap, pipe, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { DisksApi } from '../../../core/disks/disks-api';
 import { Translator } from '../../../core/i18n/translator';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
@@ -75,28 +75,20 @@ export const DisksPageStore = signalStore(
       },
 
       /** Unmounts (already confirmed) — or forgets a disk that isn't connected. */
-      unmount: rxMethod<UnmountTarget>(
-        pipe(
-          tap(({ name }) => patchState(store, { pending: [...store.pending(), name] })),
-          mergeMap(({ name, connected }) =>
-            disksApi.unmount(name).pipe(
-              tap(() => {
-                toast.success(translator.t(connected ? 'disks.unmounted' : 'disks.forgotten'));
-                load();
-              }),
-              catchError((error: unknown) => {
-                toast.error(translator.t('disks.unmountFailed'), {
-                  description: translator.t(...apiErrorText(error)),
-                });
-                return EMPTY;
-              }),
-              finalize(() =>
-                patchState(store, { pending: store.pending().filter((n) => n !== name) }),
-              ),
-            ),
-          ),
-        ),
-      ),
+      async unmount({ name, connected }: UnmountTarget): Promise<void> {
+        patchState(store, { pending: [...store.pending(), name] });
+        try {
+          await firstValueFrom(disksApi.unmount(name));
+          toast.success(translator.t(connected ? 'disks.unmounted' : 'disks.forgotten'));
+          load();
+        } catch (error) {
+          toast.error(translator.t('disks.unmountFailed'), {
+            description: translator.t(...apiErrorText(error)),
+          });
+        } finally {
+          patchState(store, { pending: store.pending().filter((n) => n !== name) });
+        }
+      },
     };
   }),
   withHooks((store, realtimeService = inject(RealtimeService)) => {

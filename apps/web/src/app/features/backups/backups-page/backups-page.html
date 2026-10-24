@@ -21,7 +21,7 @@
         [destinationPath]="plan.destination"
         [labels]="labels()"
         [pending]="backupsPageStore.pending().includes('run')"
-        (runNow)="backupsPageStore.runNow(undefined)"
+        (runNow)="backupsPageStore.runNow()"
       />
     }
     @if (restore(); as latest) {

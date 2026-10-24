@@ -8,9 +8,8 @@ import {
   withState,
 } from '@ngrx/signals';
 import { PROCESS_LIMITS, type Process, type ProcessesUpdate, processKey } from '@laris/shared';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, finalize, mergeMap, pipe, tap } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { ProcessesApi } from '../../../core/processes/processes-api';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
@@ -126,37 +125,27 @@ export const ProcessesPageStore = signalStore(
     },
 
     /** Ends a process (already confirmed): asked to stop (TERM), or forced (KILL). */
-    end: rxMethod<EndRequest>(
-      pipe(
-        tap(({ process }) =>
-          patchState(store, { pending: [...store.pending(), processKey(process)] }),
-        ),
-        mergeMap(({ process, signal }) => {
-          const key = processKey(process);
-          return processesApi
-            .signal({ pid: process.pid, startTicks: process.startTicks, signal })
-            .pipe(
-              tap(() => {
-                if (signal === 'TERM') {
-                  patchState(store, { asked: { ...store.asked(), [key]: Date.now() } });
-                  toast.success(translator.t('processes.ended', { name: process.name }));
-                } else {
-                  toast.success(translator.t('processes.forced', { name: process.name }));
-                }
-              }),
-              catchError((error: unknown) => {
-                toast.error(translator.t('processes.endFailed'), {
-                  description: translator.t(...apiErrorText(error)),
-                });
-                return EMPTY;
-              }),
-              finalize(() =>
-                patchState(store, { pending: store.pending().filter((p) => p !== key) }),
-              ),
-            );
-        }),
-      ),
-    ),
+    async end({ process, signal }: EndRequest): Promise<void> {
+      const key = processKey(process);
+      patchState(store, { pending: [...store.pending(), key] });
+      try {
+        await firstValueFrom(
+          processesApi.signal({ pid: process.pid, startTicks: process.startTicks, signal }),
+        );
+        if (signal === 'TERM') {
+          patchState(store, { asked: { ...store.asked(), [key]: Date.now() } });
+          toast.success(translator.t('processes.ended', { name: process.name }));
+        } else {
+          toast.success(translator.t('processes.forced', { name: process.name }));
+        }
+      } catch (error) {
+        toast.error(translator.t('processes.endFailed'), {
+          description: translator.t(...apiErrorText(error)),
+        });
+      } finally {
+        patchState(store, { pending: store.pending().filter((p) => p !== key) });
+      }
+    },
   })),
   withHooks((store, realtimeService = inject(RealtimeService)) => {
     let stop: (() => void) | null = null;

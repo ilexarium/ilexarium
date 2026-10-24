@@ -1,9 +1,8 @@
 import { effect, inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { ContainerAction, ContainerActionParams } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, filter, finalize, mergeMap, pipe, tap } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { Translator } from '../i18n/translator';
 import { Formatter } from '../../shared/format/formatter';
@@ -28,37 +27,27 @@ export const ContainerActionsStore = signalStore(
       translator = inject(Translator),
       formatter = inject(Formatter),
     ) => ({
-      run: rxMethod<ContainerActionParams>(
-        pipe(
-          filter(({ name }) => !store.pending().has(name)),
-          tap(({ name, action }) =>
-            patchState(store, { pending: new Map(store.pending()).set(name, action) }),
-          ),
-          mergeMap(({ name, action }) =>
-            containersApi.act(name, action).pipe(
-              tap(() =>
-                toast.success(
-                  translator.t(`containers.done.${action}`, { name: formatter.machine(name) }),
-                ),
-              ),
-              catchError((error: unknown) => {
-                toast.error(
-                  translator.t(`containers.failed.${action}`, { name: formatter.machine(name) }),
-                  {
-                    description: translator.t(...apiErrorText(error)),
-                  },
-                );
-                return EMPTY;
-              }),
-              finalize(() => {
-                const pending = new Map(store.pending());
-                pending.delete(name);
-                patchState(store, { pending });
-              }),
-            ),
-          ),
-        ),
-      ),
+      async run({ name, action }: ContainerActionParams): Promise<void> {
+        if (store.pending().has(name)) return;
+        patchState(store, { pending: new Map(store.pending()).set(name, action) });
+        try {
+          await firstValueFrom(containersApi.act(name, action));
+          toast.success(
+            translator.t(`containers.done.${action}`, { name: formatter.machine(name) }),
+          );
+        } catch (error) {
+          toast.error(
+            translator.t(`containers.failed.${action}`, { name: formatter.machine(name) }),
+            {
+              description: translator.t(...apiErrorText(error)),
+            },
+          );
+        } finally {
+          const pending = new Map(store.pending());
+          pending.delete(name);
+          patchState(store, { pending });
+        }
+      },
     }),
   ),
   withHooks((store, authStore = inject(AuthStore)) => ({

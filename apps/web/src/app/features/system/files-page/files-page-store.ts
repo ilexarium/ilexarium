@@ -15,10 +15,8 @@ import {
   catchError,
   EMPTY,
   exhaustMap,
-  finalize,
   firstValueFrom,
   lastValueFrom,
-  mergeMap,
   pipe,
   switchMap,
   tap,
@@ -90,6 +88,19 @@ export const FilesPageStore = signalStore(
       ),
     );
     const refresh = () => open(folder());
+    /**
+     * The folder shown, again after a change (the action waits for it). Not through `open`: it
+     * mustn't cancel a folder clicked meanwhile, and that folder wins over it.
+     */
+    const reload = async (): Promise<void> => {
+      const path = folder();
+      try {
+        const list = await firstValueFrom(filesApi.list(path));
+        if (!store.loading() && folder() === path) patchState(store, { list });
+      } catch (error) {
+        failed(error);
+      }
+    };
 
     return {
       check: rxMethod<void>(
@@ -117,22 +128,15 @@ export const FilesPageStore = signalStore(
         open(session.home);
       },
 
-      signOut: rxMethod<void>(
-        pipe(
-          exhaustMap(() =>
-            filesApi.signOut().pipe(
-              tap(() => {
-                patchState(store, { session: null, list: null, uploads: [] });
-                toast.success(translator.t('files.closed'));
-              }),
-              catchError((error: unknown) => {
-                failed(error);
-                return EMPTY;
-              }),
-            ),
-          ),
-        ),
-      ),
+      async signOut(): Promise<void> {
+        try {
+          await firstValueFrom(filesApi.signOut());
+          patchState(store, { session: null, list: null, uploads: [] });
+          toast.success(translator.t('files.closed'));
+        } catch (error) {
+          failed(error);
+        }
+      },
 
       open,
       refresh,
@@ -145,7 +149,7 @@ export const FilesPageStore = signalStore(
         try {
           await firstValueFrom(filesApi.newFolder(folder(), name));
           toast.success(translator.t('files.created', { name }));
-          refresh();
+          await reload();
           return true;
         } catch (error) {
           failed(error);
@@ -159,7 +163,7 @@ export const FilesPageStore = signalStore(
         try {
           await firstValueFrom(filesApi.rename(from, renameTarget(folder(), input)));
           toast.success(translator.t('files.renamed'));
-          refresh();
+          await reload();
           return true;
         } catch (error) {
           failed(error);
@@ -179,26 +183,20 @@ export const FilesPageStore = signalStore(
         }
       },
 
-      delete: rxMethod<FileEntry>(
-        pipe(
-          mergeMap((entry) => {
-            const path = joinPath(folder(), entry.name);
-            patchState(store, { pending: [...store.pending(), path] });
-            return filesApi.delete(path).pipe(
-              tap(() => toast.success(translator.t('files.deleted', { name: entry.name }))),
-              catchError((error: unknown) => {
-                failed(error);
-                return EMPTY;
-              }),
-              finalize(() => {
-                patchState(store, { pending: store.pending().filter((p) => p !== path) });
-                // Not after the Linux session ended (the sign-in is shown).
-                if (store.session()) refresh();
-              }),
-            );
-          }),
-        ),
-      ),
+      async delete(entry: FileEntry): Promise<void> {
+        const path = joinPath(folder(), entry.name);
+        patchState(store, { pending: [...store.pending(), path] });
+        try {
+          await firstValueFrom(filesApi.delete(path));
+          toast.success(translator.t('files.deleted', { name: entry.name }));
+        } catch (error) {
+          failed(error);
+        } finally {
+          patchState(store, { pending: store.pending().filter((p) => p !== path) });
+        }
+        // Not after the Linux session ended (the sign-in is shown).
+        if (store.session()) await reload();
+      },
 
       /**
        * Uploads files into the folder shown, one after another. Returns the ones whose name is
@@ -232,7 +230,7 @@ export const FilesPageStore = signalStore(
             }
           }
         }
-        if (files.length > taken.length) refresh();
+        if (files.length > taken.length) await reload();
         return taken;
       },
     };
