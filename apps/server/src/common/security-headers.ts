@@ -12,7 +12,9 @@ export function securityHeaders() {
     crossOriginResourcePolicy: { policy: 'same-origin' },
     crossOriginEmbedderPolicy: false,
     originAgentCluster: true,
-    referrerPolicy: { policy: 'no-referrer' },
+    // Not `no-referrer`: with it, browsers send `Origin: null` on the app's own writes, and the
+    // CSRF check (Origin against Host, where `Sec-Fetch-Site` is missing) refuses them.
+    referrerPolicy: { policy: 'same-origin' },
     // HTTPS is the front's job (`tailscale serve`, or a proxy of the person's own): a year of
     // HSTS sent by the app would bind that host name — and with subdomains, others — to HTTPS.
     strictTransportSecurity: false,
