@@ -58,7 +58,7 @@ import { FieldErrors } from '../../../shared/forms/field-errors';
   templateUrl: './chat-page.html',
 })
 export class ChatPage {
-  protected readonly store = inject(ChatPageStore);
+  protected readonly chatPageStore = inject(ChatPageStore);
   private readonly router = inject(Router);
   private readonly languageService = inject(LanguageService);
   protected readonly sheetSide = computed(() =>
@@ -83,7 +83,7 @@ export class ChatPage {
         action: async (field) => {
           const { content } = field().value();
           try {
-            await this.store.send(content);
+            await this.chatPageStore.send(content);
           } catch {
             return undefined; // The store told why (a toast); the text stays.
           }
@@ -98,12 +98,12 @@ export class ChatPage {
     // The URL decides the open chat …
     effect(() => {
       const id = this.routeChat();
-      untracked(() => void this.store.open(id));
+      untracked(() => void this.chatPageStore.open(id));
     });
     // … and a new chat, once saved, gets its own URL. Only a new one: while another chat is
     // being opened, the URL already says which.
     effect(() => {
-      const id = this.store.chat()?.id;
+      const id = this.chatPageStore.chat()?.id;
       if (id && untracked(this.routeChat) === null) {
         void this.router.navigate(['/assistant'], { queryParams: { chat: id }, replaceUrl: true });
       }
@@ -118,7 +118,8 @@ export class ChatPage {
   }
 
   protected async remove(id: string): Promise<void> {
-    const wasOpen = this.store.chat()?.id === id;
-    if ((await this.store.remove(id)) && wasOpen) await this.router.navigate(['/assistant']);
+    const wasOpen = this.chatPageStore.chat()?.id === id;
+    if ((await this.chatPageStore.remove(id)) && wasOpen)
+      await this.router.navigate(['/assistant']);
   }
 }

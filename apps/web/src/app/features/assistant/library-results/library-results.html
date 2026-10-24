@@ -15,12 +15,12 @@
           <span class="flex items-center gap-3 text-sm text-muted-foreground">
             <span class="flex items-center gap-1">
               <ng-icon name="lucideDownload" aria-hidden="true" />
-              {{ format.count(result.downloads) }}
+              {{ formatter.count(result.downloads) }}
               <span class="sr-only">{{ 'assistant.library.downloads' | translate }}</span>
             </span>
             <span class="flex items-center gap-1">
               <ng-icon name="lucideHeart" aria-hidden="true" />
-              {{ format.count(result.likes) }}
+              {{ formatter.count(result.likes) }}
               <span class="sr-only">{{ 'assistant.library.likes' | translate }}</span>
             </span>
             <ng-icon
@@ -56,7 +56,7 @@
                     <li class="flex flex-wrap items-center gap-2 text-sm">
                       <span class="min-w-24 font-mono" dir="ltr">{{ file.quantization }}</span>
                       <span class="text-muted-foreground">{{
-                        file.sizeBytes !== null ? format.bytes(file.sizeBytes) : '—'
+                        file.sizeBytes !== null ? formatter.bytes(file.sizeBytes) : '—'
                       }}</span>
                       @if (installed().includes(file.model)) {
                         <laris-status-badge class="ms-auto" tone="healthy">{{

@@ -32,5 +32,5 @@ export class LibraryResults {
   readonly toggle = output<string>();
   readonly download = output<string>();
 
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
 }

@@ -49,13 +49,13 @@ export const ModelsPageStore = signalStore(
     downloading: computed(() => store.pull()?.status === 'running'),
     totalBytes: computed(() => store.models().reduce((sum, model) => sum + model.sizeBytes, 0)),
   })),
-  withMethods((store, api = inject(AssistantApi), translator = inject(Translator)) => {
+  withMethods((store, assistantApi = inject(AssistantApi), translator = inject(Translator)) => {
     const failed = (key: string, error: unknown, params?: Record<string, unknown>) =>
       toast.error(translator.t(key, params), { description: translator.t(...apiErrorText(error)) });
 
     const loadModels = async (): Promise<void> => {
       try {
-        patchState(store, { models: (await api.models()).models });
+        patchState(store, { models: (await assistantApi.models()).models });
       } catch (error) {
         failed('assistant.loadFailed', error);
       }
@@ -64,7 +64,7 @@ export const ModelsPageStore = signalStore(
     return {
       async load(): Promise<void> {
         try {
-          const status = await api.status();
+          const status = await assistantApi.status();
           patchState(store, { status });
           if (status.state === 'ready') await loadModels();
         } catch (error) {
@@ -91,7 +91,7 @@ export const ModelsPageStore = signalStore(
       /** Starts a download; throws when refused (so a form keeps its text). */
       async download(model: string): Promise<void> {
         try {
-          const started = await api.pull(model);
+          const started = await assistantApi.pull(model);
           // The topic may already have said how it ended (a quick download): keep that.
           const known = store.pull();
           if (known?.startedAt !== started.startedAt || known.status === 'running') {
@@ -106,7 +106,7 @@ export const ModelsPageStore = signalStore(
       async remove(model: string): Promise<void> {
         patchState(store, { removing: [...store.removing(), model] });
         try {
-          await api.removeModel(model);
+          await assistantApi.removeModel(model);
           patchState(store, { models: store.models().filter((m) => m.name !== model) });
           toast.success(translator.t('assistant.removed', { model }));
         } catch (error) {
@@ -119,7 +119,7 @@ export const ModelsPageStore = signalStore(
       async search(text: string): Promise<void> {
         patchState(store, { searching: true, opened: null });
         try {
-          patchState(store, { results: (await api.search(text)).models });
+          patchState(store, { results: (await assistantApi.search(text)).models });
         } catch (error) {
           failed('assistant.searchFailed', error);
         } finally {
@@ -135,7 +135,7 @@ export const ModelsPageStore = signalStore(
         }
         patchState(store, { opened: { id, detail: null } });
         try {
-          const detail = await api.libraryDetail(id);
+          const detail = await assistantApi.libraryDetail(id);
           if (store.opened()?.id === id) patchState(store, { opened: { id, detail } });
         } catch (error) {
           if (store.opened()?.id === id) patchState(store, { opened: null });
@@ -144,12 +144,12 @@ export const ModelsPageStore = signalStore(
       },
     };
   }),
-  withHooks((store, realtime = inject(RealtimeService)) => {
+  withHooks((store, realtimeService = inject(RealtimeService)) => {
     let stop: (() => void) | null = null;
     return {
       onInit() {
         void store.load();
-        stop = realtime.subscribe('assistant', (message) => {
+        stop = realtimeService.subscribe('assistant', (message) => {
           if (message.event === 'assistant:snapshot' || message.event === 'assistant:update') {
             store.pullChanged(message.data.pull);
           }

@@ -4,7 +4,7 @@
     {{ 'nav.assistant' | translate }}
   </a>
 
-  @if (store.status(); as status) {
+  @if (modelsPageStore.status(); as status) {
     @if (status.state !== 'ready') {
       <laris-empty-state
         icon="lucideBot"
@@ -23,7 +23,7 @@
           <a hlmBtn size="sm" routerLink="/services">{{ 'assistant.installOllama' | translate }}</a>
         } @else {
           <div class="flex flex-wrap justify-center gap-2">
-            <button hlmBtn size="sm" (click)="store.load()">
+            <button hlmBtn size="sm" (click)="modelsPageStore.load()">
               {{ 'assistant.checkAgain' | translate }}
             </button>
             <a hlmBtn variant="outline" size="sm" routerLink="/containers">{{
@@ -33,7 +33,7 @@
         }
       </laris-empty-state>
     } @else {
-      @if (store.pull(); as pull) {
+      @if (modelsPageStore.pull(); as pull) {
         <section class="grid gap-3" aria-labelledby="pull-title">
           <h2 id="pull-title" class="text-lg font-semibold">
             {{ 'assistant.pull.title' | translate }}
@@ -47,15 +47,16 @@
           <h2 id="installed-title" class="text-lg font-semibold">
             {{ 'assistant.installed' | translate }}
           </h2>
-          @if (store.models().length > 0) {
+          @if (modelsPageStore.models().length > 0) {
             <p class="text-sm text-muted-foreground">
               {{
-                'assistant.installedSize' | translate: { size: format.bytes(store.totalBytes()) }
+                'assistant.installedSize'
+                  | translate: { size: formatter.bytes(modelsPageStore.totalBytes()) }
               }}
             </p>
           }
         </div>
-        @if (store.models().length === 0) {
+        @if (modelsPageStore.models().length === 0) {
           <laris-empty-state
             icon="lucidePackage"
             [text]="'assistant.noModels' | translate"
@@ -63,9 +64,9 @@
           />
         } @else {
           <laris-installed-models
-            [models]="store.models()"
-            [removing]="store.removing()"
-            (remove)="store.remove($event)"
+            [models]="modelsPageStore.models()"
+            [removing]="modelsPageStore.removing()"
+            (remove)="modelsPageStore.remove($event)"
           />
         }
       </section>
@@ -89,7 +90,7 @@
                 placeholder="llama3.2:3b"
                 [formField]="pullForm.model"
               />
-              <button hlmBtn type="submit" [disabled]="store.downloading()">
+              <button hlmBtn type="submit" [disabled]="modelsPageStore.downloading()">
                 {{ 'assistant.byName.download' | translate }}
               </button>
             </div>
@@ -123,24 +124,24 @@
             [placeholder]="'assistant.library.placeholder' | translate"
             [formField]="searchForm.search"
           />
-          <button hlmBtn type="submit" variant="secondary" [disabled]="store.searching()">
+          <button hlmBtn type="submit" variant="secondary" [disabled]="modelsPageStore.searching()">
             <ng-icon name="lucideSearch" aria-hidden="true" />
             {{ 'assistant.library.search' | translate }}
           </button>
         </form>
-        @if (store.searching()) {
+        @if (modelsPageStore.searching()) {
           <div class="grid gap-2" role="status" [attr.aria-label]="'assistant.loading' | translate">
             @for (row of [1, 2, 3]; track row) {
               <hlm-skeleton class="h-12 w-full" />
             }
           </div>
-        } @else if (store.results(); as results) {
+        } @else if (modelsPageStore.results(); as results) {
           <laris-library-results
             [results]="results"
-            [opened]="store.opened()"
-            [downloading]="store.downloading()"
+            [opened]="modelsPageStore.opened()"
+            [downloading]="modelsPageStore.downloading()"
             [installed]="installedNames()"
-            (toggle)="store.toggle($event)"
+            (toggle)="modelsPageStore.toggle($event)"
             (download)="download($event)"
           />
         }

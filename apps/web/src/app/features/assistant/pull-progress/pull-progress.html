@@ -31,9 +31,9 @@
         'assistant.pull.bytes'
           | translate
             : {
-                done: format.bytes(pull().completedBytes),
-                total: format.bytes(pull().totalBytes),
-                percent: format.percent(percent()),
+                done: formatter.bytes(pull().completedBytes),
+                total: formatter.bytes(pull().totalBytes),
+                percent: formatter.percent(percent()),
               }
       }}
     } @else {

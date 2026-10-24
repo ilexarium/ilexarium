@@ -8,6 +8,12 @@ export const OLLAMA_REQUEST_MS = 10_000;
 /** A streaming answer or download: given up after this long without a byte (a model can take a while to load). */
 export const OLLAMA_IDLE_MS = 5 * 60_000;
 
+/**
+ * A download refused because the model doesn't exist: Ollama says so only in its message
+ * ("pull model manifest: file does not exist"), with no code to go by.
+ */
+export const PULL_NOT_FOUND = /not exist|not found|manifest/i;
+
 /** Kept free on the models' disk beyond a download's size. */
 export const FREE_SPACE_MARGIN_BYTES = 1024 ** 3;
 
