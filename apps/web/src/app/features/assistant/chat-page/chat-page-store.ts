@@ -12,6 +12,7 @@ import { toast } from '@spartan-ng/brain/sonner';
 import type { Subscription } from 'rxjs';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
 import { Translator } from '../../../core/i18n/translator';
+import { readStored, writeStored } from '../../../core/storage/browser-storage';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
 import { MODEL_STORAGE_KEY } from '../assistant.constants';
 import type { StreamingAnswer } from '../assistant.model';
@@ -53,23 +54,16 @@ export const ChatPageStore = signalStore(
   withMethods(
     (
       store,
-      api = inject(AssistantApi),
+      assistantApi = inject(AssistantApi),
       translator = inject(Translator),
-      storage = inject(DOCUMENT).defaultView?.localStorage,
+      window = inject(DOCUMENT).defaultView,
     ) => {
       let answer: Subscription | null = null;
 
-      const remembered = (): string | null => {
-        try {
-          return storage?.getItem(MODEL_STORAGE_KEY) ?? null;
-        } catch {
-          return null;
-        }
-      };
       /** A model that is installed: the wished one, else the last chosen here, else the first. */
       const pick = (wished: string | null): string | null => {
         const names = store.models().map((model) => model.name);
-        for (const name of [wished, store.model(), remembered()]) {
+        for (const name of [wished, store.model(), readStored(window, MODEL_STORAGE_KEY)]) {
           if (name && names.includes(name)) return name;
         }
         return names[0] ?? null;
@@ -104,10 +98,13 @@ export const ChatPageStore = signalStore(
       return {
         async load(): Promise<void> {
           try {
-            const status = await api.status();
+            const status = await assistantApi.status();
             patchState(store, { status });
             if (status.state !== 'ready') return;
-            const [{ models }, { chats }] = await Promise.all([api.models(), api.chats()]);
+            const [{ models }, { chats }] = await Promise.all([
+              assistantApi.models(),
+              assistantApi.chats(),
+            ]);
             patchState(store, { models, chats });
             patchState(store, { model: pick(store.chat()?.model ?? null) });
           } catch (error) {
@@ -126,7 +123,7 @@ export const ChatPageStore = signalStore(
           }
           patchState(store, { loadingChat: true });
           try {
-            const chat = await api.chat(id);
+            const chat = await assistantApi.chat(id);
             patchState(store, { chat, model: pick(chat.model) });
           } catch (error) {
             patchState(store, { chat: null });
@@ -138,11 +135,7 @@ export const ChatPageStore = signalStore(
 
         setModel(model: string): void {
           patchState(store, { model });
-          try {
-            storage?.setItem(MODEL_STORAGE_KEY, model);
-          } catch {
-            // Storage blocked: chosen until the page is left.
-          }
+          writeStored(window, MODEL_STORAGE_KEY, model);
         },
 
         /**
@@ -154,49 +147,51 @@ export const ChatPageStore = signalStore(
           if (!model || answer) return Promise.resolve();
           patchState(store, { streaming: { text: '' } });
           return new Promise<void>((resolve, reject) => {
-            answer = api.send({ chatId: store.chat()?.id ?? null, model, content }).subscribe({
-              next: (event) => {
-                switch (event.type) {
-                  case 'chat': {
-                    const current = store.chat();
-                    const chat: Chat =
-                      current?.id === event.chat.id
-                        ? { ...current, model: event.chat.model }
-                        : { ...event.chat, createdAt: event.question.createdAt, messages: [] };
-                    patchState(store, {
-                      chat: { ...chat, messages: [...chat.messages, event.question] },
-                      chats: [event.chat, ...store.chats().filter((c) => c.id !== event.chat.id)],
-                    });
-                    resolve();
-                    break;
+            answer = assistantApi
+              .send({ chatId: store.chat()?.id ?? null, model, content })
+              .subscribe({
+                next: (event) => {
+                  switch (event.type) {
+                    case 'chat': {
+                      const current = store.chat();
+                      const chat: Chat =
+                        current?.id === event.chat.id
+                          ? { ...current, model: event.chat.model }
+                          : { ...event.chat, createdAt: event.question.createdAt, messages: [] };
+                      patchState(store, {
+                        chat: { ...chat, messages: [...chat.messages, event.question] },
+                        chats: [event.chat, ...store.chats().filter((c) => c.id !== event.chat.id)],
+                      });
+                      resolve();
+                      break;
+                    }
+                    case 'text':
+                      patchState(store, {
+                        streaming: { text: (store.streaming()?.text ?? '') + event.text },
+                      });
+                      break;
+                    case 'done':
+                      addMessage(event.answer);
+                      break;
+                    case 'error':
+                      if (event.answer) addMessage(event.answer);
+                      toast.error(translator.t('assistant.answerFailed'), {
+                        description: translator.t(`errors.${event.code}`),
+                      });
+                      break;
                   }
-                  case 'text':
-                    patchState(store, {
-                      streaming: { text: (store.streaming()?.text ?? '') + event.text },
-                    });
-                    break;
-                  case 'done':
-                    addMessage(event.answer);
-                    break;
-                  case 'error':
-                    if (event.answer) addMessage(event.answer);
-                    toast.error(translator.t('assistant.answerFailed'), {
-                      description: translator.t(`errors.${event.code}`),
-                    });
-                    break;
-                }
-              },
-              error: (error: unknown) => {
-                answer = null;
-                patchState(store, { streaming: null });
-                failed('assistant.sendFailed', error);
-                reject(error);
-              },
-              complete: () => {
-                answer = null;
-                patchState(store, { streaming: null });
-              },
-            });
+                },
+                error: (error: unknown) => {
+                  answer = null;
+                  patchState(store, { streaming: null });
+                  failed('assistant.sendFailed', error);
+                  reject(error);
+                },
+                complete: () => {
+                  answer = null;
+                  patchState(store, { streaming: null });
+                },
+              });
           });
         },
 
@@ -205,7 +200,7 @@ export const ChatPageStore = signalStore(
 
         async remove(id: string): Promise<boolean> {
           try {
-            await api.removeChat(id);
+            await assistantApi.removeChat(id);
           } catch (error) {
             failed('assistant.removeChatFailed', error);
             return false;

@@ -11,7 +11,7 @@
           }
         </p>
         <p class="flex flex-wrap gap-x-2 text-sm text-muted-foreground" dir="ltr">
-          <span>{{ format.bytes(model.sizeBytes) }}</span>
+          <span>{{ formatter.bytes(model.sizeBytes) }}</span>
           @if (model.parameterSize) {
             <span>· {{ model.parameterSize }}</span>
           }

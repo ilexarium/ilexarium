@@ -3,7 +3,7 @@ import { AI_ERROR_CODES, type AiPull } from '@laris/shared';
 import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
 import { SystemReader } from '../host/system-reader.js';
-import { FREE_SPACE_MARGIN_BYTES } from './assistant.constants.js';
+import { FREE_SPACE_MARGIN_BYTES, PULL_NOT_FOUND } from './assistant.constants.js';
 import type { Requester } from './assistant.model.js';
 import { OllamaError } from './ollama-client.js';
 import { OllamaService } from './ollama-service.js';
@@ -23,9 +23,9 @@ export class ModelPulls implements OnModuleDestroy {
   private running: AbortController | null = null;
 
   constructor(
-    private readonly ollama: OllamaService,
-    private readonly host: SystemReader,
-    private readonly audit: AuditService,
+    private readonly ollamaService: OllamaService,
+    private readonly systemReader: SystemReader,
+    private readonly auditService: AuditService,
   ) {}
 
   /** The current or last download (null: none since the server started). */
@@ -45,9 +45,9 @@ export class ModelPulls implements OnModuleDestroy {
     const controller = new AbortController();
     this.running = controller;
     try {
-      const { client, location } = await this.ollama.client();
+      const { client, location } = await this.ollamaService.client();
       // Fails closed: free space that can't be read is no room.
-      const space = location.modelsDir ? await this.host.space(location.modelsDir) : null;
+      const space = location.modelsDir ? await this.systemReader.space(location.modelsDir) : null;
       if (!space) {
         throw new ConflictException({
           message: "The models folder can't be read",
@@ -60,7 +60,7 @@ export class ModelPulls implements OnModuleDestroy {
           code: AI_ERROR_CODES.notEnoughSpace,
         });
       }
-      await this.audit.record(this.entry('requested', model, by));
+      await this.auditService.record(this.entry('requested', model, by));
       this.current = {
         model,
         status: 'running',
@@ -117,7 +117,7 @@ export class ModelPulls implements OnModuleDestroy {
       }
     } catch (error) {
       errorCode ??=
-        error instanceof OllamaError && /not exist|not found|manifest/i.test(error.message)
+        error instanceof OllamaError && PULL_NOT_FOUND.test(error.message)
           ? AI_ERROR_CODES.modelNotFound
           : AI_ERROR_CODES.pullFailed;
       if (!controller.signal.aborted)
@@ -131,7 +131,7 @@ export class ModelPulls implements OnModuleDestroy {
       completedBytes: succeeded ? sum(totals) : sum(done),
       finishedAt: new Date().toISOString(),
     });
-    await this.audit.tryRecord({
+    await this.auditService.tryRecord({
       ...this.entry(succeeded ? 'success' : 'failure', model, by),
       ...(succeeded ? {} : { details: { model, errorCode: this.current?.errorCode ?? '' } }),
     });
@@ -139,7 +139,7 @@ export class ModelPulls implements OnModuleDestroy {
 
   /** Whether the rest of a download would leave the models' disk too full (unreadable: yes). */
   private async tooBig(modelsDir: string | null, remaining: number): Promise<boolean> {
-    const space = modelsDir ? await this.host.space(modelsDir) : null;
+    const space = modelsDir ? await this.systemReader.space(modelsDir) : null;
     return space === null || space.freeBytes - remaining < FREE_SPACE_MARGIN_BYTES;
   }
 

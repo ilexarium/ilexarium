@@ -25,7 +25,7 @@ export class InstalledModels {
   readonly removing = input<string[]>([]);
   readonly remove = output<string>();
 
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
   protected readonly asking = signal<string | null>(null);
   private readonly dialog = viewChild.required(HlmAlertDialog);
 

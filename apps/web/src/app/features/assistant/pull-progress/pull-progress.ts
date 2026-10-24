@@ -15,7 +15,7 @@ import { StatusBadge } from '../../../shared/status-badge/status-badge';
 export class PullProgress {
   readonly pull = input.required<AiPull>();
 
-  protected readonly format = inject(Formatter);
+  protected readonly formatter = inject(Formatter);
   protected readonly percent = computed(() => {
     const { completedBytes, totalBytes } = this.pull();
     return totalBytes > 0 ? Math.min(100, (completedBytes / totalBytes) * 100) : 0;

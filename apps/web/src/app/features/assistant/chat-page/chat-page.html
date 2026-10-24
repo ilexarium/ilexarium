@@ -1,4 +1,4 @@
-@if (store.status(); as status) {
+@if (chatPageStore.status(); as status) {
   @switch (status.state) {
     @case ('not_installed') {
       <laris-empty-state
@@ -16,7 +16,7 @@
         [detail]="'assistant.notRunningText' | translate"
       >
         <div class="flex flex-wrap justify-center gap-2">
-          <button hlmBtn size="sm" (click)="store.load()">
+          <button hlmBtn size="sm" (click)="chatPageStore.load()">
             {{ 'assistant.checkAgain' | translate }}
           </button>
           <a hlmBtn variant="outline" size="sm" routerLink="/containers">{{
@@ -26,7 +26,7 @@
       </laris-empty-state>
     }
     @default {
-      @if (store.models().length === 0) {
+      @if (chatPageStore.models().length === 0) {
         <laris-empty-state
           icon="lucidePackage"
           [text]="'assistant.noModels' | translate"
@@ -40,8 +40,8 @@
         <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
           <laris-chat-list
             class="hidden lg:flex"
-            [chats]="store.chats()"
-            [selected]="store.chat()?.id ?? null"
+            [chats]="chatPageStore.chats()"
+            [selected]="chatPageStore.chat()?.id ?? null"
             (remove)="remove($event)"
           />
 
@@ -61,8 +61,8 @@
                   </hlm-sheet-header>
                   <laris-chat-list
                     class="min-h-0 flex-1"
-                    [chats]="store.chats()"
-                    [selected]="store.chat()?.id ?? null"
+                    [chats]="chatPageStore.chats()"
+                    [selected]="chatPageStore.chat()?.id ?? null"
                     (remove)="remove($event)"
                     (picked)="ctx.close()"
                   />
@@ -73,15 +73,15 @@
               <hlm-select
                 class="min-w-0 flex-1 sm:max-w-72 sm:flex-none"
                 dir="ltr"
-                [value]="store.model()"
-                (valueChange)="store.setModel($any($event))"
-                [disabled]="store.sending()"
+                [value]="chatPageStore.model()"
+                (valueChange)="chatPageStore.setModel($any($event))"
+                [disabled]="chatPageStore.sending()"
               >
                 <hlm-select-trigger buttonId="model" class="w-full"
                   ><hlm-select-value
                 /></hlm-select-trigger>
                 <hlm-select-content *hlmSelectPortal>
-                  @for (model of store.models(); track model.name) {
+                  @for (model of chatPageStore.models(); track model.name) {
                     <hlm-select-item [value]="model.name">{{ model.name }}</hlm-select-item>
                   }
                 </hlm-select-content>
@@ -93,7 +93,7 @@
               </a>
             </div>
 
-            @if (store.loadingChat()) {
+            @if (chatPageStore.loadingChat()) {
               <div
                 class="grid flex-1 content-start gap-4"
                 role="status"
@@ -102,18 +102,18 @@
                 <hlm-skeleton class="ms-auto h-10 w-2/3" />
                 <hlm-skeleton class="h-24 w-full" />
               </div>
-            } @else if (!store.chat() && !store.sending()) {
+            } @else if (!chatPageStore.chat() && !chatPageStore.sending()) {
               <laris-empty-state
                 class="flex-1 justify-center border-none"
                 icon="lucideSparkles"
                 [text]="'assistant.start' | translate"
-                [detail]="'assistant.startText' | translate: { model: store.model() ?? '' }"
+                [detail]="'assistant.startText' | translate: { model: chatPageStore.model() ?? '' }"
               />
             } @else {
               <laris-chat-thread
                 class="flex-1"
-                [messages]="store.chat()?.messages ?? []"
-                [streaming]="store.streaming()?.text ?? null"
+                [messages]="chatPageStore.chat()?.messages ?? []"
+                [streaming]="chatPageStore.streaming()?.text ?? null"
               />
             }
 
@@ -129,7 +129,7 @@
                   [placeholder]="'assistant.placeholder' | translate"
                   (keydown)="keydown($event)"
                 ></textarea>
-                @if (store.sending()) {
+                @if (chatPageStore.sending()) {
                   <button
                     hlmBtn
                     type="button"
@@ -137,7 +137,7 @@
                     variant="secondary"
                     class="absolute end-2 bottom-2"
                     [attr.aria-label]="'assistant.stop' | translate"
-                    (click)="store.stop()"
+                    (click)="chatPageStore.stop()"
                   >
                     <ng-icon name="lucideSquare" aria-hidden="true" />
                   </button>
@@ -147,7 +147,7 @@
                     type="submit"
                     size="icon-sm"
                     class="absolute end-2 bottom-2"
-                    [disabled]="!store.model()"
+                    [disabled]="!chatPageStore.model()"
                     [attr.aria-label]="'assistant.send' | translate"
                   >
                     <ng-icon name="lucideArrowUp" aria-hidden="true" />

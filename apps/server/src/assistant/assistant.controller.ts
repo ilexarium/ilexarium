@@ -50,22 +50,22 @@ import {
 @UseFilters(TooManyAttemptsFilter)
 export class AssistantController {
   constructor(
-    private readonly ollama: OllamaService,
-    private readonly pulls: ModelPulls,
-    private readonly library: HfLibrary,
-    private readonly chats: ChatStore,
-    private readonly answers: ChatAnswers,
-    private readonly audit: AuditService,
+    private readonly ollamaService: OllamaService,
+    private readonly modelPulls: ModelPulls,
+    private readonly hfLibrary: HfLibrary,
+    private readonly chatStore: ChatStore,
+    private readonly chatAnswers: ChatAnswers,
+    private readonly auditService: AuditService,
   ) {}
 
   @Get('status')
   status(): Promise<AiStatus> {
-    return this.ollama.status();
+    return this.ollamaService.status();
   }
 
   @Get('models')
   models(): Promise<AiModels> {
-    return this.ollama.models();
+    return this.ollamaService.models();
   }
 
   /** Starts a download; progress comes through the `assistant` topic. */
@@ -78,7 +78,7 @@ export class AssistantController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<AiPull> {
-    return this.pulls.start(model, { user, ip });
+    return this.modelPulls.start(model, { user, ip });
   }
 
   @Delete('models')
@@ -97,38 +97,38 @@ export class AssistantController {
       ip,
       details: { model },
     };
-    await this.audit.record({ ...entry, outcome: 'requested' });
+    await this.auditService.record({ ...entry, outcome: 'requested' });
     try {
-      await this.ollama.remove(model);
+      await this.ollamaService.remove(model);
     } catch (error) {
-      await this.audit.tryRecord({ ...entry, outcome: 'failure' });
+      await this.auditService.tryRecord({ ...entry, outcome: 'failure' });
       throw error;
     }
-    await this.audit.tryRecord({ ...entry, outcome: 'success' });
+    await this.auditService.tryRecord({ ...entry, outcome: 'success' });
   }
 
   @Get('library')
   @UseGuards(ThrottlerGuard)
   @Throttle(LIBRARY_LIMIT)
   search(@Query() { search }: AiLibrarySearchDto): Promise<AiLibrary> {
-    return this.library.search(search);
+    return this.hfLibrary.search(search);
   }
 
   @Get('library/:owner/:repo')
   @UseGuards(ThrottlerGuard)
   @Throttle(LIBRARY_LIMIT)
   libraryDetail(@Param() { owner, repo }: AiLibraryParamsDto): Promise<AiLibraryDetail> {
-    return this.library.detail(owner, repo);
+    return this.hfLibrary.detail(owner, repo);
   }
 
   @Get('chats')
   list(@CurrentUser() user: PublicUser): Promise<ChatList> {
-    return this.chats.list(user.id);
+    return this.chatStore.list(user.id);
   }
 
   @Get('chats/:id')
   async chat(@Param() { id }: ChatIdParamsDto, @CurrentUser() user: PublicUser): Promise<Chat> {
-    const chat = await this.chats.get(user.id, id);
+    const chat = await this.chatStore.get(user.id, id);
     if (!chat) throw chatNotFound();
     return chat;
   }
@@ -139,7 +139,7 @@ export class AssistantController {
     @Param() { id }: ChatIdParamsDto,
     @CurrentUser() user: PublicUser,
   ): Promise<void> {
-    if (!(await this.chats.remove(user.id, id))) throw chatNotFound();
+    if (!(await this.chatStore.remove(user.id, id))) throw chatNotFound();
   }
 
   /**
@@ -160,7 +160,7 @@ export class AssistantController {
     });
     const writer = ndjsonWriter(res, stop.signal);
     try {
-      await this.answers.answer(user.id, body, writer, stop.signal);
+      await this.chatAnswers.answer(user.id, body, writer, stop.signal);
     } catch (error) {
       // Before the first line: an ordinary HTTP error (Nest's filter answers it).
       if (!writer.started) throw error;

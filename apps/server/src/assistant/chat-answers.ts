@@ -16,8 +16,8 @@ export class ChatAnswers {
   private readonly answering = new Set<string>();
 
   constructor(
-    private readonly ollama: OllamaService,
-    private readonly chats: ChatStore,
+    private readonly ollamaService: OllamaService,
+    private readonly chatStore: ChatStore,
   ) {}
 
   async answer(
@@ -46,7 +46,7 @@ export class ChatAnswers {
     sink: AnswerSink,
     signal: AbortSignal,
   ): Promise<void> {
-    const { client } = await this.ollama.client();
+    const { client } = await this.ollamaService.client();
     let installed: Set<string>;
     try {
       installed = new Set((await client.tags()).models.map((model) => model.name));
@@ -56,13 +56,13 @@ export class ChatAnswers {
     if (!installed.has(send.model)) {
       throw new NotFoundException({ message: 'No such model', code: AI_ERROR_CODES.modelNotFound });
     }
-    const asked = await this.chats.ask(userId, send.chatId, send.model, send.content);
+    const asked = await this.chatStore.ask(userId, send.chatId, send.model, send.content);
     if (!asked) {
       throw new NotFoundException({ message: 'No such chat', code: AI_ERROR_CODES.chatNotFound });
     }
     await sink.write({ type: 'chat', ...asked });
 
-    const conversation = fitting(await this.chats.history(asked.chat.id));
+    const conversation = fitting(await this.chatStore.history(asked.chat.id));
     let text = '';
     try {
       for await (const piece of client.chat(
@@ -76,11 +76,11 @@ export class ChatAnswers {
       }
       // Nothing written: a failure, not an (empty) answer the model would read back later.
       if (!text.trim()) throw new Error('The model wrote nothing');
-      const answer = await this.chats.answer(asked.chat.id, send.model, text, false);
+      const answer = await this.chatStore.answer(asked.chat.id, send.model, text, false);
       await sink.write({ type: 'done', answer });
     } catch (error) {
       const answer = text.trim()
-        ? await this.chats.answer(asked.chat.id, send.model, text, true).catch(() => null)
+        ? await this.chatStore.answer(asked.chat.id, send.model, text, true).catch(() => null)
         : null;
       if (signal.aborted) return;
       this.logger.warn(`An answer failed: ${error instanceof Error ? error.message : 'unknown'}`);

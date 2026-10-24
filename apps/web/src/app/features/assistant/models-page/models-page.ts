@@ -43,9 +43,11 @@ import { FieldErrors } from '../../../shared/forms/field-errors';
   templateUrl: './models-page.html',
 })
 export class ModelsPage {
-  protected readonly store = inject(ModelsPageStore);
-  protected readonly format = inject(Formatter);
-  protected readonly installedNames = computed(() => this.store.models().map((m) => m.name));
+  protected readonly modelsPageStore = inject(ModelsPageStore);
+  protected readonly formatter = inject(Formatter);
+  protected readonly installedNames = computed(() =>
+    this.modelsPageStore.models().map((m) => m.name),
+  );
 
   private readonly byName = signal<AiPullRequest>({ model: '' });
   protected readonly pullForm = form(
@@ -55,7 +57,7 @@ export class ModelsPage {
       submission: {
         action: async (field) => {
           try {
-            await this.store.download(field().value().model.trim());
+            await this.modelsPageStore.download(field().value().model.trim());
           } catch {
             return undefined; // Told in a toast; the name stays.
           }
@@ -73,7 +75,7 @@ export class ModelsPage {
     {
       submission: {
         action: async (field) => {
-          await this.store.search(field().value().search.trim());
+          await this.modelsPageStore.search(field().value().search.trim());
           return undefined;
         },
       },
@@ -82,7 +84,7 @@ export class ModelsPage {
 
   protected async download(model: string): Promise<void> {
     try {
-      await this.store.download(model);
+      await this.modelsPageStore.download(model);
     } catch {
       // Told in a toast.
     }
