@@ -66,4 +66,40 @@ describe('ConnectionStatus', () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain('6.12.48-1-amd64'));
     el.remove();
   });
+
+  it('beats and shows the kernel only while live', async () => {
+    const status = signal<Status>('reconnecting');
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: RealtimeService, useValue: { status } },
+        {
+          provide: MonitoringStore,
+          useValue: {
+            host: signal<HostInfo>({
+              hostname: 'box',
+              os: 'Debian GNU/Linux 13',
+              kernel: '6.12.48-1-amd64',
+              arch: 'x64',
+              cpuModel: null,
+              cpuCores: 4,
+            }),
+          },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(ConnectionStatus);
+    const el = fixture.nativeElement as HTMLElement;
+    const dot = () => el.querySelector('[aria-hidden="true"]')!.className;
+    const label = () => el.querySelector<HTMLElement>('span:not([aria-hidden])')!;
+    for (const value of ['connecting', 'reconnecting', 'offline'] as Status[]) {
+      status.set(value);
+      await fixture.whenStable();
+      expect(dot(), value).not.toContain('heartbeat');
+      expect(label().getAttribute('tabindex'), value).toBeNull();
+    }
+    status.set('live');
+    await fixture.whenStable();
+    expect(dot()).toContain('heartbeat');
+    expect(label().getAttribute('tabindex')).toBe('0');
+  });
 });
