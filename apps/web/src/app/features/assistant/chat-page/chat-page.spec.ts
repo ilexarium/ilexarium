@@ -10,7 +10,7 @@ import type {
   ChatSummary,
 } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
 import { ChatPage } from './chat-page';
 import { ChatPageStore } from './chat-page-store';
@@ -51,15 +51,17 @@ function fakeApi(status: AiStatus = { state: 'ready', version: '0.40.6' }) {
   const answers: Subject<ChatStreamEvent>[] = [];
   return {
     answers,
-    status: vi.fn(async () => status),
-    models: vi.fn(async () => ({ models: [model('smollm2:135m'), model('qwen2.5:0.5b')] })),
-    chats: vi.fn(async () => ({ chats: [summary(OLD_ID, 'An older chat')] })),
-    chat: vi.fn(async (id: string): Promise<Chat> => ({
-      ...summary(id, 'An older chat'),
-      createdAt: '2026-10-19T11:00:00.000Z',
-      messages: [message('user', 'Old question'), message('assistant', 'Old **answer**')],
-    })),
-    removeChat: vi.fn(async () => undefined),
+    status: vi.fn(() => of(status)),
+    models: vi.fn(() => of({ models: [model('smollm2:135m'), model('qwen2.5:0.5b')] })),
+    chats: vi.fn(() => of({ chats: [summary(OLD_ID, 'An older chat')] })),
+    chat: vi.fn((id: string) =>
+      of<Chat>({
+        ...summary(id, 'An older chat'),
+        createdAt: '2026-10-19T11:00:00.000Z',
+        messages: [message('user', 'Old question'), message('assistant', 'Old **answer**')],
+      }),
+    ),
+    removeChat: vi.fn(() => of(undefined)),
     send: vi.fn(() => {
       const answer = new Subject<ChatStreamEvent>();
       answers.push(answer);
@@ -105,7 +107,7 @@ describe('ChatPage', () => {
 
   it('points to the Models page while no model is installed', async () => {
     const api = fakeApi();
-    api.models.mockResolvedValue({ models: [] });
+    api.models.mockReturnValue(of({ models: [] }));
     const { el } = await render(api);
     expect(el.textContent).toContain('No model installed');
     expect(el.querySelector('a[href="/assistant/models"]')).toBeTruthy();
@@ -220,11 +222,11 @@ describe('ChatPage', () => {
   it('shows the chat opened last, even when an earlier one answers later', async () => {
     const api = fakeApi();
     const later = '0199f000-0000-7000-8000-0000000000bb';
-    let answerOld: (chat: Chat) => void = () => undefined;
+    const answerOld = new Subject<Chat>();
     api.chat.mockImplementation((id: string) =>
       id === OLD_ID
-        ? new Promise<Chat>((resolve) => (answerOld = resolve))
-        : Promise.resolve({
+        ? answerOld
+        : of({
             ...summary(id, 'The later chat'),
             createdAt: '2026-10-19T11:00:00.000Z',
             messages: [message('user', 'Later question')],
@@ -232,15 +234,33 @@ describe('ChatPage', () => {
     );
     const { fixture } = await render(api);
     const store = fixture.debugElement.injector.get(ChatPageStore);
-    const first = store.open(OLD_ID);
-    await store.open(later);
-    answerOld({
+    store.open(OLD_ID);
+    store.open(later);
+    answerOld.next({
       ...summary(OLD_ID, 'An older chat'),
       createdAt: '2026-10-19T11:00:00.000Z',
       messages: [message('user', 'Old question')],
     });
-    await first;
     expect(store.chat()?.id).toBe(later);
+    expect(store.loadingChat()).toBe(false);
+  });
+
+  it('drops a chat still being opened once a message starts a new one', async () => {
+    const api = fakeApi();
+    const answerOld = new Subject<Chat>();
+    api.chat.mockReturnValue(answerOld);
+    const { fixture } = await render(api);
+    const store = fixture.debugElement.injector.get(ChatPageStore);
+    store.open(OLD_ID);
+    const sent = store.send('Hi');
+    api.answers[0].next({
+      type: 'chat',
+      chat: summary(CHAT_ID, 'Hi'),
+      question: message('user', 'Hi'),
+    });
+    await sent;
+    answerOld.next({ ...summary(OLD_ID, 'An older chat'), createdAt: '', messages: [] });
+    expect(store.chat()?.id).toBe(CHAT_ID);
     expect(store.loadingChat()).toBe(false);
   });
 

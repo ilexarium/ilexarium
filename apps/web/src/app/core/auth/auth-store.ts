@@ -9,6 +9,7 @@ import {
   withState,
 } from '@ngrx/signals';
 import type { PublicUser } from '@laris/shared';
+import { firstValueFrom, forkJoin } from 'rxjs';
 import { LanguageService } from '../i18n/language';
 import { AuthApi } from './auth-api';
 import type { AuthStatus } from './auth.model';
@@ -69,7 +70,9 @@ export const AuthStore = signalStore(
         async load(): Promise<void> {
           patchState(store, { status: 'unknown' });
           try {
-            const [{ needsSetup }, { user }] = await Promise.all([api.status(), api.me()]);
+            const [{ needsSetup }, { user }] = await firstValueFrom(
+              forkJoin([api.status(), api.me()]),
+            );
             patchState(store, { needsSetup, user, status: user ? 'authenticated' : 'anonymous' });
             await applyLanguage(user);
           } catch {
@@ -101,7 +104,7 @@ export const AuthStore = signalStore(
         async logout(): Promise<void> {
           tellOtherTabs();
           try {
-            await api.logout();
+            await firstValueFrom(api.logout());
           } finally {
             await signedOut();
           }
@@ -110,7 +113,7 @@ export const AuthStore = signalStore(
           leaving = true;
           tellOtherTabs();
           try {
-            await api.logoutEverywhere();
+            await firstValueFrom(api.logoutEverywhere());
             await signedOut();
           } finally {
             leaving = false;

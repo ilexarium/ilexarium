@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { toast } from '@spartan-ng/brain/sonner';
+import { NEVER, of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { LanguageService } from '../i18n/language';
@@ -10,7 +11,7 @@ import { ContainerActionsStore } from './container-actions-store';
 import { ContainersApi } from './containers-api';
 
 async function setup({ rtl = false } = {}) {
-  const api = { act: vi.fn(async () => null) };
+  const api = { act: vi.fn(() => of(null)) };
   const auth = fakeAuthApi({ user: OWNER });
   TestBed.configureTestingModule({
     providers: [
@@ -35,25 +36,25 @@ describe('ContainerActionsStore', () => {
 
   it('keeps the name left to right inside a right-to-left toast', async () => {
     const { store, success } = await setup({ rtl: true });
-    await store.run('jellyfin', 'stop');
+    store.run({ name: 'jellyfin', action: 'stop' });
     // The words are English here (the test's language file); the isolate is what's checked.
     expect(success).toHaveBeenCalledWith('\u2066jellyfin\u2069 stopped');
   });
 
   it('runs an action, marks the container as busy meanwhile, then says so', async () => {
     const { store, api, success } = await setup();
-    let finish!: () => void;
-    api.act.mockImplementationOnce(() => new Promise((resolve) => (finish = () => resolve(null))));
-    const running = store.run('jellyfin', 'stop');
+    const answer = new Subject<null>();
+    api.act.mockReturnValueOnce(answer);
+    store.run({ name: 'jellyfin', action: 'stop' });
     expect(api.act).toHaveBeenCalledWith('jellyfin', 'stop');
     expect(store.pending()).toEqual(new Map([['jellyfin', 'stop']]));
 
     // A second action for the same container while one runs is ignored.
-    await store.run('jellyfin', 'restart');
+    store.run({ name: 'jellyfin', action: 'restart' });
     expect(api.act).toHaveBeenCalledTimes(1);
 
-    finish();
-    await running;
+    answer.next(null);
+    answer.complete();
     expect(store.pending()).toEqual(new Map());
     expect(success).toHaveBeenCalledWith(`jellyfin stopped`);
   });
@@ -72,8 +73,8 @@ describe('ContainerActionsStore', () => {
     [{ status: 500, error: 'oops' }, 'Something went wrong (500).'],
   ])('says in plain words why an action failed (%o)', async (response, text) => {
     const { store, api, error } = await setup();
-    api.act.mockRejectedValueOnce(new HttpErrorResponse(response));
-    await store.run('old-app', 'start');
+    api.act.mockReturnValueOnce(throwError(() => new HttpErrorResponse(response)));
+    store.run({ name: 'old-app', action: 'start' });
     expect(error).toHaveBeenCalledWith(`Couldn't start old-app`, {
       description: text.replaceAll('’', "'"),
     });
@@ -82,8 +83,8 @@ describe('ContainerActionsStore', () => {
 
   it('is reset on sign-out', async () => {
     const { store, api } = await setup();
-    api.act.mockImplementationOnce(() => new Promise(() => undefined)); // never settles
-    void store.run('jellyfin', 'stop');
+    api.act.mockReturnValueOnce(NEVER);
+    store.run({ name: 'jellyfin', action: 'stop' });
     expect(store.pending().size).toBe(1);
     await TestBed.inject(AuthStore).logout();
     TestBed.tick();

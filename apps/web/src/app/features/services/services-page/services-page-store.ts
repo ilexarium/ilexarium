@@ -8,7 +8,9 @@ import {
   withState,
 } from '@ngrx/signals';
 import { type CatalogEntrySummary, type InstalledService, serviceProject } from '@laris/shared';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
+import { catchError, EMPTY, exhaustMap, mergeMap, pipe, tap } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
@@ -92,24 +94,35 @@ export const ServicesPageStore = signalStore(
     }),
   ),
   withMethods((store, servicesApi = inject(ServicesApi), translator = inject(Translator)) => ({
-    async loadCatalog(): Promise<void> {
-      try {
-        patchState(store, { catalog: await servicesApi.catalog(), catalogFailed: false });
-      } catch {
-        patchState(store, { catalogFailed: true });
-      }
-    },
+    loadCatalog: rxMethod<void>(
+      pipe(
+        exhaustMap(() =>
+          servicesApi.catalog().pipe(
+            tap((catalog) => patchState(store, { catalog, catalogFailed: false })),
+            catchError(() => {
+              patchState(store, { catalogFailed: true });
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    ),
 
     /** Starts the removal (already confirmed); its progress arrives through the topic. */
-    async remove(service: InstalledService): Promise<void> {
-      try {
-        await servicesApi.remove(service.id);
-      } catch (error) {
-        toast.error(translator.t('services.remove.failed', { name: service.name }), {
-          description: translator.t(...apiErrorText(error)),
-        });
-      }
-    },
+    remove: rxMethod<InstalledService>(
+      pipe(
+        mergeMap((service) =>
+          servicesApi.remove(service.id).pipe(
+            catchError((error: unknown) => {
+              toast.error(translator.t('services.remove.failed', { name: service.name }), {
+                description: translator.t(...apiErrorText(error)),
+              });
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    ),
   })),
   withHooks(
     (store, servicesStore = inject(ServicesStore), monitoringStore = inject(MonitoringStore)) => {
@@ -117,7 +130,7 @@ export const ServicesPageStore = signalStore(
       return {
         onInit() {
           stops.push(servicesStore.watch(), monitoringStore.watch(['containers']));
-          void store.loadCatalog();
+          store.loadCatalog();
         },
         onDestroy() {
           for (const stop of stops) stop();

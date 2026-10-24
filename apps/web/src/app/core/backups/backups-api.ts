@@ -19,7 +19,7 @@ import type {
   BackupRunStartedResponse,
   BackupSetupRequest,
 } from '@laris/shared';
-import { firstValueFrom } from 'rxjs';
+import type { Observable } from 'rxjs';
 
 const id = encodeURIComponent;
 
@@ -28,87 +28,73 @@ const id = encodeURIComponent;
 export class BackupsApi {
   private readonly http = inject(HttpClient);
 
-  plan(): Promise<BackupPlanResponse> {
-    return firstValueFrom(this.http.get<BackupPlanResponse>('/api/backups/plan'));
+  plan(): Observable<BackupPlanResponse> {
+    return this.http.get<BackupPlanResponse>('/api/backups/plan');
   }
 
-  destinations(): Promise<BackupDestinationsResponse> {
-    return firstValueFrom(this.http.get<BackupDestinationsResponse>('/api/backups/destinations'));
+  destinations(): Observable<BackupDestinationsResponse> {
+    return this.http.get<BackupDestinationsResponse>('/api/backups/destinations');
   }
 
-  folders(path?: string): Promise<BackupFoldersResponse> {
+  folders(path?: string): Observable<BackupFoldersResponse> {
     const params = path ? new HttpParams().set('path', path) : undefined;
-    return firstValueFrom(this.http.get<BackupFoldersResponse>('/api/backups/folders', { params }));
+    return this.http.get<BackupFoldersResponse>('/api/backups/folders', { params });
   }
 
   /** Sets backups up; the response holds the passphrase, shown once. */
-  setup(request: BackupSetupRequest): Promise<BackupPassphraseResponse> {
-    return firstValueFrom(this.http.post<BackupPassphraseResponse>('/api/backups/plan', request));
+  setup(request: BackupSetupRequest): Observable<BackupPassphraseResponse> {
+    return this.http.post<BackupPassphraseResponse>('/api/backups/plan', request);
   }
 
-  updatePlan(request: BackupPlanUpdate): Promise<BackupPlan> {
-    return firstValueFrom(this.http.put<BackupPlan>('/api/backups/plan', request));
+  updatePlan(request: BackupPlanUpdate): Observable<BackupPlan> {
+    return this.http.put<BackupPlan>('/api/backups/plan', request);
   }
 
-  addItem(item: BackupItemRequest): Promise<BackupItem> {
-    return firstValueFrom(this.http.post<BackupItem>('/api/backups/items', { item }));
+  addItem(item: BackupItemRequest): Observable<BackupItem> {
+    return this.http.post<BackupItem>('/api/backups/items', { item });
   }
 
-  updateItem(itemId: string, excludedFields: string[]): Promise<BackupItem> {
-    return firstValueFrom(
-      this.http.patch<BackupItem>(`/api/backups/items/${id(itemId)}`, { excludedFields }),
-    );
+  updateItem(itemId: string, excludedFields: string[]): Observable<BackupItem> {
+    return this.http.patch<BackupItem>(`/api/backups/items/${id(itemId)}`, { excludedFields });
   }
 
-  removeItem(itemId: string, deleteArchives: boolean): Promise<void> {
+  removeItem(itemId: string, deleteArchives: boolean): Observable<void> {
     const params = new HttpParams().set('archives', deleteArchives ? 'delete' : 'keep');
-    return firstValueFrom(this.http.delete<void>(`/api/backups/items/${id(itemId)}`, { params }));
+    return this.http.delete<void>(`/api/backups/items/${id(itemId)}`, { params });
   }
 
-  archives(itemId: string): Promise<BackupArchivesResponse> {
-    return firstValueFrom(
-      this.http.get<BackupArchivesResponse>(`/api/backups/items/${id(itemId)}/archives`),
-    );
+  archives(itemId: string): Observable<BackupArchivesResponse> {
+    return this.http.get<BackupArchivesResponse>(`/api/backups/items/${id(itemId)}/archives`);
   }
 
   /** 202 once it started; it runs on. */
-  runNow(itemId?: string): Promise<BackupRunStartedResponse> {
-    return firstValueFrom(
-      this.http.post<BackupRunStartedResponse>('/api/backups/runs', itemId ? { itemId } : {}),
-    );
+  runNow(itemId?: string): Observable<BackupRunStartedResponse> {
+    return this.http.post<BackupRunStartedResponse>('/api/backups/runs', itemId ? { itemId } : {});
   }
 
-  runs(): Promise<BackupRunsResponse> {
-    return firstValueFrom(this.http.get<BackupRunsResponse>('/api/backups/runs'));
+  runs(): Observable<BackupRunsResponse> {
+    return this.http.get<BackupRunsResponse>('/api/backups/runs');
   }
 
-  runOutput(runId: string): Promise<BackupRunOutputResponse> {
-    return firstValueFrom(
-      this.http.get<BackupRunOutputResponse>(`/api/backups/runs/${id(runId)}/output`),
-    );
+  runOutput(runId: string): Observable<BackupRunOutputResponse> {
+    return this.http.get<BackupRunOutputResponse>(`/api/backups/runs/${id(runId)}/output`);
   }
 
   /** 202 once the restore started; it runs on as a job. */
-  restore(request: BackupRestoreRequest): Promise<BackupRestoreStartedResponse> {
-    return firstValueFrom(
-      this.http.post<BackupRestoreStartedResponse>('/api/backups/restores', request),
-    );
+  restore(request: BackupRestoreRequest): Observable<BackupRestoreStartedResponse> {
+    return this.http.post<BackupRestoreStartedResponse>('/api/backups/restores', request);
   }
 
-  restores(): Promise<BackupRestoresResponse> {
-    return firstValueFrom(this.http.get<BackupRestoresResponse>('/api/backups/restores'));
+  restores(): Observable<BackupRestoresResponse> {
+    return this.http.get<BackupRestoresResponse>('/api/backups/restores');
   }
 
-  discardPrevious(restoreId: string): Promise<BackupRestore> {
-    return firstValueFrom(
-      this.http.delete<BackupRestore>(`/api/backups/restores/${id(restoreId)}/previous`),
-    );
+  discardPrevious(restoreId: string): Observable<BackupRestore> {
+    return this.http.delete<BackupRestore>(`/api/backups/restores/${id(restoreId)}/previous`);
   }
 
   /** "Show again": needs the app password. */
-  passphrase(password: string): Promise<BackupPassphraseResponse> {
-    return firstValueFrom(
-      this.http.post<BackupPassphraseResponse>('/api/backups/passphrase', { password }),
-    );
+  passphrase(password: string): Observable<BackupPassphraseResponse> {
+    return this.http.post<BackupPassphraseResponse>('/api/backups/passphrase', { password });
   }
 }

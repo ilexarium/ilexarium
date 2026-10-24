@@ -1,8 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AlertChannelsResponse } from '@laris/shared';
+import type { AlertChannelsResponse, AlertTestResponse } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
@@ -25,10 +26,10 @@ const SAVED: AlertChannelsResponse = {
 async function render(channels: AlertChannelsResponse) {
   const auth = fakeAuthApi({ user: OWNER });
   const api = {
-    channels: vi.fn(async () => channels),
-    updateEmail: vi.fn(async () => undefined),
-    updateNtfy: vi.fn(async () => undefined),
-    test: vi.fn(async () => ({ sent: true, problem: null })),
+    channels: vi.fn(() => of(channels)),
+    updateEmail: vi.fn(() => of(undefined)),
+    updateNtfy: vi.fn(() => of(undefined)),
+    test: vi.fn(() => of<AlertTestResponse>({ sent: true, problem: null })),
   };
   TestBed.configureTestingModule({
     providers: [provideRouter([]), auth.provider, { provide: AlertsApi, useValue: api }],
@@ -78,15 +79,18 @@ describe('NotificationsPage', () => {
 
   it('puts the server’s refusal on its field', async () => {
     const { el, api, card, type, click } = await render(SAVED);
-    api.updateEmail.mockRejectedValue(
-      new HttpErrorResponse({
-        status: 400,
-        error: {
-          message: 'Validation failed',
-          code: 'address_refused',
-          errors: [{ field: 'host', code: 'address_refused', message: 'never' }],
-        },
-      }),
+    api.updateEmail.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 400,
+            error: {
+              message: 'Validation failed',
+              code: 'address_refused',
+              errors: [{ field: 'host', code: 'address_refused', message: 'never' }],
+            },
+          }),
+      ),
     );
     await type('email-host', '169.254.169.254');
     await click(card('email-title'), 'Save');
@@ -141,7 +145,7 @@ describe('NotificationsPage', () => {
     expect(api.test).toHaveBeenCalledWith('ntfy');
     expect(success).toHaveBeenCalledWith('Test message sent');
 
-    api.test.mockResolvedValue({ sent: false, problem: 'unreachable' } as never);
+    api.test.mockReturnValue(of<AlertTestResponse>({ sent: false, problem: 'unreachable' }));
     const error = vi.spyOn(toast, 'error');
     await click(card('ntfy-title'), 'Send a test');
     expect(error).toHaveBeenCalledWith("The test message couldn't be sent", {

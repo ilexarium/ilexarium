@@ -8,8 +8,23 @@ import {
   withState,
 } from '@ngrx/signals';
 import type { AiModel, AiStatus, Chat, ChatMessage, ChatSummary } from '@laris/shared';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import type { Subscription } from 'rxjs';
+import {
+  catchError,
+  EMPTY,
+  exhaustMap,
+  filter,
+  finalize,
+  firstValueFrom,
+  forkJoin,
+  pipe,
+  Subject,
+  type Subscription,
+  switchMap,
+  takeUntil,
+  tap,
+} from 'rxjs';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
 import { Translator } from '../../../core/i18n/translator';
 import { readStored, writeStored } from '../../../core/storage/browser-storage';
@@ -61,8 +76,8 @@ export const ChatPageStore = signalStore(
       let answer: Subscription | null = null;
       /** Settles `send()`'s promise while the message isn't accepted yet (no `chat` line). */
       let unaccepted: ((error?: unknown) => void) | null = null;
-      /** The chat asked for last: an earlier one answering later is ignored. */
-      let opening: string | null = null;
+      /** A message started a new chat: a chat still being opened is dropped. */
+      const started = new Subject<void>();
 
       /** A model that is installed: the wished one, else the last chosen here, else the first. */
       const pick = (wished: string | null): string | null => {
@@ -103,45 +118,51 @@ export const ChatPageStore = signalStore(
       };
 
       return {
-        async load(): Promise<void> {
-          try {
-            const status = await assistantApi.status();
-            patchState(store, { status });
-            if (status.state !== 'ready') return;
-            const [{ models }, { chats }] = await Promise.all([
-              assistantApi.models(),
-              assistantApi.chats(),
-            ]);
-            patchState(store, { models, chats });
-            patchState(store, { model: pick(store.chat()?.model ?? null) });
-          } catch (error) {
-            failed('assistant.loadFailed', error);
-          }
-        },
+        load: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              assistantApi.status().pipe(
+                tap((status) => patchState(store, { status })),
+                filter((status) => status.state === 'ready'),
+                switchMap(() => forkJoin([assistantApi.models(), assistantApi.chats()])),
+                tap(([{ models }, { chats }]) => {
+                  patchState(store, { models, chats });
+                  patchState(store, { model: pick(store.chat()?.model ?? null) });
+                }),
+                catchError((error: unknown) => {
+                  failed('assistant.loadFailed', error);
+                  return EMPTY;
+                }),
+              ),
+            ),
+          ),
+        ),
 
-        /** Opens a saved chat, or (null) starts a new one. */
-        async open(id: string | null): Promise<void> {
-          // Already open: the URL just caught up with a new chat (its answer goes on).
-          if (id && store.chat()?.id === id) return;
-          stop();
-          opening = id;
-          if (!id) {
-            patchState(store, { chat: null, loadingChat: false });
-            return;
-          }
-          patchState(store, { loadingChat: true });
-          try {
-            const chat = await assistantApi.chat(id);
-            if (opening !== id) return; // another chat was opened meanwhile
-            patchState(store, { chat, model: pick(chat.model) });
-          } catch (error) {
-            if (opening !== id) return;
-            patchState(store, { chat: null });
-            failed('assistant.openFailed', error);
-          } finally {
-            if (opening === id) patchState(store, { loadingChat: false });
-          }
-        },
+        /** Opens a saved chat, or (null) starts a new one; another one asked for meanwhile wins. */
+        open: rxMethod<string | null>(
+          pipe(
+            // Already open: the URL just caught up with a new chat (its answer goes on).
+            filter((id) => !id || store.chat()?.id !== id),
+            tap(() => stop()),
+            switchMap((id) => {
+              if (!id) {
+                patchState(store, { chat: null, loadingChat: false });
+                return EMPTY;
+              }
+              patchState(store, { loadingChat: true });
+              return assistantApi.chat(id).pipe(
+                takeUntil(started),
+                tap((chat) => patchState(store, { chat, model: pick(chat.model) })),
+                catchError((error: unknown) => {
+                  patchState(store, { chat: null });
+                  failed('assistant.openFailed', error);
+                  return EMPTY;
+                }),
+                finalize(() => patchState(store, { loadingChat: false })),
+              );
+            }),
+          ),
+        ),
 
         setModel(model: string): void {
           patchState(store, { model });
@@ -173,7 +194,7 @@ export const ChatPageStore = signalStore(
                         chat: { ...chat, messages: [...chat.messages, event.question] },
                         chats: [event.chat, ...store.chats().filter((c) => c.id !== event.chat.id)],
                       });
-                      opening = event.chat.id;
+                      started.next();
                       unaccepted = null;
                       resolve();
                       break;
@@ -217,7 +238,7 @@ export const ChatPageStore = signalStore(
 
         async remove(id: string): Promise<boolean> {
           try {
-            await assistantApi.removeChat(id);
+            await firstValueFrom(assistantApi.removeChat(id));
           } catch (error) {
             failed('assistant.removeChatFailed', error);
             return false;
@@ -231,7 +252,7 @@ export const ChatPageStore = signalStore(
   ),
   withHooks((store) => ({
     onInit() {
-      void store.load();
+      store.load();
     },
     onDestroy() {
       store.stop();

@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { CatalogEntrySummary, Container, InstalledService, Job } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsStore } from '../../../core/backups/backups-store';
@@ -77,8 +78,8 @@ async function render() {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   const api = {
-    catalog: vi.fn(async () => catalog),
-    remove: vi.fn(async () => ({ jobId: 'j2' })),
+    catalog: vi.fn(() => of(catalog)),
+    remove: vi.fn(() => of({ jobId: 'j2' })),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -253,8 +254,10 @@ describe('ServicesPage', () => {
   it('says in plain words when a removal can’t start', async () => {
     const error = vi.spyOn(toast, 'error').mockReturnValue(0);
     const { el, services, api } = await render();
-    api.remove.mockRejectedValueOnce(
-      new HttpErrorResponse({ status: 409, error: { message: 'x', code: 'busy' } }),
+    api.remove.mockReturnValueOnce(
+      throwError(
+        () => new HttpErrorResponse({ status: 409, error: { message: 'x', code: 'busy' } }),
+      ),
     );
     await services([immich()]);
     [...el.querySelectorAll<HTMLButtonElement>('button')]

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import type { PublicUser } from '@laris/shared';
+import { of } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { ProfileApi } from '../../../core/profile/profile-api';
@@ -11,7 +12,7 @@ describe('ProfilePage', () => {
 
   async function setup(user: PublicUser = OWNER) {
     const auth = fakeAuthApi({ user });
-    const profiles = { update: vi.fn(async () => ({ user: { ...user, language: 'de' } })) };
+    const profiles = { update: vi.fn(() => of({ user: { ...user, language: 'de' } })) };
     TestBed.configureTestingModule({
       providers: [provideRouter([]), auth.provider, { provide: ProfileApi, useValue: profiles }],
     });

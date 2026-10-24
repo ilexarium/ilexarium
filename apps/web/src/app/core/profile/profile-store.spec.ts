@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import type { Language } from '@laris/i18n';
 import type { ProfileUpdate } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { LanguageService } from '../i18n/language';
@@ -18,7 +19,7 @@ async function setup(signedIn = true) {
     setLanguage: vi.fn(async (next: Language) => language.set(next)),
   };
   const api = {
-    update: vi.fn(async (body: ProfileUpdate) => ({ user: { ...OWNER, ...body } })),
+    update: vi.fn((body: ProfileUpdate) => of({ user: { ...OWNER, ...body } })),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -69,7 +70,7 @@ describe('ProfileStore.chooseLanguage', () => {
   it('keeps showing it, and says so, when the account can’t be updated', async () => {
     const { store, languages, api } = await setup();
     const error = vi.spyOn(toast, 'error');
-    api.update.mockRejectedValueOnce(new HttpErrorResponse({ status: 0 }));
+    api.update.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
     await store.chooseLanguage('de');
     expect(languages.language()).toBe('de');
     expect(error).toHaveBeenCalledWith(

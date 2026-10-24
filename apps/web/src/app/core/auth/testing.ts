@@ -1,4 +1,5 @@
 import type { PublicUser } from '@laris/shared';
+import { of, throwError } from 'rxjs';
 import { AuthApi } from './auth-api';
 import { SIGN_OUT_CHANNEL } from './sign-out-channel';
 
@@ -16,17 +17,15 @@ export const OWNER: PublicUser = {
 export function fakeAuthApi(
   server: { needsSetup?: boolean; user?: PublicUser | null; down?: boolean } = {},
 ) {
-  const fail = () => Promise.reject(new Error('network error'));
+  const fail = () => throwError(() => new Error('network error'));
   const api = {
-    status: vi.fn(() =>
-      server.down ? fail() : Promise.resolve({ needsSetup: !!server.needsSetup }),
-    ),
-    me: vi.fn(() => (server.down ? fail() : Promise.resolve({ user: server.user ?? null }))),
-    logout: vi.fn(() => Promise.resolve(null)),
+    status: vi.fn(() => (server.down ? fail() : of({ needsSetup: !!server.needsSetup }))),
+    me: vi.fn(() => (server.down ? fail() : of({ user: server.user ?? null }))),
+    logout: vi.fn(() => of(null)),
     login: vi.fn(),
     setup: vi.fn(),
     changePassword: vi.fn(),
-    logoutEverywhere: vi.fn(() => Promise.resolve(null)),
+    logoutEverywhere: vi.fn(() => of(null)),
   };
   return { api, provider: { provide: AuthApi, useValue: api }, server };
 }

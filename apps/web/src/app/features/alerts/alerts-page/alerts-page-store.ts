@@ -1,6 +1,8 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
+import { catchError, EMPTY, exhaustMap, finalize, mergeMap, pipe, tap } from 'rxjs';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -27,33 +29,49 @@ export const AlertsPageStore = signalStore(
       authStore = inject(AuthStore),
       translator = inject(Translator),
     ) => ({
-      async load(): Promise<void> {
-        try {
-          alertsStore.fill(await alertsApi.status());
-        } catch {
-          // The topic brings them when it can; the page shows its loading state until then.
-        }
-      },
+      load: rxMethod<void>(
+        pipe(
+          exhaustMap(() =>
+            alertsApi.status().pipe(
+              tap((status) => alertsStore.fill(status)),
+              // The topic brings them when it can; the page shows its loading state until then.
+              catchError(() => EMPTY),
+            ),
+          ),
+        ),
+      ),
 
       /** Stops an open alert's reminders. */
-      async acknowledge(id: string): Promise<void> {
-        patchState(store, { pending: [...store.pending(), id] });
-        try {
-          await alertsApi.acknowledge(id);
-          alertsStore.acknowledged(id, authStore.user()?.username ?? '', new Date().toISOString());
-        } catch (error) {
-          toast.error(translator.t('alerts.acknowledgeFailed'), {
-            description: translator.t(...apiErrorText(error)),
-          });
-        } finally {
-          patchState(store, { pending: store.pending().filter((p) => p !== id) });
-        }
-      },
+      acknowledge: rxMethod<string>(
+        pipe(
+          tap((id) => patchState(store, { pending: [...store.pending(), id] })),
+          mergeMap((id) =>
+            alertsApi.acknowledge(id).pipe(
+              tap(() =>
+                alertsStore.acknowledged(
+                  id,
+                  authStore.user()?.username ?? '',
+                  new Date().toISOString(),
+                ),
+              ),
+              catchError((error: unknown) => {
+                toast.error(translator.t('alerts.acknowledgeFailed'), {
+                  description: translator.t(...apiErrorText(error)),
+                });
+                return EMPTY;
+              }),
+              finalize(() =>
+                patchState(store, { pending: store.pending().filter((p) => p !== id) }),
+              ),
+            ),
+          ),
+        ),
+      ),
     }),
   ),
   withHooks((store, alertsStore = inject(AlertsStore)) => ({
     onInit() {
-      if (!alertsStore.loaded()) void store.load();
+      if (!alertsStore.loaded()) store.load();
     },
   })),
 );

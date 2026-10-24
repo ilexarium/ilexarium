@@ -21,7 +21,7 @@
         [destinationPath]="plan.destination"
         [labels]="labels()"
         [pending]="backupsPageStore.pending().includes('run')"
-        (runNow)="backupsPageStore.runNow()"
+        (runNow)="backupsPageStore.runNow(undefined)"
       />
     }
     @if (restore(); as latest) {
@@ -43,8 +43,8 @@
       [folderListing]="backupsPageStore.folders()"
       (runNow)="backupsPageStore.runNow($event)"
       (restore)="openRestore($event)"
-      (setFolders)="backupsPageStore.setFolders($event.itemId, $event.excludedFields)"
-      (remove)="backupsPageStore.removeItem($event.itemId, $event.deleteArchives)"
+      (setFolders)="backupsPageStore.setFolders($event)"
+      (remove)="backupsPageStore.removeItem($event)"
       (addService)="backupsPageStore.addService($event)"
       (addFolder)="backupsPageStore.addFolder($event)"
       (browse)="backupsPageStore.browse($event)"

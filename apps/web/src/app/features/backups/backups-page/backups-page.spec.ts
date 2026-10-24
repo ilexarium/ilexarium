@@ -8,6 +8,7 @@ import type {
   CatalogEntrySummary,
   InstalledService,
 } from '@laris/shared';
+import { defer, of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -146,23 +147,27 @@ async function render(start: BackupPlan | null) {
   const sockets = fakeSockets();
   let current = start;
   const api = {
-    plan: vi.fn(async () => ({ plan: current })),
-    destinations: vi.fn(async () => ({
-      destinations: [
-        disk(),
-        disk({ mountPoint: '/media/alice/stick', filesystem: 'vfat', supported: false }),
-        disk({ mountPoint: '/mnt/data', sameDiskAsData: true }),
-      ],
-    })),
-    runs: vi.fn(async () => ({ runs: [] })),
-    restores: vi.fn(async () => ({ restores: [] })),
-    folders: vi.fn(async () => ({ path: null, parent: null, readable: true, folders: [] })),
-    setup: vi.fn(async () => {
-      current = plan();
-      return { passphrase: PASSPHRASE };
-    }),
-    runNow: vi.fn(async () => ({ runId: 'r1' })),
-    passphrase: vi.fn(async () => ({ passphrase: PASSPHRASE })),
+    plan: vi.fn(() => of({ plan: current })),
+    destinations: vi.fn(() =>
+      of({
+        destinations: [
+          disk(),
+          disk({ mountPoint: '/media/alice/stick', filesystem: 'vfat', supported: false }),
+          disk({ mountPoint: '/mnt/data', sameDiskAsData: true }),
+        ],
+      }),
+    ),
+    runs: vi.fn(() => of({ runs: [] })),
+    restores: vi.fn(() => of({ restores: [] })),
+    folders: vi.fn(() => of({ path: null, parent: null, readable: true, folders: [] })),
+    setup: vi.fn(() =>
+      defer(() => {
+        current = plan();
+        return of({ passphrase: PASSPHRASE });
+      }),
+    ),
+    runNow: vi.fn(() => of({ runId: 'r1' })),
+    passphrase: vi.fn(() => of({ passphrase: PASSPHRASE })),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -170,7 +175,7 @@ async function render(start: BackupPlan | null) {
       auth.provider,
       sockets.provider,
       { provide: BackupsApi, useValue: api },
-      { provide: ServicesApi, useValue: { catalog: vi.fn(async () => catalog) } },
+      { provide: ServicesApi, useValue: { catalog: vi.fn(() => of(catalog)) } },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -251,8 +256,14 @@ describe('BackupsPage before setup', () => {
 
   it('shows the server’s refusal', async () => {
     const { el, api, fixture, button } = await render(null);
-    api.setup.mockRejectedValueOnce(
-      new HttpErrorResponse({ status: 409, error: { message: 'x', code: 'repository_exists' } }),
+    api.setup.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: { message: 'x', code: 'repository_exists' },
+          }),
+      ),
     );
     el.querySelector<HTMLInputElement>('input[value="/mnt/usb"]')!.click();
     button('Set up backups').click();
@@ -333,14 +344,17 @@ describe('BackupsPage with a plan', () => {
     button('Show the passphrase again').click();
     await vi.waitFor(() => expect(dialog()).not.toBeNull());
     const password = dialog()!.querySelector<HTMLInputElement>('#confirm-password')!;
-    api.passphrase.mockRejectedValueOnce(
-      new HttpErrorResponse({
-        status: 400,
-        error: {
-          message: 'Validation failed',
-          errors: [{ field: 'password', code: 'wrong_password', message: 'x' }],
-        },
-      }),
+    api.passphrase.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 400,
+            error: {
+              message: 'Validation failed',
+              errors: [{ field: 'password', code: 'wrong_password', message: 'x' }],
+            },
+          }),
+      ),
     );
     password.value = 'nope';
     password.dispatchEvent(new Event('input'));

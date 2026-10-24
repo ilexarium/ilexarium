@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Process, ProcessesUpdate } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { ProcessesApi } from '../../../core/processes/processes-api';
@@ -75,7 +76,7 @@ const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]')
 async function render() {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
-  const api = { signal: vi.fn(async () => undefined) };
+  const api = { signal: vi.fn(() => of(undefined)) };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
@@ -239,8 +240,14 @@ describe('ProcessesPage', () => {
   it('reports a refusal in a toast', async () => {
     const { el, api, push, fixture } = await render();
     await push(update([PYTHON]));
-    api.signal.mockRejectedValue(
-      new HttpErrorResponse({ status: 404, error: { message: 'x', code: 'process_not_found' } }),
+    api.signal.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 404,
+            error: { message: 'x', code: 'process_not_found' },
+          }),
+      ),
     );
     const error = vi.spyOn(toast, 'error');
     el.querySelector<HTMLButtonElement>('button[aria-label="End python3 (PID 4312)"]')!.click();

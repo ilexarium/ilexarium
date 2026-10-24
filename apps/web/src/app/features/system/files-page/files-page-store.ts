@@ -9,8 +9,20 @@ import {
   type LinuxSession,
   type LinuxSignInRequest,
 } from '@laris/shared';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { lastValueFrom, tap } from 'rxjs';
+import {
+  catchError,
+  EMPTY,
+  exhaustMap,
+  finalize,
+  firstValueFrom,
+  lastValueFrom,
+  mergeMap,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
@@ -61,48 +73,69 @@ export const FilesPageStore = signalStore(
     };
     const folder = () => store.list()?.path ?? store.session()?.home ?? '/';
 
-    const methods = {
-      async check(): Promise<void> {
-        try {
-          const { session } = await filesApi.session();
-          patchState(store, { session, checked: true });
-          if (session) await methods.open(session.home);
-        } catch (error) {
-          patchState(store, { checked: true });
-          failed(error);
-        }
-      },
+    // A click on another folder while one loads: the latest wins.
+    const open = rxMethod<string>(
+      pipe(
+        tap(() => patchState(store, { loading: true })),
+        switchMap((path) =>
+          filesApi.list(path).pipe(
+            tap((list) => patchState(store, { list, loading: false })),
+            catchError((error: unknown) => {
+              patchState(store, { loading: false });
+              failed(error);
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    );
+    const refresh = () => open(folder());
+
+    return {
+      check: rxMethod<void>(
+        pipe(
+          exhaustMap(() =>
+            filesApi.session().pipe(
+              tap(({ session }) => {
+                patchState(store, { session, checked: true });
+                if (session) open(session.home);
+              }),
+              catchError((error: unknown) => {
+                patchState(store, { checked: true });
+                failed(error);
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      ),
 
       /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
       async signIn(request: LinuxSignInRequest): Promise<void> {
-        const session = await filesApi.signIn(request);
+        const session = await firstValueFrom(filesApi.signIn(request));
         patchState(store, { session });
-        await methods.open(session.home);
+        open(session.home);
       },
 
-      async signOut(): Promise<void> {
-        try {
-          await filesApi.signOut();
-          patchState(store, { session: null, list: null, uploads: [] });
-          toast.success(translator.t('files.closed'));
-        } catch (error) {
-          failed(error);
-        }
-      },
+      signOut: rxMethod<void>(
+        pipe(
+          exhaustMap(() =>
+            filesApi.signOut().pipe(
+              tap(() => {
+                patchState(store, { session: null, list: null, uploads: [] });
+                toast.success(translator.t('files.closed'));
+              }),
+              catchError((error: unknown) => {
+                failed(error);
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      ),
 
-      async open(path: string): Promise<void> {
-        patchState(store, { loading: true });
-        try {
-          patchState(store, { list: await filesApi.list(path), loading: false });
-        } catch (error) {
-          patchState(store, { loading: false });
-          failed(error);
-        }
-      },
-
-      refresh(): Promise<void> {
-        return methods.open(folder());
-      },
+      open,
+      refresh,
 
       downloadUrl(entry: FileEntry): string {
         return filesApi.downloadUrl(joinPath(folder(), entry.name));
@@ -110,9 +143,9 @@ export const FilesPageStore = signalStore(
 
       async newFolder(name: string): Promise<boolean> {
         try {
-          await filesApi.newFolder(folder(), name);
+          await firstValueFrom(filesApi.newFolder(folder(), name));
           toast.success(translator.t('files.created', { name }));
-          await methods.refresh();
+          refresh();
           return true;
         } catch (error) {
           failed(error);
@@ -124,9 +157,9 @@ export const FilesPageStore = signalStore(
         const from = joinPath(folder(), entry.name);
         patchState(store, { pending: [...store.pending(), from] });
         try {
-          await filesApi.rename(from, renameTarget(folder(), input));
+          await firstValueFrom(filesApi.rename(from, renameTarget(folder(), input)));
           toast.success(translator.t('files.renamed'));
-          await methods.refresh();
+          refresh();
           return true;
         } catch (error) {
           failed(error);
@@ -139,27 +172,33 @@ export const FilesPageStore = signalStore(
       /** What deleting it would remove (for the confirmation); a failure says why in a toast. */
       async summary(entry: FileEntry): Promise<FileSummary> {
         try {
-          return await filesApi.summary(joinPath(folder(), entry.name));
+          return await firstValueFrom(filesApi.summary(joinPath(folder(), entry.name)));
         } catch (error) {
           failed(error);
           throw error;
         }
       },
 
-      async delete(entry: FileEntry): Promise<void> {
-        const path = joinPath(folder(), entry.name);
-        patchState(store, { pending: [...store.pending(), path] });
-        try {
-          await filesApi.delete(path);
-          toast.success(translator.t('files.deleted', { name: entry.name }));
-        } catch (error) {
-          failed(error);
-        } finally {
-          patchState(store, { pending: store.pending().filter((p) => p !== path) });
-          // Not after the Linux session ended (the sign-in is shown).
-          if (store.session()) await methods.refresh();
-        }
-      },
+      delete: rxMethod<FileEntry>(
+        pipe(
+          mergeMap((entry) => {
+            const path = joinPath(folder(), entry.name);
+            patchState(store, { pending: [...store.pending(), path] });
+            return filesApi.delete(path).pipe(
+              tap(() => toast.success(translator.t('files.deleted', { name: entry.name }))),
+              catchError((error: unknown) => {
+                failed(error);
+                return EMPTY;
+              }),
+              finalize(() => {
+                patchState(store, { pending: store.pending().filter((p) => p !== path) });
+                // Not after the Linux session ended (the sign-in is shown).
+                if (store.session()) refresh();
+              }),
+            );
+          }),
+        ),
+      ),
 
       /**
        * Uploads files into the folder shown, one after another. Returns the ones whose name is
@@ -193,15 +232,14 @@ export const FilesPageStore = signalStore(
             }
           }
         }
-        if (files.length > taken.length) await methods.refresh();
+        if (files.length > taken.length) refresh();
         return taken;
       },
     };
-    return methods;
   }),
   withHooks((store) => ({
     onInit() {
-      void store.check();
+      store.check();
     },
   })),
 );

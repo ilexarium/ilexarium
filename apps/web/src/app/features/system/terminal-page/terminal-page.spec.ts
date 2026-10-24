@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { LinuxSession } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
@@ -66,11 +67,12 @@ async function render(session: LinuxSession | null = ANNA, sessionCheckFails = f
   const auth = fakeAuthApi({ user: OWNER });
   const sockets: FakeSocket[] = [];
   const files = {
-    session: vi.fn(async () => {
-      if (sessionCheckFails) throw new HttpErrorResponse({ status: 503 });
-      return { session };
-    }),
-    signIn: vi.fn(async () => ANNA),
+    session: vi.fn(() =>
+      sessionCheckFails
+        ? throwError(() => new HttpErrorResponse({ status: 503 }))
+        : of({ session }),
+    ),
+    signIn: vi.fn(() => of(ANNA)),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -92,7 +94,7 @@ async function render(session: LinuxSession | null = ANNA, sessionCheckFails = f
     add: { imports: [FakeTerminalView] },
   });
   const ticket = vi.spyOn(TestBed.inject(TerminalApi), 'ticket');
-  ticket.mockResolvedValue({ ticket: 'tkt' });
+  ticket.mockReturnValue(of({ ticket: 'tkt' }));
   await TestBed.inject(AuthStore).load();
   const fixture = TestBed.createComponent(TerminalPage);
   await fixture.whenStable();
@@ -164,14 +166,17 @@ describe('TerminalPage', () => {
 
   it('a wrong app password shows on the field; no socket', async () => {
     const { el, ticket, sockets, fixture } = await render();
-    ticket.mockRejectedValueOnce(
-      new HttpErrorResponse({
-        status: 400,
-        error: {
-          message: 'Validation failed',
-          errors: [{ field: 'password', code: 'wrong_password', message: 'x' }],
-        },
-      }),
+    ticket.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 400,
+            error: {
+              message: 'Validation failed',
+              errors: [{ field: 'password', code: 'wrong_password', message: 'x' }],
+            },
+          }),
+      ),
     );
     const input = el.querySelector<HTMLInputElement>('#terminal-password')!;
     input.value = 'nope';

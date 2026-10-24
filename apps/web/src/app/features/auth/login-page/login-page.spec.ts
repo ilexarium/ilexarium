@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
@@ -60,7 +61,7 @@ describe('LoginPage', () => {
     const { fixture, api, navigate, store } = await render({
       query: { returnUrl: '/settings/account' },
     });
-    api.login.mockResolvedValue({ user: OWNER });
+    api.login.mockReturnValue(of({ user: OWNER }));
     typeInto(fixture, 'username', 'owner');
     typeInto(fixture, 'password', 'correct horse battery');
     await submit(fixture);
@@ -74,7 +75,7 @@ describe('LoginPage', () => {
 
   it('never follows an external return URL', async () => {
     const { fixture, api, navigate } = await render({ query: { returnUrl: '//evil.example' } });
-    api.login.mockResolvedValue({ user: OWNER });
+    api.login.mockReturnValue(of({ user: OWNER }));
     typeInto(fixture, 'username', 'owner');
     typeInto(fixture, 'password', 'x');
     await submit(fixture);
@@ -83,11 +84,14 @@ describe('LoginPage', () => {
 
   it('shows the server error for wrong credentials and stays put', async () => {
     const { fixture, api, navigate } = await render();
-    api.login.mockRejectedValue(
-      new HttpErrorResponse({
-        status: 401,
-        error: { message: 'Invalid username or password', code: 'invalid_credentials' },
-      }),
+    api.login.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 401,
+            error: { message: 'Invalid username or password', code: 'invalid_credentials' },
+          }),
+      ),
     );
     typeInto(fixture, 'username', 'owner');
     typeInto(fixture, 'password', 'wrong');

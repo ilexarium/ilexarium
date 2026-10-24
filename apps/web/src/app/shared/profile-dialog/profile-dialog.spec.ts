@@ -3,6 +3,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { ProfileUpdate, PublicUser } from '@laris/shared';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
 import { ProfileApi } from '../../core/profile/profile-api';
@@ -47,15 +48,21 @@ describe('ProfileDialog', () => {
 
   async function setup(user: PublicUser = SAVED) {
     api = {
-      update: vi.fn(async (body: ProfileUpdate) => ({
-        user: { ...TestBed.inject(AuthStore).user()!, ...body },
-      })),
-      setAvatar: vi.fn(async () => ({
-        user: { ...TestBed.inject(AuthStore).user()!, avatar: '/api/profile/avatar?v=2' },
-      })),
-      removeAvatar: vi.fn(async () => ({
-        user: { ...TestBed.inject(AuthStore).user()!, avatar: null },
-      })),
+      update: vi.fn((body: ProfileUpdate) =>
+        of({
+          user: { ...TestBed.inject(AuthStore).user()!, ...body },
+        }),
+      ),
+      setAvatar: vi.fn(() =>
+        of({
+          user: { ...TestBed.inject(AuthStore).user()!, avatar: '/api/profile/avatar?v=2' },
+        }),
+      ),
+      removeAvatar: vi.fn(() =>
+        of({
+          user: { ...TestBed.inject(AuthStore).user()!, avatar: null },
+        }),
+      ),
     };
     encode = vi.fn(async () => DRAWN);
     TestBed.configureTestingModule({
@@ -173,7 +180,7 @@ describe('ProfileDialog', () => {
     const { fixture, chooseFile, save, typeInto } = await setup();
     await chooseFile(new File(['photo'], 'me.jpg'));
     typeInto(fixture, 'displayName', 'Anna Berg');
-    api.update.mockRejectedValueOnce(new HttpErrorResponse({ status: 0 }));
+    api.update.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
     await save();
     expect(fixture.componentInstance.closings).toBe(0);
     expect(TestBed.inject(AuthStore).user()?.avatar).toBe('/api/profile/avatar?v=2');
@@ -187,8 +194,11 @@ describe('ProfileDialog', () => {
 
   it('shows the server’s refusal of the picture and stays open', async () => {
     const { fixture, dialog, chooseFile, save } = await setup();
-    api.setAvatar.mockRejectedValueOnce(
-      new HttpErrorResponse({ status: 400, error: { message: 'x', code: 'invalid_picture' } }),
+    api.setAvatar.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({ status: 400, error: { message: 'x', code: 'invalid_picture' } }),
+      ),
     );
     await chooseFile(new File(['photo'], 'me.png'));
     await save();

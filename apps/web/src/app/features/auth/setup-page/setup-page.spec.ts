@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
@@ -44,7 +45,7 @@ describe('SetupPage', () => {
 
   it('creates the account (without sending the confirmation) and goes home', async () => {
     const { fixture, api, navigate, store } = await render({ url: '/setup#token=K7QD-9F2M' });
-    api.setup.mockResolvedValue({ user: OWNER });
+    api.setup.mockReturnValue(of({ user: OWNER }));
     typeInto(fixture, 'username', 'owner');
     typeInto(fixture, 'password', 'correct horse battery');
     typeInto(fixture, 'confirmPassword', 'correct horse battery');
@@ -70,11 +71,14 @@ describe('SetupPage', () => {
 
   it('shows the server error for a wrong code', async () => {
     const { fixture, api } = await render({ url: '/setup#token=WRONG' });
-    api.setup.mockRejectedValue(
-      new HttpErrorResponse({
-        status: 403,
-        error: { message: 'This setup code is not valid', code: 'invalid_setup_token' },
-      }),
+    api.setup.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 403,
+            error: { message: 'This setup code is not valid', code: 'invalid_setup_token' },
+          }),
+      ),
     );
     typeInto(fixture, 'username', 'owner');
     typeInto(fixture, 'password', 'correct horse battery');
