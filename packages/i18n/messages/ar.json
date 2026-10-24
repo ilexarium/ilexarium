@@ -1029,6 +1029,7 @@
       "idle": "خاملة",
       "other": "أخرى"
     },
+    "kernel": "خيط نواة",
     "container": "الحاوية {{name}}",
     "unknownContainer": "داخل حاوية",
     "commandLine": "سطر الأوامر",
