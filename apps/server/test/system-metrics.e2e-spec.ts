@@ -44,4 +44,15 @@ describe('system topic (e2e)', () => {
     client.send({ event: 'unsubscribe', data: { topic: 'system' } });
     await vi.waitFor(() => expect(metrics.collecting).toBe(false));
   });
+
+  it('tells a signed-in browser what the machine is (the top bar shows its kernel)', async () => {
+    const { origin, cookie } = client.session!;
+    const anonymous = await fetch(`${origin}/api/system/host`);
+    expect(anonymous.status).toBe(401);
+    const host = await fetch(`${origin}/api/system/host`, { headers: { cookie } });
+    expect(host.status).toBe(200);
+    const body = (await host.json()) as { kernel: string; cpuCores: number };
+    expect(body.kernel).toBeTruthy();
+    expect(body.cpuCores).toBeGreaterThan(0);
+  });
 });

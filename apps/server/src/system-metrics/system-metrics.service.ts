@@ -133,7 +133,8 @@ export class SystemMetricsService implements TopicSource<'system'> {
     };
   }
 
-  private host(): Promise<HostInfo> {
+  /** What the machine is (name, OS, kernel, CPU): read once — it doesn't change while running. */
+  host(): Promise<HostInfo> {
     this.hostInfo ??= this.reader.hostInfo();
     return this.hostInfo;
   }
