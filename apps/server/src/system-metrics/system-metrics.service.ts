@@ -133,9 +133,12 @@ export class SystemMetricsService implements TopicSource<'system'> {
     };
   }
 
-  /** What the machine is (name, OS, kernel, CPU): read once — it doesn't change while running. */
+  /** Read once: it doesn't change while running (a failed read is tried again next time). */
   host(): Promise<HostInfo> {
-    this.hostInfo ??= this.reader.hostInfo();
+    this.hostInfo ??= this.reader.hostInfo().catch((error: unknown) => {
+      this.hostInfo = null;
+      throw error;
+    });
     return this.hostInfo;
   }
 

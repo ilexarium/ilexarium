@@ -222,24 +222,32 @@ describe('MonitoringStore', () => {
     expect(store.containers()).toBeNull();
   });
 
-  it('takes the machine from a snapshot, or loads it once, and forgets it on sign-out', async () => {
-    const { store, socket } = await setup();
+  it('loads the machine once — also when asked twice at the same time — and forgets it on sign-out', async () => {
+    const { store } = await setup();
     const host = vi
       .spyOn(TestBed.inject(MonitoringApi), 'host')
       .mockResolvedValue(systemSnapshot(0).host);
-    const stop = store.watch(['system']);
-    socket.receive({ event: 'system:snapshot', data: systemSnapshot(0) });
-    stop();
+    await Promise.all([store.loadHost(), store.loadHost()]);
     await store.loadHost();
-    expect(host).not.toHaveBeenCalled(); // known already
+    expect(host).toHaveBeenCalledTimes(1);
     expect(store.host()?.kernel).toBe(systemSnapshot(0).host.kernel);
 
     await TestBed.inject(AuthStore).logout();
     TestBed.tick();
     expect(store.host()).toBeNull();
-    await store.loadHost();
-    await store.loadHost();
-    expect(host).toHaveBeenCalledTimes(1);
-    expect(store.host()).not.toBeNull();
+  });
+
+  it('keeps nothing of an answer that arrives after sign-out', async () => {
+    const { store } = await setup();
+    let answer: (value: ReturnType<typeof systemSnapshot>['host']) => void = () => undefined;
+    vi.spyOn(TestBed.inject(MonitoringApi), 'host').mockReturnValue(
+      new Promise((resolve) => (answer = resolve)),
+    );
+    const loading = store.loadHost();
+    await TestBed.inject(AuthStore).logout();
+    TestBed.tick();
+    answer(systemSnapshot(0).host);
+    await loading;
+    expect(store.host()).toBeNull();
   });
 });

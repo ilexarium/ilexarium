@@ -7,7 +7,8 @@ import { RealtimeService } from '../../core/realtime/realtime-service';
 /**
  * Whether live data is flowing: a dot (beating while live; for people who reduce motion, fading instead)
  * plus a label (hidden on phones, but kept for screen readers, which hear changes through
- * `role="status"`). While live, hovering the label shows the machine's kernel — extra, also on the dashboard.
+ * `role="status"`). While live, hovering the label shows the machine's kernel (mouse only: it's
+ * extra, and on the dashboard too).
  */
 @Component({
   selector: 'laris-connection-status',
@@ -24,7 +25,7 @@ export class ConnectionStatus {
   private readonly translator = inject(Translator);
   private readonly monitoringStore = inject(MonitoringStore);
   protected readonly label = computed(() => this.translator.t(`connection.${this.status()}`));
-  /** The kernel as the server reports it — only while live; empty otherwise (no tooltip then). */
+  // Only while live; empty otherwise, and the tooltip is off then.
   protected readonly kernel = computed(() =>
     this.status() === 'live' ? (this.monitoringStore.host()?.kernel ?? '') : '',
   );
