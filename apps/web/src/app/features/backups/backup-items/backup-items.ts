@@ -16,7 +16,13 @@ import { HlmCardImports } from '@ui/card';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
 import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { Formatter } from '../../../shared/format/formatter';
-import type { BackupableService, ItemLabel, ItemRow } from '../backups.model';
+import type {
+  BackupableService,
+  ItemFolders,
+  ItemLabel,
+  ItemRemoval,
+  ItemRow,
+} from '../backups.model';
 import { FolderPicker } from '../folder-picker/folder-picker';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 import { RUN_STATUS_TONES } from '../backups.constants';
@@ -64,8 +70,8 @@ export class BackupItems {
 
   readonly runNow = output<string>();
   readonly restore = output<ItemRow>();
-  readonly setFolders = output<{ itemId: string; excludedFields: string[] }>();
-  readonly remove = output<{ itemId: string; deleteArchives: boolean }>();
+  readonly setFolders = output<ItemFolders>();
+  readonly remove = output<ItemRemoval>();
   readonly addService = output<string>();
   readonly addFolder = output<string>();
   readonly browse = output<string | undefined>();

@@ -25,6 +25,18 @@ export interface RestoreChoice {
   target: BackupRestoreTarget;
 }
 
+/** An item's folders switched off. */
+export interface ItemFolders {
+  itemId: string;
+  excludedFields: string[];
+}
+
+/** An item out of the plan; `deleteArchives` deletes its backups too. */
+export interface ItemRemoval {
+  itemId: string;
+  deleteArchives: boolean;
+}
+
 /** A setup's items: the services ticked (with folders switched off) and the folders added. */
 export interface SetupItems {
   services: { serviceId: string; excludedFields: string[] }[];

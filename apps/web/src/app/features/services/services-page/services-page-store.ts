@@ -10,7 +10,7 @@ import {
 import { type CatalogEntrySummary, type InstalledService, serviceProject } from '@laris/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, mergeMap, pipe, tap } from 'rxjs';
+import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
@@ -109,20 +109,15 @@ export const ServicesPageStore = signalStore(
     ),
 
     /** Starts the removal (already confirmed); its progress arrives through the topic. */
-    remove: rxMethod<InstalledService>(
-      pipe(
-        mergeMap((service) =>
-          servicesApi.remove(service.id).pipe(
-            catchError((error: unknown) => {
-              toast.error(translator.t('services.remove.failed', { name: service.name }), {
-                description: translator.t(...apiErrorText(error)),
-              });
-              return EMPTY;
-            }),
-          ),
-        ),
-      ),
-    ),
+    async remove(service: InstalledService): Promise<void> {
+      try {
+        await firstValueFrom(servicesApi.remove(service.id));
+      } catch (error) {
+        toast.error(translator.t('services.remove.failed', { name: service.name }), {
+          description: translator.t(...apiErrorText(error)),
+        });
+      }
+    },
   })),
   withHooks(
     (store, servicesStore = inject(ServicesStore), monitoringStore = inject(MonitoringStore)) => {

@@ -173,6 +173,19 @@ describe('FilesPage', () => {
     expect(names()).toContain('Photos');
   });
 
+  it('a folder clicked while a delete is under way stays shown (the reload after it doesn’t win)', async () => {
+    const { fixture, api } = await render();
+    const deleted = new Subject<undefined>();
+    api.delete.mockReturnValueOnce(deleted);
+    const store = fixture.debugElement.injector.get(FilesPageStore);
+    const deleting = store.delete(HOME.entries[2]);
+    store.open('/home/anna/Photos');
+    deleted.next(undefined);
+    deleted.complete();
+    await deleting;
+    expect(store.list()?.path).toBe('/home/anna/Photos');
+  });
+
   it('makes a new folder through the name dialog', async () => {
     const { api, fixture, button } = await render();
     const success = vi.spyOn(toast, 'success');

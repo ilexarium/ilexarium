@@ -36,7 +36,7 @@ describe('ContainerActionsStore', () => {
 
   it('keeps the name left to right inside a right-to-left toast', async () => {
     const { store, success } = await setup({ rtl: true });
-    store.run({ name: 'jellyfin', action: 'stop' });
+    await store.run({ name: 'jellyfin', action: 'stop' });
     // The words are English here (the test's language file); the isolate is what's checked.
     expect(success).toHaveBeenCalledWith('\u2066jellyfin\u2069 stopped');
   });
@@ -45,16 +45,17 @@ describe('ContainerActionsStore', () => {
     const { store, api, success } = await setup();
     const answer = new Subject<null>();
     api.act.mockReturnValueOnce(answer);
-    store.run({ name: 'jellyfin', action: 'stop' });
+    const running = store.run({ name: 'jellyfin', action: 'stop' });
     expect(api.act).toHaveBeenCalledWith('jellyfin', 'stop');
     expect(store.pending()).toEqual(new Map([['jellyfin', 'stop']]));
 
     // A second action for the same container while one runs is ignored.
-    store.run({ name: 'jellyfin', action: 'restart' });
+    await store.run({ name: 'jellyfin', action: 'restart' });
     expect(api.act).toHaveBeenCalledTimes(1);
 
     answer.next(null);
     answer.complete();
+    await running;
     expect(store.pending()).toEqual(new Map());
     expect(success).toHaveBeenCalledWith(`jellyfin stopped`);
   });
@@ -74,7 +75,7 @@ describe('ContainerActionsStore', () => {
   ])('says in plain words why an action failed (%o)', async (response, text) => {
     const { store, api, error } = await setup();
     api.act.mockReturnValueOnce(throwError(() => new HttpErrorResponse(response)));
-    store.run({ name: 'old-app', action: 'start' });
+    await store.run({ name: 'old-app', action: 'start' });
     expect(error).toHaveBeenCalledWith(`Couldn't start old-app`, {
       description: text.replaceAll('’', "'"),
     });
@@ -84,7 +85,7 @@ describe('ContainerActionsStore', () => {
   it('is reset on sign-out', async () => {
     const { store, api } = await setup();
     api.act.mockReturnValueOnce(NEVER);
-    store.run({ name: 'jellyfin', action: 'stop' });
+    void store.run({ name: 'jellyfin', action: 'stop' });
     expect(store.pending().size).toBe(1);
     await TestBed.inject(AuthStore).logout();
     TestBed.tick();

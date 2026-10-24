@@ -10,17 +10,7 @@ import {
 import type { AiLibraryDetail, AiLibraryModel, AiModel, AiPull, AiStatus } from '@laris/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import {
-  catchError,
-  EMPTY,
-  exhaustMap,
-  finalize,
-  firstValueFrom,
-  mergeMap,
-  pipe,
-  switchMap,
-  tap,
-} from 'rxjs';
+import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
 import { Translator } from '../../../core/i18n/translator';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
@@ -129,26 +119,18 @@ export const ModelsPageStore = signalStore(
         }
       },
 
-      remove: rxMethod<string>(
-        pipe(
-          tap((model) => patchState(store, { removing: [...store.removing(), model] })),
-          mergeMap((model) =>
-            assistantApi.removeModel(model).pipe(
-              tap(() => {
-                patchState(store, { models: store.models().filter((m) => m.name !== model) });
-                toast.success(translator.t('assistant.removed', { model }));
-              }),
-              catchError((error: unknown) => {
-                failed('assistant.removeFailed', error, { model });
-                return EMPTY;
-              }),
-              finalize(() =>
-                patchState(store, { removing: store.removing().filter((m) => m !== model) }),
-              ),
-            ),
-          ),
-        ),
-      ),
+      async remove(model: string): Promise<void> {
+        patchState(store, { removing: [...store.removing(), model] });
+        try {
+          await firstValueFrom(assistantApi.removeModel(model));
+          patchState(store, { models: store.models().filter((m) => m.name !== model) });
+          toast.success(translator.t('assistant.removed', { model }));
+        } catch (error) {
+          failed('assistant.removeFailed', error, { model });
+        } finally {
+          patchState(store, { removing: store.removing().filter((m) => m !== model) });
+        }
+      },
 
       async search(text: string): Promise<void> {
         patchState(store, { searching: true, opened: null });

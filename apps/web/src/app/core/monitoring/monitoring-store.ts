@@ -13,7 +13,7 @@ import {
   toContainerHistoryPoint,
   toSystemHistoryPoint,
 } from '@laris/shared';
-import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
+import { catchError, EMPTY, filter, pipe, switchMap, tap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { RealtimeService } from '../realtime/realtime-service';
 import { MonitoringApi } from './monitoring-api';
@@ -75,11 +75,14 @@ export const MonitoringStore = signalStore(
       monitoringApi = inject(MonitoringApi),
       authStore = inject(AuthStore),
     ) => ({
-      /** Once per sign-in (the top bar's kernel); a failure leaves it out until the next one. */
+      /**
+       * Once per sign-in (the top bar's kernel); a failure leaves it out until the next one. A
+       * call while one is asked for (signed in again meanwhile) asks again.
+       */
       loadHost: rxMethod<void>(
         pipe(
           filter(() => !store.host()),
-          exhaustMap(() =>
+          switchMap(() =>
             monitoringApi.host().pipe(
               // Signed out while it was asked for: nothing of it stays.
               tap((host) => {

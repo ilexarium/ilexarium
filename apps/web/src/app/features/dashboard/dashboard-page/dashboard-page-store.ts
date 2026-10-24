@@ -22,7 +22,7 @@ export const DashboardPageStore = signalStore(
   ),
   withMethods((_, containerActionsStore = inject(ContainerActionsStore)) => ({
     act(request: ContainerActionParams): void {
-      containerActionsStore.run(request);
+      void containerActionsStore.run(request);
     },
   })),
   withHooks((_, monitoringStore = inject(MonitoringStore)) => {

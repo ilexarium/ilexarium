@@ -224,14 +224,12 @@ describe('MonitoringStore', () => {
     expect(store.containers()).toBeNull();
   });
 
-  it('loads the machine once — also when asked again while asking — and forgets it on sign-out', async () => {
+  it('loads the machine once and forgets it on sign-out', async () => {
     const { store } = await setup();
-    const answer = new Subject<HostInfo>();
-    const host = vi.spyOn(TestBed.inject(MonitoringApi), 'host').mockReturnValue(answer);
+    const host = vi
+      .spyOn(TestBed.inject(MonitoringApi), 'host')
+      .mockReturnValue(of(systemSnapshot(0).host));
     store.loadHost();
-    store.loadHost();
-    answer.next(systemSnapshot(0).host);
-    answer.complete();
     store.loadHost();
     expect(host).toHaveBeenCalledTimes(1);
     expect(store.host()?.kernel).toBe(systemSnapshot(0).host.kernel);
@@ -239,6 +237,18 @@ describe('MonitoringStore', () => {
     await TestBed.inject(AuthStore).logout();
     TestBed.tick();
     expect(store.host()).toBeNull();
+  });
+
+  it('asked again while asking (signed in again meanwhile): the new answer counts', async () => {
+    const { store } = await setup();
+    const first = new Subject<HostInfo>();
+    vi.spyOn(TestBed.inject(MonitoringApi), 'host')
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(of(systemSnapshot(0).host));
+    store.loadHost();
+    store.loadHost();
+    first.error(new Error('401'));
+    expect(store.host()?.kernel).toBe(systemSnapshot(0).host.kernel);
   });
 
   it('asks again after a failure', async () => {
