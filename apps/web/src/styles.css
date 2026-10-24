@@ -111,11 +111,11 @@
 
 /*
  * The live dot's heartbeat (connection status): two quick beats, then rest — every 2 s. With
- * reduced motion, the same rhythm as a soft fade: no movement.
+ * reduced motion, a fade instead: 2 s still, then one dim-and-back — no movement.
  */
 @theme {
   --animate-heartbeat: heartbeat 2s ease-in-out infinite;
-  --animate-heartbeat-fade: heartbeat-fade 2s ease-in-out infinite;
+  --animate-heartbeat-fade: heartbeat-fade 2.6s ease-in-out infinite;
 
   @keyframes heartbeat {
     0%,
@@ -134,13 +134,15 @@
     }
   }
 
+  /* 2 s still at full opacity (0–77 %), then one beat: dim and back (0.6 s). */
   @keyframes heartbeat-fade {
     0%,
+    77%,
     100% {
       opacity: 1;
     }
-    50% {
-      opacity: 0.4;
+    88% {
+      opacity: 0.3;
     }
   }
 }
