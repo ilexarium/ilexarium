@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, TitleStrategy } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { of } from 'rxjs';
 import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
 import { MonitoringApi } from '../../core/monitoring/monitoring-api';
@@ -17,14 +18,16 @@ class Page {}
 async function render(url = '/') {
   const fake = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
-  const host = vi.fn(async () => ({
-    hostname: 'box',
-    os: 'Debian GNU/Linux 13',
-    kernel: '6.12.48-1-amd64',
-    arch: 'x64',
-    cpuModel: null,
-    cpuCores: 4,
-  }));
+  const host = vi.fn(() =>
+    of({
+      hostname: 'box',
+      os: 'Debian GNU/Linux 13',
+      kernel: '6.12.48-1-amd64',
+      arch: 'x64',
+      cpuModel: null,
+      cpuCores: 4,
+    }),
+  );
   TestBed.configureTestingModule({
     providers: [
       provideRouter([

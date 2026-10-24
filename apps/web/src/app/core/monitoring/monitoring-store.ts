@@ -1,5 +1,6 @@
 import { effect, inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import {
   type ContainerHistoryPoint,
   type RealtimeTopic,
@@ -12,6 +13,7 @@ import {
   toContainerHistoryPoint,
   toSystemHistoryPoint,
 } from '@laris/shared';
+import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { RealtimeService } from '../realtime/realtime-service';
 import { MonitoringApi } from './monitoring-api';
@@ -72,59 +74,58 @@ export const MonitoringStore = signalStore(
       realtimeService = inject(RealtimeService),
       monitoringApi = inject(MonitoringApi),
       authStore = inject(AuthStore),
-    ) => {
-      let loadingHost: Promise<void> | null = null;
-      return {
-        /** Once per sign-in (the top bar's kernel); a failure leaves it out until the next one. */
-        loadHost(): Promise<void> {
-          if (store.host()) return Promise.resolve();
-          loadingHost ??= monitoringApi
-            .host()
-            .then((host) => {
+    ) => ({
+      /** Once per sign-in (the top bar's kernel); a failure leaves it out until the next one. */
+      loadHost: rxMethod<void>(
+        pipe(
+          filter(() => !store.host()),
+          exhaustMap(() =>
+            monitoringApi.host().pipe(
               // Signed out while it was asked for: nothing of it stays.
-              if (authStore.isAuthenticated()) patchState(store, { host });
-            })
-            .catch(() => undefined)
-            .finally(() => (loadingHost = null));
-          return loadingHost;
-        },
+              tap((host) => {
+                if (authStore.isAuthenticated()) patchState(store, { host });
+              }),
+              catchError(() => EMPTY),
+            ),
+          ),
+        ),
+      ),
 
-        watch(topics: readonly RealtimeTopic[]): () => void {
-          const stops: (() => void)[] = [];
-          if (topics.includes('system')) stops.push(watchSystem());
-          if (topics.includes('containers')) stops.push(watchContainers());
-          return () => {
-            for (const stop of stops) stop();
-          };
+      watch(topics: readonly RealtimeTopic[]): () => void {
+        const stops: (() => void)[] = [];
+        if (topics.includes('system')) stops.push(watchSystem());
+        if (topics.includes('containers')) stops.push(watchContainers());
+        return () => {
+          for (const stop of stops) stop();
+        };
 
-          function watchSystem(): () => void {
-            return realtimeService.subscribe('system', (message) => {
-              if (message.event === 'system:snapshot') {
-                patchState(store, { system: message.data });
-              } else if (message.event === 'system:update') {
-                const system = store.system();
-                if (system) patchState(store, { system: applySystemUpdate(system, message.data) });
+        function watchSystem(): () => void {
+          return realtimeService.subscribe('system', (message) => {
+            if (message.event === 'system:snapshot') {
+              patchState(store, { system: message.data });
+            } else if (message.event === 'system:update') {
+              const system = store.system();
+              if (system) patchState(store, { system: applySystemUpdate(system, message.data) });
+            }
+          });
+        }
+
+        function watchContainers(): () => void {
+          return realtimeService.subscribe('containers', (message) => {
+            if (message.event === 'containers:snapshot') {
+              patchState(store, { containers: message.data });
+            } else if (message.event === 'containers:update') {
+              const containers = store.containers();
+              if (containers) {
+                patchState(store, {
+                  containers: applyContainersUpdate(containers, message.data),
+                });
               }
-            });
-          }
-
-          function watchContainers(): () => void {
-            return realtimeService.subscribe('containers', (message) => {
-              if (message.event === 'containers:snapshot') {
-                patchState(store, { containers: message.data });
-              } else if (message.event === 'containers:update') {
-                const containers = store.containers();
-                if (containers) {
-                  patchState(store, {
-                    containers: applyContainersUpdate(containers, message.data),
-                  });
-                }
-              }
-            });
-          }
-        },
-      };
-    },
+            }
+          });
+        }
+      },
+    }),
   ),
   withHooks((store, authStore = inject(AuthStore)) => ({
     onInit() {

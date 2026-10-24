@@ -27,6 +27,6 @@ export class Shell {
     // The open alerts: the bell in the top bar, the dashboard notice.
     inject(AlertsStore).watch();
     // The machine's kernel, for the top bar's status.
-    void inject(MonitoringStore).loadHost();
+    inject(MonitoringStore).loadHost();
   }
 }
