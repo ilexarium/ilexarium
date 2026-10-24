@@ -11,12 +11,13 @@ import type { ProcessInfo } from './model.mts';
 export const PF_KTHREAD = 0x0020_0000;
 
 /**
- * A container's cgroup: Docker's (`/docker/<id>`, `docker-<id>.scope`, rootless too), Podman's,
- * containerd's (Kubernetes), LXC's, systemd-nspawn's — not the daemons' own services
- * (`docker.service`, `containerd.service`).
+ * A container's cgroup: Docker's (`/docker/<id>`, `docker-<id>.scope`, rootless too), Podman's
+ * (with or without systemd), containerd's (Kubernetes too), LXC's, systemd-nspawn's — not the
+ * daemons' own services (`docker.service`, `containerd.service`). The app writes the same rule
+ * (a test compares them); anything either side calls a container is one here.
  */
-const CONTAINER_CGROUP =
-  /\/docker\/|(?:docker|libpod|cri-containerd)-[^/\s]*\.scope|\/kubepods\b|\/lxc[./]|\/machine\.slice\//m;
+export const CONTAINER_CGROUP =
+  /\/docker\/|(?:docker|libpod|containerd)[-/][0-9a-f]{64}|(?:docker|libpod|cri-containerd)-[^/\s]*\.scope|\/kubepods\b|\/lxc[./]|\/machine\.slice\//m;
 
 function readOptional(path: string): string | null {
   try {

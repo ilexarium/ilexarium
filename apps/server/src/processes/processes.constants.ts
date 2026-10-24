@@ -6,7 +6,6 @@ export const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
 /** Linux reports times in /proc in USER_HZ ticks: 100 a second on every architecture. */
 export const TICKS_PER_SECOND = 100;
 
-/** /proc/<pid>/stat's state letter, as the page names it. */
 export const STATES: Record<string, ProcessState> = {
   R: 'running',
   S: 'sleeping',

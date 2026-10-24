@@ -53,11 +53,12 @@ export function parseCmdline(cmdline: string): string {
 }
 
 /**
- * Container cgroups whose ID isn't known: Kubernetes pods, LXC, systemd-nspawn machines, a
- * container scope — but not the daemons' own services (`docker.service`, `containerd.service`).
+ * A container's cgroup, its ID known or not: Docker's, Podman's, containerd's, Kubernetes pods,
+ * LXC, systemd-nspawn machines — but not the daemons' own services (`docker.service`,
+ * `containerd.service`). The process wrapper writes the same rule (a test compares them).
  */
-const CONTAINER_CGROUP =
-  /\/kubepods\b|\/lxc[./]|\/machine\.slice\/|(?:docker|libpod)-[^/\s]*\.scope/;
+export const CONTAINER_CGROUP =
+  /\/docker\/|(?:docker|libpod|containerd)[-/][0-9a-f]{64}|(?:docker|libpod|cri-containerd)-[^/\s]*\.scope|\/kubepods\b|\/lxc[./]|\/machine\.slice\//m;
 
 /**
  * The container a process runs in, from `/proc/<pid>/cgroup`: Docker's ID (cgroup v2
