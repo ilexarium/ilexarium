@@ -995,6 +995,7 @@
       "idle": "Untätig",
       "other": "Anderer"
     },
+    "kernel": "Kernel-Thread",
     "container": "Container {{name}}",
     "unknownContainer": "In einem Container",
     "commandLine": "Befehlszeile",
