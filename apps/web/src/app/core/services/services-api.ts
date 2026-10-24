@@ -11,27 +11,27 @@ import {
   servicePath,
   SERVICES_PATH,
 } from '@laris/shared';
-import { firstValueFrom } from 'rxjs';
+import type { Observable } from 'rxjs';
 
 /** Progress arrives through the `services` topic, not these answers. */
 @Service()
 export class ServicesApi {
   private readonly http = inject(HttpClient);
 
-  catalog(): Promise<CatalogEntrySummary[]> {
-    return firstValueFrom(this.http.get<CatalogEntrySummary[]>(CATALOG_PATH));
+  catalog(): Observable<CatalogEntrySummary[]> {
+    return this.http.get<CatalogEntrySummary[]>(CATALOG_PATH);
   }
 
-  details(id: string): Promise<CatalogEntryDetails> {
-    return firstValueFrom(this.http.get<CatalogEntryDetails>(catalogEntryPath(id)));
+  details(id: string): Observable<CatalogEntryDetails> {
+    return this.http.get<CatalogEntryDetails>(catalogEntryPath(id));
   }
 
   /** 202 once the job started; it runs on. */
-  deploy(request: DeployRequest): Promise<DeployResponse> {
-    return firstValueFrom(this.http.post<DeployResponse>(SERVICES_PATH, request));
+  deploy(request: DeployRequest): Observable<DeployResponse> {
+    return this.http.post<DeployResponse>(SERVICES_PATH, request);
   }
 
-  remove(serviceId: string): Promise<RemoveResponse> {
-    return firstValueFrom(this.http.delete<RemoveResponse>(servicePath(serviceId)));
+  remove(serviceId: string): Observable<RemoveResponse> {
+    return this.http.delete<RemoveResponse>(servicePath(serviceId));
   }
 }

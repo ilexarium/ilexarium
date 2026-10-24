@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Disk, DiskPartition, DisksStatus } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { DisksApi } from '../../../core/disks/disks-api';
@@ -60,9 +61,9 @@ async function render(start: DisksStatus) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   const api = {
-    status: vi.fn(async () => start),
-    mount: vi.fn(async () => ({ mountPoint: '/mnt/holiday-photos' })),
-    unmount: vi.fn(async () => undefined),
+    status: vi.fn(() => of(start)),
+    mount: vi.fn(() => of({ mountPoint: '/mnt/holiday-photos' })),
+    unmount: vi.fn(() => of(undefined)),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -159,14 +160,17 @@ describe('DisksPage', () => {
     expect(api.mount).not.toHaveBeenCalled();
     expect(dialog()!.textContent).toContain('lowercase letters, digits and dashes');
 
-    api.mount.mockRejectedValueOnce(
-      new HttpErrorResponse({
-        status: 409,
-        error: {
-          message: 'Validation failed',
-          errors: [{ field: 'name', code: 'name_taken', message: 'x' }],
-        },
-      }),
+    api.mount.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: {
+              message: 'Validation failed',
+              errors: [{ field: 'name', code: 'name_taken', message: 'x' }],
+            },
+          }),
+      ),
     );
     name.value = 'photos';
     name.dispatchEvent(new Event('input'));

@@ -8,37 +8,37 @@ import type {
   SetupRequest,
   UserResponse,
 } from '@laris/shared';
-import { firstValueFrom } from 'rxjs';
+import type { Observable } from 'rxjs';
 
 @Service()
 export class AuthApi {
   private readonly http = inject(HttpClient);
 
-  status(): Promise<AuthStatusResponse> {
-    return firstValueFrom(this.http.get<AuthStatusResponse>('/api/auth/status'));
+  status(): Observable<AuthStatusResponse> {
+    return this.http.get<AuthStatusResponse>('/api/auth/status');
   }
 
-  me(): Promise<MeResponse> {
-    return firstValueFrom(this.http.get<MeResponse>('/api/auth/me'));
+  me(): Observable<MeResponse> {
+    return this.http.get<MeResponse>('/api/auth/me');
   }
 
-  setup(body: SetupRequest): Promise<UserResponse> {
-    return firstValueFrom(this.http.post<UserResponse>('/api/auth/setup', body));
+  setup(body: SetupRequest): Observable<UserResponse> {
+    return this.http.post<UserResponse>('/api/auth/setup', body);
   }
 
-  login(body: LoginRequest): Promise<UserResponse> {
-    return firstValueFrom(this.http.post<UserResponse>('/api/auth/login', body));
+  login(body: LoginRequest): Observable<UserResponse> {
+    return this.http.post<UserResponse>('/api/auth/login', body);
   }
 
-  logout(): Promise<unknown> {
-    return firstValueFrom(this.http.post('/api/auth/logout', null));
+  logout(): Observable<unknown> {
+    return this.http.post('/api/auth/logout', null);
   }
 
-  logoutEverywhere(): Promise<unknown> {
-    return firstValueFrom(this.http.post('/api/auth/logout-everywhere', null));
+  logoutEverywhere(): Observable<unknown> {
+    return this.http.post('/api/auth/logout-everywhere', null);
   }
 
-  changePassword(body: ChangePasswordRequest): Promise<unknown> {
-    return firstValueFrom(this.http.post('/api/auth/password', body));
+  changePassword(body: ChangePasswordRequest): Observable<unknown> {
+    return this.http.post('/api/auth/password', body);
   }
 }

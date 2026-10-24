@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { AiLibraryDetail, AiModel, AiPull } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { of, Subject } from 'rxjs';
 import { AssistantApi } from '../../../core/assistant/assistant-api';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
@@ -50,14 +51,16 @@ async function render() {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   const api = {
-    status: vi.fn(async () => ({ state: 'ready' as const, version: '0.40.6' })),
-    models: vi.fn(async () => ({ models: [model('llama3.2:3b', true)] })),
-    pull: vi.fn(async (name: string) => pull({ model: name })),
-    removeModel: vi.fn(async () => undefined),
-    search: vi.fn(async () => ({
-      models: [{ id: DETAIL.id, downloads: 52_592, likes: 18, updatedAt: null }],
-    })),
-    libraryDetail: vi.fn(async () => DETAIL),
+    status: vi.fn(() => of({ state: 'ready' as const, version: '0.40.6' })),
+    models: vi.fn(() => of({ models: [model('llama3.2:3b', true)] })),
+    pull: vi.fn((name: string) => of(pull({ model: name }))),
+    removeModel: vi.fn(() => of(undefined)),
+    search: vi.fn(() =>
+      of({
+        models: [{ id: DETAIL.id, downloads: 52_592, likes: 18, updatedAt: null }],
+      }),
+    ),
+    libraryDetail: vi.fn(() => of(DETAIL)),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -127,7 +130,7 @@ describe('ModelsPage', () => {
     expect(el.querySelector('laris-pull-progress')!.textContent).toContain(
       '200 MB of 400 MB (50%)',
     );
-    api.models.mockResolvedValue({ models: [model('llama3.2:3b', true), model('qwen2.5:0.5b')] });
+    api.models.mockReturnValue(of({ models: [model('llama3.2:3b', true), model('qwen2.5:0.5b')] }));
     await topic(
       pull({ status: 'succeeded', completedBytes: 400_000_000, totalBytes: 400_000_000 }),
     );
@@ -139,11 +142,12 @@ describe('ModelsPage', () => {
 
   it('keeps how a quick download ended, even when the topic said so before the reply', async () => {
     const { el, fixture, api, fill, topic } = await render();
-    let reply!: (pull: AiPull) => void;
-    api.pull.mockImplementation(() => new Promise((resolve) => (reply = resolve)));
+    const reply = new Subject<AiPull>();
+    api.pull.mockReturnValue(reply);
     await fill('#model-name', 'qwen2.5:0.5b');
     await topic(pull({ status: 'succeeded', completedBytes: 400, totalBytes: 400 }));
-    reply(pull());
+    reply.next(pull());
+    reply.complete();
     await fixture.whenStable();
     expect(el.querySelector('laris-pull-progress')!.textContent).toContain('Downloaded');
     expect(el.querySelector<HTMLButtonElement>('#model-name ~ button')!.disabled).toBe(false);

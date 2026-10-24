@@ -15,6 +15,7 @@ import {
   serverMessageSchema,
   WS_CLOSE_CODES,
 } from '@laris/shared';
+import { firstValueFrom } from 'rxjs';
 import { AuthApi } from '../auth/auth-api';
 import { AuthStore } from '../auth/auth-store';
 import { FIRST_RETRY_MS, MAX_RETRY_MS, OPEN } from './realtime.constants';
@@ -144,7 +145,7 @@ export class RealtimeService {
   private async checkSession(): Promise<void> {
     this._status.set('reconnecting');
     try {
-      const { user } = await this.authApi.me();
+      const { user } = await firstValueFrom(this.authApi.me());
       if (!this.wanted) return;
       if (user) this.retryLater();
       else this.authStore.sessionExpired(); // signs out, which disconnects

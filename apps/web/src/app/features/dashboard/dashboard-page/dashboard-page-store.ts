@@ -21,8 +21,8 @@ export const DashboardPageStore = signalStore(
     }),
   ),
   withMethods((_, containerActionsStore = inject(ContainerActionsStore)) => ({
-    act({ name, action }: ContainerActionParams): void {
-      void containerActionsStore.run(name, action);
+    act(request: ContainerActionParams): void {
+      containerActionsStore.run(request);
     },
   })),
   withHooks((_, monitoringStore = inject(MonitoringStore)) => {

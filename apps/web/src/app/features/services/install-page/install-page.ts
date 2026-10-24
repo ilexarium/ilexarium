@@ -26,7 +26,7 @@ export class InstallPage {
   constructor() {
     effect(() => {
       const id = this.id();
-      if (id) void this.installPageStore.load(id);
+      if (id) this.installPageStore.load(id);
     });
   }
 }

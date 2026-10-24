@@ -1,37 +1,35 @@
 import { HttpClient, HttpEventType, HttpParams } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import type { FileList, FileSummary, LinuxSession, LinuxSignInRequest } from '@laris/shared';
-import { filter, firstValueFrom, map, type Observable } from 'rxjs';
+import { filter, map, type Observable } from 'rxjs';
 
 /** The Linux sign-in and the file explorer's endpoints. */
 @Service()
 export class FilesApi {
   private readonly http = inject(HttpClient);
 
-  session(): Promise<{ session: LinuxSession | null }> {
-    return firstValueFrom(this.http.get<{ session: LinuxSession | null }>('/api/files/session'));
+  session(): Observable<{ session: LinuxSession | null }> {
+    return this.http.get<{ session: LinuxSession | null }>('/api/files/session');
   }
 
-  signIn(request: LinuxSignInRequest): Promise<LinuxSession> {
-    return firstValueFrom(this.http.post<LinuxSession>('/api/files/session', request));
+  signIn(request: LinuxSignInRequest): Observable<LinuxSession> {
+    return this.http.post<LinuxSession>('/api/files/session', request);
   }
 
-  signOut(): Promise<void> {
-    return firstValueFrom(this.http.delete<void>('/api/files/session'));
+  signOut(): Observable<void> {
+    return this.http.delete<void>('/api/files/session');
   }
 
-  list(path: string): Promise<FileList> {
-    return firstValueFrom(
-      this.http.get<FileList>('/api/files/list', { params: new HttpParams().set('path', path) }),
-    );
+  list(path: string): Observable<FileList> {
+    return this.http.get<FileList>('/api/files/list', {
+      params: new HttpParams().set('path', path),
+    });
   }
 
-  summary(path: string): Promise<FileSummary> {
-    return firstValueFrom(
-      this.http.get<FileSummary>('/api/files/summary', {
-        params: new HttpParams().set('path', path),
-      }),
-    );
+  summary(path: string): Observable<FileSummary> {
+    return this.http.get<FileSummary>('/api/files/summary', {
+      params: new HttpParams().set('path', path),
+    });
   }
 
   /** Where the browser downloads a file from (an attachment: never shown in the page). */
@@ -58,17 +56,15 @@ export class FilesApi {
       );
   }
 
-  newFolder(parent: string, name: string): Promise<void> {
-    return firstValueFrom(this.http.post<void>('/api/files/folder', { parent, name }));
+  newFolder(parent: string, name: string): Observable<void> {
+    return this.http.post<void>('/api/files/folder', { parent, name });
   }
 
-  rename(from: string, to: string): Promise<void> {
-    return firstValueFrom(this.http.post<void>('/api/files/rename', { from, to }));
+  rename(from: string, to: string): Observable<void> {
+    return this.http.post<void>('/api/files/rename', { from, to });
   }
 
-  delete(path: string): Promise<void> {
-    return firstValueFrom(
-      this.http.delete<void>('/api/files', { params: new HttpParams().set('path', path) }),
-    );
+  delete(path: string): Observable<void> {
+    return this.http.delete<void>('/api/files', { params: new HttpParams().set('path', path) });
   }
 }

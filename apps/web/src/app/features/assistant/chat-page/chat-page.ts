@@ -98,7 +98,7 @@ export class ChatPage {
     // The URL decides the open chat …
     effect(() => {
       const id = this.routeChat();
-      untracked(() => void this.chatPageStore.open(id));
+      untracked(() => this.chatPageStore.open(id));
     });
     // … and a new chat, once saved, gets its own URL. Only a new one: while another chat is
     // being opened, the URL already says which.

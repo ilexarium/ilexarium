@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { signalStore, withMethods } from '@ngrx/signals';
 import type { UserLanguage } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { firstValueFrom } from 'rxjs';
 import { apiErrorText } from '../../shared/forms/submission-errors';
 import { AuthStore } from '../auth/auth-store';
 import { LanguageService } from '../i18n/language';
@@ -37,7 +38,7 @@ export const ProfileStore = signalStore(
         }
         if (!authStore.isAuthenticated() || authStore.user()?.language === language) return;
         try {
-          authStore.updated((await profileApi.update({ language })).user);
+          authStore.updated((await firstValueFrom(profileApi.update({ language }))).user);
         } catch (error) {
           // Shown here all the same; only other browsers won't know.
           const [key, params] = apiErrorText(error);

@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { AlertsStatus } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { NEVER, of, throwError } from 'rxjs';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
 import { alertsStatus, testAlert } from '../../../core/alerts/testing';
@@ -13,15 +14,15 @@ import { AlertsPage } from './alerts-page';
 async function render(start: AlertsStatus | null) {
   const auth = fakeAuthApi({ user: OWNER });
   const api = {
-    status: vi.fn(async () => start ?? alertsStatus()),
-    acknowledge: vi.fn(async () => undefined),
+    status: vi.fn(() => of(start ?? alertsStatus())),
+    acknowledge: vi.fn(() => of(undefined)),
   };
   TestBed.configureTestingModule({
     providers: [provideRouter([]), auth.provider, { provide: AlertsApi, useValue: api }],
   });
   await TestBed.inject(AuthStore).load();
   if (start) TestBed.inject(AlertsStore).fill(start);
-  else api.status.mockReturnValue(new Promise(() => undefined)); // never answers
+  else api.status.mockReturnValue(NEVER); // never answers
   const fixture = TestBed.createComponent(AlertsPage);
   await fixture.whenStable();
   const el = fixture.nativeElement as HTMLElement;
@@ -116,8 +117,11 @@ describe('AlertsPage', () => {
   it('reports a failed acknowledgement in a toast', async () => {
     const alert = testAlert();
     const { fixture, el, api } = await render(alertsStatus({ open: [alert] }));
-    api.acknowledge.mockRejectedValue(
-      new HttpErrorResponse({ status: 404, error: { message: 'x', code: 'alert_not_found' } }),
+    api.acknowledge.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({ status: 404, error: { message: 'x', code: 'alert_not_found' } }),
+      ),
     );
     const error = vi.spyOn(toast, 'error');
     [...el.querySelectorAll('button')].find((b) => b.textContent!.includes('Acknowledge'))!.click();

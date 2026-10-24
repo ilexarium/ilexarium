@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import type { CatalogEntryDetails } from '@laris/shared';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of, throwError } from 'rxjs';
 import { signal } from '@angular/core';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { ServicesApi } from '../../../core/services/services-api';
@@ -63,8 +63,8 @@ const DEMO_TEXTS = {
 
 async function render(entry: CatalogEntryDetails = details, backupsConfigured = false) {
   const api = {
-    details: vi.fn(async () => entry),
-    deploy: vi.fn(async () => ({ serviceId: 'x', jobId: 'y' })),
+    details: vi.fn(() => of(entry)),
+    deploy: vi.fn(() => of({ serviceId: 'x', jobId: 'y' })),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -158,18 +158,21 @@ describe('InstallPage', () => {
 
   it('puts the server’s errors on their fields — opening Advanced if one is there', async () => {
     const { fixture, el, api, set } = await render();
-    api.deploy.mockRejectedValueOnce(
-      new HttpErrorResponse({
-        status: 400,
-        error: {
-          message: 'Validation failed',
-          code: 'invalid_values',
-          errors: [
-            { field: 'WEB_PORT', code: 'port_in_use', message: 'errors.port_in_use' },
-            { field: 'LOG_LEVEL', code: 'invalid_value', message: 'validation.optionInvalid' },
-          ],
-        },
-      }),
+    api.deploy.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 400,
+            error: {
+              message: 'Validation failed',
+              code: 'invalid_values',
+              errors: [
+                { field: 'WEB_PORT', code: 'port_in_use', message: 'errors.port_in_use' },
+                { field: 'LOG_LEVEL', code: 'invalid_value', message: 'validation.optionInvalid' },
+              ],
+            },
+          }),
+      ),
     );
     await set('ADMIN_PASSWORD', 'correct horse battery');
     await submit(fixture);
@@ -194,7 +197,7 @@ describe('InstallPage', () => {
 
   it('says when the entry doesn’t exist', async () => {
     const api = {
-      details: vi.fn(async () => Promise.reject(new HttpErrorResponse({ status: 404 }))),
+      details: vi.fn(() => throwError(() => new HttpErrorResponse({ status: 404 }))),
     };
     TestBed.configureTestingModule({
       providers: [

@@ -49,6 +49,6 @@ export class DisksPage {
   }
 
   protected unmount(target: UnmountTarget): void {
-    void this.disksPageStore.unmount(target.name, target.connected);
+    this.disksPageStore.unmount(target);
   }
 }

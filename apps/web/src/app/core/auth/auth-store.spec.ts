@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { Language } from '@laris/i18n';
+import { of, throwError } from 'rxjs';
 import { LanguageService } from '../i18n/language';
 import { provideRouter, Router } from '@angular/router';
 import { AuthStore } from './auth-store';
@@ -69,7 +70,7 @@ describe('AuthStore', () => {
   it('logout() clears locally even if the server call fails', async () => {
     const { store, api } = setup({ user: OWNER });
     await store.load();
-    api.logout.mockRejectedValueOnce(new Error('offline'));
+    api.logout.mockReturnValueOnce(throwError(() => new Error('offline')));
     vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     await store.logout().catch(() => undefined);
     expect(store.user()).toBeNull();
@@ -129,9 +130,9 @@ describe('AuthStore', () => {
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
-    api.logoutEverywhere.mockImplementation(async () => {
+    api.logoutEverywhere.mockImplementation(() => {
       store.sessionExpired(); // what RealtimeService does on the 4401
-      return null;
+      return of(null);
     });
     await store.logoutEverywhere();
     expect(navigate).not.toHaveBeenCalled(); // no /login?reason=expired
@@ -153,9 +154,9 @@ describe('AuthStore', () => {
       const { store, api, tabs } = setup({ user: OWNER });
       await store.load();
       vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
-      api.logout.mockImplementationOnce(async () => {
+      api.logout.mockImplementationOnce(() => {
         expect(tabs.channel.postMessage).toHaveBeenCalledOnce();
-        return null;
+        return of(null);
       });
       await store.logout();
       expect(api.logout).toHaveBeenCalledOnce();
@@ -166,7 +167,7 @@ describe('AuthStore', () => {
       await store.load();
       vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
       await store.logout();
-      api.logout.mockRejectedValueOnce(new Error('offline'));
+      api.logout.mockReturnValueOnce(throwError(() => new Error('offline')));
       await store.logout().catch(() => undefined);
       await store.logoutEverywhere();
       expect(tabs.channel.postMessage).toHaveBeenCalledTimes(3);

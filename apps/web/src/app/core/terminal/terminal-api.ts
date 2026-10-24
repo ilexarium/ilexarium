@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { DOCUMENT, inject, Service } from '@angular/core';
 import { TERMINAL_PATH, type TerminalTicket } from '@laris/shared';
-import { firstValueFrom } from 'rxjs';
+import type { Observable } from 'rxjs';
 import { WEB_SOCKET_FACTORY } from '../realtime/realtime-service';
 
 /** The web terminal: a ticket (the app password again), then its own socket. */
@@ -11,8 +11,8 @@ export class TerminalApi {
   private readonly document = inject(DOCUMENT);
   private readonly createSocket = inject(WEB_SOCKET_FACTORY);
 
-  ticket(password: string): Promise<TerminalTicket> {
-    return firstValueFrom(this.http.post<TerminalTicket>('/api/terminal/ticket', { password }));
+  ticket(password: string): Observable<TerminalTicket> {
+    return this.http.post<TerminalTicket>('/api/terminal/ticket', { password });
   }
 
   /** The terminal's socket, binary frames as `ArrayBuffer`s. */

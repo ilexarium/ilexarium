@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Language } from '@laris/i18n';
 import type { PublicUser } from '@laris/shared';
+import { of } from 'rxjs';
 import { AlertsStore } from '../../core/alerts/alerts-store';
 import { alertsStatus, testAlert } from '../../core/alerts/testing';
 import { AuthStore } from '../../core/auth/auth-store';
@@ -31,7 +32,7 @@ describe('TopBar user menu', () => {
   async function openMenu(user: PublicUser = OWNER) {
     languages = fakeLanguages();
     profiles = {
-      update: vi.fn(async (body: { language: Language }) => ({ user: { ...user, ...body } })),
+      update: vi.fn((body: { language: Language }) => of({ user: { ...user, ...body } })),
     };
     const auth = fakeAuthApi({ user });
     TestBed.configureTestingModule({

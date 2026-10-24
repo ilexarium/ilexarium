@@ -83,7 +83,7 @@ export class FilesPage {
 
   protected openEntry(entry: FileEntry): void {
     const folder = this.filesPageStore.list()?.path;
-    if (folder) void this.filesPageStore.open(joinPath(folder, entry.name));
+    if (folder) this.filesPageStore.open(joinPath(folder, entry.name));
   }
 
   protected act(action: FileAction): void {

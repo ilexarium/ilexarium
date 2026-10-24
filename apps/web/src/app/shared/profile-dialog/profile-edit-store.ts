@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import type { ProfileForm, ProfileUpdate } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../core/auth/auth-store';
 import { Translator } from '../../core/i18n/translator';
 import { ProfileApi } from '../../core/profile/profile-api';
@@ -73,9 +74,9 @@ export const ProfileEditStore = signalStore(
         async save(form: ProfileForm): Promise<void> {
           const picture = store.picture();
           if (picture.kind === 'set') {
-            authStore.updated((await profileApi.setAvatar(picture.picture)).user);
+            authStore.updated((await firstValueFrom(profileApi.setAvatar(picture.picture))).user);
           } else if (picture.kind === 'remove' && authStore.user()?.avatar) {
-            authStore.updated((await profileApi.removeAvatar()).user);
+            authStore.updated((await firstValueFrom(profileApi.removeAvatar())).user);
           }
           // Saved: if the fields fail now, trying again doesn't send the picture again.
           forgetPreview();
@@ -87,7 +88,7 @@ export const ProfileEditStore = signalStore(
           if (displayName !== (user?.displayName ?? '')) update.displayName = displayName;
           if (email !== (user?.email ?? '')) update.email = email;
           if (Object.keys(update).length > 0) {
-            authStore.updated((await profileApi.update(update)).user);
+            authStore.updated((await firstValueFrom(profileApi.update(update))).user);
           }
           forgetPreview();
           patchState(store, initialState);

@@ -19,7 +19,25 @@ import type {
   BackupSetupRequest,
   CatalogEntrySummary,
 } from '@laris/shared';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
+import {
+  catchError,
+  concat,
+  defer,
+  EMPTY,
+  exhaustMap,
+  finalize,
+  firstValueFrom,
+  forkJoin,
+  lastValueFrom,
+  merge,
+  mergeMap,
+  type Observable,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
@@ -140,79 +158,68 @@ export const BackupsPageStore = signalStore(
           description: translator.t(...apiErrorText(error)),
         });
 
-      /** Runs an action with a pending marker; a failure is a toast. Resolves true on success. */
-      async function act(
-        key: string,
-        failureKey: string,
-        run: () => Promise<unknown>,
-        params = {},
-      ) {
-        pending(key, true);
-        try {
-          await run();
-          return true;
-        } catch (error) {
-          failed(failureKey, error, params);
-          return false;
-        } finally {
-          pending(key, false);
-        }
-      }
+      /** An action with a pending marker; a failure is a toast. Emits once it succeeded. */
+      const act = <T>(key: string, failureKey: string, request: Observable<T>, params = {}) =>
+        defer(() => {
+          pending(key, true);
+          return request;
+        }).pipe(
+          catchError((error: unknown) => {
+            failed(failureKey, error, params);
+            return EMPTY;
+          }),
+          finalize(() => pending(key, false)),
+        );
 
-      async function loadPlan(): Promise<void> {
-        try {
-          const { plan } = await backupsApi.plan();
-          patchState(store, { plan, loaded: true, failed: false });
-        } catch {
-          patchState(store, { loaded: true, failed: true });
-        }
-      }
-
-      async function loadHistory(): Promise<void> {
-        if (!store.plan()) return;
-        try {
-          const [{ runs }, { restores }] = await Promise.all([
-            backupsApi.runs(),
-            backupsApi.restores(),
-          ]);
-          patchState(store, { runs, restores });
-        } catch {
+      const plan$ = () =>
+        backupsApi.plan().pipe(
+          tap(({ plan }) => patchState(store, { plan, loaded: true, failed: false })),
+          catchError(() => {
+            patchState(store, { loaded: true, failed: true });
+            return EMPTY;
+          }),
+        );
+      // Deferred: whether there is a plan is known only once it's loaded.
+      const history$ = () =>
+        defer(() =>
+          store.plan() ? forkJoin([backupsApi.runs(), backupsApi.restores()]) : EMPTY,
+        ).pipe(
+          tap(([{ runs }, { restores }]) => patchState(store, { runs, restores })),
           // The page shows the last known history; the next change tries again.
-        }
-      }
+          catchError(() => EMPTY),
+        );
+      const catalog$ = () =>
+        servicesApi.catalog().pipe(
+          tap((catalog) => patchState(store, { catalog })),
+          catchError(() => EMPTY),
+        );
+      const destinations$ = () =>
+        backupsApi.destinations().pipe(
+          tap(({ destinations }) => patchState(store, { destinations })),
+          catchError(() => {
+            patchState(store, { destinations: [] });
+            return EMPTY;
+          }),
+        );
+
+      // After a change: the latest answer wins.
+      const loadPlan = rxMethod<void>(pipe(switchMap(plan$)));
+      const loadHistory = rxMethod<void>(pipe(switchMap(history$)));
 
       return {
-        async load(): Promise<void> {
-          await loadPlan();
-          await Promise.all([
-            servicesApi
-              .catalog()
-              .then((catalog) => patchState(store, { catalog }))
-              .catch(() => undefined),
-            this.loadDestinations(),
-            loadHistory(),
-          ]);
-        },
+        load: rxMethod<void>(
+          pipe(exhaustMap(() => concat(plan$(), merge(catalog$(), destinations$(), history$())))),
+        ),
 
         /** After a change pushed by the topic: the plan and the history again. */
-        async reload(): Promise<void> {
-          await loadPlan();
-          await loadHistory();
-        },
-
-        async loadDestinations(): Promise<void> {
-          try {
-            patchState(store, { destinations: (await backupsApi.destinations()).destinations });
-          } catch {
-            patchState(store, { destinations: [] });
-          }
-        },
+        reload: rxMethod<void>(pipe(switchMap(() => concat(plan$(), history$())))),
 
         /** Sets backups up; rejects with the server's error (the form puts it on its fields). */
         async setup(request: BackupSetupRequest): Promise<void> {
-          const { passphrase } = await backupsApi.setup(request);
+          const { passphrase } = await firstValueFrom(backupsApi.setup(request));
           patchState(store, { passphrase, passphraseFirst: true });
-          await loadPlan();
+          // The form stays busy until the plan shows.
+          await lastValueFrom(plan$(), { defaultValue: undefined });
           toast.success(translator.t('backups.setup.done'));
         },
 
@@ -223,116 +230,160 @@ export const BackupsPageStore = signalStore(
 
         /** "Show again"; rejects with the server's error (wrong password: on its field). */
         async showPassphrase(password: string): Promise<void> {
-          const { passphrase } = await backupsApi.passphrase(password);
+          const { passphrase } = await firstValueFrom(backupsApi.passphrase(password));
           patchState(store, { passphrase, passphraseFirst: false });
         },
 
         /** Saves schedule, retention or disk; rejects with the server's error. */
         async updatePlan(update: BackupPlanUpdate): Promise<void> {
-          const plan = await backupsApi.updatePlan(update);
+          const plan = await firstValueFrom(backupsApi.updatePlan(update));
           patchState(store, { plan });
           toast.success(translator.t('backups.settings.saved'));
         },
 
-        async runNow(itemId?: string): Promise<void> {
-          const key = itemId ? `run:${itemId}` : 'run';
-          if (await act(key, 'backups.run.failed', () => backupsApi.runNow(itemId))) {
-            toast.success(translator.t('backups.run.started'));
-          }
-        },
+        runNow: rxMethod<string | undefined>(
+          pipe(
+            mergeMap((itemId) =>
+              act(
+                itemId ? `run:${itemId}` : 'run',
+                'backups.run.failed',
+                backupsApi.runNow(itemId),
+              ).pipe(tap(() => toast.success(translator.t('backups.run.started')))),
+            ),
+          ),
+        ),
 
-        async addService(serviceId: string): Promise<void> {
-          if (
-            await act(`add:${serviceId}`, 'backups.items.addFailed', () =>
-              backupsApi.addItem({ kind: 'service', serviceId }),
-            )
-          ) {
-            await loadPlan();
-          }
-        },
+        addService: rxMethod<string>(
+          pipe(
+            mergeMap((serviceId) =>
+              act(
+                `add:${serviceId}`,
+                'backups.items.addFailed',
+                backupsApi.addItem({ kind: 'service', serviceId }),
+              ).pipe(tap(() => loadPlan())),
+            ),
+          ),
+        ),
 
-        async addFolder(path: string): Promise<void> {
-          if (
-            await act(`add:${path}`, 'backups.items.addFailed', () =>
-              backupsApi.addItem({ kind: 'folder', path }),
-            )
-          ) {
-            patchState(store, { folders: null });
-            await loadPlan();
-          }
-        },
+        addFolder: rxMethod<string>(
+          pipe(
+            mergeMap((path) =>
+              act(
+                `add:${path}`,
+                'backups.items.addFailed',
+                backupsApi.addItem({ kind: 'folder', path }),
+              ).pipe(
+                tap(() => {
+                  patchState(store, { folders: null });
+                  loadPlan();
+                }),
+              ),
+            ),
+          ),
+        ),
 
-        async setFolders(itemId: string, excludedFields: string[]): Promise<void> {
-          if (
-            await act(`folders:${itemId}`, 'backups.items.foldersFailed', () =>
-              backupsApi.updateItem(itemId, excludedFields),
-            )
-          ) {
-            await loadPlan();
-          }
-        },
+        setFolders: rxMethod<{ itemId: string; excludedFields: string[] }>(
+          pipe(
+            mergeMap(({ itemId, excludedFields }) =>
+              act(
+                `folders:${itemId}`,
+                'backups.items.foldersFailed',
+                backupsApi.updateItem(itemId, excludedFields),
+              ).pipe(tap(() => loadPlan())),
+            ),
+          ),
+        ),
 
         /** Out of the plan (already confirmed); `deleteArchives` deletes its backups too. */
-        async removeItem(itemId: string, deleteArchives: boolean): Promise<void> {
-          const failure = deleteArchives
-            ? 'backups.items.deleteFailed'
-            : 'backups.items.removeFailed';
-          if (
-            await act(`remove:${itemId}`, failure, () =>
-              backupsApi.removeItem(itemId, deleteArchives),
-            )
-          ) {
-            await loadPlan();
-          }
-        },
+        removeItem: rxMethod<{ itemId: string; deleteArchives: boolean }>(
+          pipe(
+            mergeMap(({ itemId, deleteArchives }) =>
+              act(
+                `remove:${itemId}`,
+                deleteArchives ? 'backups.items.deleteFailed' : 'backups.items.removeFailed',
+                backupsApi.removeItem(itemId, deleteArchives),
+              ).pipe(tap(() => loadPlan())),
+            ),
+          ),
+        ),
 
-        async loadArchives(itemId: string): Promise<void> {
-          patchState(store, { archives: { itemId, list: null } });
-          try {
-            const { archives } = await backupsApi.archives(itemId);
-            if (store.archives()?.itemId === itemId)
-              patchState(store, { archives: { itemId, list: archives } });
-          } catch {
-            patchState(store, { archives: { itemId, list: [] } });
-          }
-        },
+        /** The archives for the restore dialog; another item opened meanwhile wins. */
+        loadArchives: rxMethod<string>(
+          pipe(
+            tap((itemId) => patchState(store, { archives: { itemId, list: null } })),
+            switchMap((itemId) =>
+              backupsApi.archives(itemId).pipe(
+                tap(({ archives }) => patchState(store, { archives: { itemId, list: archives } })),
+                catchError(() => {
+                  patchState(store, { archives: { itemId, list: [] } });
+                  return EMPTY;
+                }),
+              ),
+            ),
+          ),
+        ),
 
         /** Starts a restore (already confirmed); its progress arrives through the topic. */
-        async restore(choice: RestoreChoice): Promise<void> {
-          if (await act('restore', 'backups.restore.failed', () => backupsApi.restore(choice))) {
-            toast.success(translator.t('backups.restore.started'));
-            await loadHistory();
-          }
-        },
+        restore: rxMethod<RestoreChoice>(
+          pipe(
+            exhaustMap((choice) =>
+              act('restore', 'backups.restore.failed', backupsApi.restore(choice)).pipe(
+                tap(() => {
+                  toast.success(translator.t('backups.restore.started'));
+                  loadHistory();
+                }),
+              ),
+            ),
+          ),
+        ),
 
-        async discardPrevious(restoreId: string): Promise<void> {
-          if (
-            await act(`discard:${restoreId}`, 'backups.restore.discardFailed', () =>
-              backupsApi.discardPrevious(restoreId),
-            )
-          ) {
-            toast.success(translator.t('backups.restore.discarded'));
-            await loadHistory();
-          }
-        },
+        discardPrevious: rxMethod<string>(
+          pipe(
+            mergeMap((restoreId) =>
+              act(
+                `discard:${restoreId}`,
+                'backups.restore.discardFailed',
+                backupsApi.discardPrevious(restoreId),
+              ).pipe(
+                tap(() => {
+                  toast.success(translator.t('backups.restore.discarded'));
+                  loadHistory();
+                }),
+              ),
+            ),
+          ),
+        ),
 
-        async loadOutput(runId: string): Promise<void> {
-          try {
-            const { output } = await backupsApi.runOutput(runId);
-            patchState(store, { outputs: { ...store.outputs(), [runId]: output } });
-          } catch {
-            patchState(store, { outputs: { ...store.outputs(), [runId]: [] } });
-          }
-        },
+        loadOutput: rxMethod<string>(
+          pipe(
+            mergeMap((runId) =>
+              backupsApi.runOutput(runId).pipe(
+                tap(({ output }) =>
+                  patchState(store, { outputs: { ...store.outputs(), [runId]: output } }),
+                ),
+                catchError(() => {
+                  patchState(store, { outputs: { ...store.outputs(), [runId]: [] } });
+                  return EMPTY;
+                }),
+              ),
+            ),
+          ),
+        ),
 
-        /** The folder picker: the starting places, or inside a folder. */
-        async browse(path?: string): Promise<void> {
-          try {
-            patchState(store, { folders: await backupsApi.folders(path) });
-          } catch (error) {
-            failed('backups.folders.failed', error);
-          }
-        },
+        /** The folder picker: the starting places, or inside a folder; the latest click wins. */
+        browse: rxMethod<string | undefined>(
+          pipe(
+            switchMap((path) =>
+              backupsApi.folders(path).pipe(
+                tap((folders) => patchState(store, { folders })),
+                catchError((error: unknown) => {
+                  failed('backups.folders.failed', error);
+                  return EMPTY;
+                }),
+              ),
+            ),
+          ),
+        ),
 
         closeBrowser(): void {
           patchState(store, { folders: null });
@@ -345,7 +396,7 @@ export const BackupsPageStore = signalStore(
     return {
       onInit() {
         stop = servicesStore.watch();
-        void store.load();
+        store.load();
         // What the topic says changed (a run ended, a restore moved on, setup elsewhere): reload.
         // The key is a string, so the effect runs only when it really changes.
         const changes = computed(() => {
@@ -365,7 +416,7 @@ export const BackupsPageStore = signalStore(
         effect(() => {
           const key = changes();
           if (key === null || key === seen) return;
-          if (seen !== null) untracked(() => void store.reload());
+          if (seen !== null) untracked(() => store.reload());
           seen = key;
         });
       },

@@ -3,6 +3,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { ProfilePageStore } from '../profile-page/profile-page-store';
@@ -64,7 +65,7 @@ describe('PasswordDialog', () => {
 
   it('changes the password, confirms with a toast and closes', async () => {
     const { fixture, api, fill, submit } = await render();
-    api.changePassword.mockResolvedValue(null);
+    api.changePassword.mockReturnValue(of(null));
     fill('old password here', 'brand new password');
     await submit();
     expect(api.changePassword).toHaveBeenCalledWith({
@@ -77,20 +78,23 @@ describe('PasswordDialog', () => {
 
   it('shows a wrong current password on that field and stays open', async () => {
     const { fixture, api, dialog, fill, submit } = await render();
-    api.changePassword.mockRejectedValue(
-      new HttpErrorResponse({
-        status: 400,
-        error: {
-          message: 'Validation failed',
-          errors: [
-            {
-              field: 'currentPassword',
-              code: 'wrong_password',
-              message: 'Current password is incorrect',
+    api.changePassword.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 400,
+            error: {
+              message: 'Validation failed',
+              errors: [
+                {
+                  field: 'currentPassword',
+                  code: 'wrong_password',
+                  message: 'Current password is incorrect',
+                },
+              ],
             },
-          ],
-        },
-      }),
+          }),
+      ),
     );
     fill('wrong', 'brand new password');
     await submit();

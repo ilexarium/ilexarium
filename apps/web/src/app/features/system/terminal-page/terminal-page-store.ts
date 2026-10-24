@@ -1,8 +1,10 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { HttpErrorResponse } from '@angular/common/http';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { type LinuxSession, type LinuxSignInRequest, TERMINAL_CLOSE_CODES } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
+import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
@@ -64,29 +66,35 @@ export const TerminalPageStore = signalStore(
       };
 
       return {
-        async check(): Promise<void> {
-          try {
-            const { session } = await filesApi.session();
-            patchState(store, { session, checked: true });
-          } catch (error) {
-            patchState(store, { checked: true });
-            // A 401: the app session is gone, and the app signs out on its own.
-            if (error instanceof HttpErrorResponse && error.status === 401) return;
-            toast.error(translator.t('files.actionFailed'), {
-              description: translator.t(...apiErrorText(error)),
-            });
-          }
-        },
+        check: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              filesApi.session().pipe(
+                tap(({ session }) => patchState(store, { session, checked: true })),
+                catchError((error: unknown) => {
+                  patchState(store, { checked: true });
+                  // A 401: the app session is gone, and the app signs out on its own.
+                  if (!(error instanceof HttpErrorResponse && error.status === 401)) {
+                    toast.error(translator.t('files.actionFailed'), {
+                      description: translator.t(...apiErrorText(error)),
+                    });
+                  }
+                  return EMPTY;
+                }),
+              ),
+            ),
+          ),
+        ),
 
         /** Rejects with the server's error (the form shows it). */
         async signIn(request: LinuxSignInRequest): Promise<void> {
-          const session = await filesApi.signIn(request);
+          const session = await firstValueFrom(filesApi.signIn(request));
           patchState(store, { session, phase: 'locked', closedReason: null });
         },
 
         /** The app password again; rejects with the server's error (the form shows it). */
         async unlock(password: string): Promise<void> {
-          const { ticket } = await terminalApi.ticket(password);
+          const { ticket } = await firstValueFrom(terminalApi.ticket(password));
           patchState(store, { ticket, phase: 'connecting', closedReason: null });
         },
 
@@ -138,7 +146,7 @@ export const TerminalPageStore = signalStore(
   ),
   withHooks((store) => ({
     onInit() {
-      void store.check();
+      store.check();
     },
     onDestroy() {
       store.disconnect();

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Container } from '@laris/shared';
+import { of } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
@@ -25,7 +26,7 @@ const stopped: Container = {
 async function render() {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
-  const api = { act: vi.fn(async () => null) };
+  const api = { act: vi.fn(() => of(null)) };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),

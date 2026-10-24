@@ -3,12 +3,13 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { FileEntry, FileList, FileSummary, LinuxSession } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
 import { stubScreenWidth } from '../../../layout/testing';
 import { FilesPage } from './files-page';
+import { FilesPageStore } from './files-page-store';
 
 const entry = (change: Partial<FileEntry>): FileEntry => ({
   name: 'notes.txt',
@@ -44,26 +45,27 @@ function fakeApi(session: LinuxSession | null) {
     [PHOTOS.path, PHOTOS],
   ]);
   return {
-    session: vi.fn(async () => ({ session })),
-    signIn: vi.fn(async () => ANNA),
-    signOut: vi.fn(async () => undefined),
-    list: vi.fn(async (path: string) => {
+    session: vi.fn(() => of({ session })),
+    signIn: vi.fn(() => of(ANNA)),
+    signOut: vi.fn(() => of(undefined)),
+    list: vi.fn((path: string) => {
       const list = lists.get(path);
-      if (!list) throw httpError(404, 'file_not_found');
-      return list;
+      return list ? of(list) : throwError(() => httpError(404, 'file_not_found'));
     }),
-    summary: vi.fn(async (): Promise<FileSummary> => ({
-      type: 'folder',
-      files: 41,
-      folders: 2,
-      bytes: 5 * 1024 ** 2,
-      truncated: false,
-    })),
+    summary: vi.fn(() =>
+      of<FileSummary>({
+        type: 'folder',
+        files: 41,
+        folders: 2,
+        bytes: 5 * 1024 ** 2,
+        truncated: false,
+      }),
+    ),
     downloadUrl: (path: string) => `/api/files/download?path=${encodeURIComponent(path)}`,
     upload: vi.fn((_folder: string, _file: File, _replace: boolean) => of(0.5, 1)),
-    newFolder: vi.fn(async () => undefined),
-    rename: vi.fn(async () => undefined),
-    delete: vi.fn(async () => undefined),
+    newFolder: vi.fn(() => of(undefined)),
+    rename: vi.fn(() => of(undefined)),
+    delete: vi.fn(() => of(undefined)),
   };
 }
 
@@ -125,7 +127,7 @@ describe('FilesPage', () => {
 
   it('a refused sign-in shows why, in the form', async () => {
     const { el, api, fixture } = await render(null);
-    api.signIn.mockRejectedValueOnce(httpError(403, 'linux_login_refused'));
+    api.signIn.mockReturnValueOnce(throwError(() => httpError(403, 'linux_login_refused')));
     const [username, password] = el.querySelectorAll<HTMLInputElement>('input');
     username.value = 'anna';
     username.dispatchEvent(new Event('input'));
@@ -156,6 +158,19 @@ describe('FilesPage', () => {
     await fixture.whenStable();
     button('music')!.click();
     await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/music'));
+  });
+
+  it('a folder opened while another one loads: the one opened last is shown', async () => {
+    const { fixture, api, names } = await render();
+    const slow = new Subject<FileList>();
+    api.list.mockReturnValueOnce(slow);
+    const store = fixture.debugElement.injector.get(FilesPageStore);
+    store.open('/home/anna/Photos');
+    store.open('/home/anna');
+    slow.next(PHOTOS);
+    await fixture.whenStable();
+    expect(store.list()?.path).toBe('/home/anna');
+    expect(names()).toContain('Photos');
   });
 
   it('makes a new folder through the name dialog', async () => {
@@ -249,7 +264,7 @@ describe('FilesPage', () => {
   it('a Linux session that ended shows the sign-in again', async () => {
     const { el, api, fixture } = await render();
     const error = vi.spyOn(toast, 'error');
-    api.list.mockRejectedValueOnce(httpError(403, 'linux_session_required'));
+    api.list.mockReturnValueOnce(throwError(() => httpError(403, 'linux_session_required')));
     el.querySelector<HTMLButtonElement>('button[aria-label="Refresh"]')!.click();
     await vi.waitFor(() => {
       fixture.detectChanges();
@@ -261,7 +276,7 @@ describe('FilesPage', () => {
   it('a delete count that fails says why and closes the dialog', async () => {
     const { api, fixture, menu } = await render();
     const error = vi.spyOn(toast, 'error');
-    api.summary.mockRejectedValueOnce(httpError(403, 'permission_denied'));
+    api.summary.mockReturnValueOnce(throwError(() => httpError(403, 'permission_denied')));
     await menu('Photos', 'Delete');
     await vi.waitFor(() => expect(dialog()).toBeNull());
     expect(error).toHaveBeenCalledWith('That didn’t work', {
@@ -274,7 +289,7 @@ describe('FilesPage', () => {
   it('closing that fails keeps the files and says so', async () => {
     const { el, api, fixture, button } = await render();
     const error = vi.spyOn(toast, 'error');
-    api.signOut.mockRejectedValueOnce(httpError(503, 'ssh_unavailable'));
+    api.signOut.mockReturnValueOnce(throwError(() => httpError(503, 'ssh_unavailable')));
     button('Close')!.click();
     await vi.waitFor(() => expect(error).toHaveBeenCalled());
     await fixture.whenStable();

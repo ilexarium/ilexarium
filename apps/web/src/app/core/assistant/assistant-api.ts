@@ -17,51 +17,49 @@ import {
   type ChatStreamEvent,
   chatStreamEventSchema,
 } from '@laris/shared';
-import { firstValueFrom, Observable } from 'rxjs';
+import { Observable } from 'rxjs';
 
 /** The server's Assistant endpoints (docs/plans/ai_assistant.md). Downloads report through the `assistant` topic. */
 @Service()
 export class AssistantApi {
   private readonly http = inject(HttpClient);
 
-  status(): Promise<AiStatus> {
-    return firstValueFrom(this.http.get<AiStatus>('/api/assistant/status'));
+  status(): Observable<AiStatus> {
+    return this.http.get<AiStatus>('/api/assistant/status');
   }
 
-  models(): Promise<AiModels> {
-    return firstValueFrom(this.http.get<AiModels>('/api/assistant/models'));
+  models(): Observable<AiModels> {
+    return this.http.get<AiModels>('/api/assistant/models');
   }
 
-  pull(model: string): Promise<AiPull> {
-    return firstValueFrom(this.http.post<AiPull>('/api/assistant/models/pull', { model }));
+  pull(model: string): Observable<AiPull> {
+    return this.http.post<AiPull>('/api/assistant/models/pull', { model });
   }
 
-  removeModel(model: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>('/api/assistant/models', { params: { model } }));
+  removeModel(model: string): Observable<void> {
+    return this.http.delete<void>('/api/assistant/models', { params: { model } });
   }
 
-  search(search: string): Promise<AiLibrary> {
-    return firstValueFrom(
-      this.http.get<AiLibrary>('/api/assistant/library', { params: { search } }),
-    );
+  search(search: string): Observable<AiLibrary> {
+    return this.http.get<AiLibrary>('/api/assistant/library', { params: { search } });
   }
 
   /** `id` is `owner/repo`; each part goes into its own path segment. */
-  libraryDetail(id: string): Promise<AiLibraryDetail> {
+  libraryDetail(id: string): Observable<AiLibraryDetail> {
     const path = id.split('/').map(encodeURIComponent).join('/');
-    return firstValueFrom(this.http.get<AiLibraryDetail>(`/api/assistant/library/${path}`));
+    return this.http.get<AiLibraryDetail>(`/api/assistant/library/${path}`);
   }
 
-  chats(): Promise<ChatList> {
-    return firstValueFrom(this.http.get<ChatList>('/api/assistant/chats'));
+  chats(): Observable<ChatList> {
+    return this.http.get<ChatList>('/api/assistant/chats');
   }
 
-  chat(id: string): Promise<Chat> {
-    return firstValueFrom(this.http.get<Chat>(`/api/assistant/chats/${encodeURIComponent(id)}`));
+  chat(id: string): Observable<Chat> {
+    return this.http.get<Chat>(`/api/assistant/chats/${encodeURIComponent(id)}`);
   }
 
-  removeChat(id: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`/api/assistant/chats/${encodeURIComponent(id)}`));
+  removeChat(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/assistant/chats/${encodeURIComponent(id)}`);
   }
 
   /**
