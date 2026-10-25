@@ -164,7 +164,8 @@
     "messageTooLong": "Höchstens {{messageMax}} Zeichen",
     "displayNameTooLong": "Höchstens {{displayNameMax}} Zeichen",
     "emailTooLong": "Höchstens {{emailMax}} Zeichen",
-    "nothingToChange": "Nichts zu ändern"
+    "nothingToChange": "Nichts zu ändern",
+    "passwordInvalid": "Eine Zeile, ohne Zeilenumbrüche"
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -240,7 +241,7 @@
     "topic_required": "Gib die Topic-URL ein.",
     "password_required": "Gib das Passwort ein.",
     "process_not_found": "Dieser Prozess läuft nicht mehr.",
-    "process_protected": "Hier lassen sich nur die eigenen Prozesse von Personen beenden – nicht die des Systems, eines Dienstes oder der App.",
+    "process_protected": "Dieser Prozess lässt sich nicht beenden: Er ist der erste Prozess des Systems oder Teil des Kernels.",
     "signal_failed": "Das Signal konnte nicht gesendet werden.",
     "linux_session_required": "Melde dich erneut als Linux-Benutzer an (die Sitzung ist beendet).",
     "linux_login_refused": "Falscher Benutzername oder falsches Passwort, oder dieses Konto kann sich nicht anmelden.",
@@ -265,7 +266,10 @@
     "library_not_found": "Dieses Modell gibt es auf Hugging Face nicht.",
     "models_folder_unavailable": "Der Modellordner lässt sich nicht lesen, sein freier Platz ist unbekannt. Prüfe, ob seine Festplatte da ist.",
     "invalid_picture": "Das Bild konnte nicht verwendet werden. Wähle ein anderes JPEG-, PNG- oder WebP-Bild.",
-    "picture_too_large": "Das Bild ist zu groß."
+    "picture_too_large": "Das Bild ist zu groß.",
+    "process_not_permitted": "Linux hat diesem Konto nicht erlaubt, den Prozess zu beenden.",
+    "sudo_password_wrong": "sudo hat dieses Passwort nicht angenommen.",
+    "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -964,12 +968,6 @@
     "search": "Prozesse durchsuchen",
     "searchPlaceholder": "Name, Befehl oder Benutzer",
     "sortBy": "Sortieren nach",
-    "sort": {
-      "cpu": "CPU",
-      "memory": "Arbeitsspeicher",
-      "name": "Name",
-      "pid": "PID"
-    },
     "showSystem": "Systemprozesse anzeigen",
     "pause": "Anhalten",
     "resume": "Fortsetzen",
@@ -977,12 +975,30 @@
     "partial": "Dieser Rechner verbirgt die Prozesse anderer Benutzer vor der App, daher ist die Liste unvollständig.",
     "none": "Keine passenden Prozesse.",
     "column": {
-      "name": "Prozess",
       "pid": "PID",
-      "user": "Benutzer",
-      "cpu": "CPU",
-      "memory": "Speicher",
-      "state": "Zustand",
+      "user": "BENUTZER",
+      "priority": "PRI",
+      "nice": "NI",
+      "virtual": "VIRT",
+      "resident": "RES",
+      "shared": "SHR",
+      "state": "S",
+      "cpu": "CPU%",
+      "memory": "MEM%",
+      "time": "ZEIT+",
+      "command": "Befehl",
+      "pidLong": "Prozess-ID",
+      "userLong": "Benutzer",
+      "priorityLong": "Priorität",
+      "niceLong": "Nice-Wert",
+      "virtualLong": "Virtueller Speicher",
+      "residentLong": "Belegter Arbeitsspeicher",
+      "sharedLong": "Geteilter Speicher",
+      "stateLong": "Zustand",
+      "cpuLong": "CPU",
+      "memoryLong": "Arbeitsspeicher",
+      "timeLong": "CPU-Zeit",
+      "commandLong": "Befehl",
       "started": "Gestartet",
       "actions": "Aktionen"
     },
@@ -995,25 +1011,19 @@
       "idle": "Untätig",
       "other": "Anderer"
     },
-    "kernel": "Kernel-Thread",
     "container": "Container {{name}}",
     "unknownContainer": "In einem Container",
-    "commandLine": "Befehlszeile",
     "startedAgo": "vor {{duration}}",
     "unknownUser": "UID {{uid}}",
-    "end": "Beenden",
-    "force": "Erzwingen",
-    "endFor": "{{name}} (PID {{pid}}) beenden",
-    "forceFor": "Beenden von {{name}} (PID {{pid}}) erzwingen",
-    "toContainers": "Container",
-    "toContainersFor": "{{name}} auf der Seite Container stoppen",
-    "stillRunning": "Läuft noch, obwohl er zum Beenden aufgefordert wurde.",
+    "end": "Beenden…",
+    "force": "Beenden erzwingen…",
+    "toContainers": "Zu den Containern",
     "endDialog": {
       "title": "{{name}} beenden?",
       "details": "PID {{pid}} · Benutzer {{user}}",
       "text": "Er wird gebeten, sich zu beenden, und kann vorher noch fertig werden und speichern.",
       "forceTitle": "Beenden von {{name}} erzwingen?",
-      "forceText": "Er hat sich auf die Aufforderung nicht beendet. Erzwingen beendet ihn sofort: Was er nicht gespeichert hat, geht verloren.",
+      "forceText": "Erzwingen beendet ihn sofort, ohne ihn fertig werden zu lassen: Was er nicht gespeichert hat, geht verloren.",
       "cancel": "Abbrechen",
       "confirm": "Prozess beenden",
       "confirmForce": "Erzwingen"
@@ -1021,7 +1031,63 @@
     "ended": "{{name}} wurde zum Beenden aufgefordert",
     "forced": "{{name}} wurde zwangsweise beendet",
     "endFailed": "Der Prozess konnte nicht beendet werden",
-    "showAll": "Alle anzeigen ({{count}})"
+    "showAll": "Alle anzeigen ({{count}})",
+    "tableLabel": "Prozesse – Pfeiltasten wählen eine Zeile",
+    "sortByColumn": "Nach {{column}} sortieren",
+    "endAsAdministrator": "Als Administrator beenden…",
+    "forceAsAdministrator": "Als Administrator erzwingen…",
+    "actionsFor": "Aktionen für {{name}} (PID {{pid}})",
+    "stillRunningShort": "läuft noch",
+    "cpuShort": "CPU {{value}} %",
+    "memoryShort": "MEM {{value}} %",
+    "keys": "Tasten: ↑ ↓ auswählen · / suchen · Leertaste anhalten · k oder F9 beenden · K erzwingen",
+    "onlyGroup": "nur {{name}}",
+    "onlySystem": "nur die des Systems",
+    "onlyAttention": "nur die, die Aufmerksamkeit brauchen",
+    "showEveryone": "Alle zeigen",
+    "administrator": {
+      "title": "{{name}} als Administrator beenden?",
+      "forceTitle": "Beenden von {{name}} als Administrator erzwingen?",
+      "text": "Es ist kein Prozess von {{account}}, daher braucht das Beenden sudo dieses Kontos. Gib sein Passwort ein: Es wird nur dieses eine Mal verwendet und nicht gespeichert.",
+      "password": "Passwort für sudo",
+      "submitting": "Wird beendet…",
+      "close": "Schließen"
+    },
+    "signIn": {
+      "title": "Anmelden, um Prozesse zu beenden",
+      "text": "Prozesse werden als Linux-Benutzer dieses Rechners beendet: Linux entscheidet, welche dieses Konto beenden darf."
+    },
+    "summary": {
+      "cpu": "CPU",
+      "loadOn_one": "Last {{load}} auf {{count}} Kern",
+      "loadOn_other": "Last {{load}} auf {{count}} Kernen",
+      "level": {
+        "calm": "ruhig",
+        "busy": "ausgelastet",
+        "overloaded": "überlastet"
+      },
+      "memory": "Arbeitsspeicher",
+      "memoryOf": "{{used}} von {{total}} belegt",
+      "swap": "Auslagerung: {{used}} von {{total}} belegt",
+      "noSwap": "Keine Auslagerung",
+      "waiting": "Wartezeit",
+      "waitingFor": {
+        "cpu": "Auf CPU",
+        "memory": "Auf Speicher",
+        "io": "Auf die Festplatte"
+      },
+      "waitingText": "Wie viel der letzten Minute Prozesse gewartet haben.",
+      "where": "Wohin es geht",
+      "only": "Nur {{name}} zeigen",
+      "system": "System",
+      "attention": "Braucht Aufmerksamkeit",
+      "zombies_one": "{{count}} Zombie-Prozess",
+      "zombies_other": "{{count}} Zombie-Prozesse",
+      "waitingDisk_one": "{{count}} wartet auf die Festplatte",
+      "waitingDisk_other": "{{count}} warten auf die Festplatte",
+      "showThem": "Anzeigen",
+      "showEverything": "Alle zeigen"
+    }
   },
   "files": {
     "signIn": {

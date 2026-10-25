@@ -1,6 +1,7 @@
 import {
   formatBytes,
   formatClock,
+  formatCpuTime,
   formatDuration,
   formatLogTime,
   formatCount,
@@ -124,5 +125,15 @@ describe('formatLogTime', () => {
     expect(formatLogTime('2026-01-02T00:00:00.000000000Z')).toMatch(
       /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:00\.000$/,
     );
+  });
+});
+
+describe('formatCpuTime', () => {
+  it('is htop’s TIME+: minutes, seconds and hundredths below an hour, then hours', () => {
+    expect(formatCpuTime(0)).toBe('0:00.00');
+    expect(formatCpuTime(247.316)).toBe('4:07.31');
+    expect(formatCpuTime(3600 * 12 + 4 * 60 + 31.9)).toBe('12:04:31');
+    expect(formatCpuTime(3600 * 153)).toBe('153h');
+    expect(formatCpuTime(-5)).toBe('0:00.00');
   });
 });

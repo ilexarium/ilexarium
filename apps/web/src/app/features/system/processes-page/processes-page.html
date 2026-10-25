@@ -1,4 +1,17 @@
 <div class="grid gap-4">
+  @if (store.summary(); as summary) {
+    <laris-process-summary
+      [summary]="summary"
+      [loadLevel]="store.loadLevel()"
+      [groups]="store.groups()"
+      [attention]="store.attentionCounts()"
+      [selectedGroup]="store.group()"
+      [attentionOn]="store.attention()"
+      (group)="store.toggleGroup($event)"
+      (toggleAttention)="store.toggleAttention()"
+    />
+  }
+
   <div class="flex flex-wrap items-center gap-3">
     <div class="relative min-w-0 flex-1 basis-60">
       <ng-icon
@@ -7,6 +20,7 @@
         aria-hidden="true"
       />
       <input
+        #searchBox
         hlmInput
         type="search"
         class="w-full ps-9"
@@ -16,26 +30,16 @@
         (input)="search($event)"
       />
     </div>
-    <div
-      class="flex flex-wrap items-center gap-1"
-      role="group"
-      [attr.aria-label]="'processes.sortBy' | translate"
-    >
-      <span class="me-1 text-sm text-muted-foreground" aria-hidden="true">{{
-        'processes.sortBy' | translate
-      }}</span>
-      @for (sort of sorts; track sort) {
-        <button
-          hlmBtn
-          size="sm"
-          [variant]="store.sort() === sort ? 'secondary' : 'ghost'"
-          [attr.aria-pressed]="store.sort() === sort"
-          (click)="store.setSort(sort)"
-        >
-          {{ 'processes.sort.' + sort | translate }}
-        </button>
-      }
-    </div>
+    <label class="flex items-center gap-2 text-sm lg:hidden">
+      <span class="text-muted-foreground">{{ 'processes.sortBy' | translate }}</span>
+      <select hlmInput class="h-9 w-auto py-0" (change)="sortBy($event)">
+        @for (sort of phoneSorts; track sort) {
+          <option [value]="sort" [selected]="store.sort() === sort">
+            {{ 'processes.column.' + sort + 'Long' | translate }}
+          </option>
+        }
+      </select>
+    </label>
     <label class="flex items-center gap-2 text-sm">
       <input
         type="checkbox"
@@ -64,18 +68,44 @@
   }
 
   @if (store.loaded()) {
-    <p class="text-sm text-muted-foreground" aria-live="polite">
-      {{ 'processes.count' | plural: store.rows().length }}
+    <div
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground"
+      aria-live="polite"
+    >
+      <span>{{ 'processes.count' | plural: store.rows().length }}</span>
       @if (store.paused()) {
-        · {{ 'processes.paused' | translate }}
+        <span>· {{ 'processes.paused' | translate }}</span>
       }
-    </p>
+      @if (store.group(); as group) {
+        <span>
+          ·
+          {{
+            (group.kind === 'system' ? 'processes.onlySystem' : 'processes.onlyGroup')
+              | translate: { name: group.name }
+          }}
+        </span>
+      } @else if (store.attention()) {
+        <span>· {{ 'processes.onlyAttention' | translate }}</span>
+      }
+      @if (store.group() || store.attention()) {
+        <button hlmBtn variant="ghost" size="sm" (click)="store.clearFilters()">
+          <ng-icon name="lucideX" aria-hidden="true" />
+          {{ 'processes.showEveryone' | translate }}
+        </button>
+      }
+    </div>
     <laris-process-list
       [processes]="store.shownRows()"
+      [sort]="store.sort()"
+      [descending]="store.descending()"
+      [endAs]="endAs"
       [pending]="store.pending()"
-      [forceable]="store.forceable()"
+      [stillRunning]="store.stillRunning()"
       [now]="store.now()"
+      (sortBy)="store.setSort($event)"
       (end)="ask($event)"
+      (searchKey)="focusSearch()"
+      (pauseKey)="store.togglePause()"
     />
     @if (store.moreRows() > 0) {
       <button hlmBtn variant="outline" class="justify-self-center" (click)="store.showEverything()">
@@ -85,10 +115,21 @@
   } @else {
     <div class="grid gap-2" role="status" [attr.aria-label]="'processes.loading' | translate">
       @for (line of [1, 2, 3, 4, 5]; track line) {
-        <hlm-skeleton class="h-12 w-full" />
+        <hlm-skeleton class="h-6 w-full" />
       }
     </div>
   }
 </div>
 
 <laris-end-process-dialog (confirm)="store.end($event)" />
+<laris-administrator-dialog
+  [endAsAdministrator]="endAsAdministrator"
+  [linuxUser]="store.linux()?.username ?? null"
+/>
+<laris-sign-in-dialog
+  [open]="signInOpen()"
+  title="processes.signIn.title"
+  text="processes.signIn.text"
+  [signIn]="signIn"
+  (closed)="signInClosed()"
+/>

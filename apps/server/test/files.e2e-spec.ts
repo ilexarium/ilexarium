@@ -108,7 +108,7 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
       .expect(403);
     expect(root.body.code).toBe('linux_root_refused');
     const session = (await api().post('/files/session', ANNA).expect(200)).body as LinuxSession;
-    expect(session).toEqual({ username: 'anna', home: '/home/anna' });
+    expect(session).toEqual({ username: 'anna', home: '/home/anna', uid: 1500 });
     expect((await api().get('/files/session').expect(200)).body).toEqual({ session });
     const audit = await prisma.auditEvent.findMany({ where: { action: 'linux.signin' } });
     expect(audit.map((a) => [a.outcome, (a.details as { reason?: string }).reason])).toEqual([

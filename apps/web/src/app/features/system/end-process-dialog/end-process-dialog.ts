@@ -6,8 +6,9 @@ import { Formatter } from '../../../shared/format/formatter';
 import type { EndRequest } from '../processes.model';
 
 /**
- * Confirming the end of a process: asked to stop (it can save its work), or forced (at once, its
- * unsaved work lost). UI only: the page opens it; the choice goes out through `confirm`.
+ * Confirming the end of the account's own process: asked to stop (it can save its work), or
+ * forced (at once, its unsaved work lost). UI only: the page opens it; the choice goes out
+ * through `confirm`.
  */
 @Component({
   selector: 'laris-end-process-dialog',

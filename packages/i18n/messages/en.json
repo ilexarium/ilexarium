@@ -164,7 +164,8 @@
     "messageTooLong": "At most {{messageMax}} characters",
     "displayNameTooLong": "At most {{displayNameMax}} characters",
     "emailTooLong": "At most {{emailMax}} characters",
-    "nothingToChange": "Nothing to change"
+    "nothingToChange": "Nothing to change",
+    "passwordInvalid": "One line, without line breaks"
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -240,7 +241,7 @@
     "topic_required": "Enter the topic URL.",
     "password_required": "Enter the password.",
     "process_not_found": "This process isn't running any more.",
-    "process_protected": "Only a person's own processes can be ended here — not the system's, a service's or the app's.",
+    "process_protected": "This process can’t be ended: it’s the system’s first process or part of the kernel.",
     "signal_failed": "The process couldn't be signalled.",
     "linux_session_required": "Sign in as a Linux user again (the session ended).",
     "linux_login_refused": "Wrong user name or password, or this account can’t sign in.",
@@ -265,7 +266,10 @@
     "library_not_found": "No such model on Hugging Face.",
     "models_folder_unavailable": "The models folder can’t be read, so its free space is unknown. Check that its disk is there.",
     "invalid_picture": "The picture couldn’t be used. Choose another JPEG, PNG or WebP image.",
-    "picture_too_large": "The picture is too large."
+    "picture_too_large": "The picture is too large.",
+    "process_not_permitted": "Linux didn’t allow this account to end that process.",
+    "sudo_password_wrong": "sudo didn’t accept this password.",
+    "sudo_not_allowed": "This account may not use sudo on this machine."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -964,12 +968,6 @@
     "search": "Search processes",
     "searchPlaceholder": "Name, command or user",
     "sortBy": "Sort by",
-    "sort": {
-      "cpu": "CPU",
-      "memory": "Memory",
-      "name": "Name",
-      "pid": "PID"
-    },
     "showSystem": "Show system processes",
     "pause": "Pause",
     "resume": "Resume",
@@ -977,12 +975,30 @@
     "partial": "This machine hides other users' processes from the app, so the list is incomplete.",
     "none": "No processes match.",
     "column": {
-      "name": "Process",
       "pid": "PID",
-      "user": "User",
-      "cpu": "CPU",
-      "memory": "Memory",
-      "state": "State",
+      "user": "USER",
+      "priority": "PRI",
+      "nice": "NI",
+      "virtual": "VIRT",
+      "resident": "RES",
+      "shared": "SHR",
+      "state": "S",
+      "cpu": "CPU%",
+      "memory": "MEM%",
+      "time": "TIME+",
+      "command": "Command",
+      "pidLong": "Process ID",
+      "userLong": "User",
+      "priorityLong": "Priority",
+      "niceLong": "Nice value",
+      "virtualLong": "Virtual memory",
+      "residentLong": "Resident memory",
+      "sharedLong": "Shared memory",
+      "stateLong": "State",
+      "cpuLong": "CPU",
+      "memoryLong": "Memory",
+      "timeLong": "CPU time",
+      "commandLong": "Command",
       "started": "Started",
       "actions": "Actions"
     },
@@ -995,25 +1011,19 @@
       "idle": "Idle",
       "other": "Other"
     },
-    "kernel": "Kernel thread",
     "container": "Container {{name}}",
     "unknownContainer": "In a container",
-    "commandLine": "Command line",
     "startedAgo": "{{duration}} ago",
     "unknownUser": "uid {{uid}}",
-    "end": "End",
-    "force": "Force end",
-    "endFor": "End {{name}} (PID {{pid}})",
-    "forceFor": "Force {{name}} (PID {{pid}}) to end",
-    "toContainers": "Containers",
-    "toContainersFor": "Stop {{name}} on the Containers page",
-    "stillRunning": "Still running after being asked to stop.",
+    "end": "End…",
+    "force": "Force end…",
+    "toContainers": "Go to Containers",
     "endDialog": {
       "title": "End {{name}}?",
       "details": "PID {{pid}} · user {{user}}",
       "text": "It's asked to stop, so it can finish and save its work first.",
       "forceTitle": "Force {{name}} to end?",
-      "forceText": "It didn't stop when asked. Forcing ends it at once: anything it hasn't saved is lost.",
+      "forceText": "Forcing ends it at once, without letting it finish: anything it hasn’t saved is lost.",
       "cancel": "Cancel",
       "confirm": "End process",
       "confirmForce": "Force end"
@@ -1021,7 +1031,63 @@
     "ended": "{{name}} was asked to stop",
     "forced": "{{name}} was forced to end",
     "endFailed": "The process couldn't be ended",
-    "showAll": "Show all ({{count}})"
+    "showAll": "Show all ({{count}})",
+    "tableLabel": "Processes — arrow keys select a row",
+    "sortByColumn": "Sort by {{column}}",
+    "endAsAdministrator": "End as administrator…",
+    "forceAsAdministrator": "Force end as administrator…",
+    "actionsFor": "Actions for {{name}} (PID {{pid}})",
+    "stillRunningShort": "still running",
+    "cpuShort": "CPU {{value}}%",
+    "memoryShort": "MEM {{value}}%",
+    "keys": "Keys: ↑ ↓ select · / search · Space pause · k or F9 end · K force end",
+    "onlyGroup": "only {{name}}",
+    "onlySystem": "only the system’s",
+    "onlyAttention": "only those needing attention",
+    "showEveryone": "Show all",
+    "administrator": {
+      "title": "End {{name}} as administrator?",
+      "forceTitle": "Force {{name}} to end as administrator?",
+      "text": "It isn’t a process of {{account}}, so ending it needs that account’s sudo. Enter its password: it’s used for this once and not kept.",
+      "password": "Password for sudo",
+      "submitting": "Ending…",
+      "close": "Close"
+    },
+    "signIn": {
+      "title": "Sign in to end processes",
+      "text": "Processes are ended as a Linux user of this machine: Linux decides which ones that account may end."
+    },
+    "summary": {
+      "cpu": "CPU",
+      "loadOn_one": "Load {{load}} on {{count}} core",
+      "loadOn_other": "Load {{load}} on {{count}} cores",
+      "level": {
+        "calm": "calm",
+        "busy": "busy",
+        "overloaded": "overloaded"
+      },
+      "memory": "Memory",
+      "memoryOf": "{{used}} of {{total}} in use",
+      "swap": "Swap: {{used}} of {{total}} in use",
+      "noSwap": "No swap",
+      "waiting": "Waiting",
+      "waitingFor": {
+        "cpu": "For CPU",
+        "memory": "For memory",
+        "io": "For the disk"
+      },
+      "waitingText": "How much of the last minute processes waited.",
+      "where": "Where it goes",
+      "only": "Show only {{name}}",
+      "system": "System",
+      "attention": "Needs attention",
+      "zombies_one": "{{count}} zombie process",
+      "zombies_other": "{{count}} zombie processes",
+      "waitingDisk_one": "{{count}} waiting for the disk",
+      "waitingDisk_other": "{{count}} waiting for the disk",
+      "showThem": "Show them",
+      "showEverything": "Show all"
+    }
   },
   "files": {
     "signIn": {

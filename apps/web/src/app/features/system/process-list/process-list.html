@@ -1,93 +1,191 @@
 @if (rows().length === 0) {
   <laris-empty-state icon="lucideSearchX" [text]="'processes.none' | translate" />
 } @else if (wide()) {
-  <!-- Extra-large screens: a table. -->
-  <div hlmTableContainer>
-    <table hlmTable>
-      <thead hlmTHead>
-        <tr hlmTr>
-          <th hlmTh scope="col">{{ 'processes.column.name' | translate }}</th>
-          <th hlmTh scope="col" class="w-20 text-end">{{ 'processes.column.pid' | translate }}</th>
-          <th hlmTh scope="col" class="w-28">{{ 'processes.column.user' | translate }}</th>
-          <th hlmTh scope="col" class="w-16 text-end">{{ 'processes.column.cpu' | translate }}</th>
-          <th hlmTh scope="col" class="w-24 text-end">
-            {{ 'processes.column.memory' | translate }}
-          </th>
-          <th hlmTh scope="col" class="w-24">{{ 'processes.column.state' | translate }}</th>
-          <th hlmTh scope="col" class="w-32">{{ 'processes.column.started' | translate }}</th>
-          <th hlmTh scope="col" class="w-32">
+  <!-- Large screens: htop's table. Keys while it has focus (listed below it). -->
+  <div
+    #table
+    class="max-h-[70dvh] overflow-auto rounded-lg border bg-card font-mono text-[13px] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    tabindex="0"
+    role="region"
+    [attr.aria-label]="'processes.tableLabel' | translate"
+    (keydown)="keydown($event)"
+  >
+    <table class="w-full table-fixed border-collapse" dir="ltr">
+      <thead class="sticky top-0 z-10 bg-muted text-xs text-muted-foreground">
+        <tr>
+          @for (column of columns; track column.sort) {
+            <th
+              scope="col"
+              class="h-7 px-1.5 font-medium whitespace-nowrap"
+              [class]="column.classes"
+              [attr.aria-sort]="ariaSort(column.sort)"
+            >
+              <button
+                type="button"
+                class="inline-flex h-full w-full items-center gap-0.5 hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
+                [class.justify-end]="column.end"
+                [class.text-foreground]="sort() === column.sort"
+                [attr.aria-label]="
+                  'processes.sortByColumn'
+                    | translate
+                      : { column: ('processes.column.' + column.sort + 'Long' | translate) }
+                "
+                (click)="sortBy.emit(column.sort)"
+              >
+                {{ 'processes.column.' + column.sort | translate }}
+                @if (sort() === column.sort) {
+                  <ng-icon
+                    [name]="descending() ? 'lucideArrowDown' : 'lucideArrowUp'"
+                    size="12"
+                    aria-hidden="true"
+                  />
+                }
+              </button>
+            </th>
+          }
+          <th scope="col" class="w-9">
             <span class="sr-only">{{ 'processes.column.actions' | translate }}</span>
           </th>
         </tr>
       </thead>
-      <tbody hlmTBody>
+      <tbody>
         @for (row of rows(); track row.key) {
-          <tr hlmTr>
-            <th hlmTd scope="row" class="max-w-0 font-normal">
-              <ng-container *ngTemplateOutlet="name; context: { $implicit: row }" />
-            </th>
-            <td hlmTd class="text-end tabular-nums">
-              <span dir="ltr">{{ row.process.pid }}</span>
+          <tr
+            class="h-6 cursor-default border-t border-border/40 hover:bg-accent/60 aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:hover:bg-primary"
+            [class.opacity-60]="row.process.kernel && selected() !== row.key"
+            [attr.aria-selected]="selected() === row.key"
+            [attr.data-key]="row.key"
+            (click)="select(row)"
+          >
+            <td class="px-1.5 text-end tabular-nums">{{ row.process.pid }}</td>
+            <td class="truncate px-1.5">{{ row.user }}</td>
+            <td class="hidden px-1.5 text-end tabular-nums xl:table-cell">
+              {{ row.process.priority }}
             </td>
-            <td hlmTd class="truncate">
-              <span dir="ltr">{{ row.user }}</span>
+            <td
+              class="hidden px-1.5 text-end tabular-nums xl:table-cell"
+              [class.text-destructive]="row.process.nice < 0 && selected() !== row.key"
+              [class.text-info]="row.process.nice > 0 && selected() !== row.key"
+            >
+              {{ row.process.nice }}
             </td>
-            <td hlmTd class="text-end tabular-nums">{{ row.cpu }}</td>
-            <td hlmTd class="text-end tabular-nums">
-              <span class="block">{{ row.memory }}</span>
-              <span class="block text-xs text-muted-foreground">{{ row.memoryShare }}</span>
+            <td class="hidden px-1.5 text-end tabular-nums xl:table-cell">{{ row.virtual }}</td>
+            <td class="px-1.5 text-end tabular-nums">{{ row.resident }}</td>
+            <td class="hidden px-1.5 text-end tabular-nums xl:table-cell">{{ row.shared }}</td>
+            <td
+              class="px-1.5 font-semibold"
+              [class.text-success]="row.process.state === 'running' && selected() !== row.key"
+              [class.text-warning]="row.process.state === 'waiting' && selected() !== row.key"
+              [class.text-destructive]="row.process.state === 'zombie' && selected() !== row.key"
+              [attr.title]="'processes.state.' + row.process.state | translate"
+            >
+              {{ letters[row.process.state] }}
             </td>
-            <td hlmTd>{{ 'processes.state.' + row.process.state | translate }}</td>
-            <td hlmTd class="whitespace-nowrap">{{ row.started }}</td>
-            <td hlmTd class="text-end">
-              <ng-container *ngTemplateOutlet="action; context: { $implicit: row }" />
+            <td
+              class="px-1.5 text-end tabular-nums"
+              [class.font-semibold]="row.cpuHigh"
+              [class.text-destructive]="row.cpuHigh && selected() !== row.key"
+            >
+              {{ row.cpu }}
+            </td>
+            <td
+              class="px-1.5 text-end tabular-nums"
+              [class.font-semibold]="row.memoryHigh"
+              [class.text-warning]="row.memoryHigh && selected() !== row.key"
+            >
+              {{ row.memoryShare }}
+            </td>
+            <td class="px-1.5 text-end tabular-nums">{{ row.time }}</td>
+            <td class="truncate px-1.5" [attr.title]="row.process.command || row.process.name">
+              <ng-container *ngTemplateOutlet="command; context: { $implicit: row }" />
+            </td>
+            <td class="px-1 text-end">
+              <ng-container *ngTemplateOutlet="actions; context: { $implicit: row }" />
             </td>
           </tr>
         }
       </tbody>
     </table>
   </div>
+  <p class="text-xs text-muted-foreground">{{ 'processes.keys' | translate }}</p>
 } @else {
-  <!-- Phones, tablets and laptops: one card per process. -->
-  <ul class="grid gap-3">
+  <!-- Phones and tablets: two lines a process; a tap shows its details and actions. -->
+  <ul class="divide-y overflow-hidden rounded-lg border bg-card">
     @for (row of rows(); track row.key) {
-      <li class="grid gap-2 rounded-lg border p-3">
-        <ng-container *ngTemplateOutlet="name; context: { $implicit: row }" />
-        <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
-          <div>
-            <dt class="text-muted-foreground">{{ 'processes.column.cpu' | translate }}</dt>
-            <dd class="tabular-nums">{{ row.cpu }}</dd>
-          </div>
-          <div>
-            <dt class="text-muted-foreground">{{ 'processes.column.memory' | translate }}</dt>
-            <dd class="tabular-nums">
-              <span dir="ltr">{{ row.memory }} ({{ row.memoryShare }})</span>
-            </dd>
-          </div>
-          <div>
-            <dt class="text-muted-foreground">{{ 'processes.column.user' | translate }}</dt>
-            <dd class="truncate">
-              <span dir="ltr">{{ row.user }}</span>
-            </dd>
-          </div>
-          <div>
-            <dt class="text-muted-foreground">{{ 'processes.column.pid' | translate }}</dt>
-            <dd class="tabular-nums">
-              <span dir="ltr">{{ row.process.pid }}</span>
-            </dd>
-          </div>
-          <div>
-            <dt class="text-muted-foreground">{{ 'processes.column.state' | translate }}</dt>
-            <dd>{{ 'processes.state.' + row.process.state | translate }}</dd>
-          </div>
-          <div class="col-span-2 sm:col-span-3">
-            <dt class="text-muted-foreground">{{ 'processes.column.started' | translate }}</dt>
-            <dd>{{ row.started }}</dd>
-          </div>
-        </dl>
-        @if (row.action) {
-          <div class="flex justify-end">
-            <ng-container *ngTemplateOutlet="action; context: { $implicit: row }" />
+      <li [class.opacity-60]="row.process.kernel">
+        <button
+          type="button"
+          class="grid w-full gap-0.5 px-3 py-2 text-start focus-visible:bg-accent focus-visible:outline-none"
+          [attr.aria-expanded]="opened() === row.key"
+          (click)="toggleOpened(row)"
+        >
+          <span class="flex min-w-0 items-baseline gap-3">
+            <span class="min-w-0 flex-1 truncate font-mono text-sm" dir="ltr">
+              <ng-container *ngTemplateOutlet="command; context: { $implicit: row }" />
+            </span>
+            <span
+              class="font-mono text-sm tabular-nums"
+              [class.font-semibold]="row.cpuHigh"
+              [class.text-destructive]="row.cpuHigh"
+              >{{ 'processes.cpuShort' | translate: { value: row.cpu } }}</span
+            >
+            <span
+              class="font-mono text-sm tabular-nums"
+              [class.font-semibold]="row.memoryHigh"
+              [class.text-warning]="row.memoryHigh"
+              >{{ 'processes.memoryShort' | translate: { value: row.memoryShare } }}</span
+            >
+          </span>
+          <span class="flex min-w-0 gap-3 text-xs text-muted-foreground">
+            <span dir="ltr" class="tabular-nums">{{ row.process.pid }}</span>
+            <span dir="ltr" class="truncate">{{ row.user }}</span>
+            <span>{{ 'processes.state.' + row.process.state | translate }}</span>
+            @if (row.container) {
+              <span class="truncate">{{ row.container }}</span>
+            }
+            @if (still(row)) {
+              <span class="text-warning">{{ 'processes.stillRunningShort' | translate }}</span>
+            }
+          </span>
+        </button>
+        @if (opened() === row.key) {
+          <div class="grid gap-3 px-3 pb-3 text-sm">
+            @if (row.process.command) {
+              <code
+                class="block rounded bg-muted p-2 text-xs break-all whitespace-pre-wrap"
+                dir="ltr"
+                >{{ row.process.command }}</code
+              >
+            }
+            <dl class="grid grid-cols-3 gap-x-4 gap-y-1 sm:grid-cols-6">
+              @for (
+                detail of [
+                  ['resident', row.resident],
+                  ['virtual', row.virtual],
+                  ['shared', row.shared],
+                  ['time', row.time],
+                  ['priority', row.process.priority],
+                  ['nice', row.process.nice],
+                ];
+                track detail[0]
+              ) {
+                <div>
+                  <dt class="text-xs text-muted-foreground">
+                    {{ 'processes.column.' + detail[0] + 'Long' | translate }}
+                  </dt>
+                  <dd class="font-mono tabular-nums" dir="ltr">{{ detail[1] }}</dd>
+                </div>
+              }
+              <div class="col-span-3">
+                <dt class="text-xs text-muted-foreground">
+                  {{ 'processes.column.started' | translate }}
+                </dt>
+                <dd>{{ row.started }}</dd>
+              </div>
+            </dl>
+            <div class="flex flex-wrap justify-end gap-2">
+              <ng-container *ngTemplateOutlet="buttons; context: { $implicit: row }" />
+            </div>
           </div>
         }
       </li>
@@ -95,68 +193,106 @@
   </ul>
 }
 
-<!-- The name, its container or kind, and the command line (opened on demand). -->
-<ng-template #name let-row>
-  <div class="grid min-w-0 gap-1">
-    <p class="flex min-w-0 flex-wrap items-center gap-2">
-      <span class="truncate font-medium" dir="ltr" data-name>{{ row.process.name }}</span>
-      @if (row.container) {
-        <span hlmBadge variant="secondary" class="max-w-full truncate">{{ row.container }}</span>
-      }
-      @if (row.process.kernel) {
-        <span hlmBadge variant="outline">{{ 'processes.kernel' | translate }}</span>
-      }
-    </p>
-    @if (row.process.command) {
-      <details class="min-w-0 text-xs text-muted-foreground">
-        <summary class="cursor-pointer py-1">{{ 'processes.commandLine' | translate }}</summary>
-        <code class="block break-all whitespace-pre-wrap" dir="ltr">{{ row.process.command }}</code>
-      </details>
-    }
-  </div>
+<!-- The program's name standing out, its arguments muted (htop's command colours). -->
+<ng-template #command let-row>
+  @if (row.container) {
+    <ng-icon
+      name="lucideBox"
+      size="12"
+      class="me-1 inline-block align-[-1px]"
+      [attr.aria-label]="row.container"
+      role="img"
+    />
+  }
+  <span class="font-semibold">{{ row.program }}</span>
+  @if (row.args) {
+    <span [class.text-muted-foreground]="selected() !== row.key"> {{ row.args }}</span>
+  }
+  @if (still(row) && wide()) {
+    <span class="ms-2 text-warning" [class.text-primary-foreground]="selected() === row.key">{{
+      'processes.stillRunningShort' | translate
+    }}</span>
+  }
 </ng-template>
 
-<!-- End, force, or where to stop it instead. -->
-<ng-template #action let-row>
-  @switch (row.action) {
-    @case ('end') {
-      <button
-        hlmBtn
-        variant="outline"
-        size="sm"
-        [disabled]="busy(row)"
-        [attr.aria-label]="
-          'processes.endFor' | translate: { name: row.process.name, pid: row.process.pid }
-        "
-        (click)="end.emit({ process: row.process, signal: 'TERM' })"
-      >
-        {{ 'processes.end' | translate }}
-      </button>
-    }
-    @case ('force') {
-      <button
-        hlmBtn
-        variant="destructive"
-        size="sm"
-        [disabled]="busy(row)"
-        [attr.title]="'processes.stillRunning' | translate"
-        [attr.aria-label]="
-          'processes.forceFor' | translate: { name: row.process.name, pid: row.process.pid }
-        "
-        (click)="end.emit({ process: row.process, signal: 'KILL' })"
-      >
-        {{ 'processes.force' | translate }}
-      </button>
-    }
-    @case ('containers') {
-      <a
-        hlmBtn
-        variant="ghost"
-        size="sm"
-        routerLink="/containers"
-        [attr.aria-label]="'processes.toContainersFor' | translate: { name: row.process.name }"
-        >{{ 'processes.toContainers' | translate }}</a
-      >
-    }
+<!-- The row's menu (table): End, Force end — as administrator for another's — or the Containers page. -->
+<ng-template #actions let-row>
+  @if (row.endable || row.container) {
+    <button
+      hlmBtn
+      variant="ghost"
+      size="icon"
+      class="size-6"
+      [disabled]="busy(row)"
+      [hlmDropdownMenuTrigger]="menu"
+      align="end"
+      [attr.aria-label]="
+        'processes.actionsFor' | translate: { name: row.process.name, pid: row.process.pid }
+      "
+      (click)="$event.stopPropagation(); select(row)"
+    >
+      <ng-icon name="lucideEllipsis" aria-hidden="true" />
+    </button>
+    <ng-template #menu>
+      <hlm-dropdown-menu class="w-56">
+        @if (row.endable) {
+          <button
+            hlmDropdownMenuItem
+            (triggered)="end.emit({ process: row.process, signal: 'TERM' })"
+          >
+            <ng-icon name="lucideSquare" aria-hidden="true" />
+            {{
+              (row.endAs === 'own' ? 'processes.end' : 'processes.endAsAdministrator') | translate
+            }}
+          </button>
+          <button
+            hlmDropdownMenuItem
+            variant="destructive"
+            (triggered)="end.emit({ process: row.process, signal: 'KILL' })"
+          >
+            <ng-icon name="lucideOctagonX" aria-hidden="true" />
+            {{
+              (row.endAs === 'own' ? 'processes.force' : 'processes.forceAsAdministrator')
+                | translate
+            }}
+          </button>
+        }
+        @if (row.container) {
+          <button hlmDropdownMenuItem (triggered)="toContainers()">
+            <ng-icon name="lucideBox" aria-hidden="true" />
+            {{ 'processes.toContainers' | translate }}
+          </button>
+        }
+      </hlm-dropdown-menu>
+    </ng-template>
+  }
+</ng-template>
+
+<!-- The same as buttons (phones: a tap is enough, no menu inside a row). -->
+<ng-template #buttons let-row>
+  @if (row.container) {
+    <a hlmBtn variant="ghost" size="sm" routerLink="/containers">{{
+      'processes.toContainers' | translate
+    }}</a>
+  }
+  @if (row.endable) {
+    <button
+      hlmBtn
+      variant="outline"
+      size="sm"
+      [disabled]="busy(row)"
+      (click)="end.emit({ process: row.process, signal: 'TERM' })"
+    >
+      {{ (row.endAs === 'own' ? 'processes.end' : 'processes.endAsAdministrator') | translate }}
+    </button>
+    <button
+      hlmBtn
+      variant="destructive"
+      size="sm"
+      [disabled]="busy(row)"
+      (click)="end.emit({ process: row.process, signal: 'KILL' })"
+    >
+      {{ (row.endAs === 'own' ? 'processes.force' : 'processes.forceAsAdministrator') | translate }}
+    </button>
   }
 </ng-template>

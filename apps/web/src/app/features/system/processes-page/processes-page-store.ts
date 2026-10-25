@@ -7,15 +7,37 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { PROCESS_LIMITS, type Process, type ProcessesUpdate, processKey } from '@laris/shared';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import {
+  FILES_ERROR_CODES,
+  type LinuxSession,
+  type LinuxSignInRequest,
+  type Process,
+  type ProcessesUpdate,
+  processKey,
+} from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { firstValueFrom } from 'rxjs';
+import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
+import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
 import { ProcessesApi } from '../../../core/processes/processes-api';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
-import { apiErrorText } from '../../../shared/forms/submission-errors';
-import type { EndRequest, ProcessSort } from '../processes.model';
-import { SHOWN_FIRST, SORT_ORDER } from './processes-page.constants';
+import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
+import type {
+  EndAs,
+  EndRequest,
+  LoadLevel,
+  ProcessGroup,
+  ProcessGroupId,
+  ProcessSort,
+} from '../processes.model';
+import {
+  DESCENDING_FIRST,
+  GROUPS_SHOWN,
+  LOAD_LEVELS,
+  SHOWN_FIRST,
+  SORT_ORDER,
+} from './processes-page.constants';
 
 interface ProcessesPageState {
   /** The latest from the topic; null until the first. */
@@ -25,13 +47,20 @@ interface ProcessesPageState {
   paused: boolean;
   search: string;
   sort: ProcessSort;
+  descending: boolean;
   showSystem: boolean;
+  /** Only one group's processes ("Where it goes"), or null. */
+  group: ProcessGroupId | null;
+  /** Only zombies and processes waiting for the disk ("Needs attention"). */
+  attention: boolean;
   /** All rows, not just the first `SHOWN_FIRST`. */
   showAll: boolean;
+  /** The Linux session processes are ended with; null until signed in. */
+  linux: LinuxSession | null;
   /** Processes being signalled, for pending buttons. */
   pending: string[];
-  /** Processes asked to stop (TERM), and when: "Force end" is offered once they ignore it. */
-  asked: Record<string, number>;
+  /** Processes sent TERM: marked "still running" while they are. */
+  asked: string[];
   /** When the latest update arrived. */
   now: number;
 }
@@ -42,28 +71,56 @@ const initialState: ProcessesPageState = {
   paused: false,
   search: '',
   sort: 'cpu',
+  descending: true,
   showSystem: false,
+  group: null,
+  attention: false,
   showAll: false,
+  linux: null,
   pending: [],
-  asked: {},
+  asked: [],
   now: 0,
 };
 
+function groupOf(process: Process): ProcessGroupId {
+  if (process.container) {
+    return process.container.catalogId
+      ? { kind: 'service', name: process.container.catalogId }
+      : { kind: 'container', name: process.container.name ?? '' };
+  }
+  if (process.system) return { kind: 'system', name: '' };
+  return { kind: 'person', name: process.user ?? String(process.uid) };
+}
+
+const sameGroup = (a: ProcessGroupId, b: ProcessGroupId) => a.kind === b.kind && a.name === b.name;
+const needsAttention = (process: Process) =>
+  process.state === 'zombie' || process.state === 'waiting';
+
 /**
  * The Processes page's data, provided by the page and gone with it: every process (the
- * `processes` topic while the page is open), searching, sorting, pausing, and ending one — with
- * its toasts. A process asked to stop that still runs 5 s later can be forced.
+ * `processes` topic while the page is open) with the header's summary, searching, sorting,
+ * filtering, pausing — and ending one as the signed-in Linux account (or through its sudo), with
+ * its toasts. Linux decides what the account may end.
  */
 export const ProcessesPageStore = signalStore(
   withState<ProcessesPageState>(initialState),
   withComputed((store) => ({
     loaded: computed(() => store.shown() !== null),
     partial: computed(() => store.shown()?.partial ?? false),
-    /** Searched, filtered (system processes only when asked) and sorted. */
+    summary: computed(() => store.shown()?.summary ?? null),
+    /** Searched, filtered and sorted. */
     rows: computed(() => {
       const query = store.search().trim().toLowerCase();
+      const group = store.group();
+      const order = SORT_ORDER[store.sort()];
+      const direction = store.descending() ? -1 : 1;
       return (store.shown()?.processes ?? [])
-        .filter((p) => store.showSystem() || !p.system)
+        .filter((p) =>
+          group
+            ? sameGroup(groupOf(p), group)
+            : store.attention() || store.showSystem() || !p.system,
+        )
+        .filter((p) => !store.attention() || needsAttention(p))
         .filter(
           (p) =>
             !query ||
@@ -71,15 +128,43 @@ export const ProcessesPageStore = signalStore(
             p.command.toLowerCase().includes(query) ||
             (p.user ?? '').toLowerCase().includes(query),
         )
-        .sort(SORT_ORDER[store.sort()]);
+        .sort((a, b) => direction * order(a, b));
     }),
-    /** Processes asked to stop that still run after the wait: offered "Force end". */
-    forceable: computed(() => {
+    /** "Where it goes": CPU (share of the machine) and memory by service, person and system. */
+    groups: computed<ProcessGroup[]>(() => {
+      const update = store.shown();
+      if (!update) return [];
+      const groups = new Map<string, ProcessGroup>();
+      for (const process of update.processes) {
+        const id = groupOf(process);
+        const key = `${id.kind}:${id.name}`;
+        const group = groups.get(key) ?? { ...id, cpuPercent: 0, memoryBytes: 0, count: 0 };
+        group.cpuPercent += process.cpuPercent / update.summary.cores;
+        group.memoryBytes += process.memoryBytes;
+        group.count++;
+        groups.set(key, group);
+      }
+      return [...groups.values()]
+        .sort((a, b) => b.cpuPercent - a.cpuPercent || b.memoryBytes - a.memoryBytes)
+        .slice(0, GROUPS_SHOWN);
+    }),
+    /** Zombies, and processes waiting for the disk: counts for "Needs attention". */
+    attentionCounts: computed(() => {
+      const processes = store.shown()?.processes ?? [];
+      return {
+        zombie: processes.filter((p) => p.state === 'zombie').length,
+        waiting: processes.filter((p) => p.state === 'waiting').length,
+      };
+    }),
+    loadLevel: computed<LoadLevel>(() => {
+      const summary = store.shown()?.summary;
+      const perCore = summary ? summary.load[0] / summary.cores : 0;
+      return LOAD_LEVELS.find(({ from }) => perCore >= from)!.level;
+    }),
+    /** Processes sent TERM that still run. */
+    stillRunning: computed(() => {
       const running = new Set((store.latest()?.processes ?? []).map(processKey));
-      const wait = PROCESS_LIMITS.forceAfterSeconds * 1000;
-      return Object.entries(store.asked())
-        .filter(([key, at]) => running.has(key) && store.now() - at >= wait)
-        .map(([key]) => key);
+      return store.asked().filter((key) => running.has(key));
     }),
   })),
   withComputed((store) => ({
@@ -92,65 +177,149 @@ export const ProcessesPageStore = signalStore(
       store.showAll() ? 0 : Math.max(0, store.rows().length - SHOWN_FIRST),
     ),
   })),
-  withMethods((store, processesApi = inject(ProcessesApi), translator = inject(Translator)) => ({
-    update(update: ProcessesUpdate): void {
-      const running = new Set(update.processes.map(processKey));
-      // Forget asked processes that have ended.
-      const asked = Object.fromEntries(
-        Object.entries(store.asked()).filter(([key]) => running.has(key)),
-      );
-      patchState(store, {
-        latest: update,
-        asked,
-        now: Date.now(),
-        ...(!store.paused() && { shown: update }),
-      });
-    },
-
-    setSearch(search: string): void {
-      patchState(store, { search });
-    },
-    setSort(sort: ProcessSort): void {
-      patchState(store, { sort });
-    },
-    showEverything(): void {
-      patchState(store, { showAll: true });
-    },
-    setShowSystem(showSystem: boolean): void {
-      patchState(store, { showSystem });
-    },
-    togglePause(): void {
-      const paused = !store.paused();
-      patchState(store, { paused, ...(!paused && { shown: store.latest() }) });
-    },
-
-    /** Ends a process (already confirmed): asked to stop (TERM), or forced (KILL). */
-    async end({ process, signal }: EndRequest): Promise<void> {
-      const key = processKey(process);
-      patchState(store, { pending: [...store.pending(), key] });
-      try {
-        await firstValueFrom(
-          processesApi.signal({ pid: process.pid, startTicks: process.startTicks, signal }),
-        );
-        if (signal === 'TERM') {
-          patchState(store, { asked: { ...store.asked(), [key]: Date.now() } });
-          toast.success(translator.t('processes.ended', { name: process.name }));
+  withMethods(
+    (
+      store,
+      processesApi = inject(ProcessesApi),
+      filesApi = inject(FilesApi),
+      translator = inject(Translator),
+    ) => {
+      const ended = (request: EndRequest) => {
+        const key = processKey(request.process);
+        const name = request.process.name;
+        if (request.signal === 'TERM') {
+          patchState(store, { asked: [...store.asked().filter((k) => k !== key), key] });
+          toast.success(translator.t('processes.ended', { name }));
         } else {
-          toast.success(translator.t('processes.forced', { name: process.name }));
+          toast.success(translator.t('processes.forced', { name }));
         }
-      } catch (error) {
-        toast.error(translator.t('processes.endFailed'), {
-          description: translator.t(...apiErrorText(error)),
+      };
+      const pending = (key: string, on: boolean) =>
+        patchState(store, {
+          pending: on ? [...store.pending(), key] : store.pending().filter((p) => p !== key),
         });
-      } finally {
-        patchState(store, { pending: store.pending().filter((p) => p !== key) });
-      }
+      /** A Linux session that ended (idle, closed on another page): signing in comes back. */
+      const forgetIfEnded = (error: unknown) => {
+        if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
+          patchState(store, { linux: null });
+        }
+      };
+
+      return {
+        update(update: ProcessesUpdate): void {
+          const running = new Set(update.processes.map(processKey));
+          patchState(store, {
+            latest: update,
+            asked: store.asked().filter((key) => running.has(key)),
+            now: Date.now(),
+            ...(!store.paused() && { shown: update }),
+          });
+        },
+
+        /** Whether a Linux session is open already (Files or the terminal may have opened it). */
+        checkLinux: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              filesApi.session().pipe(
+                tap(({ session }) => patchState(store, { linux: session })),
+                // Not knowing is no session: "End" asks to sign in, the server checks again.
+                catchError(() => EMPTY),
+              ),
+            ),
+          ),
+        ),
+
+        /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
+        async signIn(request: LinuxSignInRequest): Promise<void> {
+          patchState(store, { linux: await firstValueFrom(filesApi.signIn(request)) });
+        },
+
+        /** Whether the account ends it as its own, or needs its sudo (another's process). */
+        endAs(process: Process): EndAs {
+          const uid = store.linux()?.uid;
+          return uid === null || uid === undefined || uid === process.uid ? 'own' : 'administrator';
+        },
+
+        setSearch(search: string): void {
+          patchState(store, { search });
+        },
+        /** A column again turns its direction around; another starts with its usual one. */
+        setSort(sort: ProcessSort): void {
+          patchState(store, {
+            sort,
+            descending: store.sort() === sort ? !store.descending() : DESCENDING_FIRST[sort],
+          });
+        },
+        showEverything(): void {
+          patchState(store, { showAll: true });
+        },
+        setShowSystem(showSystem: boolean): void {
+          patchState(store, { showSystem });
+        },
+        /** Only this group's processes; the same again shows all. */
+        toggleGroup(group: ProcessGroupId): void {
+          const current = store.group();
+          patchState(store, { group: current && sameGroup(current, group) ? null : group });
+        },
+        toggleAttention(): void {
+          patchState(store, { attention: !store.attention() });
+        },
+        clearFilters(): void {
+          patchState(store, { group: null, attention: false, search: '' });
+        },
+        togglePause(): void {
+          const paused = !store.paused();
+          patchState(store, { paused, ...(!paused && { shown: store.latest() }) });
+        },
+
+        /** Ends a process as the account (already confirmed): asked to stop (TERM), or forced (KILL). */
+        async end(request: EndRequest): Promise<void> {
+          const key = processKey(request.process);
+          const { pid, startTicks } = request.process;
+          pending(key, true);
+          try {
+            await firstValueFrom(processesApi.signal({ pid, startTicks, signal: request.signal }));
+            ended(request);
+          } catch (error) {
+            forgetIfEnded(error);
+            toast.error(translator.t('processes.endFailed'), {
+              description: translator.t(...apiErrorText(error)),
+            });
+          } finally {
+            pending(key, false);
+          }
+        },
+
+        /** The same through the account's sudo; rejects with the server's error (the form shows it). */
+        async endAsAdministrator(request: EndRequest, password: string): Promise<void> {
+          const key = processKey(request.process);
+          const { pid, startTicks } = request.process;
+          pending(key, true);
+          try {
+            await firstValueFrom(
+              processesApi.signalAsAdministrator({
+                pid,
+                startTicks,
+                signal: request.signal,
+                password,
+              }),
+            );
+            ended(request);
+          } catch (error) {
+            forgetIfEnded(error);
+            throw error;
+          } finally {
+            pending(key, false);
+          }
+        },
+      };
     },
-  })),
+  ),
   withHooks((store, realtimeService = inject(RealtimeService)) => {
     let stop: (() => void) | null = null;
     return {
       onInit() {
+        store.checkLinux();
         stop = realtimeService.subscribe('processes', (message) => {
           if (message.event === 'processes:snapshot' || message.event === 'processes:update') {
             store.update(message.data);

@@ -80,6 +80,20 @@ export function formatDuration(seconds: number, locale: string, lessThanAMinute:
   return new Intl.DurationFormat(locale, { style: 'long' }).format(parts);
 }
 
+/**
+ * CPU time as htop's TIME+ (machine text, the same in every language): "4:07.31" (minutes,
+ * seconds, hundredths) below an hour, "12:04:31" below 100 hours, then "153h".
+ */
+export function formatCpuTime(seconds: number): string {
+  const hundredths = Math.floor(Math.max(0, seconds) * 100);
+  const whole = Math.floor(hundredths / 100);
+  const two = (n: number) => String(n).padStart(2, '0');
+  const hours = Math.floor(whole / 3600);
+  if (hours >= 100) return `${hours}h`;
+  if (hours > 0) return `${hours}:${two(Math.floor(whole / 60) % 60)}:${two(whole % 60)}`;
+  return `${Math.floor(whole / 60)}:${two(whole % 60)}.${two(hundredths % 100)}`;
+}
+
 /** Used share of a total as a percentage (0 for an empty total). */
 export function percentOf(used: number, total: number): number {
   return total > 0 ? (used / total) * 100 : 0;
