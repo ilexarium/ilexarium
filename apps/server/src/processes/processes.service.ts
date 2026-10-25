@@ -12,6 +12,11 @@ import { linuxSessionRequired } from '../linux-sessions/linux-session-errors.js'
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { LinuxActor, LinuxCommandResult } from '../linux-sessions/linux-sessions.model.js';
 import { killCommand } from './kill-command.js';
+
+const apiErrorCode = (error: unknown): string | undefined =>
+  error instanceof HttpException
+    ? (error.getResponse() as Partial<ApiErrorResponse>).code
+    : undefined;
 import { KILL_MESSAGES } from './processes.constants.js';
 
 /** Never 401: that means the app session is gone (the Linux side's rule). */
@@ -113,10 +118,12 @@ export class ProcessesService {
         this.logger.warn(`Ending process ${raw.pid} failed (exit ${result.code})`);
       }
     } catch (error) {
+      // The Linux session ended meanwhile, or SSH ran nothing (or didn't finish): its own code.
+      const reason = apiErrorCode(error) ?? PROCESS_ERROR_CODES.signalFailed;
       await this.auditService.tryRecord({
         ...entry,
         outcome: 'failure',
-        details: { ...details, reason: PROCESS_ERROR_CODES.timedOut },
+        details: { ...details, reason },
       });
       throw error;
     }

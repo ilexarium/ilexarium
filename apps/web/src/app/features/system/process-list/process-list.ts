@@ -201,7 +201,10 @@ export class ProcessList {
 
   /** htop's keys while the table has focus: move, search, pause, end. */
   protected keydown(event: KeyboardEvent): void {
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    // Only the table's own: a focused header or menu button keeps Space, Enter and the arrows.
+    if (event.ctrlKey || event.metaKey || event.altKey || event.target !== event.currentTarget) {
+      return;
+    }
     const rows = this.rows();
     const index = rows.findIndex((row) => row.key === this.selected());
     const moveTo = (next: number) => {

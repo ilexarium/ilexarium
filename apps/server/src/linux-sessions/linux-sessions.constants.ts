@@ -15,6 +15,8 @@ export const HOST_KEY_FILE = /^ssh_host_\w+_key\.pub$/;
 export const COMMAND_TIMEOUT_MS = 15_000;
 /** What is kept of a command's output: its first lines say what happened. */
 export const COMMAND_OUTPUT_MAX = 16 * 1024;
+/** The account's uid, asked once at the sign-in (which waits for it at most this long). */
+export const UID_TIMEOUT_MS = 3_000;
 /** The account's uid, asked once at the sign-in. */
 export const UID_COMMAND = 'id -u' as LinuxCommand;
 

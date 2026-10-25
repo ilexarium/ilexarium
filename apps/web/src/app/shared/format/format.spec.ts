@@ -131,9 +131,11 @@ describe('formatLogTime', () => {
 describe('formatCpuTime', () => {
   it('is htop’s TIME+: minutes, seconds and hundredths below an hour, then hours', () => {
     expect(formatCpuTime(0)).toBe('0:00.00');
-    expect(formatCpuTime(247.316)).toBe('4:07.31');
+    expect(formatCpuTime(247.31)).toBe('4:07.31');
     expect(formatCpuTime(3600 * 12 + 4 * 60 + 31.9)).toBe('12:04:31');
     expect(formatCpuTime(3600 * 153)).toBe('153h');
     expect(formatCpuTime(-5)).toBe('0:00.00');
+    // From clock ticks: 29 / 100 * 100 is 28.999… in floating point.
+    expect(formatCpuTime(29 / 100)).toBe('0:00.29');
   });
 });

@@ -140,6 +140,22 @@ describe('LinuxSessions', () => {
     expect(await signIn()).toMatchObject({ uid: null });
   });
 
+  it('reads the uid after a login script’s greeting', async () => {
+    answers = { 'id -u': { code: 0, stdout: 'Welcome back!\n1500\n' } };
+    expect(await signIn()).toMatchObject({ uid: 1500 });
+  });
+
+  it('a connection that just dropped: ssh_unavailable, not a raw error', async () => {
+    await signIn();
+    vi.spyOn(clients.at(-1)!, 'exec').mockImplementation(() => {
+      throw new Error('Not connected');
+    });
+    const command = 'env LC_ALL=C kill -s TERM -- 9' as Parameters<typeof sessions.run>[1];
+    await expect(sessions.run('s1', command)).rejects.toMatchObject({
+      response: { code: 'ssh_unavailable' },
+    });
+  });
+
   it('runs a command as the account: its input on stdin, its exit and output back', async () => {
     await signIn();
     answers['env LC_ALL=C kill -s TERM -- 7'] = { code: 1, stderr: 'kill: (7) - No such process' };
