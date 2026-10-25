@@ -1,6 +1,6 @@
 <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
   <section
-    class="grid content-start gap-2 rounded-lg border bg-card p-3"
+    class="grid min-w-0 content-start gap-2 rounded-lg border bg-card p-3"
     aria-labelledby="summary-cpu"
   >
     <h2 id="summary-cpu" class="text-sm font-medium text-muted-foreground">
@@ -28,7 +28,7 @@
   </section>
 
   <section
-    class="grid content-start gap-2 rounded-lg border bg-card p-3"
+    class="grid min-w-0 content-start gap-2 rounded-lg border bg-card p-3"
     aria-labelledby="summary-memory"
   >
     <h2 id="summary-memory" class="text-sm font-medium text-muted-foreground">
@@ -62,7 +62,7 @@
 
   @if (summary().pressure; as pressure) {
     <section
-      class="grid content-start gap-2 rounded-lg border bg-card p-3"
+      class="grid min-w-0 content-start gap-2 rounded-lg border bg-card p-3"
       aria-labelledby="summary-waiting"
     >
       <h2 id="summary-waiting" class="text-sm font-medium text-muted-foreground">
@@ -89,15 +89,15 @@
   }
 
   <section
-    class="grid content-start gap-2 rounded-lg border bg-card p-3"
+    class="grid min-w-0 content-start gap-2 rounded-lg border bg-card p-3"
     aria-labelledby="summary-where"
   >
     <h2 id="summary-where" class="text-sm font-medium text-muted-foreground">
       {{ 'processes.summary.where' | translate }}
     </h2>
-    <ul class="grid gap-1">
+    <ul class="grid min-w-0 gap-1">
       @for (row of rows(); track row.group.kind + row.group.name) {
-        <li>
+        <li class="min-w-0">
           <button
             type="button"
             class="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
@@ -116,8 +116,10 @@
               [attr.dir]="row.group.kind === 'system' ? null : 'ltr'"
               >{{ row.label }}</span
             >
-            <span class="tabular-nums">{{ row.cpu }}</span>
-            <span class="w-16 text-end text-muted-foreground tabular-nums">{{ row.memory }}</span>
+            <span class="shrink-0 tabular-nums">{{ row.cpu }}</span>
+            <span class="shrink-0 text-end whitespace-nowrap text-muted-foreground tabular-nums">{{
+              row.memory
+            }}</span>
           </button>
         </li>
       }
