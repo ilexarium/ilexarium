@@ -13,6 +13,9 @@ const HOST_KEY = Buffer.from('the pinned host key');
 let serverKey = HOST_KEY;
 let refuse = false;
 const clients: FakeClient[] = [];
+/** What the fake account's shell answers: by command line. */
+let answers: Record<string, { code: number; stdout?: string; stderr?: string }> = {};
+const ran: { command: string; input: string }[] = [];
 
 class FakeClient extends EventEmitter {
   ended = false;
@@ -36,6 +39,23 @@ class FakeClient extends EventEmitter {
     done(undefined, {
       realpath: (_p: string, cb: (e: undefined, p: string) => void) => cb(undefined, '/home/anna'),
     });
+  }
+  exec(command: string, done: (error: Error | undefined, channel: unknown) => void) {
+    const channel = Object.assign(new EventEmitter(), {
+      stderr: new EventEmitter(),
+      close: () => channel.emit('close', null),
+      end: (input: string) => {
+        ran.push({ command, input });
+        const answer = answers[command];
+        setImmediate(() => {
+          if (!answer) return; // hangs
+          if (answer.stdout) channel.emit('data', Buffer.from(answer.stdout));
+          if (answer.stderr) channel.stderr.emit('data', Buffer.from(answer.stderr));
+          channel.emit('close', answer.code);
+        });
+      },
+    });
+    done(undefined, channel);
   }
   end() {
     this.ended = true;
@@ -68,6 +88,8 @@ describe('LinuxSessions', () => {
     clients.length = 0;
     serverKey = HOST_KEY;
     refuse = false;
+    answers = { 'id -u': { code: 0, stdout: '1500\n' } };
+    ran.length = 0;
     dir = mkdtempSync(join(tmpdir(), 'host-keys-'));
     writeFileSync(
       join(dir, 'ssh_host_ed25519_key.pub'),
@@ -100,17 +122,45 @@ describe('LinuxSessions', () => {
     sessions.signIn(sessionId, { username: 'anna', password: 'pw' }, ACTOR);
 
   it('connects to this machine only, with the password, and keeps one session per app session', async () => {
-    expect(await signIn()).toEqual({ username: 'anna', home: '/home/anna' });
+    expect(await signIn()).toEqual({ username: 'anna', home: '/home/anna', uid: 1500 });
     expect(clients[0].options).toMatchObject({
       host: '127.0.0.1',
       port: 2222,
       username: 'anna',
       password: 'pw',
     });
-    expect(sessions.current('s1')).toEqual({ username: 'anna', home: '/home/anna' });
+    expect(sessions.current('s1')).toEqual({ username: 'anna', home: '/home/anna', uid: 1500 });
     await signIn();
     expect(clients[0].ended).toBe(true); // replaced
     expect(sessions.current('other')).toBeNull();
+  });
+
+  it('a shell that can’t say its uid (nologin) still signs in, without one', async () => {
+    answers = { 'id -u': { code: 1, stderr: 'This account is currently not available.' } };
+    expect(await signIn()).toMatchObject({ uid: null });
+  });
+
+  it('runs a command as the account: its input on stdin, its exit and output back', async () => {
+    await signIn();
+    answers['env LC_ALL=C kill -s TERM -- 7'] = { code: 1, stderr: 'kill: (7) - No such process' };
+    const command = 'env LC_ALL=C kill -s TERM -- 7' as Parameters<typeof sessions.run>[1];
+    expect(await sessions.run('s1', command, 'x\n')).toEqual({
+      code: 1,
+      stdout: '',
+      stderr: 'kill: (7) - No such process',
+    });
+    expect(ran.at(-1)).toEqual({ command: 'env LC_ALL=C kill -s TERM -- 7', input: 'x\n' });
+    await expect(sessions.run('other', command)).rejects.toMatchObject({
+      response: { code: 'linux_session_required' },
+    });
+  });
+
+  it('gives up on a command that doesn’t finish', async () => {
+    await signIn();
+    const command = 'env LC_ALL=C kill -s TERM -- 8' as Parameters<typeof sessions.run>[1];
+    const running = sessions.run('s1', command);
+    await vi.advanceTimersByTimeAsync(15_000);
+    await expect(running).rejects.toMatchObject({ response: { code: 'ssh_unavailable' } });
   });
 
   it('a refused sign-in keeps the running session (a typo never closes a terminal)', async () => {

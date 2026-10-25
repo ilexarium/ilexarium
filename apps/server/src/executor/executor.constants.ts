@@ -3,8 +3,6 @@ import {
   type BackupErrorCode,
   DISK_ERROR_CODES,
   type DiskErrorCode,
-  PROCESS_ERROR_CODES,
-  type ProcessErrorCode,
   SERVICE_ERROR_CODES,
   type ServiceErrorCode,
 } from '@laris/shared';
@@ -60,14 +58,6 @@ const DISK_CODES: Record<string, DiskErrorCode> = Object.fromEntries(
   Object.values(DISK_ERROR_CODES).map((code) => [code, code]),
 );
 
-/** The process wrapper's `@@error` codes → ours (the same words). */
-const PROCESS_CODES: Record<string, ProcessErrorCode> = Object.fromEntries(
-  Object.values(PROCESS_ERROR_CODES).map((code) => [code, code]),
-);
-
-/** Sending a signal is instant; this only covers a stuck start. */
-export const PROCESS_TIMEOUT_MS = 30_000;
-
 /** Mounting waits for systemd; a slow USB disk takes seconds. */
 export const DISK_TIMEOUT_MS = 2 * 60_000;
 
@@ -100,14 +90,4 @@ export const DISK: WrapperKind<DiskErrorCode> = {
   failed: DISK_ERROR_CODES.mountFailed,
   unavailable: DISK_ERROR_CODES.executorUnavailable,
   timedOut: DISK_ERROR_CODES.timedOut,
-};
-
-export const PROCESS: WrapperKind<ProcessErrorCode> = {
-  name: 'process',
-  label: 'process',
-  logsReason: true,
-  codes: PROCESS_CODES,
-  failed: PROCESS_ERROR_CODES.signalFailed,
-  unavailable: PROCESS_ERROR_CODES.executorUnavailable,
-  timedOut: PROCESS_ERROR_CODES.timedOut,
 };

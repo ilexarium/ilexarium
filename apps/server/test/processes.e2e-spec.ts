@@ -1,25 +1,29 @@
-import { readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { resolve } from 'node:path';
-import type { AddressInfo } from 'node:net';
+import { existsSync, readFileSync } from 'node:fs';
+import { connect } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
+import { Client as SshClient } from 'ssh2';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
 
-// The process list end to end: the `processes` topic from this machine's /proc, and the API's
-// refusals through the executor in direct mode and the real process wrapper. The wrapper's config
-// makes this test's user a person and the app's user someone else. Ending a real process is
-// tested with the wrapper itself (system/wrappers/laris-process.spec.ts starts one to end):
-// here, only src/executor/ may start a program (lint).
+// The process list end to end: the `processes` topic from this machine's /proc, and ending
+// processes as a Linux account over the development SSH server (dev/sshd, which shares this
+// machine's PIDs): anna may end her own, not bob's; anna's `sudo kill` may, bob has no sudo.
+// Skipped when the SSH server isn't running (npm run db:up starts it).
 
-const WRAPPER_CONFIG = resolve('.dev/wrappers.test.json');
+const ANNA = { username: 'anna', password: 'anna-dev-password' };
+const BOB = { username: 'bob', password: 'bob-dev-password' };
 const ME = process.getuid?.() ?? 0;
-const PERSON = ME >= 1000 && ME <= 60000;
+
+const sshdUp = await new Promise<boolean>((done) => {
+  const socket = connect(2222, '127.0.0.1');
+  socket.once('connect', () => (socket.destroy(), done(true)));
+  socket.once('error', () => done(false));
+});
 
 /** The real start time of a process (field 22 of /proc/<pid>/stat). */
 function startTicks(pid: number): string {
@@ -30,32 +34,51 @@ function startTicks(pid: number): string {
     .split(/\s+/)[19];
 }
 
-describe.skipIf(!PERSON)('processes (e2e)', () => {
+const running = (pid: number) => {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    return stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3) !== 'Z';
+  } catch {
+    return false;
+  }
+};
+
+async function gone(pid: number): Promise<boolean> {
+  for (let i = 0; i < 50 && running(pid); i++) await new Promise((r) => setTimeout(r, 100));
+  return !running(pid);
+}
+
+/** Runs a command as a dev SSH server account (the test's own connection, not the app's). */
+function sshRun(account: { username: string; password: string }, command: string): Promise<string> {
+  return new Promise((ok, fail) => {
+    const client = new SshClient();
+    client
+      .on('ready', () =>
+        client.exec(command, (error, channel) => {
+          if (error) return fail(error);
+          let out = '';
+          channel.on('data', (chunk: Buffer) => (out += chunk.toString()));
+          channel.stderr.resume();
+          channel.on('close', () => (client.end(), ok(out)));
+        }),
+      )
+      .on('error', fail)
+      .connect({ host: '127.0.0.1', port: 2222, ...account, hostVerifier: () => true });
+  });
+}
+
+/** A `sleep` of that account, by PID: on this machine, since the SSH server shares its PIDs. */
+async function sleeper(account: { username: string; password: string }): Promise<number> {
+  const pid = Number(await sshRun(account, 'sleep 300 >/dev/null 2>&1 & echo $!'));
+  expect(existsSync(`/proc/${pid}`), 'dev/sshd must share the host’s PIDs (pid: host)').toBe(true);
+  return pid;
+}
+
+describe.skipIf(!sshdUp)('processes (e2e)', () => {
   let app: NestExpressApplication;
   let client: Client;
-  let origin: string;
-  let cookie: string;
-  /** A person's process that must never be ended: this test itself. */
-  const self = process.pid;
-
-  beforeAll(() => {
-    mkdirSync(resolve('.dev'), { recursive: true });
-    writeFileSync(
-      WRAPPER_CONFIG,
-      JSON.stringify({
-        catalogDir: resolve('test/fixtures/catalog'),
-        storageRoots: [resolve('.dev/srv')],
-        serviceRoot: resolve('.dev/srv'),
-        reservedPorts: [22],
-        protectedPaths: [],
-        dockerBin: '/usr/bin/docker',
-        home: homedir(),
-        process: { appUid: 0, minUid: ME, dev: { procRoot: '/proc' } },
-      }),
-    );
-  });
-
-  afterAll(() => rmSync(WRAPPER_CONFIG, { force: true })); // other e2e files get the defaults again
+  let prisma: PrismaService;
+  const started: { account: typeof ANNA; pid: number }[] = [];
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -64,74 +87,133 @@ describe.skipIf(!PERSON)('processes (e2e)', () => {
       .compile();
     app = configureApp(moduleRef.createNestApplication<NestExpressApplication>());
     client = await connectSignedIn(app);
-    origin = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}`;
-    const login = await request(origin)
-      .post('/api/auth/login')
-      .set('Origin', origin)
-      .send({ username: 'owner', password: 'correct horse battery' })
-      .expect(200);
-    cookie = ([] as string[])
-      .concat(login.headers['set-cookie'] ?? [])
-      .find((c) => c.startsWith('__Host-sid='))!
-      .split(';')[0];
+    prisma = app.get(PrismaService);
   });
 
   afterEach(async () => {
     client?.socket.terminate();
     await app?.close();
+    for (const { account, pid } of started.splice(0)) {
+      if (running(pid)) await sshRun(account, `kill ${pid}`);
+    }
   });
 
-  const end = (body: object) =>
-    request(origin)
-      .post('/api/processes/signal')
-      .set('Origin', origin)
-      .set('Cookie', cookie)
+  const post = (path: string, body: object) =>
+    request(client.session.origin)
+      .post(`/api${path}`)
+      .set('Origin', client.session.origin)
+      .set('Cookie', client.session.cookie)
       .send(body);
+  const signInAs = (account: typeof ANNA) => post('/files/session', account).expect(200);
+  const end = (body: object) => post('/processes/signal', body);
+  const endAsAdministrator = (body: object) => post('/processes/signal-as-administrator', body);
+  const sleeperOf = async (account: typeof ANNA) => {
+    const pid = await sleeper(account);
+    started.push({ account, pid });
+    return { pid, startTicks: startTicks(pid) };
+  };
+  const audit = () =>
+    prisma.auditEvent.findMany({
+      where: { action: 'process.end' },
+      orderBy: [{ at: 'asc' }, { id: 'asc' }],
+    });
 
-  it('lists this machine’s processes live — this test among them, endable — PID 1 not', async () => {
+  it('lists this machine’s processes live, with htop’s columns and the header’s summary', async () => {
     client.send({ event: 'subscribe', data: { topic: 'processes' } });
     const [snapshot] = await client.received(1, 5000);
     expect(snapshot.event).toBe('processes:snapshot');
     if (snapshot.event !== 'processes:snapshot') return;
-    const me = snapshot.data.processes.find((p) => p.pid === self);
-    expect(me).toMatchObject({
-      uid: ME,
-      startTicks: startTicks(self),
-      kernel: false,
-      system: false,
-      container: null,
-      endable: true,
-    });
+    const me = snapshot.data.processes.find((p) => p.pid === process.pid);
+    expect(me).toMatchObject({ uid: ME, startTicks: startTicks(process.pid), kernel: false });
     expect(me!.command).toContain('node');
-    expect(snapshot.data.processes.find((p) => p.pid === 1)).toMatchObject({ endable: false });
+    expect(me!.virtualBytes).toBeGreaterThan(me!.memoryBytes);
+    expect(me!.cpuSeconds).toBeGreaterThan(0);
+    expect(snapshot.data.summary.cores).toBeGreaterThanOrEqual(1);
+    expect(snapshot.data.summary.load).toHaveLength(3);
+    expect(snapshot.data.summary.memory.totalBytes).toBeGreaterThan(0);
 
     const [, update] = await client.received(2, 5000); // one reading (2 s) later
     expect(update.event).toBe('processes:update');
   });
 
-  it('refuses a stale start time, PID 1 and bad requests, audited — nothing ended', async () => {
-    const stale = String(Number(startTicks(self)) + 1);
-    const notFound = await end({ pid: self, startTicks: stale, signal: 'TERM' }).expect(404);
-    expect(notFound.body.code).toBe('process_not_found');
-    const protectedOne = await end({ pid: 1, startTicks: startTicks(1), signal: 'KILL' }).expect(
-      403,
-    );
-    expect(protectedOne.body.code).toBe('process_protected');
-    await end({ pid: self, startTicks: startTicks(self), signal: 'HUP' }).expect(400);
-    await end({ pid: -1, startTicks: '1', signal: 'TERM' }).expect(400);
-    await end({ pid: self, startTicks: startTicks(self), signal: 'TERM', uid: 0 }).expect(400);
-    // The app's first checks refused these: nothing reached the executor or the audit log.
-    const audit = await app
-      .get(PrismaService)
-      .auditEvent.count({ where: { action: 'process.end' } });
-    expect(audit).toBe(0);
+  it('needs a Linux session (403, never 401) — nothing recorded', async () => {
+    const res = await end({
+      pid: process.pid,
+      startTicks: startTicks(process.pid),
+      signal: 'TERM',
+    });
+    expect([res.status, res.body.code]).toEqual([403, 'linux_session_required']);
+    expect(await audit()).toHaveLength(0);
   });
 
-  it('needs a session', async () => {
-    await request(origin)
+  it('ends the account’s own process; Linux refuses another’s', async () => {
+    const own = await sleeperOf(ANNA);
+    const others = await sleeperOf(BOB);
+    await signInAs(ANNA);
+
+    const refused = await end({ ...others, signal: 'KILL' });
+    expect([refused.status, refused.body.code]).toEqual([403, 'process_not_permitted']);
+    expect(running(others.pid)).toBe(true);
+
+    await end({ ...own, signal: 'TERM' }).expect(204);
+    expect(await gone(own.pid)).toBe(true);
+
+    expect((await audit()).map((e) => [e.outcome, e.details])).toEqual([
+      ['requested', expect.objectContaining({ pid: others.pid, user: '', linuxUser: 'anna' })],
+      ['failure', expect.objectContaining({ reason: 'process_not_permitted' })],
+      [
+        'requested',
+        expect.objectContaining({ pid: own.pid, signal: 'TERM', asAdministrator: false }),
+      ],
+      ['success', expect.objectContaining({ pid: own.pid })],
+    ]);
+  });
+
+  it('as administrator through the account’s sudo: a wrong password refused, the right one ends it', async () => {
+    const others = await sleeperOf(BOB);
+    await signInAs(ANNA);
+
+    const wrong = await endAsAdministrator({ ...others, signal: 'TERM', password: 'nope' });
+    expect([wrong.status, wrong.body.code]).toEqual([403, 'sudo_password_wrong']);
+    expect(running(others.pid)).toBe(true);
+
+    await endAsAdministrator({ ...others, signal: 'TERM', password: ANNA.password }).expect(204);
+    expect(await gone(others.pid)).toBe(true);
+    const events = JSON.stringify(await audit());
+    expect(events).not.toContain(ANNA.password);
+    expect(events).toContain('"asAdministrator":true');
+  });
+
+  it('an account without sudo: "not allowed"', async () => {
+    const own = await sleeperOf(ANNA);
+    await signInAs(BOB);
+    const res = await endAsAdministrator({ ...own, signal: 'TERM', password: BOB.password });
+    expect([res.status, res.body.code]).toEqual([403, 'sudo_not_allowed']);
+    expect(running(own.pid)).toBe(true);
+  });
+
+  it('refuses a stale start time, PID 1 and bad requests — nothing run', async () => {
+    const own = await sleeperOf(ANNA);
+    await signInAs(ANNA);
+    const stale = String(Number(own.startTicks) + 1);
+    const notFound = await end({ pid: own.pid, startTicks: stale, signal: 'TERM' }).expect(404);
+    expect(notFound.body.code).toBe('process_not_found');
+    const init = await end({ pid: 1, startTicks: startTicks(1), signal: 'KILL' }).expect(403);
+    expect(init.body.code).toBe('process_protected');
+    await end({ ...own, signal: 'HUP' }).expect(400);
+    await end({ pid: -1, startTicks: '1', signal: 'TERM' }).expect(400);
+    await end({ ...own, signal: 'TERM', uid: 0 }).expect(400);
+    await end({ ...own, signal: 'TERM', password: ANNA.password }).expect(400);
+    await endAsAdministrator({ ...own, signal: 'TERM', password: 'a\nb' }).expect(400);
+    expect(running(own.pid)).toBe(true);
+    expect(await audit()).toHaveLength(0);
+  });
+
+  it('needs an app session', async () => {
+    await request(client.session.origin)
       .post('/api/processes/signal')
-      .set('Origin', origin)
-      .send({ pid: self, startTicks: startTicks(self), signal: 'TERM' })
+      .set('Origin', client.session.origin)
+      .send({ pid: process.pid, startTicks: startTicks(process.pid), signal: 'TERM' })
       .expect(401);
   });
 });

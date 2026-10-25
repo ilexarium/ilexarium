@@ -36,12 +36,14 @@ ensure_base() {
   log 'Checking the basics'
   local missing=()
   for tool in curl gpg sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
+  # The program, not the shell's builtin: ending a process runs `env kill` as the person.
+  [[ -x /usr/bin/kill ]] || missing+=(kill)
   if ((${#missing[@]} > 0)); then
-    confirm "Install curl, gnupg and sudo (missing: ${missing[*]})?" || die 'They are needed'
+    confirm "Install curl, gnupg, sudo and procps (missing: ${missing[*]})?" || die 'They are needed'
     apt_update
-    apt_install ca-certificates curl gnupg sudo
+    apt_install ca-certificates curl gnupg sudo procps
   fi
-  info 'curl, gnupg, sudo'
+  info 'curl, gnupg, sudo, procps'
 }
 
 # Node 24 or newer at /usr/bin/node — that one, whatever else is on PATH: the root wrappers'

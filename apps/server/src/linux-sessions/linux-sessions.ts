@@ -15,16 +15,21 @@ import { AuditService } from '../audit/audit.service.js';
 import type { Env } from '../config/env.schema.js';
 import { linuxError, linuxSessionRequired } from './linux-session-errors.js';
 import {
+  COMMAND_OUTPUT_MAX,
+  COMMAND_TIMEOUT_MS,
   CONNECT_TIMEOUT_MS,
   HOST_KEY_FILE,
   IDLE_MS,
   KEEPALIVE_COUNT_MAX,
   KEEPALIVE_INTERVAL_MS,
   SSH_HOST,
+  UID_COMMAND,
 } from './linux-sessions.constants.js';
 import type {
   LinuxActor,
   LinuxCloseReason,
+  LinuxCommand,
+  LinuxCommandResult,
   LinuxShell,
   OpenLinuxSession,
 } from './linux-sessions.model.js';
@@ -78,7 +83,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   /** The Linux session of this app session, or null. */
   current(appSessionId: string): LinuxSession | null {
     const session = this.sessions.get(appSessionId);
-    return session ? { username: session.username, home: session.home } : null;
+    return session ? { username: session.username, home: session.home, uid: session.uid } : null;
   }
 
   /** The open SFTP channel (counts as use: the idle time starts again), or a 403 `linux_session_required`. */
@@ -121,6 +126,17 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * Runs a command as the signed-in account on the session's SSH connection (no pty), `input` on
+   * its stdin — with that account's rights and nothing more. Counts as use.
+   */
+  async run(appSessionId: string, command: LinuxCommand, input = ''): Promise<LinuxCommandResult> {
+    const session = this.sessions.get(appSessionId);
+    if (!session) throw linuxSessionRequired();
+    session.idle.refresh();
+    return this.exec(session.client, command, input);
+  }
+
   /** Signs in as a Linux user; replaces this app session's previous Linux session. */
   async signIn(
     appSessionId: string,
@@ -160,6 +176,11 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       const home = await new Promise<string>((ok, fail) =>
         sftp.realpath('.', (error, path) => (error ? fail(error) : ok(path))),
       );
+      // Whose processes it may end; a shell that can't run `id` (nologin) still has its files.
+      const uid = await this.exec(client, UID_COMMAND).then(
+        ({ code, stdout }) => (code === 0 && /^\d+$/.test(stdout.trim()) ? Number(stdout) : null),
+        () => null,
+      );
       // Closes this session only — never a newer one of the same app session.
       const idle = setTimeout(() => {
         if (this.sessions.get(appSessionId) === session) this.close(appSessionId, 'idle');
@@ -170,6 +191,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         sftp,
         username: request.username,
         home,
+        uid,
         userId: actor.user.id,
         idle,
         closing: new Set(),
@@ -182,7 +204,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         if (this.sessions.get(appSessionId) === session) this.forget(appSessionId, 'ended');
       });
       await this.auditService.tryRecord(entry('success'));
-      return { username: request.username, home };
+      return { username: request.username, home, uid };
     } catch (error) {
       // Signed in, but no file access (no SFTP for this account).
       client.end();
@@ -229,6 +251,34 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     this.sessions.delete(appSessionId);
     for (const listener of session.closing) listener(why);
     session.closing.clear();
+  }
+
+  private exec(client: Client, command: LinuxCommand, input = ''): Promise<LinuxCommandResult> {
+    return new Promise((ok, fail) => {
+      client.exec(command, (error, channel) => {
+        if (error) {
+          fail(linuxError(FILES_ERROR_CODES.sshUnavailable, 'The SSH server ran no command'));
+          return;
+        }
+        let stdout = '';
+        let stderr = '';
+        const keep = (text: string, chunk: Buffer) =>
+          text.length < COMMAND_OUTPUT_MAX
+            ? (text + chunk.toString('utf8')).slice(0, COMMAND_OUTPUT_MAX)
+            : text;
+        const timeout = setTimeout(() => {
+          fail(linuxError(FILES_ERROR_CODES.sshUnavailable, 'The command did not finish'));
+          channel.close();
+        }, COMMAND_TIMEOUT_MS);
+        channel.on('data', (chunk: Buffer) => (stdout = keep(stdout, chunk)));
+        channel.stderr.on('data', (chunk: Buffer) => (stderr = keep(stderr, chunk)));
+        channel.on('close', (code: number | null) => {
+          clearTimeout(timeout);
+          ok({ code: typeof code === 'number' ? code : null, stdout, stderr });
+        });
+        channel.end(input);
+      });
+    });
   }
 
   private connect(username: string, password: string): Promise<Client> {

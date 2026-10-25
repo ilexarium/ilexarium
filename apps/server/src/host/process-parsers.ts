@@ -11,7 +11,7 @@ export function isKernelThread(stat: Pick<ProcStat, 'flags'>): boolean {
 /**
  * `/proc/<pid>/stat`. The name sits in parentheses and may itself hold spaces and `)`, so the
  * fields are counted from the **last** `)`: state is field 3, flags 9, utime 14, stime 15,
- * starttime 22. Null for anything else (the process ended while being read).
+ * priority 18, nice 19, starttime 22, vsize 23. Null for anything else (the process ended while being read).
  */
 export function parseProcStat(stat: string): ProcStat | null {
   const open = stat.indexOf('(');
@@ -32,19 +32,28 @@ export function parseProcStat(stat: string): ProcStat | null {
     state: field(3),
     flags: Number(field(9)),
     cpuTicks: Number(field(14)) + Number(field(15)),
+    priority: Number(field(18)) || 0,
+    nice: Number(field(19)) || 0,
     startTicks,
+    virtualBytes: Number(field(23)) || 0,
   };
 }
 
-/** `/proc/<pid>/status`: its four uids and its resident memory (VmRSS, absent for kernel threads). */
+/**
+ * `/proc/<pid>/status`: its four uids, its resident memory (VmRSS) and the shared part of it
+ * (RssFile + RssShmem, what htop calls SHR) — all absent for kernel threads.
+ */
 export function parseProcStatus(
   status: string,
-): { uids: [number, number, number, number]; rssBytes: number } | null {
+): { uids: [number, number, number, number]; rssBytes: number; sharedBytes: number } | null {
   const uidLine = /^Uid:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/m.exec(status);
   if (!uidLine) return null;
-  const rss = /^VmRSS:\s+(\d+)\s*kB/m.exec(status);
+  const kib = (key: string) => {
+    const match = new RegExp(`^${key}:\\s+(\\d+)\\s*kB`, 'm').exec(status);
+    return match ? Number(match[1]) * 1024 : 0;
+  };
   const uids = uidLine.slice(1, 5).map(Number) as [number, number, number, number];
-  return { uids, rssBytes: rss ? Number(rss[1]) * 1024 : 0 };
+  return { uids, rssBytes: kib('VmRSS'), sharedBytes: kib('RssFile') + kib('RssShmem') };
 }
 
 /** `/proc/<pid>/cmdline`: arguments separated (and ended) by NUL bytes. */
@@ -55,7 +64,7 @@ export function parseCmdline(cmdline: string): string {
 /**
  * A container's cgroup, its ID known or not: Docker's, Podman's, containerd's, Kubernetes pods,
  * LXC, systemd-nspawn machines — but not the daemons' own services (`docker.service`,
- * `containerd.service`). The process wrapper writes the same rule (a test compares them).
+ * `containerd.service`).
  */
 export const CONTAINER_CGROUP =
   /\/docker\/|(?:docker|libpod|containerd)[-/][0-9a-f]{64}|(?:docker|libpod|cri-containerd)-[^/\s]*\.scope|\/kubepods\b|\/lxc[./]|\/machine\.slice\//m;
@@ -80,6 +89,17 @@ export function parsePasswd(passwd: string): Map<number, string> {
     if (name && uid && /^\d+$/.test(uid) && !users.has(Number(uid))) users.set(Number(uid), name);
   }
   return users;
+}
+
+/** The number of cores: the `cpu<N>` lines of `/proc/stat` (at least 1). */
+export function parseCpuCount(stat: string): number {
+  return Math.max(1, stat.split('\n').filter((line) => /^cpu\d+\s/.test(line)).length);
+}
+
+/** One `/proc/pressure/<resource>` file: `some avg60`, or null if it isn't there. */
+export function parsePressure(pressure: string): number | null {
+  const match = /^some\b.*\bavg60=(\d+(?:\.\d+)?)/m.exec(pressure);
+  return match ? Number(match[1]) : null;
 }
 
 /** `btime` of `/proc/stat`: when the machine booted, in seconds since 1970. */

@@ -1,6 +1,6 @@
 // The installer's smoke test, run as root inside a freshly installed machine (tools/vm/):
 //   node smoke.mjs install   after the first install: setup, sign-in, containers through the proxy
-//                            socket, deploying a service, a backup, ending a person's process,
+//                            socket, deploying a service, a backup, ending processes as a person,
 //                            and the security setup (files, sudo, who reaches the proxy)
 //   node smoke.mjs update    after running the installer again: everything is still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
@@ -120,7 +120,10 @@ async function securitySetup() {
   expect('/etc/laris/wrappers.json', { mode: '0644', uid: 0 });
   expect('/etc/sudoers.d/laris', { mode: '0440', uid: 0 });
   expect('/opt/laris/libexec', { mode: '0755', uid: 0 });
-  expect('/opt/laris/libexec/laris-process.mts', { mode: '0755', uid: 0 });
+  check(
+    'the process wrapper is gone (an update removes it)',
+    !existsSync('/opt/laris/libexec/laris-process.mts'),
+  );
   expect('/var/lib/laris', { mode: '0755', uid: 0 });
   expect('/var/lib/laris/app', { mode: '0700', uid: app });
   expect('/var/lib/laris/backups', { mode: '0750', uid: 0, gid: appGroup });
@@ -140,15 +143,13 @@ async function securitySetup() {
     !/0\.0\.0\.0:5432|\[::\]:5432|\*:5432/.test(sh('ss', ['-ltnH'])),
   );
   check('the proxy has no TCP port', !/:2375\b/.test(sh('ss', ['-ltnH'])));
-  // What the app's user may do with sudo: exactly the four wrappers.
+  // What the app's user may do with sudo: exactly the three wrappers.
   const sudo = sh('sudo', ['-l', '-U', 'laris']);
   const allowed = [...sudo.matchAll(/NOPASSWD:\s*(\S+)/g)].map((m) => m[1]).sort();
   check(
-    'sudo: the app may run exactly the four wrappers',
+    'sudo: the app may run exactly the three wrappers',
     JSON.stringify(allowed) ===
-      JSON.stringify(
-        ['backup', 'compose', 'disk', 'process'].map((w) => `/opt/laris/libexec/laris-${w}.mts`),
-      ),
+      JSON.stringify(['backup', 'compose', 'disk'].map((w) => `/opt/laris/libexec/laris-${w}.mts`)),
     allowed.join(' '),
   );
   check(
@@ -300,7 +301,79 @@ async function files() {
   const del = await api('DELETE', '/files?path=%2Fhome%2Fanna%2Fhello.txt');
   check('deletes it', del.status === 204 && !existsSync('/home/anna/hello.txt'), `${del.status}`);
   await terminal();
+  await processes();
   await api('DELETE', '/files/session');
+}
+
+/** A sleep of `user`, by PID and start time (as the process list names it). */
+async function sleeper(user) {
+  const child = spawn(
+    'setpriv',
+    [`--reuid=${user}`, `--regid=${user}`, '--clear-groups', 'sleep', '300'],
+    {
+      stdio: 'ignore',
+    },
+  );
+  await sleep(500);
+  const stat = readFileSync(`/proc/${child.pid}/stat`, 'utf8');
+  const startTicks = stat
+    .slice(stat.lastIndexOf(')') + 1)
+    .trim()
+    .split(/\s+/)[19];
+  const exited = new Promise((r) => child.on('exit', (_, signal) => r(signal)));
+  return {
+    request: { pid: child.pid, startTicks },
+    signal: () => Promise.race([exited, sleep(5000).then(() => 'still running')]),
+    stop: () => child.kill('SIGKILL'),
+  };
+}
+
+/**
+ * Ending processes as anna over this machine's sshd (the Linux session is open): her own; not
+ * root's; root's with her own sudo and its password. No root path of the app's.
+ */
+async function processes() {
+  console.log('\nEnding processes (as anna, over the Linux sign-in)');
+  const own = await sleeper('anna');
+  const end = await api('POST', '/processes/signal', { ...own.request, signal: 'TERM' });
+  check('anna ends her own process', end.status === 204, `${end.status} ${end.text}`);
+  check('it got SIGTERM', (await own.signal()) === 'SIGTERM');
+
+  const roots = await sleeper('root');
+  const refused = await api('POST', '/processes/signal', { ...roots.request, signal: 'KILL' });
+  check(
+    'Linux refuses root’s to her (403 process_not_permitted)',
+    refused.status === 403 && refused.json?.code === 'process_not_permitted',
+    `${refused.status} ${refused.text}`,
+  );
+  const noSudo = await api('POST', '/processes/signal-as-administrator', {
+    ...roots.request,
+    signal: 'TERM',
+    password: 'anna-smoke-password',
+  });
+  check(
+    'as administrator without sudo rights: not allowed',
+    noSudo.status === 403 && noSudo.json?.code === 'sudo_not_allowed',
+    `${noSudo.status} ${noSudo.text}`,
+  );
+  sh('usermod', ['-aG', 'sudo', 'anna']);
+  // Group changes count from the next sign-in.
+  await api('POST', '/files/session', { username: 'anna', password: 'anna-smoke-password' });
+  const admin = await api('POST', '/processes/signal-as-administrator', {
+    ...roots.request,
+    signal: 'TERM',
+    password: 'anna-smoke-password',
+  });
+  check(
+    'as administrator with her sudo: ended',
+    admin.status === 204,
+    `${admin.status} ${admin.text}`,
+  );
+  check('root’s process got SIGTERM', (await roots.signal()) === 'SIGTERM');
+  roots.stop();
+  sh('gpasswd', ['-d', 'anna', 'sudo']);
+  const init = await api('POST', '/processes/signal', { pid: 1, startTicks: '1', signal: 'KILL' });
+  check('PID 1 refused', init.status === 403 || init.status === 404, `${init.status}`);
 }
 
 /**
@@ -511,32 +584,6 @@ async function install() {
     JSON.stringify(result.value).slice(0, 400),
   );
 
-  console.log('\nEnding a person’s process (as that person, through sudo)');
-  ensurePerson();
-  const child = spawn(
-    'setpriv',
-    ['--reuid=anna', '--regid=anna', '--clear-groups', 'sleep', '300'],
-    { stdio: 'ignore' },
-  );
-  await sleep(500);
-  const stat = readFileSync(`/proc/${child.pid}/stat`, 'utf8');
-  const startTicks = stat
-    .slice(stat.lastIndexOf(')') + 1)
-    .trim()
-    .split(/\s+/)[19];
-  const exited = new Promise((r) => child.on('exit', (_, signal) => r(signal)));
-  const end = await api('POST', '/processes/signal', {
-    pid: child.pid,
-    startTicks,
-    signal: 'TERM',
-  });
-  check('ended through the wrapper', end.status === 204, `${end.status} ${end.text}`);
-  check(
-    'it got SIGTERM',
-    (await Promise.race([exited, sleep(5000).then(() => 'still running')])) === 'SIGTERM',
-  );
-  const init = await api('POST', '/processes/signal', { pid: 1, startTicks: '1', signal: 'KILL' });
-  check('PID 1 refused', init.status === 403 || init.status === 404, `${init.status}`);
   await files();
   await profile();
   done();

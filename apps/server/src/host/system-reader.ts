@@ -22,6 +22,8 @@ import {
   parseBootTime,
   parseCmdline,
   parseContainerId,
+  parseCpuCount,
+  parsePressure,
   parsePasswd,
   parseProcStat,
   parseProcStatus,
@@ -34,6 +36,7 @@ import type {
   MemoryInfo,
   MountPoint,
   NetCounters,
+  Pressure,
   RawProcess,
   Space,
   Subfolder,
@@ -278,6 +281,22 @@ export class SystemReader {
       command: parseCmdline(cmdline ?? ''),
       containerId: parseContainerId(cgroup ?? ''),
     };
+  }
+
+  /** The machine's cores (from /proc/stat, like the CPU times). */
+  async cpuCount(): Promise<number> {
+    return parseCpuCount(await this.read('proc/stat'));
+  }
+
+  /** How much processes waited in the last minute; null without pressure data (older kernels, `psi=0`). */
+  async pressure(): Promise<Pressure | null> {
+    const [cpu, memory, io] = await Promise.all(
+      ['cpu', 'memory', 'io'].map(async (resource) => {
+        const text = await this.readOptional(`proc/pressure/${resource}`);
+        return text === null ? null : parsePressure(text);
+      }),
+    );
+    return cpu === null || memory === null || io === null ? null : { cpu, memory, io };
   }
 
   /** Account names by uid, from /etc/passwd (empty if it can't be read). */

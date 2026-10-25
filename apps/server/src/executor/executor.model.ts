@@ -2,7 +2,6 @@ import type { WrapperName } from './wrapper-command.constants.js';
 import type {
   BackupErrorCode,
   DiskErrorCode,
-  ProcessErrorCode,
   BackupRestoreTarget,
   BackupRetention,
   BackupSchedule,
@@ -27,15 +26,6 @@ export interface WrapperConfig {
   backup?: WrapperBackupConfig;
   /** The disk wrapper's part; missing until the installer (or development) adds it. */
   disk?: WrapperDiskConfig;
-  process?: WrapperProcessConfig;
-}
-
-export interface WrapperProcessConfig {
-  /** The app's own user: its processes are never signalled (required in root mode). */
-  appUid?: number;
-  minUid?: number;
-  /** Development only: where /proc is. */
-  dev?: { procRoot: string };
 }
 
 export interface WrapperDiskConfig {
@@ -125,8 +115,6 @@ export type BackupOutcome<T> =
   { ok: true; result: T } | { ok: false; code: BackupErrorCode; result: T | null };
 
 export type DiskOutcome<T> = { ok: true; result: T } | { ok: false; code: DiskErrorCode };
-
-export type ProcessOutcome = { ok: true } | { ok: false; code: ProcessErrorCode };
 
 /** How a wrapper's run is read: its `@@error` codes and the codes for the cases every run has. */
 export interface WrapperKind<Code extends string, W extends WrapperName = WrapperName> {

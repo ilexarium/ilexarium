@@ -151,7 +151,6 @@ CONF
           ],
         },
       },
-      process: { appUid: Number(process.env.APP_UID) },
     };
     process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
   ' | write_file "$ETC/wrappers.json" root:root 0644
