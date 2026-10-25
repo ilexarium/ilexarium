@@ -78,6 +78,13 @@ describe('SignInDialog', () => {
     await vi.waitFor(() => expect(host.closings).toBe(1));
     await fixture.whenStable();
     expect(dialog()).toBeNull();
+    // Nothing kept: opened again, the fields are empty.
+    host.step.set('linux');
+    host.open.set(true);
+    await fixture.whenStable();
+    await vi.waitFor(() =>
+      expect(dialog()!.querySelector<HTMLInputElement>('#linux-password')!.value).toBe(''),
+    );
   });
 
   it('with unlock (the terminal): the app password next in the same dialog, then closes', async () => {

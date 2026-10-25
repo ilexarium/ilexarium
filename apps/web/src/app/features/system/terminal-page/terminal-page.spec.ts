@@ -29,9 +29,13 @@ class FakeTerminalView {
   readonly resized = output<TerminalSize>();
   readonly data = output<string>();
   written = '';
+  focused = 0;
   constructor() {
     FakeTerminalView.last = this;
     queueMicrotask(() => this.ready.emit({ cols: 80, rows: 24 }));
+  }
+  focus(): void {
+    this.focused++;
   }
   write(bytes: Uint8Array): void {
     this.written += new TextDecoder().decode(bytes);
@@ -181,6 +185,7 @@ describe('TerminalPage', () => {
       ),
     );
     expect(socket.binaryType).toBe('arraybuffer');
+    await vi.waitFor(() => expect(FakeTerminalView.last!.focused).toBeGreaterThan(0));
     socket.open();
     await fixture.whenStable();
     expect(el.textContent).toContain('anna');

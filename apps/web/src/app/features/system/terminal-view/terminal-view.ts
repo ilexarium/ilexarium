@@ -110,6 +110,10 @@ export class TerminalView {
     });
   }
 
+  focus(): void {
+    this.terminal?.focus();
+  }
+
   /** The shell's output. */
   write(bytes: Uint8Array): void {
     this.terminal?.write(bytes);

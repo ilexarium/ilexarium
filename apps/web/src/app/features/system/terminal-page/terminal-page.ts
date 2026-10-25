@@ -15,6 +15,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
 import { ThemeService } from '../../../core/theme/theme';
+import { Formatter } from '../../../shared/format/formatter';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
 import { SignInDialog } from '../sign-in-dialog/sign-in-dialog';
 import { TerminalView } from '../terminal-view/terminal-view';
@@ -36,6 +37,7 @@ import { TerminalPageStore } from './terminal-page-store';
 export class TerminalPage {
   protected readonly terminalPageStore = inject(TerminalPageStore);
   protected readonly themeService = inject(ThemeService);
+  protected readonly formatter = inject(Formatter);
   private readonly view = viewChild<TerminalView>('view');
   private readonly signInButton = viewChild<ElementRef<HTMLButtonElement>>('signInButton');
 
@@ -58,9 +60,12 @@ export class TerminalPage {
     });
   }
 
+  /** Focus back to the page: its button, or the terminal just opened. */
   protected signInClosed(): void {
     this.signInOpen.set(false);
-    this.signInButton()?.nativeElement.focus();
+    const button = this.signInButton();
+    if (button) button.nativeElement.focus();
+    else this.view()?.focus();
   }
 
   protected connect(size: TerminalSize): void {
