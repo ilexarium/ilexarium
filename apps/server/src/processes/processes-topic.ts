@@ -12,29 +12,31 @@ import {
   timer,
 } from 'rxjs';
 import { DockerService } from '../docker/docker.service.js';
-import { WrapperConfigService } from '../executor/wrapper-config.js';
+import { cpuUsagePercent } from '../host/proc-parsers.js';
+import type { CpuTimes } from '../host/host.model.js';
 import { SystemReader } from '../host/system-reader.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
-import { endRules, toProcess } from './process-view.js';
+import { toProcess } from './process-view.js';
 import { NAMES_MS, PROCESSES_INTERVAL_MS } from './processes.constants.js';
 import type { ContainerName } from './processes.model.js';
 
 /** State of one collecting period: while `updates$` is subscribed. */
 interface Run {
-  /** CPU ticks of the machine and of each process at the previous reading. */
-  previousTotal: number | null;
+  /** CPU times of the machine and ticks of each process at the previous reading. */
+  previousCpu: CpuTimes | null;
   previousTicks: Map<string, number>;
   latest: ProcessesUpdate | null;
   first$: ReplaySubject<ProcessesUpdate>;
   /** Fixed until the machine restarts: read once per run. */
   bootTime: number | null | undefined;
+  cores: number | undefined;
 }
 
 /**
  * The `processes` topic (docs/plans/process_list.md): every process, read from /proc every 2 s —
- * only while someone has the page open. CPU % is each process's share of the whole machine
- * between two readings (0 in the first). Containers are named from Docker's list, looked up
+ * only while someone has the page open. CPU % is per core between two readings (0 in the
+ * first), like htop; the summary's is the whole machine's. Containers are named from Docker's list, looked up
  * again every 10 s (a process in a container without a name yet shows "a container").
  */
 @Injectable()
@@ -60,7 +62,6 @@ export class ProcessesTopic implements TopicSource<'processes'> {
   constructor(
     private readonly systemReader: SystemReader,
     private readonly dockerService: DockerService,
-    private readonly wrapperConfigService: WrapperConfigService,
     realtimeSubscriptions: RealtimeSubscriptions,
   ) {
     realtimeSubscriptions.registerSource(this);
@@ -75,11 +76,12 @@ export class ProcessesTopic implements TopicSource<'processes'> {
 
   private begin(): Run {
     const run: Run = {
-      previousTotal: null,
+      previousCpu: null,
       previousTicks: new Map(),
       latest: null,
       first$: new ReplaySubject(1),
       bootTime: undefined,
+      cores: undefined,
     };
     this.run = run;
     return run;
@@ -99,27 +101,42 @@ export class ProcessesTopic implements TopicSource<'processes'> {
         if (this.namesAt === -Infinity) await refresh;
       }
       run.bootTime ??= await this.systemReader.bootTime();
-      const [raw, cpu, memory, partial] = await Promise.all([
+      run.cores ??= await this.systemReader.cpuCount();
+      const load = this.systemReader.loadAverage();
+      const [raw, cpu, memory, partial, pressure] = await Promise.all([
         this.systemReader.processes(),
         this.systemReader.cpuTimes(),
         this.systemReader.memory(),
         this.systemReader.procHidden(),
+        this.systemReader.pressure(),
       ]);
       if (run !== this.run) return null;
       const context = {
         users: this.users,
         bootTime: run.bootTime,
         memoryTotalBytes: memory.totalBytes,
-        cpuTotalTicks: run.previousTotal === null ? 0 : cpu.total - run.previousTotal,
+        cores: run.cores,
+        cpuTotalTicks: run.previousCpu === null ? 0 : cpu.total - run.previousCpu.total,
         previousTicks: run.previousTicks,
         containers: this.containers,
-        rules: endRules(this.wrapperConfigService.config.process),
       };
       const update: ProcessesUpdate = {
         processes: raw.map((process) => toProcess(process, context)),
+        summary: {
+          cores: run.cores,
+          cpuPercent: run.previousCpu === null ? 0 : cpuUsagePercent(run.previousCpu, cpu),
+          load,
+          memory: {
+            totalBytes: memory.totalBytes,
+            availableBytes: memory.availableBytes,
+            swapTotalBytes: memory.swapTotalBytes,
+            swapUsedBytes: Math.max(0, memory.swapTotalBytes - memory.swapFreeBytes),
+          },
+          pressure,
+        },
         partial,
       };
-      run.previousTotal = cpu.total;
+      run.previousCpu = cpu;
       run.previousTicks = new Map(raw.map((process) => [processKey(process), process.cpuTicks]));
       run.latest = update;
       run.first$.next(update);

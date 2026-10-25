@@ -2,34 +2,22 @@ import { PROCESS_LIMITS, type Process, processKey } from '@laris/shared';
 import { isKernelThread } from '../host/process-parsers.js';
 import type { RawProcess } from '../host/host.model.js';
 import { STATES, TICKS_PER_SECOND } from './processes.constants.js';
-import type { EndRules, ProcessContext } from './processes.model.js';
+import type { ProcessContext } from './processes.model.js';
 
-const isPerson = (uid: number, minUid: number = PROCESS_LIMITS.minUid) =>
-  uid >= minUid && uid <= PROCESS_LIMITS.maxUid;
-
-/**
- * Whether a process can be ended here — the app's friendly first check; the process wrapper
- * checks the same again on its own: a person's process (every uid in the people's range, none the
- * app's own), not PID 1, not a kernel thread, not in a container.
- */
-export function isEndable(process: RawProcess, rules: EndRules): boolean {
-  return (
-    process.pid !== 1 &&
-    !isKernelThread(process) &&
-    process.containerId === null &&
-    process.uids.every((uid) => isPerson(uid, rules.minUid)) &&
-    !process.uids.includes(rules.appUid)
-  );
-}
+const isPerson = (uid: number) => uid >= PROCESS_LIMITS.minUid && uid <= PROCESS_LIMITS.maxUid;
 
 /** One process as the page shows it. */
 export function toProcess(raw: RawProcess, context: ProcessContext): Process {
   const kernel = isKernelThread(raw);
   const [uid] = raw.uids;
   const previous = context.previousTicks.get(processKey(raw));
+  // The machine's ticks count every core: a share of them times the cores is per core, as htop.
   const cpuPercent =
     previous !== undefined && context.cpuTotalTicks > 0
-      ? Math.min(100, Math.max(0, ((raw.cpuTicks - previous) / context.cpuTotalTicks) * 100))
+      ? Math.min(
+          100 * context.cores,
+          Math.max(0, ((raw.cpuTicks - previous) / context.cpuTotalTicks) * 100 * context.cores),
+        )
       : 0;
   const memoryPercent =
     context.memoryTotalBytes > 0
@@ -48,7 +36,12 @@ export function toProcess(raw: RawProcess, context: ProcessContext): Process {
     user: context.users.get(uid) ?? null,
     state: STATES[raw.state] ?? 'other',
     cpuPercent,
+    cpuSeconds: raw.cpuTicks / TICKS_PER_SECOND,
+    priority: raw.priority,
+    nice: raw.nice,
     memoryBytes: raw.rssBytes,
+    virtualBytes: raw.virtualBytes,
+    sharedBytes: raw.sharedBytes,
     memoryPercent,
     startedAt:
       context.bootTime === null
@@ -57,19 +50,7 @@ export function toProcess(raw: RawProcess, context: ProcessContext): Process {
             (context.bootTime + Number(raw.startTicks) / TICKS_PER_SECOND) * 1000,
           ).toISOString(),
     kernel,
-    system: kernel || (container === null && !isPerson(uid, context.rules.minUid)),
+    system: kernel || (container === null && !isPerson(uid)),
     container,
-    endable: isEndable(raw, context.rules),
-  };
-}
-
-/**
- * The rules from the process wrapper's config: its `appUid` (this app's user if not set) and
- * `minUid` — so the app's first check and the wrapper's agree.
- */
-export function endRules(config: { appUid?: number; minUid?: number } | undefined): EndRules {
-  return {
-    appUid: config?.appUid ?? process.getuid?.() ?? 0,
-    minUid: config?.minUid ?? PROCESS_LIMITS.minUid,
   };
 }

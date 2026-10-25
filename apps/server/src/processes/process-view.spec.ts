@@ -1,9 +1,8 @@
 import type { RawProcess } from '../host/host.model.js';
 import { processKey } from '@laris/shared';
-import { isEndable, toProcess } from './process-view.js';
+import { toProcess } from './process-view.js';
 import type { ProcessContext } from './processes.model.js';
 
-const APP = 990;
 const ID = 'b'.repeat(64);
 
 const raw = (change: Partial<RawProcess> = {}): RawProcess => ({
@@ -12,9 +11,13 @@ const raw = (change: Partial<RawProcess> = {}): RawProcess => ({
   state: 'R',
   flags: 0x400000,
   cpuTicks: 1_000,
+  priority: 20,
+  nice: 0,
   startTicks: '50000',
+  virtualBytes: 2 * 1024 ** 3,
   uids: [1000, 1000, 1000, 1000],
   rssBytes: 512 * 1024 * 1024,
+  sharedBytes: 64 * 1024 * 1024,
   command: 'python3 train.py',
   containerId: null,
   ...change,
@@ -27,25 +30,34 @@ const context = (change: Partial<ProcessContext> = {}): ProcessContext => ({
   ]),
   bootTime: 1_760_000_000,
   memoryTotalBytes: 8 * 1024 ** 3,
+  cores: 4,
   cpuTotalTicks: 800,
   previousTicks: new Map([[processKey(raw()), 600]]),
   containers: new Map([[ID, { name: 'immich-server', catalogId: 'immich' }]]),
-  rules: { appUid: APP, minUid: 1000 },
   ...change,
 });
 
 describe('toProcess', () => {
-  it('works out CPU and memory as shares of the whole machine', () => {
+  it('works out CPU per core, like htop, and memory as a share of the machine', () => {
     const p = toProcess(raw(), context());
-    expect(p.cpuPercent).toBe(50); // 400 of 800 ticks
+    expect(p.cpuPercent).toBe(200); // 400 of 800 ticks on 4 cores: two cores' worth
     expect(p.memoryPercent).toBe(6.25);
     expect(p).toMatchObject({
       user: 'anna',
       state: 'running',
       kernel: false,
       system: false,
-      endable: true,
+      cpuSeconds: 10,
+      priority: 20,
+      nice: 0,
+      virtualBytes: 2 * 1024 ** 3,
+      sharedBytes: 64 * 1024 * 1024,
     });
+  });
+
+  it('never shows more than every core busy', () => {
+    const previousTicks = new Map([[processKey(raw()), 0]]);
+    expect(toProcess(raw(), context({ previousTicks, cpuTotalTicks: 100 })).cpuPercent).toBe(400);
   });
 
   it('shows 0 % CPU in the first reading and for a PID used again (another start time)', () => {
@@ -63,8 +75,8 @@ describe('toProcess', () => {
   it('names the container a process runs in, and the service', () => {
     const p = toProcess(raw({ containerId: ID, uids: [0, 0, 0, 0] }), context());
     expect(p.container).toEqual({ name: 'immich-server', catalogId: 'immich' });
-    // Root inside a container: not a system process (shown at first), not endable here.
-    expect(p).toMatchObject({ system: false, endable: false });
+    // Root inside a container: not a system process (shown at first).
+    expect(p).toMatchObject({ system: false });
     expect(toProcess(raw({ containerId: '' }), context()).container).toEqual({
       name: null,
       catalogId: null,
@@ -82,32 +94,7 @@ describe('toProcess', () => {
     });
   });
 
-  it('follows the configured people’s range for both “system” and “endable”', () => {
-    const rules = { appUid: APP, minUid: 500 };
-    expect(toProcess(raw({ uids: [600, 600, 600, 600] }), context({ rules }))).toMatchObject({
-      system: false,
-      endable: true,
-    });
-  });
-
   it('cuts a long command line', () => {
     expect(toProcess(raw({ command: 'x'.repeat(5000) }), context()).command).toHaveLength(1024);
-  });
-});
-
-describe('isEndable: only a person’s process', () => {
-  it.each([
-    ['a person’s', raw(), true],
-    ['root’s', raw({ uids: [0, 0, 0, 0] }), false],
-    ['a system account’s', raw({ uids: [109, 109, 109, 109] }), false],
-    ['nobody’s', raw({ uids: [65534, 65534, 65534, 65534] }), false],
-    ['the app’s own', raw({ uids: [APP, APP, APP, APP] }), false],
-    ['a person’s run with root’s rights (setuid)', raw({ uids: [1000, 0, 0, 0] }), false],
-    ['a kernel thread', raw({ flags: 0x200000 }), false],
-    ['in a container', raw({ containerId: ID }), false],
-    ['in a container without its ID', raw({ containerId: '' }), false],
-    ['PID 1', raw({ pid: 1 }), false],
-  ])('%s: %s', (_, process, expected) => {
-    expect(isEndable(process, { appUid: APP, minUid: 1000 })).toBe(expected);
   });
 });

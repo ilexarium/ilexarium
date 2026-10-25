@@ -14,7 +14,6 @@ export const WRAPPER_FILES = {
   compose: { installed: '/opt/laris/libexec/laris-compose.mts', repo: repo('laris-compose.mts') },
   backup: { installed: '/opt/laris/libexec/laris-backup.mts', repo: repo('laris-backup.mts') },
   disk: { installed: '/opt/laris/libexec/laris-disk.mts', repo: repo('laris-disk.mts') },
-  process: { installed: '/opt/laris/libexec/laris-process.mts', repo: repo('laris-process.mts') },
 } as const;
 
 export type WrapperName = keyof typeof WRAPPER_FILES;

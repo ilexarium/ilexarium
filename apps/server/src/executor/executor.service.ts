@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { spawn } from 'node:child_process';
-import type { ProcessSignalRequest } from '@laris/shared';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditAction } from '../audit/audit-actions.js';
 import type { AuditEntry } from '../audit/audit.model.js';
@@ -14,8 +13,6 @@ import {
   DISK,
   DISK_TIMEOUT_MS,
   OPERATION_TIMEOUT_MS,
-  PROCESS,
-  PROCESS_TIMEOUT_MS,
 } from './executor.constants.js';
 import type {
   BackupOutcome,
@@ -25,7 +22,6 @@ import type {
   DiskOutcome,
   ExecutorActor,
   JobCallbacks,
-  ProcessOutcome,
   WrapperBackupPlan,
   WrapperKind,
 } from './executor.model.js';
@@ -228,34 +224,6 @@ export class ExecutorService {
   /** Unmounts a disk mounted here, and forgets it. */
   diskUnmount(name: string, actor: ExecutorActor): Promise<DiskOutcome<null>> {
     return this.disk('unmount', actor, 'disk.unmount', { name }, () => null);
-  }
-
-  /**
-   * TERM, or KILL to force it, through the process wrapper — which reads the process again,
-   * refuses anything but a person's, and signals it as that person. `audit` names it in the log:
-   * never its command line (it may hold passwords).
-   */
-  async processSignal(
-    request: ProcessSignalRequest,
-    audit: { name: string; user: string | null },
-    actor: ExecutorActor,
-  ): Promise<ProcessOutcome> {
-    const result = await this.run(PROCESS, ['signal'], {
-      audit: {
-        action: 'process.end',
-        actor,
-        details: {
-          pid: request.pid,
-          name: audit.name,
-          user: audit.user ?? '',
-          signal: request.signal,
-        },
-      },
-      stdin: JSON.stringify(request),
-      timeoutMs: PROCESS_TIMEOUT_MS,
-      read: (last) => (last?.['signalled'] === true ? null : undefined),
-    });
-    return result.ok ? { ok: true } : { ok: false, code: result.code };
   }
 
   /** How long mounting or unmounting may take; tests shorten it. */

@@ -4,6 +4,13 @@ export interface CpuTimes {
   total: number;
 }
 
+/** `/proc/pressure/<resource>`: the share of the last minute some processes waited, 0–100. */
+export interface Pressure {
+  cpu: number;
+  memory: number;
+  io: number;
+}
+
 export interface MemoryInfo {
   totalBytes: number;
   availableBytes: number;
@@ -78,6 +85,9 @@ export interface ProcStat {
   flags: number;
   /** User plus system CPU time, in clock ticks. */
   cpuTicks: number;
+  priority: number;
+  nice: number;
+  virtualBytes: number;
   /** Since boot, in clock ticks, as digits (with the PID it names one process). */
   startTicks: string;
 }
@@ -87,6 +97,8 @@ export interface RawProcess extends ProcStat {
   /** Real, effective, saved and file-system uid. */
   uids: [number, number, number, number];
   rssBytes: number;
+  /** Resident file pages and shared memory (htop's SHR). */
+  sharedBytes: number;
   command: string;
   /** The container's ID (64 hex digits) if it runs in one; `''` in one whose ID isn't known. */
   containerId: string | null;

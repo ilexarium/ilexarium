@@ -663,7 +663,6 @@ describe('the sudoers drop-in', () => {
       'laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-compose.mts',
       'laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-backup.mts',
       'laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-disk.mts',
-      'laris ALL=(root) NOPASSWD: /opt/laris/libexec/laris-process.mts',
     ]);
     expect(readFileSync(SUDOERS, 'utf8')).toContain('Defaults:laris env_reset, !env_keep');
   });

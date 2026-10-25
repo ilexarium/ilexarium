@@ -81,6 +81,8 @@ export const linuxSessionSchema = z.object({
   username: z.string(),
   /** Where the explorer starts. */
   home: z.string(),
+  /** The account's uid (whose processes it may end); null if it couldn't be found out. */
+  uid: z.number().int().nonnegative().nullable(),
 });
 export type LinuxSession = z.infer<typeof linuxSessionSchema>;
 

@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 /**
  * The process list (docs/plans/process_list.md): what runs on the machine, like `htop`, read
- * from /proc without privileges; a person's runaway process can be ended through the process
- * wrapper (as that person, never as root).
+ * from /proc without privileges; ended over the person's own Linux session — Linux decides what
+ * they may end, the app has no rights of its own here.
  */
 
 export const PROCESS_LIMITS = {
@@ -13,8 +13,10 @@ export const PROCESS_LIMITS = {
   maxUid: 60000,
   /** A command line is cut after this many characters. */
   commandMax: 1024,
-  /** "Force end" is offered this long after "End" if the process still runs. */
-  forceAfterSeconds: 5,
+  /** The kernel's largest PID (`pid_max` at most 2^22). */
+  maxPid: 4_194_304,
+  /** The sudo password for "as administrator" (one action, never kept). */
+  passwordMax: 1024,
 } as const;
 
 export const PROCESS_SIGNALS = ['TERM', 'KILL'] as const;
@@ -51,9 +53,17 @@ export const processSchema = z.object({
   /** The account's name, or null if /etc/passwd doesn't know it. */
   user: z.string().nullable(),
   state: processStateSchema,
-  /** Share of the whole machine (all cores together), 0–100. */
-  cpuPercent: z.number().min(0).max(100),
+  /** Per core, like `htop`: up to 100 for each core (400 on four). */
+  cpuPercent: z.number().nonnegative(),
+  /** Its CPU time so far, user and system together (htop's TIME+). */
+  cpuSeconds: z.number().nonnegative(),
+  /** The kernel's priority and the nice value (htop's PRI and NI). */
+  priority: z.number().int(),
+  nice: z.number().int(),
+  /** Resident (RES), virtual (VIRT) and shared (SHR: files and shared memory) bytes. */
   memoryBytes: z.number().nonnegative(),
+  virtualBytes: z.number().nonnegative(),
+  sharedBytes: z.number().nonnegative(),
   /** Share of the machine's memory, 0–100. */
   memoryPercent: z.number().min(0).max(100),
   startedAt: z.iso.datetime().nullable(),
@@ -69,39 +79,76 @@ export const processSchema = z.object({
       catalogId: z.string().nullable(),
     })
     .nullable(),
-  /** Can be ended here: a person's process (not the app's own, not in a container). */
-  endable: z.boolean(),
 });
 export type Process = z.infer<typeof processSchema>;
 
 /** A process's identity across readings: a PID used again later has another start time. */
 export const processKey = (p: { pid: number; startTicks: string }) => `${p.pid}:${p.startTicks}`;
 
+/** The page's header: how busy the machine is, and whether anything waits. */
+export const processesSummarySchema = z.object({
+  cores: z.number().int().positive(),
+  /** Share of the whole machine (all cores together), 0–100. */
+  cpuPercent: z.number().min(0).max(100),
+  /** Load average over 1, 5 and 15 minutes. */
+  load: z.tuple([z.number(), z.number(), z.number()]),
+  memory: z.object({
+    totalBytes: z.number().nonnegative(),
+    availableBytes: z.number().nonnegative(),
+    swapTotalBytes: z.number().nonnegative(),
+    swapUsedBytes: z.number().nonnegative(),
+  }),
+  /**
+   * Share of the last minute some processes waited for CPU, memory or disk (`/proc/pressure`,
+   * `some avg60`), 0–100; null where the kernel keeps no pressure data.
+   */
+  pressure: z.object({ cpu: z.number(), memory: z.number(), io: z.number() }).nullable(),
+});
+export type ProcessesSummary = z.infer<typeof processesSummarySchema>;
+
 /** The `processes` topic's snapshot and updates: every process, every 2 s. */
 export const processesUpdateSchema = z.object({
   processes: z.array(processSchema),
+  summary: processesSummarySchema,
   /** /proc hides other users' processes (`hidepid`): the list is incomplete. */
   partial: z.boolean(),
 });
 export type ProcessesUpdate = z.infer<typeof processesUpdateSchema>;
 
-/** `POST /processes/signal`: end a process (TERM), or force it (KILL). */
+/** `POST /processes/signal`: end a process (TERM), or force it (KILL), as the Linux account. */
 export const processSignalRequestSchema = z.strictObject({
-  pid: z.number().int().positive().max(4_194_304),
+  pid: z.number().int().positive().max(PROCESS_LIMITS.maxPid),
   startTicks: processStartTicksSchema,
   signal: processSignalSchema,
 });
 export type ProcessSignalRequest = z.infer<typeof processSignalRequestSchema>;
 
+/** `POST /processes/signal-as-administrator`: the same through `sudo`, with its password. */
+export const processSignalAsAdministratorRequestSchema = processSignalRequestSchema.extend({
+  password: z
+    .string()
+    .min(1, 'validation.passwordRequired')
+    .max(PROCESS_LIMITS.passwordMax, 'validation.passwordTooLong')
+    // One line on sudo's stdin: a line break would end it early.
+    .refine((password) => !/[\r\n\0]/.test(password), 'validation.passwordInvalid'),
+});
+export type ProcessSignalAsAdministratorRequest = z.infer<
+  typeof processSignalAsAdministratorRequestSchema
+>;
+
 export const PROCESS_ERROR_CODES = {
   /** Gone (ended meanwhile, or the PID now names another process). */
   processNotFound: 'process_not_found',
-  /** Not a person's process: root, a system account, the app's own, in a container, PID 1. */
+  /** Never offered: PID 1, kernel threads. */
   processProtected: 'process_protected',
+  /** Linux refused: the account may not signal this process. */
+  processNotPermitted: 'process_not_permitted',
+  /** sudo refused the password. */
+  sudoPasswordWrong: 'sudo_password_wrong',
+  /** The account may not use sudo (or sudo isn't installed). */
+  sudoNotAllowed: 'sudo_not_allowed',
   signalFailed: 'signal_failed',
-  invalidRequest: 'invalid_request',
   timedOut: 'timed_out',
-  executorUnavailable: 'executor_unavailable',
   auditUnavailable: 'audit_unavailable',
 } as const;
 export type ProcessErrorCode = (typeof PROCESS_ERROR_CODES)[keyof typeof PROCESS_ERROR_CODES];

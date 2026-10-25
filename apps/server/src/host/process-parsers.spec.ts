@@ -3,7 +3,9 @@ import {
   parseBootTime,
   parseCmdline,
   parseContainerId,
+  parseCpuCount,
   parsePasswd,
+  parsePressure,
   parseProcStat,
   parseProcStatus,
   procHidesProcesses,
@@ -20,15 +22,22 @@ const stat = (
   `${pid} (${name}) S 1 ${pid} ${pid} 0 -1 ${flags} 0 0 0 0 ${utime} ${stime} 0 0 20 0 1 0 ${start} 10000 300 18446744073709551615\n`;
 
 describe('process parsers', () => {
-  it('reads /proc/<pid>/stat: state, flags, CPU ticks, start time', () => {
+  it('reads /proc/<pid>/stat: state, flags, CPU ticks, priority, nice, start time, virtual size', () => {
     expect(parseProcStat(stat(4312, 'python3'))).toEqual({
       pid: 4312,
       name: 'python3',
       state: 'S',
       flags: 4194560,
       cpuTicks: 150,
+      priority: 20,
+      nice: 0,
       startTicks: '98765',
+      virtualBytes: 10000,
     });
+    const niced = stat(4312, 'python3').replace(' 20 0 1 0 ', ' 39 19 1 0 ');
+    expect(parseProcStat(niced)).toMatchObject({ priority: 39, nice: 19 });
+    const realtime = stat(4312, 'python3').replace(' 20 0 1 0 ', ' -51 -20 1 0 ');
+    expect(parseProcStat(realtime)).toMatchObject({ priority: -51, nice: -20 });
   });
 
   it('reads a name with spaces and parentheses (counted from the last parenthesis)', () => {
@@ -47,16 +56,18 @@ describe('process parsers', () => {
     expect(isKernelThread(parseProcStat(stat(4312, 'python3'))!)).toBe(false);
   });
 
-  it('reads the four uids and resident memory from /proc/<pid>/status', () => {
+  it('reads the four uids, resident and shared memory from /proc/<pid>/status', () => {
     const status =
-      'Name:\tpython3\nUid:\t1000\t1000\t1000\t1000\nGid:\t1000\t1000\t1000\t1000\nVmRSS:\t  20480 kB\n';
+      'Name:\tpython3\nUid:\t1000\t1000\t1000\t1000\nGid:\t1000\t1000\t1000\t1000\nVmRSS:\t  20480 kB\nRssAnon:\t  16384 kB\nRssFile:\t   3072 kB\nRssShmem:\t   1024 kB\n';
     expect(parseProcStatus(status)).toEqual({
       uids: [1000, 1000, 1000, 1000],
       rssBytes: 20480 * 1024,
+      sharedBytes: 4096 * 1024,
     });
     expect(parseProcStatus('Name:\tkthreadd\nUid:\t0\t0\t0\t0\n')).toEqual({
       uids: [0, 0, 0, 0],
       rssBytes: 0,
+      sharedBytes: 0,
     });
     expect(parseProcStatus('Name:\tx\n')).toBeNull();
   });
@@ -109,6 +120,19 @@ describe('process parsers', () => {
   it('reads the boot time from /proc/stat', () => {
     expect(parseBootTime('cpu  1 2 3\nbtime 1760700000\nprocesses 5\n')).toBe(1760700000);
     expect(parseBootTime('cpu  1 2 3\n')).toBeNull();
+  });
+
+  it('counts the cores from /proc/stat', () => {
+    expect(parseCpuCount('cpu  1 2 3\ncpu0 1 2 3\ncpu1 1 2 3\nintr 5\n')).toBe(2);
+    expect(parseCpuCount('cpu  1 2 3\n')).toBe(1);
+  });
+
+  it('reads the last minute’s pressure (`some avg60`)', () => {
+    const io =
+      'some avg10=1.50 avg60=12.25 avg300=3.00 total=123\nfull avg10=0.00 avg60=2.00 avg300=0.00 total=9\n';
+    expect(parsePressure(io)).toBe(12.25);
+    expect(parsePressure('full avg10=0.00 avg60=2.00 avg300=0.00 total=9\n')).toBeNull();
+    expect(parsePressure('')).toBeNull();
   });
 
   it('tells when /proc hides other users’ processes', () => {
