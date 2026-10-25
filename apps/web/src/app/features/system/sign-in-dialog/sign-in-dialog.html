@@ -15,12 +15,18 @@
         <p hlmDialogDescription>{{ text() | translate }}</p>
       </hlm-dialog-header>
       <form id="sign-in-form" [formRoot]="linuxForm" class="grid gap-5">
+        @if (notice(); as notice) {
+          <div hlmAlert role="status">
+            <p hlmAlertDescription>{{ notice | translate }}</p>
+          </div>
+        }
         <laris-form-errors [form]="linuxForm" />
         <div hlmField>
           <label hlmFieldLabel for="linux-username">{{
             'files.signIn.username' | translate
           }}</label>
           <input
+            #linuxUsername
             hlmInput
             id="linux-username"
             dir="ltr"

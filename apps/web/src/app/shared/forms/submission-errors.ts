@@ -29,6 +29,12 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(PROFILE_ERROR_CODES),
 ];
 
+/** The server's error code of a failed API call, if it sent one. */
+export function apiErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof HttpErrorResponse)) return undefined;
+  return apiErrorResponseSchema.safeParse(error.error).data?.code;
+}
+
 /**
  * A failed API call in words, for a toast: `[key, params]` for the `Translator`. Network trouble,
  * a rate limit, a known code — or "something went wrong (status)".
@@ -36,7 +42,7 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
 export function apiErrorText(error: unknown): [string, Record<string, unknown>?] {
   if (!(error instanceof HttpErrorResponse) || error.status === 0) return ['errors.network'];
   if (error.status === 429) return ['errors.tooManyAttempts'];
-  const code = apiErrorResponseSchema.safeParse(error.error).data?.code;
+  const code = apiErrorCode(error);
   return code && TRANSLATED_ERROR_CODES.includes(code)
     ? [`errors.${code}`]
     : ['errors.server', { status: error.status }];

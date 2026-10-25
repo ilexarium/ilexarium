@@ -21,6 +21,7 @@ import {
   terminalTicketRequestSchema,
 } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
+import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmDialogImports } from '@ui/dialog';
 import { HlmFieldImports } from '@ui/field';
@@ -34,7 +35,8 @@ import type { SignInStep } from './sign-in-dialog.model';
 /**
  * Signing in as a Linux user of this machine (sshd checks the password), for Files and the
  * terminal; with `unlock` (the terminal), the app password next, in the same dialog. Submits
- * through the page store's methods (passed in), which reject with the server's error.
+ * through the page store's methods (passed in), which reject with the server's error. The step is
+ * the parent's: a Linux session that ends while the app password is asked brings back the first.
  */
 @Component({
   selector: 'laris-sign-in-dialog',
@@ -43,6 +45,7 @@ import type { SignInStep } from './sign-in-dialog.model';
     FormErrors,
     FormField,
     FormRoot,
+    HlmAlertImports,
     HlmButton,
     HlmDialogImports,
     HlmFieldImports,
@@ -56,6 +59,8 @@ export class SignInDialog {
   readonly open = input(false);
   /** The parent's: the app password once there is a Linux session. */
   readonly step = input<SignInStep>('linux');
+  /** Translation key: why the Linux account is asked (again), above its fields. */
+  readonly notice = input<string | null>(null);
   /** Translation keys: what signing in opens. */
   readonly title = input.required<string>();
   readonly text = input.required<string>();
@@ -66,6 +71,7 @@ export class SignInDialog {
   protected readonly shown = linkedSignal(() => this.open());
 
   private readonly injector = inject(Injector);
+  private readonly linuxUsername = viewChild<ElementRef<HTMLInputElement>>('linuxUsername');
   private readonly appPassword = viewChild<ElementRef<HTMLInputElement>>('appPassword');
   protected readonly showPassword = signal(false);
 
@@ -81,15 +87,7 @@ export class SignInDialog {
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }
-          if (this.unlock()) {
-            this.showPassword.set(false);
-            // The Linux fields are gone: focus would fall out of the dialog.
-            afterNextRender(() => this.appPassword()?.nativeElement.focus(), {
-              injector: this.injector,
-            });
-          } else {
-            this.shown.set(false);
-          }
+          if (!this.unlock()) this.shown.set(false);
           return undefined;
         },
       },
@@ -122,11 +120,29 @@ export class SignInDialog {
   constructor() {
     effect(() => {
       if (!this.open()) return;
+      untracked(() => this.clear());
+    });
+    // A step changed while open: the other step's fields are gone, and focus would fall out of
+    // the dialog. Each step starts empty (no password kept for the other one).
+    let lastStep = this.step();
+    effect(() => {
+      const step = this.step();
+      if (step === lastStep) return;
+      lastStep = step;
       untracked(() => {
-        this.linuxForm().reset({ username: '', password: '' });
-        this.appForm().reset({ password: '' });
-        this.showPassword.set(false);
+        if (!this.shown()) return;
+        this.clear();
+        afterNextRender(
+          () => (step === 'app' ? this.appPassword() : this.linuxUsername())?.nativeElement.focus(),
+          { injector: this.injector },
+        );
       });
     });
+  }
+
+  private clear(): void {
+    this.linuxForm().reset({ username: '', password: '' });
+    this.appForm().reset({ password: '' });
+    this.showPassword.set(false);
   }
 }

@@ -193,6 +193,43 @@ describe('TerminalPage', () => {
     expect(socket.sent[1]).toBe('{"type":"resize","cols":100,"rows":30}');
   });
 
+  it('the Linux session ended while the app password was asked: the Linux sign-in again, saying why', async () => {
+    const { ticket, sockets, fixture, files } = await render();
+    ticket.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 403,
+            error: { message: 'Sign in as a Linux user first', code: 'linux_session_required' },
+          }),
+      ),
+    );
+    const input = signInDialog()!.querySelector<HTMLInputElement>('#terminal-password')!;
+    input.value = 'app password';
+    input.dispatchEvent(new Event('input'));
+    submit();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(signInDialog()!.querySelector('#linux-username')).not.toBeNull();
+    });
+    expect(signInDialog()!.textContent).toContain('The Linux session ended');
+    expect(sockets).toHaveLength(0);
+
+    const [username, password] = signInDialog()!.querySelectorAll<HTMLInputElement>('input');
+    username.value = 'anna';
+    username.dispatchEvent(new Event('input'));
+    password.value = 'linux';
+    password.dispatchEvent(new Event('input'));
+    submit();
+    await vi.waitFor(() => expect(files.signIn).toHaveBeenCalled());
+    await fixture.whenStable();
+    expect(signInDialog()!.textContent).toContain('Confirm it’s you');
+    expect(signInDialog()!.textContent).not.toContain('The Linux session ended');
+    const errors = [...signInDialog()!.querySelectorAll('hlm-field-error, [role="alert"]')];
+    expect(errors.map((e) => e.textContent!.trim()).join('')).toBe('');
+    expect(signInDialog()!.querySelector<HTMLInputElement>('#terminal-password')!.value).toBe('');
+  });
+
   it('a wrong app password shows on the field; no socket', async () => {
     const { el, ticket, sockets, fixture } = await render();
     ticket.mockReturnValueOnce(

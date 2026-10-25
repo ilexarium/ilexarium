@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import {
@@ -23,12 +22,9 @@ import {
 } from 'rxjs';
 import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
-import { apiErrorText } from '../../../shared/forms/submission-errors';
+import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 import { joinPath, renameTarget } from '../files-paths';
 import type { Upload } from '../files.model';
-
-const codeOf = (error: unknown) =>
-  error instanceof HttpErrorResponse ? (error.error as { code?: string } | null)?.code : undefined;
 
 interface FilesPageState {
   /** Asked the server whether a Linux session is open. */
@@ -62,7 +58,7 @@ export const FilesPageStore = signalStore(
   withMethods((store, filesApi = inject(FilesApi), translator = inject(Translator)) => {
     /** A failure in a toast — or, when the Linux session ended, back to the sign-in. */
     const failed = (error: unknown) => {
-      if (codeOf(error) === FILES_ERROR_CODES.linuxSessionRequired) {
+      if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
         patchState(store, { session: null, list: null, loading: false });
       }
       toast.error(translator.t('files.actionFailed'), {
@@ -221,7 +217,7 @@ export const FilesPageStore = signalStore(
             );
             set({ progress: 1, state: 'done' });
           } catch (error) {
-            if (codeOf(error) === FILES_ERROR_CODES.exists && !replace) {
+            if (apiErrorCode(error) === FILES_ERROR_CODES.exists && !replace) {
               patchState(store, { uploads: store.uploads().filter((u) => u.id !== id) });
               taken.push(file);
             } else {

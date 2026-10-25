@@ -69,6 +69,11 @@
   title="terminal.signIn.title"
   text="terminal.signIn.text"
   [step]="terminalPageStore.session() ? 'app' : 'linux'"
+  [notice]="
+    terminalPageStore.closedReason() === 'linuxSessionEnded'
+      ? 'terminal.closed.linuxSessionEnded'
+      : null
+  "
   [open]="signInOpen()"
   [signIn]="signIn"
   [unlock]="unlock"
