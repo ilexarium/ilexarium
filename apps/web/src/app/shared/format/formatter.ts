@@ -5,6 +5,7 @@ import {
   formatBytes,
   formatClock,
   formatCount,
+  formatCpuTime,
   formatDate,
   formatDateTime,
   formatDecimal,
@@ -46,6 +47,11 @@ export class Formatter {
 
   percent(percent: number): string {
     return this.ltr(formatPercent(percent, this.locale()));
+  }
+
+  /** htop's TIME+ ("4:07.31"). */
+  cpuTime(seconds: number): string {
+    return this.ltr(formatCpuTime(seconds));
   }
 
   duration(seconds: number): string {

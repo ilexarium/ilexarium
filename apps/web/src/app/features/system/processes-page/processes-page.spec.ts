@@ -1,11 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Process, ProcessesUpdate } from '@laris/shared';
+import type { LinuxSession, Process, ProcessesSummary, ProcessesUpdate } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
+import { FilesApi } from '../../../core/files/files-api';
 import { ProcessesApi } from '../../../core/processes/processes-api';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
@@ -20,14 +21,18 @@ const proc = (change: Partial<Process>): Process => ({
   uid: 1000,
   user: 'anna',
   state: 'running',
-  cpuPercent: 48,
+  cpuPercent: 148,
+  cpuSeconds: 247.31,
+  priority: 20,
+  nice: 0,
   memoryBytes: 2e9,
+  virtualBytes: 6e9,
+  sharedBytes: 5e7,
   memoryPercent: 25,
   startedAt: new Date(Date.now() - 3 * 3_600_000).toISOString(),
   kernel: false,
   system: false,
   container: null,
-  endable: true,
   ...change,
 });
 
@@ -42,7 +47,6 @@ const IMMICH = proc({
   cpuPercent: 12,
   memoryBytes: 1e9,
   container: { name: 'immich-server', catalogId: 'immich' },
-  endable: false,
 });
 const KTHREAD = proc({
   pid: 2,
@@ -55,7 +59,6 @@ const KTHREAD = proc({
   memoryBytes: 0,
   kernel: true,
   system: true,
-  endable: false,
 });
 const SSHD = proc({
   pid: 800,
@@ -64,25 +67,65 @@ const SSHD = proc({
   command: 'sshd: /usr/sbin/sshd -D',
   uid: 0,
   user: 'root',
+  state: 'sleeping',
   cpuPercent: 0.1,
   memoryBytes: 5e6,
   system: true,
-  endable: false,
+});
+const STUCK = proc({
+  pid: 900,
+  startTicks: '9',
+  name: 'rsync',
+  command: 'rsync',
+  state: 'waiting',
+  cpuPercent: 1,
 });
 
-const update = (processes: Process[], partial = false): ProcessesUpdate => ({ processes, partial });
-const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
+const SUMMARY: ProcessesSummary = {
+  cores: 4,
+  cpuPercent: 40,
+  load: [3.2, 2, 1],
+  memory: { totalBytes: 8e9, availableBytes: 2e9, swapTotalBytes: 2e9, swapUsedBytes: 1.5e9 },
+  pressure: { cpu: 4, memory: 0, io: 12.5 },
+};
+const ANNA: LinuxSession = { username: 'anna', home: '/home/anna', uid: 1000 };
 
-async function render() {
+const update = (processes: Process[], partial = false): ProcessesUpdate => ({
+  processes,
+  summary: SUMMARY,
+  partial,
+});
+const httpError = (status: number, code: string) =>
+  new HttpErrorResponse({ status, error: { message: 'x', code } });
+const alertDialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
+const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+const fill = (input: HTMLInputElement, value: string) => {
+  input.value = value;
+  input.dispatchEvent(new Event('input'));
+};
+const buttonIn = (root: HTMLElement | null, text: string) =>
+  [...(root?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((b) =>
+    b.textContent!.includes(text),
+  )!;
+
+async function render(linux: LinuxSession | null = ANNA) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
-  const api = { signal: vi.fn(() => of(undefined)) };
+  const api = {
+    signal: vi.fn(() => of(undefined)),
+    signalAsAdministrator: vi.fn(() => of(undefined)),
+  };
+  const filesApi = {
+    session: vi.fn(() => of({ session: linux })),
+    signIn: vi.fn(() => of(ANNA)),
+  };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       auth.provider,
       sockets.provider,
       { provide: ProcessesApi, useValue: api },
+      { provide: FilesApi, useValue: filesApi },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -96,21 +139,28 @@ async function render() {
     socket.receive({ event: 'processes:update', data });
     await fixture.whenStable();
   };
-  /** The table's rows (the cards hold the same, for smaller screens). */
-  const names = () =>
-    [...el.querySelectorAll('tbody [data-name]')].map((s) => s.textContent!.trim());
-  const button = (text: string, root: ParentNode = el) =>
-    [...root.querySelectorAll<HTMLButtonElement | HTMLAnchorElement>('button, a')].find(
-      (b) => b.textContent?.trim() === text,
-    );
-  return { fixture, el, api, socket, push, names, button };
+  /** The table's rows, by PID. */
+  const pids = () =>
+    [...el.querySelectorAll('tbody tr')].map((row) => Number(row.querySelector('td')!.textContent));
+  const button = (text: string) => buttonIn(el, text);
+  const menu = async (name: string, pid: number, item: string) => {
+    el.querySelector<HTMLButtonElement>(
+      `button[aria-label="Actions for ${name} (PID ${pid})"]`,
+    )!.click();
+    await fixture.whenStable();
+    [...document.querySelectorAll<HTMLElement>('[hlmDropdownMenuItem], [role="menuitem"]')]
+      .find((b) => b.textContent!.includes(item))!
+      .click();
+    await fixture.whenStable();
+  };
+  return { fixture, el, api, filesApi, socket, push, pids, button, menu };
 }
 
 describe('ProcessesPage', () => {
-  let restoreScreen: (() => void) | null = null;
+  let restoreScreen: () => void;
+  beforeEach(() => (restoreScreen = stubScreenWidth(1440)));
   afterEach(() => {
-    restoreScreen?.();
-    restoreScreen = null;
+    restoreScreen();
     document.querySelectorAll('.cdk-overlay-container').forEach((e) => e.remove());
   });
 
@@ -124,142 +174,228 @@ describe('ProcessesPage', () => {
     expect(socket.sent).toContainEqual({ event: 'unsubscribe', data: { topic: 'processes' } });
   });
 
-  it('lists processes by CPU, without system processes until asked', async () => {
-    const { el, push, names, fixture } = await render();
-    await push(update([SSHD, IMMICH, KTHREAD, PYTHON]));
-    expect(names()).toEqual(['python3', 'node']);
-    expect(el.textContent).toContain('2 processes');
-    expect(el.textContent).toContain('Container immich-server');
-    const toggle = [...el.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')][0];
-    toggle.click();
-    await fixture.whenStable();
-    expect(names()).toEqual(['python3', 'node', 'sshd', 'kthreadd']);
-    expect(el.textContent).toContain('Kernel thread');
-  });
-
-  it('searches the name, command line and user; sorts by memory, name or PID', async () => {
-    const { el, push, names, fixture, button } = await render();
-    await push(update([IMMICH, PYTHON]));
-    const search = el.querySelector<HTMLInputElement>('input[type="search"]')!;
-    search.value = 'train';
-    search.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    expect(names()).toEqual(['python3']);
-    search.value = 'ROOT';
-    search.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    expect(names()).toEqual(['node']);
-    search.value = 'nothing like it';
-    search.dispatchEvent(new Event('input'));
-    await fixture.whenStable();
-    expect(el.textContent).toContain('No processes match.');
-
-    search.value = '';
-    search.dispatchEvent(new Event('input'));
-    button('PID')!.click();
-    await fixture.whenStable();
-    expect(names()).toEqual(['node', 'python3']);
-    expect(button('PID')!.getAttribute('aria-pressed')).toBe('true');
-  });
-
-  it('pauses: the list stays as it was until resumed', async () => {
-    const { push, names, fixture, button, el } = await render();
+  it('shows htop’s columns: per-core CPU, memory, TIME+, the state letter', async () => {
+    const { el, push } = await render();
     await push(update([PYTHON]));
-    button('Pause')!.click();
-    await fixture.whenStable();
-    await push(update([PYTHON, IMMICH]));
-    expect(names()).toEqual(['python3']);
-    expect(el.textContent).toContain('Paused');
-    button('Resume')!.click();
-    await fixture.whenStable();
-    expect(names()).toEqual(['python3', 'node']);
+    const headers = [...el.querySelectorAll('thead th')].map((th) => th.textContent!.trim());
+    expect(headers.slice(0, 12)).toEqual([
+      'PID',
+      'USER',
+      'PRI',
+      'NI',
+      'VIRT',
+      'RES',
+      'SHR',
+      'S',
+      'CPU%',
+      'MEM%',
+      'TIME+',
+      'Command',
+    ]);
+    const cells = [...el.querySelectorAll('tbody tr td')].map((td) => td.textContent!.trim());
+    expect(cells.slice(0, 11)).toEqual([
+      '4312',
+      'anna',
+      '20',
+      '0',
+      '6.0 GB',
+      '2.0 GB',
+      '50 MB',
+      'R',
+      '148.0',
+      '25.0',
+      '4:07.31',
+    ]);
+    expect(cells[11]).toContain('python3 train.py --epochs=50');
   });
 
-  it('ends a person’s process after confirming; a container’s points to the Containers page', async () => {
-    const { el, api, push, fixture } = await render();
-    await push(update([PYTHON, IMMICH]));
-    const end = el.querySelector<HTMLButtonElement>('button[aria-label="End python3 (PID 4312)"]')!;
-    expect(el.querySelector('button[aria-label^="End node"]')).toBeNull();
-    expect(
-      el.querySelector('a[aria-label="Stop node on the Containers page"]')!.getAttribute('href'),
-    ).toBe('/containers');
+  it('the header: CPU with the load in words, memory and swap, waiting, where it goes', async () => {
+    const { el, push } = await render();
+    await push(update([PYTHON, IMMICH, SSHD]));
+    const header = el.querySelector('laris-process-summary')!.textContent!;
+    expect(header).toContain('Load 3.20 on 4 cores');
+    expect(el.querySelector('[data-load-level]')!.textContent).toBe('busy');
+    expect(header).toContain('6.0 GB of 8.0 GB in use');
+    expect(header).toContain('Swap: 1.5 GB of 2.0 GB in use');
+    expect(header).toContain('For the disk');
+    expect(header).toContain('13%');
+    // By CPU, as a share of the machine (per-core sum over 4 cores): anna 37%, immich 3%.
+    const groups = [...el.querySelectorAll('laris-process-summary li')].map((li) =>
+      li.textContent!.replace(/\s+/g, ' ').trim(),
+    );
+    expect(groups[0]).toMatch(/^anna\s*37%/);
+    expect(groups[1]).toMatch(/^immich\s*3%/);
+  });
 
-    const success = vi.spyOn(toast, 'success');
-    end.click();
+  it('filters by a group of "Where it goes", and by "Needs attention"', async () => {
+    const { el, push, pids, fixture, button } = await render();
+    await push(update([PYTHON, IMMICH, STUCK]));
+    expect(pids()).toEqual([4312, 2201, 900]);
+    el.querySelector<HTMLButtonElement>('button[aria-label="Show only immich"]')!.click();
     await fixture.whenStable();
-    expect(dialog()!.textContent).toContain('End python3?');
-    expect(dialog()!.textContent).toContain('PID 4312 · user anna');
-    [...dialog()!.querySelectorAll('button')]
-      .find((b) => b.textContent!.includes('End process'))!
-      .click();
+    expect(pids()).toEqual([2201]);
+    expect(el.textContent).toContain('only immich');
+    button('Show all')!.click();
+    await fixture.whenStable();
+    expect(pids()).toEqual([4312, 2201, 900]);
+
+    expect(el.textContent).toContain('1 waiting for the disk');
+    buttonIn(el, 'Needs attention').click();
+    await fixture.whenStable();
+    expect(pids()).toEqual([900]);
+  });
+
+  it('sorts by its column headers, again for the other direction', async () => {
+    const { el, push, pids, fixture } = await render();
+    await push(update([IMMICH, PYTHON, SSHD]));
+    const header = (name: string) =>
+      el.querySelector<HTMLButtonElement>(`button[aria-label="Sort by ${name}"]`)!;
+    expect(pids()).toEqual([4312, 2201]); // CPU, busiest first; system processes hidden
+    header('Process ID').click();
+    await fixture.whenStable();
+    expect(pids()).toEqual([2201, 4312]);
+    expect(header('Process ID').closest('th')!.getAttribute('aria-sort')).toBe('ascending');
+    header('Process ID').click();
+    await fixture.whenStable();
+    expect(pids()).toEqual([4312, 2201]);
+    expect(header('Process ID').closest('th')!.getAttribute('aria-sort')).toBe('descending');
+  });
+
+  it('searches the name, command line and user; system processes on request', async () => {
+    const { el, push, pids, fixture } = await render();
+    await push(update([SSHD, IMMICH, KTHREAD, PYTHON]));
+    expect(pids()).toEqual([4312, 2201]);
+    const search = el.querySelector<HTMLInputElement>('input[type="search"]')!;
+    fill(search, 'train');
+    await fixture.whenStable();
+    expect(pids()).toEqual([4312]);
+    fill(search, 'ROOT');
+    await fixture.whenStable();
+    expect(pids()).toEqual([2201]);
+    fill(search, '');
+    el.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
+    await fixture.whenStable();
+    expect(pids()).toEqual([4312, 2201, 800, 2]);
+  });
+
+  it('htop’s keys in the table: move the selection, k ends it, Space pauses', async () => {
+    const { el, push, fixture } = await render();
+    await push(update([PYTHON, IMMICH]));
+    const table = el.querySelector<HTMLElement>('[role="region"]')!;
+    const key = async (k: string) => {
+      table.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+      await fixture.whenStable();
+    };
+    await key('ArrowDown');
+    await key('ArrowDown');
+    expect(el.querySelector('tr[aria-selected="true"] td')!.textContent).toBe('2201');
+    await key('ArrowUp');
+    await key('k');
+    expect(alertDialog()!.textContent).toContain('End python3?');
+    document.querySelector<HTMLButtonElement>('[role="alertdialog"] button')!.click(); // Cancel
+    await fixture.whenStable();
+    await key(' ');
+    expect(el.textContent).toContain('Paused');
+  });
+
+  it('ends the account’s own process (TERM), then forces it if it still runs — both manual', async () => {
+    const { el, api, push, fixture, menu } = await render();
+    await push(update([PYTHON]));
+    const success = vi.spyOn(toast, 'success');
+    await menu('python3', 4312, 'End…');
+    expect(alertDialog()!.textContent).toContain('End python3?');
+    expect(alertDialog()!.textContent).toContain('PID 4312 · user anna');
+    buttonIn(alertDialog(), 'End process').click();
     await vi.waitFor(() =>
       expect(api.signal).toHaveBeenCalledWith({ pid: 4312, startTicks: '5000', signal: 'TERM' }),
     );
     await vi.waitFor(() => expect(success).toHaveBeenCalledWith('python3 was asked to stop'));
-  });
-
-  it('offers "Force end" when the process still runs 5 s after being asked to stop', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    try {
-      const { el, api, push, fixture } = await render();
-      await push(update([PYTHON]));
-      el.querySelector<HTMLButtonElement>('button[aria-label="End python3 (PID 4312)"]')!.click();
-      await fixture.whenStable();
-      [...dialog()!.querySelectorAll('button')]
-        .find((b) => b.textContent!.includes('End process'))!
-        .click();
-      await vi.waitFor(() => expect(api.signal).toHaveBeenCalledTimes(1));
-      await fixture.whenStable();
-
-      vi.setSystemTime(Date.now() + 2_000);
-      await push(update([PYTHON]));
-      expect(el.querySelector('button[aria-label^="Force"]')).toBeNull();
-      vi.setSystemTime(Date.now() + 4_000);
-      await push(update([PYTHON]));
-      const force = el.querySelector<HTMLButtonElement>(
-        'button[aria-label="Force python3 (PID 4312) to end"]',
-      )!;
-      force.click();
-      await fixture.whenStable();
-      expect(dialog()!.textContent).toContain('Force python3 to end?');
-      [...dialog()!.querySelectorAll('button')]
-        .find((b) => b.textContent!.includes('Force end'))!
-        .click();
-      await vi.waitFor(() =>
-        expect(api.signal).toHaveBeenLastCalledWith({
-          pid: 4312,
-          startTicks: '5000',
-          signal: 'KILL',
-        }),
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('reports a refusal in a toast', async () => {
-    const { el, api, push, fixture } = await render();
     await push(update([PYTHON]));
-    api.signal.mockReturnValue(
-      throwError(
-        () =>
-          new HttpErrorResponse({
-            status: 404,
-            error: { message: 'x', code: 'process_not_found' },
-          }),
-      ),
-    );
-    const error = vi.spyOn(toast, 'error');
-    el.querySelector<HTMLButtonElement>('button[aria-label="End python3 (PID 4312)"]')!.click();
-    await fixture.whenStable();
-    [...dialog()!.querySelectorAll('button')]
-      .find((b) => b.textContent!.includes('End process'))!
-      .click();
+    expect(el.querySelector('tbody')!.textContent).toContain('still running');
+
+    await menu('python3', 4312, 'Force end…');
+    expect(alertDialog()!.textContent).toContain('Force python3 to end?');
+    buttonIn(alertDialog(), 'Force end').click();
     await vi.waitFor(() =>
-      expect(error).toHaveBeenCalledWith("The process couldn't be ended", {
-        description: "This process isn't running any more.",
+      expect(api.signal).toHaveBeenLastCalledWith({
+        pid: 4312,
+        startTicks: '5000',
+        signal: 'KILL',
       }),
     );
+    expect(api.signal).toHaveBeenCalledTimes(2);
+  });
+
+  it('another’s process: as administrator, with the account’s sudo password — a wrong one shown', async () => {
+    const { api, push, fixture, menu } = await render();
+    await push(update([IMMICH]));
+    await menu('node', 2201, 'End as administrator…');
+    expect(dialog()!.textContent).toContain('End node as administrator?');
+    expect(dialog()!.textContent).toContain('It isn’t a process of anna');
+    api.signalAsAdministrator.mockReturnValueOnce(
+      throwError(() => httpError(403, 'sudo_password_wrong')),
+    );
+    fill(dialog()!.querySelector<HTMLInputElement>('#sudo-password')!, 'wrong');
+    dialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await vi.waitFor(() =>
+      expect(dialog()!.querySelector('[role="alert"]')?.textContent).toContain(
+        'sudo didn’t accept this password.',
+      ),
+    );
+    fill(dialog()!.querySelector<HTMLInputElement>('#sudo-password')!, 'right');
+    dialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await vi.waitFor(() =>
+      expect(api.signalAsAdministrator).toHaveBeenLastCalledWith({
+        pid: 2201,
+        startTicks: '3000',
+        signal: 'TERM',
+        password: 'right',
+      }),
+    );
+    await vi.waitFor(() => expect(dialog()).toBeNull());
+    await fixture.whenStable();
+    expect(api.signal).not.toHaveBeenCalled();
+  });
+
+  it('without a Linux session: signing in first, then the confirmation goes on', async () => {
+    const { api, filesApi, push, fixture, menu } = await render(null);
+    await push(update([PYTHON]));
+    await menu('python3', 4312, 'End…');
+    expect(dialog()!.textContent).toContain('Sign in to end processes');
+    const [user, pass] = dialog()!.querySelectorAll<HTMLInputElement>('input');
+    fill(user, 'anna');
+    fill(pass, 'secret');
+    dialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await vi.waitFor(() =>
+      expect(filesApi.signIn).toHaveBeenCalledWith({ username: 'anna', password: 'secret' }),
+    );
+    await vi.waitFor(() => expect(alertDialog()?.textContent).toContain('End python3?'));
+    buttonIn(alertDialog(), 'End process').click();
+    await vi.waitFor(() => expect(api.signal).toHaveBeenCalled());
+    await fixture.whenStable();
+  });
+
+  it('reports Linux’s refusal in a toast', async () => {
+    const { api, push, menu } = await render();
+    await push(update([PYTHON]));
+    api.signal.mockReturnValue(throwError(() => httpError(403, 'process_not_permitted')));
+    const error = vi.spyOn(toast, 'error');
+    await menu('python3', 4312, 'End…');
+    buttonIn(alertDialog(), 'End process').click();
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith("The process couldn't be ended", {
+        description: 'Linux didn’t allow this account to end that process.',
+      }),
+    );
+  });
+
+  it('never offers ending PID 1 or a kernel thread', async () => {
+    const { el, push, fixture } = await render();
+    await push(update([proc({ pid: 1, startTicks: '1', name: 'systemd', system: true }), KTHREAD]));
+    el.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
+    await fixture.whenStable();
+    expect(el.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(el.querySelector('button[aria-label^="Actions for"]')).toBeNull();
   });
 
   it('says so when the list is incomplete (hidepid)', async () => {
@@ -268,17 +404,27 @@ describe('ProcessesPage', () => {
     expect(el.textContent).toContain('the list is incomplete');
   });
 
-  it('shows one card per process on smaller screens (no table), with the same details and actions', async () => {
+  it('phones: two lines a process, a tap shows the details and the actions', async () => {
+    restoreScreen();
     restoreScreen = stubScreenWidth(375);
-    const { el, push } = await render();
+    const { el, push, fixture } = await render();
     await push(update([PYTHON, IMMICH]));
     expect(el.querySelector('table')).toBeNull();
-    const cards = el.querySelectorAll('laris-process-list ul > li');
-    expect(cards).toHaveLength(2);
-    expect(cards[0].textContent).toContain('python3');
-    expect(cards[0].textContent).toContain('anna');
-    expect(cards[0].querySelector('button')!.textContent!.trim()).toBe('End');
-    expect(cards[1].querySelector('a')!.textContent!.trim()).toBe('Containers');
+    const rows = el.querySelectorAll<HTMLElement>('laris-process-list ul > li');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toContain('python3');
+    expect(rows[0].textContent).toContain('anna');
+    rows[1].querySelector('button')!.click();
+    await fixture.whenStable();
+    expect(rows[1].textContent).toContain('node /usr/src/app/server');
+    const actions = [...rows[1].querySelectorAll('a, button')].map((b) => b.textContent!.trim());
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        'Go to Containers',
+        'End as administrator…',
+        'Force end as administrator…',
+      ]),
+    );
   });
 
   it('shows the busiest 50 at first, all on request', async () => {
@@ -288,11 +434,9 @@ describe('ProcessesPage', () => {
     );
     await push(update(many));
     expect(el.querySelectorAll('tbody tr')).toHaveLength(50);
-    expect(el.querySelector('tbody [data-name]')!.textContent).toBe('job-0');
     expect(el.textContent).toContain('60 processes');
     button('Show all (60)')!.click();
     await fixture.whenStable();
     expect(el.querySelectorAll('tbody tr')).toHaveLength(60);
-    expect(button('Show all (60)')).toBeUndefined();
   });
 });

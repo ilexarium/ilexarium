@@ -1,0 +1,147 @@
+<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  <section
+    class="grid content-start gap-2 rounded-lg border bg-card p-3"
+    aria-labelledby="summary-cpu"
+  >
+    <h2 id="summary-cpu" class="text-sm font-medium text-muted-foreground">
+      {{ 'processes.summary.cpu' | translate }}
+    </h2>
+    <p class="text-2xl font-semibold tabular-nums">{{ cpu() }}</p>
+    <hlm-progress
+      [value]="summary().cpuPercent"
+      [attr.aria-label]="'processes.summary.cpu' | translate"
+    >
+      <hlm-progress-indicator />
+    </hlm-progress>
+    <p class="text-sm">
+      <span class="text-muted-foreground">{{
+        'processes.summary.loadOn' | plural: summary().cores : { load: load() }
+      }}</span>
+      ·
+      <span
+        [class.text-warning]="loadLevel() === 'busy'"
+        [class.text-destructive]="loadLevel() === 'overloaded'"
+        data-load-level
+        >{{ 'processes.summary.level.' + loadLevel() | translate }}</span
+      >
+    </p>
+  </section>
+
+  <section
+    class="grid content-start gap-2 rounded-lg border bg-card p-3"
+    aria-labelledby="summary-memory"
+  >
+    <h2 id="summary-memory" class="text-sm font-medium text-muted-foreground">
+      {{ 'processes.summary.memory' | translate }}
+    </h2>
+    <p class="text-2xl font-semibold tabular-nums">{{ percent(memory().percent) }}</p>
+    <hlm-progress
+      [value]="memory().percent"
+      [attr.aria-label]="'processes.summary.memory' | translate"
+    >
+      <hlm-progress-indicator />
+    </hlm-progress>
+    <p class="text-sm text-muted-foreground">
+      {{ 'processes.summary.memoryOf' | translate: { used: memory().used, total: memory().total } }}
+    </p>
+    <p
+      class="text-sm"
+      [class.text-muted-foreground]="!memory().swapHigh"
+      [class.text-warning]="memory().swapHigh"
+    >
+      @if (memory().swap) {
+        {{
+          'processes.summary.swap'
+            | translate: { used: memory().swapUsed, total: memory().swapTotal }
+        }}
+      } @else {
+        {{ 'processes.summary.noSwap' | translate }}
+      }
+    </p>
+  </section>
+
+  @if (summary().pressure; as pressure) {
+    <section
+      class="grid content-start gap-2 rounded-lg border bg-card p-3"
+      aria-labelledby="summary-waiting"
+    >
+      <h2 id="summary-waiting" class="text-sm font-medium text-muted-foreground">
+        {{ 'processes.summary.waiting' | translate }}
+      </h2>
+      <dl class="grid gap-1.5 text-sm">
+        @for (resource of resources; track resource) {
+          <div class="grid grid-cols-[6rem_1fr_3rem] items-center gap-2">
+            <dt>{{ 'processes.summary.waitingFor.' + resource | translate }}</dt>
+            <dd class="contents">
+              <hlm-progress
+                [value]="pressure[resource]"
+                [attr.aria-label]="'processes.summary.waitingFor.' + resource | translate"
+              >
+                <hlm-progress-indicator />
+              </hlm-progress>
+              <span class="text-end tabular-nums">{{ percent(pressure[resource]) }}</span>
+            </dd>
+          </div>
+        }
+      </dl>
+      <p class="text-xs text-muted-foreground">{{ 'processes.summary.waitingText' | translate }}</p>
+    </section>
+  }
+
+  <section
+    class="grid content-start gap-2 rounded-lg border bg-card p-3"
+    aria-labelledby="summary-where"
+  >
+    <h2 id="summary-where" class="text-sm font-medium text-muted-foreground">
+      {{ 'processes.summary.where' | translate }}
+    </h2>
+    <ul class="grid gap-1">
+      @for (row of rows(); track row.group.kind + row.group.name) {
+        <li>
+          <button
+            type="button"
+            class="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            [class.bg-accent]="row.selected"
+            [attr.aria-pressed]="row.selected"
+            [attr.aria-label]="'processes.summary.only' | translate: { name: row.label }"
+            (click)="group.emit(row.group)"
+          >
+            <ng-icon
+              [name]="icons[row.group.kind]"
+              class="shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <span
+              class="min-w-0 flex-1 truncate"
+              [attr.dir]="row.group.kind === 'system' ? null : 'ltr'"
+              >{{ row.label }}</span
+            >
+            <span class="tabular-nums">{{ row.cpu }}</span>
+            <span class="w-16 text-end text-muted-foreground tabular-nums">{{ row.memory }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+</div>
+
+@if (attentionCount() > 0) {
+  <button
+    type="button"
+    class="mt-3 flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-warning/40 bg-warning-muted px-3 py-2 text-start text-sm text-warning focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    [attr.aria-pressed]="attentionOn()"
+    (click)="toggleAttention.emit()"
+  >
+    <span class="font-medium">{{ 'processes.summary.attention' | translate }}</span>
+    @if (attention().zombie > 0) {
+      <span>{{ 'processes.summary.zombies' | plural: attention().zombie }}</span>
+    }
+    @if (attention().waiting > 0) {
+      <span>{{ 'processes.summary.waitingDisk' | plural: attention().waiting }}</span>
+    }
+    <span class="ms-auto underline">{{
+      (attentionOn() ? 'processes.summary.showEverything' : 'processes.summary.showThem')
+        | translate
+    }}</span>
+  </button>
+}

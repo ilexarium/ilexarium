@@ -27,7 +27,11 @@
       </hlm-alert-dialog-header>
       <hlm-alert-dialog-footer>
         <button hlmAlertDialogCancel>{{ 'processes.endDialog.cancel' | translate }}</button>
-        <button hlmAlertDialogAction (click)="confirmed()">
+        <button
+          hlmAlertDialogAction
+          [variant]="request.signal === 'KILL' ? 'destructive' : 'default'"
+          (click)="confirmed()"
+        >
           {{
             (request.signal === 'KILL'
               ? 'processes.endDialog.confirmForce'
