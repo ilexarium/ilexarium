@@ -1031,7 +1031,10 @@
       "password": "Passwort",
       "submit": "Öffnen",
       "submitting": "Anmeldung…",
-      "checking": "Suche nach einer offenen Sitzung"
+      "checking": "Suche nach einer offenen Sitzung",
+      "button": "Als Linux-Benutzer anmelden",
+      "cancel": "Abbrechen",
+      "close": "Schließen"
     },
     "signedInAs": "Als {{user}}",
     "close": "Schließen",
@@ -1102,7 +1105,8 @@
   "terminal": {
     "signIn": {
       "title": "Ein Terminal öffnen",
-      "text": "Melde dich mit deinem Linux-Konto auf diesem Rechner an. Das Terminal ist eine Shell dieses Kontos, wie bei SSH."
+      "text": "Melde dich mit deinem Linux-Konto auf diesem Rechner an. Das Terminal ist eine Shell dieses Kontos, wie bei SSH.",
+      "continue": "Weiter"
     },
     "unlock": {
       "title": "Bestätige, dass du es bist",

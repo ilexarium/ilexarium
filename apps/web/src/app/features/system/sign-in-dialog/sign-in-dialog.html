@@ -1,0 +1,110 @@
+<hlm-dialog
+  [state]="shown() ? 'open' : 'closed'"
+  [disableClose]="submitting()"
+  (closed)="closed.emit()"
+>
+  <hlm-dialog-content
+    *hlmDialogPortal
+    class="max-h-[90dvh] overflow-y-auto"
+    [closeLabel]="'files.signIn.close' | translate"
+    [showCloseButton]="!submitting()"
+  >
+    @if (step() === 'linux') {
+      <hlm-dialog-header>
+        <h2 hlmDialogTitle>{{ title() | translate }}</h2>
+        <p hlmDialogDescription>{{ text() | translate }}</p>
+      </hlm-dialog-header>
+      <form id="sign-in-form" [formRoot]="linuxForm" class="grid gap-5">
+        <laris-form-errors [form]="linuxForm" />
+        <div hlmField>
+          <label hlmFieldLabel for="linux-username">{{
+            'files.signIn.username' | translate
+          }}</label>
+          <input
+            hlmInput
+            id="linux-username"
+            dir="ltr"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            [formField]="linuxForm.username"
+          />
+          <laris-field-errors [field]="linuxForm.username" />
+        </div>
+        <div hlmField>
+          <label hlmFieldLabel for="linux-password">{{
+            'files.signIn.password' | translate
+          }}</label>
+          <div class="relative">
+            <input
+              hlmInput
+              id="linux-password"
+              dir="ltr"
+              class="pe-10"
+              autocomplete="current-password"
+              [type]="showPassword() ? 'text' : 'password'"
+              [formField]="linuxForm.password"
+            />
+            <laris-password-toggle [(visible)]="showPassword" />
+          </div>
+          <laris-field-errors [field]="linuxForm.password" />
+        </div>
+      </form>
+    } @else {
+      <hlm-dialog-header>
+        <h2 hlmDialogTitle>{{ 'terminal.unlock.title' | translate }}</h2>
+        <p hlmDialogDescription>{{ 'terminal.unlock.text' | translate }}</p>
+      </hlm-dialog-header>
+      <form id="sign-in-form" [formRoot]="appForm" class="grid gap-5">
+        <laris-form-errors [form]="appForm" />
+        <div hlmField>
+          <label hlmFieldLabel for="terminal-password">{{
+            'terminal.unlock.password' | translate
+          }}</label>
+          <div class="relative">
+            <input
+              #appPassword
+              hlmInput
+              id="terminal-password"
+              dir="ltr"
+              class="pe-10"
+              autocomplete="current-password"
+              [type]="showPassword() ? 'text' : 'password'"
+              [formField]="appForm.password"
+            />
+            <laris-password-toggle [(visible)]="showPassword" />
+          </div>
+          <laris-field-errors [field]="appForm.password" />
+        </div>
+      </form>
+    }
+    <hlm-dialog-footer>
+      <button
+        hlmBtn
+        type="button"
+        variant="outline"
+        [disabled]="submitting()"
+        (click)="shown.set(false)"
+      >
+        {{ 'files.signIn.cancel' | translate }}
+      </button>
+      <button hlmBtn type="submit" form="sign-in-form" [disabled]="submitting()">
+        @if (step() === 'linux') {
+          {{
+            (linuxForm().submitting()
+              ? 'files.signIn.submitting'
+              : unlock()
+                ? 'terminal.signIn.continue'
+                : 'files.signIn.submit'
+            ) | translate
+          }}
+        } @else {
+          {{
+            (appForm().submitting() ? 'terminal.unlock.submitting' : 'terminal.unlock.submit')
+              | translate
+          }}
+        }
+      </button>
+    </hlm-dialog-footer>
+  </hlm-dialog-content>
+</hlm-dialog>
