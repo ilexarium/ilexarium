@@ -16,6 +16,9 @@ import type { TerminalSize } from '../terminal.model';
 import { TerminalPage } from './terminal-page';
 
 const ANNA: LinuxSession = { username: 'anna', home: '/home/anna' };
+const signInDialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+const submit = () =>
+  signInDialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
 
 /** xterm needs a canvas jsdom lacks: a stand-in with the same inputs and outputs. */
 @Component({ selector: 'laris-terminal-view', template: '<div data-terminal></div>' })
@@ -101,44 +104,70 @@ async function render(session: LinuxSession | null = ANNA, sessionCheckFails = f
   await vi.waitFor(() => expect(files.session).toHaveBeenCalled());
   await fixture.whenStable();
   const el = fixture.nativeElement as HTMLElement;
+  const button = (text: string) =>
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+      b.textContent!.includes(text),
+    );
   const unlock = async (password = 'app password') => {
-    const input = el.querySelector<HTMLInputElement>('#terminal-password')!;
+    const input = signInDialog()!.querySelector<HTMLInputElement>('#terminal-password')!;
     input.value = password;
     input.dispatchEvent(new Event('input'));
-    el.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    submit();
     await vi.waitFor(() => expect(sockets).toHaveLength(1));
     await fixture.whenStable();
     return sockets[0];
   };
-  return { fixture, el, files, ticket, sockets, unlock };
+  return { fixture, el, files, ticket, sockets, unlock, button };
 }
 
 describe('TerminalPage', () => {
-  it('says so when checking for a Linux session fails, and shows the sign-in', async () => {
+  let restoreScreen: () => void;
+  beforeEach(() => (restoreScreen = stubScreenWidth(1440)));
+  afterEach(() => {
+    restoreScreen();
+    document.querySelectorAll('.cdk-overlay-container').forEach((e) => e.remove());
+  });
+
+  it('says so when checking for a Linux session fails, and asks for the Linux account', async () => {
     const error = vi.spyOn(toast, 'error');
-    const { el } = await render(null, true);
+    await render(null, true);
     expect(error).toHaveBeenCalled();
-    expect(el.querySelector('input[autocomplete="username"]')).not.toBeNull();
-    expect(el.querySelector('#terminal-password')).toBeNull();
+    expect(signInDialog()!.querySelector('input[autocomplete="username"]')).not.toBeNull();
+    expect(signInDialog()!.querySelector('#terminal-password')).toBeNull();
     error.mockRestore();
   });
 
-  let restoreScreen: () => void;
-  beforeEach(() => (restoreScreen = stubScreenWidth(1440)));
-  afterEach(() => restoreScreen());
-
-  it('without a Linux session: the sign-in, then the app password', async () => {
-    const { el, files, fixture } = await render(null);
-    expect(el.textContent).toContain('Open a terminal');
-    const [username, password] = el.querySelectorAll<HTMLInputElement>('input');
+  it('without a Linux session: the dialog opens on its own — the sign-in, then the app password', async () => {
+    const { files, fixture } = await render(null);
+    expect(signInDialog()!.textContent).toContain('Open a terminal');
+    const [username, password] = signInDialog()!.querySelectorAll<HTMLInputElement>('input');
     username.value = 'anna';
     username.dispatchEvent(new Event('input'));
     password.value = 'linux';
     password.dispatchEvent(new Event('input'));
-    el.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    submit();
     await vi.waitFor(() => expect(files.signIn).toHaveBeenCalled());
     await fixture.whenStable();
-    expect(el.textContent).toContain('Confirm it’s you');
+    expect(signInDialog()!.textContent).toContain('Confirm it’s you');
+  });
+
+  it('with a Linux session: the dialog starts at the app password', async () => {
+    await render();
+    expect(signInDialog()!.textContent).toContain('Confirm it’s you');
+    expect(signInDialog()!.querySelector('#linux-username')).toBeNull();
+  });
+
+  it('cancelled: the page offers to open it, as whom, and the button opens the dialog again', async () => {
+    const { el, fixture, button } = await render();
+    [...signInDialog()!.querySelectorAll('button')]
+      .find((b) => b.textContent!.includes('Cancel'))!
+      .click();
+    await vi.waitFor(() => expect(signInDialog()).toBeNull());
+    await fixture.whenStable();
+    expect(el.textContent).toContain('As anna');
+    button('Open terminal')!.click();
+    await fixture.whenStable();
+    expect(signInDialog()!.textContent).toContain('Confirm it’s you');
   });
 
   it('asks for the app password, then opens the terminal’s socket with the ticket and size', async () => {
@@ -178,13 +207,13 @@ describe('TerminalPage', () => {
           }),
       ),
     );
-    const input = el.querySelector<HTMLInputElement>('#terminal-password')!;
+    const input = signInDialog()!.querySelector<HTMLInputElement>('#terminal-password')!;
     input.value = 'nope';
     input.dispatchEvent(new Event('input'));
-    el.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    submit();
     await vi.waitFor(() => {
       fixture.detectChanges();
-      expect(el.querySelector('hlm-field-error')?.textContent).toBeTruthy();
+      expect(signInDialog()!.querySelector('hlm-field-error')?.textContent).toBeTruthy();
     });
     expect(sockets).toHaveLength(0);
   });
@@ -194,15 +223,16 @@ describe('TerminalPage', () => {
     [4009, 'took its place'],
     [1006, 'The connection was lost.'],
   ])('closed (%i): says why, and opening again asks for the password', async (code, text) => {
-    const { unlock, fixture, el } = await render();
+    const { unlock, fixture, el, button } = await render();
     const socket = await unlock();
     socket.open();
     socket.serverClose(code);
     await fixture.whenStable();
     expect(el.textContent).toContain(text);
-    [...el.querySelectorAll('button')].find((b) => b.textContent!.includes('Open again'))!.click();
+    expect(signInDialog()).toBeNull();
+    button('Open again')!.click();
     await fixture.whenStable();
-    expect(el.textContent).toContain('Confirm it’s you');
+    expect(signInDialog()!.textContent).toContain('Confirm it’s you');
   });
 
   it('the Linux session ended (4003): back to the Linux sign-in, saying why', async () => {
@@ -213,6 +243,7 @@ describe('TerminalPage', () => {
     await fixture.whenStable();
     expect(el.textContent).toContain('The Linux session ended');
     expect(el.textContent).toContain('Open a terminal');
+    expect(signInDialog()).toBeNull();
   });
 
   it('the app session ended (4401): signed out', async () => {
@@ -225,13 +256,11 @@ describe('TerminalPage', () => {
   });
 
   it('closing it says so', async () => {
-    const { unlock, fixture, el } = await render();
+    const { unlock, fixture, el, button } = await render();
     const socket = await unlock();
     socket.open();
     await fixture.whenStable();
-    [...el.querySelectorAll('button')]
-      .find((b) => b.textContent!.includes('Close terminal'))!
-      .click();
+    button('Close terminal')!.click();
     await fixture.whenStable();
     expect(el.textContent).toContain('You closed it.');
   });

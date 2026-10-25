@@ -1031,7 +1031,10 @@
       "password": "Password",
       "submit": "Open",
       "submitting": "Signing in…",
-      "checking": "Checking for an open session"
+      "checking": "Checking for an open session",
+      "button": "Sign in as a Linux user",
+      "cancel": "Cancel",
+      "close": "Close"
     },
     "signedInAs": "As {{user}}",
     "close": "Close",
@@ -1102,7 +1105,8 @@
   "terminal": {
     "signIn": {
       "title": "Open a terminal",
-      "text": "Sign in with your Linux account on this machine. The terminal is a shell of that account, like SSH."
+      "text": "Sign in with your Linux account on this machine. The terminal is a shell of that account, like SSH.",
+      "continue": "Continue"
     },
     "unlock": {
       "title": "Confirm it’s you",

@@ -4,7 +4,18 @@
     <hlm-skeleton class="h-48 w-full max-w-md" />
   </div>
 } @else if (!filesPageStore.session()) {
-  <laris-linux-sign-in title="files.signIn.title" text="files.signIn.text" [submit]="signIn" />
+  <div class="grid min-h-[calc(100dvh-7rem)] place-items-center py-8">
+    <laris-empty-state
+      class="w-full max-w-md"
+      icon="lucideFolderLock"
+      [text]="'files.signIn.title' | translate"
+      [detail]="'files.signIn.text' | translate"
+    >
+      <button #signInButton hlmBtn (click)="signInOpen.set(true)">
+        {{ 'files.signIn.button' | translate }}
+      </button>
+    </laris-empty-state>
+  </div>
 } @else {
   <div
     class="relative grid gap-4"
@@ -181,3 +192,11 @@
     }
   </hlm-alert-dialog-content>
 </hlm-alert-dialog>
+
+<laris-sign-in-dialog
+  title="files.signIn.title"
+  text="files.signIn.text"
+  [open]="signInOpen()"
+  [signIn]="signIn"
+  (closed)="signInClosed()"
+/>

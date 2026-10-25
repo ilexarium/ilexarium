@@ -36,6 +36,15 @@ const PHOTOS: FileList = { path: '/home/anna/Photos', parent: '/home/anna', entr
 const httpError = (status: number, code: string) =>
   new HttpErrorResponse({ status, error: { message: 'x', code } });
 const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
+const signInDialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+const signIn = (username: string, password: string) => {
+  const [user, pass] = signInDialog()!.querySelectorAll<HTMLInputElement>('input');
+  user.value = username;
+  user.dispatchEvent(new Event('input'));
+  pass.value = password;
+  pass.dispatchEvent(new Event('input'));
+  signInDialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+};
 const dialogButton = (text: string) =>
   [...(dialog()?.querySelectorAll('button') ?? [])].find((b) => b.textContent!.includes(text));
 
@@ -107,39 +116,49 @@ describe('FilesPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('without a Linux session: the sign-in; signing in opens the home folder', async () => {
+  it('without a Linux session: the sign-in opens on its own; signing in opens the home folder', async () => {
     const { el, api, fixture, names } = await render(null);
-    expect(el.textContent).toContain('Open your files');
-    const [username, password] = el.querySelectorAll<HTMLInputElement>('input');
-    username.value = 'anna';
-    username.dispatchEvent(new Event('input'));
-    password.value = 'secret';
-    password.dispatchEvent(new Event('input'));
-    el.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    expect(signInDialog()!.textContent).toContain('Open your files');
+    signIn('anna', 'secret');
     await vi.waitFor(() =>
       expect(api.signIn).toHaveBeenCalledWith({ username: 'anna', password: 'secret' }),
     );
     await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna'));
     await fixture.whenStable();
+    await vi.waitFor(() => expect(signInDialog()).toBeNull());
     expect(names()).toEqual(['Photos', 'music', 'notes.txt']);
     expect(el.textContent).toContain('/home/anna');
   });
 
-  it('a refused sign-in shows why, in the form', async () => {
-    const { el, api, fixture } = await render(null);
+  it('with a Linux session: no sign-in', async () => {
+    const { names } = await render();
+    expect(signInDialog()).toBeNull();
+    expect(names()).toEqual(['Photos', 'music', 'notes.txt']);
+  });
+
+  it('a refused sign-in shows why, in the dialog', async () => {
+    const { api, fixture } = await render(null);
     api.signIn.mockReturnValueOnce(throwError(() => httpError(403, 'linux_login_refused')));
-    const [username, password] = el.querySelectorAll<HTMLInputElement>('input');
-    username.value = 'anna';
-    username.dispatchEvent(new Event('input'));
-    password.value = 'wrong';
-    password.dispatchEvent(new Event('input'));
-    el.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    signIn('anna', 'wrong');
     await vi.waitFor(() => {
       fixture.detectChanges();
-      expect(el.querySelector('[role="alert"]')?.textContent).toContain(
+      expect(signInDialog()!.querySelector('[role="alert"]')?.textContent).toContain(
         'Wrong user name or password',
       );
     });
+  });
+
+  it('cancelled: the page says what signing in opens, and its button opens the dialog again', async () => {
+    const { el, fixture, button } = await render(null);
+    [...signInDialog()!.querySelectorAll('button')]
+      .find((b) => b.textContent!.includes('Cancel'))!
+      .click();
+    await vi.waitFor(() => expect(signInDialog()).toBeNull());
+    await fixture.whenStable();
+    expect(el.textContent).toContain('Open your files');
+    button('Sign in as a Linux user')!.click();
+    await fixture.whenStable();
+    expect(signInDialog()).not.toBeNull();
   });
 
   it('opens folders and links to folders, goes up; files are download links (attachments)', async () => {
@@ -274,8 +293,8 @@ describe('FilesPage', () => {
     expect(api.upload).toHaveBeenCalledTimes(2);
   });
 
-  it('a Linux session that ended shows the sign-in again', async () => {
-    const { el, api, fixture } = await render();
+  it('a Linux session that ended: the sign-in button, without the dialog opening on its own', async () => {
+    const { el, api, fixture, button } = await render();
     const error = vi.spyOn(toast, 'error');
     api.list.mockReturnValueOnce(throwError(() => httpError(403, 'linux_session_required')));
     el.querySelector<HTMLButtonElement>('button[aria-label="Refresh"]')!.click();
@@ -284,6 +303,8 @@ describe('FilesPage', () => {
       expect(el.textContent).toContain('Open your files');
     });
     expect(error).toHaveBeenCalled();
+    expect(button('Sign in as a Linux user')).toBeTruthy();
+    expect(signInDialog()).toBeNull();
   });
 
   it('a delete count that fails says why and closes the dialog', async () => {
@@ -315,6 +336,7 @@ describe('FilesPage', () => {
     await vi.waitFor(() => expect(api.signOut).toHaveBeenCalled());
     await fixture.whenStable();
     expect(el.textContent).toContain('Open your files');
+    expect(signInDialog()).toBeNull();
   });
 
   it('on a phone: a list instead of the table', async () => {

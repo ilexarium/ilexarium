@@ -130,11 +130,6 @@ export const TerminalPageStore = signalStore(
           socket?.close(1000);
         },
 
-        /** After it closed: the app password again. */
-        lock(): void {
-          patchState(store, { phase: 'locked', closedReason: null });
-        },
-
         /** The page goes away: the shell ends with it. */
         disconnect(): void {
           const open = socket;

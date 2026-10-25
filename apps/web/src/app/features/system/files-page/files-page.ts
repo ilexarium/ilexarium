@@ -1,4 +1,13 @@
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  type ElementRef,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import type { FileEntry, LinuxSignInRequest } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
@@ -18,7 +27,7 @@ import { HlmSkeleton } from '@ui/skeleton';
 import { FileDeleteDialog } from '../file-delete-dialog/file-delete-dialog';
 import { FileList } from '../file-list/file-list';
 import { FileNameDialog } from '../file-name-dialog/file-name-dialog';
-import { LinuxSignIn } from '../linux-sign-in/linux-sign-in';
+import { SignInDialog } from '../sign-in-dialog/sign-in-dialog';
 import type { FileAction } from '../files.model';
 import { joinPath } from '../files-paths';
 import { FilesPageStore } from './files-page-store';
@@ -41,8 +50,8 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
     HlmButton,
     HlmProgressImports,
     HlmSkeleton,
-    LinuxSignIn,
     NgIcon,
+    SignInDialog,
     TranslatePipe,
   ],
   providers: [
@@ -64,11 +73,14 @@ export class FilesPage {
   private readonly nameDialog = viewChild.required(FileNameDialog);
   private readonly deleteDialog = viewChild.required(FileDeleteDialog);
   private readonly replaceDialog = viewChild.required<HlmAlertDialog>('replaceDialog');
+  private readonly signInButton = viewChild<ElementRef<HTMLButtonElement>>('signInButton');
 
   /** Files dragged over the page. */
   protected readonly dragging = signal(false);
   /** Uploads whose name is taken there: one question for all of them. */
   protected readonly taken = signal<File[]>([]);
+  /** Opens on its own once, on arrival without a Linux session; then only from the button. */
+  protected readonly signInOpen = signal(false);
   protected readonly signIn = (request: LinuxSignInRequest) => this.filesPageStore.signIn(request);
   protected readonly urlFor = (entry: FileEntry) => this.filesPageStore.downloadUrl(entry);
   /** The names in the folder shown that are being renamed or deleted. */
@@ -80,6 +92,20 @@ export class FilesPage {
       .entries.map((e) => e.name)
       .filter((name) => this.filesPageStore.pending().includes(joinPath(folder, name)));
   });
+
+  constructor() {
+    let arrived = false;
+    effect(() => {
+      if (arrived || !this.filesPageStore.checked()) return;
+      arrived = true;
+      if (!this.filesPageStore.session()) untracked(() => this.signInOpen.set(true));
+    });
+  }
+
+  protected signInClosed(): void {
+    this.signInOpen.set(false);
+    this.signInButton()?.nativeElement.focus();
+  }
 
   protected openEntry(entry: FileEntry): void {
     const folder = this.filesPageStore.list()?.path;

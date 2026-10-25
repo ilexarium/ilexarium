@@ -2,101 +2,75 @@
   <div class="grid gap-2" role="status" [attr.aria-label]="'terminal.connecting' | translate">
     <hlm-skeleton class="h-48 w-full max-w-md" />
   </div>
-} @else if (!terminalPageStore.session()) {
-  <div class="grid gap-4">
-    @if (terminalPageStore.closedReason(); as reason) {
-      <div hlmAlert class="max-w-md" role="status">
-        <p hlmAlertDescription>{{ 'terminal.closed.' + reason | translate }}</p>
-      </div>
-    }
-    <laris-linux-sign-in
-      title="terminal.signIn.title"
-      text="terminal.signIn.text"
-      [submit]="signIn"
-    />
-  </div>
-} @else {
-  @switch (terminalPageStore.phase()) {
-    @case ('locked') {
-      <section hlmCard class="max-w-md" aria-labelledby="terminal-unlock-title">
-        <div hlmCardHeader>
-          <h2 hlmCardTitle id="terminal-unlock-title">{{ 'terminal.unlock.title' | translate }}</h2>
-          <p hlmCardDescription>{{ 'terminal.unlock.text' | translate }}</p>
-        </div>
-        <div hlmCardContent>
-          <form [formRoot]="unlockForm" class="grid gap-5">
-            <laris-form-errors [form]="unlockForm" />
-            <div hlmField>
-              <label hlmFieldLabel for="terminal-password">{{
-                'terminal.unlock.password' | translate
-              }}</label>
-              <div class="relative">
-                <input
-                  hlmInput
-                  id="terminal-password"
-                  dir="ltr"
-                  class="pe-10"
-                  autocomplete="current-password"
-                  [type]="showPassword() ? 'text' : 'password'"
-                  [formField]="unlockForm.password"
-                />
-                <laris-password-toggle [(visible)]="showPassword" />
-              </div>
-              <laris-field-errors [field]="unlockForm.password" />
-            </div>
-            <button
-              hlmBtn
-              type="submit"
-              class="justify-self-start"
-              [disabled]="unlockForm().submitting()"
-            >
-              {{
-                (unlockForm().submitting()
-                  ? 'terminal.unlock.submitting'
-                  : 'terminal.unlock.submit'
-                ) | translate
-              }}
-            </button>
-          </form>
-        </div>
-      </section>
-    }
-    @case ('closed') {
-      <div class="grid max-w-md gap-4">
-        <div hlmAlert role="status">
-          <h2 hlmAlertTitle>{{ 'terminal.closed.title' | translate }}</h2>
-          <p hlmAlertDescription>
-            {{ 'terminal.closed.' + terminalPageStore.closedReason() | translate }}
-          </p>
-        </div>
-        <button hlmBtn class="justify-self-start" (click)="terminalPageStore.lock()">
+} @else if (!terminalShown()) {
+  <div class="grid flex-1 place-items-center py-8">
+    @let reason = terminalPageStore.closedReason();
+    @if (!terminalPageStore.session()) {
+      <laris-empty-state
+        class="w-full max-w-md"
+        icon="lucideSquareTerminal"
+        [text]="'terminal.signIn.title' | translate"
+        [detail]="(reason ? 'terminal.closed.' + reason : 'terminal.signIn.text') | translate"
+      >
+        <button #signInButton hlmBtn (click)="signInOpen.set(true)">
+          {{ 'files.signIn.button' | translate }}
+        </button>
+      </laris-empty-state>
+    } @else if (terminalPageStore.phase() === 'closed') {
+      <laris-empty-state
+        class="w-full max-w-md"
+        icon="lucideSquareTerminal"
+        [text]="'terminal.closed.title' | translate"
+        [detail]="'terminal.closed.' + reason | translate"
+      >
+        <button #signInButton hlmBtn (click)="signInOpen.set(true)">
           {{ 'terminal.openAgain' | translate }}
         </button>
-      </div>
+      </laris-empty-state>
+    } @else {
+      <laris-empty-state
+        class="w-full max-w-md"
+        icon="lucideSquareTerminal"
+        [text]="'terminal.signIn.title' | translate"
+        [detail]="'terminal.as' | translate: { user: terminalPageStore.session()!.username }"
+      >
+        <button #signInButton hlmBtn (click)="signInOpen.set(true)">
+          {{ 'terminal.unlock.submit' | translate }}
+        </button>
+      </laris-empty-state>
     }
-    @default {
-      <div class="flex min-h-0 flex-1 flex-col gap-2">
-        <div class="flex flex-wrap items-center gap-2">
-          <p class="flex-1 text-sm text-muted-foreground" aria-live="polite">
-            @if (terminalPageStore.phase() === 'connecting') {
-              {{ 'terminal.connecting' | translate }}
-            } @else {
-              <span dir="ltr">{{ terminalPageStore.session()!.username }}</span>
-            }
-          </p>
-          <button hlmBtn variant="outline" size="sm" (click)="terminalPageStore.close()">
-            <ng-icon name="lucideX" aria-hidden="true" />
-            {{ 'terminal.close' | translate }}
-          </button>
-        </div>
-        <laris-terminal-view
-          #view
-          [dark]="themeService.dark()"
-          (ready)="connect($event)"
-          (resized)="terminalPageStore.resize($event)"
-          (data)="terminalPageStore.send($event)"
-        />
-      </div>
-    }
-  }
+  </div>
+} @else {
+  <div class="flex min-h-0 flex-1 flex-col gap-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <p class="flex-1 text-sm text-muted-foreground" aria-live="polite">
+        @if (terminalPageStore.phase() === 'connecting') {
+          {{ 'terminal.connecting' | translate }}
+        } @else {
+          <span dir="ltr">{{ terminalPageStore.session()!.username }}</span>
+        }
+      </p>
+      <button hlmBtn variant="outline" size="sm" (click)="terminalPageStore.close()">
+        <ng-icon name="lucideX" aria-hidden="true" />
+        {{ 'terminal.close' | translate }}
+      </button>
+    </div>
+    <laris-terminal-view
+      #view
+      [dark]="themeService.dark()"
+      (ready)="connect($event)"
+      (resized)="terminalPageStore.resize($event)"
+      (data)="terminalPageStore.send($event)"
+    />
+  </div>
 }
+
+<laris-sign-in-dialog
+  title="terminal.signIn.title"
+  text="terminal.signIn.text"
+  [step]="terminalPageStore.session() ? 'app' : 'linux'"
+  [open]="signInOpen()"
+  [signIn]="signIn"
+  [unlock]="unlock"
+  (closed)="signInClosed()"
+/>
