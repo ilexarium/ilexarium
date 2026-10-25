@@ -32,7 +32,10 @@
         class="w-full max-w-md"
         icon="lucideSquareTerminal"
         [text]="'terminal.signIn.title' | translate"
-        [detail]="'terminal.as' | translate: { user: terminalPageStore.session()!.username }"
+        [detail]="
+          'terminal.as'
+            | translate: { user: formatter.machine(terminalPageStore.session()!.username) }
+        "
       >
         <button #signInButton hlmBtn (click)="signInOpen.set(true)">
           {{ 'terminal.unlock.submit' | translate }}

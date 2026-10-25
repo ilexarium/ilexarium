@@ -1,7 +1,7 @@
 <hlm-dialog
   [state]="shown() ? 'open' : 'closed'"
   [disableClose]="submitting()"
-  (closed)="closed.emit()"
+  (closed)="onClosed()"
 >
   <hlm-dialog-content
     *hlmDialogPortal

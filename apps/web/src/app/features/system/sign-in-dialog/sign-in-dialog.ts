@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import {
+  FILES_ERROR_CODES,
   type LinuxSignInRequest,
   linuxSignInRequestSchema,
   type TerminalTicketRequest,
@@ -27,7 +28,7 @@ import { HlmDialogImports } from '@ui/dialog';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
-import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { apiErrorCode, toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import type { SignInStep } from './sign-in-dialog.model';
@@ -87,6 +88,9 @@ export class SignInDialog {
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }
+          // The Linux password isn't kept, not even in the form.
+          tree().reset({ username: '', password: '' });
+          this.showPassword.set(false);
           if (!this.unlock()) this.shown.set(false);
           return undefined;
         },
@@ -104,8 +108,15 @@ export class SignInDialog {
           try {
             await this.unlock()!(tree().value().password);
           } catch (error) {
-            return toSubmissionErrors(error, tree);
+            if (apiErrorCode(error) !== FILES_ERROR_CODES.linuxSessionRequired) {
+              return toSubmissionErrors(error, tree);
+            }
+            // The parent goes back to the Linux step, which says why.
+            tree().reset({ password: '' });
+            return undefined;
           }
+          tree().reset({ password: '' });
+          this.showPassword.set(false);
           this.shown.set(false);
           return undefined;
         },
@@ -118,31 +129,26 @@ export class SignInDialog {
   );
 
   constructor() {
-    effect(() => {
-      if (!this.open()) return;
-      untracked(() => this.clear());
-    });
     // A step changed while open: the other step's fields are gone, and focus would fall out of
-    // the dialog. Each step starts empty (no password kept for the other one).
-    let lastStep = this.step();
+    // the dialog. The first run only notes the parent's step (opening focuses the first field).
+    let lastStep: SignInStep | undefined;
     effect(() => {
       const step = this.step();
-      if (step === lastStep) return;
+      const changed = lastStep !== undefined && step !== lastStep;
       lastStep = step;
-      untracked(() => {
-        if (!this.shown()) return;
-        this.clear();
-        afterNextRender(
-          () => (step === 'app' ? this.appPassword() : this.linuxUsername())?.nativeElement.focus(),
-          { injector: this.injector },
-        );
-      });
+      if (!changed || !untracked(this.shown)) return;
+      afterNextRender(
+        () => (step === 'app' ? this.appPassword() : this.linuxUsername())?.nativeElement.focus(),
+        { injector: this.injector },
+      );
     });
   }
 
-  private clear(): void {
+  /** Closed in any way: nothing typed stays behind (passwords, errors). */
+  protected onClosed(): void {
     this.linuxForm().reset({ username: '', password: '' });
     this.appForm().reset({ password: '' });
     this.showPassword.set(false);
+    this.closed.emit();
   }
 }
