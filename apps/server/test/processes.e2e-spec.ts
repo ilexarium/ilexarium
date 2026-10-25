@@ -99,10 +99,10 @@ describe.skipIf(!sshdUp)('processes (e2e)', () => {
   });
 
   const post = (path: string, body: object) =>
-    request(client.session.origin)
+    request(client.session!.origin)
       .post(`/api${path}`)
-      .set('Origin', client.session.origin)
-      .set('Cookie', client.session.cookie)
+      .set('Origin', client.session!.origin)
+      .set('Cookie', client.session!.cookie)
       .send(body);
   const signInAs = (account: typeof ANNA) => post('/files/session', account).expect(200);
   const end = (body: object) => post('/processes/signal', body);
@@ -210,9 +210,9 @@ describe.skipIf(!sshdUp)('processes (e2e)', () => {
   });
 
   it('needs an app session', async () => {
-    await request(client.session.origin)
+    await request(client.session!.origin)
       .post('/api/processes/signal')
-      .set('Origin', client.session.origin)
+      .set('Origin', client.session!.origin)
       .send({ pid: process.pid, startTicks: startTicks(process.pid), signal: 'TERM' })
       .expect(401);
   });

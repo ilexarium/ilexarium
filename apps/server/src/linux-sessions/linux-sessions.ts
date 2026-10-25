@@ -24,6 +24,7 @@ import {
   KEEPALIVE_INTERVAL_MS,
   SSH_HOST,
   UID_COMMAND,
+  UID_TIMEOUT_MS,
 } from './linux-sessions.constants.js';
 import type {
   LinuxActor,
@@ -177,8 +178,12 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         sftp.realpath('.', (error, path) => (error ? fail(error) : ok(path))),
       );
       // Whose processes it may end; a shell that can't run `id` (nologin) still has its files.
-      const uid = await this.exec(client, UID_COMMAND).then(
-        ({ code, stdout }) => (code === 0 && /^\d+$/.test(stdout.trim()) ? Number(stdout) : null),
+      // The last line: a login script may print a greeting first. Not long: the sign-in waits.
+      const uid = await this.exec(client, UID_COMMAND, '', UID_TIMEOUT_MS).then(
+        ({ code, stdout }) => {
+          const last = stdout.trim().split('\n').at(-1)?.trim() ?? '';
+          return code === 0 && /^\d+$/.test(last) ? Number(last) : null;
+        },
         () => null,
       );
       // Closes this session only — never a newer one of the same app session.
@@ -253,31 +258,55 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     session.closing.clear();
   }
 
-  private exec(client: Client, command: LinuxCommand, input = ''): Promise<LinuxCommandResult> {
+  private exec(
+    client: Client,
+    command: LinuxCommand,
+    input = '',
+    timeoutMs = COMMAND_TIMEOUT_MS,
+  ): Promise<LinuxCommandResult> {
     return new Promise((ok, fail) => {
-      client.exec(command, (error, channel) => {
-        if (error) {
-          fail(linuxError(FILES_ERROR_CODES.sshUnavailable, 'The SSH server ran no command'));
-          return;
-        }
-        let stdout = '';
-        let stderr = '';
-        const keep = (text: string, chunk: Buffer) =>
-          text.length < COMMAND_OUTPUT_MAX
-            ? (text + chunk.toString('utf8')).slice(0, COMMAND_OUTPUT_MAX)
-            : text;
-        const timeout = setTimeout(() => {
-          fail(linuxError(FILES_ERROR_CODES.sshUnavailable, 'The command did not finish'));
-          channel.close();
-        }, COMMAND_TIMEOUT_MS);
-        channel.on('data', (chunk: Buffer) => (stdout = keep(stdout, chunk)));
-        channel.stderr.on('data', (chunk: Buffer) => (stderr = keep(stderr, chunk)));
-        channel.on('close', (code: number | null) => {
-          clearTimeout(timeout);
-          ok({ code: typeof code === 'number' ? code : null, stdout, stderr });
-        });
-        channel.end(input);
+      const refused = () =>
+        fail(linuxError(FILES_ERROR_CODES.sshUnavailable, 'The SSH server ran no command'));
+      try {
+        this.startExec(client, command, input, timeoutMs, ok, fail, refused);
+      } catch {
+        // Not connected any more (the connection dropped just now).
+        refused();
+      }
+    });
+  }
+
+  private startExec(
+    client: Client,
+    command: LinuxCommand,
+    input: string,
+    timeoutMs: number,
+    ok: (result: LinuxCommandResult) => void,
+    fail: (error: unknown) => void,
+    refused: () => void,
+  ): void {
+    client.exec(command, (error, channel) => {
+      if (error) {
+        refused();
+        return;
+      }
+      let stdout = '';
+      let stderr = '';
+      const keep = (text: string, chunk: Buffer) =>
+        text.length < COMMAND_OUTPUT_MAX
+          ? (text + chunk.toString('utf8')).slice(0, COMMAND_OUTPUT_MAX)
+          : text;
+      const timeout = setTimeout(() => {
+        fail(linuxError(FILES_ERROR_CODES.sshUnavailable, 'The command did not finish'));
+        channel.close();
+      }, timeoutMs);
+      channel.on('data', (chunk: Buffer) => (stdout = keep(stdout, chunk)));
+      channel.stderr.on('data', (chunk: Buffer) => (stderr = keep(stderr, chunk)));
+      channel.on('close', (code: number | null) => {
+        clearTimeout(timeout);
+        ok({ code: typeof code === 'number' ? code : null, stdout, stderr });
       });
+      channel.end(input);
     });
   }
 

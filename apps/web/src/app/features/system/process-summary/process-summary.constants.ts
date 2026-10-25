@@ -9,3 +9,6 @@ export const GROUP_ICONS: Record<ProcessGroupId['kind'], string> = {
 
 /** The pressure files, in the order shown. */
 export const PRESSURE_RESOURCES = ['cpu', 'memory', 'io'] as const;
+
+/** Swap this full: the machine has been short of memory (shown as a warning). */
+export const SWAP_HIGH_PERCENT = 50;

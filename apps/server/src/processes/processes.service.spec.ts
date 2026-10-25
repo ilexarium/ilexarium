@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import type { LinuxSession, PublicUser } from '@laris/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { SystemReader } from '../host/system-reader.js';
@@ -165,6 +166,19 @@ describe('ProcessesService', () => {
       expect.objectContaining({
         outcome: 'failure',
         details: expect.objectContaining({ reason: code }),
+      }),
+    );
+  });
+
+  it('the Linux session gone meanwhile: audited with its own code, passed on', async () => {
+    run.mockRejectedValueOnce(
+      new HttpException({ message: 'x', code: 'linux_session_required' }, 403),
+    );
+    expect(await rejection(signal())).toEqual([403, 'linux_session_required']);
+    expect(tryRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: 'failure',
+        details: expect.objectContaining({ reason: 'linux_session_required' }),
       }),
     );
   });

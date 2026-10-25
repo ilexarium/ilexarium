@@ -296,6 +296,11 @@ describe('ProcessesPage', () => {
     await fixture.whenStable();
     await key(' ');
     expect(el.textContent).toContain('Paused');
+    // A focused header button keeps its own keys.
+    const header = el.querySelector<HTMLButtonElement>('button[aria-label="Sort by CPU time"]')!;
+    header.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    await fixture.whenStable();
+    expect(el.textContent).toContain('Paused');
   });
 
   it('ends the account’s own process (TERM), then forces it if it still runs — both manual', async () => {

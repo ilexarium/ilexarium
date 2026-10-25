@@ -85,7 +85,8 @@ export function formatDuration(seconds: number, locale: string, lessThanAMinute:
  * seconds, hundredths) below an hour, "12:04:31" below 100 hours, then "153h".
  */
 export function formatCpuTime(seconds: number): string {
-  const hundredths = Math.floor(Math.max(0, seconds) * 100);
+  // Rounded: ticks / 100 * 100 isn't always whole again (0.29 * 100 = 28.999…).
+  const hundredths = Math.round(Math.max(0, seconds) * 100);
   const whole = Math.floor(hundredths / 100);
   const two = (n: number) => String(n).padStart(2, '0');
   const hours = Math.floor(whole / 3600);

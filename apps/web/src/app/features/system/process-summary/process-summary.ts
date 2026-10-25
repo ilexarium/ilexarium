@@ -6,9 +6,10 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { HlmProgressImports } from '@ui/progress';
 import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { Translator } from '../../../core/i18n/translator';
+import { percentOf } from '../../../shared/format/format';
 import { Formatter } from '../../../shared/format/formatter';
 import type { LoadLevel, ProcessGroup, ProcessGroupId } from '../processes.model';
-import { GROUP_ICONS, PRESSURE_RESOURCES } from './process-summary.constants';
+import { GROUP_ICONS, PRESSURE_RESOURCES, SWAP_HIGH_PERCENT } from './process-summary.constants';
 
 /**
  * The Processes page's header — not htop's meters, but what answers "why is it slow, and who is
@@ -43,14 +44,13 @@ export class ProcessSummary {
     const { totalBytes, availableBytes, swapTotalBytes, swapUsedBytes } = this.summary().memory;
     const used = Math.max(0, totalBytes - availableBytes);
     return {
-      percent: totalBytes > 0 ? (used / totalBytes) * 100 : 0,
+      percent: percentOf(used, totalBytes),
       used: this.formatter.bytes(used),
       total: this.formatter.bytes(totalBytes),
       swap: swapTotalBytes > 0,
       swapUsed: this.formatter.bytes(swapUsedBytes),
       swapTotal: this.formatter.bytes(swapTotalBytes),
-      // Much of the swap in use: the machine has been short of memory.
-      swapHigh: swapTotalBytes > 0 && swapUsedBytes / swapTotalBytes > 0.5,
+      swapHigh: percentOf(swapUsedBytes, swapTotalBytes) > SWAP_HIGH_PERCENT,
     };
   });
   protected readonly rows = computed(() =>
