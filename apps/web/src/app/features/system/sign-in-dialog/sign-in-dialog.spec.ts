@@ -15,12 +15,14 @@ import { SignInDialog } from './sign-in-dialog';
     [open]="open()"
     [signIn]="signIn"
     [unlock]="withUnlock ? unlock : undefined"
+    [notice]="notice()"
     (closed)="open.set(false); closings = closings + 1"
   />`,
 })
 class Host {
   readonly open = signal(true);
   readonly step = signal<SignInStep>('linux');
+  readonly notice = signal<string | null>(null);
   withUnlock = true;
   closings = 0;
   readonly signIn = vi.fn(async (_request: LinuxSignInRequest) => this.step.set('app'));
@@ -101,6 +103,22 @@ describe('SignInDialog', () => {
     });
     expect(host.closings).toBe(0);
     expect(dialog()!.querySelector('#linux-username')).not.toBeNull();
+  });
+
+  it('back to the Linux step while open: empty fields, focused, saying why', async () => {
+    const { host, fixture, type, dialog } = await render();
+    host.step.set('app');
+    await fixture.whenStable();
+    type('terminal-password', 'app password');
+    host.step.set('linux');
+    host.notice.set('terminal.closed.linuxSessionEnded');
+    await fixture.whenStable();
+    expect(dialog()!.querySelector('[role="status"]')!.textContent).toContain(
+      'The Linux session ended',
+    );
+    expect(dialog()!.querySelector<HTMLInputElement>('#linux-username')!.value).toBe('');
+    await vi.waitFor(() => expect(document.activeElement?.id).toBe('linux-username'));
+    expect(host.closings).toBe(0);
   });
 
   it('a wrong app password shows on its field', async () => {

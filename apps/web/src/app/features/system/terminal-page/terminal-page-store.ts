@@ -2,14 +2,19 @@ import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { HttpErrorResponse } from '@angular/common/http';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { type LinuxSession, type LinuxSignInRequest, TERMINAL_CLOSE_CODES } from '@laris/shared';
+import {
+  FILES_ERROR_CODES,
+  type LinuxSession,
+  type LinuxSignInRequest,
+  TERMINAL_CLOSE_CODES,
+} from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
 import { TerminalApi } from '../../../core/terminal/terminal-api';
-import { apiErrorText } from '../../../shared/forms/submission-errors';
+import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 import type { TerminalClosedReason, TerminalPhase, TerminalSize } from '../terminal.model';
 import { CLOSE_REASONS, OPEN } from './terminal-page.constants';
 
@@ -92,9 +97,23 @@ export const TerminalPageStore = signalStore(
           patchState(store, { session, phase: 'locked', closedReason: null });
         },
 
-        /** The app password again; rejects with the server's error (the form shows it). */
+        /**
+         * The app password again; rejects with the server's error (the form shows it). A Linux
+         * session that ended meanwhile: back to the Linux sign-in, saying why.
+         */
         async unlock(password: string): Promise<void> {
-          const { ticket } = await firstValueFrom(terminalApi.ticket(password));
+          const { ticket } = await firstValueFrom(terminalApi.ticket(password)).catch(
+            (error: unknown) => {
+              if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
+                patchState(store, {
+                  session: null,
+                  phase: 'locked',
+                  closedReason: 'linuxSessionEnded',
+                });
+              }
+              throw error;
+            },
+          );
           patchState(store, { ticket, phase: 'connecting', closedReason: null });
         },
 
