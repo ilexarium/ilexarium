@@ -49,7 +49,8 @@ interface Row {
   shared: string;
   time: string;
   started: string;
-  /** The program's own name (bold) and the rest of its command line (muted). */
+  /** The program's folder and arguments muted, its own name bold (htop's colours). */
+  folder: string;
   program: string;
   args: string;
   container: string | null;
@@ -88,6 +89,7 @@ interface Row {
     }),
   ],
   templateUrl: './process-list.html',
+  host: { class: 'grid gap-2' },
 })
 export class ProcessList {
   readonly processes = input.required<Process[]>();
@@ -124,7 +126,8 @@ export class ProcessList {
     const endAs = this.endAs();
     return this.processes().map((process) => {
       const container = process.container;
-      const [program = process.name, ...args] = process.command.split(' ');
+      const [path = process.name, ...args] = process.command.split(' ');
+      const slash = process.command ? path.lastIndexOf('/') + 1 : 0;
       return {
         key: processKey(process),
         process,
@@ -140,7 +143,8 @@ export class ProcessList {
               duration: this.formatter.ago(process.startedAt, this.now()),
             })
           : '—',
-        program: process.command ? program : process.name,
+        folder: path.slice(0, slash),
+        program: process.command ? path.slice(slash) : process.name,
         args: args.join(' '),
         container: container
           ? container.name

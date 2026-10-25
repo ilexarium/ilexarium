@@ -127,13 +127,14 @@
               class="font-mono text-sm tabular-nums"
               [class.font-semibold]="row.cpuHigh"
               [class.text-destructive]="row.cpuHigh"
-              >{{ 'processes.cpuShort' | translate: { value: row.cpu } }}</span
+              >{{ 'processes.cpuShort' | translate }} <span dir="ltr">{{ row.cpu }}%</span></span
             >
             <span
               class="font-mono text-sm tabular-nums"
               [class.font-semibold]="row.memoryHigh"
               [class.text-warning]="row.memoryHigh"
-              >{{ 'processes.memoryShort' | translate: { value: row.memoryShare } }}</span
+              >{{ 'processes.memoryShort' | translate }}
+              <span dir="ltr">{{ row.memoryShare }}%</span></span
             >
           </span>
           <span class="flex min-w-0 gap-3 text-xs text-muted-foreground">
@@ -195,6 +196,13 @@
 
 <!-- The program's name standing out, its arguments muted (htop's command colours). -->
 <ng-template #command let-row>
+  @if (still(row) && wide()) {
+    <span
+      class="me-2 font-sans text-xs font-medium"
+      [class.text-warning]="selected() !== row.key"
+      >{{ 'processes.stillRunningShort' | translate }}</span
+    >
+  }
   @if (row.container) {
     <ng-icon
       name="lucideBox"
@@ -204,14 +212,12 @@
       role="img"
     />
   }
+  @if (row.folder) {
+    <span [class.text-muted-foreground]="selected() !== row.key">{{ row.folder }}</span>
+  }
   <span class="font-semibold">{{ row.program }}</span>
   @if (row.args) {
     <span [class.text-muted-foreground]="selected() !== row.key"> {{ row.args }}</span>
-  }
-  @if (still(row) && wide()) {
-    <span class="ms-2 text-warning" [class.text-primary-foreground]="selected() === row.key">{{
-      'processes.stillRunningShort' | translate
-    }}</span>
   }
 </ng-template>
 

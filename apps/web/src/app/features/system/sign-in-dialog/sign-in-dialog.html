@@ -101,7 +101,7 @@
               ? 'files.signIn.submitting'
               : unlock()
                 ? 'terminal.signIn.continue'
-                : 'files.signIn.submit'
+                : submitLabel()
             ) | translate
           }}
         } @else {

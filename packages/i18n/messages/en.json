@@ -1038,8 +1038,8 @@
     "forceAsAdministrator": "Force end as administrator…",
     "actionsFor": "Actions for {{name}} (PID {{pid}})",
     "stillRunningShort": "still running",
-    "cpuShort": "CPU {{value}}%",
-    "memoryShort": "MEM {{value}}%",
+    "cpuShort": "CPU",
+    "memoryShort": "MEM",
     "keys": "Keys: ↑ ↓ select · / search · Space pause · k or F9 end · K force end",
     "onlyGroup": "only {{name}}",
     "onlySystem": "only the system’s",
@@ -1055,7 +1055,8 @@
     },
     "signIn": {
       "title": "Sign in to end processes",
-      "text": "Processes are ended as a Linux user of this machine: Linux decides which ones that account may end."
+      "text": "Processes are ended as a Linux user of this machine: Linux decides which ones that account may end.",
+      "submit": "Sign in"
     },
     "summary": {
       "cpu": "CPU",

@@ -158,9 +158,11 @@ describe('LinuxSessions', () => {
   it('gives up on a command that doesn’t finish', async () => {
     await signIn();
     const command = 'env LC_ALL=C kill -s TERM -- 8' as Parameters<typeof sessions.run>[1];
-    const running = sessions.run('s1', command);
+    const refused = expect(sessions.run('s1', command)).rejects.toMatchObject({
+      response: { code: 'ssh_unavailable' },
+    });
     await vi.advanceTimersByTimeAsync(15_000);
-    await expect(running).rejects.toMatchObject({ response: { code: 'ssh_unavailable' } });
+    await refused;
   });
 
   it('a refused sign-in keeps the running session (a typo never closes a terminal)', async () => {

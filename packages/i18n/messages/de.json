@@ -1038,8 +1038,8 @@
     "forceAsAdministrator": "Als Administrator erzwingen…",
     "actionsFor": "Aktionen für {{name}} (PID {{pid}})",
     "stillRunningShort": "läuft noch",
-    "cpuShort": "CPU {{value}} %",
-    "memoryShort": "MEM {{value}} %",
+    "cpuShort": "CPU",
+    "memoryShort": "MEM",
     "keys": "Tasten: ↑ ↓ auswählen · / suchen · Leertaste anhalten · k oder F9 beenden · K erzwingen",
     "onlyGroup": "nur {{name}}",
     "onlySystem": "nur die des Systems",
@@ -1055,7 +1055,8 @@
     },
     "signIn": {
       "title": "Anmelden, um Prozesse zu beenden",
-      "text": "Prozesse werden als Linux-Benutzer dieses Rechners beendet: Linux entscheidet, welche dieses Konto beenden darf."
+      "text": "Prozesse werden als Linux-Benutzer dieses Rechners beendet: Linux entscheidet, welche dieses Konto beenden darf.",
+      "submit": "Anmelden"
     },
     "summary": {
       "cpu": "CPU",

@@ -65,6 +65,8 @@ export class SignInDialog {
   /** Translation keys: what signing in opens. */
   readonly title = input.required<string>();
   readonly text = input.required<string>();
+  /** Translation key: the sign-in button (without `unlock`). */
+  readonly submitLabel = input('files.signIn.submit');
   readonly signIn = input.required<(request: LinuxSignInRequest) => Promise<void>>();
   readonly unlock = input<(password: string) => Promise<void>>();
   /** Closed in any way (done, Cancel, Escape, the X): the parent sets `open` back. */
