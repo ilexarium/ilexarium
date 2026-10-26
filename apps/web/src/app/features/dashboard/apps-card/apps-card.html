@@ -1,0 +1,104 @@
+<section hlmCard class="h-full" aria-labelledby="apps-title">
+  <div hlmCardHeader class="flex flex-row flex-wrap items-baseline justify-between gap-3">
+    <h2 hlmCardTitle id="apps-title">{{ 'dashboard.apps.title' | translate }}</h2>
+    <a
+      routerLink="/services"
+      class="rounded-sm text-sm font-medium text-accent-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+      >{{ 'dashboard.apps.all' | translate }}</a
+    >
+  </div>
+  <div hlmCardContent class="grid gap-4">
+    @if (!loaded()) {
+      <hlm-skeleton class="h-28 rounded-xl" />
+    } @else if (apps().length === 0) {
+      <div class="grid justify-items-start gap-3">
+        <p class="text-sm text-muted-foreground">{{ 'dashboard.apps.none' | translate }}</p>
+        <a hlmBtn variant="outline" size="sm" routerLink="/services">{{
+          'dashboard.apps.install' | translate
+        }}</a>
+      </div>
+    } @else {
+      <ul class="grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] gap-3">
+        @for (row of rows(); track row.app.service.id) {
+          @let app = row.app;
+          @let s = row.state;
+          <li
+            class="flex flex-col gap-3 rounded-xl border p-3.5"
+            [class.border-destructive]="s.light === 'fail'"
+            [attr.data-app]="app.service.catalogId"
+          >
+            <div class="flex items-center gap-3">
+              <img
+                [src]="row.iconUrl"
+                alt=""
+                width="40"
+                height="40"
+                class="size-10 shrink-0 rounded-lg"
+              />
+              <div class="grid min-w-0 gap-0.5">
+                <h3 class="truncate font-semibold">{{ app.service.name }}</h3>
+                <span class="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <span
+                    class="size-2 shrink-0 rounded-full bg-current"
+                    [class]="lightClasses[s.light]"
+                    aria-hidden="true"
+                  ></span>
+                  {{ s.key | translate }}
+                </span>
+              </div>
+            </div>
+            @if (row.canStart) {
+              <button
+                hlmBtn
+                size="sm"
+                type="button"
+                [disabled]="app.pending"
+                [attr.aria-label]="
+                  'dashboard.apps.startLabel' | translate: { name: app.service.name }
+                "
+                (click)="start.emit(app)"
+              >
+                @if (app.pending) {
+                  <ng-icon name="lucideLoaderCircle" class="animate-spin" aria-hidden="true" />
+                } @else {
+                  <ng-icon name="lucidePlay" aria-hidden="true" />
+                }
+                {{ 'dashboard.apps.start' | translate }}
+              </button>
+            } @else if (app.assistant && app.service.status === 'installed') {
+              <a hlmBtn variant="outline" size="sm" routerLink="/assistant">
+                <ng-icon name="lucideSparkles" aria-hidden="true" />
+                {{ 'dashboard.apps.chat' | translate }}
+              </a>
+            } @else if (row.openUrl; as url) {
+              <a
+                hlmBtn
+                variant="outline"
+                size="sm"
+                [href]="url"
+                target="_blank"
+                rel="noopener noreferrer"
+                [attr.aria-label]="'services.openLabel' | translate: { name: app.service.name }"
+              >
+                {{ 'services.open' | translate }}
+                <span class="text-muted-foreground tabular-nums" dir="ltr"
+                  >:{{ app.service.webPort }}</span
+                >
+                <ng-icon name="lucideExternalLink" class="rtl:-scale-x-100" aria-hidden="true" />
+              </a>
+            }
+          </li>
+        }
+      </ul>
+    }
+    @if (otherContainers() > 0) {
+      <a
+        routerLink="/containers"
+        class="flex items-center gap-1.5 justify-self-start rounded-sm text-sm text-muted-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        {{ 'dashboard.apps.otherContainers' | plural: otherContainers() }}
+        <ng-icon name="lucideChevronRight" class="rtl:-scale-x-100" aria-hidden="true" />
+      </a>
+    }
+  </div>
+</section>

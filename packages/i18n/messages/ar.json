@@ -289,48 +289,186 @@
   },
   "dashboard": {
     "loading": "جارٍ تحميل بيانات الخادم",
-    "host": {
-      "up": "يعمل منذ {{duration}}"
+    "headline": {
+      "fine": "كل شيء يعمل بشكل جيد",
+      "checking": "جارٍ فحص الخادم…",
+      "attention_zero": "لا شيء يحتاج إلى انتباهك",
+      "attention_one": "أمر واحد يحتاج إلى انتباهك",
+      "attention_two": "أمران يحتاجان إلى انتباهك",
+      "attention_few": "{{count}} أمور تحتاج إلى انتباهك",
+      "attention_many": "{{count}} أمرًا يحتاج إلى انتباهك",
+      "attention_other": "{{count}} أمر يحتاج إلى انتباهك",
+      "alerts_zero": "لا تنبيهات مفتوحة",
+      "alerts_one": "تنبيه مفتوح واحد",
+      "alerts_two": "تنبيهان مفتوحان",
+      "alerts_few": "{{count}} تنبيهات مفتوحة",
+      "alerts_many": "{{count}} تنبيهًا مفتوحًا",
+      "alerts_other": "{{count}} تنبيه مفتوح"
     },
-    "cpu": {
-      "title": "المعالج",
-      "cores_zero": "{{count}} نواة",
-      "cores_one": "نواة واحدة",
-      "cores_two": "نواتان",
-      "cores_few": "{{count}} أنوية",
-      "cores_many": "{{count}} نواة",
-      "cores_other": "{{count}} نواة",
-      "usage": "استخدام المعالج",
-      "load": "الحِمل {{values}}",
-      "loadPeriods": "(1، 5، 15 دقيقة)"
+    "rack": {
+      "title": "الحالة",
+      "loading": "جارٍ الفحص…",
+      "more_zero": "ولا شيء آخر",
+      "more_one": "وواحد آخر",
+      "more_two": "واثنان آخران",
+      "more_few": "و{{count}} أخرى",
+      "more_many": "و{{count}} أخرى",
+      "more_other": "و{{count}} أخرى",
+      "status": {
+        "ok": "سليم",
+        "warn": "تحقّق",
+        "fail": "يحتاج إلى انتباه",
+        "busy": "قيد العمل"
+      },
+      "apps": {
+        "label": "التطبيقات",
+        "none": "لا تطبيقات بعد",
+        "noneSub": "ثبّت واحدًا من صفحة التطبيقات",
+        "failed": "تعذّر تثبيت {{name}}",
+        "partial": "{{name}} يعمل جزئيًا فقط",
+        "unhealthy": "{{name}} غير سليم",
+        "running_zero": "لا تطبيقات تعمل",
+        "running_one": "تطبيق واحد يعمل",
+        "running_two": "تطبيقان يعملان",
+        "running_few": "{{count}} تطبيقات تعمل",
+        "running_many": "{{count}} تطبيقًا يعمل",
+        "running_other": "{{count}} تطبيق يعمل",
+        "stopped_zero": "لا شيء متوقف",
+        "stopped_one": "واحد متوقف",
+        "stopped_two": "اثنان متوقفان",
+        "stopped_few": "{{count}} متوقفة",
+        "stopped_many": "{{count}} متوقفًا",
+        "stopped_other": "{{count}} متوقف",
+        "healthy": "كلها سليمة"
+      },
+      "backups": {
+        "label": "النسخ الاحتياطية",
+        "notSetUp": "لم تُعدّ بعد",
+        "notSetUpSub": "أعدّها لحماية بياناتك",
+        "next": "التالية: {{time}}",
+        "running": "جارٍ النسخ الاحتياطي",
+        "progress": "{{done}} من {{total}} اكتملت",
+        "never": "لا نسخة احتياطية بعد",
+        "last": "آخر نسخة احتياطية قبل {{time}}"
+      },
+      "space": {
+        "label": "المساحة",
+        "filling": "{{name}}: ممتلئ بنسبة {{percent}}",
+        "free": "{{name}}: {{size}} متاحة"
+      },
+      "server": {
+        "cores_zero": "{{count}} نواة",
+        "cores_one": "نواة واحدة",
+        "cores_two": "نواتان",
+        "cores_few": "{{count}} أنوية",
+        "cores_many": "{{count}} نواة",
+        "cores_other": "{{count}} نواة",
+        "memory": "ذاكرة {{size}}",
+        "up": "يعمل منذ {{duration}}",
+        "live": "مباشر",
+        "offline": "غير متصل"
+      }
     },
-    "memory": {
-      "title": "الذاكرة",
-      "total": "الإجمالي {{size}}",
-      "inUse": "الذاكرة المستخدمة",
-      "series": "المستخدمة",
-      "used": "{{size}} مستخدمة",
-      "noSwap": "لا توجد ذاكرة تبديل",
-      "swap": "ذاكرة التبديل: {{used}} من {{total}}"
+    "tiles": {
+      "cpu": {
+        "title": "المعالج",
+        "quiet": "هادئ",
+        "busy": "مشغول",
+        "veryBusy": "مشغول جدًا",
+        "load": "الحِمل {{values}}"
+      },
+      "memory": {
+        "title": "الذاكرة",
+        "of": "من {{size}}"
+      },
+      "network": {
+        "title": "الشبكة",
+        "receiving": "استقبال",
+        "sending": "إرسال",
+        "lines": "التنزيل، والرفع (متقطع)"
+      },
+      "temperature": {
+        "title": "الحرارة",
+        "normal": "طبيعية",
+        "warm": "دافئة",
+        "hot": "ساخنة",
+        "processor": "المعالج"
+      }
     },
-    "network": {
-      "title": "الشبكة",
-      "description": "كل الواجهات",
-      "receiving": "الاستقبال",
-      "sending": "الإرسال",
-      "traffic": "حركة الشبكة",
-      "none": "لم يُعثر على واجهات شبكة.",
-      "receivingInline": "استقبال",
-      "sendingInline": "إرسال"
+    "apps": {
+      "title": "تطبيقاتك",
+      "all": "كل التطبيقات",
+      "none": "لم تُثبَّت أي تطبيقات بعد.",
+      "install": "ثبّت تطبيقًا",
+      "state": {
+        "failed": "فشل التثبيت"
+      },
+      "start": "تشغيل",
+      "startLabel": "تشغيل {{name}}",
+      "chat": "الدردشة في المساعد",
+      "otherContainers_zero": "لا حاويات أخرى",
+      "otherContainers_one": "حاوية أخرى واحدة",
+      "otherContainers_two": "حاويتان أخريان",
+      "otherContainers_few": "{{count}} حاويات أخرى",
+      "otherContainers_many": "{{count}} حاوية أخرى",
+      "otherContainers_other": "{{count}} حاوية أخرى"
+    },
+    "backups": {
+      "title": "النسخ الاحتياطية",
+      "running": "قيد التشغيل",
+      "ok": "نجحت",
+      "warning": "مع تحذيرات",
+      "failed": "فشلت",
+      "notSetUp": "لم تُعدّ النسخ الاحتياطية بعد. بدونها، يعني تعطّل القرص فقدان البيانات.",
+      "setUp": "إعداد النسخ الاحتياطية",
+      "last": "آخر نسخة",
+      "next": "النسخة التالية",
+      "notYet": "ليس بعد",
+      "days": "آخر 14 يومًا",
+      "daysLabel": "آخر {{days}} يومًا: {{ok}} بنسخة ناجحة، {{warning}} مع تحذيرات، {{failed}} فاشلة",
+      "open": "فتح النسخ الاحتياطية"
+    },
+    "disk": {
+      "system": "قرص النظام",
+      "backup": "قرص النسخ الاحتياطي"
     },
     "storage": {
       "title": "التخزين",
-      "description": "المساحة المستخدمة على كل قرص",
+      "manage": "إدارة الأقراص",
       "none": "لم يُعثر على أقراص.",
-      "almostFull": "شبه ممتلئ",
+      "filling": "يمتلئ",
+      "full": "شبه ممتلئ",
+      "free": "{{size}} متاحة",
       "spaceUsedOn": "المساحة المستخدمة على {{mount}}",
-      "usage": "{{used}} من {{size}} مستخدمة ({{percent}}) · {{free}} متاحة"
-    }
+      "usage": "{{used}} من {{size}} مستخدمة ({{percent}})"
+    },
+    "activity": {
+      "title": "النشاط الأخير",
+      "none": "لم يحدث شيء بعد.",
+      "resolved": "تمّ الحل: {{what}}",
+      "action": {
+        "serviceDeploy": "تم تثبيت {{name}}",
+        "serviceRemove": "تمت إزالة {{name}}",
+        "containerStart": "تم تشغيل {{name}}",
+        "containerStop": "تم إيقاف {{name}}",
+        "containerRestart": "تمت إعادة تشغيل {{name}}",
+        "backupConfigure": "تم إعداد النسخ الاحتياطية",
+        "backupRestore": "تمت استعادة نسخة احتياطية",
+        "diskMount": "تم ربط القرص {{name}}",
+        "diskUnmount": "تم فصل القرص {{name}}",
+        "modelPull": "تم تنزيل النموذج {{name}}"
+      },
+      "backup": {
+        "ok": "اكتملت النسخة الاحتياطية",
+        "warning": "اكتملت النسخة الاحتياطية مع تحذيرات",
+        "failed": "فشلت النسخة الاحتياطية"
+      },
+      "trigger": {
+        "scheduled": "مجدولة",
+        "manual": "بدأت يدويًا"
+      }
+    },
+    "ago": "قبل {{time}}"
   },
   "containers": {
     "title": "الحاويات",
@@ -900,21 +1038,6 @@
       "logs": "عرض السجلات",
       "disks": "فتح الأقراص",
       "backups": "فتح النسخ الاحتياطية"
-    },
-    "notice": {
-      "open": "فتح التنبيهات",
-      "title_zero": "لا توجد تنبيهات مفتوحة",
-      "title_one": "تنبيه مفتوح واحد",
-      "title_two": "تنبيهان مفتوحان",
-      "title_few": "{{count}} تنبيهات مفتوحة",
-      "title_many": "{{count}} تنبيهًا مفتوحًا",
-      "title_other": "{{count}} تنبيه مفتوح",
-      "more_zero": "ولا شيء غيره.",
-      "more_one": "وتنبيه آخر.",
-      "more_two": "وتنبيهان آخران.",
-      "more_few": "و{{count}} تنبيهات أخرى.",
-      "more_many": "و{{count}} تنبيهًا آخر.",
-      "more_other": "و{{count}} تنبيه آخر."
     },
     "delivery": {
       "title": "تعذّر إرسال رسالة",

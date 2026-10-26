@@ -1,0 +1,77 @@
+<section hlmCard class="h-full" aria-labelledby="backups-title">
+  <div hlmCardHeader class="flex flex-row flex-wrap items-center justify-between gap-3">
+    <h2 hlmCardTitle id="backups-title">{{ 'dashboard.backups.title' | translate }}</h2>
+    @if (badge(); as badge) {
+      <laris-status-badge [tone]="badge.tone">{{ badge.key | translate }}</laris-status-badge>
+    }
+  </div>
+  <div hlmCardContent class="grid flex-1 content-start gap-4">
+    @if (status(); as status) {
+      @if (!status.configured) {
+        <p class="text-sm text-muted-foreground">{{ 'dashboard.backups.notSetUp' | translate }}</p>
+        <a hlmBtn size="sm" class="justify-self-start" routerLink="/backups">{{
+          'dashboard.backups.setUp' | translate
+        }}</a>
+      } @else {
+        <dl class="grid grid-cols-2 gap-3">
+          <div class="grid gap-0.5">
+            <dt class="text-xs text-muted-foreground">
+              {{ 'dashboard.backups.last' | translate }}
+            </dt>
+            <dd class="font-semibold">
+              {{
+                status.lastSuccessAt
+                  ? ('dashboard.ago' | translate: { time: formatter.ago(status.lastSuccessAt) })
+                  : ('dashboard.backups.notYet' | translate)
+              }}
+            </dd>
+          </div>
+          <div class="grid gap-0.5">
+            <dt class="text-xs text-muted-foreground">
+              {{ 'dashboard.backups.next' | translate }}
+            </dt>
+            <dd class="font-semibold">
+              {{ status.nextRunAt ? formatter.dateTime(status.nextRunAt) : '—' }}
+            </dd>
+          </div>
+        </dl>
+        @if (destination(); as destination) {
+          <p class="flex items-center gap-2 text-sm text-muted-foreground">
+            <ng-icon name="lucideShieldCheck" class="shrink-0" aria-hidden="true" />
+            <span class="break-all" dir="ltr">{{ destination }}</span>
+          </p>
+        }
+        <div class="grid gap-1.5">
+          <span class="text-xs text-muted-foreground" aria-hidden="true">{{
+            'dashboard.backups.days' | translate
+          }}</span>
+          @if (days(); as days) {
+            <div
+              class="grid grid-cols-14 gap-1"
+              dir="ltr"
+              role="img"
+              [attr.aria-label]="daysLabel()"
+            >
+              @for (day of days; track day.date) {
+                <span
+                  class="h-4.5 rounded-sm"
+                  [class]="dayClasses[day.outcome ?? 'none']"
+                  [attr.data-outcome]="day.outcome"
+                ></span>
+              }
+            </div>
+          } @else {
+            <hlm-skeleton class="h-4.5" />
+          }
+        </div>
+      }
+      <a
+        routerLink="/backups"
+        class="mt-auto justify-self-start rounded-sm text-sm font-medium text-accent-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+        >{{ 'dashboard.backups.open' | translate }}</a
+      >
+    } @else {
+      <hlm-skeleton class="h-28 rounded-xl" />
+    }
+  </div>
+</section>

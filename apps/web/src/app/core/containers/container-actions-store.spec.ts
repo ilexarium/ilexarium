@@ -91,4 +91,38 @@ describe('ContainerActionsStore', () => {
     TestBed.tick();
     expect(store.pending().size).toBe(0);
   });
+
+  it("starts all of an app's containers with one toast in the app's name", async () => {
+    const { store, api, success } = await setup();
+    const answer = new Subject<null>();
+    api.act.mockReturnValueOnce(answer).mockReturnValueOnce(of(null));
+    const running = store.runAll(['immich-server-1', 'immich-ml-1'], 'start', 'Immich');
+    expect(store.pending()).toEqual(
+      new Map([
+        ['immich-server-1', 'start'],
+        ['immich-ml-1', 'start'],
+      ]),
+    );
+    answer.next(null);
+    answer.complete();
+    await running;
+    expect(api.act.mock.calls).toEqual([
+      ['immich-server-1', 'start'],
+      ['immich-ml-1', 'start'],
+    ]);
+    expect(success).toHaveBeenCalledOnce();
+    expect(success).toHaveBeenCalledWith('Immich started');
+    expect(store.pending().size).toBe(0);
+  });
+
+  it('says once that an app could not be started when one of its containers failed', async () => {
+    const { store, api, success, error } = await setup();
+    api.act
+      .mockReturnValueOnce(of(null))
+      .mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
+    await store.runAll(['a-1', 'a-2'], 'start', 'App');
+    expect(success).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledOnce();
+    expect(error.mock.calls[0][0]).toBe("Couldn't start App");
+  });
 });

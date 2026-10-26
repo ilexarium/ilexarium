@@ -281,44 +281,158 @@
   },
   "dashboard": {
     "loading": "Serverdaten werden geladen",
-    "host": {
-      "up": "läuft seit {{duration}}"
+    "headline": {
+      "fine": "Alles läuft einwandfrei",
+      "checking": "Dein Server wird geprüft …",
+      "attention_one": "Eine Sache braucht deine Aufmerksamkeit",
+      "attention_other": "{{count}} Dinge brauchen deine Aufmerksamkeit",
+      "alerts_one": "{{count}} offene Warnung",
+      "alerts_other": "{{count}} offene Warnungen"
     },
-    "cpu": {
-      "title": "CPU",
-      "cores_one": "{{count}} Kern",
-      "cores_other": "{{count}} Kerne",
-      "usage": "CPU-Auslastung",
-      "load": "Last {{values}}",
-      "loadPeriods": "(1, 5, 15 Min.)"
+    "rack": {
+      "title": "Status",
+      "loading": "Wird geprüft …",
+      "more_one": "Und {{count}} weitere",
+      "more_other": "Und {{count}} weitere",
+      "status": {
+        "ok": "OK",
+        "warn": "Prüfen",
+        "fail": "Braucht Aufmerksamkeit",
+        "busy": "Läuft"
+      },
+      "apps": {
+        "label": "Apps",
+        "none": "Noch keine Apps",
+        "noneSub": "Installiere eine unter Apps",
+        "failed": "{{name}} konnte nicht installiert werden",
+        "partial": "{{name}} läuft nur teilweise",
+        "unhealthy": "{{name}} ist nicht gesund",
+        "running_one": "{{count}} App läuft",
+        "running_other": "{{count}} Apps laufen",
+        "stopped_one": "{{count}} gestoppt",
+        "stopped_other": "{{count}} gestoppt",
+        "healthy": "Alle gesund"
+      },
+      "backups": {
+        "label": "Backups",
+        "notSetUp": "Noch nicht eingerichtet",
+        "notSetUpSub": "Richte sie ein, um deine Daten zu schützen",
+        "next": "Nächstes: {{time}}",
+        "running": "Backup läuft",
+        "progress": "{{done}} von {{total}} erledigt",
+        "never": "Noch kein Backup",
+        "last": "Letztes Backup vor {{time}}"
+      },
+      "space": {
+        "label": "Platz",
+        "filling": "{{name}}: {{percent}} voll",
+        "free": "{{name}}: {{size}} frei"
+      },
+      "server": {
+        "cores_one": "{{count}} Kern",
+        "cores_other": "{{count}} Kerne",
+        "memory": "{{size}} Arbeitsspeicher",
+        "up": "Läuft seit {{duration}}",
+        "live": "Live",
+        "offline": "Offline"
+      }
     },
-    "memory": {
-      "title": "Arbeitsspeicher",
-      "total": "{{size}} insgesamt",
-      "inUse": "Belegter Arbeitsspeicher",
-      "series": "Belegt",
-      "used": "{{size}} belegt",
-      "noSwap": "Kein Swap",
-      "swap": "Swap: {{used}} von {{total}}"
+    "tiles": {
+      "cpu": {
+        "title": "CPU",
+        "quiet": "Ruhig",
+        "busy": "Beschäftigt",
+        "veryBusy": "Sehr beschäftigt",
+        "load": "Last {{values}}"
+      },
+      "memory": {
+        "title": "Arbeitsspeicher",
+        "of": "von {{size}}"
+      },
+      "network": {
+        "title": "Netzwerk",
+        "receiving": "Empfangen",
+        "sending": "Senden",
+        "lines": "Empfangen, und Senden (gestrichelt)"
+      },
+      "temperature": {
+        "title": "Temperatur",
+        "normal": "Normal",
+        "warm": "Warm",
+        "hot": "Heiß",
+        "processor": "Prozessor"
+      }
     },
-    "network": {
-      "title": "Netzwerk",
-      "description": "Alle Schnittstellen",
-      "receiving": "Empfangen",
-      "sending": "Senden",
-      "traffic": "Netzwerkverkehr",
-      "none": "Keine Netzwerkschnittstellen gefunden.",
-      "receivingInline": "empfangen",
-      "sendingInline": "senden"
+    "apps": {
+      "title": "Deine Apps",
+      "all": "Alle Apps",
+      "none": "Noch keine Apps installiert.",
+      "install": "App installieren",
+      "state": {
+        "failed": "Installation fehlgeschlagen"
+      },
+      "start": "Starten",
+      "startLabel": "{{name}} starten",
+      "chat": "Im Assistenten chatten",
+      "otherContainers_one": "{{count}} weiterer Container",
+      "otherContainers_other": "{{count}} weitere Container"
+    },
+    "backups": {
+      "title": "Backups",
+      "running": "Läuft",
+      "ok": "Erfolgreich",
+      "warning": "Mit Warnungen",
+      "failed": "Fehlgeschlagen",
+      "notSetUp": "Backups sind noch nicht eingerichtet. Ohne sie bedeutet ein kaputtes Laufwerk verlorene Daten.",
+      "setUp": "Backups einrichten",
+      "last": "Letztes Backup",
+      "next": "Nächstes Backup",
+      "notYet": "Noch keins",
+      "days": "Letzte 14 Tage",
+      "daysLabel": "Letzte {{days}} Tage: {{ok}} mit erfolgreichem Backup, {{warning}} mit Warnungen, {{failed}} fehlgeschlagen",
+      "open": "Backups öffnen"
+    },
+    "disk": {
+      "system": "Systemlaufwerk",
+      "backup": "Backup-Laufwerk"
     },
     "storage": {
       "title": "Speicher",
-      "description": "Belegter Platz auf jedem Laufwerk",
+      "manage": "Laufwerke verwalten",
       "none": "Keine Laufwerke gefunden.",
-      "almostFull": "Fast voll",
+      "filling": "Wird voll",
+      "full": "Fast voll",
+      "free": "{{size}} frei",
       "spaceUsedOn": "Belegter Platz auf {{mount}}",
-      "usage": "{{used}} von {{size}} belegt ({{percent}}) · {{free}} frei"
-    }
+      "usage": "{{used}} von {{size}} belegt ({{percent}})"
+    },
+    "activity": {
+      "title": "Letzte Aktivität",
+      "none": "Bisher ist nichts passiert.",
+      "resolved": "Behoben: {{what}}",
+      "action": {
+        "serviceDeploy": "{{name}} installiert",
+        "serviceRemove": "{{name}} entfernt",
+        "containerStart": "{{name}} gestartet",
+        "containerStop": "{{name}} gestoppt",
+        "containerRestart": "{{name}} neu gestartet",
+        "backupConfigure": "Backups eingerichtet",
+        "backupRestore": "Ein Backup wurde wiederhergestellt",
+        "diskMount": "Laufwerk {{name}} eingebunden",
+        "diskUnmount": "Laufwerk {{name}} ausgehängt",
+        "modelPull": "Modell {{name}} heruntergeladen"
+      },
+      "backup": {
+        "ok": "Backup abgeschlossen",
+        "warning": "Backup mit Warnungen abgeschlossen",
+        "failed": "Backup fehlgeschlagen"
+      },
+      "trigger": {
+        "scheduled": "Geplant",
+        "manual": "Von Hand gestartet"
+      }
+    },
+    "ago": "vor {{time}}"
   },
   "containers": {
     "title": "Container",
@@ -882,13 +996,6 @@
       "logs": "Logs anzeigen",
       "disks": "Laufwerke öffnen",
       "backups": "Backups öffnen"
-    },
-    "notice": {
-      "title_one": "{{count}} offene Warnung",
-      "title_other": "{{count}} offene Warnungen",
-      "more_one": "Und {{count}} weitere.",
-      "more_other": "Und {{count}} weitere.",
-      "open": "Warnungen öffnen"
     },
     "delivery": {
       "title": "Eine Nachricht konnte nicht gesendet werden",

@@ -5,6 +5,7 @@ import {
   formatDuration,
   formatLogTime,
   formatCount,
+  formatCelsius,
   formatDecimal,
   formatPercent,
   formatRate,
@@ -39,6 +40,13 @@ describe('formatClock', () => {
     const at = new Date(2026, 9, 21, 19, 56, 22).getTime(); // local time, in any time zone
     expect(formatClock(at, 'de')).toBe('19:56:22');
     expect(formatClock(at, 'en')).toMatch(/^7:56:22\sPM$/);
+  });
+});
+
+describe('formatCelsius', () => {
+  it('shows whole degrees, as the language writes them', () => {
+    expect(formatCelsius(47.6)).toBe('48°C');
+    expect(formatCelsius(47.6, 'de-u-nu-latn')).toBe('48 °C');
   });
 });
 

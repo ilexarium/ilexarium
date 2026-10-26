@@ -1,0 +1,73 @@
+<section aria-labelledby="rack-title" class="grid gap-2.5">
+  <h2 id="rack-title" class="sr-only">{{ 'dashboard.rack.title' | translate }}</h2>
+  <div class="flex flex-wrap items-stretch gap-x-5 gap-y-2.5">
+    <ul class="flex min-w-0 flex-[2_1_20rem] flex-col gap-2.5">
+      @for (unit of units(); track unit.id) {
+        <li class="flex flex-1">
+          <a
+            [routerLink]="unit.link"
+            [attr.data-light]="unit.light"
+            class="flex flex-1 items-center gap-3.5 rounded-xl border bg-card px-4 py-3.5 text-card-foreground transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <span
+              class="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground"
+            >
+              <ng-icon [name]="icons[unit.id]" class="text-lg" aria-hidden="true" />
+            </span>
+            <span class="grid min-w-0 flex-1 gap-0.5">
+              <span class="text-xs font-medium text-muted-foreground">{{
+                'dashboard.rack.' + unit.id + '.label' | translate
+              }}</span>
+              <span class="font-semibold break-words">{{ unit.text | text }}</span>
+              @if (unit.sub; as sub) {
+                <span class="text-sm break-words text-muted-foreground">{{ sub | text }}</span>
+              }
+            </span>
+            <span class="flex shrink-0 items-center gap-2.5">
+              @if (unit.light !== 'idle') {
+                <span class="text-xs font-medium" [class]="wordClasses[unit.light]">{{
+                  'dashboard.rack.status.' + unit.light | translate
+                }}</span>
+              }
+              <span
+                class="size-3 rounded-full bg-current"
+                [class]="lightClasses[unit.light]"
+                aria-hidden="true"
+              ></span>
+            </span>
+          </a>
+        </li>
+      }
+    </ul>
+    <div class="min-w-0 flex-[3_1_26rem]"><ng-content /></div>
+  </div>
+
+  <div
+    class="flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-xl border bg-card px-4 py-3.5 text-card-foreground"
+  >
+    <span
+      class="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground"
+    >
+      <ng-icon name="lucideServer" class="text-lg" aria-hidden="true" />
+    </span>
+    <span class="grid min-w-0 flex-[1_1_16rem] gap-0.5">
+      <span class="font-semibold break-all" dir="ltr">{{ host().hostname }}</span>
+      <span class="text-sm text-muted-foreground">{{ details() }}</span>
+    </span>
+    <span class="text-sm text-muted-foreground">{{ uptime() }}</span>
+    <span class="flex items-center gap-2.5">
+      <span
+        class="text-xs font-medium"
+        [class]="live() ? 'text-success' : 'text-muted-foreground'"
+        >{{
+          (live() ? 'dashboard.rack.server.live' : 'dashboard.rack.server.offline') | translate
+        }}</span
+      >
+      <span
+        class="size-3 rounded-full bg-current"
+        [class]="live() ? lightClasses.ok : lightClasses.idle"
+        aria-hidden="true"
+      ></span>
+    </span>
+  </div>
+</section>

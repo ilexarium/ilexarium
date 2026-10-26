@@ -1,6 +1,6 @@
 import type { ServiceStatus } from '@laris/shared';
 import type { StatusTone } from '../../shared/status-badge/status-badge.model';
-import type { ServiceRuntime } from './services.model';
+import type { ServiceRuntime } from '../../core/services/services.model';
 
 /** How an installed service's containers are doing, as a status badge. */
 export const RUNTIME_TONES: Record<ServiceRuntime, StatusTone> = {

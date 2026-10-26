@@ -281,44 +281,158 @@
   },
   "dashboard": {
     "loading": "Loading server data",
-    "host": {
-      "up": "up {{duration}}"
+    "headline": {
+      "fine": "Everything is running fine",
+      "checking": "Checking your server…",
+      "attention_one": "One thing needs your attention",
+      "attention_other": "{{count}} things need your attention",
+      "alerts_one": "{{count}} open alert",
+      "alerts_other": "{{count}} open alerts"
     },
-    "cpu": {
-      "title": "CPU",
-      "cores_one": "{{count}} core",
-      "cores_other": "{{count}} cores",
-      "usage": "CPU usage",
-      "load": "Load {{values}}",
-      "loadPeriods": "(1, 5, 15 min)"
+    "rack": {
+      "title": "Status",
+      "loading": "Checking…",
+      "more_one": "And {{count}} more",
+      "more_other": "And {{count}} more",
+      "status": {
+        "ok": "OK",
+        "warn": "Check",
+        "fail": "Needs attention",
+        "busy": "Working"
+      },
+      "apps": {
+        "label": "Apps",
+        "none": "No apps yet",
+        "noneSub": "Install one from Apps",
+        "failed": "{{name}} couldn't be installed",
+        "partial": "{{name}} is only partly running",
+        "unhealthy": "{{name}} is unhealthy",
+        "running_one": "{{count}} app running",
+        "running_other": "{{count}} apps running",
+        "stopped_one": "{{count}} stopped",
+        "stopped_other": "{{count}} stopped",
+        "healthy": "All healthy"
+      },
+      "backups": {
+        "label": "Backups",
+        "notSetUp": "Not set up yet",
+        "notSetUpSub": "Set them up to keep your data safe",
+        "next": "Next: {{time}}",
+        "running": "Backing up now",
+        "progress": "{{done}} of {{total}} done",
+        "never": "No backup yet",
+        "last": "Last backup {{time}} ago"
+      },
+      "space": {
+        "label": "Space",
+        "filling": "{{name}}: {{percent}} full",
+        "free": "{{name}}: {{size}} free"
+      },
+      "server": {
+        "cores_one": "{{count}} core",
+        "cores_other": "{{count}} cores",
+        "memory": "{{size}} memory",
+        "up": "Up {{duration}}",
+        "live": "Live",
+        "offline": "Offline"
+      }
     },
-    "memory": {
-      "title": "Memory",
-      "total": "{{size}} total",
-      "inUse": "Memory in use",
-      "series": "In use",
-      "used": "{{size}} in use",
-      "noSwap": "No swap",
-      "swap": "Swap: {{used}} of {{total}}"
+    "tiles": {
+      "cpu": {
+        "title": "CPU",
+        "quiet": "Quiet",
+        "busy": "Busy",
+        "veryBusy": "Very busy",
+        "load": "Load {{values}}"
+      },
+      "memory": {
+        "title": "Memory",
+        "of": "of {{size}}"
+      },
+      "network": {
+        "title": "Network",
+        "receiving": "Receiving",
+        "sending": "Sending",
+        "lines": "Down, and up (dashed)"
+      },
+      "temperature": {
+        "title": "Temperature",
+        "normal": "Normal",
+        "warm": "Warm",
+        "hot": "Hot",
+        "processor": "Processor"
+      }
     },
-    "network": {
-      "title": "Network",
-      "description": "All interfaces",
-      "receiving": "Receiving",
-      "sending": "Sending",
-      "traffic": "Network traffic",
-      "none": "No network interfaces found.",
-      "receivingInline": "receiving",
-      "sendingInline": "sending"
+    "apps": {
+      "title": "Your apps",
+      "all": "All apps",
+      "none": "No apps installed yet.",
+      "install": "Install an app",
+      "state": {
+        "failed": "Install failed"
+      },
+      "start": "Start",
+      "startLabel": "Start {{name}}",
+      "chat": "Chat in Assistant",
+      "otherContainers_one": "{{count}} other container",
+      "otherContainers_other": "{{count}} other containers"
+    },
+    "backups": {
+      "title": "Backups",
+      "running": "Running",
+      "ok": "Succeeded",
+      "warning": "With warnings",
+      "failed": "Failed",
+      "notSetUp": "Backups aren't set up yet. Without them, a broken disk means lost data.",
+      "setUp": "Set up backups",
+      "last": "Last backup",
+      "next": "Next backup",
+      "notYet": "Not yet",
+      "days": "Last 14 days",
+      "daysLabel": "Last {{days}} days: {{ok}} with a successful backup, {{warning}} with warnings, {{failed}} failed",
+      "open": "Open backups"
+    },
+    "disk": {
+      "system": "System disk",
+      "backup": "Backup disk"
     },
     "storage": {
       "title": "Storage",
-      "description": "Space used on each disk",
+      "manage": "Manage disks",
       "none": "No disks found.",
-      "almostFull": "Almost full",
+      "filling": "Filling up",
+      "full": "Almost full",
+      "free": "{{size}} free",
       "spaceUsedOn": "Space used on {{mount}}",
-      "usage": "{{used}} of {{size}} used ({{percent}}) · {{free}} free"
-    }
+      "usage": "{{used}} of {{size}} used ({{percent}})"
+    },
+    "activity": {
+      "title": "Recent activity",
+      "none": "Nothing has happened yet.",
+      "resolved": "Resolved: {{what}}",
+      "action": {
+        "serviceDeploy": "{{name}} installed",
+        "serviceRemove": "{{name}} removed",
+        "containerStart": "{{name}} started",
+        "containerStop": "{{name}} stopped",
+        "containerRestart": "{{name}} restarted",
+        "backupConfigure": "Backups set up",
+        "backupRestore": "A backup was restored",
+        "diskMount": "Disk {{name}} mounted",
+        "diskUnmount": "Disk {{name}} unmounted",
+        "modelPull": "Model {{name}} downloaded"
+      },
+      "backup": {
+        "ok": "Backup finished",
+        "warning": "Backup finished with warnings",
+        "failed": "Backup failed"
+      },
+      "trigger": {
+        "scheduled": "Scheduled",
+        "manual": "Started by hand"
+      }
+    },
+    "ago": "{{time}} ago"
   },
   "containers": {
     "title": "Containers",
@@ -882,13 +996,6 @@
       "logs": "Show logs",
       "disks": "Open disks",
       "backups": "Open backups"
-    },
-    "notice": {
-      "title_one": "{{count}} open alert",
-      "title_other": "{{count}} open alerts",
-      "more_one": "And {{count}} more.",
-      "more_other": "And {{count}} more.",
-      "open": "Open alerts"
     },
     "delivery": {
       "title": "A message couldn't be sent",

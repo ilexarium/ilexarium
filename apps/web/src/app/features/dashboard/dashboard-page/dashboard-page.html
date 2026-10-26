@@ -1,46 +1,65 @@
-@if (store.system(); as system) {
-  <div class="grid grid-cols-1 gap-4 md:gap-6">
-    @if (store.alerts().length > 0) {
-      <laris-alerts-notice [alerts]="store.alerts()" />
-    }
-    <laris-host-summary [host]="system.host" [uptimeSeconds]="system.uptimeSeconds" />
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <laris-cpu-card
-        [cpu]="system.sample.cpu"
-        [cores]="system.host.cpuCores"
-        [history]="system.history"
-      />
-      <laris-memory-card [memory]="system.sample.memory" [history]="system.history" />
-      <laris-network-card
-        [interfaces]="system.sample.network"
-        [history]="system.history"
-        class="sm:col-span-2 xl:col-span-1"
-      />
-    </div>
-    <laris-disk-list [disks]="system.disks" />
-    <laris-containers-table
-      [containers]="store.containers()"
-      [now]="system.sample.at"
-      [pending]="store.pending()"
-      (action)="store.act($event)"
-    >
-      <a emptyAction hlmBtn variant="outline" size="sm" routerLink="/services">{{
-        'containers.noneAction' | translate
-      }}</a>
-    </laris-containers-table>
-  </div>
-} @else {
-  <div
-    class="grid gap-4 md:gap-6"
-    role="status"
-    [attr.aria-label]="'dashboard.loading' | translate"
-  >
-    <hlm-skeleton class="h-5 w-2/3" />
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      @for (card of [1, 2, 3]; track card) {
-        <hlm-skeleton class="h-44 rounded-xl" />
+<div class="grid grid-cols-1 gap-5">
+  <div class="grid gap-1">
+    <p class="text-xl font-semibold md:text-[1.625rem]" role="status">
+      @if (store.attention() > 0) {
+        {{ 'dashboard.headline.attention' | plural: store.attention() }}
+      } @else if (store.checking()) {
+        {{ 'dashboard.headline.checking' | translate }}
+      } @else {
+        {{ 'dashboard.headline.fine' | translate }}
       }
-    </div>
-    <hlm-skeleton class="h-48 rounded-xl" />
+    </p>
+    @if (store.alertCount() > 0) {
+      <a
+        routerLink="/alerts"
+        class="justify-self-start rounded-sm text-sm font-medium text-accent-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+        >{{ 'dashboard.headline.alerts' | plural: store.alertCount() }}</a
+      >
+    }
   </div>
-}
+
+  @if (store.system(); as system) {
+    <laris-status-rack
+      [units]="store.units()"
+      [host]="system.host"
+      [uptimeSeconds]="system.uptimeSeconds"
+      [memoryBytes]="system.sample.memory.totalBytes"
+      [live]="store.live()"
+    >
+      <laris-metric-tiles [system]="system" />
+    </laris-status-rack>
+  } @else {
+    <div class="grid gap-2.5" role="status" [attr.aria-label]="'dashboard.loading' | translate">
+      <div class="flex flex-wrap gap-x-5 gap-y-2.5">
+        <hlm-skeleton class="h-60 min-w-0 flex-[2_1_20rem] rounded-xl" />
+        <hlm-skeleton class="h-60 min-w-0 flex-[3_1_26rem] rounded-xl" />
+      </div>
+      <hlm-skeleton class="h-16 rounded-xl" />
+    </div>
+  }
+
+  <div class="flex flex-wrap items-stretch gap-5">
+    <laris-apps-card
+      class="min-w-0 flex-[999_1_32rem]"
+      [apps]="store.apps()"
+      [loaded]="store.services() !== null"
+      [otherContainers]="store.otherContainers()"
+      (start)="store.start($event)"
+    />
+    <laris-backups-card
+      class="min-w-0 flex-[1_1_20rem]"
+      [status]="store.backups()"
+      [days]="store.backupDays()"
+      [destination]="store.destination()"
+    />
+  </div>
+
+  <div class="flex flex-wrap items-stretch gap-5">
+    @if (store.disks(); as disks) {
+      <laris-disk-list class="min-w-0 flex-[999_1_32rem]" [disks]="disks" />
+    } @else {
+      <hlm-skeleton class="h-48 min-w-0 flex-[999_1_32rem] rounded-xl" />
+    }
+    <laris-activity-card class="min-w-0 flex-[1_1_20rem]" [items]="store.activity()" />
+  </div>
+</div>

@@ -1,47 +1,58 @@
-<section hlmCard aria-labelledby="storage-title">
-  <div hlmCardHeader>
+<section hlmCard class="h-full" aria-labelledby="storage-title">
+  <div hlmCardHeader class="flex flex-row flex-wrap items-baseline justify-between gap-3">
     <h2 hlmCardTitle id="storage-title">{{ 'dashboard.storage.title' | translate }}</h2>
-    <p hlmCardDescription>{{ 'dashboard.storage.description' | translate }}</p>
+    <a
+      routerLink="/disks"
+      class="rounded-sm text-sm font-medium text-accent-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+      >{{ 'dashboard.storage.manage' | translate }}</a
+    >
   </div>
   <div hlmCardContent>
     @if (rows().length === 0) {
       <p class="text-sm text-muted-foreground">{{ 'dashboard.storage.none' | translate }}</p>
     } @else {
       <ul class="grid gap-5">
-        @for (disk of rows(); track disk.device) {
-          <li class="grid gap-2" [attr.data-warning]="disk.warning || null">
-            <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <span class="min-w-0">
-                <span class="font-medium break-all" dir="ltr">{{ disk.mount }}</span>
-                <span class="ms-2 text-sm text-muted-foreground break-all" dir="ltr">
-                  {{ disk.device }} · {{ disk.fsType }}
-                </span>
-              </span>
-              @if (disk.warning) {
-                <laris-status-badge [tone]="disk.critical ? 'failed' : 'warning'">{{
-                  'dashboard.storage.almostFull' | translate
+        @for (disk of rows(); track disk.mount) {
+          <li class="grid gap-2" [attr.data-level]="disk.level" [attr.data-kind]="disk.kind">
+            <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <ng-icon
+                [name]="disk.icon"
+                class="shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+              @if (disk.kind === 'other') {
+                <span class="font-semibold break-all" dir="ltr">{{ disk.name | text }}</span>
+              } @else {
+                <span class="font-semibold">{{ disk.name | text }}</span>
+              }
+              <span class="font-mono text-xs break-all text-muted-foreground" dir="ltr">{{
+                disk.mount
+              }}</span>
+              @if (disk.level) {
+                <laris-status-badge [tone]="disk.level === 'full' ? 'failed' : 'warning'">{{
+                  'dashboard.storage.' + disk.level | translate
                 }}</laris-status-badge>
               }
+              <span class="ms-auto text-sm text-muted-foreground tabular-nums">{{
+                'dashboard.storage.free' | translate: { size: disk.free }
+              }}</span>
             </div>
             <hlm-progress
               [value]="disk.percent"
               [attr.aria-label]="'dashboard.storage.spaceUsedOn' | translate: { mount: disk.mount }"
             >
               <hlm-progress-indicator
-                [class]="disk.critical ? 'bg-destructive' : disk.warning ? 'bg-warning' : ''"
+                [class]="
+                  disk.level === 'full'
+                    ? 'bg-destructive'
+                    : disk.level === 'filling'
+                      ? 'bg-warning'
+                      : ''
+                "
               />
             </hlm-progress>
-            <p class="text-sm text-muted-foreground tabular-nums">
-              {{
-                'dashboard.storage.usage'
-                  | translate
-                    : {
-                        used: disk.used,
-                        size: disk.size,
-                        percent: disk.percentText,
-                        free: disk.free,
-                      }
-              }}
+            <p class="text-xs text-muted-foreground tabular-nums">
+              {{ 'dashboard.storage.usage' | translate: disk.usage }}
             </p>
           </li>
         }

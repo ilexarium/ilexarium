@@ -1,0 +1,118 @@
+<section
+  class="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground"
+  aria-labelledby="tile-cpu"
+  data-tile="cpu"
+>
+  <div class="grid gap-1 px-4 pt-3.5">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h3 id="tile-cpu" class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+        <ng-icon name="lucideCpu" aria-hidden="true" />{{ 'dashboard.tiles.cpu.title' | translate }}
+      </h3>
+      <span
+        class="rounded-full px-2 py-0.5 text-xs font-medium"
+        [class]="toneClasses[cpu().tone]"
+        >{{ cpu().word | text }}</span
+      >
+    </div>
+    <p class="text-2xl font-semibold tabular-nums md:text-[1.75rem]">{{ cpu().value }}</p>
+    <p class="text-xs text-muted-foreground tabular-nums">
+      {{ 'dashboard.tiles.cpu.load' | translate: { values: cpu().load } }}
+    </p>
+  </div>
+  <laris-sparkline class="mt-auto h-14" [series]="cpu().series" [max]="100" />
+</section>
+
+<section
+  class="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground"
+  aria-labelledby="tile-memory"
+  data-tile="memory"
+>
+  <div class="grid gap-1 px-4 pt-3.5">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h3
+        id="tile-memory"
+        class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
+      >
+        <ng-icon name="lucideMemoryStick" aria-hidden="true" />{{
+          'dashboard.tiles.memory.title' | translate
+        }}
+      </h3>
+      <span class="rounded-full px-2 py-0.5 text-xs font-medium" [class]="toneClasses.neutral">{{
+        memory().word
+      }}</span>
+    </div>
+    <p class="text-2xl font-semibold tabular-nums md:text-[1.75rem]">{{ memory().value }}</p>
+    <p class="text-xs text-muted-foreground tabular-nums">
+      {{ 'dashboard.tiles.memory.of' | translate: { size: memory().total } }}
+    </p>
+  </div>
+  <laris-sparkline class="mt-auto h-14" [series]="memory().series" [max]="memory().max" />
+</section>
+
+<section
+  class="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground"
+  [class.col-span-2]="!temperature()"
+  aria-labelledby="tile-network"
+  data-tile="network"
+>
+  <div class="grid gap-1 px-4 pt-3.5">
+    <h3
+      id="tile-network"
+      class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
+    >
+      <ng-icon name="lucideNetwork" aria-hidden="true" />{{
+        'dashboard.tiles.network.title' | translate
+      }}
+    </h3>
+    <p class="flex flex-wrap gap-x-3 text-lg font-semibold tabular-nums md:text-xl">
+      <span class="flex items-center gap-1">
+        <ng-icon name="lucideArrowDown" class="text-base" aria-hidden="true" />
+        <span class="sr-only">{{ 'dashboard.tiles.network.receiving' | translate }} </span
+        >{{ network().rx }}
+      </span>
+      <span class="flex items-center gap-1">
+        <ng-icon name="lucideArrowUp" class="text-base" aria-hidden="true" />
+        <span class="sr-only">{{ 'dashboard.tiles.network.sending' | translate }} </span
+        >{{ network().tx }}
+      </span>
+    </p>
+    <p class="text-xs text-muted-foreground">{{ 'dashboard.tiles.network.lines' | translate }}</p>
+  </div>
+  <laris-sparkline class="mt-auto h-14" [series]="network().series" />
+</section>
+
+@if (temperature(); as temperature) {
+  <section
+    class="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground"
+    aria-labelledby="tile-temperature"
+    data-tile="temperature"
+  >
+    <div class="grid gap-1 px-4 pt-3.5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3
+          id="tile-temperature"
+          class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
+        >
+          <ng-icon name="lucideThermometer" aria-hidden="true" />{{
+            'dashboard.tiles.temperature.title' | translate
+          }}
+        </h3>
+        <span
+          class="rounded-full px-2 py-0.5 text-xs font-medium"
+          [class]="toneClasses[temperature.tone]"
+          >{{ temperature.word | text }}</span
+        >
+      </div>
+      <p class="text-2xl font-semibold tabular-nums md:text-[1.75rem]">{{ temperature.value }}</p>
+      <p class="text-xs text-muted-foreground">
+        {{ 'dashboard.tiles.temperature.processor' | translate }}
+      </p>
+    </div>
+    <laris-sparkline
+      class="mt-auto h-14"
+      [series]="temperature.series"
+      [min]="20"
+      [max]="temperature.max"
+    />
+  </section>
+}

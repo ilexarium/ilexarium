@@ -46,6 +46,14 @@ const TEXT_PAIRS: [text: string, background: string][] = [
 
 const AA = 4.5;
 
+/** Graphics that carry meaning (the dashboard's status lights) need 3:1 (WCAG 1.4.11). */
+const GRAPHIC_PAIRS: [graphic: string, background: string][] = [
+  ['light-ok', 'card'],
+  ['light-warn', 'card'],
+  ['light-fail', 'card'],
+];
+const GRAPHIC = 3;
+
 function tokens(css: string, selector: string): Map<string, string> {
   const start = css.indexOf(`${selector} {`);
   if (start < 0) throw new Error(`${selector} not found in styles.css`);
@@ -103,6 +111,12 @@ describe('theme tokens: contrast', () => {
       expect(fg, `--${text}`).toBeDefined();
       expect(bg, `--${background}`).toBeDefined();
       expect(contrast(fg!, bg!)).toBeGreaterThanOrEqual(AA);
+    });
+
+    it.each(GRAPHIC_PAIRS)(`${theme}: %s on %s reaches 3:1`, (graphic, background) => {
+      expect(contrast(values.get(graphic)!, values.get(background)!)).toBeGreaterThanOrEqual(
+        GRAPHIC,
+      );
     });
   }
 });

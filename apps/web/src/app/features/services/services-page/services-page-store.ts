@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { type CatalogEntrySummary, type InstalledService, serviceProject } from '@laris/shared';
+import type { CatalogEntrySummary, InstalledService } from '@laris/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
@@ -17,7 +17,9 @@ import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { ServicesApi } from '../../../core/services/services-api';
 import { ServicesStore } from '../../../core/services/services-store';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
-import type { ServiceBackup, ServiceRuntime } from '../services.model';
+import { serviceRuntimes } from '../../../core/services/service-runtimes';
+import type { ServiceRuntime } from '../../../core/services/services.model';
+import type { ServiceBackup } from '../services.model';
 
 interface ServicesPageState {
   /** Null until loaded. */
@@ -51,24 +53,8 @@ export const ServicesPageStore = signalStore(
       /** What each installed service's containers (Compose project `hl-<id>`) are doing. */
       runtimes: computed(() => {
         const snapshot = monitoringStore.containers();
-        const runtimes = new Map<string, ServiceRuntime>();
-        if (!snapshot?.dockerAvailable) return runtimes;
-        for (const service of servicesStore.services() ?? []) {
-          const project = serviceProject(service.catalogId);
-          const containers = snapshot.containers.filter((c) => c.composeProject === project);
-          const running = containers.filter((c) => c.state === 'running');
-          runtimes.set(
-            service.catalogId,
-            containers.some((c) => c.health === 'unhealthy')
-              ? 'unhealthy'
-              : running.length === 0
-                ? 'stopped'
-                : running.length < containers.length
-                  ? 'partial'
-                  : 'running',
-          );
-        }
-        return runtimes;
+        if (!snapshot?.dockerAvailable) return new Map<string, ServiceRuntime>();
+        return serviceRuntimes(servicesStore.services() ?? [], snapshot.containers);
       }),
 
       /** Each installed service's backups, by service id — only once backups are set up. */

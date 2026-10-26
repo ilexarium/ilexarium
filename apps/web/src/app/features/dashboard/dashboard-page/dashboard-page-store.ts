@@ -1,39 +1,236 @@
 import { computed, inject } from '@angular/core';
-import { signalStore, withComputed, withHooks, withMethods } from '@ngrx/signals';
-import type { ContainerActionParams } from '@laris/shared';
+import {
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import type { ActivityItem, BackupRun } from '@laris/shared';
+import {
+  catchError,
+  debounce,
+  defer,
+  EMPTY,
+  type Observable,
+  pipe,
+  switchMap,
+  tap,
+  timer,
+} from 'rxjs';
+import { ActivityApi } from '../../../core/activity/activity-api';
+import { alertTitle } from '../../../core/alerts/alert-wording';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
+import { BackupsApi } from '../../../core/backups/backups-api';
+import { BackupsStore } from '../../../core/backups/backups-store';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
+import { RealtimeService } from '../../../core/realtime/realtime-service';
+import { serviceRuntimes } from '../../../core/services/service-runtimes';
+import { ServicesStore } from '../../../core/services/services-store';
+import { Formatter } from '../../../shared/format/formatter';
+import { ACTIVITY_RELOAD_MS } from '../dashboard.constants';
+import type { AppTile } from '../dashboard.model';
+import { LOADING_KEY } from './dashboard-status';
+import {
+  appTiles,
+  backupDays,
+  needsAttention,
+  otherContainers,
+  rackUnits,
+  type RackWords,
+  shownDisks,
+} from './dashboard-status';
+
+interface DashboardPageState {
+  /** Null until loaded (and while backups aren't set up). */
+  runs: BackupRun[] | null;
+  /** Where the backups go; null until loaded or without a plan. */
+  destination: string | null;
+  /** Null until loaded; stays as it was when a reload fails. */
+  activity: ActivityItem[] | null;
+}
+
+const initialState: DashboardPageState = { runs: null, destination: null, activity: null };
+
+/** The first time at once, then once a burst of changes has settled. */
+const settled =
+  <T>() =>
+  (source: Observable<T>) =>
+    defer(() => {
+      let first = true;
+      return source.pipe(
+        debounce(() => {
+          const wait = first ? 0 : ACTIVITY_RELOAD_MS;
+          first = false;
+          return timer(wait);
+        }),
+      );
+    });
 
 export const DashboardPageStore = signalStore(
+  withState<DashboardPageState>(initialState),
   withComputed(
     (
-      _,
+      store,
       monitoringStore = inject(MonitoringStore),
-      containerActionsStore = inject(ContainerActionsStore),
+      servicesStore = inject(ServicesStore),
+      backupsStore = inject(BackupsStore),
       alertsStore = inject(AlertsStore),
+      containerActionsStore = inject(ContainerActionsStore),
+      realtimeService = inject(RealtimeService),
+      formatter = inject(Formatter),
+    ) => {
+      const words: RackWords = {
+        alertTitle: (alert) => alertTitle(alert, formatter),
+        bytes: (bytes) => formatter.bytes(bytes),
+        ago: (at) => formatter.ago(at),
+        dateTime: (at) => formatter.dateTime(at),
+        percent: (percent) => formatter.percent(percent),
+        machine: (name) => (typeof name === 'string' ? formatter.machine(name) : name),
+      };
+      const system = computed(() => monitoringStore.system());
+      const containers = computed(() => {
+        const snapshot = monitoringStore.containers();
+        return snapshot?.dockerAvailable ? snapshot.containers : null;
+      });
+      const services = computed(() => servicesStore.services());
+      const runtimes = computed(() => serviceRuntimes(services() ?? [], containers() ?? []));
+      const disks = computed(() => {
+        const snapshot = system();
+        return snapshot ? shownDisks(snapshot.disks, store.destination()) : null;
+      });
+      const units = computed(() =>
+        rackUnits(
+          {
+            alerts: alertsStore.open(),
+            services: services(),
+            runtimes: containers() ? runtimes() : new Map(),
+            backups: backupsStore.status(),
+            disks: disks(),
+          },
+          words,
+        ),
+      );
+      return {
+        system,
+        disks,
+        units,
+        attention: computed(() => needsAttention(units())),
+        /** Some unit doesn't know yet: the sentence waits instead of saying all is well. */
+        checking: computed(() => units().some((unit) => unit.text.key === LOADING_KEY)),
+        alertCount: computed(() => alertsStore.open().length),
+        live: computed(() => realtimeService.status() === 'live'),
+        services,
+        apps: computed(() =>
+          appTiles(
+            services() ?? [],
+            containers(),
+            containers() ? runtimes() : new Map(),
+            containerActionsStore.pending(),
+          ),
+        ),
+        otherContainers: computed(() => {
+          const list = containers();
+          return list ? otherContainers(services() ?? [], list) : 0;
+        }),
+        backups: computed(() => backupsStore.status()),
+        backupDays: computed(() => (store.runs() ? backupDays(store.runs()!, new Date()) : null)),
+        /** Changes after which the backup runs are fetched again: a run started or finished. */
+        runsKey: computed(() => {
+          const status = backupsStore.status();
+          if (!status?.configured) return null;
+          return `${status.lastRun?.id}:${status.lastRun?.status}:${status.running?.runId ?? ''}`;
+        }),
+        /** Changes after which the activity is fetched again. */
+        activityKey: computed(() =>
+          [
+            alertsStore
+              .open()
+              .map((a) => a.id)
+              .join(','),
+            alertsStore.closed()[0]?.id ?? '',
+            backupsStore.status()?.lastRun?.id ?? '',
+            backupsStore.status()?.lastRun?.status ?? '',
+            (services() ?? []).map((s) => `${s.id}:${s.status}`).join(','),
+            [...containerActionsStore.pending().keys()].join(','),
+          ].join('|'),
+        ),
+      };
+    },
+  ),
+  withMethods(
+    (
+      store,
+      backupsApi = inject(BackupsApi),
+      activityApi = inject(ActivityApi),
+      containerActionsStore = inject(ContainerActionsStore),
     ) => ({
-      system: computed(() => monitoringStore.system()),
-      /** The shell follows the alerts all along; the page only reads them. */
-      alerts: computed(() => alertsStore.open()),
-      containers: computed(() => monitoringStore.containers()),
-      pending: computed(() => containerActionsStore.pending()),
+      loadRuns: rxMethod<string | null>(
+        pipe(
+          switchMap((key) =>
+            key === null
+              ? EMPTY
+              : backupsApi.runs().pipe(
+                  tap(({ runs }) => patchState(store, { runs })),
+                  catchError(() => EMPTY),
+                ),
+          ),
+        ),
+      ),
+
+      loadPlan: rxMethod<boolean>(
+        pipe(
+          switchMap((configured) =>
+            !configured
+              ? EMPTY
+              : backupsApi.plan().pipe(
+                  tap(({ plan }) => patchState(store, { destination: plan?.destination ?? null })),
+                  catchError(() => EMPTY),
+                ),
+          ),
+        ),
+      ),
+
+      loadActivity: rxMethod<string>(
+        pipe(
+          settled(),
+          switchMap(() =>
+            activityApi.recent().pipe(
+              tap(({ items }) => patchState(store, { activity: items })),
+              catchError(() => EMPTY),
+            ),
+          ),
+        ),
+      ),
+
+      /** Starts an app's stopped containers (harmless: no confirmation). */
+      async start(app: AppTile): Promise<void> {
+        await containerActionsStore.runAll(app.stopped, 'start', app.service.name);
+      },
     }),
   ),
-  withMethods((_, containerActionsStore = inject(ContainerActionsStore)) => ({
-    act(request: ContainerActionParams): void {
-      void containerActionsStore.run(request);
+  withHooks(
+    (
+      store,
+      monitoringStore = inject(MonitoringStore),
+      servicesStore = inject(ServicesStore),
+      backupsStore = inject(BackupsStore),
+    ) => {
+      const stops: (() => void)[] = [];
+      return {
+        onInit() {
+          stops.push(monitoringStore.watch(['system', 'containers']), servicesStore.watch());
+          store.loadRuns(store.runsKey);
+          store.loadPlan(backupsStore.configured);
+          store.loadActivity(store.activityKey);
+        },
+        onDestroy() {
+          for (const stop of stops) stop();
+        },
+      };
     },
-  })),
-  withHooks((_, monitoringStore = inject(MonitoringStore)) => {
-    let stop: (() => void) | null = null;
-    return {
-      onInit() {
-        stop = monitoringStore.watch(['system', 'containers']);
-      },
-      onDestroy() {
-        stop?.();
-      },
-    };
-  }),
+  ),
 );
