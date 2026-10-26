@@ -55,6 +55,14 @@ export const systemSampleSchema = z.object({
   }),
   /** Real interfaces only; the server leaves out loopback and Docker's virtual ones. */
   network: z.array(networkInterfaceStatsSchema),
+  /** The processor's temperature; null without a sensor (most VMs). */
+  temperature: z
+    .object({
+      celsius: z.number(),
+      /** The sensor's own critical limit, if it gives one. */
+      criticalCelsius: z.number().nullable(),
+    })
+    .nullable(),
 });
 export type SystemSample = z.infer<typeof systemSampleSchema>;
 
@@ -75,6 +83,7 @@ export const systemHistoryPointSchema = z.object({
   memoryUsedBytes: bytes,
   rxBytesPerSec: bytesPerSec,
   txBytesPerSec: bytesPerSec,
+  temperatureC: z.number().nullable(),
 });
 export type SystemHistoryPoint = z.infer<typeof systemHistoryPointSchema>;
 
@@ -92,6 +101,7 @@ export function toSystemHistoryPoint(sample: SystemSample): SystemHistoryPoint {
     memoryUsedBytes: sample.memory.usedBytes,
     rxBytesPerSec,
     txBytesPerSec,
+    temperatureC: sample.temperature?.celsius ?? null,
   };
 }
 

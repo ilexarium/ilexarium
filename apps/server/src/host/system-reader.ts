@@ -29,6 +29,8 @@ import {
   parseProcStatus,
   procHidesProcesses,
 } from './process-parsers.js';
+import { type CpuTemperature, parseMilliCelsius, pickCpuTemperature } from './thermal-parsers.js';
+import { CPU_HWMON_CHIPS, CPU_THERMAL_ZONES } from './host.constants.js';
 import type {
   BlockDevice,
   CpuTimes,
@@ -40,6 +42,7 @@ import type {
   RawProcess,
   Space,
   Subfolder,
+  TemperatureSensor,
 } from './host.model.js';
 
 /** /proc/<pid>/ folders read at once (four files each). */
@@ -297,6 +300,60 @@ export class SystemReader {
       }),
     );
     return cpu === null || memory === null || io === null ? null : { cpu, memory, io };
+  }
+
+  /** The processor's temperature, or null without a sensor (most VMs). */
+  async cpuTemperature(): Promise<CpuTemperature | null> {
+    const [hwmon, zones] = await Promise.all([this.hwmonSensors(), this.thermalZones()]);
+    return pickCpuTemperature(hwmon, zones);
+  }
+
+  /** The temperature inputs of the hwmon chips that measure the processor (no others are read). */
+  private async hwmonSensors(): Promise<TemperatureSensor[]> {
+    const chips = new Set(CPU_HWMON_CHIPS.map(([chip]) => chip));
+    const sensors: TemperatureSensor[] = [];
+    for (const entry of (await this.list('sys/class/hwmon')) ?? []) {
+      const dir = `sys/class/hwmon/${entry}`;
+      const chip = (await this.readOptional(`${dir}/name`))?.trim();
+      if (!chip || !chips.has(chip)) continue;
+      for (const file of (await this.list(dir)) ?? []) {
+        const input = /^temp(\d+)_input$/.exec(file);
+        if (!input) continue;
+        const celsius = parseMilliCelsius(await this.readOptional(`${dir}/${file}`));
+        if (celsius === null) continue;
+        sensors.push({
+          chip,
+          label: (await this.readOptional(`${dir}/temp${input[1]}_label`))?.trim() ?? null,
+          celsius,
+          criticalCelsius: parseMilliCelsius(
+            await this.readOptional(`${dir}/temp${input[1]}_crit`),
+          ),
+        });
+      }
+    }
+    return sensors;
+  }
+
+  private async thermalZones(): Promise<TemperatureSensor[]> {
+    const zones: TemperatureSensor[] = [];
+    for (const entry of (await this.list('sys/class/thermal')) ?? []) {
+      if (!entry.startsWith('thermal_zone')) continue;
+      const dir = `sys/class/thermal/${entry}`;
+      const type = (await this.readOptional(`${dir}/type`))?.trim();
+      if (!type || !CPU_THERMAL_ZONES.some((pattern) => pattern.test(type))) continue;
+      const celsius = parseMilliCelsius(await this.readOptional(`${dir}/temp`));
+      if (celsius === null) continue;
+      let criticalCelsius: number | null = null;
+      for (const file of (await this.list(dir)) ?? []) {
+        const trip = /^trip_point_(\d+)_type$/.exec(file);
+        if (!trip || (await this.readOptional(`${dir}/${file}`))?.trim() !== 'critical') continue;
+        criticalCelsius = parseMilliCelsius(
+          await this.readOptional(`${dir}/trip_point_${trip[1]}_temp`),
+        );
+      }
+      zones.push({ chip: type, label: null, celsius, criticalCelsius });
+    }
+    return zones;
   }
 
   /** Account names by uid, from /etc/passwd (empty if it can't be read). */

@@ -52,6 +52,7 @@ const update: SystemUpdate = {
       swapUsedBytes: 0,
     },
     network: [],
+    temperature: null,
   },
   disks: [],
 };
