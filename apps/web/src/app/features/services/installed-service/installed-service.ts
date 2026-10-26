@@ -9,7 +9,9 @@ import { HlmButton } from '@ui/button';
 import { HlmCardImports } from '@ui/card';
 import { JobProgress } from '../../../shared/job-progress/job-progress';
 import { Formatter } from '../../../shared/format/formatter';
-import type { ServiceBackup, ServiceRuntime } from '../services.model';
+import { serviceUrl } from '../../../core/services/service-runtimes';
+import type { ServiceRuntime } from '../../../core/services/services.model';
+import type { ServiceBackup } from '../services.model';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
 import { RUNTIME_TONES } from '../services.constants';
 
@@ -53,12 +55,7 @@ export class InstalledServiceCard {
     ['installed', 'failed'].includes(this.service().status),
   );
 
-  /** The web page of the service: same host as this app, its own port. Plain HTTP (inside your network). */
-  protected readonly openUrl = computed(() => {
-    const port = this.service().webPort;
-    if (this.service().status !== 'installed' || port === null) return null;
-    return `http://${this.location.hostname}:${port}/`;
-  });
+  protected readonly openUrl = computed(() => serviceUrl(this.service(), this.location.hostname));
 
   /** The latest job, while it runs or if it didn't succeed. */
   protected readonly job = computed(() => {

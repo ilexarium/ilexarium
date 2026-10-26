@@ -42,6 +42,10 @@
   --warning-muted: oklch(0.96 0.06 85);
   --info: oklch(0.47 0.08 195);
   --info-muted: oklch(0.955 0.03 195);
+  /* Status lights (the dashboard's rack): brighter than the status text colours, always with words. */
+  --light-ok: oklch(0.62 0.16 150);
+  --light-warn: oklch(0.66 0.15 65);
+  --light-fail: oklch(0.6 0.21 27);
   --border: oklch(0.915 0.014 280);
   --input: oklch(0.915 0.014 280);
   --ring: oklch(0.7 0.12 280);
@@ -85,6 +89,9 @@
   --warning-muted: oklch(0.32 0.06 70);
   --info: oklch(0.84 0.09 195);
   --info-muted: oklch(0.3 0.05 195);
+  --light-ok: oklch(0.76 0.16 150);
+  --light-warn: oklch(0.82 0.14 80);
+  --light-fail: oklch(0.7 0.18 25);
   --border: oklch(0.3 0.026 280);
   --input: oklch(0.34 0.03 280);
   --ring: oklch(0.55 0.12 280);
@@ -107,6 +114,9 @@
   --color-info: var(--info);
   --color-info-muted: var(--info-muted);
   --color-destructive-muted: var(--destructive-muted);
+  --color-light-ok: var(--light-ok);
+  --color-light-warn: var(--light-warn);
+  --color-light-fail: var(--light-fail);
 }
 
 /*
@@ -116,6 +126,18 @@
 @theme {
   --animate-heartbeat: heartbeat 2.6s ease-in-out infinite;
   --animate-heartbeat-fade: heartbeat-fade 2.6s ease-in-out infinite;
+  /* A status light's glow: a ring of its own colour that fades out, every 2 s (one sample). */
+  --animate-light-pulse: light-pulse 2s ease-out infinite;
+
+  @keyframes light-pulse {
+    0% {
+      box-shadow: 0 0 0 0 currentColor;
+    }
+    70%,
+    100% {
+      box-shadow: 0 0 0 7px transparent;
+    }
+  }
 
   @keyframes heartbeat {
     0%,

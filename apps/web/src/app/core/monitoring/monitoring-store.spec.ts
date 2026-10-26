@@ -32,6 +32,7 @@ const systemUpdate = (at: number, cpu = 10): SystemUpdate => ({
       swapUsedBytes: 0,
     },
     network: [{ name: 'eth0', rxBytesPerSec: 3, txBytesPerSec: 1 }],
+    temperature: null,
   },
   disks: [],
 });
@@ -46,7 +47,16 @@ const systemSnapshot = (at: number): SystemSnapshot => ({
     cpuModel: null,
     cpuCores: 4,
   },
-  history: [{ at, cpuPercent: 10, memoryUsedBytes: 40, rxBytesPerSec: 3, txBytesPerSec: 1 }],
+  history: [
+    {
+      at,
+      cpuPercent: 10,
+      memoryUsedBytes: 40,
+      rxBytesPerSec: 3,
+      txBytesPerSec: 1,
+      temperatureC: null,
+    },
+  ],
 });
 
 const stats = (at: number, cpuPercent = 5): ContainerStats => ({

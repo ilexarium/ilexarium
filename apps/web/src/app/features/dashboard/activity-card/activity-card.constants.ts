@@ -1,0 +1,24 @@
+import type { ActivityAction } from '@laris/shared';
+
+/** Each action's words (`dashboard.activity.action.<key>`), its icon, and whether its subject is machine text. */
+export const ACTION_WORDS: Record<ActivityAction, { key: string; icon: string; machine: boolean }> =
+  {
+    'service.deploy': { key: 'serviceDeploy', icon: 'lucidePackagePlus', machine: false },
+    'service.remove': { key: 'serviceRemove', icon: 'lucidePackageMinus', machine: false },
+    'container.start': { key: 'containerStart', icon: 'lucidePlay', machine: true },
+    'container.stop': { key: 'containerStop', icon: 'lucideSquare', machine: true },
+    'container.restart': { key: 'containerRestart', icon: 'lucideRotateCcw', machine: true },
+    'backup.configure': { key: 'backupConfigure', icon: 'lucideShieldCheck', machine: false },
+    'backup.restore': { key: 'backupRestore', icon: 'lucideHistory', machine: false },
+    'disk.mount': { key: 'diskMount', icon: 'lucideHardDrive', machine: true },
+    'disk.unmount': { key: 'diskUnmount', icon: 'lucideHardDrive', machine: true },
+    'assistant.model_pull': { key: 'modelPull', icon: 'lucideDownload', machine: true },
+  };
+
+/** The icon's colours: what people did plainly, outcomes in their status colour. */
+export const ACTIVITY_TONE_CLASSES = {
+  neutral: 'bg-accent text-accent-foreground',
+  ok: 'bg-success-muted text-success',
+  warn: 'bg-warning-muted text-warning',
+  fail: 'bg-destructive-muted text-destructive',
+} as const;

@@ -48,6 +48,32 @@ export const ContainerActionsStore = signalStore(
           patchState(store, { pending });
         }
       },
+
+      /** Several containers of one app at once, with one toast in the app's name. */
+      async runAll(names: string[], action: ContainerAction, label: string): Promise<void> {
+        const free = names.filter((name) => !store.pending().has(name));
+        if (free.length === 0) return;
+        const pending = new Map(store.pending());
+        for (const name of free) pending.set(name, action);
+        patchState(store, { pending });
+        try {
+          const results = await Promise.allSettled(
+            free.map((name) => firstValueFrom(containersApi.act(name, action))),
+          );
+          const failure = results.find((r) => r.status === 'rejected');
+          if (failure) {
+            toast.error(translator.t(`containers.failed.${action}`, { name: label }), {
+              description: translator.t(...apiErrorText(failure.reason)),
+            });
+          } else {
+            toast.success(translator.t(`containers.done.${action}`, { name: label }));
+          }
+        } finally {
+          const rest = new Map(store.pending());
+          for (const name of free) rest.delete(name);
+          patchState(store, { pending: rest });
+        }
+      },
     }),
   ),
   withHooks((store, authStore = inject(AuthStore)) => ({

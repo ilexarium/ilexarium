@@ -1,0 +1,23 @@
+<svg
+  [attr.viewBox]="'0 0 ' + width + ' ' + height"
+  preserveAspectRatio="none"
+  dir="ltr"
+  focusable="false"
+  class="block size-full overflow-visible"
+>
+  @if (area(); as d) {
+    <path [attr.d]="d" [style.fill]="lines()[0].color" fill-opacity="0.14" />
+  }
+  @for (line of lines(); track $index) {
+    <path
+      [attr.d]="line.d"
+      fill="none"
+      [style.stroke]="line.color"
+      stroke-width="2"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+      vector-effect="non-scaling-stroke"
+      [attr.stroke-dasharray]="$first ? null : '4 3'"
+    />
+  }
+</svg>

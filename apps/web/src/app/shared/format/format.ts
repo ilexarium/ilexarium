@@ -49,6 +49,15 @@ export function formatDecimal(value: number, locale = 'en', digits = 2): string 
 }
 
 /** "42%" ("42 %" in German) — "<1%" for a small non-zero share, so it never reads as idle. */
+/** A temperature, whole degrees: "48°C" (the language decides the spacing). */
+export function formatCelsius(celsius: number, locale = 'en'): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: 'celsius',
+    maximumFractionDigits: 0,
+  }).format(celsius);
+}
+
 export function formatPercent(percent: number, locale = 'en'): string {
   const format = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
   if (percent > 0 && percent < 1) return `<${format.format(0.01)}`;

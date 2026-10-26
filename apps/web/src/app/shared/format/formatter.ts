@@ -3,6 +3,7 @@ import { LanguageService } from '../../core/i18n/language';
 import { Translator } from '../../core/i18n/translator';
 import {
   formatBytes,
+  formatCelsius,
   formatClock,
   formatCount,
   formatCpuTime,
@@ -43,6 +44,10 @@ export class Formatter {
 
   clock(at: number): string {
     return this.ltr(formatClock(at, this.locale()));
+  }
+
+  celsius(celsius: number): string {
+    return this.ltr(formatCelsius(celsius, this.locale()));
   }
 
   percent(percent: number): string {

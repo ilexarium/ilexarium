@@ -1,0 +1,29 @@
+<section hlmCard class="h-full" aria-labelledby="activity-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="activity-title">{{ 'dashboard.activity.title' | translate }}</h2>
+  </div>
+  <div hlmCardContent>
+    @if (items() === null) {
+      <hlm-skeleton class="h-40 rounded-xl" />
+    } @else if (rows().length === 0) {
+      <p class="text-sm text-muted-foreground">{{ 'dashboard.activity.none' | translate }}</p>
+    } @else {
+      <ol class="grid">
+        @for (row of rows(); track row.id) {
+          <li class="flex items-start gap-3 border-b py-2 last:border-b-0">
+            <span
+              class="grid size-7 shrink-0 place-items-center rounded-lg"
+              [class]="toneClasses[row.tone]"
+            >
+              <ng-icon [name]="row.icon" class="text-sm" aria-hidden="true" />
+            </span>
+            <span class="grid min-w-0 gap-px">
+              <span class="text-sm break-words">{{ row.text }}</span>
+              <span class="text-xs text-muted-foreground">{{ row.sub }}</span>
+            </span>
+          </li>
+        }
+      </ol>
+    }
+  </div>
+</section>

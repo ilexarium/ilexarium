@@ -1,30 +1,28 @@
 import { Component, inject } from '@angular/core';
-import { HlmSkeleton } from '@ui/skeleton';
-import { ContainersTable } from '../../../shared/containers-table/containers-table';
-import { AlertsNotice } from '../alerts-notice/alerts-notice';
-import { CpuCard } from '../cpu-card/cpu-card';
-import { DiskList } from '../disk-list/disk-list';
-import { HostSummary } from '../host-summary/host-summary';
-import { MemoryCard } from '../memory-card/memory-card';
-import { NetworkCard } from '../network-card/network-card';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmButton } from '@ui/button';
+import { HlmSkeleton } from '@ui/skeleton';
+import { PluralPipe } from '../../../core/i18n/plural-pipe';
+import { ActivityCard } from '../activity-card/activity-card';
+import { AppsCard } from '../apps-card/apps-card';
+import { BackupsCard } from '../backups-card/backups-card';
+import { DiskList } from '../disk-list/disk-list';
+import { MetricTiles } from '../metric-tiles/metric-tiles';
+import { StatusRack } from '../status-rack/status-rack';
 import { DashboardPageStore } from './dashboard-page-store';
 
 @Component({
   selector: 'laris-dashboard-page',
   imports: [
-    AlertsNotice,
-    ContainersTable,
-    CpuCard,
+    ActivityCard,
+    AppsCard,
+    BackupsCard,
     DiskList,
-    HlmButton,
     HlmSkeleton,
-    HostSummary,
-    MemoryCard,
-    NetworkCard,
+    MetricTiles,
+    PluralPipe,
     RouterLink,
+    StatusRack,
     TranslatePipe,
   ],
   providers: [DashboardPageStore],
