@@ -148,6 +148,7 @@ async function render() {
     socket,
     receive,
     containersApi,
+    activityApi,
     headline: () => el.querySelector('p[role="status"]')!.textContent!.trim(),
     unit: (light: string) => el.querySelectorAll(`laris-status-rack [data-light="${light}"]`),
     tile: (name: string) => el.querySelector(`[data-tile="${name}"]`),
@@ -292,5 +293,19 @@ describe('DashboardPage', () => {
     expect(text).toContain('owner · less than a minute ago');
     expect(text).toContain('Backup finished');
     expect(text).toContain('Scheduled ·');
+  });
+
+  it('moves on with the clock: the activity is fetched again each minute', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { receive, activityApi } = await render();
+      await allFine(receive);
+      await vi.advanceTimersByTimeAsync(2_000); // the changes above settle into one fetch
+      const before = activityApi.recent.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(60_000 + 1_000);
+      expect(activityApi.recent.mock.calls.length).toBe(before + 1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

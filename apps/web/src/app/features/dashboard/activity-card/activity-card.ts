@@ -53,6 +53,8 @@ type Tone = keyof typeof ACTIVITY_TONE_CLASSES;
 export class ActivityCard {
   /** Null until loaded. */
   readonly items = input.required<ActivityItem[] | null>();
+  /** The page's clock: "3 minutes ago" moves on. */
+  readonly now = input.required<number>();
   private readonly translator = inject(Translator);
   private readonly formatter = inject(Formatter);
   protected readonly toneClasses = ACTIVITY_TONE_CLASSES;
@@ -62,7 +64,9 @@ export class ActivityCard {
   );
 
   private describe(item: ActivityItem): { text: string; sub: string; icon: string; tone: Tone } {
-    const when = this.translator.t('dashboard.ago', { time: this.formatter.ago(item.at) });
+    const when = this.translator.t('dashboard.ago', {
+      time: this.formatter.ago(item.at, this.now()),
+    });
     switch (item.source) {
       case 'action': {
         const words = ACTION_WORDS[item.action];

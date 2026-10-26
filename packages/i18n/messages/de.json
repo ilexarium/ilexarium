@@ -311,7 +311,8 @@
         "running_other": "{{count}} Apps laufen",
         "stopped_one": "{{count}} gestoppt",
         "stopped_other": "{{count}} gestoppt",
-        "healthy": "Alle gesund"
+        "healthy": "Alle gesund",
+        "dockerDown": "Docker ist nicht erreichbar"
       },
       "backups": {
         "label": "Backups",
@@ -508,6 +509,11 @@
       "start": "{{name}} konnte nicht gestartet werden",
       "stop": "{{name}} konnte nicht gestoppt werden",
       "restart": "{{name}} konnte nicht neu gestartet werden"
+    },
+    "partly": {
+      "start": "{{name}} wurde nur teilweise gestartet",
+      "stop": "{{name}} wurde nur teilweise gestoppt",
+      "restart": "{{name}} wurde nur teilweise neu gestartet"
     }
   },
   "logs": {

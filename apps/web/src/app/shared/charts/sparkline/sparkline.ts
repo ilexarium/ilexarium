@@ -25,36 +25,74 @@ export class Sparkline {
   private readonly top = computed(() => {
     const max = this.max();
     if (max !== undefined) return max;
-    const highest = Math.max(...this.series().flatMap((s) => s.values));
+    const highest = Math.max(...this.series().flatMap((s) => s.values.filter((v) => v !== null)));
     return Number.isFinite(highest) && highest > this.min() ? highest * 1.1 : this.min() + 1;
   });
 
-  protected readonly lines = computed(() =>
-    this.series()
-      .map((s) => ({ color: s.color, d: sparklinePath(s.values, this.min(), this.top()) }))
-      .filter((line) => line.d !== null),
+  /** Each series' pieces of line (a missing value is a gap), the first series marked. */
+  private readonly drawn = computed(() =>
+    this.series().map((s, index) => ({
+      color: s.color,
+      first: index === 0,
+      segments: sparklineSegments(s.values, this.min(), this.top()),
+    })),
   );
 
+  protected readonly lines = computed(() =>
+    this.drawn()
+      .filter((line) => line.segments.length > 0)
+      .map((line) => ({
+        color: line.color,
+        dashed: !line.first,
+        d: line.segments.map((points) => `M${points.map(xy).join(' L')}`).join(' '),
+      })),
+  );
+
+  /** Below the first series' line, piece by piece. */
   protected readonly area = computed(() => {
-    const first = this.lines()[0];
-    return first
-      ? `${first.d} L${SPARKLINE_WIDTH},${SPARKLINE_HEIGHT} L0,${SPARKLINE_HEIGHT} Z`
-      : null;
+    const first = this.drawn()[0];
+    if (!first || first.segments.length === 0) return null;
+    return {
+      color: first.color,
+      d: first.segments
+        .map((points) => {
+          const [start, end] = [points[0], points.at(-1)!];
+          return `M${points.map(xy).join(' L')} L${end.x},${SPARKLINE_HEIGHT} L${start.x},${SPARKLINE_HEIGHT} Z`;
+        })
+        .join(' '),
+    };
   });
 }
 
-/** The line through the values, spread evenly across the width; null with fewer than two. */
-export function sparklinePath(values: number[], min: number, max: number): string | null {
-  if (values.length < 2 || max <= min) return null;
+interface Point {
+  x: number;
+  y: number;
+}
+
+const xy = ({ x, y }: Point) => `${x},${y}`;
+
+/**
+ * The points of the values, spread evenly across the width — a missing value (null) is a gap,
+ * so the line keeps its place in time. Pieces of a single point are left out; nothing with
+ * fewer than two values.
+ */
+export function sparklineSegments(values: (number | null)[], min: number, max: number): Point[][] {
+  if (values.length < 2 || max <= min) return [];
   // A little room at the top and bottom, so the line's stroke isn't cut off.
   const inner = SPARKLINE_HEIGHT - 4;
-  const points = values.map((value, i) => {
-    const x = (i * SPARKLINE_WIDTH) / (values.length - 1);
+  const segments: Point[][] = [[]];
+  values.forEach((value, i) => {
+    if (value === null) {
+      if (segments.at(-1)!.length > 0) segments.push([]);
+      return;
+    }
     const share = Math.min(1, Math.max(0, (value - min) / (max - min)));
-    const y = SPARKLINE_HEIGHT - 2 - share * inner;
-    return `${round(x)},${round(y)}`;
+    segments.at(-1)!.push({
+      x: round((i * SPARKLINE_WIDTH) / (values.length - 1)),
+      y: round(SPARKLINE_HEIGHT - 2 - share * inner),
+    });
   });
-  return `M${points.join(' L')}`;
+  return segments.filter((points) => points.length > 1);
 }
 
 const round = (n: number) => Math.round(n * 10) / 10;

@@ -60,10 +60,14 @@ export const ContainerActionsStore = signalStore(
           const results = await Promise.allSettled(
             free.map((name) => firstValueFrom(containersApi.act(name, action))),
           );
-          const failure = results.find((r) => r.status === 'rejected');
-          if (failure) {
-            toast.error(translator.t(`containers.failed.${action}`, { name: label }), {
-              description: translator.t(...apiErrorText(failure.reason)),
+          const failures = results.filter(
+            (r): r is PromiseRejectedResult => r.status === 'rejected',
+          );
+          if (failures.length > 0) {
+            // Some of them done: say so, so it isn't taken for nothing having happened.
+            const title = failures.length < free.length ? 'partly' : 'failed';
+            toast.error(translator.t(`containers.${title}.${action}`, { name: label }), {
+              description: translator.t(...apiErrorText(failures[0].reason)),
             });
           } else {
             toast.success(translator.t(`containers.done.${action}`, { name: label }));

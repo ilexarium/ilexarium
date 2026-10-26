@@ -83,6 +83,7 @@ function input(change: Partial<RackInput> = {}): RackInput {
     alerts: [],
     services: [service('immich')],
     runtimes: new Map<string, ServiceRuntime>([['immich', 'running']]),
+    docker: true,
     backups: backups(),
     disks: shownDisks([disk('/', 46)], null),
     ...change,
@@ -158,6 +159,17 @@ describe('rackUnits', () => {
       expect(stopped.sub).toEqual({ key: 'dashboard.rack.apps.stopped', count: 1 });
     });
 
+    it('never green while the containers are unknown: waiting, or amber when Docker is down', () => {
+      expect(unit({ runtimes: null }, 'apps')).toMatchObject({
+        light: 'idle',
+        text: { key: 'dashboard.rack.loading' },
+      });
+      expect(unit({ runtimes: null, docker: false }, 'apps')).toMatchObject({
+        light: 'warn',
+        text: { key: 'dashboard.rack.apps.dockerDown' },
+      });
+    });
+
     it('no apps yet: grey, with the way to install one', () => {
       expect(unit({ services: [] }, 'apps')).toMatchObject({
         light: 'idle',
@@ -227,6 +239,13 @@ describe('rackUnits', () => {
     it('a disk alert decides, in its own words', () => {
       const missing = testAlert({ kind: 'diskMissing', subject: '/mnt/usb', severity: 'critical' });
       expect(unit({ alerts: [missing] }, 'space').light).toBe('fail');
+    });
+
+    it('no disk worth showing is said so, not taken for still loading', () => {
+      expect(unit({ disks: [] }, 'space')).toMatchObject({
+        light: 'idle',
+        text: { key: 'dashboard.storage.none' },
+      });
     });
 
     it('names the next disk below the system disk', () => {

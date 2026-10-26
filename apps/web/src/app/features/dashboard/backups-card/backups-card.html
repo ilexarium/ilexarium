@@ -21,7 +21,8 @@
             <dd class="font-semibold">
               {{
                 status.lastSuccessAt
-                  ? ('dashboard.ago' | translate: { time: formatter.ago(status.lastSuccessAt) })
+                  ? ('dashboard.ago'
+                    | translate: { time: formatter.ago(status.lastSuccessAt, now()) })
                   : ('dashboard.backups.notYet' | translate)
               }}
             </dd>

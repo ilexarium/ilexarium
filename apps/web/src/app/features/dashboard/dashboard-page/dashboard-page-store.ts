@@ -31,7 +31,7 @@ import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { serviceRuntimes } from '../../../core/services/service-runtimes';
 import { ServicesStore } from '../../../core/services/services-store';
 import { Formatter } from '../../../shared/format/formatter';
-import { ACTIVITY_RELOAD_MS } from '../dashboard.constants';
+import { ACTIVITY_RELOAD_MS, CLOCK_MS } from '../dashboard.constants';
 import type { AppTile } from '../dashboard.model';
 import { LOADING_KEY } from './dashboard-status';
 import {
@@ -51,9 +51,16 @@ interface DashboardPageState {
   destination: string | null;
   /** Null until loaded; stays as it was when a reload fails. */
   activity: ActivityItem[] | null;
+  /** The page's clock (epoch ms), moved every minute: "3 hours ago", the strip's days. */
+  now: number;
 }
 
-const initialState: DashboardPageState = { runs: null, destination: null, activity: null };
+const initialState = (): DashboardPageState => ({
+  runs: null,
+  destination: null,
+  activity: null,
+  now: Date.now(),
+});
 
 /** The first time at once, then once a burst of changes has settled. */
 const settled =
@@ -86,7 +93,7 @@ export const DashboardPageStore = signalStore(
       const words: RackWords = {
         alertTitle: (alert) => alertTitle(alert, formatter),
         bytes: (bytes) => formatter.bytes(bytes),
-        ago: (at) => formatter.ago(at),
+        ago: (at) => formatter.ago(at, store.now()),
         dateTime: (at) => formatter.dateTime(at),
         percent: (percent) => formatter.percent(percent),
         machine: (name) => (typeof name === 'string' ? formatter.machine(name) : name),
@@ -96,6 +103,7 @@ export const DashboardPageStore = signalStore(
         const snapshot = monitoringStore.containers();
         return snapshot?.dockerAvailable ? snapshot.containers : null;
       });
+      const docker = computed(() => monitoringStore.containers()?.dockerAvailable !== false);
       const services = computed(() => servicesStore.services());
       const runtimes = computed(() => serviceRuntimes(services() ?? [], containers() ?? []));
       const disks = computed(() => {
@@ -107,7 +115,8 @@ export const DashboardPageStore = signalStore(
           {
             alerts: alertsStore.open(),
             services: services(),
-            runtimes: containers() ? runtimes() : new Map(),
+            runtimes: containers() ? runtimes() : null,
+            docker: docker(),
             backups: backupsStore.status(),
             disks: disks(),
           },
@@ -137,7 +146,10 @@ export const DashboardPageStore = signalStore(
           return list ? otherContainers(services() ?? [], list) : 0;
         }),
         backups: computed(() => backupsStore.status()),
-        backupDays: computed(() => (store.runs() ? backupDays(store.runs()!, new Date()) : null)),
+        backupDays: computed(() => {
+          const runs = store.runs();
+          return runs ? backupDays(runs, new Date(store.now())) : null;
+        }),
         /** Changes after which the backup runs are fetched again: a run started or finished. */
         runsKey: computed(() => {
           const status = backupsStore.status();
@@ -156,6 +168,8 @@ export const DashboardPageStore = signalStore(
             backupsStore.status()?.lastRun?.status ?? '',
             (services() ?? []).map((s) => `${s.id}:${s.status}`).join(','),
             [...containerActionsStore.pending().keys()].join(','),
+            // Anything else (a disk mounted elsewhere, another person's action) within a minute.
+            store.now(),
           ].join('|'),
         ),
       };
@@ -170,14 +184,16 @@ export const DashboardPageStore = signalStore(
     ) => ({
       loadRuns: rxMethod<string | null>(
         pipe(
-          switchMap((key) =>
-            key === null
-              ? EMPTY
-              : backupsApi.runs().pipe(
-                  tap(({ runs }) => patchState(store, { runs })),
-                  catchError(() => EMPTY),
-                ),
-          ),
+          switchMap((key) => {
+            if (key === null) {
+              patchState(store, { runs: null });
+              return EMPTY;
+            }
+            return backupsApi.runs().pipe(
+              tap(({ runs }) => patchState(store, { runs })),
+              catchError(() => EMPTY),
+            );
+          }),
         ),
       ),
 
@@ -226,6 +242,8 @@ export const DashboardPageStore = signalStore(
           store.loadRuns(store.runsKey);
           store.loadPlan(backupsStore.configured);
           store.loadActivity(store.activityKey);
+          const clock = setInterval(() => patchState(store, { now: Date.now() }), CLOCK_MS);
+          stops.push(() => clearInterval(clock));
         },
         onDestroy() {
           for (const stop of stops) stop();

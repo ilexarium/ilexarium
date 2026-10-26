@@ -27,7 +27,7 @@ import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import { bytesPerSecond, cpuUsagePercent } from '../host/proc-parsers.js';
 import { SystemReader } from '../host/system-reader.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
-import type { CpuTimes, MemoryInfo, NetCounters } from '../host/host.model.js';
+import type { CpuTimes, MemoryInfo, NetCounters, TemperatureSensor } from '../host/host.model.js';
 import type { CpuTemperature } from '../host/thermal-parsers.js';
 import {
   DISK_INTERVAL_MS,
@@ -51,6 +51,8 @@ interface Run {
   disks: DiskUsage[];
   disksAt: number;
   sampled: boolean;
+  /** Where the processor's temperature is read: found once per run (null without a sensor). */
+  sensor: Promise<TemperatureSensor | null> | null;
   /** The latest update; a snapshot taken before the first waits for it (and fails if it stops). */
   latest$: ReplaySubject<SystemUpdate>;
 }
@@ -146,7 +148,13 @@ export class SystemMetricsService implements TopicSource<'system'> {
   }
 
   private begin(): Run {
-    this.run = { disks: [], disksAt: -Infinity, sampled: false, latest$: new ReplaySubject(1) };
+    this.run = {
+      disks: [],
+      disksAt: -Infinity,
+      sampled: false,
+      sensor: null,
+      latest$: new ReplaySubject(1),
+    };
     return this.run;
   }
 
@@ -175,7 +183,7 @@ export class SystemMetricsService implements TopicSource<'system'> {
       this.reader.cpuTimes(),
       this.reader.netCounters(),
       this.reader.memory(),
-      this.reader.cpuTemperature(),
+      this.temperature(run),
     ]);
     if (at - run.disksAt >= DISK_INTERVAL_MS) await this.refreshDisks(run, at);
     return {
@@ -188,6 +196,15 @@ export class SystemMetricsService implements TopicSource<'system'> {
       uptimeSeconds: this.reader.uptimeSeconds(),
       temperature,
     };
+  }
+
+  private async temperature(run: Run): Promise<CpuTemperature | null> {
+    run.sensor ??= this.reader.cpuSensor().catch((error: unknown) => {
+      this.logger.error('Finding the temperature sensor failed', (error as Error).stack);
+      return null;
+    });
+    const sensor = await run.sensor;
+    return sensor ? this.reader.temperature(sensor) : null;
   }
 
   /** On failure the previous list stays, and it is tried again next time. */

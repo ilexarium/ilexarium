@@ -51,6 +51,7 @@
       [status]="store.backups()"
       [days]="store.backupDays()"
       [destination]="store.destination()"
+      [now]="store.now()"
     />
   </div>
 
@@ -60,6 +61,10 @@
     } @else {
       <hlm-skeleton class="h-48 min-w-0 flex-[999_1_32rem] rounded-xl" />
     }
-    <laris-activity-card class="min-w-0 flex-[1_1_20rem]" [items]="store.activity()" />
+    <laris-activity-card
+      class="min-w-0 flex-[1_1_20rem]"
+      [items]="store.activity()"
+      [now]="store.now()"
+    />
   </div>
 </div>

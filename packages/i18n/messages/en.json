@@ -311,7 +311,8 @@
         "running_other": "{{count}} apps running",
         "stopped_one": "{{count}} stopped",
         "stopped_other": "{{count}} stopped",
-        "healthy": "All healthy"
+        "healthy": "All healthy",
+        "dockerDown": "Docker isn't reachable"
       },
       "backups": {
         "label": "Backups",
@@ -508,6 +509,11 @@
       "start": "Couldn't start {{name}}",
       "stop": "Couldn't stop {{name}}",
       "restart": "Couldn't restart {{name}}"
+    },
+    "partly": {
+      "start": "{{name}} only partly started",
+      "stop": "{{name}} only partly stopped",
+      "restart": "{{name}} only partly restarted"
     }
   },
   "logs": {

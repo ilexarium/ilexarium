@@ -62,12 +62,19 @@ class FakeReader {
   async memory(): Promise<MemoryInfo> {
     return this.memoryInfo;
   }
-  temperature: { celsius: number; criticalCelsius: number | null } | null = {
+  reading: { celsius: number; criticalCelsius: number | null } | null = {
     celsius: 48,
     criticalCelsius: 100,
   };
-  async cpuTemperature() {
-    return this.temperature;
+  sensorLookups = 0;
+  async cpuSensor() {
+    this.sensorLookups++;
+    return this.reading
+      ? { chip: 'coretemp', label: null, input: 'x', celsius: 0, criticalCelsius: 100 }
+      : null;
+  }
+  async temperature() {
+    return this.reading;
   }
   async disks(): Promise<DiskUsage[]> {
     this.diskReads++;
@@ -147,8 +154,14 @@ describe('SystemMetricsService', () => {
     expect(sample.temperature).toEqual({ celsius: 48, criticalCelsius: 100 });
   });
 
+  it('finds the temperature sensor once per run, then only reads it', async () => {
+    start();
+    await vi.advanceTimersByTimeAsync(FIRST_SAMPLE_DELAY_MS + 3 * SAMPLE_INTERVAL_MS);
+    expect(reader.sensorLookups).toBe(1);
+  });
+
   it('carries no temperature without a sensor, in the sample and the history', async () => {
-    reader.temperature = null;
+    reader.reading = null;
     start();
     await vi.advanceTimersByTimeAsync(FIRST_SAMPLE_DELAY_MS);
     expect(published.at(-1)!.sample.temperature).toBeNull();
