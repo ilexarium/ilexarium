@@ -21,6 +21,7 @@ const sample: SystemSample = {
     { name: 'eth0', rxBytesPerSec: 1000, txBytesPerSec: 200 },
     { name: 'tailscale0', rxBytesPerSec: 50, txBytesPerSec: 30 },
   ],
+  temperature: { celsius: 48.5, criticalCelsius: 100 },
 };
 
 const systemUpdate = {
@@ -205,7 +206,12 @@ describe('history points', () => {
       memoryUsedBytes: 4e9,
       rxBytesPerSec: 1050,
       txBytesPerSec: 230,
+      temperatureC: 48.5,
     });
+  });
+
+  it('has no temperature for a sample without a sensor', () => {
+    expect(toSystemHistoryPoint({ ...sample, temperature: null }).temperatureC).toBeNull();
   });
 
   it('is zero network for a sample without interfaces', () => {
