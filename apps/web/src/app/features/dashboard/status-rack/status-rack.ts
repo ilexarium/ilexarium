@@ -38,9 +38,10 @@ export class StatusRack {
 
   protected readonly details = computed(() => {
     const { os, arch, cpuCores } = this.host();
+    // Machine text kept left to right, so the parts stay in order in Arabic.
     return [
-      os,
-      arch,
+      this.formatter.machine(os),
+      this.formatter.machine(arch),
       this.translator.plural('dashboard.rack.server.cores', cpuCores),
       this.translator.t('dashboard.rack.server.memory', {
         size: this.formatter.bytes(this.memoryBytes()),
