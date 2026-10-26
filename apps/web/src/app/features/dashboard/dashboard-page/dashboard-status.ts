@@ -14,6 +14,7 @@ import {
   APP_ALERT_KINDS,
   ASSISTANT_CATALOG_ID,
   BACKUP_DAYS,
+  BACKUP_OUTCOME_RANK,
   DISK_WARN_PERCENT,
   HIDDEN_MOUNTS,
   SPACE_ALERT_KINDS,
@@ -24,7 +25,9 @@ import type { AppTile, BackupDay, DiskRow, Light, RackUnit, Text } from '../dash
 export interface RackInput {
   alerts: Alert[];
   services: InstalledService[] | null;
-  runtimes: Map<string, ServiceRuntime>;
+  /** Null until the containers are known; `docker: false` when Docker can't be reached. */
+  runtimes: Map<string, ServiceRuntime> | null;
+  docker: boolean;
   backups: BackupsStatus | null;
   disks: DiskRow[] | null;
 }
@@ -33,6 +36,7 @@ export interface RackInput {
 export interface RackWords {
   alertTitle: (alert: Alert) => Wording;
   bytes: (bytes: number) => string;
+  /** How long ago, as of the page's clock (it moves every minute). */
   ago: (at: string) => string;
   dateTime: (at: string) => string;
   percent: (percent: number) => string;
@@ -61,7 +65,7 @@ export function needsAttention(units: RackUnit[]): number {
   return units.filter((unit) => unit.light === 'warn' || unit.light === 'fail').length;
 }
 
-function appsUnit({ alerts, services, runtimes }: RackInput, words: RackWords): RackUnit {
+function appsUnit({ alerts, services, runtimes, docker }: RackInput, words: RackWords): RackUnit {
   const unit = (light: Light, main: Text, sub: Text | null = null): RackUnit => ({
     id: 'apps',
     light,
@@ -84,6 +88,9 @@ function appsUnit({ alerts, services, runtimes }: RackInput, words: RackWords): 
   }
   const failed = installed.find((s) => s.status === 'failed');
   if (failed) return unit('warn', text('dashboard.rack.apps.failed', { name: failed.name }));
+  // Without the containers nothing is known about the apps: never green.
+  if (!docker) return unit('warn', text('dashboard.rack.apps.dockerDown'));
+  if (runtimes === null) return unit('idle', text(LOADING_KEY));
   const troubled = installed.find((s) =>
     ['partial', 'unhealthy'].includes(runtimes.get(s.catalogId) ?? ''),
   );
@@ -166,7 +173,8 @@ function spaceUnit({ alerts, disks }: RackInput, words: RackWords): RackUnit {
       open.length > 1 ? text('dashboard.rack.more', undefined, open.length - 1) : null,
     );
   }
-  if (disks === null || disks.length === 0) return unit('idle', text(LOADING_KEY));
+  if (disks === null) return unit('idle', text(LOADING_KEY));
+  if (disks.length === 0) return unit('idle', text('dashboard.storage.none'));
   const fullest = [...disks].sort((a, b) => b.percent - a.percent)[0];
   if (fullest.percent >= DISK_WARN_PERCENT) {
     return unit(
@@ -255,8 +263,6 @@ export function otherContainers(services: InstalledService[], containers: Contai
   return containers.filter((c) => !c.protected && !owned.has(c.id)).length;
 }
 
-const RANK = { ok: 0, warning: 1, failed: 2 } as const;
-
 /** The last `BACKUP_DAYS` days, oldest first, each with its worst finished run. */
 export function backupDays(runs: BackupRun[], today: Date): BackupDay[] {
   const days: BackupDay[] = [];
@@ -268,7 +274,10 @@ export function backupDays(runs: BackupRun[], today: Date): BackupDay[] {
   for (const run of runs) {
     if (!run.finishedAt || run.status === 'running') continue;
     const day = byDate.get(localDate(new Date(run.finishedAt)));
-    if (day && (day.outcome === null || RANK[run.status] > RANK[day.outcome])) {
+    if (
+      day &&
+      (day.outcome === null || BACKUP_OUTCOME_RANK[run.status] > BACKUP_OUTCOME_RANK[day.outcome])
+    ) {
       day.outcome = run.status;
     }
   }

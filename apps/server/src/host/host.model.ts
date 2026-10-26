@@ -109,6 +109,8 @@ export interface TemperatureSensor {
   /** The hwmon chip's `name`, or the thermal zone's `type`. */
   chip: string;
   label: string | null;
+  /** Its reading's file, below the reader's root (read again every sample). */
+  input: string;
   celsius: number;
   criticalCelsius: number | null;
 }

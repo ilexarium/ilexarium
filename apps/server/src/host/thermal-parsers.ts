@@ -15,30 +15,26 @@ export function parseMilliCelsius(text: string | null): number | null {
     : null;
 }
 
-/** The processor's temperature: the best hwmon chip first, then the best thermal zone. */
-export function pickCpuTemperature(
+/** The processor's sensor: the best hwmon chip first, then the best thermal zone. */
+export function pickCpuSensor(
   hwmon: TemperatureSensor[],
   zones: TemperatureSensor[],
-): CpuTemperature | null {
+): TemperatureSensor | null {
   for (const [chip, labels] of CPU_HWMON_CHIPS) {
     const inputs = hwmon.filter((sensor) => sensor.chip === chip);
     if (inputs.length === 0) continue;
     const preferred = labels
       .map((label) => inputs.find((sensor) => sensor.label === label))
       .find((sensor) => sensor !== undefined);
-    return toTemperature(preferred ?? hottest(inputs));
+    return preferred ?? hottest(inputs);
   }
   for (const pattern of CPU_THERMAL_ZONES) {
     const matching = zones.filter((zone) => pattern.test(zone.chip));
-    if (matching.length > 0) return toTemperature(hottest(matching));
+    if (matching.length > 0) return hottest(matching);
   }
   return null;
 }
 
 function hottest(sensors: TemperatureSensor[]): TemperatureSensor {
   return sensors.reduce((a, b) => (b.celsius > a.celsius ? b : a));
-}
-
-function toTemperature(sensor: TemperatureSensor): CpuTemperature {
-  return { celsius: sensor.celsius, criticalCelsius: sensor.criticalCelsius };
 }

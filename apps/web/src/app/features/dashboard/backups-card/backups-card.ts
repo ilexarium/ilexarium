@@ -28,6 +28,8 @@ export class BackupsCard {
   /** Null until the runs are loaded. */
   readonly days = input.required<BackupDay[] | null>();
   readonly destination = input.required<string | null>();
+  /** The page's clock: "3 hours ago" moves on. */
+  readonly now = input.required<number>();
 
   private readonly translator = inject(Translator);
   protected readonly formatter = inject(Formatter);

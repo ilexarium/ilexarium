@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { SystemReader } from './system-reader.js';
-import { parseMilliCelsius, pickCpuTemperature } from './thermal-parsers.js';
+import { parseMilliCelsius, pickCpuSensor } from './thermal-parsers.js';
 
 describe('parseMilliCelsius', () => {
   it('reads millidegrees, rounded to a tenth', () => {
@@ -23,44 +23,46 @@ describe('pickCpuTemperature', () => {
   const sensor = (chip: string, celsius: number, label: string | null = null) => ({
     chip,
     label,
+    input: `${chip}/${label}`,
     celsius,
     criticalCelsius: null,
   });
 
   it('prefers the preferred label over hotter inputs of the same chip', () => {
     expect(
-      pickCpuTemperature(
-        [sensor('coretemp', 61, 'Core 0'), sensor('coretemp', 55, 'Package id 0')],
-        [],
-      ),
-    ).toEqual({ celsius: 55, criticalCelsius: null });
+      pickCpuSensor([sensor('coretemp', 61, 'Core 0'), sensor('coretemp', 55, 'Package id 0')], []),
+    ).toMatchObject({ label: 'Package id 0', celsius: 55 });
   });
 
   it('takes Tdie over Tctl (Tctl may be offset)', () => {
     expect(
-      pickCpuTemperature([sensor('k10temp', 70, 'Tctl'), sensor('k10temp', 60, 'Tdie')], [])
-        ?.celsius,
+      pickCpuSensor([sensor('k10temp', 70, 'Tctl'), sensor('k10temp', 60, 'Tdie')], [])?.celsius,
     ).toBe(60);
   });
 
   it('takes the hottest input of a chip without labels', () => {
-    expect(
-      pickCpuTemperature([sensor('cpu_thermal', 44), sensor('cpu_thermal', 47)], [])?.celsius,
-    ).toBe(47);
+    expect(pickCpuSensor([sensor('cpu_thermal', 44), sensor('cpu_thermal', 47)], [])?.celsius).toBe(
+      47,
+    );
   });
 
   it('falls back to thermal zones in their order', () => {
-    expect(
-      pickCpuTemperature([], [sensor('acpitz', 30), sensor('x86_pkg_temp', 52)])?.celsius,
-    ).toBe(52);
+    expect(pickCpuSensor([], [sensor('acpitz', 30), sensor('x86_pkg_temp', 52)])?.celsius).toBe(52);
   });
 
   it('has nothing to say without a sensor', () => {
-    expect(pickCpuTemperature([], [])).toBeNull();
+    expect(pickCpuSensor([], [])).toBeNull();
   });
 });
 
-describe('SystemReader.cpuTemperature (fixture machines)', () => {
+/** Finds the sensor, then reads it like each sample does. */
+async function read(root: string) {
+  const reader = new SystemReader(root);
+  const sensor = await reader.cpuSensor();
+  return sensor ? reader.temperature(sensor) : null;
+}
+
+describe('SystemReader: the processor temperature (fixture machines)', () => {
   let root: string;
   const write = (path: string, text: string) => {
     mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -81,7 +83,7 @@ describe('SystemReader.cpuTemperature (fixture machines)', () => {
     write('sys/class/hwmon/hwmon3/temp1_crit', '100000\n');
     write('sys/class/hwmon/hwmon3/temp2_input', '56000\n');
     write('sys/class/hwmon/hwmon3/temp2_label', 'Core 0\n');
-    expect(await new SystemReader(root).cpuTemperature()).toEqual({
+    expect(await read(root)).toEqual({
       celsius: 51,
       criticalCelsius: 100,
     });
@@ -91,7 +93,7 @@ describe('SystemReader.cpuTemperature (fixture machines)', () => {
     write('sys/class/hwmon/hwmon1/name', 'k10temp\n');
     write('sys/class/hwmon/hwmon1/temp1_input', '45125\n');
     write('sys/class/hwmon/hwmon1/temp1_label', 'Tctl\n');
-    expect((await new SystemReader(root).cpuTemperature())?.celsius).toBe(45.1);
+    expect((await read(root))?.celsius).toBe(45.1);
   });
 
   it('a Raspberry Pi: the cpu-thermal zone with its critical trip point', async () => {
@@ -100,7 +102,7 @@ describe('SystemReader.cpuTemperature (fixture machines)', () => {
     write('sys/class/thermal/thermal_zone0/trip_point_0_type', 'critical\n');
     write('sys/class/thermal/thermal_zone0/trip_point_0_temp', '110000\n');
     write('sys/class/thermal/cooling_device0/type', 'gpio-fan\n');
-    expect(await new SystemReader(root).cpuTemperature()).toEqual({
+    expect(await read(root)).toEqual({
       celsius: 47.2,
       criticalCelsius: 110,
     });
@@ -111,11 +113,11 @@ describe('SystemReader.cpuTemperature (fixture machines)', () => {
     write('sys/class/hwmon/hwmon2/temp1_input', '33000\n');
     write('sys/class/hwmon/hwmon4/name', 'nvme\n');
     write('sys/class/hwmon/hwmon4/temp1_input', '38000\n');
-    expect(await new SystemReader(root).cpuTemperature()).toBeNull();
+    expect(await read(root)).toBeNull();
   });
 
   it('a VM: no sensors at all', async () => {
     write('sys/class/thermal/cooling_device0/type', 'Processor\n');
-    expect(await new SystemReader(root).cpuTemperature()).toBeNull();
+    expect(await read(root)).toBeNull();
   });
 });

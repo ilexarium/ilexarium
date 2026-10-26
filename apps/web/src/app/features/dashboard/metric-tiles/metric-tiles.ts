@@ -109,9 +109,8 @@ export class MetricTiles {
       max: Math.max(criticalCelsius ?? 0, 90),
       series: [
         {
-          values: this.history()
-            .map((p) => p.temperatureC)
-            .filter((c) => c !== null),
+          // A missing reading is a gap: the line stays in step with the others.
+          values: this.history().map((p) => p.temperatureC),
           color: 'var(--chart-3)',
         },
       ],

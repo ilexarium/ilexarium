@@ -1,19 +1,30 @@
 import { TestBed } from '@angular/core/testing';
-import { Sparkline, sparklinePath } from './sparkline';
+import { Sparkline, sparklineSegments } from './sparkline';
 import type { SparklineSeries } from './sparkline.model';
 
-describe('sparklinePath', () => {
+describe('sparklineSegments', () => {
+  const path = (values: (number | null)[], min = 0, max = 100) =>
+    sparklineSegments(values, min, max).map((points) => points.map((p) => `${p.x},${p.y}`));
+
   it('spreads the values across the width, the lowest at the bottom', () => {
-    expect(sparklinePath([0, 50, 100], 0, 100)).toBe('M0,58 L150,30 L300,2');
+    expect(path([0, 50, 100])).toEqual([['0,58', '150,30', '300,2']]);
   });
 
   it('keeps values outside the range at its edge', () => {
-    expect(sparklinePath([-10, 200], 0, 100)).toBe('M0,58 L300,2');
+    expect(path([-10, 200])).toEqual([['0,58', '300,2']]);
+  });
+
+  it('leaves a gap where a value is missing, the rest keeping their place in time', () => {
+    expect(path([10, 10, null, 10, 10])).toEqual([
+      ['0,52.4', '75,52.4'],
+      ['225,52.4', '300,52.4'],
+    ]);
+    expect(path([10, null, 10, 10])).toEqual([['200,52.4', '300,52.4']]);
   });
 
   it('draws nothing with fewer than two values or an empty range', () => {
-    expect(sparklinePath([5], 0, 100)).toBeNull();
-    expect(sparklinePath([5, 6], 10, 10)).toBeNull();
+    expect(path([5])).toEqual([]);
+    expect(path([5, 6], 10, 10)).toEqual([]);
   });
 });
 

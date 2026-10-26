@@ -29,7 +29,7 @@ import {
   parseProcStatus,
   procHidesProcesses,
 } from './process-parsers.js';
-import { type CpuTemperature, parseMilliCelsius, pickCpuTemperature } from './thermal-parsers.js';
+import { type CpuTemperature, parseMilliCelsius, pickCpuSensor } from './thermal-parsers.js';
 import { CPU_HWMON_CHIPS, CPU_THERMAL_ZONES } from './host.constants.js';
 import type {
   BlockDevice,
@@ -302,10 +302,19 @@ export class SystemReader {
     return cpu === null || memory === null || io === null ? null : { cpu, memory, io };
   }
 
-  /** The processor's temperature, or null without a sensor (most VMs). */
-  async cpuTemperature(): Promise<CpuTemperature | null> {
+  /**
+   * Where the processor's temperature is read, or null without a sensor (most VMs). Finding it
+   * reads many files: done once, then `temperature()` reads only its input.
+   */
+  async cpuSensor(): Promise<TemperatureSensor | null> {
     const [hwmon, zones] = await Promise.all([this.hwmonSensors(), this.thermalZones()]);
-    return pickCpuTemperature(hwmon, zones);
+    return pickCpuSensor(hwmon, zones);
+  }
+
+  /** A sensor's reading now; null if it can't be read (or reads nonsense). */
+  async temperature(sensor: TemperatureSensor): Promise<CpuTemperature | null> {
+    const celsius = parseMilliCelsius(await this.readOptional(sensor.input));
+    return celsius === null ? null : { celsius, criticalCelsius: sensor.criticalCelsius };
   }
 
   /** The temperature inputs of the hwmon chips that measure the processor (no others are read). */
@@ -324,6 +333,7 @@ export class SystemReader {
         sensors.push({
           chip,
           label: (await this.readOptional(`${dir}/temp${input[1]}_label`))?.trim() ?? null,
+          input: `${dir}/${file}`,
           celsius,
           criticalCelsius: parseMilliCelsius(
             await this.readOptional(`${dir}/temp${input[1]}_crit`),
@@ -351,7 +361,7 @@ export class SystemReader {
           await this.readOptional(`${dir}/trip_point_${trip[1]}_temp`),
         );
       }
-      zones.push({ chip: type, label: null, celsius, criticalCelsius });
+      zones.push({ chip: type, label: null, input: `${dir}/temp`, celsius, criticalCelsius });
     }
     return zones;
   }

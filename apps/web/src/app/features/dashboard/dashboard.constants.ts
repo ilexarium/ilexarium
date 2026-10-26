@@ -20,6 +20,12 @@ export const SPACE_ALERT_KINDS: AlertKind[] = ['diskFull', 'diskMissing'];
 /** The days the backups' strip shows. */
 export const BACKUP_DAYS = 14;
 
+/** A day of the strip shows its worst run. */
+export const BACKUP_OUTCOME_RANK = { ok: 0, warning: 1, failed: 2 } as const;
+
+/** The page's clock: relative times, the strip's days and the activity follow it. */
+export const CLOCK_MS = 60_000;
+
 /** The catalog entry whose tile opens the Assistant. */
 export const ASSISTANT_CATALOG_ID = 'ollama';
 

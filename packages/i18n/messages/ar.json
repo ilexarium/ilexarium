@@ -339,7 +339,8 @@
         "stopped_few": "{{count}} متوقفة",
         "stopped_many": "{{count}} متوقفًا",
         "stopped_other": "{{count}} متوقف",
-        "healthy": "كلها سليمة"
+        "healthy": "كلها سليمة",
+        "dockerDown": "تعذّر الوصول إلى Docker"
       },
       "backups": {
         "label": "النسخ الاحتياطية",
@@ -544,6 +545,11 @@
       "start": "تعذّر تشغيل {{name}}",
       "stop": "تعذّر إيقاف {{name}}",
       "restart": "تعذّرت إعادة تشغيل {{name}}"
+    },
+    "partly": {
+      "start": "لم يُشغَّل {{name}} إلا جزئيًا",
+      "stop": "لم يُوقَف {{name}} إلا جزئيًا",
+      "restart": "لم تُعَد تشغيل {{name}} إلا جزئيًا"
     }
   },
   "logs": {

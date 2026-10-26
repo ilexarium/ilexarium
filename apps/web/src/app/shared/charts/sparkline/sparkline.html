@@ -5,8 +5,8 @@
   focusable="false"
   class="block size-full overflow-visible"
 >
-  @if (area(); as d) {
-    <path [attr.d]="d" [style.fill]="lines()[0].color" fill-opacity="0.14" />
+  @if (area(); as area) {
+    <path [attr.d]="area.d" [style.fill]="area.color" fill-opacity="0.14" />
   }
   @for (line of lines(); track $index) {
     <path
@@ -17,7 +17,7 @@
       stroke-linejoin="round"
       stroke-linecap="round"
       vector-effect="non-scaling-stroke"
-      [attr.stroke-dasharray]="$first ? null : '4 3'"
+      [attr.stroke-dasharray]="line.dashed ? '4 3' : null"
     />
   }
 </svg>
