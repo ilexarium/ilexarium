@@ -28,6 +28,7 @@ import { bytesPerSecond, cpuUsagePercent } from '../host/proc-parsers.js';
 import { SystemReader } from '../host/system-reader.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import type { CpuTimes, MemoryInfo, NetCounters } from '../host/host.model.js';
+import type { CpuTemperature } from '../host/thermal-parsers.js';
 import {
   DISK_INTERVAL_MS,
   FIRST_SAMPLE_DELAY_MS,
@@ -42,6 +43,7 @@ interface Reading {
   disks: DiskUsage[];
   loadAverage: [number, number, number];
   uptimeSeconds: number;
+  temperature: CpuTemperature | null;
 }
 
 /** One collecting period: while `updates$` is subscribed. */
@@ -80,6 +82,7 @@ function toUpdate(previous: Reading, current: Reading): SystemUpdate {
           txBytesPerSec: bytesPerSecond(before.txBytes, counters.txBytes, seconds),
         };
       }),
+      temperature: current.temperature,
     },
     disks: current.disks,
   };
@@ -168,10 +171,11 @@ export class SystemMetricsService implements TopicSource<'system'> {
 
   private async read(run: Run): Promise<Reading> {
     const at = Date.now();
-    const [cpu, net, memory] = await Promise.all([
+    const [cpu, net, memory, temperature] = await Promise.all([
       this.reader.cpuTimes(),
       this.reader.netCounters(),
       this.reader.memory(),
+      this.reader.cpuTemperature(),
     ]);
     if (at - run.disksAt >= DISK_INTERVAL_MS) await this.refreshDisks(run, at);
     return {
@@ -182,6 +186,7 @@ export class SystemMetricsService implements TopicSource<'system'> {
       disks: run.disks,
       loadAverage: this.reader.loadAverage(),
       uptimeSeconds: this.reader.uptimeSeconds(),
+      temperature,
     };
   }
 

@@ -135,7 +135,7 @@ export class AlertRecords implements OnModuleInit {
       }),
     ]);
     open.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
-    const view = (row: AlertRow) => toView(row, serviceName);
+    const view = (row: AlertRow) => toAlertView(row, serviceName);
     return { open: open.map(view), closed: closed.map(view) };
   }
 
@@ -211,7 +211,10 @@ function toOpen(row: AlertRow): OpenAlert {
   };
 }
 
-function toView(row: AlertRow, serviceName: (catalogId: string) => string | null): Alert {
+export function toAlertView(
+  row: AlertRow,
+  serviceName: (catalogId: string) => string | null,
+): Alert {
   const details = (row.details ?? {}) as AlertDetails;
   return {
     id: row.id,

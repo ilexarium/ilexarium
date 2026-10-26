@@ -103,3 +103,12 @@ export interface RawProcess extends ProcStat {
   /** The container's ID (64 hex digits) if it runs in one; `''` in one whose ID isn't known. */
   containerId: string | null;
 }
+
+/** One temperature input of a hwmon chip or a thermal zone. */
+export interface TemperatureSensor {
+  /** The hwmon chip's `name`, or the thermal zone's `type`. */
+  chip: string;
+  label: string | null;
+  celsius: number;
+  criticalCelsius: number | null;
+}

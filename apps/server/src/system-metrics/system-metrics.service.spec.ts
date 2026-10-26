@@ -62,6 +62,13 @@ class FakeReader {
   async memory(): Promise<MemoryInfo> {
     return this.memoryInfo;
   }
+  temperature: { celsius: number; criticalCelsius: number | null } | null = {
+    celsius: 48,
+    criticalCelsius: 100,
+  };
+  async cpuTemperature() {
+    return this.temperature;
+  }
   async disks(): Promise<DiskUsage[]> {
     this.diskReads++;
     return [rootDisk];
@@ -137,6 +144,15 @@ describe('SystemMetricsService', () => {
     expect(sample.at).toBe(Date.now());
     expect(uptimeSeconds).toBe(3600);
     expect(disks).toEqual([rootDisk]);
+    expect(sample.temperature).toEqual({ celsius: 48, criticalCelsius: 100 });
+  });
+
+  it('carries no temperature without a sensor, in the sample and the history', async () => {
+    reader.temperature = null;
+    start();
+    await vi.advanceTimersByTimeAsync(FIRST_SAMPLE_DELAY_MS);
+    expect(published.at(-1)!.sample.temperature).toBeNull();
+    expect((await service.snapshot()).history.at(-1)!.temperatureC).toBeNull();
   });
 
   it('reports a new interface at 0 until its second reading', async () => {
@@ -206,6 +222,7 @@ describe('SystemMetricsService', () => {
           // The first sample spans 1 s.
           rxBytesPerSec: 2000,
           txBytesPerSec: 1000,
+          temperatureC: 48,
         },
       ]);
     });
