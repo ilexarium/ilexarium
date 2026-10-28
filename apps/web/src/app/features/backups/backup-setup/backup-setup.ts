@@ -21,7 +21,7 @@ import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { Formatter } from '../../../shared/format/formatter';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
-import type { BackupableService } from '../backups.model';
+import type { AppSummary } from '@laris/shared';
 import { FolderPicker } from '../folder-picker/folder-picker';
 import { RetentionFields } from '../retention-fields/retention-fields';
 import { ScheduleFields } from '../schedule-fields/schedule-fields';
@@ -29,7 +29,7 @@ import { ScheduleFields } from '../schedule-fields/schedule-fields';
 /**
  * Setting backups up, once: the disk (mounted ones under /mnt and /media, free space, a warning
  * when it holds the data too), when and how long (presets, numbers under "Advanced"), and what
- * (installed services ticked, folders added; this app itself always). "Set up backups" creates
+ * (apps ticked, folders added; this app itself always). "Set up backups" creates
  * the repository; its passphrase is shown next. Submits through the page store.
  */
 @Component({
@@ -55,7 +55,7 @@ import { ScheduleFields } from '../schedule-fields/schedule-fields';
 export class BackupSetup {
   /** Null while loading. */
   readonly destinations = input<BackupDestination[] | null>(null);
-  readonly services = input<BackupableService[]>([]);
+  readonly apps = input<AppSummary[]>([]);
   /** The folder picker's place (the page store loads it). */
   readonly folderListing = input<BackupFoldersResponse | null>(null);
 
@@ -65,10 +65,8 @@ export class BackupSetup {
   private readonly backupsPageStore = inject(BackupsPageStore);
   protected readonly formatter = inject(Formatter);
 
-  /** Services switched off (all are on at first). */
-  protected readonly skippedServices = signal<string[]>([]);
-  /** A service's folders switched off, by service id. */
-  protected readonly excluded = signal<Record<string, string[]>>({});
+  /** Apps switched off (all are on at first). */
+  protected readonly skippedApps = signal<string[]>([]);
   protected readonly folders = signal<string[]>([]);
   protected readonly pickerOpen = signal(false);
 
@@ -84,21 +82,15 @@ export class BackupSetup {
       submission: {
         action: async (tree) => {
           const value = tree().value();
-          const skipped = this.skippedServices();
+          const skipped = this.skippedApps();
           try {
-            await this.backupsPageStore.setup({
-              ...value,
-              items: [
-                ...this.services()
-                  .filter((s) => !skipped.includes(s.id))
-                  .map((s) => ({
-                    kind: 'service' as const,
-                    serviceId: s.id,
-                    excludedFields: this.excluded()[s.id] ?? [],
-                  })),
-                ...this.folders().map((path) => ({ kind: 'folder' as const, path })),
-              ],
-            });
+            await this.backupsPageStore.setup(
+              value,
+              this.apps()
+                .map((app) => app.name)
+                .filter((name) => !skipped.includes(name)),
+              this.folders(),
+            );
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }
@@ -117,24 +109,8 @@ export class BackupSetup {
     return (event.target as HTMLInputElement).checked;
   }
 
-  protected toggleService(id: string, on: boolean): void {
-    this.skippedServices.update((list) => (on ? list.filter((s) => s !== id) : [...list, id]));
-  }
-
-  protected toggleFolder(service: BackupableService, field: string, on: boolean): void {
-    this.excluded.update((all) => {
-      const current = all[service.id] ?? [];
-      return {
-        ...all,
-        [service.id]: on ? current.filter((f) => f !== field) : [...current, field],
-      };
-    });
-  }
-
-  /** At least one folder of a service stays on. */
-  protected lastFolder(service: BackupableService, field: string): boolean {
-    const off = this.excluded()[service.id] ?? [];
-    return !off.includes(field) && off.length === service.folders.length - 1;
+  protected toggleApp(name: string, on: boolean): void {
+    this.skippedApps.update((list) => (on ? list.filter((s) => s !== name) : [...list, name]));
   }
 
   protected openPicker(): void {

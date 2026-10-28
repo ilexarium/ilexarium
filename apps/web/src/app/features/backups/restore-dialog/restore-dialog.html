@@ -43,8 +43,8 @@
                 type="radio"
                 name="target"
                 class="mt-0.5 size-4"
-                [checked]="target() === 'inPlace'"
-                (change)="setTarget('inPlace')"
+                [checked]="target() === 'original'"
+                (change)="setTarget('original')"
               />
               <span class="grid gap-0.5">
                 <span class="font-medium">{{ 'backups.restore.inPlace' | translate }}</span>
@@ -59,8 +59,8 @@
               type="radio"
               name="target"
               class="mt-0.5 size-4"
-              [checked]="target() === 'newFolder'"
-              (change)="setTarget('newFolder')"
+              [checked]="target() === 'folder'"
+              (change)="setTarget('folder')"
             />
             <span class="grid gap-0.5">
               <span class="font-medium">{{ 'backups.restore.newFolder' | translate }}</span>
@@ -69,10 +69,20 @@
               }}</span>
             </span>
           </label>
-          @if (row()?.item?.removed && target() === 'inPlace') {
-            <p class="text-sm text-muted-foreground">
-              {{ 'backups.restore.reinstall' | translate }}
-            </p>
+          @if (target() === 'folder') {
+            <input
+              class="h-9 rounded-md border bg-background px-3 text-sm"
+              dir="ltr"
+              autocomplete="off"
+              spellcheck="false"
+              [attr.aria-label]="'backups.restore.folderLabel' | translate"
+              placeholder="/home/…/restored"
+              [value]="folder()"
+              (input)="setFolder($event)"
+            />
+            @if (folder() && !folderValid()) {
+              <p class="text-sm text-destructive">{{ 'validation.backupFolderSystem' | translate }}</p>
+            }
           }
         </fieldset>
       }
@@ -86,12 +96,12 @@
       <button hlmAlertDialogCancel>{{ 'backups.restore.cancel' | translate }}</button>
       <button
         hlmAlertDialogAction
-        [variant]="target() === 'inPlace' ? 'destructive' : 'default'"
-        [disabled]="!chosen()"
+        [variant]="target() === 'original' ? 'destructive' : 'default'"
+        [disabled]="!chosen() || (target() === 'folder' && !folderValid())"
         (click)="confirmed()"
       >
         {{
-          (target() === 'inPlace' ? 'backups.restore.confirmInPlace' : 'backups.restore.confirm')
+          (target() === 'original' ? 'backups.restore.confirmInPlace' : 'backups.restore.confirm')
             | translate
         }}
       </button>

@@ -5,7 +5,6 @@ import {
   input,
   linkedSignal,
   untracked,
-  viewChild,
 } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import {
@@ -25,7 +24,6 @@ import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
-import { PassphraseDialog } from '../passphrase-dialog/passphrase-dialog';
 import { RetentionFields } from '../retention-fields/retention-fields';
 import { ScheduleFields } from '../schedule-fields/schedule-fields';
 
@@ -45,7 +43,6 @@ import { ScheduleFields } from '../schedule-fields/schedule-fields';
     HlmFieldImports,
     HlmSelectImports,
     NgIcon,
-    PassphraseDialog,
     RetentionFields,
     ScheduleFields,
     TranslatePipe,
@@ -58,7 +55,6 @@ export class BackupSettings {
   readonly destinations = input<BackupDestination[] | null>(null);
 
   private readonly backupsPageStore = inject(BackupsPageStore);
-  private readonly passphraseDialog = viewChild.required(PassphraseDialog);
 
   /**
    * The saved plan, until it's saved again (here or elsewhere): the page reloads the plan after
@@ -109,7 +105,8 @@ export class BackupSettings {
     () => this.model().destination !== this.plan().destination,
   );
 
+  /** Through the person's sudo (the prompt asks when it's locked). */
   protected showPassphrase(): void {
-    this.passphraseDialog().open();
+    void this.backupsPageStore.showPassphrase();
   }
 }

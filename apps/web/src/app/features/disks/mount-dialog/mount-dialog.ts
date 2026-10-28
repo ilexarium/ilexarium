@@ -19,9 +19,10 @@ import { DisksPageStore } from '../disks-page/disks-page-store';
 import type { MountTarget } from '../disks.model';
 
 /**
- * Mounting a disk: a name for its folder (suggested from the disk's label), where it will be,
- * and that it stays mounted after a restart. The confirm button is the confirmation. Submits
- * through the page store.
+ * Mounting a disk: the folder it's mounted at (`/mnt/<name>` suggested from the disk's label;
+ * anywhere but a system folder), whether its top folder becomes the signed-in account's, and
+ * that it stays mounted after a restart. The confirm button is the confirmation. Submits through
+ * the page store, as the person (their sudo).
  */
 @Component({
   selector: 'laris-mount-dialog',
@@ -44,7 +45,7 @@ export class MountDialog {
   private readonly dialog = viewChild.required(HlmAlertDialog);
 
   protected readonly target = signal<MountTarget | null>(null);
-  private readonly model = signal<DiskMountRequest>({ uuid: '', name: '' });
+  private readonly model = signal<DiskMountRequest>({ uuid: '', mountPoint: '', makeMine: false });
   protected readonly form = form(
     this.model,
     (path) => validateStandardSchema(path, diskMountRequestSchema),
@@ -52,7 +53,7 @@ export class MountDialog {
       submission: {
         action: async (tree) => {
           try {
-            await this.disksPageStore.mount(tree().value());
+            if (!(await this.disksPageStore.mount(tree().value()))) return undefined;
           } catch (error) {
             return toSubmissionErrors(error, tree);
           }
@@ -63,8 +64,6 @@ export class MountDialog {
     },
   );
 
-  /** Where it will be mounted. */
-  protected readonly path = computed(() => `${DISK_MOUNT_ROOT}/${this.form.name().value() || '…'}`);
   protected readonly title = computed(() => {
     const target = this.target();
     return target?.partition.label ?? target?.diskName ?? '';
@@ -74,7 +73,8 @@ export class MountDialog {
     this.target.set(target);
     this.form().reset({
       uuid: target.partition.uuid ?? '',
-      name: suggestDiskName(target.partition.label, taken),
+      mountPoint: `${DISK_MOUNT_ROOT}/${suggestDiskName(target.partition.label, taken)}`,
+      makeMine: false,
     });
     this.dialog().open();
   }

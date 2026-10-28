@@ -43,9 +43,9 @@
       [folderListing]="backupsPageStore.folders()"
       (runNow)="backupsPageStore.runNow($event)"
       (restore)="openRestore($event)"
-      (setFolders)="backupsPageStore.setFolders($event)"
+      (change)="backupsPageStore.changeItem($event)"
       (remove)="backupsPageStore.removeItem($event)"
-      (addService)="backupsPageStore.addService($event)"
+      (addApp)="backupsPageStore.addApp($event)"
       (addFolder)="backupsPageStore.addFolder($event)"
       (browse)="backupsPageStore.browse($event)"
       (closeBrowser)="backupsPageStore.closeBrowser()"
@@ -66,7 +66,7 @@
 } @else {
   <laris-backup-setup
     [destinations]="backupsPageStore.destinations()"
-    [services]="backupsPageStore.backupable()"
+    [apps]="backupsPageStore.apps()"
     [folderListing]="backupsPageStore.folders()"
     (browse)="backupsPageStore.browse($event)"
     (closeBrowser)="backupsPageStore.closeBrowser()"

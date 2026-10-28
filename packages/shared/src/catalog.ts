@@ -93,6 +93,8 @@ export const backupSkipSchema = z
 export const templateBackupSchema = z.strictObject({
   mode: backupModeSchema,
   skip: z.array(backupSkipSchema).max(CATALOG_LIMITS.maxBackupSkips).optional(),
+  /** After a restore, show `catalog.<id>.backup.restoreNote` (e.g. "restore the database in …"). */
+  restoreNote: z.boolean().optional(),
 });
 
 // Templates.
@@ -145,6 +147,8 @@ export const templateSummarySchema = z.object({
   website: z.string(),
   /** Its web page's port inside the container (the "Open" link), or null. */
   webPort: z.number().int().nullable(),
+  /** After a restore, show `catalog.<id>.backup.restoreNote`. */
+  backupRestoreNote: z.boolean(),
 });
 export type TemplateSummary = z.infer<typeof templateSummarySchema>;
 

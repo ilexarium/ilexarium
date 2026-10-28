@@ -99,34 +99,16 @@
         <p class="-mt-2 text-sm text-muted-foreground">
           {{ 'backups.items.platformHelp' | translate }}
         </p>
-        @for (service of services(); track service.id) {
-          <div class="grid gap-2 rounded-md border p-3">
-            <label class="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                class="size-4"
-                [checked]="!skippedServices().includes(service.id)"
-                (change)="toggleService(service.id, checked($event))"
-              />
-              {{ service.name }}
-            </label>
-            @if (service.folders.length > 1 && !skippedServices().includes(service.id)) {
-              <div class="grid gap-1 ps-6">
-                @for (field of service.folders; track field) {
-                  <label class="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      class="size-4"
-                      [checked]="!(excluded()[service.id] ?? []).includes(field)"
-                      [disabled]="lastFolder(service, field)"
-                      (change)="toggleFolder(service, field, checked($event))"
-                    />
-                    {{ 'catalog.' + service.catalogId + '.fields.' + field + '.label' | translate }}
-                  </label>
-                }
-              </div>
-            }
-          </div>
+        @for (app of apps(); track app.name) {
+          <label class="flex items-center gap-2 rounded-md border p-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              class="size-4"
+              [checked]="!skippedApps().includes(app.name)"
+              (change)="toggleApp(app.name, checked($event))"
+            />
+            <span dir="ltr">{{ app.name }}</span>
+          </label>
         }
         @for (path of folders(); track path) {
           <div class="flex items-center gap-2 rounded-md border p-3 text-sm">

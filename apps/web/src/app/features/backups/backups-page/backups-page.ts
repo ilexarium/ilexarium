@@ -1,6 +1,9 @@
-import { Component, computed, inject, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, untracked, viewChild } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmSkeleton } from '@ui/skeleton';
+import { AppsStore } from '../../../core/apps/apps-store';
 import { Translator } from '../../../core/i18n/translator';
 import { BackupHistory } from '../backup-history/backup-history';
 import { BackupItems } from '../backup-items/backup-items';
@@ -39,6 +42,8 @@ import { BackupsPageStore } from './backups-page-store';
 export class BackupsPage {
   protected readonly backupsPageStore = inject(BackupsPageStore);
   private readonly translator = inject(Translator);
+  private readonly appsStore = inject(AppsStore);
+  private readonly route = inject(ActivatedRoute);
   private readonly restoreDialog = viewChild(RestoreDialog);
 
   /** What each item is called (removed ones too, for the history). */
@@ -64,23 +69,38 @@ export class BackupsPage {
     const restore = this.backupsPageStore.status()?.restore;
     if (!restore) return null;
     const waiting = restore.setAside.length > 0 && !restore.setAsideDeleted;
-    const finished = restore.job.finishedAt ? Date.parse(restore.job.finishedAt) : Date.now();
-    return restore.job.status === 'running' || waiting || Date.now() - finished < RESTORE_SHOWN_MS
+    const finished = restore.finishedAt ? Date.parse(restore.finishedAt) : Date.now();
+    return restore.status === 'running' || waiting || Date.now() - finished < RESTORE_SHOWN_MS
       ? restore
       : null;
   });
 
-  /** The service's note after a restore (e.g. "restore the database in Immich"). */
+  /** The app's template's note after a restore (e.g. "restore the database in Immich"). */
   protected readonly restoreNote = computed(() => {
     const restore = this.restore();
     const row = this.backupsPageStore
       .rows()
       .active.concat(this.backupsPageStore.rows().removed)
       .find((r) => r.item.id === restore?.itemId);
-    const catalogId = row?.item.catalogId;
-    const entry = catalogId ? this.backupsPageStore.catalogById().get(catalogId) : undefined;
-    return entry?.backupRestoreNote ? `catalog.${entry.id}.backup.restoreNote` : null;
+    const app = this.backupsPageStore.apps().find((a) => a.name === row?.item.project);
+    const template = app?.template ? this.appsStore.templatesById().get(app.template.id) : undefined;
+    return template?.backupRestoreNote ? `catalog.${template.id}.backup.restoreNote` : null;
   });
+
+  /** Opened from an app's "Undo this update" (`?restore=<item>`): its restore dialog, once. */
+  private readonly restoreAsked = toSignal(this.route.queryParamMap, { requireSync: true });
+
+  constructor() {
+    let opened = false;
+    effect(() => {
+      const itemId = this.restoreAsked().get('restore');
+      const row = this.backupsPageStore.rows().active.find((r) => r.item.id === itemId);
+      if (!opened && row) {
+        opened = true;
+        untracked(() => this.openRestore(row));
+      }
+    });
+  }
 
   protected openRestore(row: ItemRow): void {
     this.restoreDialog()?.open(row);

@@ -16,6 +16,7 @@ import type {
   BackupPlanUpdate,
   BackupRestore,
   BackupRun,
+  BackupItemRequest,
   BackupItemUpdate,
   BackupSetupRequest,
 } from '@laris/shared';
@@ -155,6 +156,19 @@ export const BackupsPageStore = signalStore(
         }
       }
 
+      /** An app item, with its template's preset (how, and what to skip) when it has one. */
+      const appItem = async (name: string): Promise<BackupItemRequest> => {
+        const app = store.apps().find((a) => a.name === name);
+        let mode: 'stop' | 'live' = 'stop';
+        let skip: string[] = [];
+        if (app?.template && app.folder) {
+          const preset = await firstValueFrom(appsApi.template(app.template.id)).catch(() => null);
+          mode = preset?.template.backup?.mode ?? mode;
+          skip = (preset?.template.backup?.skip ?? []).map((s) => `${app.folder}/${s}`);
+        }
+        return { kind: 'app', project: name, folders: [], skip, mode };
+      };
+
       const plan$ = () =>
         backupsApi.plan().pipe(
           tap(({ plan }) => patchState(store, { plan, loaded: true, failed: false })),
@@ -201,10 +215,21 @@ export const BackupsPageStore = signalStore(
         /** After a change pushed by the topic: the plan and the history again. */
         reload,
 
-        /** Sets backups up, as the person; rejects with the server's error (the form puts it on its fields). */
-        async setup(request: BackupSetupRequest): Promise<void> {
+        /**
+         * Sets backups up, as the person, with these apps (their templates' presets) and folders;
+         * rejects with the server's error (the form puts it on its fields).
+         */
+        async setup(
+          settings: Omit<BackupSetupRequest, 'items'>,
+          apps: string[],
+          folders: string[],
+        ): Promise<void> {
+          const items: BackupSetupRequest['items'] = [
+            ...(await Promise.all(apps.map((name) => appItem(name)))),
+            ...folders.map((path) => ({ kind: 'folder' as const, path })),
+          ];
           const answer = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(backupsApi.setup(request)),
+            firstValueFrom(backupsApi.setup({ ...settings, items })),
           );
           if (!answer) return;
           patchState(store, { passphrase: answer.passphrase, passphraseFirst: true });
@@ -247,22 +272,9 @@ export const BackupsPageStore = signalStore(
           }
         },
 
-        /** An app, with its template's preset (how, and what to skip) when it has one. */
         async addApp(name: string): Promise<void> {
-          const app = store.apps().find((a) => a.name === name);
-          if (!app) return;
-          let mode: 'stop' | 'live' = 'stop';
-          let skip: string[] = [];
-          if (app.template && app.folder) {
-            const preset = await firstValueFrom(appsApi.template(app.template.id)).catch(() => null);
-            mode = preset?.template.backup?.mode ?? mode;
-            skip = (preset?.template.backup?.skip ?? []).map((s) => `${app.folder}/${s}`);
-          }
-          if (
-            await act(`add:${name}`, 'backups.items.addFailed', () =>
-              backupsApi.addItem({ kind: 'app', project: name, folders: [], skip, mode }),
-            )
-          ) {
+          const item = await appItem(name);
+          if (await act(`add:${name}`, 'backups.items.addFailed', () => backupsApi.addItem(item))) {
             reload();
           }
         },
