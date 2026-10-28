@@ -21,8 +21,6 @@ model User {
   language       String?
   avatar         UserAvatar?
   sessions       Session[]
-  services       Service[]
-  serviceJobs    ServiceJob[]
   backupRuns     BackupRun[]
   backupRestores BackupRestore[]
   chats          Chat[]
@@ -75,68 +73,6 @@ model AuditEvent {
   @@index([userId])
 }
 
-/// A catalog service installed on this machine (docs/plans/service_deploys.md). One per catalog
-/// entry. Kept as `removed` after a removal: its settings and secrets serve a reinstall, which
-/// must reuse them (its data was set up with them).
-model Service {
-  id             String          @id @default(uuid(7)) @db.Uuid
-  catalogId      String          @unique
-  catalogVersion String
-  status         ServiceStatus
-  /// The non-secret values it was installed with.
-  settings       Json
-  secrets        ServiceSecret[]
-  jobs           ServiceJob[]
-  backupItems    BackupItem[]
-  createdById    String?         @db.Uuid
-  createdBy      User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
-}
-
-enum ServiceStatus {
-  installing
-  installed
-  failed
-  removing
-  removed
-}
-
-/// A secret value of a service, encrypted (AES-256-GCM, bound to service id and key).
-model ServiceSecret {
-  serviceId String  @db.Uuid
-  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  key       String
-  value     Bytes
-
-  @@id([serviceId, key])
-}
-
-/// One install or removal: its progress and output (secrets masked, at most 256 KB).
-model ServiceJob {
-  id          String    @id @default(uuid(7)) @db.Uuid
-  serviceId   String    @db.Uuid
-  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  kind        JobKind
-  status      JobStatus
-  phase       String?
-  errorCode   String?
-  errorField  String?
-  output      String    @default("")
-  startedById String?   @db.Uuid
-  startedBy   User?     @relation(fields: [startedById], references: [id], onDelete: SetNull)
-  startedAt   DateTime  @default(now()) @db.Timestamptz(3)
-  finishedAt  DateTime? @db.Timestamptz(3)
-
-  @@index([serviceId, startedAt])
-}
-
-enum JobKind {
-  deploy
-  remove
-  restore
-}
-
 enum JobStatus {
   running
   succeeded
@@ -159,15 +95,18 @@ model BackupPlan {
   updatedAt    DateTime @updatedAt @db.Timestamptz(3)
 }
 
-/// What is backed up: the platform (always), an installed service, or a folder.
+/// What is backed up: the platform (always), an app (by its Compose project), or a folder.
 model BackupItem {
-  id             String             @id @default(uuid(7)) @db.Uuid
-  kind           BackupItemKind
-  serviceId      String?            @db.Uuid
-  service        Service?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  path           String?
-  /// A service's folder fields switched off by the user.
-  excludedFields String[]           @default([])
+  id              String             @id @default(uuid(7)) @db.Uuid
+  kind            BackupItemKind
+  /// app: its Compose project, its folders (ticked), those left out on purpose, skips and mode.
+  project         String?
+  folders         String[]           @default([])
+  excludedFolders String[]           @default([])
+  skip            String[]           @default([])
+  /// "stop" | "live"
+  mode            String?
+  path            String?
   /// Removed from the plan: not backed up any more; its archives stay until deleted.
   removedAt      DateTime?          @db.Timestamptz(3)
   /// Its archives after the latest run's pruning (from the wrapper's results — no listing call).
@@ -177,12 +116,12 @@ model BackupItem {
   results        BackupItemResult[]
   restores       BackupRestore[]
 
-  @@index([serviceId])
+  @@index([project])
 }
 
 enum BackupItemKind {
   platform
-  service
+  app
   folder
 }
 
@@ -252,23 +191,20 @@ model BackupCheck {
   @@index([finishedAt])
 }
 
-/// A restore of one archive: a job (progress and output, at most 256 KB).
+/// A restore of one archive, run as its own unit; its progress and result from the program's files.
 model BackupRestore {
   id                String              @id @default(uuid(7)) @db.Uuid
   itemId            String              @db.Uuid
   item              BackupItem          @relation(fields: [itemId], references: [id], onDelete: Cascade)
   archive           String
-  target            BackupRestoreTarget
-  /// newFolder: where it went.
+  /// A new folder it went to; null: back where it was.
   targetPath        String?
-  /// inPlace: the folders set aside (the way back), until "Delete previous version".
+  /// Back where it was: the folders set aside (the way back), until "Delete previous version".
   setAside          String[]            @default([])
   setAsideDeletedAt DateTime?           @db.Timestamptz(3)
-  kind              JobKind             @default(restore)
   status            JobStatus
   phase             String?
   errorCode         String?
-  errorField        String?
   output            String              @default("")
   startedById       String?             @db.Uuid
   startedBy         User?               @relation(fields: [startedById], references: [id], onDelete: SetNull)
@@ -276,11 +212,6 @@ model BackupRestore {
   finishedAt        DateTime?           @db.Timestamptz(3)
 
   @@index([startedAt])
-}
-
-enum BackupRestoreTarget {
-  inPlace
-  newFolder
 }
 
 enum AlertSeverity {

@@ -3,17 +3,14 @@ import type { Alert as AlertRow, AuditEvent, BackupRun } from '../generated/pris
 import { toAlertView } from '../alerts/alert-records.js';
 import { ACTIVITY_SUBJECTS } from './activity.constants.js';
 
-type Names = (catalogId: string) => string | null;
-
 /** An audit entry as an activity: its action, who, and at most one checked detail. */
-export function fromAudit(event: AuditEvent, serviceName: Names): ActivityItem | null {
+export function fromAudit(event: AuditEvent): ActivityItem | null {
   const action = activityActionSchema.safeParse(event.action);
   if (!action.success || event.outcome !== 'success') return null;
   const rule = ACTIVITY_SUBJECTS[action.data];
   const details = (event.details ?? {}) as Record<string, unknown>;
   const value = rule ? details[rule.field] : undefined;
-  let subject = typeof value === 'string' && rule?.valid(value) ? value : null;
-  if (subject && rule?.field === 'catalogId') subject = serviceName(subject) ?? subject;
+  const subject = typeof value === 'string' && rule?.valid(value) ? value : null;
   return {
     source: 'action',
     id: event.id,
@@ -36,8 +33,8 @@ export function fromBackupRun(run: BackupRun): ActivityItem | null {
 }
 
 /** An alert opened, and closed if it was. */
-export function fromAlert(row: AlertRow, serviceName: Names): ActivityItem[] {
-  const alert = toAlertView(row, serviceName);
+export function fromAlert(row: AlertRow): ActivityItem[] {
+  const alert = toAlertView(row);
   const items: ActivityItem[] = [
     { source: 'alert', id: `${row.id}-opened`, at: alert.openedAt, event: 'opened', alert },
   ];

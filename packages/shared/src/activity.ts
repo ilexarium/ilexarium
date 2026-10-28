@@ -7,8 +7,9 @@ import { backupRunStatusSchema, backupTriggerSchema } from './backups.js';
  * the terminal and ending processes are left out on purpose: private or noisy.
  */
 export const ACTIVITY_ACTIONS = [
-  'service.deploy',
-  'service.remove',
+  'app.install',
+  'app.update',
+  'app.remove',
   'container.start',
   'container.stop',
   'container.restart',

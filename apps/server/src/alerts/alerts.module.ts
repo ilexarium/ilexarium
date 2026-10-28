@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module.js';
 import { BackupsModule } from '../backups/backups.module.js';
-import { CatalogModule } from '../catalog/catalog.module.js';
 import { ContainerActionsModule } from '../container-actions/container-actions.module.js';
 import { DisksModule } from '../disks/disks.module.js';
 import { DockerModule } from '../docker/docker.module.js';
-import { ExecutorModule } from '../executor/executor.module.js';
+import { RootProgramsModule } from '../root-programs/root-programs.module.js';
 import { HostModule } from '../host/host.module.js';
 import { JobsModule } from '../jobs/jobs.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
@@ -25,11 +24,10 @@ import { AlertsTopic } from './alerts-topic.js';
   imports: [
     AuditModule,
     BackupsModule,
-    CatalogModule,
     ContainerActionsModule,
     DisksModule,
     DockerModule,
-    ExecutorModule,
+    RootProgramsModule,
     HostModule,
     JobsModule,
     RealtimeModule,

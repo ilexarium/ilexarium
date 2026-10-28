@@ -87,7 +87,7 @@ export class BackupStatusReader {
       items: itemStates.map(({ item, lastSuccess: success, last }) => ({
         id: item.id,
         kind: item.kind,
-        serviceId: item.serviceId,
+        project: item.project,
         lastSuccessAt: success?.toISOString() ?? null,
         lastStatus: last?.status ?? null,
       })),

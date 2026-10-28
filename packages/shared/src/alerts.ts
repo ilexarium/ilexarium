@@ -57,15 +57,13 @@ export const alertSchema = z.object({
   id: z.uuid(),
   kind: alertKindSchema,
   /**
-   * What it is about: the container's name (service kinds), the mount point (disk kinds), the
+   * What it is about: the container's name (app kinds), the mount point (disk kinds), the
    * warning (`backup`).
    */
   subject: z.string(),
   severity: alertSeveritySchema,
-  /** The catalog entry the container belongs to; null for the platform's own containers. */
-  catalogId: z.string().nullable(),
-  /** That entry's name (a product name, the same in every language). */
-  serviceName: z.string().nullable(),
+  /** The app (Compose project) the container belongs to; null for the platform's own containers. */
+  app: z.string().nullable(),
   /** `diskFull`: how full the disk was, last seen. */
   percent: z.number().min(0).max(100).nullable(),
   /** `backup`: which warning. */

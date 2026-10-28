@@ -1,0 +1,21 @@
+{
+  "id": "ollama",
+  "version": "2",
+  "name": "Ollama",
+  "category": "tools",
+  "website": "https://ollama.com",
+  "fields": [
+    { "key": "DATA_DIR", "kind": "folder", "default": "./models" },
+    { "key": "API_PORT", "kind": "port", "default": 11434, "advanced": true },
+    { "key": "API_ADDRESS", "kind": "text", "default": "127.0.0.1", "advanced": true },
+    {
+      "key": "OLLAMA_VERSION",
+      "kind": "version",
+      "image": "ollama/ollama",
+      "default": "0.40.6"
+    },
+    { "key": "USER_ID", "kind": "text", "default": "@account", "advanced": true }
+  ],
+  "backup": { "mode": "live", "skip": ["models/models"] },
+  "note": true
+}

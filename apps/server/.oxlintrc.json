@@ -9,11 +9,11 @@
         "paths": [
           {
             "name": "child_process",
-            "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+            "message": "Only src/root-programs/ may start a program (the root programs from the repository, in development). Everything else goes through the Linux session's helper."
           },
           {
             "name": "node:child_process",
-            "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+            "message": "Only src/root-programs/ may start a program (the root programs from the repository, in development). Everything else goes through the Linux session's helper."
           },
           {
             "name": "dockerode",
@@ -25,7 +25,7 @@
   },
   "overrides": [
     {
-      "files": ["src/executor/**"],
+      "files": ["src/root-programs/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -49,11 +49,11 @@
             "paths": [
               {
                 "name": "child_process",
-                "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+                "message": "Only src/root-programs/ may start a program (the root programs from the repository, in development). Everything else goes through the Linux session's helper."
               },
               {
                 "name": "node:child_process",
-                "message": "Only src/executor/ may run system commands. Add a typed executor method instead."
+                "message": "Only src/root-programs/ may start a program (the root programs from the repository, in development). Everything else goes through the Linux session's helper."
               }
             ]
           }

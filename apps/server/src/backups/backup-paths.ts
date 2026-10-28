@@ -1,60 +1,38 @@
-import {
-  BACKUP_DESTINATION_ROOTS,
-  BACKUP_REPOSITORY_FOLDER,
-  isPlainAbsolutePath,
-} from '@laris/shared';
-import type { WrapperConfig } from '../executor/executor.model.js';
+import { BACKUP_REPOSITORY_FOLDER, isBackupFolder } from '@laris/shared';
 import { inside, notSystem } from '../host/folders.js';
+import type { ProgramConfig } from '../root-programs/root-programs.model.js';
 import { ARCHIVE_TIME_LENGTH, MOUNT_INFO, STATE_DIR } from './backups.constants.js';
 
 /**
  * Where things may be, as the app checks them — friendly errors before anything runs. The backup
- * wrapper checks all of it again, with its own code (system/wrappers/laris-backup.mts).
+ * program checks all of it again, with its own code (system/wrappers/laris-backup.mts).
  */
 
-/** A service's folder: inside a storage root. */
-export function isAllowedServiceFolder(config: WrapperConfig, path: string): boolean {
-  return (
-    isPlainAbsolutePath(path) &&
-    config.storageRoots.some((root) => inside(path, root)) &&
-    notSystem(config, path)
-  );
+/** A folder that may be backed up or restored into: anywhere but a system or platform folder. */
+export function isAllowedFolder(config: ProgramConfig, path: string): boolean {
+  return isBackupFolder(path) && notSystem(config, path);
 }
 
-/** `/home/<name>` or below. */
-export const isHomeFolder = (path: string) => /^\/home\/[^/]+(\/|$)/.test(path);
+/** A skip: inside one of the folders. */
+export const skipInside = (skip: string, folders: readonly string[]) =>
+  folders.some((folder) => skip.startsWith(`${folder}/`));
 
-/** A folder the user may add: inside a storage root or a home folder. */
-export function isAllowedFolder(config: WrapperConfig, path: string): boolean {
-  return (
-    isPlainAbsolutePath(path) &&
-    (config.storageRoots.some((root) => inside(path, root)) || isHomeFolder(path)) &&
-    notSystem(config, path)
-  );
-}
+export const overlaps = (a: string, b: string) => inside(a, b) || inside(b, a);
 
-/** Where backup disks may be mounted (development: the pretend ones). */
-export function destinationRoots(config: WrapperConfig): string[] {
-  return config.backup?.dev?.destinationRoots ?? [...BACKUP_DESTINATION_ROOTS];
-}
-
-/** A mount point strictly below one of the destination roots. */
-export function isDestinationPath(config: WrapperConfig, path: string): boolean {
-  return (
-    isPlainAbsolutePath(path) &&
-    destinationRoots(config).some((root) => path.startsWith(`${root}/`))
-  );
+/** Development: the pretend disks' folder; production: none (every disk that isn't a system disk). */
+export function destinationRoots(config: ProgramConfig): string[] | null {
+  return config.backup?.dev?.destinationRoots ?? null;
 }
 
 export const repositoryPath = (destination: string) => `${destination}/${BACKUP_REPOSITORY_FOLDER}`;
 
-/** The mount table the wrapper reads. */
-export function mountInfoFile(config: WrapperConfig): string {
+/** The mount table the program reads. */
+export function mountInfoFile(config: ProgramConfig): string {
   return config.backup?.dev?.mountInfo ?? MOUNT_INFO;
 }
 
-/** The wrapper's state folder: runs.jsonl and current.jsonl, readable by the app. */
-export function stateDir(config: WrapperConfig): string {
+/** The program's state folder: runs.jsonl, current.jsonl and restores/, readable by the app. */
+export function stateDir(config: ProgramConfig): string {
   const dev = config.backup?.dev?.dir;
   return dev ? `${dev}/state` : STATE_DIR;
 }

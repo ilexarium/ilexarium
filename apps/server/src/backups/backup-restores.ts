@@ -1,93 +1,112 @@
 import {
-  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
   type OnApplicationBootstrap,
+  type OnModuleDestroy,
 } from '@nestjs/common';
 import {
   BACKUP_ERROR_CODES,
+  BACKUP_LIMITS,
   type BackupRestore,
+  type BackupRestorePhase,
   type BackupRestoreRequest,
-  type JobPhase,
 } from '@laris/shared';
 import { Observable, Subject } from 'rxjs';
-import type { BackupOutcome, ExecutorActor } from '../executor/executor.model.js';
-import { ExecutorService } from '../executor/executor.service.js';
 import type { BackupRestore as BackupRestoreRow } from '../generated/prisma/client.js';
-import { jobView, LiveJob } from '../jobs/live-job.js';
-import { OperationSlot } from '../jobs/operation-slot.js';
+import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { apiError, backupError, wrapperCallRaw } from './backup-errors.js';
+import type { RootActor } from '../root-programs/root-programs.model.js';
+import { RootPrograms } from '../root-programs/root-programs.js';
+import { BackupChecks } from './backup-checks.js';
+import { apiError, backupError } from './backup-errors.js';
+import { BackupFiles, type RestoreEvent } from './backup-files.js';
+import { processAlive } from './backup-progress.js';
 import { requireItem, requirePlan } from './backup-records.js';
-import { RESTORES_KEPT, RESTORES_SHOWN } from './backups.constants.js';
+import {
+  MAX_RUN_MS,
+  RESTORE_POLL_MS,
+  RESTORE_START_GRACE_MS,
+  RESTORES_KEPT,
+  RESTORES_SHOWN,
+} from './backups.constants.js';
+
+/** What a running restore's events file said so far. */
+interface Following {
+  phase: BackupRestorePhase | null;
+  output: string[];
+}
 
 /**
- * Restores: starting one (a job in the one slot for privileged operations, its phase and output
- * live, its result saved — where it went, the folders set aside), the history, and "Delete
- * previous version". After a restart, restores that were running are marked interrupted. Every
- * change goes to listeners (the `backups` topic).
+ * Restores: started through the person's sudo, run by systemd as their own unit
+ * (`laris-restore@<id>`) — they go on if the app stops. Their phases, output and result come back
+ * through the program's events file (`restores/<id>.jsonl`), read while they run; the result is
+ * saved (the folders set aside: the way back). The history, and "Delete previous version".
  */
 @Injectable()
-export class BackupRestores implements OnApplicationBootstrap {
+export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(BackupRestores.name);
-  private active: { live: LiveJob; release: () => void } | null = null;
+  private readonly following = new Map<string, Following>();
+  private timer: NodeJS.Timeout | null = null;
+  private reading = false;
   private readonly changed = new Subject<void>();
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly executorService: ExecutorService,
-    private readonly operationSlot: OperationSlot,
-  ) {}
+    private readonly rootPrograms: RootPrograms,
+    private readonly backupChecks: BackupChecks,
+    private readonly backupFiles: BackupFiles,
+    changesUnderway: ChangesUnderway,
+  ) {
+    changesUnderway.follow(() => this.following.size > 0);
+  }
 
+  /** Restores that ran while the app was down are followed again (or finished from their file). */
   async onApplicationBootstrap(): Promise<void> {
-    const stale = await this.prisma.backupRestore.updateMany({
+    const running = await this.prisma.backupRestore.findMany({
       where: { status: 'running' },
-      data: {
-        status: 'interrupted',
-        errorCode: BACKUP_ERROR_CODES.interrupted,
-        finishedAt: new Date(),
-      },
+      select: { id: true },
     });
-    if (stale.count > 0)
-      this.logger.warn(`${stale.count} restore(s) were interrupted by a restart`);
+    for (const { id } of running) this.follow(id);
+  }
+
+  onModuleDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
   }
 
   /** A restore started, moved on or ended; a set-aside folder was deleted. */
   readonly changes$: Observable<void> = this.changed.asObservable();
 
-  async restore(
-    request: BackupRestoreRequest,
-    actor: ExecutorActor,
-  ): Promise<{ restoreId: string; jobId: string }> {
-    await requirePlan(this.prisma);
+  async restore(request: BackupRestoreRequest, actor: RootActor): Promise<{ restoreId: string }> {
+    const plan = await requirePlan(this.prisma);
     const item = await requireItem(this.prisma, request.itemId);
     if (!item.archives.includes(request.archive)) {
       throw new NotFoundException(apiError('No such backup', BACKUP_ERROR_CODES.archiveNotFound));
     }
-    if (request.target === 'inPlace' && item.kind !== 'service') {
-      throw new BadRequestException(
-        apiError('Only services are restored in place', BACKUP_ERROR_CODES.pathNotAllowed),
-      );
-    }
-    const claim = this.claim();
+    if (request.target !== null) this.backupChecks.checkRestoreTarget(request.target, plan.destination);
+    const row = await this.prisma.backupRestore.create({
+      data: {
+        itemId: item.id,
+        archive: request.archive,
+        targetPath: request.target,
+        status: 'running',
+        startedById: actor.user.id,
+      },
+    });
     try {
-      const row = await this.prisma.backupRestore.create({
-        data: {
-          itemId: item.id,
-          archive: request.archive,
-          target: request.target,
-          status: 'running',
-          startedById: actor.user.id,
-        },
-      });
-      claim.start(row.id);
-      void this.execute(row.id, request, actor);
-      return { restoreId: row.id, jobId: row.id };
+      const outcome = await this.rootPrograms.backupRestoreStart(
+        { restoreId: row.id, itemId: item.id, archive: request.archive, target: request.target },
+        actor,
+      );
+      if (!outcome.ok) throw backupError(outcome.code);
     } catch (failure) {
-      claim.release();
+      await this.prisma.backupRestore.delete({ where: { id: row.id } });
       throw failure;
     }
+    this.follow(row.id);
+    this.notify();
+    return { restoreId: row.id };
   }
 
   async restores(): Promise<BackupRestore[]> {
@@ -100,32 +119,24 @@ export class BackupRestores implements OnApplicationBootstrap {
 
   async restoreJob(id: string): Promise<BackupRestore> {
     const row = await this.prisma.backupRestore.findUnique({ where: { id } });
-    if (!row)
+    if (!row) {
       throw new NotFoundException(apiError('No such restore', BACKUP_ERROR_CODES.restoreNotFound));
+    }
     return this.view(row);
   }
 
-  /** "Delete previous version": the folders a restore in place set aside. */
-  async discardPrevious(id: string, actor: ExecutorActor): Promise<BackupRestore> {
+  /** "Delete previous version": the folders a restore set aside. */
+  async discardPrevious(id: string, actor: RootActor): Promise<BackupRestore> {
     const row = await this.prisma.backupRestore.findUnique({ where: { id } });
     if (!row || row.setAside.length === 0 || row.setAsideDeletedAt) {
-      throw new NotFoundException(
-        apiError('Nothing set aside', BACKUP_ERROR_CODES.restoreNotFound),
-      );
+      throw new NotFoundException(apiError('Nothing set aside', BACKUP_ERROR_CODES.restoreNotFound));
     }
-    const release = this.operationSlot.claim('backupTask');
-    try {
-      for (const path of row.setAside) {
-        const outcome = await wrapperCallRaw(this.logger, () =>
-          this.executorService.backupDiscard(path, actor),
-        );
-        // Already gone (deleted by hand): fine.
-        if (!outcome.ok && outcome.code !== BACKUP_ERROR_CODES.restoreNotFound) {
-          throw backupError(outcome.code);
-        }
+    for (const path of row.setAside) {
+      const outcome = await this.rootPrograms.backupDiscard(path, actor);
+      // Already gone (deleted by hand): fine.
+      if (!outcome.ok && outcome.code !== BACKUP_ERROR_CODES.restoreNotFound) {
+        throw backupError(outcome.code);
       }
-    } finally {
-      release();
     }
     const updated = await this.prisma.backupRestore.update({
       where: { id },
@@ -136,89 +147,104 @@ export class BackupRestores implements OnApplicationBootstrap {
   }
 
   view(row: BackupRestoreRow, lastLines?: number): BackupRestore {
+    const live = this.following.get(row.id);
+    const output = live ? live.output : row.output ? row.output.split('\n') : [];
     return {
       id: row.id,
       itemId: row.itemId,
       archive: row.archive,
-      target: row.target,
       targetPath: row.targetPath,
       setAside: row.setAside,
       setAsideDeleted: row.setAsideDeletedAt !== null,
-      job: jobView(row, this.active?.live ?? null, lastLines),
+      status: row.status,
+      phase: (live?.phase ?? row.phase ?? null) as BackupRestorePhase | null,
+      errorCode: row.errorCode,
+      startedAt: row.startedAt.toISOString(),
+      finishedAt: row.finishedAt?.toISOString() ?? null,
+      output: lastLines === undefined ? output : output.slice(-lastLines),
     };
   }
 
   // Inside.
 
-  private async execute(
-    id: string,
-    request: BackupRestoreRequest,
-    actor: ExecutorActor,
-  ): Promise<void> {
-    const outcome = await wrapperCallRaw(this.logger, () =>
-      this.executorService.backupRestore({ restoreId: id, ...request }, actor, this.callbacks()),
-    );
-    await this.finish(outcome);
+  private follow(id: string): void {
+    this.following.set(id, { phase: null, output: [] });
+    this.timer ??= setInterval(() => void this.readAll(), RESTORE_POLL_MS);
   }
 
-  /** Takes the slot before any await; `start` once the row exists, `release` if it never will. */
-  private claim(): { start: (id: string) => void; release: () => void } {
-    const job = { live: new LiveJob(), release: this.operationSlot.claim('restore') };
-    this.active = job;
-    return {
-      start: (id) => {
-        job.live.id = id;
-        this.notify();
-      },
-      release: () => {
-        if (this.active === job) this.active = null;
-        job.release();
-      },
-    };
+  private async readAll(): Promise<void> {
+    if (this.reading) return;
+    this.reading = true;
+    try {
+      for (const id of [...this.following.keys()]) await this.read(id);
+    } catch (error) {
+      this.logger.error('Could not follow a restore', error);
+    } finally {
+      this.reading = false;
+      if (this.following.size === 0 && this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+    }
   }
 
-  private callbacks(): { onPhase: (phase: JobPhase) => void; onOutput: (line: string) => void } {
-    return {
-      onPhase: (phase) => {
-        if (this.active) this.active.live.phase = phase;
-        this.notify();
-      },
-      onOutput: (line) => {
-        this.active?.live.append(line);
-        this.notify();
-      },
-    };
+  private async read(id: string): Promise<void> {
+    const row = await this.prisma.backupRestore.findUnique({ where: { id } });
+    if (!row || row.status !== 'running') {
+      this.following.delete(id);
+      return;
+    }
+    const events = await this.backupFiles.restoreEvents(id);
+    const age = Date.now() - row.startedAt.getTime();
+    if (events === null) {
+      // Its unit never started.
+      if (age > RESTORE_START_GRACE_MS) await this.finish(row, { phase: null, output: [] }, null);
+      return;
+    }
+    const state = summarize(events);
+    const previous = this.following.get(id);
+    const done = events.findLast((e) => e.type === 'done');
+    if (done?.type === 'done') {
+      await this.finish(row, state, done);
+      return;
+    }
+    const pid = events.find((e) => e.type === 'start');
+    const alive = pid?.type === 'start' && processAlive(pid.pid);
+    if ((!alive && age > RESTORE_START_GRACE_MS) || age > MAX_RUN_MS) {
+      await this.finish(row, state, null);
+      return;
+    }
+    this.following.set(id, state);
+    if (previous?.phase !== state.phase || previous?.output.length !== state.output.length) {
+      this.notify();
+    }
   }
 
-  /** Saves the running restore's result, then frees the slot. */
+  /** Saves its result (`done` null: it ended without one — interrupted). */
   private async finish(
-    outcome: BackupOutcome<{ targetPath: string | null; setAside: string[] }>,
+    row: BackupRestoreRow,
+    state: Following,
+    done: Extract<RestoreEvent, { type: 'done' }> | null,
   ): Promise<void> {
-    const job = this.active;
-    if (!job?.live.id) return;
-    const { live } = job;
+    this.following.delete(row.id);
     try {
       await this.prisma.backupRestore.update({
-        where: { id: live.id! },
+        where: { id: row.id },
         data: {
-          status: outcome.ok ? 'succeeded' : 'failed',
-          phase: live.phase,
-          errorCode: outcome.ok ? null : outcome.code,
-          targetPath: outcome.result?.targetPath ?? null,
-          // Folders set aside are kept even when the start afterwards failed: they're the way back.
-          setAside: outcome.result?.setAside ?? [],
-          output: live.savedOutput(),
+          status: done ? done.status : 'interrupted',
+          phase: state.phase,
+          errorCode: done ? done.errorCode : BACKUP_ERROR_CODES.interrupted,
+          // Folders set aside are kept even when starting the app afterwards failed: they're the way back.
+          setAside: done?.setAside ?? [],
+          output: state.output.join('\n'),
           finishedAt: new Date(),
         },
       });
       await this.prune();
     } catch (failure) {
-      this.logger.error(`Could not save the result of restore ${live.id}`, failure);
-    } finally {
-      this.active = null;
-      job.release();
-      this.notify();
+      this.logger.error(`Could not save the result of restore ${row.id}`, failure);
     }
+    this.notify();
   }
 
   private notify(): void {
@@ -239,4 +265,14 @@ export class BackupRestores implements OnApplicationBootstrap {
       });
     }
   }
+}
+
+function summarize(events: RestoreEvent[]): Following {
+  let phase: BackupRestorePhase | null = null;
+  const output: string[] = [];
+  for (const event of events) {
+    if (event.type === 'phase') phase = event.phase;
+    else if (event.type === 'line') output.push(event.text);
+  }
+  return { phase, output: output.slice(-BACKUP_LIMITS.progressLines * 20) };
 }

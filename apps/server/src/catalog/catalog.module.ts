@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ExecutorModule } from '../executor/executor.module.js';
+import { CatalogController } from './catalog.controller.js';
 import { CatalogService } from './catalog.service.js';
 
-/** The reviewed service recipes (catalog/), checked at startup. */
+/** The app templates (catalog/), checked at startup. */
 @Module({
-  imports: [ExecutorModule],
+  controllers: [CatalogController],
   providers: [CatalogService],
   exports: [CatalogService],
 })

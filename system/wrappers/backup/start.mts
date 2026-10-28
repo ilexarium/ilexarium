@@ -48,42 +48,46 @@ export async function start(config: Config, paths: Paths, input: string): Promis
   const instance = itemId === undefined ? runId : `${runId}_${itemId}`;
   parseInstance(instance);
 
+  if (await startUnit(config, `laris-backup-now@${instance}.service`)) return;
+  startDetached(config, paths, ['run-requested', instance], 'requested-run.log');
+}
+
+/** Starts a unit of ours (`--no-block`: returns once systemd has it); false without systemd. */
+export async function startUnit(config: Config, unit: string): Promise<boolean> {
   const systemctl = config.backup.systemctlBin;
-  if (systemctl) {
-    const result = await runProgram(
-      systemctl,
-      ['start', '--no-block', `laris-backup-now@${instance}.service`],
-      { env: { PATH: SAFE_PATH, HOME: home(config) } },
-    );
-    if (result.code !== 0) throw new Refusal('setup', 'systemctl start failed', 6);
-    return;
+  if (!systemctl) {
+    if (isRoot) throw new Refusal('setup', 'no systemctl configured', 6);
+    return false;
   }
-  if (isRoot) throw new Refusal('setup', 'no systemctl configured', 6);
-  startDetached(config, paths, instance);
+  const result = await runProgram(systemctl, ['start', '--no-block', unit], {
+    env: { PATH: SAFE_PATH, HOME: home(config) },
+  });
+  if (result.code !== 0) throw new Refusal('setup', 'systemctl start failed', 6);
+  return true;
 }
 
 /**
- * Development (no systemd): the same `run-requested`, detached from the app — its own session,
- * its output in <state>/requested-run.log, never a pipe to the app.
+ * Development (no systemd): the same action, detached from the app — its own session, its output
+ * in <state>/<log>, never a pipe to the app.
  */
-function startDetached(config: Config, paths: Paths, instance: string): void {
+export function startDetached(config: Config, paths: Paths, args: string[], log: string): void {
   const entry = process.argv[1];
   const configFile = process.env['LARIS_WRAPPER_CONFIG'];
   if (!entry || !isAbsolute(entry) || !configFile) {
     throw new Refusal('setup', 'cannot start the run', 6);
   }
   prepareState(config, paths);
-  const log = openSync(join(paths.state, 'requested-run.log'), 'w', 0o640);
+  const out = openSync(join(paths.state, log), 'w', 0o640);
   try {
-    const child = spawn(process.execPath, [entry, 'run-requested', instance], {
+    const child = spawn(process.execPath, [entry, ...args], {
       detached: true,
-      stdio: ['ignore', log, log],
+      stdio: ['ignore', out, out],
       env: { PATH: SAFE_PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: configFile },
       cwd: '/',
       shell: false,
     });
     child.unref();
   } finally {
-    closeSync(log);
+    closeSync(out);
   }
 }

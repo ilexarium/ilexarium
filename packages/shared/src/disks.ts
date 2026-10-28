@@ -1,20 +1,51 @@
 import { z } from 'zod';
 import { VALIDATION_LIMITS } from './auth.js';
+import { isPlainAbsolutePath } from './catalog.js';
 
 /**
- * Disk management (docs/plans/disk_management.md): disks and their partitions as the server
- * reads them, and mounting one at `/mnt/<name>` — kept after a restart, its own systemd unit.
+ * Disk management (docs/plans/disk_management.md, acting_as_you.md): disks and their partitions
+ * as the server reads them, and mounting one at a folder of the person's choice (`/mnt/<name>` by
+ * default) — kept after a restart, its own systemd unit, through the person's sudo.
  */
 
 /** Filesystems a disk may be mounted with — the backups' list (exFAT: most USB disks). */
 export const DISK_FILESYSTEMS = ['ext4', 'xfs', 'btrfs', 'exfat'] as const;
 
-/** Where disks are mounted: `/mnt/<name>`. */
+/** Where disks are mounted by default: `/mnt/<name>`. */
 export const DISK_MOUNT_ROOT = '/mnt';
 
-/** A mount's name: its folder under `/mnt`, lowercase letters, digits and `-`. */
+/** A suggested name: lowercase letters, digits and `-`. */
 export const DISK_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,31}$/;
 export const DISK_NAME_MAX = VALIDATION_LIMITS.diskNameMax;
+
+/** Never a mount point, nor inside one: the system's own folders. */
+export const DISK_SYSTEM_FOLDERS = [
+  '/bin',
+  '/boot',
+  '/dev',
+  '/etc',
+  '/lib',
+  '/lib32',
+  '/lib64',
+  '/opt/laris',
+  '/proc',
+  '/root',
+  '/run',
+  '/sbin',
+  '/sys',
+  '/usr',
+  '/var',
+] as const;
+
+/** A folder a disk may be mounted at: plain, absolute, never `/` or a system folder. */
+export function isMountPointAllowed(path: string): boolean {
+  return (
+    isPlainAbsolutePath(path) &&
+    path !== '/' &&
+    path.length <= 512 &&
+    !DISK_SYSTEM_FOLDERS.some((folder) => path === folder || path.startsWith(`${folder}/`))
+  );
+}
 
 /** A filesystem UUID as udev names it (ext4/xfs/btrfs: 36 characters; exFAT: XXXX-XXXX). */
 export const DISK_UUID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]{0,63}$/;
@@ -29,8 +60,8 @@ export const DISK_ERROR_CODES = {
   unsupportedFilesystem: 'unsupported_filesystem',
   /** Another device has the same filesystem UUID (a copied disk): either could be mounted. */
   duplicateUuid: 'duplicate_uuid',
-  /** `/mnt/<name>` is taken (a folder with files, a link, another disk). */
-  nameTaken: 'name_taken',
+  /** The folder is taken (it has files, it's a link, another disk is there) or its parent is missing. */
+  mountPointInUse: 'mount_point_in_use',
   /** Not a disk mounted here (only ours are unmounted). */
   notManaged: 'not_managed',
   /** The backups are kept on it. */
@@ -43,7 +74,8 @@ export const DISK_ERROR_CODES = {
   unmountFailed: 'unmount_failed',
   invalidRequest: 'invalid_request',
   timedOut: 'timed_out',
-  executorUnavailable: 'executor_unavailable',
+  /** The disk program didn't run (not installed, or sudo couldn't start it). */
+  programUnavailable: 'program_unavailable',
   auditUnavailable: 'audit_unavailable',
 } as const;
 export type DiskErrorCode = (typeof DISK_ERROR_CODES)[keyof typeof DISK_ERROR_CODES];
@@ -75,8 +107,8 @@ export const diskPartitionSchema = z.object({
   sizeBytes: z.number().nonnegative(),
   state: diskPartitionStateSchema,
   mountPoint: z.string().nullable(),
-  /** Mounted by this app (its name under `/mnt`), so it can be unmounted here. */
-  managedName: z.string().nullable(),
+  /** Mounted by this app (its unit), so it can be unmounted here. */
+  managed: z.boolean(),
   usedForBackups: z.boolean(),
   /** Another device has the same UUID (a copied disk): not mounted here while both are connected. */
   duplicateUuid: z.boolean(),
@@ -96,7 +128,6 @@ export type Disk = z.infer<typeof diskSchema>;
 
 /** A disk mounted here that isn't connected now: it's mounted again when it is. */
 export const disconnectedDiskSchema = z.object({
-  name: z.string(),
   mountPoint: z.string(),
   uuid: z.string().nullable(),
   usedForBackups: z.boolean(),
@@ -110,19 +141,21 @@ export const disksStatusSchema = z.object({
 });
 export type DisksStatus = z.infer<typeof disksStatusSchema>;
 
-export const diskNameSchema = z
+const mountPointSchema = z
   .string()
-  .min(1, 'validation.diskNameRequired')
-  .regex(DISK_NAME_PATTERN, 'validation.diskNameInvalid');
+  .min(1, 'validation.mountPointRequired')
+  .refine(isMountPointAllowed, 'validation.mountPointInvalid');
 
 export const diskMountRequestSchema = z.strictObject({
   uuid: z.string().regex(DISK_UUID_PATTERN, 'validation.diskUuidInvalid'),
-  name: diskNameSchema,
+  mountPoint: mountPointSchema,
+  /** "Make the top folder mine": the disk's top folder given to the signed-in account. */
+  makeMine: z.boolean(),
 });
 export type DiskMountRequest = z.infer<typeof diskMountRequestSchema>;
 
-export const diskNameParamsSchema = z.strictObject({ name: diskNameSchema });
-export type DiskNameParams = z.infer<typeof diskNameParamsSchema>;
+export const diskUnmountRequestSchema = z.strictObject({ mountPoint: mountPointSchema });
+export type DiskUnmountRequest = z.infer<typeof diskUnmountRequestSchema>;
 
 export const diskMountedResponseSchema = z.object({ mountPoint: z.string() });
 export type DiskMountedResponse = z.infer<typeof diskMountedResponseSchema>;

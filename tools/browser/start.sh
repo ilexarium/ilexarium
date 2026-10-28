@@ -47,7 +47,7 @@ JSON
 (cd "$R/root/apps/server" && NODE_ENV=development PORT=3100 \
   DATABASE_URL='postgresql://laris:laris-dev@127.0.0.1:5432/laris_test' \
   SETUP_TOKEN_FILE="$S/setup-token" MASTER_KEY_FILE="$S/master.key" \
-  WRAPPER_CONFIG_FILE="$S/wrappers.json" EXECUTOR_MODE=direct \
+  WRAPPER_CONFIG_FILE="$S/wrappers.json" ROOT_PROGRAMS=direct \
   SSH_HOST_KEYS="$P/apps/server/.dev/sshd" \
   setsid node dist/main.js </dev/null >"$R/server.log" 2>&1 & echo $! >"$R/server.pid")
 (cd "$T" && setsid node serve.mjs "$R/web/browser" 4400 3100 </dev/null >"$R/serve.log" 2>&1 &

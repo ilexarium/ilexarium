@@ -9,7 +9,7 @@ import {
 } from './alerts.constants.js';
 
 interface ContainerState {
-  catalogId: string | null;
+  app: string | null;
   /** Null until a list or an event says. */
   running: boolean | null;
   health: ContainerHealth;
@@ -44,7 +44,7 @@ export class ContainerWatch {
   /** Picks up the alerts still open from before a restart, so they don't close at once. */
   restore(open: OpenAlert[], now: number): void {
     for (const alert of open) {
-      const state = this.state(alert.subject, alert.details.catalogId ?? null);
+      const state = this.state(alert.subject, alert.details.app ?? null);
       const openedAt = alert.openedAt.getTime();
       if (alert.kind === 'serviceDown') state.diedAt = openedAt - DOWN_AFTER_MS;
       if (alert.kind === 'restartLoop') {
@@ -67,8 +67,8 @@ export class ContainerWatch {
   }
 
   /** It stopped (`die`). Counts unless the app stopped it. */
-  died(name: string, catalogId: string | null, now: number): void {
-    const state = this.state(name, catalogId);
+  died(name: string, app: string | null, now: number): void {
+    const state = this.state(name, app);
     state.running = false;
     state.unhealthySince = null;
     state.eventAt = now;
@@ -78,8 +78,8 @@ export class ContainerWatch {
   }
 
   /** It stopped, but not by itself (an install, a removal, a backup): forget it died. */
-  stoppedOnPurpose(name: string, catalogId: string | null, now: number): void {
-    const state = this.state(name, catalogId);
+  stoppedOnPurpose(name: string, app: string | null, now: number): void {
+    const state = this.state(name, app);
     state.eventAt = now;
     state.running = false;
     state.diedAt = null;
@@ -87,8 +87,8 @@ export class ContainerWatch {
   }
 
   /** It runs (again): the app's stop or restart is over — a death from now on counts. */
-  started(name: string, catalogId: string | null, now: number): void {
-    const state = this.state(name, catalogId);
+  started(name: string, app: string | null, now: number): void {
+    const state = this.state(name, app);
     state.eventAt = now;
     state.running = true;
     state.diedAt = null;
@@ -96,12 +96,12 @@ export class ContainerWatch {
     state.appStopped = false;
   }
 
-  outOfMemory(name: string, catalogId: string | null, now: number): void {
-    this.state(name, catalogId).outOfMemoryAt = now;
+  outOfMemory(name: string, app: string | null, now: number): void {
+    this.state(name, app).outOfMemoryAt = now;
   }
 
-  health(name: string, catalogId: string | null, health: ContainerHealth, now: number): void {
-    const state = this.state(name, catalogId);
+  health(name: string, app: string | null, health: ContainerHealth, now: number): void {
+    const state = this.state(name, app);
     state.eventAt = now;
     state.health = health;
     if (health !== 'unhealthy') state.unhealthySince = null;
@@ -116,7 +116,11 @@ export class ContainerWatch {
    * `onPurpose` (an install, removal, restore or backup running). One already stopped when first
    * seen isn't counted: nothing tells whether it crashed or was stopped on purpose.
    */
-  seen(list: WatchedContainer[], takenAt: number, onPurpose = false): void {
+  seen(
+    list: WatchedContainer[],
+    takenAt: number,
+    onPurpose: (app: string | null) => boolean = () => false,
+  ): void {
     const names = new Set(list.map((c) => c.name));
     for (const [name, state] of this.containers) {
       // Kept while the app's own stop is expected, or after news newer than the list.
@@ -125,12 +129,12 @@ export class ContainerWatch {
       }
     }
     for (const container of list) {
-      const state = this.state(container.name, container.catalogId);
-      state.catalogId = container.catalogId;
+      const state = this.state(container.name, container.app);
+      state.app = container.app;
       if (state.eventAt > takenAt) continue;
       if (container.running) {
-        if (state.running !== true) this.started(container.name, container.catalogId, takenAt);
-      } else if (state.running === true && !state.appStopped && !onPurpose) {
+        if (state.running !== true) this.started(container.name, container.app, takenAt);
+      } else if (state.running === true && !state.appStopped && !onPurpose(container.app)) {
         state.diedAt ??= takenAt;
       }
       state.running = container.running;
@@ -145,7 +149,7 @@ export class ContainerWatch {
   conditions(now: number): AlertCondition[] {
     const found: AlertCondition[] = [];
     for (const [name, state] of this.containers) {
-      const details = state.catalogId ? { catalogId: state.catalogId } : {};
+      const details = state.app ? { app: state.app } : {};
       const add = (kind: AlertCondition['kind'], severity: AlertCondition['severity']) =>
         found.push({ kind, subject: name, severity, details });
 
@@ -167,11 +171,11 @@ export class ContainerWatch {
     return found;
   }
 
-  private state(name: string, catalogId: string | null): ContainerState {
+  private state(name: string, app: string | null): ContainerState {
     let state = this.containers.get(name);
     if (!state) {
       state = {
-        catalogId,
+        app,
         running: null,
         health: 'none',
         diedAt: null,
@@ -185,7 +189,7 @@ export class ContainerWatch {
       };
       this.containers.set(name, state);
     }
-    if (catalogId !== null) state.catalogId = catalogId;
+    if (app !== null) state.app = app;
     return state;
   }
 }

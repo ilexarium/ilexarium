@@ -73,7 +73,7 @@ describe('validateEnv', () => {
     expect(validateEnv(base)).toMatchObject({
       MASTER_KEY_FILE: '.dev/master.key',
       WRAPPER_CONFIG_FILE: '.dev/wrappers.json',
-      EXECUTOR_MODE: 'direct',
+      ROOT_PROGRAMS: 'direct',
     });
   });
 
@@ -88,15 +88,15 @@ describe('validateEnv', () => {
     expect(validateEnv({ ...base, NODE_ENV: 'production' })).toMatchObject({
       MASTER_KEY_FILE: '/etc/laris/master.key',
       WRAPPER_CONFIG_FILE: '/etc/laris/wrappers.json',
-      EXECUTOR_MODE: 'sudo',
+      ROOT_PROGRAMS: 'sudo',
       SSH_PORT: 22,
       SSH_HOST_KEYS: '/etc/ssh',
     });
   });
 
   it('never runs the wrapper without sudo in production', () => {
-    expect(() => validateEnv({ ...base, NODE_ENV: 'production', EXECUTOR_MODE: 'direct' })).toThrow(
-      /EXECUTOR_MODE/,
+    expect(() => validateEnv({ ...base, NODE_ENV: 'production', ROOT_PROGRAMS: 'direct' })).toThrow(
+      /ROOT_PROGRAMS/,
     );
   });
 

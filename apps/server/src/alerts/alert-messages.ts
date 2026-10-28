@@ -3,8 +3,8 @@ import type { AlertEvent, AlertMessage, OpenAlert } from './alerts.model.js';
 import { BACKUP_TITLES } from './alerts.constants.js';
 
 /** What happened, in a few words: "Immich has stopped", "Disk /mnt/usb is 93 % full". */
-export function alertTitle(alert: OpenAlert, serviceName: (catalogId: string) => string): string {
-  const who = alert.details.catalogId ? serviceName(alert.details.catalogId) : alert.subject;
+export function alertTitle(alert: OpenAlert): string {
+  const who = alert.details.app ?? alert.subject;
   switch (alert.kind) {
     case 'serviceDown':
       return `${who} has stopped`;
@@ -51,10 +51,10 @@ function at(date: Date): string {
  */
 export function alertMessage(
   event: AlertEvent,
-  context: { host: string; now: Date; serviceName: (catalogId: string) => string },
+  context: { host: string; now: Date },
 ): AlertMessage {
   const { alert } = event;
-  const title = alertTitle(alert, context.serviceName);
+  const title = alertTitle(alert);
   const where = `On ${context.host}`;
   switch (event.type) {
     case 'opened':

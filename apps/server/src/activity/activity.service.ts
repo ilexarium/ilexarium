@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ACTIVITY_ACTIONS, ACTIVITY_LIMIT, type ActivityItem } from '@laris/shared';
-import { CatalogService } from '../catalog/catalog.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { fromAlert, fromAudit, fromBackupRun, mergeActivity } from './activity-items.js';
 
@@ -12,7 +11,6 @@ import { fromAlert, fromAudit, fromBackupRun, mergeActivity } from './activity-i
 export class ActivityService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly catalogService: CatalogService,
   ) {}
 
   async recent(): Promise<ActivityItem[]> {
@@ -35,13 +33,12 @@ export class ActivityService {
         take,
       }),
     ]);
-    const serviceName = (id: string) => this.catalogService.get(id)?.meta.name ?? null;
     const alerts = new Map([...opened, ...closed].map((row) => [row.id, row]));
     return mergeActivity(
       [
-        ...events.map((event) => fromAudit(event, serviceName)),
+        ...events.map((event) => fromAudit(event)),
         ...runs.map(fromBackupRun),
-        ...[...alerts.values()].flatMap((row) => fromAlert(row, serviceName)),
+        ...[...alerts.values()].flatMap((row) => fromAlert(row)),
       ],
       take,
     );

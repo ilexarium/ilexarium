@@ -13,7 +13,7 @@ import {
   switchMap,
 } from 'rxjs';
 import { watchFolder } from '../common/watch-folder.js';
-import { OperationSlot } from '../jobs/operation-slot.js';
+import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { DiskManager } from './disk-manager.js';
@@ -30,14 +30,14 @@ export class DisksTopic implements TopicSource<'disks'> {
 
   constructor(
     private readonly diskManager: DiskManager,
-    operationSlot: OperationSlot,
+    changesUnderway: ChangesUnderway,
     realtimeSubscriptions: RealtimeSubscriptions,
   ) {
     this.updates$ = merge(
       watchFolder(() => join(diskManager.places.host, 'dev/disk/by-uuid'), DISKS_POLL_MS),
       interval(DISKS_POLL_MS),
       diskManager.changes$,
-      operationSlot.changes$,
+      changesUnderway.changes$,
     ).pipe(
       auditTime(DISKS_PUBLISH_MS),
       switchMap(() => from(this.snapshot()).pipe(catchError(() => EMPTY))),

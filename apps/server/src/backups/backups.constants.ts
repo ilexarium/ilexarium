@@ -1,9 +1,17 @@
 /** Per IP, for changes (slow, privileged, rare); reads aren't limited. */
 export const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
 
-/** Asking for the passphrase: the password is checked, so few tries. */
+/** Asking for the passphrase: few (each is a sudo use). */
 export const PASSPHRASE_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 
+/** A disk a backup may go to: a real device (not tmpfs, overlay, a network share). */
+export const DESTINATION_SOURCE = /^\/dev\//;
+/** Where the folder picker starts, besides the home folders and the disks. */
+export const FOLDER_PLACES = ['/srv', '/opt', '/data'];
+/** A restore's events file that hasn't appeared by then: its unit never started. */
+export const RESTORE_START_GRACE_MS = 2 * 60_000;
+/** How often a running restore's events are read. */
+export const RESTORE_POLL_MS = 1_000;
 /** The production places of the wrapper's files (development: under the config's dev folder). */
 export const STATE_DIR = '/var/lib/laris/backups';
 export const MOUNT_INFO = '/proc/self/mountinfo';
@@ -21,12 +29,6 @@ export const RUNS_SHOWN = 50;
 
 /** Runs kept in the history; older ones (and their item results) go. */
 export const RUNS_KEPT = 500;
-
-/**
- * "Back up now" keeps the one-operation slot until its run shows in the progress file (or has a
- * result): then the follower holds it, like for a scheduled run. Seconds, normally.
- */
-export const HANDOVER_MS = 30_000;
 
 /**
  * A "Back up now" run that hasn't shown up by then never started (systemd couldn't run the

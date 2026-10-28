@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 /** One trusted proxy: the loopback keyword, an IP address or a CIDR range. */
@@ -81,11 +82,14 @@ export const envSchema = z
      * and reserved ports — the app reads the same file, so the two never disagree.
      */
     WRAPPER_CONFIG_FILE: z.string().trim().min(1).optional(),
+    /** The app templates (catalog/): installed with Laris, the repository's own in development. */
+    CATALOG_DIR: z.string().trim().startsWith('/').optional(),
     /**
-     * How the executor runs the root wrapper: `sudo` (production) or `direct` — the wrapper from
-     * the repo, as the current user, for development and tests. Never `direct` in production.
+     * How the root programs (laris-backup, laris-disk) are started: `sudo` — through the signed-in
+     * person's own sudo, by their helper (production) — or `direct`: the repository's program as
+     * the developer, without sudo (development and tests only).
      */
-    EXECUTOR_MODE: z.enum(['sudo', 'direct']).optional(),
+    ROOT_PROGRAMS: z.enum(['sudo', 'direct']).optional(),
     /**
      * The health alerts' watcher (docs/plans/health_alerts.md) runs all the time; `off` only for
      * tests that open and close alerts themselves.
@@ -121,15 +125,20 @@ export const envSchema = z
         env.MASTER_KEY_FILE ?? (production ? '/etc/laris/master.key' : '.dev/master.key'),
       WRAPPER_CONFIG_FILE:
         env.WRAPPER_CONFIG_FILE ?? (production ? '/etc/laris/wrappers.json' : '.dev/wrappers.json'),
-      EXECUTOR_MODE: env.EXECUTOR_MODE ?? (production ? 'sudo' : 'direct'),
+      ROOT_PROGRAMS: env.ROOT_PROGRAMS ?? (production ? 'sudo' : 'direct'),
+      CATALOG_DIR:
+        env.CATALOG_DIR ??
+        (production
+          ? '/opt/laris/catalog'
+          : fileURLToPath(new URL('../../../../catalog', import.meta.url))),
       HOST: env.HOST ?? (production ? '127.0.0.1' : undefined),
       SSH_PORT: env.SSH_PORT ?? (production ? 22 : 2222),
       SSH_HOST_KEYS: env.SSH_HOST_KEYS ?? (production ? '/etc/ssh' : '.dev/sshd'),
     };
   })
-  .refine((env) => env.NODE_ENV !== 'production' || env.EXECUTOR_MODE === 'sudo', {
-    path: ['EXECUTOR_MODE'],
-    error: 'Must be "sudo" in production: "direct" runs the wrapper without sudo',
+  .refine((env) => env.NODE_ENV !== 'production' || env.ROOT_PROGRAMS === 'sudo', {
+    path: ['ROOT_PROGRAMS'],
+    error: 'Must be "sudo" in production: "direct" runs the root programs without sudo',
   });
 
 export type Env = z.infer<typeof envSchema>;

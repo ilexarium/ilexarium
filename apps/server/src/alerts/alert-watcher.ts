@@ -5,7 +5,6 @@ import {
   type OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { catalogIdOfProject } from '@laris/shared';
 import {
   auditTime,
   concatMap,
@@ -32,8 +31,7 @@ import { DiskManager } from '../disks/disk-manager.js';
 import { DockerService } from '../docker/docker.service.js';
 import type { DockerContainerEvent } from '../docker/docker.model.js';
 import { SystemReader } from '../host/system-reader.js';
-import { OperationSlot } from '../jobs/operation-slot.js';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { AlertRecords } from './alert-records.js';
 import type { AlertCondition, WatchedContainer } from './alerts.model.js';
 import { ContainerWatch } from './container-watch.js';
@@ -56,9 +54,9 @@ import {
  * always-open Docker events stream and a few polls — and hands what they see to `AlertRecords`.
  * No privileges: nothing here changes the system.
  *
- * Not counted as a service stopping: a stop or restart from the app (`ContainerActionsService`),
- * anything while an install, removal, restore or backup runs (`OperationSlot`), a container of a
- * service that isn't installed (being installed or removed).
+ * Not counted as an app stopping: a stop or restart from Laris (`ContainerActionsService`), an
+ * app's containers for a while after Laris started one of its tasks, anything while a backup or
+ * restore runs (`ChangesUnderway`).
  */
 @Injectable()
 export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
@@ -73,8 +71,7 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly alertRecords: AlertRecords,
     private readonly dockerService: DockerService,
     private readonly containerActionsService: ContainerActionsService,
-    private readonly operationSlot: OperationSlot,
-    private readonly prisma: PrismaService,
+    private readonly changesUnderway: ChangesUnderway,
     private readonly systemReader: SystemReader,
     private readonly diskManager: DiskManager,
     private readonly backupStatusReader: BackupStatusReader,
@@ -170,70 +167,47 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
   private async onEvent(event: DockerContainerEvent): Promise<void> {
     // Taken when it happened, not after the lookup below.
     const now = Date.now();
-    const onPurpose = this.operationSlot.current() !== null;
+    const onPurpose = this.changesUnderway.app(event.composeProject);
     const [action, status] = event.action.split(':').map((part) => part.trim());
-    // Only these say anything to the rules: no database lookup for the rest (create, stop, …).
     if (!event.name || !HANDLED_ACTIONS.has(action)) return;
-    const catalogId = await this.watchedCatalogId(event);
-    if (catalogId === undefined) return;
+    const app = watchedApp(event);
+    if (app === undefined) return;
     switch (action) {
       case 'die':
         if (onPurpose) {
-          this.containers.stoppedOnPurpose(event.name, catalogId, now);
-        } else this.containers.died(event.name, catalogId, now);
+          this.containers.stoppedOnPurpose(event.name, app, now);
+        } else this.containers.died(event.name, app, now);
         break;
       case 'start':
-        this.containers.started(event.name, catalogId, now);
+        this.containers.started(event.name, app, now);
         break;
       case 'oom':
-        this.containers.outOfMemory(event.name, catalogId, now);
+        this.containers.outOfMemory(event.name, app, now);
         break;
       case 'health_status':
         if (status === 'healthy' || status === 'unhealthy' || status === 'starting') {
-          this.containers.health(event.name, catalogId, status, now);
+          this.containers.health(event.name, app, status, now);
         }
         break;
     }
   }
 
-  /**
-   * Whose container: the catalog entry of an installed service (`hl-<id>`), null for the
-   * platform's own (labelled protected), undefined for one not watched.
-   */
-  private async watchedCatalogId(
-    container: Pick<DockerContainerEvent, 'composeProject' | 'protected'>,
-  ): Promise<string | null | undefined> {
-    if (container.protected) return null;
-    const catalogId = catalogIdOfProject(container.composeProject);
-    if (!catalogId) return undefined;
-    const service = await this.prisma.service.findUnique({
-      where: { catalogId },
-      select: { status: true },
-    });
-    return service?.status === 'installed' ? catalogId : undefined;
-  }
-
   private async listContainers(): Promise<void> {
     const takenAt = Date.now();
-    const onPurpose = this.operationSlot.current() !== null;
-    const [list, services] = await Promise.all([
-      this.dockerService.listContainers(),
-      this.prisma.service.findMany({ where: { status: 'installed' }, select: { catalogId: true } }),
-    ]);
-    const installed = new Set(services.map((s) => s.catalogId));
+    const list = await this.dockerService.listContainers();
     const watched: WatchedContainer[] = [];
     for (const container of list) {
-      const catalogId = catalogIdOfProject(container.composeProject);
-      if (!container.protected && !(catalogId && installed.has(catalogId))) continue;
+      const app = watchedApp(container);
+      if (app === undefined) continue;
       watched.push({
         name: container.name,
-        catalogId: container.protected ? null : catalogId,
+        app,
         running: container.state === 'running',
         health: container.health,
       });
     }
-    // Stopped while an operation ran (when the list was asked for): not counted.
-    this.containers.seen(watched, takenAt, onPurpose || this.operationSlot.current() !== null);
+    // Stopped while something ran on purpose (when the list was asked for): not counted.
+    this.containers.seen(watched, takenAt, (app) => this.changesUnderway.app(app));
   }
 
   private async checkDiskUsage(): Promise<void> {
@@ -271,4 +245,12 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
       this.logger.warn(`Watching ${what} failed: ${(error as Error).message}`),
     );
   }
+}
+
+/** Whose container: its app (Compose project), null for the platform's own (protected), undefined outside Compose. */
+function watchedApp(
+  container: Pick<DockerContainerEvent, 'composeProject' | 'protected'>,
+): string | null | undefined {
+  if (container.protected) return null;
+  return container.composeProject ?? undefined;
 }

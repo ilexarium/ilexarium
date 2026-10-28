@@ -10,13 +10,13 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '@nestjs/authentication';
+import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { DiskMountedResponse, DisksStatus, PublicUser } from '@laris/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { DiskManager } from './disk-manager.js';
 import { CHANGE_LIMIT } from './disks.constants.js';
-import { DiskMountDto, DiskNameParamsDto } from './disks.dto.js';
+import { DiskMountDto, DiskUnmountDto } from './disks.dto.js';
 
 /** Disks (docs/plans/disk_management.md). Every route needs a session. */
 @Controller('disks')
@@ -29,29 +29,31 @@ export class DisksController {
     return this.diskManager.status();
   }
 
-  /** Mounts a disk at /mnt/<name>, kept after a restart. */
+  /** Mounts a disk at a folder (`/mnt/<name>` by default), kept after a restart — through the person's sudo. */
   @Post('mount')
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle(CHANGE_LIMIT)
   mount(
     @Body() body: DiskMountDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<DiskMountedResponse> {
-    return this.diskManager.mount(body, { user, ip });
+    return this.diskManager.mount(body, { user, ip, appSessionId: session.id });
   }
 
   /** Unmounts a disk mounted here (or forgets one no longer connected). */
-  @Delete(':name')
+  @Post('unmount')
   @HttpCode(204)
   @UseGuards(ThrottlerGuard)
   @Throttle(CHANGE_LIMIT)
   unmount(
-    @Param() { name }: DiskNameParamsDto,
+    @Body() { mountPoint }: DiskUnmountDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.diskManager.unmount(name, { user, ip });
+    return this.diskManager.unmount(mountPoint, { user, ip, appSessionId: session.id });
   }
 }

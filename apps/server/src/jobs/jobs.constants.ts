@@ -1,5 +1,5 @@
-/** Output kept per job (the end matters most when something failed). */
-export const MAX_JOB_OUTPUT_BYTES = 256 * 1024;
+/** How long an app's stops count as on purpose after Laris started one of its tasks. */
+export const APP_QUIET_MS = 15 * 60_000;
 
-/** Output lines a topic carries per running job (the whole output comes from the job's route). */
+/** Output lines a topic carries per running restore. */
 export const TOPIC_LINES = 50;

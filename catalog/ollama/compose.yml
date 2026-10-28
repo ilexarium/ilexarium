@@ -1,23 +1,20 @@
-# Ollama — reviewed recipe (docs/plans/ai_assistant.md). Runs local language models for the
-# Assistant. Differences from Ollama's own instructions, on purpose:
-# - The API port is published on loopback only: Ollama has no sign-in, so nothing on the network
-#   may reach it. Only this server (the app) talks to it.
-# - It runs as 1000:1000, not root, with its home (keys) and models in the MODELS_DIR folder.
-# - No GPU: that needs devices, which the catalog doesn't allow (a later, reviewed change).
+# Ollama, from the Laris template (catalog/ollama): runs language models for the Assistant. This
+# folder is yours: change anything.
+# Ollama has no sign-in: its port is on 127.0.0.1 (this machine only) by default — only Laris
+# talks to it. For a graphics card, see the note in Laris (the lines to add here).
 services:
   ollama:
-    image: ollama/ollama:0.40.6@sha256:265409e1d931028a8f7d5a32bcbafddd7bffbc6cc629d77efe9560adf692a5e7
-    # The owner of the folders the wrapper creates (meta.json dataOwner).
-    user: '1000:1000'
+    image: ollama/ollama:${OLLAMA_VERSION}
+    user: '${USER_ID}'
     ports:
-      - '127.0.0.1:${API_PORT}:11434'
+      - '${API_ADDRESS}:${API_PORT}:11434'
     environment:
       HOME: /data
       OLLAMA_MODELS: /data/models
     volumes:
-      - type: bind
-        source: ${MODELS_DIR}
-        target: /data
+      - ${DATA_DIR}:/data
+    labels:
+      laris.template: ollama@2
     restart: unless-stopped
     logging:
       driver: json-file

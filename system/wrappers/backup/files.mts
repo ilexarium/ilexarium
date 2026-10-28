@@ -43,9 +43,9 @@ export function prepareState(config: Config, paths: Paths): void {
   mkdirSync(join(paths.state, 'borg'), { recursive: true, mode: 0o700 });
 }
 
-/** A file the app's group may read (progress and results): 0640, root:<app group>. */
-export function shareWithApp(config: Config, file: string): void {
-  chmodSync(file, 0o640);
+/** A file (or folder) the app's group may read (progress and results): 0640, root:<app group>. */
+export function shareWithApp(config: Config, file: string, mode = 0o640): void {
+  chmodSync(file, mode);
   if (isRoot) chownSync(file, 0, config.backup.appGid!);
 }
 

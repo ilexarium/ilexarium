@@ -10,9 +10,8 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import { apiError } from './backup-errors.js';
 import { RESULTS_PER_ITEM } from './backups.constants.js';
 
-/** An item with what its views need: its service, its latest results. */
+/** An item with what its views need: its latest results. */
 export const itemInclude = {
-  service: { select: { catalogId: true, status: true, settings: true } },
   results: {
     orderBy: { run: { startedAt: 'desc' } },
     take: RESULTS_PER_ITEM,
@@ -37,15 +36,25 @@ export async function requireItem(prisma: PrismaService, id: string): Promise<It
   return item;
 }
 
-export function itemView(item: ItemRow): BackupItem {
+/**
+ * An item as the API shows it. `apps`: each Compose project's folders as Docker sees them now —
+ * an app item's folders not in the plan yet are "new", and an app Docker doesn't know is "removed".
+ */
+export function itemView(item: ItemRow, apps: ReadonlyMap<string, string[]> | null): BackupItem {
   const last = item.results[0];
+  const now = item.project ? apps?.get(item.project) : undefined;
+  const known = new Set([...item.folders, ...item.excludedFolders]);
   return {
     id: item.id,
     kind: item.kind,
-    serviceId: item.serviceId,
-    catalogId: item.service?.catalogId ?? null,
+    project: item.project,
+    folders: item.folders,
+    excludedFolders: item.excludedFolders,
+    newFolders: (now ?? []).filter((folder) => !known.has(folder)),
+    skip: item.skip,
+    mode: item.mode === 'stop' || item.mode === 'live' ? item.mode : null,
+    appRemoved: item.kind === 'app' && apps !== null && now === undefined,
     path: item.path,
-    excludedFields: item.excludedFields,
     removed: item.removedAt !== null,
     lastSuccessAt: lastSuccess(item.results)?.toISOString() ?? null,
     lastResult: last ? resultView(last) : null,

@@ -26,7 +26,7 @@ export function toProcess(raw: RawProcess, context: ProcessContext): Process {
   const container =
     raw.containerId === null
       ? null
-      : (context.containers.get(raw.containerId) ?? { name: null, catalogId: null });
+      : (context.containers.get(raw.containerId) ?? { name: null, app: null });
   return {
     pid: raw.pid,
     startTicks: raw.startTicks,

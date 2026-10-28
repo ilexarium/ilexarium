@@ -8,50 +8,61 @@ import {
   type BackupDestination,
   type BackupFoldersResponse,
   type BackupItemRequest,
+  type BackupItemUpdate,
   type FieldError,
   isPlainAbsolutePath,
-  SERVICE_ERROR_CODES,
 } from '@laris/shared';
-import { CatalogService } from '../catalog/catalog.service.js';
-import { WrapperConfigService } from '../executor/wrapper-config.js';
-import { inside } from '../host/folders.js';
+import { DockerService } from '../docker/docker.service.js';
 import { SystemReader } from '../host/system-reader.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ProgramConfigService } from '../root-programs/program-config.js';
+import { SYSTEM_MOUNTS } from '../disks/disks.constants.js';
 import { apiError, validationFailed } from './backup-errors.js';
 import type { NewItemRow } from './backups.model.js';
 import {
+  destinationRoots,
   isAllowedFolder,
-  isDestinationPath,
   mountInfoFile,
+  overlaps,
   repositoryPath,
+  skipInside,
 } from './backup-paths.js';
+import { DESTINATION_SOURCE, FOLDER_PLACES } from './backups.constants.js';
 
 /**
  * Where backups can go and what can be backed up: the disk and folder pickers, and the app's
- * friendly checks before a change goes to the wrapper (which checks it all again, its own way).
+ * friendly checks before a change goes to the backup program (which checks it all again, its own
+ * way).
  */
 @Injectable()
 export class BackupChecks {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly catalogService: CatalogService,
-    private readonly wrapperConfigService: WrapperConfigService,
+    private readonly programConfigService: ProgramConfigService,
     private readonly systemReader: SystemReader,
+    private readonly dockerService: DockerService,
   ) {}
 
-  /** Mounted disks under /mnt and /media, with their free space and the same-disk warning. */
+  /**
+   * Every mounted disk that isn't a system disk, wherever it's mounted (development: the pretend
+   * ones), with its free space and the same-disk warning.
+   */
   async destinations(): Promise<BackupDestination[]> {
-    const config = this.wrapperConfigService.config;
+    const config = this.programConfigService.config;
+    const roots = destinationRoots(config);
     const mounts = new Map<string, string>();
     for (const point of await this.systemReader.mountPoints(mountInfoFile(config))) {
-      if (isDestinationPath(config, point.mount)) mounts.set(point.mount, point.fsType);
+      const usable = roots
+        ? roots.some((root) => point.mount.startsWith(`${root}/`))
+        : DESTINATION_SOURCE.test(point.source) &&
+          !SYSTEM_MOUNTS.includes(point.mount) &&
+          isAllowedFolder(config, point.mount);
+      if (usable) mounts.set(point.mount, point.fsType);
     }
     const dataDevices = new Set(
-      (
-        await Promise.all(
-          [...config.storageRoots, '/home'].map((path) => this.systemReader.device(path)),
-        )
-      ).filter((device): device is number => device !== null),
+      (await Promise.all(['/', '/home'].map((path) => this.systemReader.device(path)))).filter(
+        (device): device is number => device !== null,
+      ),
     );
     const destinations = await Promise.all(
       [...mounts].map(async ([mountPoint, filesystem]): Promise<BackupDestination> => {
@@ -74,24 +85,22 @@ export class BackupChecks {
     return destinations.sort((a, b) => a.mountPoint.localeCompare(b.mountPoint));
   }
 
-  /** The folder picker: the starting places, or the folders inside one. */
+  /** The folder picker: the starting places (homes, /srv, the disks), or the folders inside one. */
   async folders(path?: string): Promise<BackupFoldersResponse> {
-    const config = this.wrapperConfigService.config;
-    const entry = (p: string, name: string) => ({
-      name,
-      path: p,
-      allowed: isAllowedFolder(config, p),
-    });
+    const config = this.programConfigService.config;
+    const entry = (p: string, name: string) => ({ name, path: p, allowed: isAllowedFolder(config, p) });
     if (path === undefined) {
       const homes = (await this.systemReader.subfolders('/home')) ?? [];
+      const disks = (await this.destinations()).map((d) => d.mountPoint);
+      const places = [...homes.map((home) => home.path), ...FOLDER_PLACES, ...disks];
+      const existing = await Promise.all(
+        [...new Set(places)].map(async (p) => ((await this.systemReader.folder(p)) === 'missing' ? null : p)),
+      );
       return {
         path: null,
         parent: null,
         readable: true,
-        folders: [
-          ...config.storageRoots.map((root) => entry(root, root)),
-          ...homes.map((home) => entry(home.path, home.path)),
-        ],
+        folders: existing.filter((p): p is string => p !== null).map((p) => entry(p, p)),
       };
     }
     if (!isAllowedFolder(config, path)) {
@@ -110,7 +119,7 @@ export class BackupChecks {
   }
 
   async destinationMounted(destination: string): Promise<boolean> {
-    const config = this.wrapperConfigService.config;
+    const config = this.programConfigService.config;
     try {
       return (await this.systemReader.mountPoints(mountInfoFile(config))).some(
         (point) => point.mount === destination,
@@ -120,7 +129,7 @@ export class BackupChecks {
     }
   }
 
-  /** A mounted, supported disk under /mnt or /media. */
+  /** A mounted, supported disk that isn't a system disk. */
   async checkDestination(destination: string): Promise<void> {
     const found = (await this.destinations()).find((d) => d.mountPoint === destination);
     if (!isPlainAbsolutePath(destination) || !found?.supported) {
@@ -134,44 +143,48 @@ export class BackupChecks {
     }
   }
 
-  /** New items, checked: services installed and with a backup in their recipe, folders allowed and there. */
+  /** New items, checked: apps Docker knows, folders that may be backed up — off the disk. */
   async checkNewItems(requests: BackupItemRequest[], destination: string): Promise<NewItemRow[]> {
     const problems: FieldError[] = [];
     const rows: NewItemRow[] = [];
     const items = await this.prisma.backupItem.findMany();
     const active = items.filter((item) => !item.removedAt);
+    const apps = await this.dockerService.appFolders().catch(() => new Map<string, string[]>());
     for (const [i, request] of requests.entries()) {
       const field = `items.${i}`;
       const problem =
-        request.kind === 'service'
-          ? await this.serviceProblem(request.serviceId, request.excludedFields ?? [], destination)
+        request.kind === 'app'
+          ? this.appProblem(request, destination, apps)
           : await this.folderProblem(request.path, destination);
       if (problem) {
         problems.push({ field, ...problem });
         continue;
       }
       const taken =
-        request.kind === 'service'
-          ? [...active, ...rows].some((r) => 'serviceId' in r && r.serviceId === request.serviceId)
+        request.kind === 'app'
+          ? [...active, ...rows].some((r) => 'project' in r && r.project === request.project)
           : [...active, ...rows].some((r) => 'path' in r && r.path === request.path);
       if (taken) {
         problems.push({ field, code: BACKUP_ERROR_CODES.itemExists, message: 'Already backed up' });
         continue;
       }
       rows.push(
-        request.kind === 'service'
+        request.kind === 'app'
           ? {
               id: randomUUID(),
-              kind: 'service',
-              serviceId: request.serviceId,
-              excludedFields: request.excludedFields ?? [],
+              kind: 'app',
+              project: request.project,
+              folders: [...new Set(request.folders)],
+              excludedFolders: [...new Set(request.excludedFolders ?? [])],
+              skip: [...new Set(request.skip)],
+              mode: request.mode,
             }
           : { id: randomUUID(), kind: 'folder', path: request.path },
       );
     }
     if (problems.length > 0) throw validationFailed(problems);
-    // Counted as the wrapper counts the plan: removed items too (their backups are kept), and the
-    // platform item setup adds (no items yet: this is setup).
+    // Counted as the program counts the plan: removed items too (their backups are kept), and
+    // the platform item setup adds (no items yet: this is setup).
     const total = items.length + rows.length + (items.length === 0 ? 1 : 0);
     if (total > BACKUP_LIMITS.maxItems) {
       throw new BadRequestException(apiError('Too many items', BACKUP_ERROR_CODES.tooManyItems));
@@ -179,18 +192,22 @@ export class BackupChecks {
     return rows;
   }
 
-  /** A new disk mustn't hold what's backed up onto it (the wrapper refuses that plan). */
+  /** An app item's change: its folders allowed and off the disk, its skips inside them. */
+  checkAppChange(
+    current: { folders: string[]; skip: string[] },
+    change: BackupItemUpdate,
+    destination: string,
+  ): void {
+    const folders = change.folders ?? current.folders;
+    const problem = this.appFieldsProblem(folders, change.skip ?? current.skip, destination);
+    if (problem) throw validationFailed([{ field: 'folders', ...problem }]);
+  }
+
+  /** A new disk mustn't hold what's backed up onto it (the program refuses that plan). */
   async checkItemsOffDisk(destination: string): Promise<void> {
-    const items = await this.prisma.backupItem.findMany({
-      where: { removedAt: null },
-      include: { service: true },
-    });
+    const items = await this.prisma.backupItem.findMany({ where: { removedAt: null } });
     const folders = items.flatMap((item) =>
-      item.kind === 'folder' && item.path
-        ? [item.path]
-        : item.service
-          ? this.serviceFolders(item.service.catalogId, item.service.settings, item.excludedFields)
-          : [],
+      item.kind === 'folder' && item.path ? [item.path] : item.folders,
     );
     if (folders.some((folder) => overlaps(folder, destination))) {
       throw validationFailed([
@@ -218,38 +235,41 @@ export class BackupChecks {
     }
   }
 
-  /** Switched-off folders: fields of the recipe's backup, never all of them. */
-  checkExcluded(catalogId: string, excluded: string[]): void {
-    const backup = this.catalogService.get(catalogId)?.meta.backup;
-    const fields = backup?.folders.map((folder) => folder.field) ?? [];
-    if (!excluded.every((field) => fields.includes(field)) || excluded.length >= fields.length) {
+  /** A restore's own folder: allowed, off the backup disk. */
+  checkRestoreTarget(target: string, destination: string): void {
+    if (!isAllowedFolder(this.programConfigService.config, target) || overlaps(target, destination)) {
       throw validationFailed([
-        {
-          field: 'excludedFields',
-          code: BACKUP_ERROR_CODES.pathNotAllowed,
-          message: 'Not a folder of this service, or all of them',
-        },
+        { field: 'target', code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' },
       ]);
     }
   }
 
-  /** Why a service can't be added, or null. */
-  private async serviceProblem(
-    serviceId: string,
-    excluded: string[],
+  private appProblem(
+    request: Extract<BackupItemRequest, { kind: 'app' }>,
     destination: string,
-  ): Promise<Omit<FieldError, 'field'> | null> {
-    const service = await this.prisma.service.findUnique({ where: { id: serviceId } });
-    if (!service || service.status !== 'installed') {
-      return { code: SERVICE_ERROR_CODES.notInstalled, message: 'Not installed' };
+    apps: ReadonlyMap<string, string[]>,
+  ): Omit<FieldError, 'field'> | null {
+    if (!apps.has(request.project)) {
+      return { code: BACKUP_ERROR_CODES.itemNotFound, message: 'No such app' };
     }
-    if (!this.catalogService.get(service.catalogId)?.meta.backup) {
-      return { code: BACKUP_ERROR_CODES.serviceNotBackedUp, message: 'Has no backup' };
+    return this.appFieldsProblem(request.folders, request.skip, destination);
+  }
+
+  private appFieldsProblem(
+    folders: string[],
+    skip: string[],
+    destination: string,
+  ): Omit<FieldError, 'field'> | null {
+    const config = this.programConfigService.config;
+    if (folders.length === 0) return { code: BACKUP_ERROR_CODES.sourceMissing, message: 'No folders' };
+    if (!folders.every((folder) => isAllowedFolder(config, folder))) {
+      return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' };
     }
-    this.checkExcluded(service.catalogId, excluded);
-    const folders = this.serviceFolders(service.catalogId, service.settings, excluded);
     if (folders.some((folder) => overlaps(folder, destination))) {
       return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'On the disk' };
+    }
+    if (!skip.every((path) => skipInside(path, folders))) {
+      return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'A skip outside its folders' };
     }
     return null;
   }
@@ -259,26 +279,15 @@ export class BackupChecks {
     path: string,
     destination: string,
   ): Promise<Omit<FieldError, 'field'> | null> {
-    if (!isAllowedFolder(this.wrapperConfigService.config, path) || overlaps(path, destination)) {
+    if (!isAllowedFolder(this.programConfigService.config, path) || overlaps(path, destination)) {
       return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' };
     }
-    const state = await this.systemReader.folder(path);
     // Another user's home: the app may not look, root can read it.
+    const state = await this.systemReader.folder(path);
     if (state === 'missing' || state === 'other') {
       return { code: BACKUP_ERROR_CODES.pathNotFound, message: 'No such folder' };
     }
     return null;
   }
-
-  /** A service's folders that are backed up: its recipe's backup folders, as installed, minus those switched off. */
-  private serviceFolders(catalogId: string, settings: unknown, excluded: string[]): string[] {
-    const backup = this.catalogService.get(catalogId)?.meta.backup;
-    const values = (settings ?? {}) as Record<string, unknown>;
-    return (backup?.folders ?? [])
-      .filter(({ field }) => !excluded.includes(field))
-      .map(({ field }) => values[field])
-      .filter((value): value is string => typeof value === 'string');
-  }
 }
 
-const overlaps = (a: string, b: string) => inside(a, b) || inside(b, a);

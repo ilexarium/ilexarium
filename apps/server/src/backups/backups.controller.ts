@@ -13,7 +13,7 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '@nestjs/authentication';
+import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type {
   BackupArchivesResponse,
@@ -44,7 +44,6 @@ import {
   BackupItemDto,
   BackupItemIdParamsDto,
   BackupItemUpdateDto,
-  BackupPassphraseDto,
   BackupPlanUpdateDto,
   BackupRestoreDto,
   BackupRestoreIdParamsDto,
@@ -92,10 +91,11 @@ export class BackupsController {
   @Throttle(CHANGE_LIMIT)
   setup(
     @Body() body: BackupSetupDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupPassphraseResponse> {
-    return this.backupPlanManager.setup(body, { user, ip });
+    return this.backupPlanManager.setup(body, { user, ip, appSessionId: session.id });
   }
 
   @Put('plan')
@@ -103,10 +103,11 @@ export class BackupsController {
   @Throttle(CHANGE_LIMIT)
   updatePlan(
     @Body() body: BackupPlanUpdateDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupPlan> {
-    return this.backupPlanManager.updatePlan(body, { user, ip });
+    return this.backupPlanManager.updatePlan(body, { user, ip, appSessionId: session.id });
   }
 
   @Post('items')
@@ -114,10 +115,11 @@ export class BackupsController {
   @Throttle(CHANGE_LIMIT)
   addItem(
     @Body() { item }: BackupItemDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupItem> {
-    return this.backupPlanManager.addItem(item, { user, ip });
+    return this.backupPlanManager.addItem(item, { user, ip, appSessionId: session.id });
   }
 
   @Patch('items/:id')
@@ -125,11 +127,12 @@ export class BackupsController {
   @Throttle(CHANGE_LIMIT)
   updateItem(
     @Param() { id }: BackupItemIdParamsDto,
-    @Body() { excludedFields }: BackupItemUpdateDto,
+    @Body() change: BackupItemUpdateDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupItem> {
-    return this.backupPlanManager.updateItem(id, excludedFields, { user, ip });
+    return this.backupPlanManager.updateItem(id, change, { user, ip, appSessionId: session.id });
   }
 
   /** Out of the plan; `?archives=delete` (confirmed in the browser) also deletes its backups. */
@@ -140,10 +143,11 @@ export class BackupsController {
   removeItem(
     @Param() { id }: BackupItemIdParamsDto,
     @Query() { archives }: BackupItemDeleteQueryDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.backupPlanManager.removeItem(id, archives === 'delete', { user, ip });
+    return this.backupPlanManager.removeItem(id, archives === 'delete', { user, ip, appSessionId: session.id });
   }
 
   @Get('items/:id/archives')
@@ -158,10 +162,11 @@ export class BackupsController {
   @Throttle(CHANGE_LIMIT)
   run(
     @Body() body: BackupRunDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupRunStartedResponse> {
-    return this.backupRuns.runNow(body, { user, ip });
+    return this.backupRuns.runNow(body, { user, ip, appSessionId: session.id });
   }
 
   @Get('runs')
@@ -174,17 +179,18 @@ export class BackupsController {
     return this.backupRuns.runOutput(id);
   }
 
-  /** 202: the restore runs on as a job; its progress arrives through the `backups` topic. */
+  /** 202: the restore runs on as its own unit; its progress arrives through the `backups` topic. */
   @Post('restores')
   @HttpCode(202)
   @UseGuards(ThrottlerGuard)
   @Throttle(CHANGE_LIMIT)
   restore(
     @Body() body: BackupRestoreDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupRestoreStartedResponse> {
-    return this.backupRestores.restore(body, { user, ip });
+    return this.backupRestores.restore(body, { user, ip, appSessionId: session.id });
   }
 
   @Get('restores')
@@ -197,28 +203,29 @@ export class BackupsController {
     return this.backupRestores.restoreJob(id);
   }
 
-  /** "Delete previous version": the folders a restore in place set aside. */
+  /** "Delete previous version": the folders a restore set aside. */
   @Delete('restores/:id/previous')
   @UseGuards(ThrottlerGuard)
   @Throttle(CHANGE_LIMIT)
   discardPrevious(
     @Param() { id }: BackupRestoreIdParamsDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupRestore> {
-    return this.backupRestores.discardPrevious(id, { user, ip });
+    return this.backupRestores.discardPrevious(id, { user, ip, appSessionId: session.id });
   }
 
-  /** "Show again": the app password first. */
+  /** "Show again": through the person's sudo. */
   @Post('passphrase')
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle(PASSPHRASE_LIMIT)
   passphrase(
-    @Body() { password }: BackupPassphraseDto,
+    @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<BackupPassphraseResponse> {
-    return this.backupPlanManager.passphrase(password, { user, ip });
+    return this.backupPlanManager.passphrase({ user, ip, appSessionId: session.id });
   }
 }

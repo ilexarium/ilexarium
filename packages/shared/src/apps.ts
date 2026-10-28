@@ -1,0 +1,365 @@
+import { z } from 'zod';
+import type { Container } from './monitoring.js';
+import { CATALOG_ID_PATTERN, fieldKindSchema, isPlainAbsolutePath } from './catalog.js';
+
+/**
+ * Apps (docs/plans/acting_as_you.md, "Apps"): Compose folders, by default `~/apps/<name>/`, run as
+ * the signed-in Linux account. Docker's labels and the files are the only record. Reading the
+ * list needs no sign-in (Docker, through the read-only proxy); everything else is done as the
+ * person, through their Linux session.
+ */
+
+/** A Compose project's name, as Compose allows it: also the app's name. */
+export const APP_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/;
+
+/** On an app's containers: the template it came from, `<id>@<version>`. */
+export const TEMPLATE_LABEL = 'laris.template';
+export const TEMPLATE_LABEL_PATTERN = /^([a-z0-9][a-z0-9-]{0,39})@([0-9]{1,6})$/;
+
+export const APP_LIMITS = {
+  /** compose.yml and .env, each. */
+  fileMaxBytes: 256 * 1024,
+  /** A task's output lines in one answer. */
+  taskLines: 2000,
+  /** A variable's value: one line. */
+  valueMax: 4096,
+  /** How often the web asks for a running task's output. */
+  taskPollMs: 1000,
+} as const;
+
+/** The folder an app gets by default, inside the person's home. */
+export const APPS_FOLDER = 'apps';
+
+export const appNameSchema = z
+  .string()
+  .regex(APP_NAME_PATTERN, 'validation.appNameInvalid');
+
+const absolutePath = z
+  .string()
+  .min(1, 'validation.pathRequired')
+  .refine(isPlainAbsolutePath, 'validation.pathInvalid');
+
+const fileText = z.string().max(APP_LIMITS.fileMaxBytes, 'validation.fileTooLarge');
+
+export const APP_STATES = ['running', 'partial', 'stopped', 'unhealthy', 'none'] as const;
+export const appStateSchema = z.enum(APP_STATES);
+export type AppState = z.infer<typeof appStateSchema>;
+
+/** One app of `GET /api/apps`. */
+export const appSummarySchema = z.object({
+  name: z.string(),
+  /** Its folder (Compose's working directory); null when Docker doesn't say. */
+  folder: z.string().nullable(),
+  /** The account whose home it's in (`/home/<name>/…`); null elsewhere. */
+  owner: z.string().nullable(),
+  /** The template it came from (its containers' label). */
+  template: z.object({ id: z.string(), version: z.string() }).nullable(),
+  /** `none`: no containers (removed, or never started), its folder still there. */
+  state: appStateSchema,
+  containers: z.array(z.string()),
+  /** The published port of its web page (the "Open" link). */
+  webPort: z.number().int().nullable(),
+});
+export type AppSummary = z.infer<typeof appSummarySchema>;
+
+export const appsListSchema = z.object({ apps: z.array(appSummarySchema) });
+export type AppsList = z.infer<typeof appsListSchema>;
+
+// The form.
+
+/** One variable of the setup form, for a template or a pasted file alike. */
+export const appFieldSchema = z.object({
+  key: z.string(),
+  kind: fieldKindSchema,
+  /** From `.env`, else the default, else empty (a `generated` one: made now). */
+  value: z.string(),
+  /** Compose's own default (`${KEY:-default}`) or the template's. */
+  default: z.string().nullable(),
+  /** `${KEY:?…}` or a template field without a default: Compose refuses to start without it. */
+  required: z.boolean(),
+  advanced: z.boolean(),
+  /** `version`: the image whose versions are listed. */
+  image: z.string().nullable(),
+  /** In the template (its texts are `catalog.<id>.fields.<KEY>.*`). */
+  fromTemplate: z.boolean(),
+});
+export type AppField = z.infer<typeof appFieldSchema>;
+
+/** An image line of the file: the versions list offers its tags. */
+export const appImageSchema = z.object({
+  service: z.string(),
+  /** Without its tag or digest. */
+  image: z.string(),
+  /** Null when the tag is a variable or missing. */
+  tag: z.string().nullable(),
+  /** The variable its tag is, if any (`${NAVIDROME_VERSION}`). */
+  variable: z.string().nullable(),
+});
+export type AppImage = z.infer<typeof appImageSchema>;
+
+export const appFieldsRequestSchema = z.strictObject({
+  compose: fileText,
+  env: fileText,
+  template: z.string().regex(CATALOG_ID_PATTERN).nullable(),
+});
+export type AppFieldsRequest = z.infer<typeof appFieldsRequestSchema>;
+
+export const appFieldsSchema = z.object({
+  fields: z.array(appFieldSchema),
+  images: z.array(appImageSchema),
+  /** Why the file couldn't be read (YAML), or null. */
+  problem: z.string().nullable(),
+});
+export type AppFields = z.infer<typeof appFieldsSchema>;
+
+// The name.
+
+export const appNameQuerySchema = z.strictObject({ name: z.string().max(200) });
+export type AppNameQuery = z.infer<typeof appNameQuerySchema>;
+
+export const appNameCheckSchema = z.object({
+  /** No Compose project and no folder of this name. */
+  free: z.boolean(),
+  /** A free name like it (`immich-2`). */
+  suggestion: z.string(),
+});
+export type AppNameCheck = z.infer<typeof appNameCheckSchema>;
+
+// Tasks.
+
+export const APP_TASK_ACTIONS = ['up', 'update', 'down'] as const;
+export const appTaskActionSchema = z.enum(APP_TASK_ACTIONS);
+export type AppTaskAction = z.infer<typeof appTaskActionSchema>;
+
+export const APP_TASK_STATES = ['running', 'succeeded', 'failed', 'interrupted'] as const;
+export const appTaskStateSchema = z.enum(APP_TASK_STATES);
+export type AppTaskState = z.infer<typeof appTaskStateSchema>;
+
+/** A long task (a unit): its output from `from` on. */
+export const appTaskSchema = z.object({
+  action: appTaskActionSchema,
+  state: appTaskStateSchema,
+  startedAt: z.iso.datetime(),
+  /** Ran through the account's sudo (a system unit). */
+  system: z.boolean(),
+  output: z.array(z.string()),
+  /** Where the next request starts (bytes into its log). */
+  next: z.number().int().nonnegative(),
+});
+export type AppTask = z.infer<typeof appTaskSchema>;
+
+export const appTaskQuerySchema = z.strictObject({
+  from: z.coerce.number().int().nonnegative().optional(),
+  folder: absolutePath.optional(),
+});
+export type AppTaskQuery = z.infer<typeof appTaskQuerySchema>;
+
+// Installing.
+
+export const appInstallRequestSchema = z.strictObject({
+  name: appNameSchema,
+  /** Null: `~/apps/<name>`. */
+  folder: absolutePath.nullable(),
+  template: z.string().regex(CATALOG_ID_PATTERN).nullable(),
+  compose: fileText.min(1, 'validation.composeRequired'),
+  env: fileText,
+});
+export type AppInstallRequest = z.infer<typeof appInstallRequestSchema>;
+
+/** After an install, a change, an update or a removal started. */
+export const appStartedSchema = z.object({ name: z.string(), folder: z.string(), task: appTaskSchema });
+export type AppStarted = z.infer<typeof appStartedSchema>;
+
+// One app.
+
+export const appParamsSchema = z.strictObject({ name: appNameSchema });
+export type AppParams = z.infer<typeof appParamsSchema>;
+
+/** Which app folder: Docker's (by its name), else this one (`?folder=`), else `~/apps/<name>`. */
+export const appFolderQuerySchema = z.strictObject({ folder: absolutePath.optional() });
+export type AppFolderQuery = z.infer<typeof appFolderQuerySchema>;
+
+export const appBeforeUpdateSchema = z.object({
+  at: z.iso.datetime(),
+  images: z.array(
+    z.object({ service: z.string(), image: z.string(), tag: z.string(), digest: z.string() }),
+  ),
+});
+export type AppBeforeUpdate = z.infer<typeof appBeforeUpdateSchema>;
+
+export const appDetailsSchema = z.object({
+  app: appSummarySchema,
+  folder: z.string(),
+  compose: z.string(),
+  env: z.string(),
+  /** Of both files as read: a save with another one was changed on disk meanwhile. */
+  hash: z.string(),
+  fields: z.array(appFieldSchema),
+  images: z.array(appImageSchema),
+  problem: z.string().nullable(),
+  /** Its template, and the catalog's current version of it (null: no longer in the catalog). */
+  template: z.object({ id: z.string(), version: z.string(), current: z.string().nullable() }).nullable(),
+  /** Its latest task. */
+  task: appTaskSchema.nullable(),
+  /** What ran before the last update (`.laris/before-update.json`): "Undo this update". */
+  beforeUpdate: appBeforeUpdateSchema.nullable(),
+  /** Files kept by "Use the current template" (`compose.yml.before-template-<date>`). */
+  keptFiles: z.array(z.string()),
+});
+export type AppDetails = z.infer<typeof appDetailsSchema>;
+
+export const appSaveRequestSchema = z.strictObject({
+  folder: absolutePath,
+  compose: fileText.min(1, 'validation.composeRequired'),
+  env: fileText,
+  /** The hash they were read with; ignored with `overwrite`. */
+  hash: z.string().max(128),
+  overwrite: z.boolean(),
+});
+export type AppSaveRequest = z.infer<typeof appSaveRequestSchema>;
+
+export const appUpdateRequestSchema = z.strictObject({ folder: absolutePath });
+export type AppUpdateRequest = z.infer<typeof appUpdateRequestSchema>;
+
+/** A pasted file's fixed tag, changed in place (its `image:` line; comments kept). */
+export const appImageTagRequestSchema = z.strictObject({
+  folder: absolutePath,
+  service: z.string().min(1).max(128),
+  tag: z.string().min(1).max(256).regex(/^[A-Za-z0-9_][A-Za-z0-9_.:@-]*$/, 'validation.tagInvalid'),
+});
+export type AppImageTagRequest = z.infer<typeof appImageTagRequestSchema>;
+
+// Versions.
+
+export const appVersionsQuerySchema = z.strictObject({ image: z.string().min(1).max(255) });
+export type AppVersionsQuery = z.infer<typeof appVersionsQuerySchema>;
+
+export const appVersionsSchema = z.object({
+  /** Newest first; `latest`, nightlies and pre-releases left out. */
+  versions: z.array(z.string()),
+  /** False: the registry wasn't reachable or wants a sign-in ("list not available"). */
+  available: z.boolean(),
+});
+export type AppVersions = z.infer<typeof appVersionsSchema>;
+
+// Removing.
+
+export const APP_REMOVAL_KINDS = ['settings', 'folder', 'volume'] as const;
+export const appRemovalItemSchema = z.object({
+  kind: z.enum(APP_REMOVAL_KINDS),
+  /** A folder's path or a volume's name; the settings: the app's folder. */
+  path: z.string(),
+  bytes: z.number().nullable(),
+  /** Outside the app's folder: may be used elsewhere. */
+  outside: z.boolean(),
+});
+export type AppRemovalItem = z.infer<typeof appRemovalItemSchema>;
+
+export const appRemovalSchema = z.object({ items: z.array(appRemovalItemSchema) });
+export type AppRemoval = z.infer<typeof appRemovalSchema>;
+
+/** After `down`: what to delete — every item the person ticked. */
+export const appDeleteRequestSchema = z.strictObject({
+  folder: absolutePath,
+  settings: z.boolean(),
+  folders: z.array(absolutePath).max(50),
+  volumes: z.array(z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/)).max(50),
+});
+export type AppDeleteRequest = z.infer<typeof appDeleteRequestSchema>;
+
+// Errors.
+
+export const APP_ERROR_CODES = {
+  notFound: 'app_not_found',
+  nameTaken: 'app_name_taken',
+  folderExists: 'app_folder_exists',
+  composeInvalid: 'compose_invalid',
+  changedOnDisk: 'changed_on_disk',
+  taskRunning: 'app_task_running',
+  taskNotStarted: 'app_task_not_started',
+  dockerUnavailable: 'docker_unavailable',
+  templateNotFound: 'catalog_entry_not_found',
+  serviceNotFound: 'app_service_not_found',
+  pathProtected: 'path_protected',
+  failed: 'app_failed',
+} as const;
+export type AppErrorCode = (typeof APP_ERROR_CODES)[keyof typeof APP_ERROR_CODES];
+
+// Paths.
+
+export const APPS_PATH = '/api/apps';
+export const APP_FIELDS_PATH = `${APPS_PATH}/fields`;
+export const APP_NAME_CHECK_PATH = `${APPS_PATH}/name`;
+export const APP_VERSIONS_PATH = `${APPS_PATH}/versions`;
+
+export function appPath(name: string): string {
+  return `${APPS_PATH}/${encodeURIComponent(name)}`;
+}
+
+/** The app's files: `PUT` saves them and applies them. */
+export const appFilesPath = (name: string) => `${appPath(name)}/files`;
+export const appTaskPath = (name: string) => `${appPath(name)}/task`;
+export const appUpdatePath = (name: string) => `${appPath(name)}/update`;
+export const appImageTagPath = (name: string) => `${appPath(name)}/image`;
+export const appTemplatePath = (name: string) => `${appPath(name)}/template`;
+export const appRemovalPath = (name: string) => `${appPath(name)}/removal`;
+export const appRemovePath = (name: string) => `${appPath(name)}/remove`;
+export const appDeletePath = (name: string) => `${appPath(name)}/delete`;
+
+/** A variable's name in an `.env` file or a form. */
+export const ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+
+/** The account an app's folder is in (`/home/<name>/…`), or null. */
+export function folderOwner(folder: string | null): string | null {
+  return /^\/home\/([^/]+)\//.exec(folder ?? '')?.[1] ?? null;
+}
+
+/** An app's state from its containers. */
+export function appState(containers: readonly Pick<Container, 'state' | 'health'>[]): AppState {
+  if (containers.length === 0) return 'none';
+  if (containers.some((c) => c.health === 'unhealthy')) return 'unhealthy';
+  const running = containers.filter((c) => c.state === 'running').length;
+  if (running === 0) return 'stopped';
+  return running < containers.length ? 'partial' : 'running';
+}
+
+/**
+ * The apps Docker knows: one per Compose project, the platform's own (protected) left out. Its
+ * "Open" port: where the template's web port (inside the container) is published, else the first
+ * TCP port published beyond loopback.
+ */
+export function appsFromContainers(
+  containers: readonly Omit<Container, 'stats'>[],
+  webPorts: (templateId: string) => number | null = () => null,
+): AppSummary[] {
+  const projects = new Map<string, Omit<Container, 'stats'>[]>();
+  for (const container of containers) {
+    if (!container.composeProject) continue;
+    const list = projects.get(container.composeProject) ?? [];
+    list.push(container);
+    projects.set(container.composeProject, list);
+  }
+  const apps: AppSummary[] = [];
+  for (const [name, own] of projects) {
+    if (own.some((c) => c.protected)) continue;
+    const folder = own.find((c) => c.composeWorkingDir)?.composeWorkingDir ?? null;
+    const label = own.map((c) => TEMPLATE_LABEL_PATTERN.exec(c.template ?? '')).find(Boolean);
+    const template = label ? { id: label[1], version: label[2] } : null;
+    const published = own.flatMap((c) => c.ports).filter((p) => p.publicPort !== undefined);
+    const wanted = template ? webPorts(template.id) : null;
+    const web =
+      wanted !== null
+        ? published.find((p) => p.privatePort === wanted)
+        : published.find((p) => p.protocol === 'tcp' && p.ip !== '127.0.0.1' && p.ip !== '::1');
+    apps.push({
+      name,
+      folder,
+      owner: folderOwner(folder),
+      template,
+      state: appState(own),
+      containers: own.map((c) => c.name).sort(),
+      webPort: web?.publicPort ?? null,
+    });
+  }
+  return apps.sort((a, b) => a.name.localeCompare(b.name));
+}

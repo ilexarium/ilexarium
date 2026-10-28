@@ -240,12 +240,13 @@ export class SystemReader {
   /** The mount units the disk wrapper wrote in `unitDir` (an absolute path). */
   async diskUnits(
     unitDir: string,
-  ): Promise<{ name: string; uuid: string | null; where: string }[]> {
+  ): Promise<{ uuid: string | null; where: string }[]> {
     const units = [];
     for (const file of (await this.list(unitDir)) ?? []) {
-      if (!file.startsWith('mnt-') || !file.endsWith('.mount')) continue;
+      if (!file.endsWith('.mount')) continue;
+      // Only the disk program's own units (parseDiskUnit checks its first line).
       const unit = parseDiskUnit((await this.readOptional(`${unitDir}/${file}`)) ?? '');
-      if (unit) units.push({ name: unit.where.slice(unit.where.lastIndexOf('/') + 1), ...unit });
+      if (unit) units.push(unit);
     }
     return units;
   }

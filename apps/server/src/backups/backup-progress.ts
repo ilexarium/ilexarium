@@ -1,7 +1,7 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { BACKUP_LIMITS, BACKUP_PHASES, type BackupPhase, type BackupProgress } from '@laris/shared';
 import { catchError, EMPTY, exhaustMap, from, Observable, Subject, type Subscription } from 'rxjs';
-import { OperationSlot } from '../jobs/operation-slot.js';
+import { ChangesUnderway } from '../jobs/changes-underway.js';
 import {
   BackupFiles,
   parseLines,
@@ -105,9 +105,9 @@ export class BackupProgressFollower implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly backupFiles: BackupFiles,
-    operationSlot: OperationSlot,
+    changesUnderway: ChangesUnderway,
   ) {
-    operationSlot.followExternal(() => (this.running() ? 'backup' : null));
+    changesUnderway.follow(() => this.running() !== null);
   }
 
   onModuleInit(): void {

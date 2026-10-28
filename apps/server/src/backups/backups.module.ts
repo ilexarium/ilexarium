@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module.js';
-import { AuthModule } from '../auth/auth.module.js';
-import { CatalogModule } from '../catalog/catalog.module.js';
-import { ExecutorModule } from '../executor/executor.module.js';
+import { DockerModule } from '../docker/docker.module.js';
 import { HostModule } from '../host/host.module.js';
-import { JobsModule } from '../jobs/jobs.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
+import { RootProgramsModule } from '../root-programs/root-programs.module.js';
 import { BackupFiles } from './backup-files.js';
 import { BackupChecks } from './backup-checks.js';
 import { BackupPlanManager } from './backup-plan-manager.js';
@@ -18,19 +16,11 @@ import { BackupsController } from './backups.controller.js';
 import { BackupsTopic } from './backups-topic.js';
 
 /**
- * Automated backups (docs/plans/backups.md). Services use `BackupPlanManager` for "Include in
- * backups"; the health alerts read the status and follow its changes.
+ * Automated backups (docs/plans/backups.md): changes through the person's sudo, results from the
+ * backup program's files. The health alerts read the status and follow its changes.
  */
 @Module({
-  imports: [
-    AuditModule,
-    AuthModule,
-    CatalogModule,
-    ExecutorModule,
-    HostModule,
-    JobsModule,
-    RealtimeModule,
-  ],
+  imports: [AuditModule, DockerModule, HostModule, RealtimeModule, RootProgramsModule],
   controllers: [BackupsController],
   providers: [
     BackupChecks,

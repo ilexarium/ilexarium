@@ -5,7 +5,6 @@ import {
   systemSnapshotSchema,
   systemUpdateSchema,
 } from './monitoring.js';
-import { servicesListSchema } from './services.js';
 import { backupsStatusSchema } from './backups.js';
 import { disksStatusSchema } from './disks.js';
 import { aiTopicSchema } from './ai.js';
@@ -26,7 +25,6 @@ export const WS_CLOSE_CODES = {
 export const REALTIME_TOPICS = [
   'system',
   'containers',
-  'services',
   'backups',
   'disks',
   'alerts',
@@ -70,8 +68,6 @@ export const serverMessageSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('system:update'), data: systemUpdateSchema }),
   z.object({ event: z.literal('containers:snapshot'), data: containersSnapshotSchema }),
   z.object({ event: z.literal('containers:update'), data: containersUpdateSchema }),
-  z.object({ event: z.literal('services:snapshot'), data: servicesListSchema }),
-  z.object({ event: z.literal('services:update'), data: servicesListSchema }),
   z.object({ event: z.literal('backups:snapshot'), data: backupsStatusSchema }),
   z.object({ event: z.literal('backups:update'), data: backupsStatusSchema }),
   z.object({ event: z.literal('disks:snapshot'), data: disksStatusSchema }),

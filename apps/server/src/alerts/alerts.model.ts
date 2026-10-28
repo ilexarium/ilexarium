@@ -16,6 +16,9 @@ export interface AlertCondition {
 
 /** Stored with an alert: enough to word it. Never logs, values or secrets. */
 export interface AlertDetails {
+  /** The app (Compose project) a container belongs to. */
+  app?: string;
+  /** Before apps: the catalog entry (old alerts only). */
   catalogId?: string;
   percent?: number;
 }
@@ -37,8 +40,8 @@ export interface AlertEvent {
 /** A container the watcher looks after, as the latest list shows it. */
 export interface WatchedContainer {
   name: string;
-  /** The catalog entry it belongs to; null for the platform's own. */
-  catalogId: string | null;
+  /** The app (Compose project) it belongs to; null for the platform's own. */
+  app: string | null;
   running: boolean;
   health: ContainerHealth;
 }
