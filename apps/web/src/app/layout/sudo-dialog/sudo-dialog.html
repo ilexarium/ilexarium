@@ -1,0 +1,62 @@
+<hlm-dialog
+  [state]="linuxSessionStore.sudoPrompt() ? 'open' : 'closed'"
+  [disableClose]="form().submitting()"
+  (closed)="onClosed()"
+>
+  <hlm-dialog-content
+    *hlmDialogPortal
+    class="max-h-[90dvh] overflow-y-auto"
+    [closeLabel]="'linux.sudo.close' | translate"
+    [showCloseButton]="!form().submitting()"
+  >
+    <hlm-dialog-header>
+      <h2 hlmDialogTitle>{{ 'linux.sudo.title' | translate }}</h2>
+      <p hlmDialogDescription>
+        {{
+          'linux.sudo.text' | translate: { account: linuxSessionStore.session()?.username ?? '' }
+        }}
+      </p>
+    </hlm-dialog-header>
+    <form id="sudo-form" [formRoot]="form" class="grid gap-5">
+      <laris-form-errors [form]="form" />
+      <!-- Lets password managers tie the password to the Linux account. -->
+      <input
+        type="text"
+        autocomplete="username"
+        [value]="linuxSessionStore.session()?.username ?? ''"
+        hidden
+        readonly
+      />
+      <div hlmField>
+        <label hlmFieldLabel for="sudo-password">{{ 'linux.sudo.password' | translate }}</label>
+        <div class="relative">
+          <input
+            hlmInput
+            id="sudo-password"
+            dir="ltr"
+            class="pe-10"
+            autocomplete="current-password"
+            [type]="showPassword() ? 'text' : 'password'"
+            [formField]="form.password"
+          />
+          <laris-password-toggle [(visible)]="showPassword" />
+        </div>
+        <laris-field-errors [field]="form.password" />
+      </div>
+    </form>
+    <hlm-dialog-footer>
+      <button
+        hlmBtn
+        type="button"
+        variant="outline"
+        [disabled]="form().submitting()"
+        (click)="linuxSessionStore.cancelSudo()"
+      >
+        {{ 'linux.sudo.cancel' | translate }}
+      </button>
+      <button hlmBtn type="submit" form="sudo-form" [disabled]="form().submitting()">
+        {{ (form().submitting() ? 'linux.sudo.submitting' : 'linux.sudo.submit') | translate }}
+      </button>
+    </hlm-dialog-footer>
+  </hlm-dialog-content>
+</hlm-dialog>

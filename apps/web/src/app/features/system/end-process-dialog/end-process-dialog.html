@@ -24,6 +24,11 @@
             ) | translate
           }}
         </p>
+        @if (asAdministrator()) {
+          <p hlmAlertDialogDescription>
+            {{ 'processes.endDialog.administrator' | translate: { account: account() ?? '' } }}
+          </p>
+        }
       </hlm-alert-dialog-header>
       <hlm-alert-dialog-footer>
         <button hlmAlertDialogCancel>{{ 'processes.endDialog.cancel' | translate }}</button>

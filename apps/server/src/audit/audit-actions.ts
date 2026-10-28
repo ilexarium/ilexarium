@@ -24,6 +24,8 @@ export const AUDIT_ACTIONS = [
   'process.end',
   'linux.signin',
   'linux.signout',
+  'linux.sudo_unlock',
+  'linux.sudo_lock',
   'files.upload',
   'files.rename',
   'files.delete',

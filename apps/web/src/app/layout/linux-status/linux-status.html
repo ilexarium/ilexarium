@@ -1,0 +1,51 @@
+<button
+  hlmBtn
+  variant="ghost"
+  class="gap-1.5 px-2"
+  [class.text-primary]="sudoMinutes() !== null"
+  [hlmDropdownMenuTrigger]="menu"
+  align="end"
+  [attr.aria-label]="label()"
+>
+  <ng-icon
+    [name]="sudoMinutes() === null ? 'lucideSquareTerminal' : 'lucideShieldCheck'"
+    aria-hidden="true"
+  />
+  <span dir="ltr" class="hidden max-w-28 truncate text-sm md:inline">{{ username() }}</span>
+  @if (sudoMinutes(); as minutes) {
+    <span class="hidden text-xs whitespace-nowrap lg:inline">{{
+      'linux.status.admin' | plural: minutes
+    }}</span>
+  }
+</button>
+<ng-template #menu>
+  <hlm-dropdown-menu class="w-72">
+    <div class="grid gap-1 px-2 py-1.5">
+      <p class="text-sm font-medium">
+        {{ 'linux.status.title' | translate }}
+        <span dir="ltr">{{ username() }}</span>
+      </p>
+      <p class="text-xs text-muted-foreground">
+        @if (sudoMinutes(); as minutes) {
+          {{ 'linux.status.adminText' | plural: minutes }}
+        } @else {
+          {{ 'linux.status.lockedText' | translate }}
+        }
+      </p>
+    </div>
+    <hlm-dropdown-menu-separator />
+    <div hlmDropdownMenuGroup>
+      @if (sudoMinutes() !== null) {
+        <button hlmDropdownMenuItem (triggered)="lock.emit()">
+          <ng-icon name="lucideLock" aria-hidden="true" />
+          {{ 'linux.status.lockNow' | translate }}
+        </button>
+      } @else {
+        <button hlmDropdownMenuItem (triggered)="close.emit()">
+          <ng-icon name="lucideLogOut" aria-hidden="true" />
+          {{ 'linux.status.close' | translate }}
+        </button>
+      }
+    </div>
+  </hlm-dropdown-menu>
+</ng-template>

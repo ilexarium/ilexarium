@@ -43,6 +43,26 @@ describe('validateEnv', () => {
     }
   });
 
+  it('starts the installed helper, or one at another plain absolute path', () => {
+    expect(validateEnv(base).LINUX_HELPER).toBe('/opt/laris/libexec/laris-helper.mts');
+    const path = '/home/dev/laris/system/wrappers/laris-helper.mts';
+    expect(validateEnv({ ...base, LINUX_HELPER: path }).LINUX_HELPER).toBe(path);
+  });
+
+  it('never a helper path SSH would read as more than one (spaces, quotes, “;”, “..”)', () => {
+    for (const path of [
+      'laris-helper.mts',
+      '/opt/laris helper.mts',
+      '/opt/x;id',
+      "/opt/x'y",
+      '/opt/$(id)',
+      '/opt/../tmp/x',
+      '/opt/x\nid',
+    ]) {
+      expect(() => validateEnv({ ...base, LINUX_HELPER: path }), path).toThrow();
+    }
+  });
+
   it('uses the production setup-token path in production', () => {
     expect(validateEnv({ ...base, NODE_ENV: 'production' }).SETUP_TOKEN_FILE).toBe(
       '/var/lib/laris/app/setup-token',

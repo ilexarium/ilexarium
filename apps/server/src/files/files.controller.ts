@@ -21,12 +21,13 @@ import type { Request, Response } from 'express';
 import { pipeline } from 'node:stream/promises';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
-import { SIGN_IN_LIMIT } from '../linux-sessions/linux-sessions.constants.js';
+import { SIGN_IN_LIMIT, SUDO_LIMIT } from '../linux-sessions/linux-sessions.constants.js';
 import {
   FilePathQueryDto,
   FileRenameDto,
   FileUploadQueryDto,
   LinuxSignInDto,
+  LinuxSudoDto,
   NewFolderDto,
 } from './files.dto.js';
 import { FilesService } from './files.service.js';
@@ -71,6 +72,31 @@ export class FilesController {
     @Ip() ip: string,
   ): Promise<void> {
     return this.linuxSessions.signOut(session.id, { user, ip });
+  }
+
+  /** Unlocks the account's sudo with its password (the same as its sign-in); kept by sudo. */
+  @Post('session/sudo')
+  @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle(SUDO_LIMIT)
+  unlockSudo(
+    @Body() body: LinuxSudoDto,
+    @CurrentSession() session: { id: string },
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<LinuxSession> {
+    return this.linuxSessions.unlockSudo(session.id, body.password, { user, ip });
+  }
+
+  /** "Lock now": sudo locked, and the Linux session ends. */
+  @Delete('session/sudo')
+  @HttpCode(204)
+  lockSudo(
+    @CurrentSession() session: { id: string },
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<void> {
+    return this.linuxSessions.lockSudo(session.id, { user, ip });
   }
 
   @Get('list')

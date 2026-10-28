@@ -1,5 +1,4 @@
-import { FILES_LIMITS } from '@laris/shared';
-import type { LinuxCommand } from './linux-sessions.model.js';
+import { FILES_ERROR_CODES, FILES_LIMITS, type FilesErrorCode } from '@laris/shared';
 
 /** The machine's own SSH server: never another one. */
 export const SSH_HOST = '127.0.0.1';
@@ -11,14 +10,30 @@ export const KEEPALIVE_COUNT_MAX = 3;
 /** The server's host keys, in its key folder: `ssh_host_<type>_key.pub`. */
 export const HOST_KEY_FILE = /^ssh_host_\w+_key\.pub$/;
 
-/** A command on the Linux session (ending a process, `id`): quick, or something is stuck. */
-export const COMMAND_TIMEOUT_MS = 15_000;
-/** What is kept of a command's output: its first lines say what happened. */
-export const COMMAND_OUTPUT_MAX = 16 * 1024;
-/** The account's uid, asked once at the sign-in (which waits for it at most this long). */
-export const UID_TIMEOUT_MS = 3_000;
-/** The account's uid, asked once at the sign-in. */
-export const UID_COMMAND = 'id -u' as LinuxCommand;
+/** The helper's first line (`{"laris-helper":1}`): it runs, and listens. */
+export const HELPER_READY = 'laris-helper';
+/** The sign-in waits this long for it (Node starting on a slow machine). */
+export const HELPER_START_TIMEOUT_MS = 10_000;
+/** Its answers are short; a longer line means something else is talking. */
+export const HELPER_ANSWER_MAX = 64 * 1024;
+/** A request it answers at once (who it runs as). */
+export const HELPER_QUICK_MS = 5_000;
+/** Above the helper's own limits (sudo's delay after a wrong password: 20 s; kill: 10 s). */
+export const HELPER_TIMEOUT_MS = 25_000;
+/**
+ * sudo's usual cache time (`timestamp_timeout`, 15 minutes), counted from the last use: what the
+ * top bar shows. The machine may set another; sudo's own answer (`sudo_required`) is the truth.
+ */
+export const SUDO_ESTIMATE_MS = 15 * 60_000;
+/** The helper's sudo answers, as the API says them. */
+export const SUDO_ERRORS: Partial<Record<string, FilesErrorCode>> = {
+  wrong_password: FILES_ERROR_CODES.sudoPasswordWrong,
+  sudo_required: FILES_ERROR_CODES.sudoRequired,
+  sudo_not_allowed: FILES_ERROR_CODES.sudoNotAllowed,
+  sudo_unavailable: FILES_ERROR_CODES.sudoNotAllowed,
+};
 
 /** Linux sign-in: few tries (sshd counts too). */
 export const SIGN_IN_LIMIT = { default: { limit: 5, ttl: 60_000 } };
+/** Unlocking sudo: a password too, few tries (PAM counts too). */
+export const SUDO_LIMIT = { default: { limit: 5, ttl: 60_000 } };

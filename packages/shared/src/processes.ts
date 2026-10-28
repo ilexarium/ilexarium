@@ -15,8 +15,6 @@ export const PROCESS_LIMITS = {
   commandMax: 1024,
   /** The kernel's largest PID (`pid_max` at most 2^22). */
   maxPid: 4_194_304,
-  /** The sudo password for "as administrator" (one action, never kept). */
-  passwordMax: 1024,
 } as const;
 
 export const PROCESS_SIGNALS = ['TERM', 'KILL'] as const;
@@ -115,26 +113,16 @@ export const processesUpdateSchema = z.object({
 });
 export type ProcessesUpdate = z.infer<typeof processesUpdateSchema>;
 
-/** `POST /processes/signal`: end a process (TERM), or force it (KILL), as the Linux account. */
+/**
+ * `POST /processes/signal`: end a process (TERM), or force it (KILL), as the Linux account — through
+ * its unlocked sudo when it is another account's.
+ */
 export const processSignalRequestSchema = z.strictObject({
   pid: z.number().int().positive().max(PROCESS_LIMITS.maxPid),
   startTicks: processStartTicksSchema,
   signal: processSignalSchema,
 });
 export type ProcessSignalRequest = z.infer<typeof processSignalRequestSchema>;
-
-/** `POST /processes/signal-as-administrator`: the same through `sudo`, with its password. */
-export const processSignalAsAdministratorRequestSchema = processSignalRequestSchema.extend({
-  password: z
-    .string()
-    .min(1, 'validation.passwordRequired')
-    .max(PROCESS_LIMITS.passwordMax, 'validation.passwordTooLong')
-    // One line on sudo's stdin: a line break would end it early.
-    .refine((password) => !/[\r\n\0]/.test(password), 'validation.passwordInvalid'),
-});
-export type ProcessSignalAsAdministratorRequest = z.infer<
-  typeof processSignalAsAdministratorRequestSchema
->;
 
 export const PROCESS_ERROR_CODES = {
   /** Gone (ended meanwhile, or the PID now names another process). */
@@ -143,10 +131,6 @@ export const PROCESS_ERROR_CODES = {
   processProtected: 'process_protected',
   /** Linux refused: the account may not signal this process. */
   processNotPermitted: 'process_not_permitted',
-  /** sudo refused the password. */
-  sudoPasswordWrong: 'sudo_password_wrong',
-  /** The account may not use sudo (or sudo isn't installed). */
-  sudoNotAllowed: 'sudo_not_allowed',
   signalFailed: 'signal_failed',
   timedOut: 'timed_out',
   auditUnavailable: 'audit_unavailable',

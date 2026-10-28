@@ -22,7 +22,12 @@ const entry = (change: Partial<FileEntry>): FileEntry => ({
   ...change,
 });
 
-const ANNA: LinuxSession = { username: 'anna', home: '/home/anna', uid: 1500 };
+const ANNA: LinuxSession = {
+  username: 'anna',
+  home: '/home/anna',
+  uid: 1500,
+  sudoUntil: null,
+};
 const HOME: FileList = {
   path: '/home/anna',
   parent: '/home',

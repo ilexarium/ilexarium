@@ -1,27 +1,22 @@
 import { inject } from '@angular/core';
-import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import { HttpErrorResponse } from '@angular/common/http';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import {
-  FILES_ERROR_CODES,
-  type LinuxSession,
-  type LinuxSignInRequest,
-  TERMINAL_CLOSE_CODES,
-} from '@laris/shared';
-import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
+import { FILES_ERROR_CODES, type LinuxSignInRequest, TERMINAL_CLOSE_CODES } from '@laris/shared';
+import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
-import { FilesApi } from '../../../core/files/files-api';
-import { Translator } from '../../../core/i18n/translator';
+import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { TerminalApi } from '../../../core/terminal/terminal-api';
-import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
+import { apiErrorCode } from '../../../shared/forms/submission-errors';
 import type { TerminalClosedReason, TerminalPhase, TerminalSize } from '../terminal.model';
 import { CLOSE_REASONS, OPEN } from './terminal-page.constants';
 
 interface TerminalPageState {
-  /** Asked the server whether a Linux session is open. */
-  checked: boolean;
-  session: LinuxSession | null;
   phase: TerminalPhase;
   /** The ticket got with the app password, until the terminal knows its size and connects. */
   ticket: string | null;
@@ -29,8 +24,6 @@ interface TerminalPageState {
 }
 
 const initialState: TerminalPageState = {
-  checked: false,
-  session: null,
   phase: 'locked',
   ticket: null,
   closedReason: null,
@@ -38,19 +31,22 @@ const initialState: TerminalPageState = {
 
 /**
  * The Terminal page's data, provided by the page and gone with it (docs/plans/
- * files_and_terminal.md, step 2): the Linux session, the app password again (a one-time ticket),
- * then the terminal's own socket — keystrokes out, the shell's output to the page's `sink` (bytes
+ * files_and_terminal.md, step 2): the Linux session (`LinuxSessionStore`, shared), the app
+ * password again (a one-time ticket), then the terminal's own socket — keystrokes out, the shell's output to the page's `sink` (bytes
  * for the terminal view: a stream, not state). Closed with the page.
  */
 export const TerminalPageStore = signalStore(
   withState<TerminalPageState>(initialState),
+  withComputed((_, linuxSessionStore = inject(LinuxSessionStore)) => ({
+    checked: linuxSessionStore.checked,
+    session: linuxSessionStore.session,
+  })),
   withMethods(
     (
       store,
-      filesApi = inject(FilesApi),
       terminalApi = inject(TerminalApi),
       authStore = inject(AuthStore),
-      translator = inject(Translator),
+      linuxSessionStore = inject(LinuxSessionStore),
     ) => {
       let socket: WebSocket | null = null;
       const encoder = new TextEncoder();
@@ -62,39 +58,16 @@ export const TerminalPageStore = signalStore(
           return;
         }
         const reason = CLOSE_REASONS[code] ?? (code === 1000 ? 'closed' : 'lost');
-        patchState(store, {
-          phase: 'closed',
-          closedReason: reason,
-          // Without a Linux session, the sign-in comes back.
-          ...(reason === 'linuxSessionEnded' && { session: null }),
-        });
+        patchState(store, { phase: 'closed', closedReason: reason });
+        // Without a Linux session, the sign-in comes back.
+        if (reason === 'linuxSessionEnded') linuxSessionStore.ended();
       };
 
       return {
-        check: rxMethod<void>(
-          pipe(
-            exhaustMap(() =>
-              filesApi.session().pipe(
-                tap(({ session }) => patchState(store, { session, checked: true })),
-                catchError((error: unknown) => {
-                  patchState(store, { checked: true });
-                  // A 401: the app session is gone, and the app signs out on its own.
-                  if (!(error instanceof HttpErrorResponse && error.status === 401)) {
-                    toast.error(translator.t('files.actionFailed'), {
-                      description: translator.t(...apiErrorText(error)),
-                    });
-                  }
-                  return EMPTY;
-                }),
-              ),
-            ),
-          ),
-        ),
-
         /** Rejects with the server's error (the form shows it). */
         async signIn(request: LinuxSignInRequest): Promise<void> {
-          const session = await firstValueFrom(filesApi.signIn(request));
-          patchState(store, { session, phase: 'locked', closedReason: null });
+          await linuxSessionStore.signIn(request);
+          patchState(store, { phase: 'locked', closedReason: null });
         },
 
         /**
@@ -105,11 +78,8 @@ export const TerminalPageStore = signalStore(
           const { ticket } = await firstValueFrom(terminalApi.ticket(password)).catch(
             (error: unknown) => {
               if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
-                patchState(store, {
-                  session: null,
-                  phase: 'locked',
-                  closedReason: 'linuxSessionEnded',
-                });
+                linuxSessionStore.ended();
+                patchState(store, { phase: 'locked', closedReason: 'linuxSessionEnded' });
               }
               throw error;
             },
@@ -158,9 +128,9 @@ export const TerminalPageStore = signalStore(
       };
     },
   ),
-  withHooks((store) => ({
+  withHooks((store, linuxSessionStore = inject(LinuxSessionStore)) => ({
     onInit() {
-      store.check();
+      linuxSessionStore.check();
     },
     onDestroy() {
       store.disconnect();

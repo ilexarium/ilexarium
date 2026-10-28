@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   type ApiErrorResponse,
+  type FilesErrorCode,
   PROCESS_ERROR_CODES,
   type ProcessErrorCode,
   type ProcessSignalRequest,
@@ -8,57 +9,39 @@ import {
 import { AuditService } from '../audit/audit.service.js';
 import { isKernelThread } from '../host/process-parsers.js';
 import { SystemReader } from '../host/system-reader.js';
-import { linuxSessionRequired } from '../linux-sessions/linux-session-errors.js';
+import { linuxError, linuxSessionRequired } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
-import type { LinuxActor, LinuxCommandResult } from '../linux-sessions/linux-sessions.model.js';
-import { killCommand } from './kill-command.js';
+import type { LinuxActor } from '../linux-sessions/linux-sessions.model.js';
+import { SIGNAL_ERRORS } from './processes.constants.js';
 
 const apiErrorCode = (error: unknown): string | undefined =>
   error instanceof HttpException
     ? (error.getResponse() as Partial<ApiErrorResponse>).code
     : undefined;
-import { KILL_MESSAGES } from './processes.constants.js';
 
 /** Never 401: that means the app session is gone (the Linux side's rule). */
 const STATUS: Record<ProcessErrorCode, HttpStatus> = {
   [PROCESS_ERROR_CODES.processNotFound]: HttpStatus.NOT_FOUND,
   [PROCESS_ERROR_CODES.processProtected]: HttpStatus.FORBIDDEN,
   [PROCESS_ERROR_CODES.processNotPermitted]: HttpStatus.FORBIDDEN,
-  [PROCESS_ERROR_CODES.sudoPasswordWrong]: HttpStatus.FORBIDDEN,
-  [PROCESS_ERROR_CODES.sudoNotAllowed]: HttpStatus.FORBIDDEN,
   [PROCESS_ERROR_CODES.signalFailed]: HttpStatus.BAD_GATEWAY,
   [PROCESS_ERROR_CODES.timedOut]: HttpStatus.GATEWAY_TIMEOUT,
   [PROCESS_ERROR_CODES.auditUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
 };
 
-function failure(code: ProcessErrorCode): HttpException {
+function failure(code: ProcessErrorCode | FilesErrorCode): HttpException {
+  if (!(code in STATUS))
+    return linuxError(code as FilesErrorCode, 'The process could not be ended');
   const body: ApiErrorResponse = { message: 'The process could not be ended', code };
-  return new HttpException(body, STATUS[code]);
-}
-
-/** What the command's exit and messages mean; null for success. */
-function outcomeOf(result: LinuxCommandResult, asAdministrator: boolean): ProcessErrorCode | null {
-  if (result.code === 0) return null;
-  if (asAdministrator) {
-    // `env` found no sudo (127), or sudo refused.
-    if (result.code === 127) return PROCESS_ERROR_CODES.sudoNotAllowed;
-    if (KILL_MESSAGES.sudoPasswordWrong.test(result.stderr)) {
-      return PROCESS_ERROR_CODES.sudoPasswordWrong;
-    }
-    if (KILL_MESSAGES.sudoNotAllowed.test(result.stderr)) return PROCESS_ERROR_CODES.sudoNotAllowed;
-  }
-  if (KILL_MESSAGES.notFound.test(result.stderr)) return PROCESS_ERROR_CODES.processNotFound;
-  if (KILL_MESSAGES.notPermitted.test(result.stderr)) {
-    return PROCESS_ERROR_CODES.processNotPermitted;
-  }
-  return PROCESS_ERROR_CODES.signalFailed;
+  return new HttpException(body, STATUS[code as ProcessErrorCode]);
 }
 
 /**
- * Ending a process (docs/plans/process_list.md) as the signed-in Linux account, over its SSH
- * session — or through its own `sudo`, with its password for this one action. Linux decides what
- * the account may end; the app only makes sure it's the process the person saw (PID and start
- * time), never PID 1 or a kernel thread, and records it first (no record, no signal).
+ * Ending a process (docs/plans/process_list.md) as the signed-in Linux account, through its
+ * session's helper — another account's process through the account's unlocked sudo
+ * (docs/plans/acting_as_you.md). Linux decides what the account may end; the app only makes sure
+ * it's the process the person saw (PID and start time), never PID 1 or a kernel thread, and
+ * records it first (no record, no signal).
  */
 @Injectable()
 export class ProcessesService {
@@ -74,7 +57,6 @@ export class ProcessesService {
     appSessionId: string,
     request: ProcessSignalRequest,
     actor: LinuxActor,
-    sudoPassword?: string,
   ): Promise<void> {
     const linux = this.linuxSessions.current(appSessionId);
     if (!linux) throw linuxSessionRequired();
@@ -84,8 +66,9 @@ export class ProcessesService {
     }
     if (raw.pid === 1 || isKernelThread(raw)) throw failure(PROCESS_ERROR_CODES.processProtected);
 
-    const asAdministrator = sudoPassword !== undefined;
-    // Never the command line (it may hold passwords), never the sudo password.
+    // Another account's process: through sudo. An unknown uid tries as the account itself.
+    const asAdministrator = linux.uid !== null && raw.uids[0] !== linux.uid;
+    // Never the command line (it may hold passwords).
     const details = {
       pid: raw.pid,
       name: raw.name,
@@ -106,19 +89,24 @@ export class ProcessesService {
       throw failure(PROCESS_ERROR_CODES.auditUnavailable);
     }
 
-    let code: ProcessErrorCode | null;
+    let code: ProcessErrorCode | FilesErrorCode | null;
     try {
-      const result = await this.linuxSessions.run(
+      const answer = await this.linuxSessions.ask(
         appSessionId,
-        killCommand(raw.pid, request.signal, asAdministrator),
-        asAdministrator ? `${sudoPassword}\n` : '',
+        {
+          action: 'process.signal',
+          pid: raw.pid,
+          signal: request.signal,
+          administrator: asAdministrator,
+        },
+        { sudo: asAdministrator },
       );
-      code = outcomeOf(result, asAdministrator);
+      code = answer.ok ? null : (SIGNAL_ERRORS[answer.error] ?? PROCESS_ERROR_CODES.signalFailed);
       if (code === PROCESS_ERROR_CODES.signalFailed) {
-        this.logger.warn(`Ending process ${raw.pid} failed (exit ${result.code})`);
+        this.logger.warn(`Ending process ${raw.pid} failed (${answer.ok ? '' : answer.error})`);
       }
     } catch (error) {
-      // The Linux session ended meanwhile, or SSH ran nothing (or didn't finish): its own code.
+      // The Linux session ended meanwhile, or it has no helper: its own code.
       const reason = apiErrorCode(error) ?? PROCESS_ERROR_CODES.signalFailed;
       await this.auditService.tryRecord({
         ...entry,

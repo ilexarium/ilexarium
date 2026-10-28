@@ -13,9 +13,13 @@ const HOST_KEY = Buffer.from('the pinned host key');
 let serverKey = HOST_KEY;
 let refuse = false;
 const clients: FakeClient[] = [];
-/** What the fake account's shell answers: by command line. */
-let answers: Record<string, { code: number; stdout?: string; stderr?: string }> = {};
-const ran: { command: string; input: string }[] = [];
+const HELPER = '/opt/laris/libexec/laris-helper.mts';
+/** How the fake helper behaves: answers, not installed, refusing to start, or never answering. */
+let helperMode: 'answers' | 'missing' | 'refuses' | 'silent' = 'answers';
+/** Its answers, by action. */
+let helperAnswers: Record<string, Record<string, unknown>> = {};
+const asked: Record<string, unknown>[] = [];
+const started: { command: string; options: Record<string, unknown> }[] = [];
 
 class FakeClient extends EventEmitter {
   ended = false;
@@ -40,22 +44,39 @@ class FakeClient extends EventEmitter {
       realpath: (_p: string, cb: (e: undefined, p: string) => void) => cb(undefined, '/home/anna'),
     });
   }
-  exec(command: string, done: (error: Error | undefined, channel: unknown) => void) {
+  exec(
+    command: string,
+    options: Record<string, unknown>,
+    done: (error: Error | undefined, channel: unknown) => void,
+  ) {
+    started.push({ command, options });
     const channel = Object.assign(new EventEmitter(), {
-      stderr: new EventEmitter(),
-      close: () => channel.emit('close', null),
-      end: (input: string) => {
-        ran.push({ command, input });
-        const answer = answers[command];
+      close: () => setImmediate(() => channel.emit('close')),
+      write: (line: string) => {
+        const request = JSON.parse(line) as Record<string, unknown>;
+        asked.push(request);
+        if (helperMode === 'silent') return;
+        const answer = helperAnswers[request['action'] as string] ?? { ok: true };
+        // The terminal turns "\n" into "\r\n", and an answer may arrive in pieces.
+        const text = `${JSON.stringify({ id: request['id'], ...answer })}\r\n`;
         setImmediate(() => {
-          if (!answer) return; // hangs
-          if (answer.stdout) channel.emit('data', Buffer.from(answer.stdout));
-          if (answer.stderr) channel.stderr.emit('data', Buffer.from(answer.stderr));
-          channel.emit('close', answer.code);
+          channel.emit('data', Buffer.from(text.slice(0, 5)));
+          channel.emit('data', Buffer.from(text.slice(5)));
         });
       },
     });
     done(undefined, channel);
+    setImmediate(() => {
+      if (helperMode === 'missing') {
+        channel.emit('data', Buffer.from('bash: laris-helper.mts: No such file or directory\r\n'));
+        channel.emit('close');
+        return;
+      }
+      channel.emit('data', Buffer.from('Welcome to the box!\r\n'));
+      const ready =
+        helperMode === 'refuses' ? { 'laris-helper': 1, error: 'setup' } : { 'laris-helper': 1 };
+      channel.emit('data', Buffer.from(`${JSON.stringify(ready)}\r\n`));
+    });
   }
   end() {
     this.ended = true;
@@ -84,12 +105,14 @@ describe('LinuxSessions', () => {
   let sessions: InstanceType<typeof LinuxSessions>;
 
   beforeEach(async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     clients.length = 0;
     serverKey = HOST_KEY;
     refuse = false;
-    answers = { 'id -u': { code: 0, stdout: '1500\n' } };
-    ran.length = 0;
+    helperMode = 'answers';
+    helperAnswers = { hello: { ok: true, uid: 1500, user: 'anna', home: '/home/anna' } };
+    asked.length = 0;
+    started.length = 0;
     dir = mkdtempSync(join(tmpdir(), 'host-keys-'));
     writeFileSync(
       join(dir, 'ssh_host_ed25519_key.pub'),
@@ -102,7 +125,7 @@ describe('LinuxSessions', () => {
     events = new Subject();
     audit = { tryRecord: vi.fn(async () => undefined) };
     const config = {
-      get: (key: string) => (key === 'SSH_PORT' ? 2222 : dir),
+      get: (key: string) => ({ SSH_PORT: 2222, LINUX_HELPER: HELPER })[key] ?? dir,
     } as unknown as ConfigService<Env, true>;
     sessions = new LinuxSessions(
       config,
@@ -121,64 +144,130 @@ describe('LinuxSessions', () => {
   const signIn = (sessionId = 's1') =>
     sessions.signIn(sessionId, { username: 'anna', password: 'pw' }, ACTOR);
 
+  const SESSION = { username: 'anna', home: '/home/anna', uid: 1500, sudoUntil: null };
+
   it('connects to this machine only, with the password, and keeps one session per app session', async () => {
-    expect(await signIn()).toEqual({ username: 'anna', home: '/home/anna', uid: 1500 });
+    expect(await signIn()).toEqual(SESSION);
     expect(clients[0].options).toMatchObject({
       host: '127.0.0.1',
       port: 2222,
       username: 'anna',
       password: 'pw',
     });
-    expect(sessions.current('s1')).toEqual({ username: 'anna', home: '/home/anna', uid: 1500 });
+    expect(sessions.current('s1')).toEqual(SESSION);
     await signIn();
     expect(clients[0].ended).toBe(true); // replaced
     expect(sessions.current('other')).toBeNull();
   });
 
-  it('a shell that can’t say its uid (nologin) still signs in, without one', async () => {
-    answers = { 'id -u': { code: 1, stderr: 'This account is currently not available.' } };
-    expect(await signIn()).toMatchObject({ uid: null });
-  });
-
-  it('reads the uid after a login script’s greeting', async () => {
-    answers = { 'id -u': { code: 0, stdout: 'Welcome back!\n1500\n' } };
-    expect(await signIn()).toMatchObject({ uid: 1500 });
-  });
-
-  it('a connection that just dropped: ssh_unavailable, not a raw error', async () => {
+  it('starts the helper with a terminal, past the login’s greeting, and asks it who it is', async () => {
     await signIn();
-    vi.spyOn(clients.at(-1)!, 'exec').mockImplementation(() => {
-      throw new Error('Not connected');
-    });
-    const command = 'env LC_ALL=C kill -s TERM -- 9' as Parameters<typeof sessions.run>[1];
-    await expect(sessions.run('s1', command)).rejects.toMatchObject({
-      response: { code: 'ssh_unavailable' },
-    });
+    expect(started).toEqual([{ command: HELPER, options: { pty: expect.any(Object) } }]);
+    expect(asked).toEqual([{ id: 1, action: 'hello' }]);
   });
 
-  it('runs a command as the account: its input on stdin, its exit and output back', async () => {
+  it('without a helper (missing, or refusing to start) still signs in, without administrator actions', async () => {
+    for (const mode of ['missing', 'refuses'] as const) {
+      helperMode = mode;
+      expect(await signIn()).toEqual({ ...SESSION, uid: null });
+      await expect(
+        sessions.ask('s1', {
+          action: 'process.signal',
+          pid: 9,
+          signal: 'TERM',
+          administrator: false,
+        }),
+      ).rejects.toMatchObject({ response: { code: 'helper_unavailable' } });
+    }
+  });
+
+  it('asks the helper, and gives up on one that doesn’t answer', async () => {
     await signIn();
-    answers['env LC_ALL=C kill -s TERM -- 7'] = { code: 1, stderr: 'kill: (7) - No such process' };
-    const command = 'env LC_ALL=C kill -s TERM -- 7' as Parameters<typeof sessions.run>[1];
-    expect(await sessions.run('s1', command, 'x\n')).toEqual({
-      code: 1,
-      stdout: '',
-      stderr: 'kill: (7) - No such process',
-    });
-    expect(ran.at(-1)).toEqual({ command: 'env LC_ALL=C kill -s TERM -- 7', input: 'x\n' });
-    await expect(sessions.run('other', command)).rejects.toMatchObject({
+    helperAnswers['process.signal'] = { ok: false, error: 'not_found' };
+    const request = {
+      action: 'process.signal',
+      pid: 7,
+      signal: 'TERM',
+      administrator: false,
+    } as const;
+    expect(await sessions.ask('s1', request)).toEqual({ ok: false, error: 'not_found' });
+    expect(asked.at(-1)).toEqual({ id: 2, ...request });
+    await expect(sessions.ask('other', request)).rejects.toMatchObject({
       response: { code: 'linux_session_required' },
     });
+    helperMode = 'silent';
+    const answer = sessions.ask('s1', request);
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(await answer).toEqual({ ok: false, error: 'timed_out' });
   });
 
-  it('gives up on a command that doesn’t finish', async () => {
+  it('unlocks sudo with the password, audited without it; the estimate follows sudo’s answers', async () => {
     await signIn();
-    const command = 'env LC_ALL=C kill -s TERM -- 8' as Parameters<typeof sessions.run>[1];
-    const refused = expect(sessions.run('s1', command)).rejects.toMatchObject({
-      response: { code: 'ssh_unavailable' },
-    });
-    await vi.advanceTimersByTimeAsync(15_000);
-    await refused;
+    const unlocked = await sessions.unlockSudo('s1', 'pw', ACTOR);
+    expect(asked.at(-1)).toEqual({ id: 2, action: 'sudo.unlock', password: 'pw' });
+    expect(unlocked.sudoUntil).toBe(new Date(Date.now() + 15 * 60_000).toISOString());
+    expect(audit.tryRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: 'linux.sudo_unlock', outcome: 'success' }),
+    );
+    expect(JSON.stringify(audit.tryRecord.mock.calls)).not.toContain('pw"');
+
+    // A use restarts sudo's time; sudo saying it's locked ends the estimate.
+    const signal = {
+      action: 'process.signal',
+      pid: 7,
+      signal: 'TERM',
+      administrator: true,
+    } as const;
+    vi.advanceTimersByTime(10 * 60_000);
+    await sessions.ask('s1', signal, { sudo: true });
+    vi.advanceTimersByTime(10 * 60_000);
+    expect(sessions.current('s1')?.sudoUntil).not.toBeNull();
+    helperAnswers['process.signal'] = { ok: false, error: 'sudo_required' };
+    await sessions.ask('s1', signal, { sudo: true });
+    expect(sessions.current('s1')?.sudoUntil).toBeNull();
+  });
+
+  it('the estimate runs out after 15 minutes without use', async () => {
+    await signIn();
+    await sessions.unlockSudo('s1', 'pw', ACTOR);
+    sessions.sftp('s1');
+    vi.advanceTimersByTime(15 * 60_000 + 1);
+    expect(sessions.current('s1')?.sudoUntil).toBeNull();
+  });
+
+  it('a password sudo refuses, or an account it refuses: 403 with its code, audited', async () => {
+    await signIn();
+    for (const [error, code] of [
+      ['wrong_password', 'sudo_password_wrong'],
+      ['sudo_not_allowed', 'sudo_not_allowed'],
+      ['sudo_unavailable', 'sudo_not_allowed'],
+    ]) {
+      helperAnswers['sudo.unlock'] = { ok: false, error };
+      await expect(sessions.unlockSudo('s1', 'pw', ACTOR)).rejects.toMatchObject({
+        status: 403,
+        response: { code },
+      });
+      expect(audit.tryRecord).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          action: 'linux.sudo_unlock',
+          outcome: 'failure',
+          details: { linuxUser: 'anna', reason: code },
+        }),
+      );
+    }
+    expect(sessions.current('s1')?.sudoUntil).toBeNull();
+  });
+
+  it('“Lock now” locks sudo and ends the Linux session', async () => {
+    await signIn();
+    await sessions.unlockSudo('s1', 'pw', ACTOR);
+    await sessions.lockSudo('s1', ACTOR);
+    expect(asked.at(-1)).toMatchObject({ action: 'sudo.lock' });
+    expect(sessions.current('s1')).toBeNull();
+    expect(clients[0].ended).toBe(true);
+    expect(audit.tryRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({ action: 'linux.sudo_lock', outcome: 'success' }),
+    );
   });
 
   it('a refused sign-in keeps the running session (a typo never closes a terminal)', async () => {

@@ -19,17 +19,19 @@ import { AlertsStore } from '../../core/alerts/alerts-store';
 import { AuthStore } from '../../core/auth/auth-store';
 import { ProfileStore } from '../../core/profile/profile-store';
 import { LanguageService } from '../../core/i18n/language';
+import { LinuxSessionStore } from '../../core/linux/linux-session-store';
 import { PageTitleStrategy } from '../../core/page-title/page-title';
 import { ProfileDialog } from '../../shared/profile-dialog/profile-dialog';
 import { displayNameOf, UserAvatar } from '../../shared/user-avatar/user-avatar';
 import { AlertsMenu } from '../alerts-menu/alerts-menu';
 import { ConnectionStatus } from '../connection-status/connection-status';
+import { LinuxStatus } from '../linux-status/linux-status';
 import { ThemeMenu } from '../theme-menu/theme-menu';
 
 /**
- * Sidebar toggle, the page title (the page's only h1), the live-data status, the alerts' bell
- * (open alerts on it, a dropdown of the alerts), the theme switch and the user menu (edit profile,
- * the profile page, language, sign out).
+ * Sidebar toggle, the page title (the page's only h1), the live-data status, the Linux session
+ * (while signed in: its sudo, Lock now), the alerts' bell (open alerts on it, a dropdown of the
+ * alerts), the theme switch and the user menu (edit profile, the profile page, language, sign out).
  */
 @Component({
   selector: 'laris-top-bar',
@@ -40,6 +42,7 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
     HlmDropdownMenuImports,
     HlmSeparator,
     HlmSidebarTrigger,
+    LinuxStatus,
     NgIcon,
     ProfileDialog,
     RouterLink,
@@ -64,6 +67,7 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
 export class TopBar {
   protected readonly auth = inject(AuthStore);
   protected readonly alerts = inject(AlertsStore);
+  protected readonly linuxSessionStore = inject(LinuxSessionStore);
   protected readonly languageService = inject(LanguageService);
   protected readonly profile = inject(ProfileStore);
   /** Each language in itself — the same in every interface language. */
