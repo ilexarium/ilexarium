@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal, viewChild } from '@angular/core';
+import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { Translator } from '../../../core/i18n/translator';
@@ -25,6 +25,7 @@ export class EndProcessDialog {
   private readonly formatter = inject(Formatter);
   protected readonly request = signal<EndRequest | null>(null);
   protected readonly asAdministrator = signal(false);
+  protected readonly accountText = computed(() => this.formatter.machine(this.account() ?? ''));
 
   open(request: EndRequest, asAdministrator: boolean): void {
     this.request.set(request);

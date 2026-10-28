@@ -145,6 +145,11 @@ describe('Shell (app layout)', () => {
     expect(el.querySelector('laris-connection-status')!.textContent).toContain('Live');
   });
 
+  it('holds the one prompt for the Linux account’s sudo password, for any page', async () => {
+    const { el } = await render();
+    expect(el.querySelectorAll('laris-sudo-dialog')).toHaveLength(1);
+  });
+
   it('renders the routed page and the user menu', async () => {
     const { el } = await render();
     expect(el.textContent).toContain('page content');
