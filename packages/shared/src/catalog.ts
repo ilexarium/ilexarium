@@ -143,6 +143,8 @@ export const templateSummarySchema = z.object({
   name: z.string(),
   category: catalogCategorySchema,
   website: z.string(),
+  /** Its web page's port inside the container (the "Open" link), or null. */
+  webPort: z.number().int().nullable(),
 });
 export type TemplateSummary = z.infer<typeof templateSummarySchema>;
 

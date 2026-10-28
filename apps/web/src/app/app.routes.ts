@@ -40,17 +40,24 @@ export const routes: Routes = [
           import('./features/containers/logs-page/logs-page').then((m) => m.LogsPage),
       },
       {
-        path: 'services',
-        title: 'pages.services',
+        path: 'apps',
+        title: 'pages.apps',
         loadComponent: () =>
-          import('./features/services/services-page/services-page').then((m) => m.ServicesPage),
+          import('./features/apps/apps-page/apps-page').then((m) => m.AppsPage),
       },
       {
-        path: 'services/install/:id',
-        title: 'pages.installService',
+        path: 'apps/new',
+        title: 'pages.newApp',
         loadComponent: () =>
-          import('./features/services/install-page/install-page').then((m) => m.InstallPage),
+          import('./features/apps/new-app-page/new-app-page').then((m) => m.NewAppPage),
       },
+      {
+        path: 'apps/:name',
+        title: 'pages.app',
+        loadComponent: () =>
+          import('./features/apps/app-page/app-page').then((m) => m.AppPage),
+      },
+      { path: 'services', redirectTo: 'apps' },
       {
         path: 'backups',
         title: 'pages.backups',

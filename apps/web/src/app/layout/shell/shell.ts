@@ -7,6 +7,7 @@ import { LinuxSessionStore } from '../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../core/monitoring/monitoring-store';
 import { RealtimeService } from '../../core/realtime/realtime-service';
 import { AppSidebar } from '../app-sidebar/app-sidebar';
+import { SignInPrompt } from '../sign-in-prompt/sign-in-prompt';
 import { SudoDialog } from '../sudo-dialog/sudo-dialog';
 import { TopBar } from '../top-bar/top-bar';
 
@@ -17,7 +18,7 @@ import { TopBar } from '../top-bar/top-bar';
  */
 @Component({
   selector: 'laris-shell',
-  imports: [RouterOutlet, HlmSidebarImports, AppSidebar, SudoDialog, TopBar],
+  imports: [RouterOutlet, HlmSidebarImports, AppSidebar, SignInPrompt, SudoDialog, TopBar],
   templateUrl: './shell.html',
 })
 export class Shell {

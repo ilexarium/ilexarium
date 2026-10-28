@@ -10,7 +10,7 @@ export function alertTitle(alert: Alert, formatter: Formatter): Wording {
   return [
     `alerts.kind.${alert.kind}`,
     {
-      name: alert.serviceName ?? formatter.machine(alert.subject),
+      name: formatter.machine(alert.app ?? alert.subject),
       path: formatter.machine(alert.subject),
       percent: formatter.percent(alert.percent ?? 0),
     },

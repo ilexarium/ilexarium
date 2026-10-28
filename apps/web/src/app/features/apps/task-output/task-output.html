@@ -1,0 +1,20 @@
+<div class="flex flex-wrap items-center gap-2 text-sm" role="status">
+  @if (running()) {
+    <ng-icon name="lucideLoaderCircle" class="size-4 animate-spin" aria-hidden="true" />
+  }
+  <span class="font-medium">{{ 'apps.task.action.' + task().action | translate }}</span>
+  <laris-status-badge [tone]="tones[task().state]">{{
+    'apps.task.state.' + task().state | translate
+  }}</laris-status-badge>
+  @if (task().system) {
+    <span class="text-muted-foreground">{{ 'apps.task.system' | translate }}</span>
+  }
+</div>
+<pre
+  #log
+  class="max-h-72 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap"
+  dir="ltr"
+  tabindex="0"
+  [attr.aria-label]="'apps.task.outputLabel' | translate"
+  >{{ lines().join('\n') || ('apps.task.waiting' | translate) }}</pre
+>

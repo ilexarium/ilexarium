@@ -42,7 +42,7 @@
     <laris-apps-card
       class="min-w-0 flex-[999_1_32rem]"
       [apps]="store.apps()"
-      [loaded]="store.services() !== null"
+      [loaded]="store.appsLoaded()"
       [otherContainers]="store.otherContainers()"
       (start)="store.start($event)"
     />

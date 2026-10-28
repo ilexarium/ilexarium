@@ -6,6 +6,7 @@ import type {
   BackupFoldersResponse,
   BackupItem,
   BackupItemRequest,
+  BackupItemUpdate,
   BackupPassphraseResponse,
   BackupPlan,
   BackupPlanResponse,
@@ -54,8 +55,8 @@ export class BackupsApi {
     return this.http.post<BackupItem>('/api/backups/items', { item });
   }
 
-  updateItem(itemId: string, excludedFields: string[]): Observable<BackupItem> {
-    return this.http.patch<BackupItem>(`/api/backups/items/${id(itemId)}`, { excludedFields });
+  updateItem(itemId: string, change: BackupItemUpdate): Observable<BackupItem> {
+    return this.http.patch<BackupItem>(`/api/backups/items/${id(itemId)}`, change);
   }
 
   removeItem(itemId: string, deleteArchives: boolean): Observable<void> {
@@ -94,7 +95,7 @@ export class BackupsApi {
   }
 
   /** "Show again": needs the app password. */
-  passphrase(password: string): Observable<BackupPassphraseResponse> {
-    return this.http.post<BackupPassphraseResponse>('/api/backups/passphrase', { password });
+  passphrase(): Observable<BackupPassphraseResponse> {
+    return this.http.post<BackupPassphraseResponse>('/api/backups/passphrase', {});
   }
 }

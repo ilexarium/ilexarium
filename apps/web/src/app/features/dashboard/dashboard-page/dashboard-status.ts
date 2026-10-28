@@ -1,18 +1,9 @@
-import type {
-  Alert,
-  BackupRun,
-  BackupsStatus,
-  Container,
-  DiskUsage,
-  InstalledService,
-} from '@laris/shared';
-import { serviceContainers } from '../../../core/services/service-runtimes';
-import type { ServiceRuntime } from '../../../core/services/services.model';
+import type { Alert, AppSummary, BackupRun, BackupsStatus, Container, DiskUsage } from '@laris/shared';
 import type { Wording } from '../../../core/alerts/alert-wording';
 import { percentOf } from '../../../shared/format/format';
 import {
   APP_ALERT_KINDS,
-  ASSISTANT_CATALOG_ID,
+  ASSISTANT_TEMPLATE_ID,
   BACKUP_DAYS,
   BACKUP_OUTCOME_RANK,
   DISK_WARN_PERCENT,
@@ -24,9 +15,8 @@ import type { AppTile, BackupDay, DiskRow, Light, RackUnit, Text } from '../dash
 /** What the rack needs, from the global stores; null where it isn't known yet. */
 export interface RackInput {
   alerts: Alert[];
-  services: InstalledService[] | null;
   /** Null until the containers are known; `docker: false` when Docker can't be reached. */
-  runtimes: Map<string, ServiceRuntime> | null;
+  apps: AppSummary[] | null;
   docker: boolean;
   backups: BackupsStatus | null;
   disks: DiskRow[] | null;
@@ -65,13 +55,13 @@ export function needsAttention(units: RackUnit[]): number {
   return units.filter((unit) => unit.light === 'warn' || unit.light === 'fail').length;
 }
 
-function appsUnit({ alerts, services, runtimes, docker }: RackInput, words: RackWords): RackUnit {
+function appsUnit({ alerts, apps, docker }: RackInput, words: RackWords): RackUnit {
   const unit = (light: Light, main: Text, sub: Text | null = null): RackUnit => ({
     id: 'apps',
     light,
     text: main,
     sub,
-    link: '/services',
+    link: '/apps',
   });
   const open = alerts.filter((a) => APP_ALERT_KINDS.includes(a.kind));
   if (open.length > 0) {
@@ -81,27 +71,18 @@ function appsUnit({ alerts, services, runtimes, docker }: RackInput, words: Rack
       open.length > 1 ? text('dashboard.rack.more', undefined, open.length - 1) : null,
     );
   }
-  if (services === null) return unit('idle', text(LOADING_KEY));
-  const installed = services.filter((s) => s.status !== 'removed');
-  if (installed.length === 0) {
-    return unit('idle', text('dashboard.rack.apps.none'), text('dashboard.rack.apps.noneSub'));
-  }
-  const failed = installed.find((s) => s.status === 'failed');
-  if (failed) return unit('warn', text('dashboard.rack.apps.failed', { name: failed.name }));
   // Without the containers nothing is known about the apps: never green.
   if (!docker) return unit('warn', text('dashboard.rack.apps.dockerDown'));
-  if (runtimes === null) return unit('idle', text(LOADING_KEY));
-  const troubled = installed.find((s) =>
-    ['partial', 'unhealthy'].includes(runtimes.get(s.catalogId) ?? ''),
-  );
-  if (troubled) {
-    return unit(
-      'warn',
-      text(`dashboard.rack.apps.${runtimes.get(troubled.catalogId)}`, { name: troubled.name }),
-    );
+  if (apps === null) return unit('idle', text(LOADING_KEY));
+  if (apps.length === 0) {
+    return unit('idle', text('dashboard.rack.apps.none'), text('dashboard.rack.apps.noneSub'));
   }
-  const running = installed.filter((s) => runtimes.get(s.catalogId) === 'running').length;
-  const stopped = installed.filter((s) => runtimes.get(s.catalogId) === 'stopped').length;
+  const troubled = apps.find((app) => app.state === 'partial' || app.state === 'unhealthy');
+  if (troubled) {
+    return unit('warn', text(`dashboard.rack.apps.${troubled.state}`, { name: troubled.name }));
+  }
+  const running = apps.filter((app) => app.state === 'running').length;
+  const stopped = apps.filter((app) => app.state === 'stopped').length;
   return unit(
     'ok',
     text('dashboard.rack.apps.running', undefined, running),
@@ -236,31 +217,26 @@ export function shownDisks(disks: DiskUsage[], backupDestination: string | null)
     );
 }
 
-/** One tile per installed service (not ones being removed), in the order of the list. */
+/** One tile per app, in the order of the list. */
 export function appTiles(
-  services: InstalledService[],
+  apps: AppSummary[],
   containers: Container[] | null,
-  runtimes: Map<string, ServiceRuntime>,
   pending: ReadonlyMap<string, unknown>,
 ): AppTile[] {
-  return services
-    .filter((s) => s.status !== 'removed')
-    .map((service) => {
-      const own = containers ? serviceContainers(service, containers) : [];
-      return {
-        service,
-        runtime: runtimes.get(service.catalogId) ?? null,
-        stopped: own.filter((c) => c.state !== 'running').map((c) => c.name),
-        pending: own.some((c) => pending.has(c.name)),
-        assistant: service.catalogId === ASSISTANT_CATALOG_ID,
-      };
-    });
+  return apps.map((app) => {
+    const own = (containers ?? []).filter((c) => c.composeProject === app.name);
+    return {
+      app,
+      stopped: own.filter((c) => c.state !== 'running').map((c) => c.name),
+      pending: own.some((c) => pending.has(c.name)),
+      assistant: app.template?.id === ASSISTANT_TEMPLATE_ID,
+    };
+  });
 }
 
-/** Containers that belong to no service and aren't the platform's own. */
-export function otherContainers(services: InstalledService[], containers: Container[]): number {
-  const owned = new Set(services.flatMap((s) => serviceContainers(s, containers)).map((c) => c.id));
-  return containers.filter((c) => !c.protected && !owned.has(c.id)).length;
+/** Containers outside Compose that aren't the platform's own. */
+export function otherContainers(containers: Container[]): number {
+  return containers.filter((c) => !c.protected && !c.composeProject).length;
 }
 
 /** The last `BACKUP_DAYS` days, oldest first, each with its worst finished run. */

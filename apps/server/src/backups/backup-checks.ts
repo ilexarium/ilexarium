@@ -174,7 +174,7 @@ export class BackupChecks {
               id: randomUUID(),
               kind: 'app',
               project: request.project,
-              folders: [...new Set(request.folders)],
+              folders: [...new Set(this.appFoldersOf(request, apps))],
               excludedFolders: [...new Set(request.excludedFolders ?? [])],
               skip: [...new Set(request.skip)],
               mode: request.mode,
@@ -244,6 +244,16 @@ export class BackupChecks {
     }
   }
 
+  /** The folders asked for; none asked: every folder Docker says the app uses, but those left out. */
+  private appFoldersOf(
+    request: Extract<BackupItemRequest, { kind: 'app' }>,
+    apps: ReadonlyMap<string, string[]>,
+  ): string[] {
+    if (request.folders.length > 0) return request.folders;
+    const excluded = request.excludedFolders ?? [];
+    return (apps.get(request.project) ?? []).filter((folder) => !excluded.includes(folder));
+  }
+
   private appProblem(
     request: Extract<BackupItemRequest, { kind: 'app' }>,
     destination: string,
@@ -252,7 +262,7 @@ export class BackupChecks {
     if (!apps.has(request.project)) {
       return { code: BACKUP_ERROR_CODES.itemNotFound, message: 'No such app' };
     }
-    return this.appFieldsProblem(request.folders, request.skip, destination);
+    return this.appFieldsProblem(this.appFoldersOf(request, apps), request.skip, destination);
   }
 
   private appFieldsProblem(

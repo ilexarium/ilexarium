@@ -1,0 +1,35 @@
+<div class="grid gap-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-muted-foreground">{{ 'apps.description' | translate }}</p>
+    <a hlmBtn routerLink="/apps/new">
+      <ng-icon name="lucidePlus" aria-hidden="true" />
+      {{ 'apps.add' | translate }}
+    </a>
+  </div>
+  @if (!appsPageStore.dockerAvailable()) {
+    <p role="alert" class="text-sm text-destructive">{{ 'apps.dockerUnavailable' | translate }}</p>
+  }
+  @if (appsPageStore.apps(); as apps) {
+    @if (apps.length === 0) {
+      <laris-empty-state icon="lucidePackage" [text]="'apps.none' | translate">
+        <a hlmBtn variant="outline" routerLink="/apps/new">{{ 'apps.add' | translate }}</a>
+      </laris-empty-state>
+    } @else {
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        @for (app of apps; track app.name) {
+          <laris-app-card
+            [app]="app"
+            [template]="app.template ? (appsPageStore.templates().get(app.template.id) ?? null) : null"
+            [pending]="app.containers.some((c) => appsPageStore.pending().has(c))"
+            (start)="appsPageStore.act(app, 'start')"
+            (stop)="appsPageStore.act(app, 'stop')"
+          />
+        }
+      </div>
+    }
+  } @else {
+    <div role="status" [attr.aria-label]="'apps.loading' | translate">
+      <hlm-skeleton class="h-32 w-full max-w-md" />
+    </div>
+  }
+</div>

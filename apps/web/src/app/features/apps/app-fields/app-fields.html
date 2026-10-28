@@ -1,0 +1,103 @@
+<ng-template #row let-field>
+  <div class="grid gap-1.5">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <label hlmLabel [for]="'field-' + field.key">
+        @if (label(field); as key) {
+          {{ key | translate }}
+        } @else {
+          <span dir="ltr">{{ field.key }}</span>
+        }
+        @if (field.required) {
+          <span class="text-muted-foreground">{{ 'apps.fields.required' | translate }}</span>
+        }
+      </label>
+      @if (!field.fromTemplate) {
+        <select
+          class="h-8 rounded-md border bg-background px-2 text-xs"
+          [attr.aria-label]="'apps.fields.kindLabel' | translate: { key: field.key }"
+          [value]="field.kind"
+          [disabled]="disabled()"
+          (change)="setKind(field, $event)"
+        >
+          @for (kind of kinds; track kind) {
+            <option [value]="kind">{{ 'apps.fields.kind.' + kind | translate }}</option>
+          }
+        </select>
+      }
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <input
+        hlmInput
+        class="min-w-0 flex-1"
+        dir="ltr"
+        autocomplete="off"
+        spellcheck="false"
+        [id]="'field-' + field.key"
+        [type]="inputType(field)"
+        [attr.inputmode]="field.kind === 'port' ? 'numeric' : null"
+        [value]="value(field)"
+        [disabled]="disabled()"
+        (change)="edit(field, $event)"
+      />
+      @if (field.kind === 'version' && field.image) {
+        <button
+          hlmBtn
+          type="button"
+          variant="outline"
+          [disabled]="disabled() || versions().get(field.image)?.loading"
+          (click)="askVersions.emit(field.image)"
+        >
+          @if (versions().get(field.image)?.loading) {
+            <ng-icon name="lucideLoaderCircle" class="animate-spin" aria-hidden="true" />
+          } @else {
+            <ng-icon name="lucideList" aria-hidden="true" />
+          }
+          {{ 'apps.fields.showVersions' | translate }}
+        </button>
+      }
+    </div>
+    @if (field.kind === 'version' && field.image) {
+      @if (versions().get(field.image); as list) {
+        @if (!list.loading && !list.available) {
+          <p class="text-sm text-muted-foreground">{{ 'apps.fields.versionsUnavailable' | translate }}</p>
+        } @else if (!list.loading && list.versions.length > 0) {
+          <select
+            class="h-9 rounded-md border bg-background px-2 text-sm"
+            dir="ltr"
+            [attr.aria-label]="'apps.fields.versionsLabel' | translate: { key: field.key }"
+            [disabled]="disabled()"
+            (change)="pickVersion(field, $event)"
+          >
+            <option value="">{{ 'apps.fields.chooseVersion' | translate }}</option>
+            @for (version of list.versions; track version) {
+              <option [value]="version">{{ version }}</option>
+            }
+          </select>
+        }
+      }
+    }
+    @if (help(field); as key) {
+      <p class="text-sm text-muted-foreground">{{ key | translate }}</p>
+    } @else if (field.kind === 'folder') {
+      <p class="text-sm text-muted-foreground">{{ 'apps.fields.folderHelp' | translate }}</p>
+    } @else if (field.kind === 'generated') {
+      <p class="text-sm text-muted-foreground">{{ 'apps.fields.generatedHelp' | translate }}</p>
+    }
+  </div>
+</ng-template>
+
+@for (field of main(); track field.key) {
+  <ng-container *ngTemplateOutlet="row; context: { $implicit: field }" />
+}
+@if (advanced().length > 0) {
+  <details class="rounded-md border p-3">
+    <summary class="cursor-pointer text-sm font-medium select-none">
+      {{ 'apps.fields.advanced' | translate }}
+    </summary>
+    <div class="mt-4 grid gap-5">
+      @for (field of advanced(); track field.key) {
+        <ng-container *ngTemplateOutlet="row; context: { $implicit: field }" />
+      }
+    </div>
+  </details>
+}

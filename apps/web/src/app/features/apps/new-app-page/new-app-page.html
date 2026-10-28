@@ -1,0 +1,304 @@
+@switch (newAppPageStore.step()) {
+  @case ('choose') {
+    <div class="grid gap-6">
+      <section aria-labelledby="templates-title" class="grid gap-4">
+        <div class="grid gap-1">
+          <h2 id="templates-title" class="text-lg font-semibold">
+            {{ 'apps.new.templates' | translate }}
+          </h2>
+          <p class="text-sm text-muted-foreground">{{ 'apps.new.templatesText' | translate }}</p>
+        </div>
+        @if (newAppPageStore.templates(); as templates) {
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            @for (template of templates; track template.id) {
+              <article hlmCard class="h-full gap-4">
+                <div hlmCardHeader class="flex flex-row items-start gap-3">
+                  <img
+                    [src]="iconPath(template.id)"
+                    alt=""
+                    width="40"
+                    height="40"
+                    class="size-10 shrink-0 rounded-lg"
+                  />
+                  <div class="grid min-w-0 gap-1">
+                    <h3 hlmCardTitle>{{ template.name }}</h3>
+                    <p hlmCardDescription>
+                      {{ 'catalog.' + template.id + '.description' | translate }}
+                    </p>
+                  </div>
+                </div>
+                <div hlmCardFooter class="mt-auto">
+                  <button
+                    hlmBtn
+                    (click)="newAppPageStore.chooseTemplate(template.id)"
+                    [attr.aria-label]="'apps.new.useLabel' | translate: { name: template.name }"
+                  >
+                    {{ 'apps.new.use' | translate }}
+                  </button>
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <div role="status" [attr.aria-label]="'apps.loading' | translate">
+            <hlm-skeleton class="h-40 w-full max-w-md" />
+          </div>
+        }
+      </section>
+
+      <section aria-labelledby="paste-title" hlmCard>
+        <div hlmCardHeader>
+          <h2 id="paste-title" hlmCardTitle>{{ 'apps.new.paste' | translate }}</h2>
+          <p hlmCardDescription>{{ 'apps.new.pasteText' | translate }}</p>
+        </div>
+        <div hlmCardContent class="grid gap-3">
+          <label hlmLabel for="pasted">{{ 'apps.new.pasteLabel' | translate }}</label>
+          <textarea
+            hlmTextarea
+            id="pasted"
+            rows="10"
+            dir="ltr"
+            spellcheck="false"
+            class="font-mono text-xs"
+            [value]="pasted()"
+            (input)="pasted.set(text($event))"
+          ></textarea>
+          <div>
+            <button
+              hlmBtn
+              [disabled]="!pasted().trim()"
+              (click)="newAppPageStore.usePasted(pasted())"
+            >
+              <ng-icon name="lucideClipboardPaste" aria-hidden="true" />
+              {{ 'apps.new.continue' | translate }}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  }
+
+  @case ('setup') {
+    <div class="grid max-w-3xl gap-4">
+      <div>
+        <button hlmBtn variant="ghost" (click)="newAppPageStore.back()">
+          <ng-icon name="lucideArrowLeft" class="rtl:rotate-180" aria-hidden="true" />
+          {{ 'apps.new.back' | translate }}
+        </button>
+      </div>
+      <section hlmCard>
+        <div hlmCardHeader>
+          <h2 hlmCardTitle>
+            {{ newAppPageStore.template()?.name ?? ('apps.new.pastedTitle' | translate) }}
+          </h2>
+          @if (newAppPageStore.template(); as template) {
+            <p hlmCardDescription>{{ 'catalog.' + template.id + '.description' | translate }}</p>
+          }
+        </div>
+        <div hlmCardContent class="grid gap-5">
+          @if (newAppPageStore.template()?.note) {
+            <p class="rounded-md bg-muted p-3 text-sm">
+              {{ 'catalog.' + newAppPageStore.template()!.id + '.note' | translate }}
+            </p>
+          }
+          <div class="grid gap-1.5">
+            <label hlmLabel for="app-name">{{ 'apps.new.name' | translate }}</label>
+            <input
+              hlmInput
+              id="app-name"
+              dir="ltr"
+              autocomplete="off"
+              spellcheck="false"
+              [value]="newAppPageStore.name()"
+              (input)="newAppPageStore.setName(text($event))"
+              aria-describedby="app-name-help"
+            />
+            <p id="app-name-help" class="text-sm text-muted-foreground" aria-live="polite">
+              @if (!newAppPageStore.nameValid()) {
+                <span class="text-destructive">{{ 'validation.appNameInvalid' | translate }}</span>
+              } @else if (newAppPageStore.nameCheck(); as check) {
+                @if (check.free) {
+                  {{ 'apps.new.nameFree' | translate }}
+                } @else {
+                  <span class="text-destructive">{{
+                    'apps.new.nameTaken' | translate: { suggestion: check.suggestion }
+                  }}</span>
+                }
+              } @else {
+                {{ 'apps.new.nameHelp' | translate }}
+              }
+            </p>
+          </div>
+          <div class="grid gap-1.5">
+            <label hlmLabel for="app-folder">{{ 'apps.new.folder' | translate }}</label>
+            <input
+              hlmInput
+              id="app-folder"
+              dir="ltr"
+              autocomplete="off"
+              spellcheck="false"
+              [placeholder]="'~/apps/' + newAppPageStore.name()"
+              [value]="newAppPageStore.folder() ?? ''"
+              (change)="newAppPageStore.setFolder(text($event))"
+            />
+            <p class="text-sm text-muted-foreground">{{ 'apps.new.folderHelp' | translate }}</p>
+          </div>
+
+          @if (newAppPageStore.fields(); as fields) {
+            @if (fields.problem) {
+              <p role="alert" class="text-sm text-destructive" dir="ltr">{{ fields.problem }}</p>
+            }
+            <laris-app-fields
+              [fields]="newAppPageStore.shownFields()"
+              [values]="newAppPageStore.values()"
+              [templateId]="newAppPageStore.template()?.id ?? null"
+              [versions]="newAppPageStore.versionLists()"
+              (changed)="change($event)"
+              (kindChanged)="kind($event)"
+              (askVersions)="newAppPageStore.askVersions($event)"
+            />
+          } @else {
+            <hlm-skeleton class="h-24 w-full" />
+          }
+
+          <details class="rounded-md border p-3">
+            <summary class="cursor-pointer text-sm font-medium select-none">
+              {{ 'apps.editor.title' | translate }}
+            </summary>
+            <div class="mt-4 grid gap-3">
+              <label hlmLabel for="compose-file" dir="ltr">compose.yml</label>
+              <textarea
+                hlmTextarea
+                id="compose-file"
+                rows="14"
+                dir="ltr"
+                spellcheck="false"
+                class="font-mono text-xs"
+                [value]="newAppPageStore.compose()"
+                (change)="newAppPageStore.setCompose(text($event))"
+              ></textarea>
+              <label hlmLabel for="env-file" dir="ltr">.env</label>
+              <textarea
+                hlmTextarea
+                id="env-file"
+                rows="6"
+                dir="ltr"
+                spellcheck="false"
+                class="font-mono text-xs"
+                [value]="newAppPageStore.env()"
+                (change)="newAppPageStore.setEnv(text($event))"
+              ></textarea>
+              <p class="text-sm text-muted-foreground">{{ 'apps.editor.text' | translate }}</p>
+            </div>
+          </details>
+
+          @if (newAppPageStore.backupsConfigured()) {
+            <fieldset class="grid gap-3 rounded-md border p-3">
+              <legend class="px-1 text-sm font-medium">{{ 'apps.backup.title' | translate }}</legend>
+              <label class="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  class="mt-0.5 size-4"
+                  [checked]="newAppPageStore.backup().include"
+                  (change)="newAppPageStore.setBackup({ include: $any($event.target).checked })"
+                />
+                {{ 'apps.backup.include' | translate }}
+              </label>
+              @if (newAppPageStore.backup().include) {
+                <div class="grid gap-1.5">
+                  <label hlmLabel for="backup-mode">{{ 'apps.backup.mode' | translate }}</label>
+                  <select
+                    id="backup-mode"
+                    class="h-9 rounded-md border bg-background px-2 text-sm"
+                    [value]="newAppPageStore.backup().mode"
+                    (change)="newAppPageStore.setBackup({ mode: $any($event.target).value })"
+                  >
+                    <option value="stop">{{ 'apps.backup.stop' | translate }}</option>
+                    <option value="live">{{ 'apps.backup.live' | translate }}</option>
+                  </select>
+                </div>
+                <div class="grid gap-1.5">
+                  <span class="text-sm font-medium">{{ 'apps.backup.skip' | translate }}</span>
+                  <ul class="grid gap-1">
+                    @for (skip of newAppPageStore.backup().skip; track skip) {
+                      <li class="flex items-center gap-2 text-sm">
+                        <code dir="ltr" class="break-all">{{ skip }}</code>
+                        <button
+                          hlmBtn
+                          variant="ghost"
+                          size="icon"
+                          type="button"
+                          [attr.aria-label]="'apps.backup.removeSkip' | translate: { path: skip }"
+                          (click)="removeSkip(skip)"
+                        >
+                          <ng-icon name="lucideX" aria-hidden="true" />
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                  <div class="flex flex-wrap gap-2">
+                    <input
+                      hlmInput
+                      class="min-w-0 flex-1"
+                      dir="ltr"
+                      [attr.aria-label]="'apps.backup.newSkip' | translate"
+                      [placeholder]="'apps.backup.newSkipPlaceholder' | translate"
+                      [value]="newSkip()"
+                      (input)="newSkip.set(text($event))"
+                    />
+                    <button hlmBtn variant="outline" type="button" (click)="addSkip()">
+                      {{ 'apps.backup.addSkip' | translate }}
+                    </button>
+                  </div>
+                </div>
+              }
+            </fieldset>
+          }
+
+          @if (newAppPageStore.problem(); as problem) {
+            <div role="alert" class="grid gap-1">
+              <p class="text-sm font-medium text-destructive">{{ 'apps.new.composeRefused' | translate }}</p>
+              <pre class="overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap" dir="ltr">{{ problem }}</pre>
+            </div>
+          }
+
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              hlmBtn
+              [disabled]="!newAppPageStore.nameValid() || newAppPageStore.nameCheck()?.free === false"
+              (click)="newAppPageStore.install()"
+            >
+              {{ 'apps.new.install' | translate }}
+            </button>
+            <p class="text-sm text-muted-foreground">{{ 'apps.new.asYou' | translate }}</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  }
+
+  @case ('installing') {
+    <section hlmCard class="max-w-3xl">
+      <div hlmCardHeader>
+        <h2 hlmCardTitle dir="ltr">{{ newAppPageStore.name() }}</h2>
+        <p hlmCardDescription>{{ 'apps.new.installingText' | translate }}</p>
+      </div>
+      <div hlmCardContent class="grid gap-3">
+        @if (newAppPageStore.task(); as task) {
+          <laris-task-output [task]="task" [lines]="newAppPageStore.lines()" />
+          @if (task.state === 'failed' || task.state === 'interrupted') {
+            <div>
+              <a
+                hlmBtn
+                variant="outline"
+                [routerLink]="['/apps', newAppPageStore.name()]"
+              >
+                {{ 'apps.new.toApp' | translate }}
+              </a>
+            </div>
+          }
+        }
+      </div>
+    </section>
+  }
+}

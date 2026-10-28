@@ -3,8 +3,9 @@ import type { ActivityAction } from '@laris/shared';
 /** Each action's words (`dashboard.activity.action.<key>`), its icon, and whether its subject is machine text. */
 export const ACTION_WORDS: Record<ActivityAction, { key: string; icon: string; machine: boolean }> =
   {
-    'service.deploy': { key: 'serviceDeploy', icon: 'lucidePackagePlus', machine: false },
-    'service.remove': { key: 'serviceRemove', icon: 'lucidePackageMinus', machine: false },
+    'app.install': { key: 'appInstall', icon: 'lucidePackagePlus', machine: true },
+    'app.update': { key: 'appUpdate', icon: 'lucideRefreshCw', machine: true },
+    'app.remove': { key: 'appRemove', icon: 'lucidePackageMinus', machine: true },
     'container.start': { key: 'containerStart', icon: 'lucidePlay', machine: true },
     'container.stop': { key: 'containerStop', icon: 'lucideSquare', machine: true },
     'container.restart': { key: 'containerRestart', icon: 'lucideRotateCcw', machine: true },

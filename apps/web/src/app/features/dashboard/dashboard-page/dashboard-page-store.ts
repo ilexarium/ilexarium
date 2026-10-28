@@ -28,8 +28,7 @@ import { BackupsStore } from '../../../core/backups/backups-store';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
-import { serviceRuntimes } from '../../../core/services/service-runtimes';
-import { ServicesStore } from '../../../core/services/services-store';
+import { AppsStore } from '../../../core/apps/apps-store';
 import { Formatter } from '../../../shared/format/formatter';
 import { ACTIVITY_RELOAD_MS, CLOCK_MS } from '../dashboard.constants';
 import type { AppTile } from '../dashboard.model';
@@ -83,7 +82,7 @@ export const DashboardPageStore = signalStore(
     (
       store,
       monitoringStore = inject(MonitoringStore),
-      servicesStore = inject(ServicesStore),
+      appsStore = inject(AppsStore),
       backupsStore = inject(BackupsStore),
       alertsStore = inject(AlertsStore),
       containerActionsStore = inject(ContainerActionsStore),
@@ -104,8 +103,7 @@ export const DashboardPageStore = signalStore(
         return snapshot?.dockerAvailable ? snapshot.containers : null;
       });
       const docker = computed(() => monitoringStore.containers()?.dockerAvailable !== false);
-      const services = computed(() => servicesStore.services());
-      const runtimes = computed(() => serviceRuntimes(services() ?? [], containers() ?? []));
+      const apps = computed(() => appsStore.apps());
       const disks = computed(() => {
         const snapshot = system();
         return snapshot ? shownDisks(snapshot.disks, store.destination()) : null;
@@ -114,8 +112,7 @@ export const DashboardPageStore = signalStore(
         rackUnits(
           {
             alerts: alertsStore.open(),
-            services: services(),
-            runtimes: containers() ? runtimes() : null,
+            apps: apps(),
             docker: docker(),
             backups: backupsStore.status(),
             disks: disks(),
@@ -132,18 +129,11 @@ export const DashboardPageStore = signalStore(
         checking: computed(() => units().some((unit) => unit.text.key === LOADING_KEY)),
         alertCount: computed(() => alertsStore.open().length),
         live: computed(() => realtimeService.status() === 'live'),
-        services,
-        apps: computed(() =>
-          appTiles(
-            services() ?? [],
-            containers(),
-            containers() ? runtimes() : new Map(),
-            containerActionsStore.pending(),
-          ),
-        ),
+        appsLoaded: computed(() => apps() !== null),
+        apps: computed(() => appTiles(apps() ?? [], containers(), containerActionsStore.pending())),
         otherContainers: computed(() => {
           const list = containers();
-          return list ? otherContainers(services() ?? [], list) : 0;
+          return list ? otherContainers(list) : 0;
         }),
         backups: computed(() => backupsStore.status()),
         backupDays: computed(() => {
@@ -166,7 +156,7 @@ export const DashboardPageStore = signalStore(
             alertsStore.closed()[0]?.id ?? '',
             backupsStore.status()?.lastRun?.id ?? '',
             backupsStore.status()?.lastRun?.status ?? '',
-            (services() ?? []).map((s) => `${s.id}:${s.status}`).join(','),
+            (apps() ?? []).map((app) => `${app.name}:${app.state}`).join(','),
             [...containerActionsStore.pending().keys()].join(','),
             // Anything else (a disk mounted elsewhere, another person's action) within a minute.
             store.now(),
@@ -224,7 +214,7 @@ export const DashboardPageStore = signalStore(
 
       /** Starts an app's stopped containers (harmless: no confirmation). */
       async start(app: AppTile): Promise<void> {
-        await containerActionsStore.runAll(app.stopped, 'start', app.service.name);
+        await containerActionsStore.runAll(app.stopped, 'start', app.app.name);
       },
     }),
   ),
@@ -232,13 +222,12 @@ export const DashboardPageStore = signalStore(
     (
       store,
       monitoringStore = inject(MonitoringStore),
-      servicesStore = inject(ServicesStore),
       backupsStore = inject(BackupsStore),
     ) => {
       const stops: (() => void)[] = [];
       return {
         onInit() {
-          stops.push(monitoringStore.watch(['system', 'containers']), servicesStore.watch());
+          stops.push(monitoringStore.watch(['system', 'containers']));
           store.loadRuns(store.runsKey);
           store.loadPlan(backupsStore.configured);
           store.loadActivity(store.activityKey);

@@ -19,7 +19,7 @@ import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { EndProcessDialog } from '../end-process-dialog/end-process-dialog';
 import { ProcessList } from '../process-list/process-list';
 import { ProcessSummary } from '../process-summary/process-summary';
-import { SignInDialog } from '../sign-in-dialog/sign-in-dialog';
+import { SignInDialog } from '../../../shared/sign-in-dialog/sign-in-dialog';
 import type { EndRequest, ProcessSort } from '../processes.model';
 import { ProcessesPageStore } from './processes-page-store';
 import { PHONE_SORTS } from './processes-page.constants';
