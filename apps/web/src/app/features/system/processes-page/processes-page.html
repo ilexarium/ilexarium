@@ -121,10 +121,9 @@
   }
 </div>
 
-<laris-end-process-dialog (confirm)="store.end($event)" />
-<laris-administrator-dialog
-  [endAsAdministrator]="endAsAdministrator"
-  [linuxUser]="store.linux()?.username ?? null"
+<laris-end-process-dialog
+  [account]="store.linux()?.username ?? null"
+  (confirm)="store.end($event)"
 />
 <laris-sign-in-dialog
   [open]="signInOpen()"

@@ -16,7 +16,6 @@ import { HlmButton } from '@ui/button';
 import { HlmInput } from '@ui/input';
 import { HlmSkeleton } from '@ui/skeleton';
 import { PluralPipe } from '../../../core/i18n/plural-pipe';
-import { AdministratorDialog } from '../administrator-dialog/administrator-dialog';
 import { EndProcessDialog } from '../end-process-dialog/end-process-dialog';
 import { ProcessList } from '../process-list/process-list';
 import { ProcessSummary } from '../process-summary/process-summary';
@@ -34,7 +33,6 @@ import { PHONE_SORTS } from './processes-page.constants';
 @Component({
   selector: 'laris-processes-page',
   imports: [
-    AdministratorDialog,
     EndProcessDialog,
     HlmAlertImports,
     HlmButton,
@@ -55,7 +53,6 @@ export class ProcessesPage {
   protected readonly phoneSorts = PHONE_SORTS;
   private readonly injector = inject(Injector);
   private readonly endDialog = viewChild.required(EndProcessDialog);
-  private readonly administratorDialog = viewChild.required(AdministratorDialog);
   private readonly searchBox = viewChild.required<ElementRef<HTMLInputElement>>('searchBox');
   protected readonly signInOpen = signal(false);
   /** Asked before there was a Linux session: goes on once signed in. */
@@ -63,8 +60,6 @@ export class ProcessesPage {
 
   protected readonly endAs = (process: Process) => this.store.endAs(process);
   protected readonly signIn = (request: LinuxSignInRequest) => this.store.signIn(request);
-  protected readonly endAsAdministrator = (request: EndRequest, password: string) =>
-    this.store.endAsAdministrator(request, password);
 
   protected ask(request: EndRequest): void {
     if (!this.store.linux()) {
@@ -102,7 +97,6 @@ export class ProcessesPage {
   }
 
   private confirm(request: EndRequest): void {
-    if (this.store.endAs(request.process) === 'own') this.endDialog().open(request);
-    else this.administratorDialog().open(request);
+    this.endDialog().open(request, this.store.endAs(request.process) === 'administrator');
   }
 }

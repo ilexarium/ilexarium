@@ -1,9 +1,15 @@
 import { HttpClient, HttpEventType, HttpParams } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { FileList, FileSummary, LinuxSession, LinuxSignInRequest } from '@laris/shared';
+import type {
+  FileList,
+  FileSummary,
+  LinuxSession,
+  LinuxSignInRequest,
+  LinuxSudoRequest,
+} from '@laris/shared';
 import { filter, map, type Observable } from 'rxjs';
 
-/** The Linux sign-in and the file explorer's endpoints. */
+/** The Linux sign-in (with its sudo) and the file explorer's endpoints. */
 @Service()
 export class FilesApi {
   private readonly http = inject(HttpClient);
@@ -18,6 +24,16 @@ export class FilesApi {
 
   signOut(): Observable<void> {
     return this.http.delete<void>('/api/files/session');
+  }
+
+  /** Unlocks the account's sudo with its password; answers the session with `sudoUntil`. */
+  unlockSudo(request: LinuxSudoRequest): Observable<LinuxSession> {
+    return this.http.post<LinuxSession>('/api/files/session/sudo', request);
+  }
+
+  /** "Lock now": sudo locked, and the Linux session ends. */
+  lockSudo(): Observable<void> {
+    return this.http.delete<void>('/api/files/session/sudo');
   }
 
   list(path: string): Observable<FileList> {

@@ -2,6 +2,14 @@
 <hlm-separator orientation="vertical" class="me-2" />
 <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
 <laris-connection-status class="ms-auto" />
+@if (linuxSessionStore.session(); as linux) {
+  <laris-linux-status
+    [username]="linux.username"
+    [sudoMinutes]="linuxSessionStore.sudoMinutes()"
+    (lock)="linuxSessionStore.lockNow()"
+    (close)="linuxSessionStore.signOut()"
+  />
+}
 <laris-alerts-menu [open]="alerts.open()" [resolved]="alerts.closed()" />
 <laris-theme-menu />
 <button

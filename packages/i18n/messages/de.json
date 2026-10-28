@@ -269,7 +269,9 @@
     "picture_too_large": "Das Bild ist zu groß.",
     "process_not_permitted": "Linux hat diesem Konto nicht erlaubt, den Prozess zu beenden.",
     "sudo_password_wrong": "sudo hat dieses Passwort nicht angenommen.",
-    "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden."
+    "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden.",
+    "sudo_required": "Dafür sind Administratorrechte nötig: Entsperre sudo mit dem Passwort des Linux-Kontos.",
+    "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Laris ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Laris erneut."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -1139,7 +1141,8 @@
       "forceText": "Erzwingen beendet ihn sofort, ohne ihn fertig werden zu lassen: Was er nicht gespeichert hat, geht verloren.",
       "cancel": "Abbrechen",
       "confirm": "Prozess beenden",
-      "confirmForce": "Erzwingen"
+      "confirmForce": "Erzwingen",
+      "administrator": "Es ist kein Prozess von {{account}}, daher wird er über sudo dieses Kontos beendet."
     },
     "ended": "{{name}} wurde zum Beenden aufgefordert",
     "forced": "{{name}} wurde zwangsweise beendet",
@@ -1158,14 +1161,6 @@
     "onlySystem": "nur die des Systems",
     "onlyAttention": "nur die, die Aufmerksamkeit brauchen",
     "showEveryone": "Alle zeigen",
-    "administrator": {
-      "title": "{{name}} als Administrator beenden?",
-      "forceTitle": "Beenden von {{name}} als Administrator erzwingen?",
-      "text": "Es ist kein Prozess von {{account}}, daher braucht das Beenden sudo dieses Kontos. Gib sein Passwort ein: Es wird nur dieses eine Mal verwendet und nicht gespeichert.",
-      "password": "Passwort für sudo",
-      "submitting": "Wird beendet…",
-      "close": "Schließen"
-    },
     "signIn": {
       "title": "Anmelden, um Prozesse zu beenden",
       "text": "Prozesse werden als Linux-Benutzer dieses Rechners beendet: Linux entscheidet, welche dieses Konto beenden darf.",
@@ -1318,6 +1313,31 @@
       "down": "Pfeil nach unten",
       "left": "Pfeil nach links",
       "right": "Pfeil nach rechts"
+    }
+  },
+  "linux": {
+    "locked": "sudo ist gesperrt, und die Linux-Sitzung ist geschlossen.",
+    "status": {
+      "label": "Linux-Sitzung: {{account}}",
+      "labelAdmin_one": "Linux-Sitzung: {{account}}, Administrator noch {{count}} Minute",
+      "labelAdmin_other": "Linux-Sitzung: {{account}}, Administrator noch {{count}} Minuten",
+      "admin_one": "Admin · {{count}} Min.",
+      "admin_other": "Admin · {{count}} Min.",
+      "title": "Bei Linux angemeldet als",
+      "adminText_one": "Administratorrechte (sudo) noch etwa {{count}} Minute. Jede Verwendung startet die Zeit neu.",
+      "adminText_other": "Administratorrechte (sudo) noch etwa {{count}} Minuten. Jede Verwendung startet die Zeit neu.",
+      "lockedText": "Administratorrechte sind gesperrt: Eine Aktion, die sie braucht, fragt nach dem Passwort.",
+      "lockNow": "Jetzt sperren",
+      "close": "Linux-Sitzung schließen"
+    },
+    "sudo": {
+      "title": "Administratorrechte",
+      "text": "Dafür ist sudo von {{account}} nötig. Gib das Linux-Passwort dieses Kontos ein: sudo bleibt eine Weile entsperrt, und Laris speichert das Passwort nicht.",
+      "password": "Passwort für sudo",
+      "submit": "Entsperren",
+      "submitting": "Wird entsperrt…",
+      "cancel": "Abbrechen",
+      "close": "Schließen"
     }
   },
   "assistant": {

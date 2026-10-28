@@ -15,7 +15,12 @@ import { TerminalView } from '../terminal-view/terminal-view';
 import type { TerminalSize } from '../terminal.model';
 import { TerminalPage } from './terminal-page';
 
-const ANNA: LinuxSession = { username: 'anna', home: '/home/anna', uid: 1500 };
+const ANNA: LinuxSession = {
+  username: 'anna',
+  home: '/home/anna',
+  uid: 1500,
+  sudoUntil: null,
+};
 const signInDialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
 const submit = () =>
   signInDialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();

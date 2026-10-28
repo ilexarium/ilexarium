@@ -7,19 +7,17 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import {
   FILES_ERROR_CODES,
-  type LinuxSession,
   type LinuxSignInRequest,
   type Process,
   type ProcessesUpdate,
   processKey,
 } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
-import { FilesApi } from '../../../core/files/files-api';
+import { firstValueFrom } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
+import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { ProcessesApi } from '../../../core/processes/processes-api';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
@@ -55,8 +53,6 @@ interface ProcessesPageState {
   attention: boolean;
   /** All rows, not just the first `SHOWN_FIRST`. */
   showAll: boolean;
-  /** The Linux session processes are ended with; null until signed in. */
-  linux: LinuxSession | null;
   /** Processes being signalled, for pending buttons. */
   pending: string[];
   /** Processes sent TERM: marked "still running" while they are. */
@@ -76,7 +72,6 @@ const initialState: ProcessesPageState = {
   group: null,
   attention: false,
   showAll: false,
-  linux: null,
   pending: [],
   asked: [],
   now: 0,
@@ -99,12 +94,14 @@ const needsAttention = (process: Process) =>
 /**
  * The Processes page's data, provided by the page and gone with it: every process (the
  * `processes` topic while the page is open) with the header's summary, searching, sorting,
- * filtering, pausing — and ending one as the signed-in Linux account (or through its sudo), with
- * its toasts. Linux decides what the account may end.
+ * filtering, pausing — and ending one as the signed-in Linux account (`LinuxSessionStore`), another
+ * account's through its sudo, with its toasts. Linux decides what the account may end.
  */
 export const ProcessesPageStore = signalStore(
   withState<ProcessesPageState>(initialState),
-  withComputed((store) => ({
+  withComputed((store, linuxSessionStore = inject(LinuxSessionStore)) => ({
+    /** The Linux session processes are ended with; null until signed in. */
+    linux: linuxSessionStore.session,
     loaded: computed(() => store.shown() !== null),
     partial: computed(() => store.shown()?.partial ?? false),
     summary: computed(() => store.shown()?.summary ?? null),
@@ -181,7 +178,7 @@ export const ProcessesPageStore = signalStore(
     (
       store,
       processesApi = inject(ProcessesApi),
-      filesApi = inject(FilesApi),
+      linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
       const ended = (request: EndRequest) => {
@@ -198,11 +195,9 @@ export const ProcessesPageStore = signalStore(
         patchState(store, {
           pending: on ? [...store.pending(), key] : store.pending().filter((p) => p !== key),
         });
-      /** A Linux session that ended (idle, closed on another page): signing in comes back. */
-      const forgetIfEnded = (error: unknown) => {
-        if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
-          patchState(store, { linux: null });
-        }
+      const endAs = (process: Process): EndAs => {
+        const uid = store.linux()?.uid;
+        return uid === null || uid === undefined || uid === process.uid ? 'own' : 'administrator';
       };
 
       return {
@@ -216,29 +211,11 @@ export const ProcessesPageStore = signalStore(
           });
         },
 
-        /** Whether a Linux session is open already (Files or the terminal may have opened it). */
-        checkLinux: rxMethod<void>(
-          pipe(
-            exhaustMap(() =>
-              filesApi.session().pipe(
-                tap(({ session }) => patchState(store, { linux: session })),
-                // Not knowing is no session: "End" asks to sign in, the server checks again.
-                catchError(() => EMPTY),
-              ),
-            ),
-          ),
-        ),
-
         /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
-        async signIn(request: LinuxSignInRequest): Promise<void> {
-          patchState(store, { linux: await firstValueFrom(filesApi.signIn(request)) });
-        },
+        signIn: (request: LinuxSignInRequest): Promise<void> => linuxSessionStore.signIn(request),
 
         /** Whether the account ends it as its own, or needs its sudo (another's process). */
-        endAs(process: Process): EndAs {
-          const uid = store.linux()?.uid;
-          return uid === null || uid === undefined || uid === process.uid ? 'own' : 'administrator';
-        },
+        endAs,
 
         setSearch(search: string): void {
           patchState(store, { search });
@@ -272,16 +249,28 @@ export const ProcessesPageStore = signalStore(
           patchState(store, { paused, ...(!paused && { shown: store.latest() }) });
         },
 
-        /** Ends a process as the account (already confirmed): asked to stop (TERM), or forced (KILL). */
+        /**
+         * Ends a process as the account (already confirmed): asked to stop (TERM), or forced
+         * (KILL). Another account's through its sudo: the password asked while locked.
+         */
         async end(request: EndRequest): Promise<void> {
           const key = processKey(request.process);
           const { pid, startTicks } = request.process;
+          const send = async () => {
+            await firstValueFrom(processesApi.signal({ pid, startTicks, signal: request.signal }));
+            return true;
+          };
           pending(key, true);
           try {
-            await firstValueFrom(processesApi.signal({ pid, startTicks, signal: request.signal }));
-            ended(request);
+            const done =
+              endAs(request.process) === 'own'
+                ? await send()
+                : await linuxSessionStore.withSudo(send);
+            if (done) ended(request);
           } catch (error) {
-            forgetIfEnded(error);
+            if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
+              linuxSessionStore.ended();
+            }
             toast.error(translator.t('processes.endFailed'), {
               description: translator.t(...apiErrorText(error)),
             });
@@ -289,46 +278,29 @@ export const ProcessesPageStore = signalStore(
             pending(key, false);
           }
         },
-
-        /** The same through the account's sudo; rejects with the server's error (the form shows it). */
-        async endAsAdministrator(request: EndRequest, password: string): Promise<void> {
-          const key = processKey(request.process);
-          const { pid, startTicks } = request.process;
-          pending(key, true);
-          try {
-            await firstValueFrom(
-              processesApi.signalAsAdministrator({
-                pid,
-                startTicks,
-                signal: request.signal,
-                password,
-              }),
-            );
-            ended(request);
-          } catch (error) {
-            forgetIfEnded(error);
-            throw error;
-          } finally {
-            pending(key, false);
-          }
+      };
+    },
+  ),
+  withHooks(
+    (
+      store,
+      realtimeService = inject(RealtimeService),
+      linuxSessionStore = inject(LinuxSessionStore),
+    ) => {
+      let stop: (() => void) | null = null;
+      return {
+        onInit() {
+          linuxSessionStore.check();
+          stop = realtimeService.subscribe('processes', (message) => {
+            if (message.event === 'processes:snapshot' || message.event === 'processes:update') {
+              store.update(message.data);
+            }
+          });
+        },
+        onDestroy() {
+          stop?.();
         },
       };
     },
   ),
-  withHooks((store, realtimeService = inject(RealtimeService)) => {
-    let stop: (() => void) | null = null;
-    return {
-      onInit() {
-        store.checkLinux();
-        stop = realtimeService.subscribe('processes', (message) => {
-          if (message.event === 'processes:snapshot' || message.event === 'processes:update') {
-            store.update(message.data);
-          }
-        });
-      },
-      onDestroy() {
-        stop?.();
-      },
-    };
-  }),
 );

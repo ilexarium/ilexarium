@@ -11,9 +11,10 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
 
 // The process list end to end: the `processes` topic from this machine's /proc, and ending
-// processes as a Linux account over the development SSH server (dev/sshd, which shares this
-// machine's PIDs): anna may end her own, not bob's; anna's `sudo kill` may, bob has no sudo.
-// Skipped when the SSH server isn't running (npm run db:up starts it).
+// processes as a Linux account through its helper on the development SSH server (dev/sshd, which
+// shares this machine's PIDs and runs the repo's helper): anna ends her own; bob's through her
+// sudo once unlocked (her rule allows `kill`); bob has no sudo. Skipped when the SSH server isn't
+// running (npm run db:up starts it).
 
 const ANNA = { username: 'anna', password: 'anna-dev-password' };
 const BOB = { username: 'bob', password: 'bob-dev-password' };
@@ -106,7 +107,13 @@ describe.skipIf(!sshdUp)('processes (e2e)', () => {
       .send(body);
   const signInAs = (account: typeof ANNA) => post('/files/session', account).expect(200);
   const end = (body: object) => post('/processes/signal', body);
-  const endAsAdministrator = (body: object) => post('/processes/signal-as-administrator', body);
+  const unlock = (password: string) => post('/files/session/sudo', { password });
+  const linuxSession = () =>
+    request(client.session!.origin)
+      .get('/api/files/session')
+      .set('Cookie', client.session!.cookie)
+      .expect(200)
+      .then((res) => res.body.session as { sudoUntil: string | null } | null);
   const sleeperOf = async (account: typeof ANNA) => {
     const pid = await sleeper(account);
     started.push({ account, pid });
@@ -146,21 +153,24 @@ describe.skipIf(!sshdUp)('processes (e2e)', () => {
     expect(await audit()).toHaveLength(0);
   });
 
-  it('ends the account’s own process; Linux refuses another’s', async () => {
+  it('ends the account’s own process; another’s only through its unlocked sudo', async () => {
     const own = await sleeperOf(ANNA);
     const others = await sleeperOf(BOB);
     await signInAs(ANNA);
 
-    const refused = await end({ ...others, signal: 'KILL' });
-    expect([refused.status, refused.body.code]).toEqual([403, 'process_not_permitted']);
+    const locked = await end({ ...others, signal: 'KILL' });
+    expect([locked.status, locked.body.code]).toEqual([403, 'sudo_required']);
     expect(running(others.pid)).toBe(true);
 
     await end({ ...own, signal: 'TERM' }).expect(204);
     expect(await gone(own.pid)).toBe(true);
 
     expect((await audit()).map((e) => [e.outcome, e.details])).toEqual([
-      ['requested', expect.objectContaining({ pid: others.pid, user: '', linuxUser: 'anna' })],
-      ['failure', expect.objectContaining({ reason: 'process_not_permitted' })],
+      [
+        'requested',
+        expect.objectContaining({ pid: others.pid, linuxUser: 'anna', asAdministrator: true }),
+      ],
+      ['failure', expect.objectContaining({ reason: 'sudo_required' })],
       [
         'requested',
         expect.objectContaining({ pid: own.pid, signal: 'TERM', asAdministrator: false }),
@@ -169,27 +179,46 @@ describe.skipIf(!sshdUp)('processes (e2e)', () => {
     ]);
   });
 
-  it('as administrator through the account’s sudo: a wrong password refused, the right one ends it', async () => {
+  it('unlocks sudo with the account’s password (a wrong one refused), then ends another’s', async () => {
     const others = await sleeperOf(BOB);
     await signInAs(ANNA);
+    expect((await linuxSession())?.sudoUntil).toBeNull();
 
-    const wrong = await endAsAdministrator({ ...others, signal: 'TERM', password: 'nope' });
+    const wrong = await unlock('nope');
     expect([wrong.status, wrong.body.code]).toEqual([403, 'sudo_password_wrong']);
-    expect(running(others.pid)).toBe(true);
+    const unlocked = await unlock(ANNA.password).expect(200);
+    expect(Date.parse(unlocked.body.sudoUntil)).toBeGreaterThan(Date.now() + 14 * 60_000);
 
-    await endAsAdministrator({ ...others, signal: 'TERM', password: ANNA.password }).expect(204);
+    await end({ ...others, signal: 'TERM' }).expect(204);
     expect(await gone(others.pid)).toBe(true);
-    const events = JSON.stringify(await audit());
+    const events = JSON.stringify(
+      await prisma.auditEvent.findMany({ where: { action: { startsWith: 'linux.sudo' } } }),
+    );
+    expect(events).toContain('sudo_password_wrong');
     expect(events).not.toContain(ANNA.password);
-    expect(events).toContain('"asAdministrator":true');
+  });
+
+  it('“Lock now” locks sudo and ends the Linux session', async () => {
+    await signInAs(ANNA);
+    await unlock(ANNA.password).expect(200);
+    await request(client.session!.origin)
+      .delete('/api/files/session/sudo')
+      .set('Origin', client.session!.origin)
+      .set('Cookie', client.session!.cookie)
+      .expect(204);
+    expect(await linuxSession()).toBeNull();
+
+    // A new session's terminal never has the old one's sudo.
+    const others = await sleeperOf(BOB);
+    await signInAs(ANNA);
+    const locked = await end({ ...others, signal: 'TERM' });
+    expect([locked.status, locked.body.code]).toEqual([403, 'sudo_required']);
   });
 
   it('an account without sudo: "not allowed"', async () => {
-    const own = await sleeperOf(ANNA);
     await signInAs(BOB);
-    const res = await endAsAdministrator({ ...own, signal: 'TERM', password: BOB.password });
+    const res = await unlock(BOB.password);
     expect([res.status, res.body.code]).toEqual([403, 'sudo_not_allowed']);
-    expect(running(own.pid)).toBe(true);
   });
 
   it('refuses a stale start time, PID 1 and bad requests — nothing run', async () => {
@@ -204,7 +233,7 @@ describe.skipIf(!sshdUp)('processes (e2e)', () => {
     await end({ pid: -1, startTicks: '1', signal: 'TERM' }).expect(400);
     await end({ ...own, signal: 'TERM', uid: 0 }).expect(400);
     await end({ ...own, signal: 'TERM', password: ANNA.password }).expect(400);
-    await endAsAdministrator({ ...own, signal: 'TERM', password: 'a\nb' }).expect(400);
+    await unlock('a\nb').expect(400);
     expect(running(own.pid)).toBe(true);
     expect(await audit()).toHaveLength(0);
   });

@@ -11,6 +11,7 @@ import { ProcessesApi } from '../../../core/processes/processes-api';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
 import { stubScreenWidth } from '../../../layout/testing';
+import { SudoDialog } from '../../../layout/sudo-dialog/sudo-dialog';
 import { ProcessesPage } from './processes-page';
 
 const proc = (change: Partial<Process>): Process => ({
@@ -88,7 +89,7 @@ const SUMMARY: ProcessesSummary = {
   memory: { totalBytes: 8e9, availableBytes: 2e9, swapTotalBytes: 2e9, swapUsedBytes: 1.5e9 },
   pressure: { cpu: 4, memory: 0, io: 12.5 },
 };
-const ANNA: LinuxSession = { username: 'anna', home: '/home/anna', uid: 1000 };
+const ANNA: LinuxSession = { username: 'anna', home: '/home/anna', uid: 1000, sudoUntil: null };
 
 const update = (processes: Process[], partial = false): ProcessesUpdate => ({
   processes,
@@ -108,16 +109,16 @@ const buttonIn = (root: HTMLElement | null, text: string) =>
     b.textContent!.includes(text),
   )!;
 
-async function render(linux: LinuxSession | null = ANNA) {
+async function render(linux: LinuxSession | null = ANNA, { prompt = false } = {}) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
-  const api = {
-    signal: vi.fn(() => of(undefined)),
-    signalAsAdministrator: vi.fn(() => of(undefined)),
-  };
+  const api = { signal: vi.fn(() => of(undefined)) };
   const filesApi = {
     session: vi.fn(() => of({ session: linux })),
     signIn: vi.fn(() => of(ANNA)),
+    unlockSudo: vi.fn(() =>
+      of({ ...ANNA, sudoUntil: new Date(Date.now() + 15 * 60_000).toISOString() }),
+    ),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -133,6 +134,8 @@ async function render(linux: LinuxSession | null = ANNA) {
   const socket = sockets.latest();
   socket.open();
   const fixture = TestBed.createComponent(ProcessesPage);
+  // The shell's prompt for the account's sudo password.
+  if (prompt) TestBed.createComponent(SudoDialog);
   await fixture.whenStable();
   const el = fixture.nativeElement as HTMLElement;
   const push = async (data: ProcessesUpdate) => {
@@ -331,13 +334,20 @@ describe('ProcessesPage', () => {
     expect(api.signal).toHaveBeenCalledTimes(2);
   });
 
-  it('another’s process: as administrator, with the account’s sudo password — a wrong one shown', async () => {
-    const { api, push, fixture, menu } = await render();
+  it('another’s process: through the account’s sudo — its password asked (a wrong one shown), then ended', async () => {
+    const { api, filesApi, push, fixture, menu } = await render(ANNA, { prompt: true });
     await push(update([IMMICH]));
     await menu('node', 2201, 'End as administrator…');
-    expect(dialog()!.textContent).toContain('End node as administrator?');
-    expect(dialog()!.textContent).toContain('It isn’t a process of anna');
-    api.signalAsAdministrator.mockReturnValueOnce(
+    expect(alertDialog()!.textContent).toContain('End node?');
+    expect(alertDialog()!.textContent).toContain(
+      'It isn’t a process of anna, so it’s ended through that account’s sudo.',
+    );
+    buttonIn(alertDialog(), 'End process').click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Administrator rights'));
+    expect(dialog()!.textContent).toContain('This needs the sudo of anna.');
+    expect(api.signal).not.toHaveBeenCalled();
+
+    filesApi.unlockSudo.mockReturnValueOnce(
       throwError(() => httpError(403, 'sudo_password_wrong')),
     );
     fill(dialog()!.querySelector<HTMLInputElement>('#sudo-password')!, 'wrong');
@@ -350,15 +360,21 @@ describe('ProcessesPage', () => {
     fill(dialog()!.querySelector<HTMLInputElement>('#sudo-password')!, 'right');
     dialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
     await vi.waitFor(() =>
-      expect(api.signalAsAdministrator).toHaveBeenLastCalledWith({
-        pid: 2201,
-        startTicks: '3000',
-        signal: 'TERM',
-        password: 'right',
-      }),
+      expect(api.signal).toHaveBeenCalledWith({ pid: 2201, startTicks: '3000', signal: 'TERM' }),
     );
+    expect(filesApi.unlockSudo).toHaveBeenLastCalledWith({ password: 'right' });
     await vi.waitFor(() => expect(dialog()).toBeNull());
     await fixture.whenStable();
+  });
+
+  it('another’s process: the password prompt cancelled, nothing is sent', async () => {
+    const { api, push, menu } = await render(ANNA, { prompt: true });
+    await push(update([IMMICH]));
+    await menu('node', 2201, 'End as administrator…');
+    buttonIn(alertDialog(), 'End process').click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Administrator rights'));
+    buttonIn(dialog(), 'Cancel').click();
+    await vi.waitFor(() => expect(dialog()).toBeNull());
     expect(api.signal).not.toHaveBeenCalled();
   });
 

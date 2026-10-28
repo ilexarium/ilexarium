@@ -1,16 +1,24 @@
-import type { ProcessState } from '@laris/shared';
+import {
+  FILES_ERROR_CODES,
+  type FilesErrorCode,
+  PROCESS_ERROR_CODES,
+  type ProcessErrorCode,
+  type ProcessState,
+} from '@laris/shared';
+
+type ApiCode = ProcessErrorCode | FilesErrorCode;
 
 /** Per IP, for ending processes; the list itself comes through the topic. */
 export const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
-/** As administrator: a sudo password each time — few tries, like a sign-in. */
-export const ADMINISTRATOR_LIMIT = { default: { limit: 5, ttl: 60_000 } };
-
-/** What `kill` and `sudo` say (in English: the command sets `LC_ALL=C`). */
-export const KILL_MESSAGES = {
-  notFound: /No such process/i,
-  notPermitted: /Operation not permitted/i,
-  sudoPasswordWrong: /incorrect password|Sorry, try again|no password was provided/i,
-  sudoNotAllowed: /not in the sudoers|not allowed to (?:run|execute)|may not run sudo/i,
+/** The helper's answers to `process.signal`, as the API says them (sudo's: the Linux session's). */
+export const SIGNAL_ERRORS: Record<string, ApiCode> = {
+  not_found: PROCESS_ERROR_CODES.processNotFound,
+  not_permitted: PROCESS_ERROR_CODES.processNotPermitted,
+  timed_out: PROCESS_ERROR_CODES.timedOut,
+  sudo_required: FILES_ERROR_CODES.sudoRequired,
+  sudo_not_allowed: FILES_ERROR_CODES.sudoNotAllowed,
+  sudo_unavailable: FILES_ERROR_CODES.sudoNotAllowed,
+  ended: FILES_ERROR_CODES.helperUnavailable,
 };
 
 /** Linux reports times in /proc in USER_HZ ticks: 100 a second on every architecture. */

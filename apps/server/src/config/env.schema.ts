@@ -99,6 +99,16 @@ export const envSchema = z
     SSH_PORT: z.coerce.number().int().min(1).max(65535).optional(),
     /** The folder whose `ssh_host_*_key.pub` are pinned: only that server is trusted. */
     SSH_HOST_KEYS: z.string().trim().min(1).optional(),
+    /**
+     * The helper the server starts in each Linux session (docs/plans/acting_as_you.md), as that
+     * account: where the installer puts it, also in the dev SSH container. SSH runs it as one
+     * command line, so a plain absolute path only.
+     */
+    LINUX_HELPER: z
+      .string()
+      .regex(/^(?:\/[\w.-]+)+$/, 'An absolute path of letters, digits, "_", "." and "-"')
+      .refine((path) => !path.split('/').includes('..'), 'No ".." in the path')
+      .default('/opt/laris/libexec/laris-helper.mts'),
   })
   .transform((env) => {
     const production = env.NODE_ENV === 'production';

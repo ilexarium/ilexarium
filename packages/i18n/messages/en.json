@@ -269,7 +269,9 @@
     "picture_too_large": "The picture is too large.",
     "process_not_permitted": "Linux didn’t allow this account to end that process.",
     "sudo_password_wrong": "sudo didn’t accept this password.",
-    "sudo_not_allowed": "This account may not use sudo on this machine."
+    "sudo_not_allowed": "This account may not use sudo on this machine.",
+    "sudo_required": "This needs administrator rights: unlock sudo with the Linux account’s password.",
+    "helper_unavailable": "Administrator actions aren’t available in this Linux session (Laris’s helper didn’t start). Sign in to Linux again; if it stays, install Laris again."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -1139,7 +1141,8 @@
       "forceText": "Forcing ends it at once, without letting it finish: anything it hasn’t saved is lost.",
       "cancel": "Cancel",
       "confirm": "End process",
-      "confirmForce": "Force end"
+      "confirmForce": "Force end",
+      "administrator": "It isn’t a process of {{account}}, so it’s ended through that account’s sudo."
     },
     "ended": "{{name}} was asked to stop",
     "forced": "{{name}} was forced to end",
@@ -1158,14 +1161,6 @@
     "onlySystem": "only the system’s",
     "onlyAttention": "only those needing attention",
     "showEveryone": "Show all",
-    "administrator": {
-      "title": "End {{name}} as administrator?",
-      "forceTitle": "Force {{name}} to end as administrator?",
-      "text": "It isn’t a process of {{account}}, so ending it needs that account’s sudo. Enter its password: it’s used for this once and not kept.",
-      "password": "Password for sudo",
-      "submitting": "Ending…",
-      "close": "Close"
-    },
     "signIn": {
       "title": "Sign in to end processes",
       "text": "Processes are ended as a Linux user of this machine: Linux decides which ones that account may end.",
@@ -1318,6 +1313,31 @@
       "down": "Arrow down",
       "left": "Arrow left",
       "right": "Arrow right"
+    }
+  },
+  "linux": {
+    "locked": "sudo is locked, and the Linux session is closed.",
+    "status": {
+      "label": "Linux session: {{account}}",
+      "labelAdmin_one": "Linux session: {{account}}, administrator for {{count}} more minute",
+      "labelAdmin_other": "Linux session: {{account}}, administrator for {{count}} more minutes",
+      "admin_one": "admin · {{count}} min",
+      "admin_other": "admin · {{count}} min",
+      "title": "Signed in to Linux as",
+      "adminText_one": "Administrator rights (sudo) for about {{count}} more minute. Each use starts the time again.",
+      "adminText_other": "Administrator rights (sudo) for about {{count}} more minutes. Each use starts the time again.",
+      "lockedText": "Administrator rights are locked: an action that needs them asks for the password.",
+      "lockNow": "Lock now",
+      "close": "Close Linux session"
+    },
+    "sudo": {
+      "title": "Administrator rights",
+      "text": "This needs the sudo of {{account}}. Enter that account’s Linux password: sudo stays unlocked for a while, and Laris doesn’t keep the password.",
+      "password": "Password for sudo",
+      "submit": "Unlock",
+      "submitting": "Unlocking…",
+      "cancel": "Cancel",
+      "close": "Close"
     }
   },
   "assistant": {

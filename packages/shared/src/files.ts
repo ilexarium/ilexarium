@@ -31,6 +31,14 @@ export const FILES_ERROR_CODES = {
   linuxRootRefused: 'linux_root_refused',
   /** The machine's SSH server doesn't answer, or isn't the one expected (host key). */
   sshUnavailable: 'ssh_unavailable',
+  /** The action needs the account's sudo, and it's locked (or ran out): its password unlocks it. */
+  sudoRequired: 'sudo_required',
+  /** sudo refused the password. */
+  sudoPasswordWrong: 'sudo_password_wrong',
+  /** The account may not use sudo (or sudo isn't installed). */
+  sudoNotAllowed: 'sudo_not_allowed',
+  /** The Linux session has no helper (not installed, or it ended): no administrator actions. */
+  helperUnavailable: 'helper_unavailable',
   notFound: 'file_not_found',
   permissionDenied: 'permission_denied',
   /** Something is already there (upload without replacing, rename onto it, new folder). */
@@ -83,8 +91,24 @@ export const linuxSessionSchema = z.object({
   home: z.string(),
   /** The account's uid (whose processes it may end); null if it couldn't be found out. */
   uid: z.number().int().nonnegative().nullable(),
+  /**
+   * Until when its sudo is unlocked — an estimate: sudo's usual 15 minutes from the last use
+   * (the machine may set another time). Null: locked.
+   */
+  sudoUntil: z.iso.datetime().nullable(),
 });
 export type LinuxSession = z.infer<typeof linuxSessionSchema>;
+
+/** `POST /api/files/session/sudo`: unlock the account's sudo with its password. */
+export const linuxSudoRequestSchema = z.strictObject({
+  password: z
+    .string()
+    .min(1, 'validation.passwordRequired')
+    .max(FILES_LIMITS.passwordMax, 'validation.passwordTooLong')
+    // One line on sudo's stdin: a line break would end it early.
+    .refine((password) => !/[\r\n\0]/.test(password), 'validation.passwordInvalid'),
+});
+export type LinuxSudoRequest = z.infer<typeof linuxSudoRequestSchema>;
 
 export const FILE_TYPES = ['folder', 'file', 'link', 'other'] as const;
 export const fileTypeSchema = z.enum(FILE_TYPES);
