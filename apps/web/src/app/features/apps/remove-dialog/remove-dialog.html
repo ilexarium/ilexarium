@@ -1,0 +1,53 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal class="max-h-[90dvh] overflow-y-auto">
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle>
+        {{ 'apps.remove.title' | translate }} <span dir="ltr">{{ name() }}</span>
+      </h2>
+      <p hlmAlertDialogDescription>{{ 'apps.remove.text' | translate }}</p>
+    </hlm-alert-dialog-header>
+    @if (items(); as list) {
+      <fieldset class="grid gap-1">
+        <legend class="mb-1 text-sm font-medium">{{ 'apps.remove.delete' | translate }}</legend>
+        @for (item of list; track key(item)) {
+          <label class="flex min-h-9 items-start gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted">
+            <input
+              type="checkbox"
+              class="mt-0.5 size-4 shrink-0"
+              [checked]="ticked().has(key(item))"
+              (change)="toggle(item, $event)"
+            />
+            <span class="grid min-w-0 gap-0.5">
+              <span>{{ 'apps.remove.kind.' + item.kind | translate }}</span>
+              <code dir="ltr" class="text-xs break-all text-muted-foreground">{{ item.path }}</code>
+              @if (item.bytes !== null) {
+                <span class="text-xs text-muted-foreground">{{ formatter.bytes(item.bytes) }}</span>
+              }
+              @if (item.outside) {
+                <span class="text-xs text-warning">{{ 'apps.remove.outside' | translate }}</span>
+              }
+            </span>
+          </label>
+        }
+      </fieldset>
+      @if (warnOutside()) {
+        <p role="alert" class="text-sm text-destructive">{{ 'apps.remove.outsideWarning' | translate }}</p>
+      }
+      <p class="text-sm text-muted-foreground">{{ 'apps.remove.backupsStay' | translate }}</p>
+    } @else {
+      <div role="status" [attr.aria-label]="'apps.loading' | translate">
+        <hlm-skeleton class="h-24 w-full" />
+      </div>
+    }
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'apps.remove.cancel' | translate }}</button>
+      <button hlmAlertDialogAction variant="destructive" [disabled]="!items()" (click)="confirmed()">
+        @if (count() > 0) {
+          {{ 'apps.remove.confirmDelete' | plural: count() }}
+        } @else {
+          {{ 'apps.remove.confirm' | translate }}
+        }
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

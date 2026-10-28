@@ -31,13 +31,13 @@ export const BackupsStore = signalStore(
     configured: computed(() => store.status()?.configured ?? false),
     warnings: computed(() => store.status()?.warnings ?? []),
     running: computed(() => store.status()?.running ?? null),
-    /** Each backed-up service's last backup, by service id. */
-    services: computed(() => {
+    /** Each backed-up app's last backup, by its name (Compose project). */
+    apps: computed(() => {
       const items = store.status()?.items ?? [];
       return new Map(
         items
-          .filter((item) => item.kind === 'service' && item.serviceId)
-          .map((item) => [item.serviceId!, item]),
+          .filter((item) => item.kind === 'app' && item.project)
+          .map((item) => [item.project!, item]),
       );
     }),
   })),

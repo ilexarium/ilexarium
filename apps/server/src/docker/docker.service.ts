@@ -127,7 +127,7 @@ export class DockerService {
 
   /**
    * Each Compose project's folders: its working directory and the host folders its containers
-   * mount (bind mounts) — one request, no inspect.
+   * mount (bind mounts), those inside another left out — one request, no inspect.
    */
   async appFolders(): Promise<Map<string, string[]>> {
     const summaries = await this.docker.listContainers({
@@ -146,7 +146,10 @@ export class DockerService {
       }
       folders.set(project, own);
     }
-    return new Map([...folders].map(([project, own]) => [project, [...own].sort()]));
+    // A mount inside the app's own folder is backed up with it.
+    const top = (own: Set<string>) =>
+      [...own].filter((a) => ![...own].some((b) => b !== a && a.startsWith(`${b}/`))).sort();
+    return new Map([...folders].map(([project, own]) => [project, top(own)]));
   }
 
   /** A container's bind-mounted host folders (where it keeps its data); empty when it's gone. */

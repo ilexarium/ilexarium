@@ -29,6 +29,7 @@ export class CatalogService implements OnModuleInit {
       name: template.name,
       category: template.category,
       website: template.website,
+      webPort: template.web?.port ?? null,
     }));
   }
 

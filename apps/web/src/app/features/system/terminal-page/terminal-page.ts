@@ -17,7 +17,7 @@ import { HlmSkeleton } from '@ui/skeleton';
 import { ThemeService } from '../../../core/theme/theme';
 import { Formatter } from '../../../shared/format/formatter';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
-import { SignInDialog } from '../sign-in-dialog/sign-in-dialog';
+import { SignInDialog } from '../../../shared/sign-in-dialog/sign-in-dialog';
 import { TerminalView } from '../terminal-view/terminal-view';
 import type { TerminalSize } from '../terminal.model';
 import { TerminalPageStore } from './terminal-page-store';

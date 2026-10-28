@@ -27,7 +27,7 @@ import { HlmSkeleton } from '@ui/skeleton';
 import { FileDeleteDialog } from '../file-delete-dialog/file-delete-dialog';
 import { FileList } from '../file-list/file-list';
 import { FileNameDialog } from '../file-name-dialog/file-name-dialog';
-import { SignInDialog } from '../sign-in-dialog/sign-in-dialog';
+import { SignInDialog } from '../../../shared/sign-in-dialog/sign-in-dialog';
 import type { FileAction } from '../files.model';
 import { joinPath } from '../files-paths';
 import { FilesPageStore } from './files-page-store';

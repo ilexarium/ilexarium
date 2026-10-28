@@ -1,0 +1,354 @@
+<div class="grid max-w-4xl gap-4">
+  <div>
+    <a hlmBtn variant="ghost" routerLink="/apps">
+      <ng-icon name="lucideArrowLeft" class="rtl:rotate-180" aria-hidden="true" />
+      {{ 'apps.title' | translate }}
+    </a>
+  </div>
+
+  <section hlmCard>
+    <div hlmCardHeader class="grid gap-2">
+      <h2 hlmCardTitle dir="ltr" class="text-xl">{{ appPageStore.name() }}</h2>
+      @if (appPageStore.summary(); as summary) {
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <laris-status-badge [tone]="tones[summary.state]">{{
+            'apps.state.' + summary.state | translate
+          }}</laris-status-badge>
+          @if (summary.owner) {
+            <span class="text-muted-foreground">{{
+              'apps.owner' | translate: { account: summary.owner }
+            }}</span>
+          }
+          @if (summary.containers.length > 0) {
+            <span class="text-muted-foreground" dir="ltr">{{ summary.containers.join(', ') }}</span>
+          }
+        </div>
+      }
+      @if (appPageStore.folder(); as folder) {
+        <p class="text-xs break-all text-muted-foreground" dir="ltr">{{ folder }}</p>
+      }
+    </div>
+    <div hlmCardFooter class="flex flex-wrap gap-2">
+      @if (openUrl(); as url) {
+        <a hlmBtn [href]="url" target="_blank" rel="noopener noreferrer">
+          <ng-icon name="lucideExternalLink" aria-hidden="true" />
+          {{ 'apps.open' | translate }}
+        </a>
+      }
+      @switch (appPageStore.summary()?.state) {
+        @case ('stopped') {
+          <button hlmBtn variant="outline" [disabled]="appPageStore.pending()" (click)="appPageStore.act('start')">
+            <ng-icon name="lucidePlay" aria-hidden="true" />
+            {{ 'apps.start' | translate }}
+          </button>
+        }
+        @case ('none') {}
+        @case (undefined) {}
+        @default {
+          <button hlmBtn variant="ghost" [disabled]="appPageStore.pending()" (click)="appPageStore.act('stop')">
+            <ng-icon name="lucideSquare" aria-hidden="true" />
+            {{ 'apps.stop' | translate }}
+          </button>
+        }
+      }
+    </div>
+  </section>
+
+  @if (appPageStore.task(); as task) {
+    <section hlmCard aria-labelledby="task-title">
+      <div hlmCardHeader>
+        <h2 id="task-title" hlmCardTitle>{{ 'apps.task.title' | translate }}</h2>
+      </div>
+      <div hlmCardContent>
+        <laris-task-output [task]="task" [lines]="appPageStore.lines()" />
+      </div>
+    </section>
+  }
+
+  @if (appPageStore.loadError(); as error) {
+    <section hlmCard role="alert">
+      <div hlmCardContent class="grid gap-3 pt-6">
+        @switch (error) {
+          @case (codes.linuxSessionRequired) {
+            <p class="text-sm">{{ 'apps.page.signIn' | translate }}</p>
+            <div>
+              <button hlmBtn (click)="appPageStore.signInAndLoad()">
+                {{ 'apps.page.signInButton' | translate }}
+              </button>
+            </div>
+          }
+          @case (codes.permissionDenied) {
+            <p class="text-sm">
+              {{
+                'apps.page.notYours'
+                  | translate: { account: appPageStore.summary()?.owner ?? '?' }
+              }}
+            </p>
+          }
+          @default {
+            <p class="text-sm">{{ 'apps.page.failed' | translate }}</p>
+            <div>
+              <button hlmBtn variant="outline" (click)="appPageStore.reload()">
+                {{ 'apps.page.retry' | translate }}
+              </button>
+            </div>
+          }
+        }
+      </div>
+    </section>
+  } @else if (appPageStore.details(); as details) {
+    @if (details.beforeUpdate; as before) {
+      <section hlmCard aria-labelledby="undo-title">
+        <div hlmCardHeader>
+          <h2 id="undo-title" hlmCardTitle>{{ 'apps.undo.title' | translate }}</h2>
+          <p hlmCardDescription>
+            {{ 'apps.undo.text' | translate: { time: formatter.dateTime(before.at) } }}
+          </p>
+        </div>
+        <div hlmCardContent class="grid gap-2 text-sm">
+          <ol class="grid list-decimal gap-2 ps-5">
+            <li>
+              {{ 'apps.undo.restore' | translate }}
+              <a
+                class="underline underline-offset-4"
+                routerLink="/backups"
+                [queryParams]="appPageStore.backup() ? { restore: appPageStore.backup()!.id } : {}"
+                >{{ 'apps.undo.restoreLink' | translate }}</a
+              >
+            </li>
+            <li>
+              {{ 'apps.undo.versions' | translate }}
+              <button hlmBtn variant="link" class="h-auto p-0" (click)="appPageStore.fillPrevious()">
+                {{ 'apps.undo.fill' | translate }}
+              </button>
+            </li>
+          </ol>
+          <ul class="grid gap-1">
+            @for (image of before.images; track image.service) {
+              <li dir="ltr" class="text-xs break-all text-muted-foreground">
+                {{ image.image }}:{{ image.tag }}&#64;{{ image.digest }}
+              </li>
+            }
+          </ul>
+        </div>
+      </section>
+    }
+
+    <section hlmCard aria-labelledby="update-title">
+      <div hlmCardHeader>
+        <h2 id="update-title" hlmCardTitle>{{ 'apps.update.title' | translate }}</h2>
+        <p hlmCardDescription>{{ 'apps.update.text' | translate }}</p>
+      </div>
+      <div hlmCardContent class="grid gap-3">
+        @if (appPageStore.templateNewer()) {
+          <div class="grid gap-2 rounded-md bg-muted p-3 text-sm">
+            <p>
+              {{
+                'apps.template.newer'
+                  | translate: { name: details.template!.id, version: details.template!.current }
+              }}
+            </p>
+            @if (details.template!.current) {
+              <p class="text-muted-foreground">
+                {{ 'catalog.' + details.template!.id + '.note' | translate }}
+              </p>
+            }
+            <div>
+              <button hlmBtn variant="outline" [disabled]="appPageStore.busy() || appPageStore.running()" (click)="appPageStore.useTemplate()">
+                {{ 'apps.template.use' | translate }}
+              </button>
+            </div>
+          </div>
+        }
+        @if (details.keptFiles.length > 0) {
+          <p class="text-sm text-muted-foreground">
+            {{ 'apps.template.kept' | translate }}
+            <code dir="ltr">{{ details.keptFiles.join(', ') }}</code>
+          </p>
+        }
+        @if (appPageStore.backup()) {
+          <label class="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              class="mt-0.5 size-4"
+              [checked]="backupFirst()"
+              (change)="backupFirst.set($any($event.target).checked)"
+            />
+            {{ 'apps.update.backupFirst' | translate }}
+          </label>
+        }
+        <div>
+          <button
+            hlmBtn
+            [disabled]="appPageStore.busy() || appPageStore.running()"
+            (click)="appPageStore.update(backupFirst() && !!appPageStore.backup())"
+          >
+            <ng-icon name="lucideRefreshCw" aria-hidden="true" />
+            {{ 'apps.update.action' | translate }}
+          </button>
+        </div>
+        @for (image of fixedImages(); track image.service) {
+          <div class="grid gap-1.5">
+            <span class="text-sm font-medium" dir="ltr">{{ image.image }}:{{ image.tag }}</span>
+            <div class="flex flex-wrap gap-2">
+              <button
+                hlmBtn
+                variant="outline"
+                type="button"
+                [disabled]="appPageStore.versionLists().get(image.image)?.loading"
+                (click)="appPageStore.askVersions(image.image)"
+              >
+                {{ 'apps.fields.showVersions' | translate }}
+              </button>
+              @if (appPageStore.versionLists().get(image.image); as list) {
+                @if (!list.loading && !list.available) {
+                  <span class="text-sm text-muted-foreground">{{ 'apps.fields.versionsUnavailable' | translate }}</span>
+                } @else if (list.versions.length > 0) {
+                  <select
+                    class="h-9 rounded-md border bg-background px-2 text-sm"
+                    dir="ltr"
+                    [attr.aria-label]="'apps.update.versionFor' | translate: { image: image.image }"
+                    [disabled]="appPageStore.busy() || appPageStore.running()"
+                    (change)="pickTag(image, $event)"
+                  >
+                    <option value="">{{ 'apps.fields.chooseVersion' | translate }}</option>
+                    @for (version of list.versions; track version) {
+                      <option [value]="version">{{ version }}</option>
+                    }
+                  </select>
+                }
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section hlmCard aria-labelledby="settings-title">
+      <div hlmCardHeader>
+        <h2 id="settings-title" hlmCardTitle>{{ 'apps.settings.title' | translate }}</h2>
+        <p hlmCardDescription>{{ 'apps.settings.text' | translate }}</p>
+      </div>
+      <div hlmCardContent class="grid gap-5">
+        @if (details.problem) {
+          <p role="alert" class="text-sm text-destructive" dir="ltr">{{ details.problem }}</p>
+        }
+        <laris-app-fields
+          [fields]="appPageStore.shownFields()"
+          [values]="appPageStore.values()"
+          [templateId]="details.template?.id ?? null"
+          [versions]="appPageStore.versionLists()"
+          [disabled]="appPageStore.busy()"
+          (changed)="change($event)"
+          (kindChanged)="kind($event)"
+          (askVersions)="appPageStore.askVersions($event)"
+        />
+        <details class="rounded-md border p-3">
+          <summary class="cursor-pointer text-sm font-medium select-none">
+            {{ 'apps.editor.title' | translate }}
+          </summary>
+          <div class="mt-4 grid gap-3">
+            <label hlmLabel for="compose-file" dir="ltr">compose.yml</label>
+            <textarea
+              hlmTextarea
+              id="compose-file"
+              rows="16"
+              dir="ltr"
+              spellcheck="false"
+              class="font-mono text-xs"
+              [value]="appPageStore.compose()"
+              (change)="appPageStore.setCompose(text($event))"
+            ></textarea>
+            <label hlmLabel for="env-file" dir="ltr">.env</label>
+            <textarea
+              hlmTextarea
+              id="env-file"
+              rows="8"
+              dir="ltr"
+              spellcheck="false"
+              class="font-mono text-xs"
+              [value]="appPageStore.env()"
+              (change)="appPageStore.setEnv(text($event))"
+            ></textarea>
+          </div>
+        </details>
+        @if (appPageStore.conflict()) {
+          <div role="alert" class="grid gap-2 rounded-md border border-destructive p-3 text-sm">
+            <p>{{ 'apps.save.conflict' | translate }}</p>
+            <div class="flex flex-wrap gap-2">
+              <button hlmBtn variant="outline" (click)="appPageStore.reload()">
+                {{ 'apps.save.reload' | translate }}
+              </button>
+              <button hlmBtn variant="destructive" (click)="appPageStore.save(true)">
+                {{ 'apps.save.overwrite' | translate }}
+              </button>
+            </div>
+          </div>
+        }
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            hlmBtn
+            [disabled]="!appPageStore.changed() || appPageStore.busy() || appPageStore.running()"
+            (click)="appPageStore.save()"
+          >
+            {{ 'apps.save.action' | translate }}
+          </button>
+          @if (appPageStore.changed()) {
+            <button hlmBtn variant="ghost" (click)="appPageStore.reload()">
+              {{ 'apps.save.discard' | translate }}
+            </button>
+          }
+        </div>
+      </div>
+    </section>
+
+    @if (appPageStore.backupsConfigured()) {
+      <section hlmCard aria-labelledby="backup-title">
+        <div hlmCardHeader>
+          <h2 id="backup-title" hlmCardTitle>{{ 'apps.backup.title' | translate }}</h2>
+        </div>
+        <div hlmCardContent class="flex flex-wrap items-center gap-3 text-sm">
+          @if (appPageStore.backup(); as item) {
+            <span>
+              @if (item.lastSuccessAt) {
+                {{ 'apps.backup.last' | translate: { time: formatter.ago(item.lastSuccessAt) } }}
+              } @else {
+                {{ 'apps.backup.never' | translate }}
+              }
+            </span>
+            <a hlmBtn variant="outline" routerLink="/backups">{{ 'apps.backup.manage' | translate }}</a>
+          } @else {
+            <span class="text-muted-foreground">{{ 'apps.backup.notIncluded' | translate }}</span>
+            <button hlmBtn variant="outline" [disabled]="appPageStore.busy()" (click)="appPageStore.addToBackups()">
+              {{ 'apps.backup.add' | translate }}
+            </button>
+          }
+        </div>
+      </section>
+    }
+
+    <section hlmCard aria-labelledby="remove-title">
+      <div hlmCardHeader>
+        <h2 id="remove-title" hlmCardTitle>{{ 'apps.remove.section' | translate }}</h2>
+        <p hlmCardDescription>{{ 'apps.remove.sectionText' | translate }}</p>
+      </div>
+      <div hlmCardContent>
+        <button
+          hlmBtn
+          variant="destructive"
+          [disabled]="appPageStore.busy() || appPageStore.running()"
+          (click)="askRemove()"
+        >
+          <ng-icon name="lucideTrash2" aria-hidden="true" />
+          {{ 'apps.remove.action' | translate }}
+        </button>
+      </div>
+    </section>
+  } @else {
+    <div role="status" [attr.aria-label]="'apps.loading' | translate">
+      <hlm-skeleton class="h-48 w-full" />
+    </div>
+  }
+</div>
+
+<laris-remove-dialog [name]="appPageStore.name()" [items]="appPageStore.removal()" (remove)="remove($event)" />

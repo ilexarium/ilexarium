@@ -1,34 +1,23 @@
-import type { BackupItem, BackupRestoreTarget } from '@laris/shared';
+import type { BackupItem, BackupItemUpdate } from '@laris/shared';
 
-/** A service that can be backed up: installed, and its recipe has a backup. */
-export interface BackupableService {
-  id: string;
-  catalogId: string;
-  name: string;
-  /** The folder fields its recipe backs up. */
-  folders: string[];
-}
-
-/** An item as the page shows it: what it is called, and the folders a service may switch off. */
+/** An item as the page shows it: what it is called. */
 export interface ItemRow {
   item: BackupItem;
-  /** A service's name; null for the platform (translated) and folders (their path). */
+  /** An app's name; null for the platform (translated) and folders (their path). */
   name: string | null;
-  /** A service's backup folder fields (more than one: each can be switched off). */
-  folders: string[];
 }
 
-/** What a restore dialog chose. */
+/** What a restore dialog chose: the backup, and where (null: back where it was). */
 export interface RestoreChoice {
   itemId: string;
   archive: string;
-  target: BackupRestoreTarget;
+  target: string | null;
 }
 
-/** An item's folders switched off. */
-export interface ItemFolders {
+/** An app item's folders, skips or mode changed. */
+export interface ItemChange {
   itemId: string;
-  excludedFields: string[];
+  change: BackupItemUpdate;
 }
 
 /** An item out of the plan; `deleteArchives` deletes its backups too. */
@@ -37,13 +26,13 @@ export interface ItemRemoval {
   deleteArchives: boolean;
 }
 
-/** A setup's items: the services ticked (with folders switched off) and the folders added. */
+/** A setup's items: the apps ticked and the folders added. */
 export interface SetupItems {
-  services: { serviceId: string; excludedFields: string[] }[];
+  apps: string[];
   folders: string[];
 }
 
-/** What an item is called: a service's name, "This app", or a folder's path (machine text). */
+/** What an item is called: an app's name, "This app", or a folder's path (machine text). */
 export interface ItemLabel {
   text: string;
   /** Machine text (a path): shown left to right. */

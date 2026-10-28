@@ -1,5 +1,4 @@
-import type { BackupRunStatus, DiskUsage, InstalledService } from '@laris/shared';
-import type { ServiceRuntime } from '../../core/services/services.model';
+import type { AppSummary, BackupRunStatus, DiskUsage } from '@laris/shared';
 
 /** A text to translate: a key with its params, and a count when it has plural forms. */
 export interface Text {
@@ -21,9 +20,7 @@ export interface RackUnit {
 }
 
 export interface AppTile {
-  service: InstalledService;
-  /** Null while the containers aren't known yet (or Docker isn't reachable). */
-  runtime: ServiceRuntime | null;
+  app: AppSummary;
   /** Its containers that aren't running: what Start starts. */
   stopped: string[];
   /** One of them is being started (or stopped) right now. */

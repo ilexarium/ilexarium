@@ -1,0 +1,78 @@
+<article hlmCard class="h-full gap-4">
+  <div hlmCardHeader class="flex flex-row items-start gap-3">
+    @if (iconUrl(); as url) {
+      <img [src]="url" alt="" width="40" height="40" class="size-10 shrink-0 rounded-lg" />
+    } @else {
+      <span
+        class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+      >
+        <ng-icon name="lucideBox" class="size-5" aria-hidden="true" />
+      </span>
+    }
+    <div class="grid min-w-0 flex-1 gap-1">
+      <h3 hlmCardTitle>
+        <a
+          [routerLink]="['/apps', app().name]"
+          [queryParams]="query()"
+          class="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+          dir="ltr"
+          >{{ app().name }}</a
+        >
+      </h3>
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <laris-status-badge [tone]="tones[app().state]">{{
+          'apps.state.' + app().state | translate
+        }}</laris-status-badge>
+        @if (template(); as template) {
+          <span class="text-muted-foreground">{{ template.name }}</span>
+        }
+      </div>
+      @if (app().folder; as folder) {
+        <p class="truncate text-xs text-muted-foreground" dir="ltr" [title]="folder">{{ folder }}</p>
+      }
+      @if (app().owner; as owner) {
+        <p class="text-xs text-muted-foreground">
+          {{ 'apps.owner' | translate: { account: owner } }}
+        </p>
+      }
+    </div>
+  </div>
+  <div hlmCardFooter class="mt-auto flex min-h-9 flex-wrap gap-2">
+    @if (openUrl(); as url) {
+      <a
+        hlmBtn
+        [href]="url"
+        target="_blank"
+        rel="noopener noreferrer"
+        [attr.aria-label]="'apps.openLabel' | translate: { name: app().name }"
+      >
+        <ng-icon name="lucideExternalLink" aria-hidden="true" />
+        {{ 'apps.open' | translate }}
+      </a>
+    }
+    @if (app().state === 'stopped' || app().state === 'partial') {
+      <button
+        hlmBtn
+        variant="outline"
+        [disabled]="pending()"
+        (click)="start.emit()"
+        [attr.aria-label]="'apps.startLabel' | translate: { name: app().name }"
+      >
+        <ng-icon name="lucidePlay" aria-hidden="true" />
+        {{ 'apps.start' | translate }}
+      </button>
+    }
+    @if (app().state === 'running' || app().state === 'partial' || app().state === 'unhealthy') {
+      <button
+        hlmBtn
+        variant="ghost"
+        [disabled]="pending()"
+        (click)="stop.emit()"
+        [attr.aria-label]="'apps.stopLabel' | translate: { name: app().name }"
+      >
+        <ng-icon name="lucideSquare" aria-hidden="true" />
+        {{ 'apps.stop' | translate }}
+      </button>
+    }
+  </div>
+</article>

@@ -19,7 +19,7 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { label: 'nav.dashboard', link: '/', icon: 'lucideLayoutDashboard', exact: true },
       { label: 'nav.containers', link: '/containers', icon: 'lucideBoxes' },
-      { label: 'nav.services', link: '/services', icon: 'lucideBlocks' },
+      { label: 'nav.apps', link: '/apps', icon: 'lucideBlocks' },
       { label: 'nav.assistant', link: '/assistant', icon: 'lucideSparkles' },
       { label: 'nav.backups', link: '/backups', icon: 'lucideArchive', attention: 'backups' },
       { label: 'nav.alerts', link: '/alerts', icon: 'lucideBell', attention: 'alerts' },

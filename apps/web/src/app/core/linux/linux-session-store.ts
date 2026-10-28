@@ -31,6 +31,8 @@ interface LinuxSessionState {
   sudoPrompt: boolean;
   /** Which prompt: a late "closed" of an earlier one never cancels a newer one. */
   sudoPromptId: number;
+  /** The Linux sign-in is asked (an action waits for a Linux session). */
+  signInPrompt: boolean;
   /** For the minutes of sudo left. */
   now: number;
 }
@@ -40,6 +42,7 @@ const initialState: LinuxSessionState = {
   session: null,
   sudoPrompt: false,
   sudoPromptId: 0,
+  signInPrompt: false,
   now: Date.now(),
 };
 
@@ -68,6 +71,23 @@ export const LinuxSessionStore = signalStore(
       prompted?.resolve(unlocked);
       prompted = null;
       patchState(store, { sudoPrompt: false });
+    };
+    /** The sign-in's answer: signed in, or not (closed). */
+    let signingIn: { promise: Promise<boolean>; resolve: (signedIn: boolean) => void } | null = null;
+    const answerSignIn = (signedIn: boolean) => {
+      signingIn?.resolve(signedIn);
+      signingIn = null;
+      patchState(store, { signInPrompt: false });
+    };
+    /** Asks for the Linux sign-in; true once signed in, false when closed. */
+    const requestSignIn = (): Promise<boolean> => {
+      if (!signingIn) {
+        let resolve!: (signedIn: boolean) => void;
+        const promise = new Promise<boolean>((done) => (resolve = done));
+        signingIn = { promise, resolve };
+        patchState(store, { signInPrompt: true });
+      }
+      return signingIn.promise;
     };
     /** An action found the Linux session gone (idle, closed elsewhere). */
     const ended = () => {
@@ -182,12 +202,51 @@ export const LinuxSessionStore = signalStore(
         return result;
       },
 
+      /**
+       * Runs a change done as the person (an app, a backup, a disk): the Linux sign-in first
+       * without a session; the sudo password only when the server says sudo is needed and
+       * locked; then the action once more. Null when a prompt was closed; the action's own
+       * errors are passed on.
+       */
+      async asPerson<T>(action: () => Promise<T>): Promise<T | null> {
+        if (!store.session() && !(await requestSignIn())) return null;
+        for (let attempt = 0; ; attempt++) {
+          try {
+            const result = await action();
+            // sudo may have been used: the top bar's minutes come from the server's estimate.
+            firstValueFrom(filesApi.session()).then(
+              ({ session }) => patchState(store, { session, now: Date.now() }),
+              () => undefined,
+            );
+            return result;
+          } catch (error) {
+            const code = apiErrorCode(error);
+            if (attempt >= 2) throw error;
+            if (code === FILES_ERROR_CODES.sudoRequired) {
+              setSudoUntil(null);
+              if (!(await requestSudo())) return null;
+            } else if (code === FILES_ERROR_CODES.linuxSessionRequired) {
+              ended();
+              if (!(await requestSignIn())) return null;
+            } else {
+              throw error;
+            }
+          }
+        }
+      },
+
+      /** The shell's sign-in prompt: signed in (true) or closed. */
+      signInAnswered(signedIn: boolean): void {
+        answerSignIn(signedIn && store.session() !== null);
+      },
+
       tick(): void {
         patchState(store, { now: Date.now() });
       },
 
       reset(): void {
         answerPrompt(false);
+        answerSignIn(false);
         patchState(store, { ...initialState, now: Date.now() });
       },
     };
