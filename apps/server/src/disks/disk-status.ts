@@ -15,7 +15,7 @@ export interface DisksInput {
   mounts: MountPoint[];
   swaps: string[];
   /** The mount units the disk wrapper wrote. */
-  units: { name: string; uuid: string | null; where: string }[];
+  units: { uuid: string | null; where: string }[];
   /** Where the backups are kept (the database's plan), if set up. */
   backupDestination: string | null;
 }
@@ -76,7 +76,7 @@ export function disksStatus(input: DisksInput): DisksStatus {
       sizeBytes: device.sizeBytes,
       state,
       mountPoint,
-      managedName: unit?.name ?? null,
+      managed: unit !== undefined,
       usedForBackups: forBackups(mountPoint),
       duplicateUuid: device.uuid !== null && duplicated.has(device.uuid),
     };
@@ -105,7 +105,6 @@ export function disksStatus(input: DisksInput): DisksStatus {
   const disconnected: DisconnectedDisk[] = units
     .filter((unit) => !unit.uuid || !present.has(unit.uuid))
     .map((unit) => ({
-      name: unit.name,
       mountPoint: unit.where,
       uuid: unit.uuid,
       usedForBackups: forBackups(unit.where),

@@ -1,11 +1,9 @@
-# Immich — reviewed recipe (docs/plans/service_deploys.md, decision 6), based on Immich v3.3.1's
-# own docker-compose.yml. Differences: settings in `environment` instead of an env_file, the time
-# zone through TZ instead of mounting /etc/localtime, the database in a named volume, no
-# container_name, restart unless-stopped, log rotation. Service names stay Immich's own
-# (`redis`, `database`): the server finds them by those names.
+# Immich, from the Laris template (catalog/immich), based on Immich's own docker-compose.yml. This
+# folder is yours: change anything. The server and machine learning share IMMICH_VERSION (they
+# must match); the database stays on its major version (upgrading it is Immich's own procedure).
 services:
   immich-server:
-    image: ghcr.io/immich-app/immich-server:v3.3.1@sha256:db996e352359771c6a3db121a0ed8761516b22f727fc092a0f46dcfef82c1bc1
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION}
     ports:
       - '${WEB_PORT}:2283'
     environment:
@@ -14,12 +12,12 @@ services:
       DB_USERNAME: postgres
       DB_DATABASE_NAME: immich
     volumes:
-      - type: bind
-        source: ${UPLOAD_DIR}
-        target: /data
+      - ${UPLOAD_DIR}:/data
     depends_on:
       - redis
       - database
+    labels: &labels
+      laris.template: immich@2
     restart: unless-stopped
     healthcheck:
       disable: false
@@ -28,38 +26,37 @@ services:
       options: { max-size: 10m, max-file: '3' }
 
   immich-machine-learning:
-    image: ghcr.io/immich-app/immich-machine-learning:v3.3.1@sha256:513c831cfb010ad319341a0c86b42c575a0d5b688d3e8cae346ee624074a58ed
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION}
     environment:
       TZ: ${TZ}
     volumes:
-      - model-cache:/cache
+      - ${MODEL_CACHE_DIR}:/cache
+    labels: *labels
     restart: unless-stopped
     healthcheck:
       disable: false
     logging: *logging
 
   redis:
-    image: docker.io/valkey/valkey:9@sha256:c123e3715db63d06d4ad6964884037aa0d5d4d703939b9929954112889708e1d
+    image: docker.io/valkey/valkey:9
     healthcheck:
       test: redis-cli ping | grep -q PONG || exit 1
+    labels: *labels
     restart: unless-stopped
     logging: *logging
 
   database:
-    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_USER: postgres
       POSTGRES_DB: immich
       POSTGRES_INITDB_ARGS: '--data-checksums'
     volumes:
-      - database:/var/lib/postgresql/data
+      - ${DB_DATA_DIR}:/var/lib/postgresql/data
     shm_size: 128mb
+    labels: *labels
     restart: unless-stopped
     healthcheck:
       disable: false
     logging: *logging
-
-volumes:
-  model-cache:
-  database:

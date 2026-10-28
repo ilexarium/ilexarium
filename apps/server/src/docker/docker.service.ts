@@ -10,6 +10,7 @@ import {
   containerNameSchema,
   type LogLine,
   PROTECTED_LABEL,
+  TEMPLATE_LABEL,
 } from '@laris/shared';
 import Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
@@ -31,6 +32,7 @@ export class ContainerLogsError extends Error {
 const REQUEST_TIMEOUT_MS = 5_000;
 /** Set by Compose on every container it creates: the project's name. */
 const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project';
+const COMPOSE_WORKING_DIR_LABEL = 'com.docker.compose.project.working_dir';
 /** Docker's zero time: a container that never started. */
 const NEVER = '0001-01-01T00:00:00Z';
 /** The events that can change what the containers table shows. */
@@ -90,6 +92,8 @@ export class DockerService {
             ports: toPorts(summary.Ports),
             protected: summary.Labels?.[PROTECTED_LABEL] === 'true',
             composeProject: summary.Labels?.[COMPOSE_PROJECT_LABEL] ?? null,
+            composeWorkingDir: summary.Labels?.[COMPOSE_WORKING_DIR_LABEL] ?? null,
+            template: summary.Labels?.[TEMPLATE_LABEL] ?? null,
           };
         } catch {
           return null; // removed between the list and the inspect
@@ -119,6 +123,44 @@ export class DockerService {
         },
       ]),
     );
+  }
+
+  /**
+   * Each Compose project's folders: its working directory and the host folders its containers
+   * mount (bind mounts) — one request, no inspect.
+   */
+  async appFolders(): Promise<Map<string, string[]>> {
+    const summaries = await this.docker.listContainers({
+      all: true,
+      abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    const folders = new Map<string, Set<string>>();
+    for (const summary of summaries) {
+      const project = summary.Labels?.[COMPOSE_PROJECT_LABEL];
+      if (!project || summary.Labels?.[PROTECTED_LABEL] === 'true') continue;
+      const own = folders.get(project) ?? new Set<string>();
+      const workingDir = summary.Labels?.[COMPOSE_WORKING_DIR_LABEL];
+      if (workingDir?.startsWith('/')) own.add(workingDir);
+      for (const mount of summary.Mounts ?? []) {
+        if (mount.Type === 'bind' && mount.Source?.startsWith('/')) own.add(mount.Source);
+      }
+      folders.set(project, own);
+    }
+    return new Map([...folders].map(([project, own]) => [project, [...own].sort()]));
+  }
+
+  /** A container's bind-mounted host folders (where it keeps its data); empty when it's gone. */
+  async bindMounts(name: string): Promise<string[]> {
+    try {
+      const details = await this.docker
+        .getContainer(name)
+        .inspect({ abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      return (details.Mounts ?? [])
+        .filter((mount) => mount.Type === 'bind' && mount.Source?.startsWith('/'))
+        .map((mount) => mount.Source);
+    } catch {
+      return [];
+    }
   }
 
   /** Live stats of a running container, about one per second, until `signal` aborts. */

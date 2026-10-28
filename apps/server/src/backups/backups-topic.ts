@@ -10,7 +10,7 @@ import {
   type Observable,
   switchMap,
 } from 'rxjs';
-import { OperationSlot } from '../jobs/operation-slot.js';
+import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { BackupPlanManager } from './backup-plan-manager.js';
@@ -39,7 +39,7 @@ export class BackupsTopic implements TopicSource<'backups'> {
     backupProgressFollower: BackupProgressFollower,
     backupResults: BackupResults,
     backupRestores: BackupRestores,
-    operationSlot: OperationSlot,
+    changesUnderway: ChangesUnderway,
     realtimeSubscriptions: RealtimeSubscriptions,
   ) {
     this.updates$ = merge(
@@ -48,7 +48,7 @@ export class BackupsTopic implements TopicSource<'backups'> {
       backupProgressFollower.changes$,
       backupResults.changes$,
       backupRestores.changes$,
-      operationSlot.changes$,
+      changesUnderway.changes$,
       interval(BACKUPS_REFRESH_MS),
     ).pipe(
       // The first change opens a window; at its end, one snapshot of everything.

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { catalogIdOfProject, type ProcessesUpdate, processKey } from '@laris/shared';
+import { type ProcessesUpdate, processKey } from '@laris/shared';
 import {
   defer,
   filter,
@@ -161,7 +161,7 @@ export class ProcessesTopic implements TopicSource<'processes'> {
             id,
             {
               name,
-              catalogId: catalogIdOfProject(composeProject),
+              app: composeProject,
             },
           ]),
         );

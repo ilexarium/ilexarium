@@ -15,11 +15,13 @@ import { ContainerActionsModule } from './container-actions/container-actions.mo
 import { ContainerLogsModule } from './container-logs/container-logs.module.js';
 import { ContainersModule } from './containers/containers.module.js';
 import { HealthModule } from './health/health.module.js';
+import { JobsModule } from './jobs/jobs.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProcessesModule } from './processes/processes.module.js';
 import { ProfileModule } from './profile/profile.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
-import { ServicesModule } from './services/services.module.js';
+import { AppsModule } from './apps/apps.module.js';
+import { CatalogModule } from './catalog/catalog.module.js';
 import { SystemMetricsModule } from './system-metrics/system-metrics.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -27,6 +29,7 @@ import { UsersModule } from './users/users.module.js';
   imports: [
     ConfigModule,
     PrismaModule,
+    JobsModule,
     AuditModule,
     AuthModule,
     HealthModule,
@@ -37,7 +40,8 @@ import { UsersModule } from './users/users.module.js';
     ContainersModule,
     ContainerLogsModule,
     ContainerActionsModule,
-    ServicesModule,
+    CatalogModule,
+    AppsModule,
     BackupsModule,
     DisksModule,
     AlertsModule,

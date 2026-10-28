@@ -2,9 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { open, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { interval, map, merge, type Observable, share } from 'rxjs';
+import { backupRestorePhaseSchema } from '@laris/shared';
 import { z } from 'zod';
 import { watchFolder } from '../common/watch-folder.js';
-import { WrapperConfigService } from '../executor/wrapper-config.js';
+import { ProgramConfigService } from '../root-programs/program-config.js';
 import { stateDir } from './backup-paths.js';
 import {
   BACKUP_FILES_POLL_MS,
@@ -53,6 +54,20 @@ const checkResultSchema = z.object({
 export type WrapperCheckResult = z.infer<typeof checkResultSchema>;
 
 const resultSchema = z.discriminatedUnion('type', [runResultSchema, checkResultSchema]);
+
+/** One line of a restore's events file. */
+export const restoreEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('start'), pid: z.number().int().positive() }),
+  z.object({ type: z.literal('phase'), phase: backupRestorePhaseSchema }),
+  z.object({ type: z.literal('line'), text: z.string().max(4000) }),
+  z.object({
+    type: z.literal('done'),
+    status: z.enum(['succeeded', 'failed']),
+    errorCode: z.string().max(60).nullable(),
+    setAside: z.array(z.string().max(4096)).max(100),
+  }),
+]);
+export type RestoreEvent = z.infer<typeof restoreEventSchema>;
 export type WrapperResult = z.infer<typeof resultSchema>;
 
 /** One line of current.jsonl: the live progress of a run. */
@@ -117,7 +132,7 @@ export class BackupFiles {
    */
   readonly changes$: Observable<void>;
 
-  constructor(private readonly wrapperConfigService: WrapperConfigService) {
+  constructor(private readonly programConfigService: ProgramConfigService) {
     this.changes$ = merge(
       watchFolder(() => this.dir, BACKUP_FILES_POLL_MS),
       interval(BACKUP_FILES_POLL_MS),
@@ -128,7 +143,7 @@ export class BackupFiles {
   }
 
   get dir(): string {
-    return stateDir(this.wrapperConfigService.config);
+    return stateDir(this.programConfigService.config);
   }
 
   /**
@@ -154,6 +169,34 @@ export class BackupFiles {
         this.logger.error(`Could not read ${file}: ${(error as Error).message}`);
       }
       return [];
+    }
+  }
+
+  /**
+   * A restore's events (`restores/<id>.jsonl`, written by its unit): its phases, output lines and
+   * end; null when the file isn't there (yet).
+   */
+  async restoreEvents(restoreId: string): Promise<RestoreEvent[] | null> {
+    const file = join(this.dir, 'restores', `${restoreId}.jsonl`);
+    try {
+      const { size } = await stat(file);
+      if (size > MAX_PROGRESS_READ_BYTES) {
+        const handle = await open(file, 'r');
+        try {
+          const buffer = Buffer.alloc(MAX_PROGRESS_READ_BYTES);
+          await handle.read(buffer, 0, buffer.length, size - buffer.length);
+          const text = buffer.toString('utf8');
+          return parseLines(text.slice(text.indexOf('\n') + 1), restoreEventSchema).values;
+        } finally {
+          await handle.close();
+        }
+      }
+      return parseLines(await readFile(file, 'utf8'), restoreEventSchema).values;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        this.logger.error(`Could not read ${file}: ${(error as Error).message}`);
+      }
+      return null;
     }
   }
 

@@ -17,8 +17,8 @@ import type {
   Ran,
   Repository,
 } from './model.mts';
-import { allowedFolder, allowedServiceFolder, overlaps, resolveSource } from './places.mts';
-import { ARCHIVE_PATTERN, loadPlan, loadRecipe } from './plan.mts';
+import { allowedFolder, overlaps, resolveSource } from './places.mts';
+import { ARCHIVE_PATTERN, loadPlan } from './plan.mts';
 import { borg, borgFailure, docker, sleep, stopping, takeLock } from './programs.mts';
 import { emit, oneLine, Refusal } from '../lib/output.mts';
 
@@ -31,7 +31,7 @@ export const RESULT_OUTPUT_LINES = 200;
 
 export const MAX_WARNINGS = 20;
 
-export const ORDER: Record<ItemKind, number> = { platform: 0, service: 1, folder: 2 };
+export const ORDER: Record<ItemKind, number> = { platform: 0, app: 1, folder: 2 };
 
 export async function run(
   config: Config,
@@ -242,20 +242,22 @@ export async function backupItem(
         return fail('dump_failed', 'the database dump failed');
       }
       sources = [dumpDir, ...config.backup.platform.files.filter((file) => existsSync(file))];
-    } else if (item.kind === 'service') {
-      const recipe = loadRecipe(config, item.catalogId!);
-      if (!recipe) return fail('source_missing', 'the service has no backup in its recipe');
-      for (const folder of recipe.folders) {
-        const path = item.folders?.[folder.field];
-        if (path === undefined) continue; // switched off by the user
-        const real = resolveSource(path, (p) => allowedServiceFolder(config, p));
+    } else if (item.kind === 'app') {
+      for (const path of item.folders ?? []) {
+        const real = resolveSource(path, (p) => allowedFolder(config, p));
         if (!real || overlaps(real, plan.destination)) {
           return fail('source_missing', `${path}: missing or not allowed`);
         }
         sources.push(real);
-        for (const skip of folder.skip) excludes.push('--exclude', `pp:${real}/${skip}`);
+        for (const skip of item.skip ?? []) {
+          if (!skip.startsWith(`${path}/`)) continue;
+          // Below the folder as it really is (a symlink above it resolved).
+          const inside = `${real}${skip.slice(path.length)}`;
+          excludes.push('--exclude', /[*?]/.test(inside) ? `sh:${inside}` : `pp:${inside}`);
+        }
       }
-      if (recipe.mode === 'stop') project = `hl-${item.catalogId}`;
+      // A `stop` app, by its project name: Compose finds its containers by their labels.
+      if (item.mode === 'stop') project = item.project!;
     } else {
       const real = resolveSource(item.path!, (p) => allowedFolder(config, p));
       if (!real || overlaps(real, plan.destination)) {
@@ -265,7 +267,7 @@ export async function backupItem(
     }
     if (sources.length === 0) return fail('source_missing', 'nothing to back up');
 
-    // A `stop` service: stopped while it's copied, and always started again.
+    // A `stop` app: stopped while it's copied, and always started again.
     let wasRunning = false;
     if (project) {
       const ps = await docker(config, ['compose', '-p', project, 'ps', '-q'], { capture: true });
@@ -275,7 +277,7 @@ export async function backupItem(
         const stop = await docker(config, ['compose', '-p', project, 'stop'], { onLine: keep });
         if (stop.code !== 0) {
           await startAgain(config, paths, project, phase, keep, result);
-          return fail('service_not_stopped', 'the service could not be stopped');
+          return fail('service_not_stopped', 'the app could not be stopped');
         }
       }
     }
@@ -344,7 +346,7 @@ export async function backupItem(
   }
 }
 
-/** Starts a stopped service again — retried; a failure is the most serious result there is. */
+/** Starts a stopped app again — retried; a failure is the most serious result there is. */
 export async function startAgain(
   config: Config,
   paths: Paths,

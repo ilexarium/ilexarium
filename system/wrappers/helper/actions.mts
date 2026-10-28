@@ -1,5 +1,22 @@
 import { userInfo } from 'node:os';
 import {
+  BAD_REQUEST,
+  ok,
+  refused,
+  runAs,
+  sudoRefusal,
+  type Answer,
+  type Request,
+} from './answers.mts';
+import {
+  checkCompose,
+  composeImages,
+  dockerAccess,
+  removeVolumes,
+  startTask,
+  taskState,
+} from './apps.mts';
+import {
   KILL_TIMEOUT_MS,
   MESSAGES,
   PASSWORD_MAX,
@@ -8,23 +25,11 @@ import {
   SIGNALS,
   SUDO_TIMEOUT_MS,
 } from './config.mts';
-import { run, type RunResult } from './run.mts';
+import { pathSizes, removePaths } from './paths.mts';
+import { runRoot } from './root.mts';
+import { run } from './run.mts';
 
-export type Answer = { ok: true; [key: string]: unknown } | { ok: false; error: string };
-
-type Request = Record<string, unknown>;
-
-const ok = (fields: Record<string, unknown> = {}): Answer => ({ ok: true, ...fields });
-const refused = (error: string): Answer => ({ ok: false, error });
-const BAD_REQUEST = refused('bad_request');
-
-/** What a sudo that didn't succeed says; null when it's none of sudo's own refusals. */
-function sudoRefusal(result: RunResult): string | null {
-  if (result.missing) return 'sudo_unavailable';
-  if (MESSAGES.notAllowed.test(result.stderr)) return 'sudo_not_allowed';
-  if (MESSAGES.passwordRequired.test(result.stderr)) return 'sudo_required';
-  return null;
-}
+export type { Answer } from './answers.mts';
 
 /** One line on sudo's stdin: a line break would end it early, and sudo would read the rest. */
 export function acceptablePassword(password: unknown): password is string {
@@ -38,7 +43,7 @@ export function acceptablePassword(password: unknown): password is string {
 
 function hello(): Answer {
   const me = userInfo();
-  return ok({ uid: me.uid, user: me.username, home: me.homedir });
+  return ok({ uid: me.uid, gid: me.gid, user: me.username, home: me.homedir });
 }
 
 async function unlockSudo(request: Request): Promise<Answer> {
@@ -71,9 +76,7 @@ async function signalProcess(request: Request): Promise<Answer> {
   if (typeof administrator !== 'boolean') return BAD_REQUEST;
   const kill = ['-s', signal as string, '--', String(pid)];
   // -n: never asks; a locked sudo answers sudo_required, and the web app asks for the password.
-  const result = administrator
-    ? await run(PROGRAMS.sudo, ['-n', '--', PROGRAMS.kill, ...kill], { timeoutMs: KILL_TIMEOUT_MS })
-    : await run(PROGRAMS.kill, kill, { timeoutMs: KILL_TIMEOUT_MS });
+  const result = await runAs(administrator, PROGRAMS.kill, kill, { timeoutMs: KILL_TIMEOUT_MS });
   if (result.code === 0) return ok();
   if (result.timedOut) return refused('timed_out');
   if (administrator) {
@@ -95,6 +98,24 @@ export function handle(request: Request): Promise<Answer> | Answer {
       return lockSudo();
     case 'process.signal':
       return signalProcess(request);
+    case 'docker.access':
+      return dockerAccess();
+    case 'app.task':
+      return startTask(request);
+    case 'app.taskState':
+      return taskState(request);
+    case 'compose.check':
+      return checkCompose(request);
+    case 'compose.images':
+      return composeImages(request);
+    case 'volumes.remove':
+      return removeVolumes(request);
+    case 'paths.size':
+      return pathSizes(request);
+    case 'paths.remove':
+      return removePaths(request);
+    case 'root.run':
+      return runRoot(request);
     default:
       return BAD_REQUEST;
   }

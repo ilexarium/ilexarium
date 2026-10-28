@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
-import { OperationSlot } from './operation-slot.js';
+import { Global, Module } from '@nestjs/common';
+import { ChangesUnderway } from './changes-underway.js';
 
-/** The one slot for privileged operations; `LiveJob` and `jobView()` beside it are plain helpers. */
+/** What's being changed on purpose right now (backups, restores, app tasks). */
+@Global()
 @Module({
-  providers: [OperationSlot],
-  exports: [OperationSlot],
+  providers: [ChangesUnderway],
+  exports: [ChangesUnderway],
 })
 export class JobsModule {}

@@ -1,8 +1,8 @@
 /** A container as the process list names it: by its full ID. */
 export interface ContainerName {
   name: string;
-  /** The catalog entry, for a service installed here (Compose project `hl-<id>`). */
-  catalogId: string | null;
+  /** Its app (Compose project). */
+  app: string | null;
 }
 
 /** What turning raw processes into the list needs besides them. */

@@ -1,0 +1,26 @@
+# /etc/systemd/system/laris-restore@.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# A restore: started by `laris-backup restore-start` (through the person's sudo) with the instance
+# <restoreId> — a uuid, checked again by the program, which reads the request from its own
+# root-only file. Its own unit, not a child of the app: it goes on if the app stops or restarts.
+# Its phases, output and result go to /var/lib/laris/backups/restores/<id>.jsonl.
+# Design: docs/plans/acting_as_you.md ("Backups").
+
+[Unit]
+Description=Laris restore
+After=docker.service local-fs.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/laris/libexec/laris-backup.mts restore-run %i
+# A big photo library takes long; stopping it puts the folders back and starts the app again.
+TimeoutStartSec=24h
+TimeoutStopSec=5min
+KillMode=mixed
+# It writes where it restores to (anywhere but the system's folders), its state and the lock.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes

@@ -9,9 +9,8 @@ import { configure } from './configure.mts';
 import { init } from './init.mts';
 import { MAX_INPUT_BYTES, requireNoInput } from './input.mts';
 import { forget, passphrase } from './maintenance.mts';
-import { setRestoreArea } from './places.mts';
 import { stopping, stopRunning } from './programs.mts';
-import { discard, restore } from './restore.mts';
+import { discard, restoreRun, restoreStart } from './restore.mts';
 import { run } from './run.mts';
 import { parseInstance, start as startRun } from './start.mts';
 import { emit, finish, Refusal } from '../lib/output.mts';
@@ -24,19 +23,20 @@ export const ACTIONS = new Set([
   'run-requested',
   'run-scheduled',
   'check-scheduled',
-  'restore',
+  'restore-start',
+  'restore-run',
   'discard',
   'forget',
   'passphrase',
 ]);
 
-/** The action, and for `run-requested` its unit instance (the one action with an argument). */
+/** The action, and for `run-requested` and `restore-run` their unit instance (the only actions with an argument). */
 export function checkStartup(): { action: string; instance: string | null } {
   if (process.env['NODE_OPTIONS'] !== undefined || process.execArgv.length > 0) {
     throw new Refusal('invalid_request', 'Node was started with options', 6);
   }
   const args = process.argv.slice(2);
-  const expected = args[0] === 'run-requested' ? 2 : 1;
+  const expected = args[0] === 'run-requested' || args[0] === 'restore-run' ? 2 : 1;
   if (args.length !== expected || !ACTIONS.has(args[0])) {
     throw new Refusal('invalid_request', `usage: laris-backup ${[...ACTIONS].join('|')}`);
   }
@@ -48,11 +48,10 @@ export async function main(): Promise<number> {
   const { action, instance } = checkStartup();
   const config = loadConfig();
   const paths = pathsFor(config);
-  setRestoreArea(paths.restores);
   const input = readInput(MAX_INPUT_BYTES, 'invalid_request');
 
-  // A stop (the timer's service stopped, the app's timeout): finish the current step's cleanup —
-  // a stopped service is always started again — then end.
+  // A stop (the unit stopped, a timeout): finish the current step's cleanup — a stopped app is
+  // always started again — then end.
   process.on('SIGTERM', stopRunning);
   process.on('SIGINT', stopRunning);
 
@@ -80,9 +79,14 @@ export async function main(): Promise<number> {
     case 'check-scheduled':
       requireNoInput(input);
       return check(config, paths);
-    case 'restore':
-      await restore(config, paths, input);
+    case 'restore-start':
+      await restoreStart(config, paths, input);
+      emit(`@@result ${JSON.stringify({ started: true })}`);
       return 0;
+    case 'restore-run':
+      // Started by laris-restore@<id>.service (or, in development, by `restore-start`).
+      requireNoInput(input);
+      return restoreRun(config, paths, instance!);
     case 'discard':
       await discard(config, paths, input);
       return 0;

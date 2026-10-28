@@ -73,8 +73,8 @@ export const processSchema = z.object({
   container: z
     .object({
       name: z.string().nullable(),
-      /** The catalog entry, for a service installed here. */
-      catalogId: z.string().nullable(),
+      /** Its app (Compose project); null outside Compose. */
+      app: z.string().nullable(),
     })
     .nullable(),
 });

@@ -102,6 +102,26 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     return { sftp: session.sftp, username: session.username };
   }
 
+  /** Who the session is signed in as (counts as use), or a 403 `linux_session_required`. */
+  account(appSessionId: string): {
+    username: string;
+    home: string;
+    uid: number | null;
+    gid: number | null;
+    sudoUnlocked: boolean;
+  } {
+    const session = this.sessions.get(appSessionId);
+    if (!session) throw linuxSessionRequired();
+    session.idle.refresh();
+    return {
+      username: session.username,
+      home: session.home,
+      uid: session.uid,
+      gid: session.gid,
+      sudoUnlocked: session.sudoUntil !== null && session.sudoUntil > Date.now(),
+    };
+  }
+
   /** Counts as use (terminal input): the idle time starts again. */
   touch(appSessionId: string): void {
     this.sessions.get(appSessionId)?.idle.refresh();
@@ -141,7 +161,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   async ask(
     appSessionId: string,
     request: HelperRequest,
-    options: { sudo?: boolean } = {},
+    options: { sudo?: boolean; timeoutMs?: number } = {},
   ): Promise<HelperAnswer> {
     const session = this.sessions.get(appSessionId);
     if (!session) throw linuxSessionRequired();
@@ -149,7 +169,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       throw linuxError(FILES_ERROR_CODES.helperUnavailable, 'This Linux session has no helper');
     }
     session.idle.refresh();
-    const answer = await session.helper.request(request, HELPER_TIMEOUT_MS);
+    const answer = await session.helper.request(request, options.timeoutMs ?? HELPER_TIMEOUT_MS);
     if (options.sudo) {
       if (answer.ok) session.sudoUntil = Date.now() + SUDO_ESTIMATE_MS;
       else if (answer.error === 'sudo_required') session.sudoUntil = null;
@@ -270,6 +290,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       // Whose processes it may end.
       const hello = helper ? await helper.request({ action: 'hello' }, HELPER_QUICK_MS) : null;
       const uid = hello?.ok && Number.isSafeInteger(hello['uid']) ? (hello['uid'] as number) : null;
+      const gid = hello?.ok && Number.isSafeInteger(hello['gid']) ? (hello['gid'] as number) : null;
       // Closes this session only — never a newer one of the same app session.
       const idle = setTimeout(() => {
         if (this.sessions.get(appSessionId) === session) this.close(appSessionId, 'idle');
@@ -281,6 +302,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         username: request.username,
         home,
         uid,
+        gid,
         helper,
         sudoUntil: null,
         userId: actor.user.id,

@@ -2,7 +2,6 @@ import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@ne
 import { ALERT_LIMITS } from '@laris/shared';
 import { hostname } from 'node:os';
 import { concatMap, exhaustMap, interval, type Subscription } from 'rxjs';
-import { CatalogService } from '../catalog/catalog.service.js';
 import { safely } from '../common/safely.js';
 import { alertMessage, groupedMessage } from './alert-messages.js';
 import { AlertChannels } from './alert-channels.js';
@@ -32,7 +31,6 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly alertRecords: AlertRecords,
     private readonly alertChannels: AlertChannels,
-    private readonly catalogService: CatalogService,
   ) {}
 
   onModuleInit(): void {
@@ -91,7 +89,6 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     return alertMessage(event, {
       host: this.host,
       now: new Date(),
-      serviceName: (id) => this.catalogService.get(id)?.meta.name ?? id,
     });
   }
 

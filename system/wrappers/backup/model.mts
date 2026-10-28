@@ -3,8 +3,6 @@
 // The backup wrapper's types (erasable syntax only: Node strips them before running).
 
 export interface Config {
-  catalogDir: string;
-  storageRoots: string[];
   protectedPaths: string[];
   dockerBin: string;
   lockFile?: string;
@@ -36,23 +34,25 @@ export interface Paths {
   repository: string;
   passphrase: string;
   state: string;
-  restores: string;
   timerDropIn: string;
   mountInfo: string;
   lock: string;
-  destinationRoots: string[];
+  /** Development: the pretend disks' folders; root mode: null (any disk that isn't a system disk). */
+  destinationRoots: string[] | null;
   lockWaitMs: number;
   retryDelayMs: number;
 }
 
-export type ItemKind = 'platform' | 'service' | 'folder';
+export type ItemKind = 'platform' | 'app' | 'folder';
 
 export interface PlanItem {
   id: string;
   kind: ItemKind;
-  /** service: its catalog entry and folder field → folder (only fields of its recipe's backup). */
-  catalogId?: string;
-  folders?: Record<string, string>;
+  /** app: its Compose project (stopped and started by name), its folders, skips and mode. */
+  project?: string;
+  folders?: string[];
+  skip?: string[];
+  mode?: 'live' | 'stop';
   /** folder */
   path?: string;
   /** Not backed up any more; kept so its archives can be restored or forgotten. */
@@ -64,11 +64,6 @@ export interface Plan {
   schedule: { frequency: 'daily' | 'every12h' | 'every6h'; time: string };
   retention: { daily: number; weekly: number; monthly: number };
   items: PlanItem[];
-}
-
-export interface Recipe {
-  folders: { field: string; skip: string[] }[];
-  mode: 'live' | 'stop';
 }
 
 export interface BorgLog {

@@ -121,10 +121,7 @@ export class AlertRecords implements OnModuleInit {
   }
 
   /** Open alerts (critical first, newest first) and recently closed ones. */
-  async view(
-    serviceName: (catalogId: string) => string | null = () => null,
-    now = new Date(),
-  ): Promise<{ open: Alert[]; closed: Alert[] }> {
+  async view(now = new Date()): Promise<{ open: Alert[]; closed: Alert[] }> {
     const since = new Date(now.getTime() - CLOSED_SHOWN_DAYS * 86_400_000);
     const [open, closed] = await Promise.all([
       this.prisma.alert.findMany({ where: { closedAt: null }, orderBy: { openedAt: 'desc' } }),
@@ -135,7 +132,7 @@ export class AlertRecords implements OnModuleInit {
       }),
     ]);
     open.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
-    const view = (row: AlertRow) => toAlertView(row, serviceName);
+    const view = (row: AlertRow) => toAlertView(row);
     return { open: open.map(view), closed: closed.map(view) };
   }
 
@@ -211,18 +208,15 @@ function toOpen(row: AlertRow): OpenAlert {
   };
 }
 
-export function toAlertView(
-  row: AlertRow,
-  serviceName: (catalogId: string) => string | null,
-): Alert {
+export function toAlertView(row: AlertRow): Alert {
   const details = (row.details ?? {}) as AlertDetails;
   return {
     id: row.id,
     kind: row.kind as AlertKind,
     subject: row.subject,
     severity: row.severity,
-    catalogId: details.catalogId ?? null,
-    serviceName: details.catalogId ? serviceName(details.catalogId) : null,
+    // Before apps (2026-10-28) it was the catalog id: the closest name there is.
+    app: details.app ?? details.catalogId ?? null,
     percent: details.percent ?? null,
     warning: row.kind === 'backup' ? (row.subject as BackupWarning) : null,
     openedAt: row.openedAt.toISOString(),

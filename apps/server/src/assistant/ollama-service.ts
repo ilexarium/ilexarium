@@ -1,38 +1,37 @@
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { AI_ERROR_CODES, type AiModels, type AiStatus } from '@laris/shared';
-import { PrismaService } from '../prisma/prisma.service.js';
-import {
-  OLLAMA_CATALOG_ID,
-  OLLAMA_MODELS_FIELD,
-  OLLAMA_PORT_FIELD,
-} from './assistant.constants.js';
+import { DockerService } from '../docker/docker.service.js';
+import { OLLAMA_API_PORT, OLLAMA_HOST_ADDRESSES, OLLAMA_IMAGE } from './assistant.constants.js';
 import type { OllamaLocation } from './assistant.model.js';
 import { OllamaClient, OllamaError } from './ollama-client.js';
 
 /**
- * Finds the installed Ollama (the `ollama` catalog service) and asks it things. Its address is
- * always loopback and the recipe's validated port: nothing from a request decides where we connect.
+ * Finds Ollama through Docker — a running container of the `ollama/ollama` image whose API is
+ * published on this machine (the first, by name, when there are several) — and asks it things.
+ * Its address is always 127.0.0.1 and the port Docker reports: nothing from a request decides
+ * where we connect.
  */
 @Injectable()
 export class OllamaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly dockerService: DockerService) {}
 
-  /** Null when Ollama isn't installed. */
+  /** Null when no Ollama runs here (or Docker can't be asked). */
   async location(): Promise<OllamaLocation | null> {
-    const service = await this.prisma.service.findUnique({
-      where: { catalogId: OLLAMA_CATALOG_ID },
-      select: { status: true, settings: true },
-    });
-    if (service?.status !== 'installed') return null;
-    const settings = (service.settings ?? {}) as Record<string, unknown>;
-    const port = settings[OLLAMA_PORT_FIELD];
-    if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535)
-      return null;
-    const modelsDir = settings[OLLAMA_MODELS_FIELD];
-    return {
-      baseUrl: `http://127.0.0.1:${port}`,
-      modelsDir: typeof modelsDir === 'string' ? modelsDir : null,
-    };
+    const containers = await this.dockerService.listContainers().catch(() => []);
+    for (const container of containers) {
+      if (!OLLAMA_IMAGE.test(container.image) || container.state !== 'running') continue;
+      const published = container.ports.find(
+        (port) =>
+          port.privatePort === OLLAMA_API_PORT &&
+          port.protocol === 'tcp' &&
+          port.publicPort !== undefined &&
+          OLLAMA_HOST_ADDRESSES.includes(port.ip ?? ''),
+      );
+      if (!published?.publicPort) continue;
+      const [modelsDir] = await this.dockerService.bindMounts(container.name);
+      return { baseUrl: `http://127.0.0.1:${published.publicPort}`, modelsDir: modelsDir ?? null };
+    }
+    return null;
   }
 
   /** The client for the installed Ollama; a 503 with a code when it isn't installed. */

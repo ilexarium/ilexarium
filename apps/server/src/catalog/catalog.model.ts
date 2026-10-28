@@ -1,12 +1,10 @@
-import type { CatalogMeta } from '@laris/shared';
+import type { Template } from '@laris/shared';
 
-/** A loaded, checked catalog entry. */
+/** A loaded, checked template. */
 export interface CatalogEntry {
-  meta: CatalogMeta;
-  /** Every image its recipe runs (pinned), in recipe order. */
-  images: string[];
-  /** Its recipe's named Docker volumes. */
-  volumes: string[];
+  template: Template;
+  /** Its compose.yml as written (comments kept: it becomes the app's own file). */
+  compose: string;
   /** The SVG, served only with a no-script Content-Security-Policy and used only in <img>. */
   icon: Buffer;
 }

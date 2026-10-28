@@ -8,8 +8,27 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Paths } from './model.mts';
 
-/** A mount's name: its folder under /mnt. */
-export const NAME = /^[a-z0-9][a-z0-9-]{0,31}$/;
+/**
+ * Never a mount point, nor inside one of these: the system's own folders. Anywhere else is the
+ * person's choice (their sudo, their machine) — /mnt/<name> by default.
+ */
+export const SYSTEM_FOLDERS = [
+  '/bin',
+  '/boot',
+  '/dev',
+  '/etc',
+  '/lib',
+  '/lib32',
+  '/lib64',
+  '/opt/laris',
+  '/proc',
+  '/root',
+  '/run',
+  '/sbin',
+  '/sys',
+  '/usr',
+  '/var',
+];
 
 /** The first line of every unit this program writes: only those are ever removed. */
 export const MARKER = '# Managed by laris (laris-disk).';
@@ -17,24 +36,37 @@ export const MARKER = '# Managed by laris (laris-disk).';
 export const FILESYSTEMS = ['ext4', 'xfs', 'btrfs', 'exfat'];
 
 /**
- * The unit's file name: systemd names a mount unit after its folder — /mnt/<name> is
- * `mnt-<name>.mount`, with `-` written `\x2d` (`systemd-escape --path`). Names are checked first,
- * so `-` is the only character to escape.
+ * The unit's file name: systemd names a mount unit after its folder, escaped like
+ * `systemd-escape --path` — "/" between names becomes "-", anything but letters, digits, ":",
+ * "_" and "." (not first) becomes `\xNN` per byte. /mnt/my-disk is `mnt-my\x2ddisk.mount`.
  */
-export function unitName(name: string): string {
-  return `mnt-${name.replace(/-/g, '\\x2d')}.mount`;
+export function unitName(where: string): string {
+  const escaped = where
+    .slice(1)
+    .split('/')
+    .map((part) =>
+      [...Buffer.from(part, 'utf8')]
+        .map((byte, i) => {
+          const char = String.fromCharCode(byte);
+          const plain = /[A-Za-z0-9:_]/.test(char) || (char === '.' && i > 0);
+          return plain ? char : `\\x${byte.toString(16).padStart(2, '0')}`;
+        })
+        .join(''),
+    )
+    .join('-');
+  return `${escaped}.mount`;
 }
 
-export function unitPath(paths: Paths, name: string): string {
-  return join(paths.unitDir, unitName(name));
+export function unitPath(paths: Paths, where: string): string {
+  return join(paths.unitDir, unitName(where));
 }
 
-export function unitContent(name: string, uuid: string, fsType: string, where: string): string {
+export function unitContent(uuid: string, fsType: string, where: string): string {
   return [
     MARKER,
     '# It is not in /etc/fstab: `systemctl list-units --type=mount` lists it.',
     '[Unit]',
-    `Description=laris disk ${name}`,
+    `Description=laris disk at ${where}`,
     '',
     '[Mount]',
     `What=/dev/disk/by-uuid/${uuid}`,

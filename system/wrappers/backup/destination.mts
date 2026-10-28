@@ -4,10 +4,10 @@
 
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { absolute, isObject } from './config.mts';
+import { SYSTEM_MOUNTS, absolute, isObject } from './config.mts';
 import { writeAtomic } from './files.mts';
 import type { Config, Paths, Plan, Repository } from './model.mts';
-import { below } from './places.mts';
+import { below, notSystem } from './places.mts';
 import { Refusal } from '../lib/output.mts';
 import { assertRootOwned, inside } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
@@ -32,16 +32,21 @@ export function mounts(file: string): Map<string, string> {
 }
 
 /**
- * The chosen disk, before anything is written to it: a plain folder under /mnt or /media, really
- * a mount point (else a run would fill the system disk), of a supported format, and nothing on
- * the way to it writable by the app (its user, its group) or by everyone.
+ * The chosen disk, before anything is written to it: a plain folder that isn't a system one,
+ * really a mount point (else a run would fill the system disk) but not one of the system's own,
+ * of a supported format, and nothing on the way to it writable by the app (its user, its group)
+ * or by everyone.
  */
 export function checkDestination(config: Config, paths: Paths, destination: string): void {
   const refuse = (why: string): never => {
     throw new Refusal('destination_unavailable', `${destination}: ${why}`, 5);
   };
-  if (!absolute(destination) || !paths.destinationRoots.some((r) => below(destination, r))) {
-    throw new Refusal('destination_not_allowed', 'not a folder under /mnt or /media');
+  const roots = paths.destinationRoots;
+  const allowed = roots
+    ? roots.some((r) => below(destination, r))
+    : notSystem(config, destination) && !SYSTEM_MOUNTS.includes(destination);
+  if (!absolute(destination) || !allowed) {
+    throw new Refusal('destination_not_allowed', 'not a disk that may hold backups');
   }
   if (!existsSync(destination)) refuse('not there');
   if (realpathSync(destination) !== destination) refuse('reached through a symlink');
@@ -50,7 +55,7 @@ export function checkDestination(config: Config, paths: Paths, destination: stri
   if (!FILESYSTEMS.has(type!)) refuse(`a ${type} disk is not supported`);
   const { appUid, appGid } = config.backup;
   for (let current = destination; ; current = dirname(current)) {
-    if (!isRoot && !paths.destinationRoots.some((root) => inside(current, root))) break;
+    if (!isRoot && !roots?.some((root) => inside(current, root))) break;
     const stat = lstatSync(current);
     const writable =
       stat.isSymbolicLink() ||

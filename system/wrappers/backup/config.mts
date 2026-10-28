@@ -17,12 +17,12 @@ export const ROOT_PATHS = {
   repository: '/etc/laris/backup-repository.json',
   passphrase: '/etc/laris/backup.passphrase',
   state: '/var/lib/laris/backups',
-  restores: '/srv/laris/restores',
   timerDropIn: '/etc/systemd/system/laris-backup.timer.d/schedule.conf',
   mountInfo: '/proc/self/mountinfo',
 };
 
-export const DESTINATION_ROOTS = ['/mnt', '/media'];
+/** Mounted there, a disk is the system's own: never a backup destination. */
+export const SYSTEM_MOUNTS = ['/', '/boot', '/boot/efi', '/efi', '/home', '/var', '/usr'];
 
 /** A scheduled run waits this long for an install to finish, then gives up until next time. */
 export const LOCK_WAIT_MS = 15 * 60_000;
@@ -47,10 +47,7 @@ export function loadConfig(): Config {
   const dev = isObject(backup) ? backup.dev : undefined;
   const name = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/;
   const valid =
-    absolute(config.catalogDir) &&
     absolute(config.dockerBin) &&
-    Array.isArray(config.storageRoots) &&
-    config.storageRoots.every(absolute) &&
     Array.isArray(config.protectedPaths) &&
     config.protectedPaths.every(absolute) &&
     isObject(backup) &&
@@ -81,7 +78,7 @@ export function pathsFor(config: Config): Paths {
     return {
       ...ROOT_PATHS,
       lock: ROOT_LOCK,
-      destinationRoots: DESTINATION_ROOTS,
+      destinationRoots: null,
       lockWaitMs: LOCK_WAIT_MS,
       retryDelayMs: RESTART_DELAY_MS,
     };
@@ -92,7 +89,6 @@ export function pathsFor(config: Config): Paths {
     repository: join(dev.dir, 'backup-repository.json'),
     passphrase: join(dev.dir, 'backup.passphrase'),
     state: join(dev.dir, 'state'),
-    restores: join(dev.dir, 'restores'),
     timerDropIn: join(dev.dir, 'systemd', 'laris-backup.timer.d', 'schedule.conf'),
     mountInfo: dev.mountInfo,
     lock: config.lockFile ?? join(dev.dir, 'compose.lock'),

@@ -1,4 +1,4 @@
-import type { BackupProgress, BackupStatus } from '@laris/shared';
+import type { BackupMode, BackupProgress, BackupStatus } from '@laris/shared';
 
 /** The run the progress file describes, as followed: its live view, its process and its end. */
 export interface FollowedRun {
@@ -22,5 +22,13 @@ export interface WarningInput {
 
 /** A checked new item, ready to be saved. */
 export type NewItemRow =
-  | { id: string; kind: 'service'; serviceId: string; excludedFields: string[] }
+  | {
+      id: string;
+      kind: 'app';
+      project: string;
+      folders: string[];
+      excludedFolders: string[];
+      skip: string[];
+      mode: BackupMode;
+    }
   | { id: string; kind: 'folder'; path: string };

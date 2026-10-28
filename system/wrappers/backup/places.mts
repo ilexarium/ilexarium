@@ -1,6 +1,7 @@
 // backup/places.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
 //
-// Which folders may be backed up, restored into or deleted — checked right before each use.
+// Which folders may be backed up, restored into or deleted — checked right before each use. Root
+// reads almost anywhere: every folder but the system's and the platform's own.
 
 import { existsSync, lstatSync, realpathSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -11,33 +12,18 @@ import { isRoot } from '../lib/startup.mts';
 
 export const below = (path: string, root: string) => path.startsWith(`${root}/`);
 
-/**
- * The restore area (set at start): never backed up, never a service's folder — a restored
- * platform backup holds the master key and the database dump.
- */
-export let restoreArea: string | null = null;
-
-export function setRestoreArea(path: string): void {
-  restoreArea = path;
-}
-
+/** Not `/`, not a system or platform folder, neither inside one nor holding one. */
 export function notSystem(config: Config, path: string): boolean {
   return (
     path !== '/' &&
-    (restoreArea === null || !(inside(path, restoreArea) || inside(restoreArea, path))) &&
     !DENIED_PATHS.some((denied) => inside(path, denied) || inside(denied, path)) &&
     !config.protectedPaths.some((denied) => inside(path, denied) || inside(denied, path))
   );
 }
 
-/** A service's folder: inside a storage root, never a system or platform folder. */
-export const allowedServiceFolder = (config: Config, path: string) =>
-  config.storageRoots.some((root) => inside(path, root)) && notSystem(config, path);
-
-/** A chosen folder: a service folder's places, or a home folder (`/home/<name>` and below). */
+/** A folder that may be backed up or restored into. */
 export const allowedFolder = (config: Config, path: string) =>
-  (allowedServiceFolder(config, path) || /^\/home\/[^/]+(\/|$)/.test(path)) &&
-  notSystem(config, path);
+  isPlainAbsolutePath(path) && notSystem(config, path);
 
 /**
  * A source, right before it's read: it exists, is a folder, isn't itself a symlink, and is still
@@ -54,18 +40,16 @@ export function resolveSource(path: string, allowed: (p: string) => boolean): st
 }
 
 /**
- * Every folder above `path` (from `stopAt` in development): not a symlink and writable by no one
- * but root (development: root or this user) — otherwise it could be swapped for a symlink between
- * a check and the write.
+ * Every folder above `path`: not a symlink, and writable by nobody but its owner — otherwise
+ * someone else could swap it for a symlink between a check and the write. (A home folder belongs
+ * to its person: they could, but they could do anything with their own sudo anyway.)
  */
-export function assertParentsSafe(path: string, devStopAt: string[]): void {
-  const me = process.getuid?.() ?? 0;
+export function assertParentsSafe(path: string): void {
   for (let parent = dirname(path); ; parent = dirname(parent)) {
-    if (!isRoot && !devStopAt.some((root) => inside(parent, root))) return;
     const stat = lstatSync(parent);
-    const owner = stat.uid === 0 || (!isRoot && stat.uid === me);
-    if (stat.isSymbolicLink() || !owner || (stat.mode & 0o022) !== 0) {
-      throw new Refusal('path_not_allowed', `${parent} is writable by others than root`);
+    const sticky = (stat.mode & 0o1000) !== 0;
+    if (stat.isSymbolicLink() || ((stat.mode & 0o022) !== 0 && !(isRoot && sticky && stat.uid === 0))) {
+      throw new Refusal('path_not_allowed', `${parent} can be changed by others`);
     }
     if (parent === '/') return;
   }

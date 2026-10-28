@@ -1,8 +1,8 @@
 import {
   type ActivityAction,
-  CATALOG_ID_PATTERN,
+  APP_NAME_PATTERN,
   containerNameSchema,
-  DISK_NAME_PATTERN,
+  isMountPointAllowed,
   MODEL_NAME_PATTERN,
 } from '@laris/shared';
 
@@ -17,14 +17,15 @@ export const ACTIVITY_SUBJECTS: Record<
   ActivityAction,
   { field: string; valid: (value: string) => boolean } | null
 > = {
-  'service.deploy': { field: 'catalogId', valid: pattern(CATALOG_ID_PATTERN) },
-  'service.remove': { field: 'catalogId', valid: pattern(CATALOG_ID_PATTERN) },
+  'app.install': { field: 'name', valid: pattern(APP_NAME_PATTERN) },
+  'app.update': { field: 'name', valid: pattern(APP_NAME_PATTERN) },
+  'app.remove': { field: 'name', valid: pattern(APP_NAME_PATTERN) },
   'container.start': { field: 'container', valid: containerName },
   'container.stop': { field: 'container', valid: containerName },
   'container.restart': { field: 'container', valid: containerName },
   'backup.configure': null,
   'backup.restore': null,
-  'disk.mount': { field: 'name', valid: pattern(DISK_NAME_PATTERN) },
-  'disk.unmount': { field: 'name', valid: pattern(DISK_NAME_PATTERN) },
+  'disk.mount': { field: 'mountPoint', valid: isMountPointAllowed },
+  'disk.unmount': { field: 'mountPoint', valid: isMountPointAllowed },
   'assistant.model_pull': { field: 'model', valid: pattern(MODEL_NAME_PATTERN) },
 };

@@ -1,14 +1,19 @@
 import { z } from 'zod';
-import { existingPasswordSchema } from './auth.js';
-import { FIELD_KEY_PATTERN, isPlainAbsolutePath } from './catalog.js';
-import { jobSchema } from './jobs.js';
+import { APP_NAME_PATTERN } from './apps.js';
+import {
+  backupModeSchema,
+  CATALOG_LIMITS,
+  isPlainAbsolutePath,
+  RELATIVE_PATH_PATTERN,
+} from './catalog.js';
 
 /**
- * Automated backups: daily, encrypted, deduplicated Borg backups of the platform, installed
- * services and chosen folders, to one disk under `/mnt` or `/media`. Runs happen in a root wrapper
- * (started by a systemd timer, or "Back up now" through the executor); the app reads their results
- * and live progress from the wrapper's files and pushes them through the `backups` topic.
- * Design: docs/plans/backups.md.
+ * Automated backups: daily, encrypted, deduplicated Borg backups of the platform, apps and chosen
+ * folders, to one disk. Runs happen in a root program (started by a systemd timer, or "Back up
+ * now" through the person's sudo); the app reads their results and live progress from the
+ * program's files and pushes them through the `backups` topic. Viewing needs no password; every
+ * change goes through the signed-in person's sudo. Design: docs/plans/backups.md,
+ * docs/plans/acting_as_you.md ("Backups").
  */
 
 export const BACKUP_LIMITS = {
@@ -25,21 +30,42 @@ export const BACKUP_LIMITS = {
   progressLines: 50,
 } as const;
 
-/** Where backup disks are mounted; nothing else is a destination. */
-export const BACKUP_DESTINATION_ROOTS = ['/mnt', '/media'] as const;
 /** The repository's folder on the chosen disk: `<mount point>/laris-backups`. */
 export const BACKUP_REPOSITORY_FOLDER = 'laris-backups';
 /** Disk formats a repository may be on. */
 export const BACKUP_FILESYSTEMS = ['ext4', 'btrfs', 'xfs', 'exfat'] as const;
 
 /**
- * A mount point under `/mnt` or `/media` in its plain form (never the roots themselves). That it
- * really is a mount point, of a supported format, is the server's and the wrapper's check.
+ * Folders never backed up or restored into, whatever is asked: the system's, Docker's own and the
+ * platform's private ones. Root reads everything else.
  */
-export function isBackupDestinationPath(path: string): boolean {
+export const BACKUP_SYSTEM_FOLDERS = [
+  '/bin',
+  '/boot',
+  '/dev',
+  '/etc',
+  '/lib',
+  '/lib32',
+  '/lib64',
+  '/proc',
+  '/root',
+  '/run',
+  '/sbin',
+  '/sys',
+  '/usr',
+  '/var/lib/docker',
+  '/var/lib/laris',
+  '/var/run',
+  '/opt/laris',
+] as const;
+
+/** Neither inside a system folder nor holding one (never `/`). */
+export function isBackupFolder(path: string): boolean {
+  const inside = (a: string, b: string) => a === b || a.startsWith(`${b}/`);
   return (
     isPlainAbsolutePath(path) &&
-    BACKUP_DESTINATION_ROOTS.some((root) => path.startsWith(`${root}/`))
+    path !== '/' &&
+    !BACKUP_SYSTEM_FOLDERS.some((folder) => inside(path, folder) || inside(folder, path))
   );
 }
 
@@ -105,7 +131,7 @@ export type BackupDestinationsResponse = z.infer<typeof backupDestinationsRespon
 
 // Items.
 
-export const BACKUP_ITEM_KINDS = ['platform', 'service', 'folder'] as const;
+export const BACKUP_ITEM_KINDS = ['platform', 'app', 'folder'] as const;
 export const backupItemKindSchema = z.enum(BACKUP_ITEM_KINDS);
 export type BackupItemKind = z.infer<typeof backupItemKindSchema>;
 
@@ -138,7 +164,8 @@ export const BACKUP_ERROR_CODES = {
   /** The run ended without finishing (a crash, a power cut). */
   interrupted: 'interrupted',
   timedOut: 'timed_out',
-  executorUnavailable: 'executor_unavailable',
+  /** The root program didn't run (not installed, or sudo couldn't start it). */
+  programUnavailable: 'program_unavailable',
   auditUnavailable: 'audit_unavailable',
   // Requests.
   notConfigured: 'backups_not_configured',
@@ -155,14 +182,12 @@ export const BACKUP_ERROR_CODES = {
   pathNotFound: 'path_not_found',
   /** Setting up on a disk that already has a `laris-backups` folder that isn't ours. */
   repositoryExists: 'repository_exists',
-  /** Restoring in place, but the service uses other folders now: restore to a new folder. */
-  pathsChanged: 'paths_changed',
+  /** Restoring into a folder that has something in it already. */
+  targetNotEmpty: 'target_not_empty',
   /** The backup wrapper refused the plan (its own checks) — nothing was changed. */
   invalidPlan: 'invalid_plan',
   /** An item's backups can't be deleted while a restore keeps a previous version of it. */
   setAsideKept: 'backup_set_aside_kept',
-  /** The service has no backup section in its recipe. */
-  serviceNotBackedUp: 'service_not_backed_up',
   destinationNotAllowed: 'destination_not_allowed',
 } as const;
 export type BackupErrorCode = (typeof BACKUP_ERROR_CODES)[keyof typeof BACKUP_ERROR_CODES];
@@ -191,13 +216,22 @@ export type BackupItemResult = z.infer<typeof backupItemResultSchema>;
 export const backupItemSchema = z.object({
   id: z.uuid(),
   kind: backupItemKindSchema,
-  /** `service`: the installed service and its catalog entry (the name comes from there). */
-  serviceId: z.uuid().nullable(),
-  catalogId: z.string().nullable(),
+  /** `app`: its Compose project (its name). */
+  project: z.string().nullable(),
+  /** `app`: the folders backed up (its own folder and its mounts, those ticked). */
+  folders: z.array(z.string()),
+  /** `app`: its folders left out on purpose (not shown as new). */
+  excludedFolders: z.array(z.string()),
+  /** `app`: folders it uses that aren't in the plan yet ("not backed up yet"). */
+  newFolders: z.array(z.string()),
+  /** `app`: what's skipped inside its folders (absolute; `*` within a name). */
+  skip: z.array(z.string()),
+  /** `app`: stopped while it's copied, or copied while it runs. */
+  mode: backupModeSchema.nullable(),
+  /** `app`: Docker has no containers of it any more ("app removed"). */
+  appRemoved: z.boolean(),
   /** `folder`: the folder. */
   path: z.string().nullable(),
-  /** `service`: folder fields switched off by the user. */
-  excludedFields: z.array(z.string()),
   /** Removed from the plan: no longer backed up, its archives kept until deleted. */
   removed: z.boolean(),
   lastSuccessAt: z.iso.datetime().nullable(),
@@ -228,25 +262,43 @@ export type BackupPlanResponse = z.infer<typeof backupPlanResponseSchema>;
 // Requests.
 
 /**
- * A disk's mount point. That it's one of the mounted disks under /mnt or /media (the server's
- * list, which development points at pretend disks) is the server's check, and the wrapper's.
+ * A disk's mount point. That it's one of the mounted disks that aren't system disks (the
+ * server's list, which development points at pretend disks) is the server's check, and the
+ * program's.
  */
 const destinationSchema = z
   .string()
   .min(1, 'validation.backupDestinationRequired')
   .refine(isPlainAbsolutePath, 'validation.backupDestinationInvalid');
 
-/** A folder to back up: where it may be (storage roots, home folders) is the server's check. */
+/** A folder to back up: anywhere but a system folder. */
 const folderPathSchema = z
   .string()
   .min(1, 'validation.pathRequired')
-  .refine(isPlainAbsolutePath, 'validation.pathInvalid');
+  .refine(isPlainAbsolutePath, 'validation.pathInvalid')
+  .refine(isBackupFolder, 'validation.backupFolderSystem');
+
+/** A skip: an absolute path inside one of the item's folders, `*` and `?` within a name. */
+export const backupItemSkipSchema = z
+  .string()
+  .max(CATALOG_LIMITS.pathMax)
+  .refine(
+    (path) => path.startsWith('/') && RELATIVE_PATH_PATTERN.test(path.slice(1)),
+    'validation.backupSkipInvalid',
+  );
+
+const appItemFields = {
+  folders: z.array(folderPathSchema).max(CATALOG_LIMITS.maxFields),
+  excludedFolders: z.array(folderPathSchema).max(CATALOG_LIMITS.maxFields).optional(),
+  skip: z.array(backupItemSkipSchema).max(CATALOG_LIMITS.maxBackupSkips),
+  mode: backupModeSchema,
+};
 
 export const backupItemRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({
-    kind: z.literal('service'),
-    serviceId: z.uuid(),
-    excludedFields: z.array(z.string().regex(FIELD_KEY_PATTERN)).max(20).optional(),
+    kind: z.literal('app'),
+    project: z.string().regex(APP_NAME_PATTERN),
+    ...appItemFields,
   }),
   z.strictObject({ kind: z.literal('folder'), path: folderPathSchema }),
 ]);
@@ -269,8 +321,8 @@ export const backupSetupRequestSchema = z.strictObject({
 export type BackupSetupRequest = z.infer<typeof backupSetupRequestSchema>;
 
 /**
- * The passphrase, shown once at setup ("I've saved it") and again only with the app password.
- * Never stored by the app, never in logs or job output.
+ * The passphrase, shown once at setup ("I've saved it") and again through the person's sudo.
+ * Never stored by the app, never in logs or output.
  */
 export const backupPassphraseResponseSchema = z.object({ passphrase: z.string() });
 export type BackupPassphraseResponse = z.infer<typeof backupPassphraseResponseSchema>;
@@ -291,9 +343,12 @@ export const backupPlanUpdateSchema = z.strictObject({
 });
 export type BackupPlanUpdate = z.infer<typeof backupPlanUpdateSchema>;
 
-/** `PATCH /api/backups/items/:id`: a service item's folders switched off. */
+/** `PATCH /api/backups/items/:id`: an app item's folders, skips and mode. */
 export const backupItemUpdateSchema = z.strictObject({
-  excludedFields: z.array(z.string().regex(FIELD_KEY_PATTERN)).max(20),
+  folders: appItemFields.folders.optional(),
+  excludedFolders: appItemFields.excludedFolders,
+  skip: appItemFields.skip.optional(),
+  mode: backupModeSchema.optional(),
 });
 export type BackupItemUpdate = z.infer<typeof backupItemUpdateSchema>;
 
@@ -301,19 +356,12 @@ export type BackupItemUpdate = z.infer<typeof backupItemUpdateSchema>;
 export const backupRunRequestSchema = z.strictObject({ itemId: z.uuid().optional() });
 export type BackupRunRequest = z.infer<typeof backupRunRequestSchema>;
 
-/** `POST /api/backups/passphrase`: "Show again" needs the app password. */
-export const backupPassphraseRequestSchema = z.strictObject({ password: existingPasswordSchema });
-export type BackupPassphraseRequest = z.infer<typeof backupPassphraseRequestSchema>;
-
 /**
- * `POST /api/backups/restores`. `inPlace` (services only): the current folders are set aside as
- * `<folder>.before-restore-<date>` first. `newFolder`: into `/srv/laris/restores/<item>-<date>/`.
- * A removed service is installed again with its previous settings first.
+ * `POST /api/backups/restores`: `target` null puts it back where it was (each current folder set
+ * aside as `<folder>.before-restore-<date>` first; an app using it stopped and started around
+ * it); a path restores everything below that folder instead (missing or empty), with its full
+ * paths. Runs as its own unit, through the person's sudo.
  */
-export const BACKUP_RESTORE_TARGETS = ['inPlace', 'newFolder'] as const;
-export const backupRestoreTargetSchema = z.enum(BACKUP_RESTORE_TARGETS);
-export type BackupRestoreTarget = z.infer<typeof backupRestoreTargetSchema>;
-
 /** Archive names as the wrapper makes them: `<item uuid>-<YYYY-MM-DDTHH:MM:SS>`. */
 export const BACKUP_ARCHIVE_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
@@ -321,7 +369,7 @@ export const BACKUP_ARCHIVE_PATTERN =
 export const backupRestoreRequestSchema = z.strictObject({
   itemId: z.uuid(),
   archive: z.string().regex(BACKUP_ARCHIVE_PATTERN),
-  target: backupRestoreTargetSchema,
+  target: folderPathSchema.nullable(),
 });
 export type BackupRestoreRequest = z.infer<typeof backupRestoreRequestSchema>;
 
@@ -342,10 +390,7 @@ export type BackupArchivesResponse = z.infer<typeof backupArchivesResponseSchema
 export const backupRunStartedResponseSchema = z.object({ runId: z.uuid() });
 export type BackupRunStartedResponse = z.infer<typeof backupRunStartedResponseSchema>;
 
-export const backupRestoreStartedResponseSchema = z.object({
-  restoreId: z.uuid(),
-  jobId: z.uuid(),
-});
+export const backupRestoreStartedResponseSchema = z.object({ restoreId: z.uuid() });
 export type BackupRestoreStartedResponse = z.infer<typeof backupRestoreStartedResponseSchema>;
 
 // Runs.
@@ -382,7 +427,7 @@ export const backupRunOutputResponseSchema = z.object({
 });
 export type BackupRunOutputResponse = z.infer<typeof backupRunOutputResponseSchema>;
 
-/** What a running item is doing, as the wrapper reports it. */
+/** What a running item is doing, as the program reports it. */
 export const BACKUP_PHASES = ['dumping', 'stopping', 'archiving', 'starting', 'pruning'] as const;
 export const backupPhaseSchema = z.enum(BACKUP_PHASES);
 export type BackupPhase = z.infer<typeof backupPhaseSchema>;
@@ -408,17 +453,31 @@ export type BackupProgress = z.infer<typeof backupProgressSchema>;
 
 // Restores.
 
+export const BACKUP_RESTORE_STATUSES = ['running', 'succeeded', 'failed', 'interrupted'] as const;
+export const backupRestoreStatusSchema = z.enum(BACKUP_RESTORE_STATUSES);
+export type BackupRestoreStatus = z.infer<typeof backupRestoreStatusSchema>;
+
+/** What a restore is doing: stopping the app, restoring, starting it again. */
+export const BACKUP_RESTORE_PHASES = ['stopping', 'restoring', 'starting', 'done'] as const;
+export const backupRestorePhaseSchema = z.enum(BACKUP_RESTORE_PHASES);
+export type BackupRestorePhase = z.infer<typeof backupRestorePhaseSchema>;
+
 export const backupRestoreSchema = z.object({
   id: z.uuid(),
   itemId: z.uuid(),
   archive: z.string(),
-  target: backupRestoreTargetSchema,
-  /** `newFolder`: where it went. */
+  /** Null: back where it was. */
   targetPath: z.string().nullable(),
-  /** `inPlace`: the folders set aside — the way back, until "Delete previous version". */
+  /** Back where it was: the folders set aside — the way back, until "Delete previous version". */
   setAside: z.array(z.string()),
   setAsideDeleted: z.boolean(),
-  job: jobSchema,
+  status: backupRestoreStatusSchema,
+  phase: backupRestorePhaseSchema.nullable(),
+  errorCode: z.string().nullable(),
+  startedAt: z.iso.datetime(),
+  finishedAt: z.iso.datetime().nullable(),
+  /** The latest output lines. */
+  output: z.array(z.string()),
 });
 export type BackupRestore = z.infer<typeof backupRestoreSchema>;
 
@@ -451,7 +510,7 @@ export const backupFoldersResponseSchema = z.object({
     z.object({
       name: z.string(),
       path: z.string(),
-      /** May be backed up (inside the storage folders or a home folder, not a system folder). */
+      /** May be backed up (not a system folder). */
       allowed: z.boolean(),
     }),
   ),
@@ -482,17 +541,17 @@ export const backupsStatusSchema = z.object({
   running: backupProgressSchema.nullable(),
   /** The latest run, or null. */
   lastRun: backupRunSchema.nullable(),
-  /** Each active item's latest outcome, for "Backed up · last night" on service cards. */
+  /** Each active item's latest outcome, for "Backed up · last night" on app cards. */
   items: z.array(
     z.object({
       id: z.uuid(),
       kind: backupItemKindSchema,
-      serviceId: z.uuid().nullable(),
+      project: z.string().nullable(),
       lastSuccessAt: z.iso.datetime().nullable(),
       lastStatus: backupStatusSchema.nullable(),
     }),
   ),
-  /** The latest restore (its job's progress), or null. */
+  /** The latest restore (its progress), or null. */
   restore: backupRestoreSchema.nullable(),
   /** The latest repository check. */
   lastCheck: z

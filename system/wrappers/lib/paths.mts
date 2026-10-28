@@ -30,9 +30,6 @@ export const DENIED_PATHS = [
   '/usr',
   '/var/lib/docker',
   '/var/run',
-  // The backup wrapper's restore area: a restored platform backup holds the master key and the
-  // database dump — never mounted into a container, never backed up.
-  '/srv/laris/restores',
 ];
 
 export function isPlainAbsolutePath(path: string): boolean {

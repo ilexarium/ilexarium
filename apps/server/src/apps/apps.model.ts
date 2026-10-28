@@ -1,0 +1,26 @@
+/** What fills a template's `@account` and `@timezone` defaults. */
+export interface FieldContext {
+  /** `<uid>:<gid>` of the signed-in account. */
+  account: string;
+  timezone: string;
+}
+
+/** `.laris/task.json`: the app's latest task, written by the helper as it starts it. */
+export interface TaskRecord {
+  unit: string;
+  system: boolean;
+  action: 'up' | 'update' | 'down';
+  /** Its log's name in `.laris/tasks/`. */
+  log: string;
+  startedAt: string;
+}
+
+/** How this account runs Docker: as a user unit with its group, or as a system unit through sudo. */
+export interface DockerAccess {
+  /** Long tasks as system units through sudo. */
+  system: boolean;
+  /** Quick commands (a Compose check) directly, or through sudo. */
+  quick: 'direct' | 'sudo';
+  /** In the docker group, but its user systemd started before: a restart (or logging out) makes it take effect. */
+  restartNeeded: boolean;
+}

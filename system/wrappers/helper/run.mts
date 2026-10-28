@@ -22,14 +22,18 @@ const ENVIRONMENT = {
   LOGNAME: me.username,
   LANG: 'C',
   LC_ALL: 'C',
+  // `systemctl --user` and `systemd-run --user` find the account's own systemd here.
+  XDG_RUNTIME_DIR: `/run/user/${me.uid}`,
+  DBUS_SESSION_BUS_ADDRESS: `unix:path=/run/user/${me.uid}/bus`,
 };
 
-/** Runs a program (no shell), `input` on its stdin; output kept up to `OUTPUT_MAX`. */
+/** Runs a program (no shell), `input` on its stdin; output kept up to `outputMax`. */
 export function run(
   program: string,
   args: string[],
-  options: { input?: string; timeoutMs: number },
+  options: { input?: string; timeoutMs: number; cwd?: string; outputMax?: number },
 ): Promise<RunResult> {
+  const max = options.outputMax ?? OUTPUT_MAX;
   return new Promise((resolve) => {
     let finished = false;
     const done = (result: RunResult) => {
@@ -42,10 +46,10 @@ export function run(
     let stderr = '';
     let timedOut = false;
     const keep = (text: string, chunk: Buffer) =>
-      text.length < OUTPUT_MAX ? (text + chunk.toString('utf8')).slice(0, OUTPUT_MAX) : text;
+      text.length < max ? (text + chunk.toString('utf8')).slice(0, max) : text;
     const child = spawn(program, args, {
       env: ENVIRONMENT,
-      cwd: me.homedir,
+      cwd: options.cwd ?? me.homedir,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     const timer = setTimeout(() => {

@@ -14,7 +14,7 @@ import {
 import { hostname } from 'node:os';
 import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
-import { WrapperConfigService } from '../executor/wrapper-config.js';
+import { ProgramConfigService } from '../root-programs/program-config.js';
 import type { AlertChannel as ChannelRow } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SecretsService } from '../secrets/secrets.service.js';
@@ -81,9 +81,9 @@ export class AlertChannels {
     private readonly prisma: PrismaService,
     private readonly secretsService: SecretsService,
     private readonly auditService: AuditService,
-    wrapperConfigService: WrapperConfigService,
+    programConfigService: ProgramConfigService,
   ) {
-    this.reservedPorts = () => wrapperConfigService.config.reservedPorts;
+    this.reservedPorts = () => programConfigService.config.reservedPorts;
     this.senders = this.createSenders();
   }
 

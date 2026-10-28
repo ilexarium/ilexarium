@@ -7,7 +7,29 @@ export type HelperRequest =
   | { action: 'hello' }
   | { action: 'sudo.unlock'; password: string }
   | { action: 'sudo.lock' }
-  | { action: 'process.signal'; pid: number; signal: ProcessSignal; administrator: boolean };
+  | { action: 'process.signal'; pid: number; signal: ProcessSignal; administrator: boolean }
+  | { action: 'docker.access' }
+  | {
+      action: 'app.task';
+      folder: string;
+      project: string;
+      task: 'up' | 'update' | 'down';
+      system: boolean;
+    }
+  | { action: 'app.taskState'; unit: string; system: boolean }
+  | { action: 'compose.check'; folder: string; project: string; docker: 'direct' | 'sudo' }
+  | { action: 'compose.images'; folder: string; project: string; docker: 'direct' | 'sudo' }
+  | { action: 'volumes.remove'; names: string[]; docker: 'direct' | 'sudo' }
+  | { action: 'paths.size'; paths: string[] }
+  | { action: 'paths.remove'; paths: string[]; administrator: boolean }
+  | {
+      action: 'root.run';
+      program: 'backup' | 'disk';
+      /** The program's own action. */
+      command: string;
+      input: string;
+      timeoutMs?: number;
+    };
 
 /** Its answer; `ended` and `timed_out` also come from this side (the helper gone, no answer). */
 export type HelperAnswer = { ok: true; [field: string]: unknown } | { ok: false; error: string };
@@ -29,6 +51,7 @@ export interface OpenLinuxSession {
   username: string;
   home: string;
   uid: number | null;
+  gid: number | null;
   /** Its helper; null when it didn't start (Files and the terminal still work). */
   helper: LinuxHelper | null;
   /** Until when sudo is probably unlocked (ms); null: locked. */
