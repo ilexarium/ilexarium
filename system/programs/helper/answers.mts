@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { MESSAGES, PATH_FORBIDDEN, PATH_MAX, PROGRAMS } from './config.mts';
 import { run, type RunResult } from './run.mts';
 
@@ -24,9 +25,12 @@ export function runAs(
   args: string[],
   options: Parameters<typeof run>[2],
 ): Promise<RunResult> {
-  return administrator
-    ? run(PROGRAMS.sudo, ['-n', '--', program, ...args], options)
-    : run(program, args, options);
+  if (!administrator) return run(program, args, options);
+  // Through sudo, a missing program would be sudo's "command not found", read as its refusal.
+  if (!existsSync(program)) {
+    return Promise.resolve({ code: null, stdout: '', stderr: '', missing: true, timedOut: false });
+  }
+  return run(PROGRAMS.sudo, ['-n', '--', program, ...args], options);
 }
 
 /** An absolute path in its plain form: no empty, "." or ".." parts, one line. */

@@ -16,6 +16,8 @@ export const HELPER_READY = 'laris-helper';
 export const HELPER_START_TIMEOUT_MS = 10_000;
 /** Its answers are short; a longer line means something else is talking. */
 export const HELPER_ANSWER_MAX = 64 * 1024;
+/** What a program said, passed on with a refusal (Compose's own words). */
+export const HELPER_MESSAGE_MAX = 4000;
 /** A request it answers at once (who it runs as). */
 export const HELPER_QUICK_MS = 5_000;
 /** Above the helper's own limits (sudo's delay after a wrong password: 20 s; kill: 10 s). */

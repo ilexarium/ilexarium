@@ -352,6 +352,21 @@ describe('laris-helper', () => {
     });
   });
 
+  it('says Docker is missing — through sudo too, without asking sudo', async () => {
+    const app = join(dir, 'apps', 'music');
+    mkdirSync(app, { recursive: true });
+    rmSync(join(dir, 'bin', 'docker'));
+    for (const docker of ['direct', 'sudo']) {
+      expect(await ask({ action: 'compose.check', folder: app, project: 'music', docker })).toEqual(
+        {
+          ok: false,
+          error: 'docker_unavailable',
+        },
+      );
+    }
+    expect(calls('sudo')).toEqual([]);
+  });
+
   it('measures and deletes folders — never the system’s or a home itself', async () => {
     writeFileSync(join(dir, 'du-out.txt'), '4096\t/x\n');
     expect(await ask({ action: 'paths.size', paths: ['/srv/x'] })).toEqual({

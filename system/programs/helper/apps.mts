@@ -4,7 +4,7 @@
 // and systemd adds its result at the end (`@@laris-result`, then SERVICE_RESULT, EXIT_CODE,
 // EXIT_STATUS): what happened is in the file, whatever happens to the unit afterwards.
 
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { userInfo } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -165,6 +165,7 @@ function docker(request: Request): boolean | null {
 
 function dockerRefusal(administrator: boolean, result: Awaited<ReturnType<typeof run>>): Answer {
   if (result.timedOut) return refused('timed_out');
+  if (result.missing && !existsSync(PROGRAMS.docker)) return refused('docker_unavailable');
   if (administrator) {
     const refusal = sudoRefusal(result);
     if (refusal) return refused(refusal);

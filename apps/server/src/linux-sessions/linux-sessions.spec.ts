@@ -195,6 +195,16 @@ describe('LinuxSessions', () => {
     } as const;
     expect(await sessions.ask('s1', request)).toEqual({ ok: false, error: 'not_found' });
     expect(asked.at(-1)).toEqual({ id: 2, ...request });
+    // What a program said comes with a refusal (bounded); nothing else of it does.
+    helperAnswers['process.signal'] = {
+      ok: false,
+      error: 'compose_invalid',
+      message: `services.web: bad port${'x'.repeat(5000)}`,
+      extra: 'dropped',
+    };
+    const refused = await sessions.ask('s1', request);
+    expect(refused).toEqual({ ok: false, error: 'compose_invalid', message: expect.any(String) });
+    expect((refused as { message: string }).message).toHaveLength(4000);
     await expect(sessions.ask('other', request)).rejects.toMatchObject({
       response: { code: 'linux_session_required' },
     });

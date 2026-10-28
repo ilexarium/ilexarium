@@ -38,7 +38,7 @@ chmod 755 "$T" "$R" "$S"
 printf '900 1 0:99 / %s rw - ext4 /dev/sdz1 rw\n901 1 0:98 / %s rw - ext4 /dev/sdy1 rw\n' \
   "$S/mnt/usb" "$S/mnt/usb2" >"$S/backup/mountinfo"
 cat >"$S/wrappers.json" <<JSON
-{"catalogDir":"$P/catalog","storageRoots":["$S/srv"],"serviceRoot":"$S/srv","reservedPorts":[22,53,2375,3000,3100,4200,4400,5432],"protectedPaths":[],"dockerBin":"/usr/bin/docker","lockFile":"$S/compose.lock","home":"$HOME",
+{"reservedPorts":[22,53,2375,3000,3100,4200,4400,5432],"protectedPaths":[],"dockerBin":"/usr/bin/docker","lockFile":"$S/compose.lock","home":"$HOME",
 "backup":{"borgBin":"/usr/bin/borg","platform":{"container":"laris-dev-postgres-1","database":"laris_test","user":"laris","files":["$S/wrappers.json"]},
 "dev":{"dir":"$S/backup","destinationRoots":["$S/mnt"],"mountInfo":"$S/backup/mountinfo"}}}
 JSON

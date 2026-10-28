@@ -29,7 +29,7 @@
         tabindex="0"
         >{{ restore().output.join('\n') }}</pre>
     }
-    @if (restore().targetPath; as path) {
+    @if (restore().status === 'succeeded' && restore().targetPath; as path) {
       <p class="text-sm">
         {{ 'backups.restore.wentTo' | translate }}
         <code class="break-all" dir="ltr">{{ path }}</code>

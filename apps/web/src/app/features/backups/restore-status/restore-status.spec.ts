@@ -75,10 +75,15 @@ describe('RestoreStatus', () => {
   });
 
   it('says it failed, with its output', async () => {
-    const fixture = await show({ status: 'failed', output: ['borg: no such archive'] });
+    const fixture = await show({
+      status: 'failed',
+      output: ['borg: no such archive'],
+      targetPath: '/home/anna/r',
+    });
     expect(fixture.nativeElement.querySelector('[role="alert"]')!.textContent).toContain(
       'The restore failed.',
     );
     expect(text(fixture)).toContain('borg: no such archive');
+    expect(text(fixture)).not.toContain('Restored to');
   });
 });

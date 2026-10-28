@@ -1,9 +1,6 @@
 {
-  "catalogDir": "/opt/laris/catalog",
-  "storageRoots": ["/srv/laris"],
-  "serviceRoot": "/srv/laris",
-  "reservedPorts": [22, 53, 3000, 2375, 5432, 41641],
-  "protectedPaths": ["/opt/laris", "/etc/laris", "/var/lib/laris", "/srv/laris/restores"],
+  "reservedPorts": [22, 53, 2375, 3000, 5432, 41641],
+  "protectedPaths": ["/opt/laris", "/etc/laris", "/var/lib/laris"],
   "dockerBin": "/usr/bin/docker",
   "disk": {
     "systemctlBin": "/usr/bin/systemctl"
@@ -16,7 +13,7 @@
     "platform": {
       "container": "laris-postgres-1",
       "database": "laris",
-      "user": "laris",
+      "user": "laris_owner",
       "files": [
         "/etc/laris/master.key",
         "/etc/laris/wrappers.json",

@@ -32,7 +32,8 @@ export type HelperRequest =
     };
 
 /** Its answer; `ended` and `timed_out` also come from this side (the helper gone, no answer). */
-export type HelperAnswer = { ok: true; [field: string]: unknown } | { ok: false; error: string };
+export type HelperAnswer =
+  { ok: true; [field: string]: unknown } | { ok: false; error: string; message?: string };
 
 /** Why a Linux session closed. */
 export type LinuxCloseReason =
