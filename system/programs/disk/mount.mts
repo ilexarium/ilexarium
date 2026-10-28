@@ -60,7 +60,12 @@ function parseOwner(value: unknown): { uid: number; gid: number } | null {
   if (value === null) return null;
   const owner = value as { uid?: unknown; gid?: unknown } | undefined;
   const id = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= ID_MAX;
-  if (typeof value !== 'object' || !id(owner?.uid) || !id(owner?.gid) || Object.keys(value).length !== 2) {
+  if (
+    typeof value !== 'object' ||
+    !id(owner?.uid) ||
+    !id(owner?.gid) ||
+    Object.keys(value).length !== 2
+  ) {
     throw new Refusal('invalid_request', 'owner', 2, 'owner');
   }
   return { uid: owner!.uid as number, gid: owner!.gid as number };
@@ -203,7 +208,8 @@ function checkDevice(
  * missing or an empty folder (not a link) that nothing is mounted on.
  */
 function checkMountPoint(paths: Paths, where: string, folder: string): void {
-  const taken = (why: string) => new Refusal('mount_point_in_use', `${where}: ${why}`, 2, 'mountPoint');
+  const taken = (why: string) =>
+    new Refusal('mount_point_in_use', `${where}: ${why}`, 2, 'mountPoint');
   let parent;
   try {
     parent = lstatSync(dirname(folder));
