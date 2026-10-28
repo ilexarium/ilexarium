@@ -9,7 +9,12 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { FILES_ERROR_CODES, type LinuxSession, type LinuxSignInRequest } from '@laris/shared';
+import {
+  FILES_ERROR_CODES,
+  FILES_LIMITS,
+  type LinuxSession,
+  type LinuxSignInRequest,
+} from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
 import { apiErrorCode, apiErrorText } from '../../shared/forms/submission-errors';
@@ -24,6 +29,8 @@ interface LinuxSessionState {
   session: LinuxSession | null;
   /** The sudo password is asked (an action waits for it). */
   sudoPrompt: boolean;
+  /** Which prompt: a late "closed" of an earlier one never cancels a newer one. */
+  sudoPromptId: number;
   /** For the minutes of sudo left. */
   now: number;
 }
@@ -32,6 +39,7 @@ const initialState: LinuxSessionState = {
   checked: false,
   session: null,
   sudoPrompt: false,
+  sudoPromptId: 0,
   now: Date.now(),
 };
 
@@ -72,13 +80,19 @@ export const LinuxSessionStore = signalStore(
         description: translator.t(...apiErrorText(error)),
       });
     };
+    const setSudoUntil = (until: number | null) => {
+      const session = store.session();
+      if (!session) return;
+      const sudoUntil = until === null ? null : new Date(until).toISOString();
+      patchState(store, { session: { ...session, sudoUntil }, now: Date.now() });
+    };
     /** Asks for the sudo password; true once unlocked, false when cancelled. */
     const requestSudo = (): Promise<boolean> => {
       if (!prompted) {
         let resolve!: (unlocked: boolean) => void;
         const promise = new Promise<boolean>((done) => (resolve = done));
         prompted = { promise, resolve };
-        patchState(store, { sudoPrompt: true });
+        patchState(store, { sudoPrompt: true, sudoPromptId: store.sudoPromptId() + 1 });
       }
       return prompted.promise;
     };
@@ -130,7 +144,9 @@ export const LinuxSessionStore = signalStore(
         answerPrompt(true);
       },
 
-      cancelSudo(): void {
+      /** Cancelled; with `id`, only while that prompt is still the one asked. */
+      cancelSudo(id?: number): void {
+        if (id !== undefined && (id !== store.sudoPromptId() || !store.sudoPrompt())) return;
         answerPrompt(false);
       },
 
@@ -152,15 +168,18 @@ export const LinuxSessionStore = signalStore(
        */
       async withSudo<T>(action: () => Promise<T>): Promise<T | null> {
         if (store.sudoMinutes() === null && !(await requestSudo())) return null;
+        let result: T;
         try {
-          return await action();
+          result = await action();
         } catch (error) {
           if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired) throw error;
-          const session = store.session();
-          if (session) patchState(store, { session: { ...session, sudoUntil: null } });
+          setSudoUntil(null);
           if (!(await requestSudo())) return null;
-          return action();
+          result = await action();
         }
+        // Each use restarts sudo's time (the server's estimate does the same).
+        setSudoUntil(Date.now() + FILES_LIMITS.sudoEstimateMinutes * 60_000);
+        return result;
       },
 
       tick(): void {

@@ -61,10 +61,13 @@ export class SudoDialog {
     },
   );
 
+  /** The prompt this dialog showed: a late "closed" of it must not cancel a newer one. */
+  private shownId = 0;
+
   constructor() {
     // Empty each time it opens, and nothing typed stays after it closes.
     effect(() => {
-      this.linuxSessionStore.sudoPrompt();
+      if (this.linuxSessionStore.sudoPrompt()) this.shownId = this.linuxSessionStore.sudoPromptId();
       untracked(() => {
         this.form().reset({ password: '' });
         this.showPassword.set(false);
@@ -74,6 +77,6 @@ export class SudoDialog {
 
   /** Closed in any way (unlocked, Cancel, Escape, the X): a waiting action gets "no". */
   protected onClosed(): void {
-    this.linuxSessionStore.cancelSudo();
+    this.linuxSessionStore.cancelSudo(this.shownId);
   }
 }

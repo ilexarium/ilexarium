@@ -20,17 +20,16 @@ export const HELPER_ANSWER_MAX = 64 * 1024;
 export const HELPER_QUICK_MS = 5_000;
 /** Above the helper's own limits (sudo's delay after a wrong password: 20 s; kill: 10 s). */
 export const HELPER_TIMEOUT_MS = 25_000;
-/**
- * sudo's usual cache time (`timestamp_timeout`, 15 minutes), counted from the last use: what the
- * top bar shows. The machine may set another; sudo's own answer (`sudo_required`) is the truth.
- */
-export const SUDO_ESTIMATE_MS = 15 * 60_000;
+export const SUDO_ESTIMATE_MS = FILES_LIMITS.sudoEstimateMinutes * 60_000;
 /** The helper's sudo answers, as the API says them. */
 export const SUDO_ERRORS: Partial<Record<string, FilesErrorCode>> = {
   wrong_password: FILES_ERROR_CODES.sudoPasswordWrong,
   sudo_required: FILES_ERROR_CODES.sudoRequired,
   sudo_not_allowed: FILES_ERROR_CODES.sudoNotAllowed,
   sudo_unavailable: FILES_ERROR_CODES.sudoNotAllowed,
+  // The helper gave up on sudo, or couldn't say what it answered.
+  timed_out: FILES_ERROR_CODES.sudoFailed,
+  failed: FILES_ERROR_CODES.sudoFailed,
 };
 
 /** Linux sign-in: few tries (sshd counts too). */

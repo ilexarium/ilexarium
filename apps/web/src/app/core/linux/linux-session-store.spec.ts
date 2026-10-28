@@ -88,6 +88,29 @@ describe('LinuxSessionStore', () => {
     expect(action).toHaveBeenCalledTimes(2);
   });
 
+  it('each use restarts the minutes left, like sudo’s own time', async () => {
+    const { store } = await setup(unlockedFor(3 * 60_000));
+    expect(store.sudoMinutes()).toBeLessThan(5);
+    await store.withSudo(async () => 'done');
+    expect(store.sudoMinutes()).toBe(15);
+  });
+
+  it('a late “closed” of an earlier prompt never cancels the one asked now', async () => {
+    const { store } = await setup(unlockedFor(5 * 60_000));
+    const action = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(httpError(403, 'sudo_required'))
+      .mockResolvedValueOnce('done');
+    const result = store.withSudo(action);
+    await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
+    const first = store.sudoPromptId();
+    store.cancelSudo(first - 1);
+    expect(store.sudoPrompt()).toBe(true);
+    await store.unlockSudo('pw');
+    store.cancelSudo(first);
+    expect(await result).toBe('done');
+  });
+
   it('passes on an action’s other errors', async () => {
     const { store } = await setup(unlockedFor(5 * 60_000));
     const failure = httpError(403, 'process_not_permitted');

@@ -165,7 +165,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   ): Promise<LinuxSession> {
     const session = this.sessions.get(appSessionId);
     if (!session) throw linuxSessionRequired();
-    const entry = (outcome: 'success' | 'failure', reason?: string) => ({
+    const entry = (outcome: 'requested' | 'success' | 'failure', reason?: string) => ({
       action: 'linux.sudo_unlock' as const,
       outcome,
       userId: actor.user.id,
@@ -173,21 +173,28 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       ip: actor.ip,
       details: { linuxUser: session.username, ...(reason && { reason }) },
     });
+    // Root for a while: recorded first, like every privileged action (no record, no unlock).
+    try {
+      await this.auditService.record(entry('requested'));
+    } catch {
+      throw linuxError(FILES_ERROR_CODES.auditUnavailable, 'The audit log is unavailable');
+    }
     const answer = await this.ask(
       appSessionId,
       { action: 'sudo.unlock', password },
       { sudo: true },
     );
+    // Signed out, idle or replaced while sudo ran: that session is gone.
+    if (this.sessions.get(appSessionId) !== session || (!answer.ok && answer.error === 'ended')) {
+      await this.auditService.tryRecord(entry('failure', FILES_ERROR_CODES.linuxSessionRequired));
+      throw linuxSessionRequired();
+    }
     if (answer.ok) {
       await this.auditService.tryRecord(entry('success'));
       return this.view(session);
     }
-    const code =
-      SUDO_ERRORS[answer.error] ??
-      (answer.error === 'timed_out' || answer.error === 'ended'
-        ? FILES_ERROR_CODES.helperUnavailable
-        : FILES_ERROR_CODES.failed);
-    if (code === FILES_ERROR_CODES.failed) {
+    const code = SUDO_ERRORS[answer.error] ?? FILES_ERROR_CODES.sudoFailed;
+    if (code === FILES_ERROR_CODES.sudoFailed) {
       this.logger.warn(`Unlocking sudo for ${session.username} failed: ${answer.error}`);
     }
     await this.auditService.tryRecord(entry('failure', code));
@@ -200,9 +207,12 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     if (!session) return;
     // Locked even when the helper is gone: closing the session ends its terminal, and sudo's
     // cache with it (a new terminal never has it).
-    if (session.helper?.running)
+    if (session.helper?.running) {
       await session.helper.request({ action: 'sudo.lock' }, HELPER_TIMEOUT_MS);
-    this.close(appSessionId, 'locked');
+    }
+    // Only the session it locked: a newer sign-in meanwhile stays.
+    if (this.sessions.get(appSessionId) === session) this.close(appSessionId, 'locked');
+    else session.client.end();
     await this.auditService.tryRecord({
       action: 'linux.sudo_lock',
       outcome: 'success',

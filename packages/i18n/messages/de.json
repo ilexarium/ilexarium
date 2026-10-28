@@ -271,7 +271,8 @@
     "sudo_password_wrong": "sudo hat dieses Passwort nicht angenommen.",
     "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden.",
     "sudo_required": "Dafür sind Administratorrechte nötig: Entsperre sudo mit dem Passwort des Linux-Kontos.",
-    "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Laris ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Laris erneut."
+    "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Laris ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Laris erneut.",
+    "sudo_failed": "sudo hat nicht geantwortet oder ist ohne Begründung fehlgeschlagen. Versuche es erneut; bleibt es so, prüfe sudo in einem Terminal."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"

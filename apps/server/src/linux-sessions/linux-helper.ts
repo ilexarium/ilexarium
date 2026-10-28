@@ -1,3 +1,4 @@
+import { StringDecoder } from 'node:string_decoder';
 import type { Client, ClientChannel } from 'ssh2';
 import {
   HELPER_ANSWER_MAX,
@@ -16,6 +17,8 @@ export class LinuxHelper {
   private readonly waiting = new Map<number, (answer: HelperAnswer) => void>();
   private nextId = 0;
   private buffer = '';
+  /** Keeps a character split between two chunks whole (a home like /home/jürgen). */
+  private readonly decoder = new StringDecoder('utf8');
   private closed = false;
 
   private constructor(private readonly channel: ClientChannel) {}
@@ -95,7 +98,7 @@ export class LinuxHelper {
   private onLine: (line: string) => void = () => {};
 
   private receive(chunk: Buffer): void {
-    this.buffer += chunk.toString('utf8');
+    this.buffer += this.decoder.write(chunk);
     // The terminal turns "\n" into "\r\n".
     for (let end = this.buffer.indexOf('\n'); end >= 0; end = this.buffer.indexOf('\n')) {
       const line = this.buffer.slice(0, end).replace(/\r$/, '');
@@ -111,6 +114,12 @@ export class LinuxHelper {
     try {
       parsed = JSON.parse(line) as typeof parsed;
     } catch {
+      return;
+    }
+    // A line it couldn't read (it never gets one from here): the channel is garbled, so every
+    // waiting request fails now rather than at its timeout.
+    if (parsed.id === null) {
+      this.close();
       return;
     }
     const resolve = typeof parsed.id === 'number' ? this.waiting.get(parsed.id) : undefined;
