@@ -5,7 +5,6 @@ APP_USER=laris
 OPT=/opt/laris
 ETC=/etc/laris
 VAR=/var/lib/laris
-SRV=/srv/laris
 
 # A system user without a login shell. Its home, the only folder it may write, is
 # /var/lib/laris/app: /var/lib/laris itself is root's, so the app can't swap the backups'
@@ -30,8 +29,6 @@ ensure_folders() {
   ensure_dir "$VAR/app" "$APP_USER:$APP_USER" 0700
   ensure_dir "$VAR/backups" "root:$APP_USER" 0750
   ensure_dir "$VAR/install-backups" root:root 0700
-  ensure_dir "$SRV" root:root 0755
-  ensure_dir "$SRV/restores" root:root 0755
 }
 
 # The platform's own files — needed before the database starts: its compose file and the
@@ -51,40 +48,46 @@ install_platform_files() {
 }
 
 # The release's programs: root-owned, writable only by root — the app reads them, never changes
-# them (the wrappers' entries check it again before running, sudo trusts their paths). Only once
-# the database is migrated: until then the old version stays, the way back.
+# them (the programs' entries check it again before running; a person's sudo runs the root ones
+# by path). Only once the database is migrated: until then the old version stays, the way back.
 install_release() {
   log 'Installing the release'
   replace_tree "$RELEASE/app" "$OPT/app"
   replace_tree "$RELEASE/catalog" "$OPT/catalog"
-  # The wrappers: the whole folder (the release carries no tests or test tools in it), the
-  # entries executable.
+  # The root programs and the helper: the whole folder (the release carries no tests or test
+  # tools in it), the entries executable.
   local staged
   staged="$(mktemp -d)"
-  cp -a "$RELEASE/system/wrappers/." "$staged/"
+  cp -a "$RELEASE/system/programs/." "$staged/"
   chmod 0755 "$staged"/laris-*.mts
   replace_tree "$staged" "$OPT/libexec"
   rm -rf "$staged"
   install -o root -g root -m 0755 "$RELEASE/system/install/laris-setup-code" /usr/local/bin/laris-setup-code
-  install_sudoers
+  remove_old_sudoers
   info "$OPT"
 }
 
-# The four wrapper lines — only once visudo accepts the file: a broken sudoers file can lock
-# everyone out of sudo. The temporary file is beside the real one (one atomic rename, never a
-# half-copied file across filesystems) and named with a dot, which sudo ignores in sudoers.d.
-install_sudoers() {
-  local tmp
-  tmp="$(mktemp /etc/sudoers.d/.laris.XXXXXX)"
-  cp "$RELEASE/system/sudoers/laris" "$tmp"
-  chmod 0440 "$tmp"
-  visudo -cqf "$tmp" || {
-    rm -f "$tmp"
-    die 'The sudoers file was refused by visudo (nothing changed)'
-  }
-  chown root:root "$tmp"
-  mv -f "$tmp" /etc/sudoers.d/laris
-  info 'sudoers: the four wrappers'
+# The app holds no root (docs/plans/acting_as_you.md): an earlier version's drop-in, which let
+# it run its wrappers through sudo, goes on update.
+remove_old_sudoers() {
+  if [[ -e /etc/sudoers.d/laris ]]; then
+    rm -f /etc/sudoers.d/laris
+    info 'sudoers: the earlier drop-in removed (the app holds no root)'
+  fi
+}
+
+# User units (an app's install or update as the person, with the docker group) need the
+# person's systemd to keep running while they're logged out: lingering, for the account that
+# installs Laris. Other accounts: `loginctl enable-linger` (or Laris uses system units through
+# their sudo).
+enable_lingering() {
+  local person="${SUDO_USER:-}"
+  if [[ -z "$person" || "$person" == root ]]; then
+    info 'lingering: no installing account (run with sudo from your account to turn it on)'
+    return
+  fi
+  loginctl enable-linger "$person"
+  info "lingering: on for $person"
 }
 
 # Settings: passwords and the master key made once and kept; everything else written each time.
@@ -126,11 +129,8 @@ CONF
   borg_bin="$(command -v borg)"
   APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" node --input-type=module -e '
     const config = {
-      catalogDir: "/opt/laris/catalog",
-      storageRoots: ["/srv/laris"],
-      serviceRoot: "/srv/laris",
       reservedPorts: [22, 53, 2375, 3000, 5432, 41641],
-      protectedPaths: ["/opt/laris", "/etc/laris", "/var/lib/laris", "/srv/laris/restores"],
+      protectedPaths: ["/opt/laris", "/etc/laris", "/var/lib/laris"],
       dockerBin: "/usr/bin/docker",
       disk: { systemctlBin: "/usr/bin/systemctl" },
       backup: {
@@ -155,7 +155,7 @@ CONF
     process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
   ' | write_file "$ETC/wrappers.json" root:root 0644
 
-  # The key that encrypts services' and alert channels' secrets: made once, never replaced —
+  # The key that encrypts alert channels' secrets: made once, never replaced —
   # a new one would make every stored secret unreadable.
   if [[ ! -s "$ETC/master.key" ]]; then
     head -c 32 /dev/urandom | base64 | write_file "$ETC/master.key" "$APP_USER:$APP_USER" 0400

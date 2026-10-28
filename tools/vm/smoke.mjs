@@ -1,7 +1,9 @@
 // The installer's smoke test, run as root inside a freshly installed machine (tools/vm/):
 //   node smoke.mjs install   after the first install: setup, sign-in, containers through the proxy
-//                            socket, deploying a service, a backup, ending processes as a person,
-//                            and the security setup (files, sudo, who reaches the proxy)
+//                            socket, ending processes as a person, apps installed as a person
+//                            (through her sudo; with the docker group as user units), a backup
+//                            and a restore to a new folder through her sudo, and the security
+//                            setup (files, no sudo for the app, who reaches the proxy)
 //   node smoke.mjs update    after running the installer again: everything is still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
 import { execFileSync, spawn } from 'node:child_process';
@@ -118,12 +120,14 @@ async function securitySetup() {
   expect('/etc/laris/app.env', { mode: '0640', uid: 0, gid: appGroup });
   expect('/etc/laris/database.env', { mode: '0600', uid: 0 });
   expect('/etc/laris/wrappers.json', { mode: '0644', uid: 0 });
-  expect('/etc/sudoers.d/laris', { mode: '0440', uid: 0 });
   expect('/opt/laris/libexec', { mode: '0755', uid: 0 });
+  check('no sudoers drop-in for the app', !existsSync('/etc/sudoers.d/laris'));
   check(
-    'the process wrapper is gone (an update removes it)',
-    !existsSync('/opt/laris/libexec/laris-process.mts'),
+    'the deploy and process wrappers are gone (an update removes them)',
+    !existsSync('/opt/laris/libexec/laris-process.mts') &&
+      !existsSync('/opt/laris/libexec/laris-compose.mts'),
   );
+  expect('/etc/systemd/system/laris-restore@.service', { mode: '0644', uid: 0 });
   expect('/var/lib/laris', { mode: '0755', uid: 0 });
   expect('/var/lib/laris/app', { mode: '0700', uid: app });
   expect('/var/lib/laris/backups', { mode: '0750', uid: 0, gid: appGroup });
@@ -143,18 +147,12 @@ async function securitySetup() {
     !/0\.0\.0\.0:5432|\[::\]:5432|\*:5432/.test(sh('ss', ['-ltnH'])),
   );
   check('the proxy has no TCP port', !/:2375\b/.test(sh('ss', ['-ltnH'])));
-  // What the app's user may do with sudo: exactly the three wrappers.
+  // The app holds no root: no sudo rule at all.
   const sudo = sh('sudo', ['-l', '-U', 'laris']);
-  const allowed = [...sudo.matchAll(/NOPASSWD:\s*(\S+)/g)].map((m) => m[1]).sort();
+  check('sudo: the app may run nothing', !/NOPASSWD|\(root\)|\(ALL/.test(sudo), sudo.trim());
   check(
-    'sudo: the app may run exactly the three wrappers',
-    JSON.stringify(allowed) ===
-      JSON.stringify(['backup', 'compose', 'disk'].map((w) => `/opt/laris/libexec/laris-${w}.mts`)),
-    allowed.join(' '),
-  );
-  check(
-    'sudo: not docker',
-    fails('runuser', ['-u', 'laris', '--', 'sudo', '-n', '/usr/bin/docker', 'ps']),
+    'sudo: not even a root program',
+    fails('runuser', ['-u', 'laris', '--', 'sudo', '-n', '/opt/laris/libexec/laris-backup.mts', 'passphrase']),
   );
   check(
     'the app can’t read the database owner’s password',
@@ -239,10 +237,10 @@ async function securitySetup() {
   );
 }
 
-function ensurePerson() {
-  if (fails('id', ['anna'])) {
-    sh('useradd', ['--create-home', '--uid', '1500', '--shell', '/bin/bash', 'anna']);
-    sh('chpasswd', [], { input: 'anna:anna-smoke-password\n' });
+function ensurePerson(user = 'anna', uid = 1500) {
+  if (fails('id', [user])) {
+    sh('useradd', ['--create-home', '--uid', String(uid), '--shell', '/bin/bash', user]);
+    sh('chpasswd', [], { input: `${user}:${user}-smoke-password\n` });
   }
 }
 
@@ -509,49 +507,27 @@ async function install() {
     names.join(', '),
   );
 
-  console.log('\nDeploying a service');
-  mkdirSync('/srv/laris/navidrome/music', { recursive: true });
-  const deploy = await api('POST', '/services', {
-    catalogId: 'navidrome',
-    values: {
-      WEB_PORT: 4533,
-      MUSIC_DIR: '/srv/laris/navidrome/music',
-      DATA_DIR: '/srv/laris/navidrome/data',
-    },
-  });
-  check(
-    'deploy started',
-    deploy.status === 202 || deploy.status === 201,
-    `${deploy.status} ${deploy.text}`,
-  );
-  const job = await until(
-    'Navidrome installed',
-    async () => {
-      const j = await api('GET', `/services/jobs/${deploy.json?.jobId}`);
-      return { done: j.json?.status && j.json.status !== 'running', value: j.json };
-    },
-    15 * 60_000,
-  );
-  check('Navidrome installed', job.value.status === 'succeeded', jobSummary(job.value));
+  // anna's sudo and Lock now first (processes): the apps below need her sudo unlocked again.
+  await files();
 
-  // Ollama: its API published on loopback only (docs/plans/ai_assistant.md) — the root wrapper
-  // accepts host_ip 127.0.0.1 and nothing else; nothing on the network may reach it.
-  console.log('\nInstalling Ollama (the Assistant)');
-  const ollama = await api('POST', '/services', {
-    catalogId: 'ollama',
-    values: { API_PORT: 11434, MODELS_DIR: '/srv/laris/ollama/models' },
-  });
-  check('Ollama deploy started', ollama.status === 202 || ollama.status === 201, ollama.text);
-  const ollamaJob = await until(
-    'Ollama installed',
-    async () => {
-      const j = await api('GET', `/services/jobs/${ollama.json?.jobId}`);
-      return { done: j.json?.status && j.json.status !== 'running', value: j.json };
-    },
-    20 * 60_000,
+  console.log('\nApps, as anna (not in the docker group: system units through her sudo)');
+  await linuxSignIn('anna');
+  const unlock = await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  check('anna’s sudo unlocked', unlock.status === 200, `${unlock.status} ${unlock.text}`);
+  const navidrome = await installTemplate('navidrome', 'navidrome');
+  check(
+    'Navidrome runs from her apps folder',
+    navidrome.task?.state === 'succeeded' &&
+      appOf(await snapshot('containers'), 'navidrome')?.folder === '/home/anna/apps/navidrome',
+    JSON.stringify(navidrome).slice(0, 600),
   );
-  check('Ollama installed', ollamaJob.value.status === 'succeeded', jobSummary(ollamaJob.value));
-  // Reached from the machine itself, refused on its network address.
+  check(
+    'its data folder belongs to anna',
+    mode('/home/anna/apps/navidrome/data').uid === uidOf('anna'),
+  );
+  const ollama = await installTemplate('ollama', 'ollama');
+  check('Ollama installed', ollama.task?.state === 'succeeded', JSON.stringify(ollama).slice(0, 600));
+  // Reached from the machine itself, refused on its network address (the template's default).
   const answers = async (host) => {
     try {
       return (
@@ -577,24 +553,16 @@ async function install() {
     },
     2 * 60_000,
   );
-  check(
-    'the Assistant finds Ollama',
-    assistant.value?.state === 'ready',
-    JSON.stringify(assistant.value),
-  );
+  check('the Assistant finds Ollama', assistant.value?.state === 'ready', JSON.stringify(assistant.value));
 
-  console.log('\nBacking up');
+  console.log('\nBacking up, through anna’s sudo');
   const plan = await api('POST', '/backups/plan', {
     destination: '/mnt/backup',
     schedule: { frequency: 'daily', time: '03:00' },
     retention: { daily: 7, weekly: 4, monthly: 6 },
-    items: [{ kind: 'service', serviceId: deploy.json?.serviceId }],
+    items: [{ kind: 'app', project: 'navidrome', folders: [], skip: [], mode: 'stop' }],
   });
-  check(
-    'backups set up',
-    plan.status === 200 || plan.status === 201,
-    `${plan.status} ${plan.text}`,
-  );
+  check('backups set up', plan.status === 200 || plan.status === 201, `${plan.status} ${plan.text}`);
   check('the passphrase shown once', typeof plan.json?.passphrase === 'string');
   const run = await api('POST', '/backups/runs', {});
   check('"Back up now" started', run.status === 202, `${run.status} ${run.text}`);
@@ -611,8 +579,64 @@ async function install() {
     ['ok', 'warning'].includes(result.value?.status),
     JSON.stringify(result.value).slice(0, 400),
   );
+  const again = await api('POST', '/backups/passphrase', {});
+  check('the passphrase again, through her sudo', typeof again.json?.passphrase === 'string', `${again.status}`);
 
-  await files();
+  console.log('\nRestoring into a new folder (its own unit)');
+  const items = (await api('GET', '/backups/plan')).json?.plan?.items ?? [];
+  const item = items.find((i) => i.project === 'navidrome');
+  const archives = (await api('GET', `/backups/items/${item?.id}/archives`)).json?.archives ?? [];
+  const restore = await api('POST', '/backups/restores', {
+    itemId: item?.id,
+    archive: archives[0]?.name,
+    target: '/home/anna/restored',
+  });
+  check('restore started', restore.status === 202, `${restore.status} ${restore.text}`);
+  const restored = await until(
+    'the restore finished',
+    async () => {
+      const r = await api('GET', `/backups/restores/${restore.json?.restoreId}`);
+      return { done: r.json?.status && r.json.status !== 'running', value: r.json };
+    },
+    10 * 60_000,
+  );
+  check(
+    'restored with its full paths',
+    restored.value?.status === 'succeeded' &&
+      existsSync('/home/anna/restored/home/anna/apps/navidrome/compose.yml'),
+    JSON.stringify(restored.value).slice(0, 400),
+  );
+
+  console.log('\nApps, as bob (in the docker group: user units, no sudo)');
+  ensurePerson('bob', 1501);
+  sh('usermod', ['-aG', 'docker', 'bob']);
+  sh('loginctl', ['enable-linger', 'bob']);
+  await linuxSignIn('bob');
+  const hello = await installPasted(
+    'hello',
+    'services:\n  hello:\n    image: busybox:${HELLO_VERSION:-1.37}\n    command: ["sleep", "3600"]\n    volumes:\n      - ./data:/data\n',
+  );
+  check(
+    'a pasted file runs as a user unit',
+    hello.task?.state === 'succeeded' && hello.task.system === false,
+    JSON.stringify(hello).slice(0, 600),
+  );
+  const removed = await api('POST', '/apps/hello/remove', { folder: '/home/bob/apps/hello' });
+  const down = await waitTask('hello', '/home/bob/apps/hello');
+  const deleted = await api('POST', '/apps/hello/delete', {
+    folder: '/home/bob/apps/hello',
+    settings: true,
+    folders: ['/home/bob/apps/hello/data'],
+    volumes: [],
+  });
+  check(
+    'removed, its folder deleted as bob',
+    removed.status === 202 && down?.state === 'succeeded' && deleted.status === 204 &&
+      !existsSync('/home/bob/apps/hello'),
+    `${removed.status} ${down?.state} ${deleted.status} ${deleted.text}`,
+  );
+  await api('DELETE', '/files/session');
+
   await profile();
   done();
 }
@@ -622,11 +646,11 @@ async function update() {
   check('the app answers', (await api('GET', '/health')).status === 200);
   check('still set up', (await api('GET', '/auth/status')).json?.needsSetup === false);
   await signIn();
-  const services = await api('GET', '/services');
+  const apps = await api('GET', '/apps');
   check(
-    'Navidrome still installed',
-    services.json?.services?.some((s) => s.catalogId === 'navidrome' && s.status === 'installed'),
-    services.text.slice(0, 300),
+    'Navidrome still runs',
+    apps.json?.apps?.some((a) => a.name === 'navidrome' && a.state === 'running'),
+    apps.text.slice(0, 300),
   );
   check(
     'the chat tables migrated (the Assistant answers)',
@@ -646,9 +670,50 @@ async function update() {
 
 await (process.argv[2] === 'update' ? update() : install());
 
-/** A failed job, readably: its status and error, then the end of its output (where the reason is). */
-function jobSummary(job) {
-  if (!job) return 'no job';
-  const tail = (job.output ?? []).slice(-15).join('\n    ');
-  return `${job.status} ${job.errorCode ?? ''} ${job.errorField ?? ''}\n    … ${tail}`;
+/** Signs the app session in to Linux as this person. */
+async function linuxSignIn(user) {
+  const res = await api('POST', '/files/session', { username: user, password: `${user}-smoke-password` });
+  check(`signed in to Linux as ${user}`, res.status === 200, `${res.status} ${res.text}`);
+}
+
+/** A task's end, read back from the app's folder (its output collected for a failure). */
+async function waitTask(name, folder) {
+  let output = [];
+  let from = 0;
+  const end = await until(
+    `${name}: its task finished`,
+    async () => {
+      const r = await api('GET', `/apps/${name}/task?folder=${encodeURIComponent(folder)}&from=${from}`);
+      const task = r.json?.task;
+      if (task) {
+        output = [...output, ...task.output];
+        from = task.next;
+      }
+      return { done: task && task.state !== 'running', value: task };
+    },
+    20 * 60_000,
+  );
+  return end.value ? { ...end.value, output: output.slice(-20) } : null;
+}
+
+/** An app from a template, as the signed-in person: the form's values, then the install. */
+async function installTemplate(id, name) {
+  const { compose } = (await api('GET', `/catalog/${id}`)).json ?? {};
+  const fields = (await api('POST', '/apps/fields', { compose, env: '', template: id })).json;
+  const env = (fields?.fields ?? []).map((f) => `${f.key}=${f.value}`).join('\n') + '\n';
+  const started = await api('POST', '/apps', { name, folder: null, template: id, compose, env });
+  check(`${name}: install started`, started.status === 202, `${started.status} ${started.text}`);
+  return { started: started.json, task: started.json ? await waitTask(name, started.json.folder) : null };
+}
+
+async function installPasted(name, compose) {
+  const started = await api('POST', '/apps', { name, folder: null, template: null, compose, env: '' });
+  check(`${name}: install started`, started.status === 202, `${started.status} ${started.text}`);
+  return { started: started.json, task: started.json ? await waitTask(name, started.json.folder) : null };
+}
+
+/** An app as the containers topic's snapshot shows it (one per Compose project). */
+function appOf(snapshot, name) {
+  const own = (snapshot.containers ?? []).filter((c) => c.composeProject === name);
+  return own.length ? { folder: own[0].composeWorkingDir } : null;
 }

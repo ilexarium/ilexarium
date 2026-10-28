@@ -63,6 +63,7 @@ backup_database
 migrate_database
 install_release
 setup_ssh_login
+enable_lingering
 setup_https
 start_app
 printf '%s\n' "$NEW_VERSION" | write_file "$ETC/version" root:root 0644

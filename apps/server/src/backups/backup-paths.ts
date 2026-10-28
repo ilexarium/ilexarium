@@ -5,7 +5,7 @@ import { ARCHIVE_TIME_LENGTH, MOUNT_INFO, STATE_DIR } from './backups.constants.
 
 /**
  * Where things may be, as the app checks them — friendly errors before anything runs. The backup
- * program checks all of it again, with its own code (system/wrappers/laris-backup.mts).
+ * program checks all of it again, with its own code (system/programs/laris-backup.mts).
  */
 
 /** A folder that may be backed up or restored into: anywhere but a system or platform folder. */

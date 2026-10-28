@@ -13,7 +13,7 @@ import {
   MAX_RESULTS_BYTES,
 } from './backups.constants.js';
 
-// What the backup wrapper writes (system/wrappers/laris-backup.mts) — root-owned, still checked.
+// What the backup wrapper writes (system/programs/laris-backup.mts) — root-owned, still checked.
 
 const status = z.enum(['ok', 'warning', 'failed']);
 const itemResultSchema = z.object({

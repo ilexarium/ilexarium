@@ -8,7 +8,7 @@ import {
 import type { HelperAnswer, HelperRequest } from './linux-sessions.model.js';
 
 /**
- * The helper of one Linux session (system/wrappers/laris-helper.mts): started as the account in a
+ * The helper of one Linux session (system/programs/laris-helper.mts): started as the account in a
  * channel with a terminal — sudo's cache is tied to that terminal, so it lives as long as the
  * session. One JSON request per line, answers matched by id. Lines before its first are the
  * account's login noise, skipped; nothing is sent before it (until then the terminal echoes).

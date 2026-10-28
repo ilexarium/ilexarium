@@ -1,31 +1,32 @@
 # catalog
 
-Curated, **reviewed** service recipes. Each service is a folder:
+App **templates**: starting points, used once. After setup, the app's folder (`~/apps/<name>` by default) is the person's own Compose folder — they may change anything. Design: `docs/plans/acting_as_you.md` ("Templates").
 
 ```
-catalog/<service-id>/
-├── compose.yml   the recipe: a Docker Compose file with ${KEY} blanks
-├── meta.json     the blanks (fields: type, default) + display info
-└── icon.svg      shown on the catalog card (only ever used in <img>)
+catalog/<id>/
+├── compose.yml     plain Compose: ${VARIABLES}, data in ./folders, the laris.template label
+├── template.json   what each variable is, the backup preset, the web port (templateSchema)
+└── icon.svg        shown on the card (only ever used in <img>)
 ```
 
-Texts (description, field labels and help) are translation keys in `packages/i18n/messages/*.json`: `catalog.<id>.description`, `catalog.<id>.fields.<KEY>.label` and `.help` (not for `generatedSecret` fields).
+Texts are translation keys in `packages/i18n/messages/*.json`: `catalog.<id>.description`, `catalog.<id>.fields.<KEY>.label` and `.help`, `catalog.<id>.note` (with `"note": true`: what changed in this version, what to copy), `catalog.<id>.backup.restoreNote` (with `backup.restoreNote`).
 
-How it's used and why: `docs/plans/service_deploys.md`. In production the catalog is installed root-owned; the root wrapper (`system/wrappers/laris-compose.mts`) reads recipes only from there — the app never hands it a Compose file, only an id and values.
+## Rules (checked by `apps/server/src/catalog/` at startup and in its tests)
 
-## Rules (checked by `apps/server/src/catalog/` at startup and in its tests, and again by the wrapper)
+- `template.json` matches `templateSchema` (`@laris/shared`). Every `${VAR}` in `compose.yml` is a field and every field is used.
+- Each service carries the label `laris.template: <id>@<version>`.
+- Versions in `.env` (`image: …:${NAVIDROME_VERSION}`): the widest compatible line the publisher tags, else an exact version — never `latest`, `nightly`, `develop` or another moving tag. Images that must match share one variable. Databases stay on their major (a literal tag).
+- Data in folders inside the app's folder by default (`./data`), so a backup of the app takes it along. Field defaults may use `@account` (the person's `uid:gid`) and `@timezone`.
+- `backup`: `stop` or `live`, and what to skip (relative to the app's folder) — the preset for the app's backup item.
 
-- `meta.json` matches `catalogMetaSchema` (`@laris/shared`). Every `${KEY}` in `compose.yml` is a declared field and every field is used. No other `$` substitution (write `$$` for a literal `$`).
-- Values fill blanks only: ports as `'${PORT}:<container port>'`, folders as long-syntax bind mounts whose `source` is exactly `${PATH_FIELD}` (`read_only: true` for `access: "read"`).
-- Never: `privileged`, `cap_add`, `devices`, host namespaces (`network_mode`, `pid`, `ipc`, `uts`, `userns_mode`, `cgroup`), `security_opt` unconfined or `label:disable`, `sysctls`, `build`, `extends`, `include`, `env_file`, file-based `secrets`/`configs`, external networks or volumes, `container_name`, `laris.*` labels, other bind mounts (never the Docker socket).
-- Always: images pinned by digest (`name:tag@sha256:…`, multi-arch: amd64 and arm64), `restart: unless-stopped`, `logging` with `max-size`.
-- Named volumes for a service's internal data; folder fields for what a person may want to see or fill. `dataOwner` is the user the containers write as — the owner of folders the wrapper creates.
+No Compose policy and no warnings: the person may change anything; `docker compose config` is the only check before starting.
 
-## Review checklist for a new entry or version
+## Review checklist for a new template or version
 
-1. The image comes from the project itself (official or verified publisher); the digest is the multi-arch index for the stated tag (`docker buildx imagetools inspect <image:tag>`).
+1. The image comes from the project itself (official or verified publisher), multi-arch (amd64 and arm64).
 2. Compare with the project's own Compose file; every difference is deliberate and commented at the top of `compose.yml`.
-3. Each folder field's `access` is the least the service needs (`read` unless it must write).
-4. Secrets: `generatedSecret` for internal passwords (letters and digits only — some images refuse others), `secret` only for what the user must know.
-5. Bump `version` in `meta.json` whenever `compose.yml` changes.
-6. `npm test` passes (the catalog tests run every rule against every entry).
+3. Bump `version` in `template.json` and the label whenever `compose.yml` changes; write `catalog.<id>.note` when a person updating needs to know something.
+4. Texts in en, de and ar.
+5. `npm test` passes (the catalog tests check every template).
+
+Templates are updated by hand every few months: a newer version shows on an app's page as "Use the current template".
