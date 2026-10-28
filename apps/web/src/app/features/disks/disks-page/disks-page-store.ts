@@ -7,11 +7,12 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type { DiskMountRequest, DisksStatus } from '@laris/shared';
+import { DISK_MOUNT_ROOT, type DiskMountRequest, type DisksStatus } from '@laris/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { DisksApi } from '../../../core/disks/disks-api';
+import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { Translator } from '../../../core/i18n/translator';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
@@ -35,17 +36,25 @@ const initialState: DisksPageState = { status: null, failed: false, pending: [] 
 export const DisksPageStore = signalStore(
   withState<DisksPageState>(initialState),
   withComputed((store) => ({
-    /** Names in use for disks mounted here (connected or not): the mount dialog avoids them. */
+    /** Folders under /mnt in use (connected disks or not): the mount dialog's suggestion avoids them. */
     takenNames: computed(() => {
       const status = store.status();
       if (!status) return [];
       return [
-        ...status.disks.flatMap((d) => d.partitions.map((p) => p.managedName)),
-        ...status.disconnected.map((d) => d.name),
-      ].filter((name): name is string => name !== null);
+        ...status.disks.flatMap((d) => d.partitions.map((p) => p.mountPoint)),
+        ...status.disconnected.map((d) => d.mountPoint),
+      ]
+        .filter((path): path is string => path?.startsWith(`${DISK_MOUNT_ROOT}/`) ?? false)
+        .map((path) => path.slice(DISK_MOUNT_ROOT.length + 1));
     }),
   })),
-  withMethods((store, disksApi = inject(DisksApi), translator = inject(Translator)) => {
+  withMethods(
+    (
+      store,
+      disksApi = inject(DisksApi),
+      linuxSessionStore = inject(LinuxSessionStore),
+      translator = inject(Translator),
+    ) => {
     // After a change too: the latest answer wins.
     const load = rxMethod<void>(
       pipe(
@@ -67,18 +76,26 @@ export const DisksPageStore = signalStore(
         patchState(store, { status, failed: false });
       },
 
-      /** Mounts a disk; rejects with the server's error (the dialog puts it on its field). */
-      async mount(request: DiskMountRequest): Promise<void> {
-        const { mountPoint } = await firstValueFrom(disksApi.mount(request));
-        toast.success(translator.t('disks.mounted', { path: mountPoint }));
+      /**
+       * Mounts a disk as the person (their sudo); rejects with the server's error (the dialog
+       * puts it on its field). False when a prompt was closed.
+       */
+      async mount(request: DiskMountRequest): Promise<boolean> {
+        const answer = await linuxSessionStore.asPerson(() => firstValueFrom(disksApi.mount(request)));
+        if (!answer) return false;
+        toast.success(translator.t('disks.mounted', { path: answer.mountPoint }));
         load();
+        return true;
       },
 
       /** Unmounts (already confirmed) — or forgets a disk that isn't connected. */
-      async unmount({ name, connected }: UnmountTarget): Promise<void> {
-        patchState(store, { pending: [...store.pending(), name] });
+      async unmount({ mountPoint, connected }: UnmountTarget): Promise<void> {
+        patchState(store, { pending: [...store.pending(), mountPoint] });
         try {
-          await firstValueFrom(disksApi.unmount(name));
+          const done = await linuxSessionStore.asPerson(() =>
+            firstValueFrom(disksApi.unmount(mountPoint)).then(() => true),
+          );
+          if (!done) return;
           toast.success(translator.t(connected ? 'disks.unmounted' : 'disks.forgotten'));
           load();
         } catch (error) {
@@ -86,11 +103,12 @@ export const DisksPageStore = signalStore(
             description: translator.t(...apiErrorText(error)),
           });
         } finally {
-          patchState(store, { pending: store.pending().filter((n) => n !== name) });
+          patchState(store, { pending: store.pending().filter((n) => n !== mountPoint) });
         }
       },
     };
-  }),
+  },
+  ),
   withHooks((store, realtimeService = inject(RealtimeService)) => {
     let stop: (() => void) | null = null;
     return {

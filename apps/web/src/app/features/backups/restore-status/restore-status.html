@@ -6,10 +6,29 @@
     </h2>
   </div>
   <div hlmCardContent class="grid gap-3">
-    @if (restore().job.status !== 'succeeded') {
-      <laris-job-progress [job]="restore().job" [phases]="phases()" />
-    } @else {
-      <p class="text-sm">{{ 'backups.restore.succeeded' | translate }}</p>
+    @switch (restore().status) {
+      @case ('succeeded') {
+        <p class="text-sm">{{ 'backups.restore.succeeded' | translate }}</p>
+      }
+      @case ('running') {
+        <p class="flex items-center gap-2 text-sm" role="status">
+          <ng-icon name="lucideLoaderCircle" class="size-4 animate-spin" aria-hidden="true" />
+          {{ 'backups.restore.phase.' + (restore().phase ?? 'starting') | translate }}
+        </p>
+      }
+      @default {
+        <p class="text-sm text-destructive" role="alert">
+          {{ 'backups.restore.status.' + restore().status | translate }}
+        </p>
+      }
+    }
+    @if (restore().status !== 'succeeded' && restore().output.length > 0) {
+      <pre
+        class="max-h-48 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap"
+        dir="ltr"
+        tabindex="0"
+        >{{ restore().output.join('\n') }}</pre
+      >
     }
     @if (restore().targetPath; as path) {
       <p class="text-sm">
@@ -17,7 +36,7 @@
         <code class="break-all" dir="ltr">{{ path }}</code>
       </p>
     }
-    @if (restore().job.status === 'succeeded' && note(); as key) {
+    @if (restore().status === 'succeeded' && note(); as key) {
       <div hlmAlert role="note">
         <p hlmAlertDescription>{{ key | translate }}</p>
       </div>
@@ -37,7 +56,7 @@
           variant="outline"
           size="sm"
           class="justify-self-start"
-          [disabled]="pending() || restore().job.status === 'running'"
+          [disabled]="pending() || restore().status === 'running'"
           (click)="discard.emit()"
         >
           {{ 'backups.restore.discard' | translate }}

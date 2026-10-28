@@ -4,24 +4,53 @@
   "name": "Immich",
   "category": "photos",
   "website": "https://immich.app",
-  "web": { "port": 2283 },
+  "web": {
+    "port": 2283
+  },
   "fields": [
-    { "key": "WEB_PORT", "kind": "port", "default": 2283 },
-    { "key": "UPLOAD_DIR", "kind": "folder", "default": "./library" },
+    {
+      "key": "WEB_PORT",
+      "kind": "port",
+      "default": 2283
+    },
+    {
+      "key": "UPLOAD_DIR",
+      "kind": "folder",
+      "default": "./library"
+    },
     {
       "key": "IMMICH_VERSION",
       "kind": "version",
       "image": "ghcr.io/immich-app/immich-server",
       "default": "v3"
     },
-    { "key": "TZ", "kind": "text", "default": "@timezone", "advanced": true },
-    { "key": "DB_DATA_DIR", "kind": "folder", "default": "./postgres", "advanced": true },
-    { "key": "MODEL_CACHE_DIR", "kind": "folder", "default": "./model-cache", "advanced": true },
-    { "key": "DB_PASSWORD", "kind": "generated" }
+    {
+      "key": "TZ",
+      "kind": "text",
+      "default": "@timezone",
+      "advanced": true
+    },
+    {
+      "key": "DB_DATA_DIR",
+      "kind": "folder",
+      "default": "./postgres",
+      "advanced": true
+    },
+    {
+      "key": "MODEL_CACHE_DIR",
+      "kind": "folder",
+      "default": "./model-cache",
+      "advanced": true
+    },
+    {
+      "key": "DB_PASSWORD",
+      "kind": "generated"
+    }
   ],
   "backup": {
     "mode": "live",
-    "skip": ["library/thumbs", "library/encoded-video", "model-cache", "postgres"]
+    "skip": ["library/thumbs", "library/encoded-video", "model-cache", "postgres"],
+    "restoreNote": true
   },
   "note": true
 }

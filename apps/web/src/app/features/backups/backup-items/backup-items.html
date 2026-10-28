@@ -84,41 +84,76 @@
               {{ 'backups.items.platformHelp' | translate }}
             </p>
           }
-          @if (row.item.kind === 'service' && row.folders.length > 1) {
+          @if (row.item.kind === 'app') {
+            @if (row.item.appRemoved) {
+              <p class="text-sm text-warning">{{ 'backups.items.appRemoved' | translate }}</p>
+            }
             <fieldset class="grid gap-1">
               <legend class="text-sm text-muted-foreground">
                 {{ 'backups.items.folders' | translate }}
               </legend>
-              @for (field of row.folders; track field) {
-                <label class="flex items-center gap-2 text-sm">
+              @for (folder of allFolders(row); track folder) {
+                <label class="flex items-start gap-2 text-sm">
                   <input
                     type="checkbox"
-                    class="size-4"
-                    [checked]="!row.item.excludedFields.includes(field)"
-                    [disabled]="
-                      lastFolder(row, field) || pending().includes('folders:' + row.item.id)
-                    "
-                    (change)="toggleFolder(row, field, $event)"
+                    class="mt-0.5 size-4 shrink-0"
+                    [checked]="row.item.folders.includes(folder)"
+                    [disabled]="lastFolder(row, folder) || pending().includes('folders:' + row.item.id)"
+                    (change)="toggleFolder(row, folder, $event)"
                   />
-                  {{ 'catalog.' + row.item.catalogId + '.fields.' + field + '.label' | translate }}
+                  <code dir="ltr" class="break-all">{{ folder }}</code>
+                  @if (row.item.newFolders.includes(folder)) {
+                    <span class="text-warning">{{ 'backups.items.newFolder' | translate }}</span>
+                  }
                 </label>
               }
             </fieldset>
+            <label class="flex flex-wrap items-center gap-2 text-sm">
+              {{ 'backups.items.mode' | translate }}
+              <select
+                class="h-8 rounded-md border bg-background px-2 text-sm"
+                [value]="row.item.mode ?? 'stop'"
+                [disabled]="pending().includes('folders:' + row.item.id)"
+                (change)="setMode(row, $event)"
+              >
+                <option value="stop">{{ 'apps.backup.stop' | translate }}</option>
+                <option value="live">{{ 'apps.backup.live' | translate }}</option>
+              </select>
+            </label>
+            @if (row.item.skip.length > 0) {
+              <div class="grid gap-1 text-sm">
+                <span class="text-muted-foreground">{{ 'backups.items.skipped' | translate }}</span>
+                @for (skip of row.item.skip; track skip) {
+                  <span class="flex items-center gap-2">
+                    <code dir="ltr" class="break-all">{{ skip }}</code>
+                    <button
+                      hlmBtn
+                      variant="ghost"
+                      size="sm"
+                      [disabled]="pending().includes('folders:' + row.item.id)"
+                      (click)="removeSkip(row, skip)"
+                    >
+                      {{ 'backups.items.unskip' | translate }}
+                    </button>
+                  </span>
+                }
+              </div>
+            }
           }
         </li>
       }
     </ul>
 
     <div class="flex flex-wrap gap-2">
-      @for (service of addable(); track service.id) {
+      @for (app of addable(); track app.name) {
         <button
           hlmBtn
           variant="outline"
-          [disabled]="pending().includes('add:' + service.id)"
-          (click)="addService.emit(service.id)"
+          [disabled]="pending().includes('add:' + app.name)"
+          (click)="addApp.emit(app.name)"
         >
           <ng-icon name="lucidePlus" aria-hidden="true" />
-          {{ 'backups.items.addService' | translate: { name: service.name } }}
+          {{ 'backups.items.addApp' | translate: { name: app.name } }}
         </button>
       }
       <button hlmBtn variant="outline" (click)="openPicker()">

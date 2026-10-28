@@ -56,12 +56,12 @@
               >
                 {{ 'disks.mount' | translate }}
               </button>
-            } @else if (partition.managedName && partition.state === 'mounted') {
+            } @else if (partition.managed && partition.state === 'mounted') {
               <button
                 hlmBtn
                 variant="outline"
                 size="sm"
-                [disabled]="partition.usedForBackups || pending().includes(partition.managedName)"
+                [disabled]="partition.usedForBackups || pending().includes(partition.mountPoint ?? '')"
                 [attr.aria-label]="'disks.actionsFor' | translate: { name: label(partition) }"
                 (click)="askUnmount(partition)"
               >
@@ -86,7 +86,7 @@
               {{ 'disks.usedForBackups' | translate }}
             </p>
           }
-          @if (partition.state === 'mounted' && !partition.managedName && !disk().system) {
+          @if (partition.state === 'mounted' && !partition.managed && !disk().system) {
             <p class="text-sm text-muted-foreground">{{ 'disks.mountedElsewhere' | translate }}</p>
           } @else if (partition.state === 'inUse') {
             <p class="text-sm text-muted-foreground">{{ 'disks.inUseHelp' | translate }}</p>

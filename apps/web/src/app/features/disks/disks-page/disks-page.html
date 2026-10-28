@@ -19,14 +19,14 @@
         </div>
         <div hlmCardContent>
           <ul class="grid gap-2">
-            @for (disk of status.disconnected; track disk.name) {
+            @for (disk of status.disconnected; track disk.mountPoint) {
               <li class="flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm">
                 <code class="min-w-0 flex-1 break-all" dir="ltr">{{ disk.mountPoint }}</code>
                 <button
                   hlmBtn
                   variant="ghost"
                   size="sm"
-                  [disabled]="disk.usedForBackups || disksPageStore.pending().includes(disk.name)"
+                  [disabled]="disk.usedForBackups || disksPageStore.pending().includes(disk.mountPoint)"
                   (click)="forget(disk)"
                 >
                   {{ 'disks.forget' | translate }}

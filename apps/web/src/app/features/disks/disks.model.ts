@@ -9,7 +9,6 @@ export interface MountTarget {
 
 /** A disk mounted here, to unmount — or to forget when it isn't connected. */
 export interface UnmountTarget {
-  name: string;
   mountPoint: string;
   connected: boolean;
 }

@@ -16,7 +16,7 @@ export class DisksApi {
     return this.http.post<DiskMountedResponse>('/api/disks/mount', request);
   }
 
-  unmount(name: string): Observable<void> {
-    return this.http.delete<void>(`/api/disks/${encodeURIComponent(name)}`);
+  unmount(mountPoint: string): Observable<void> {
+    return this.http.post<void>('/api/disks/unmount', { mountPoint });
   }
 }

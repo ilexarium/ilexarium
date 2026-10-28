@@ -10,7 +10,7 @@ import {
   FILES_ERROR_CODES,
   PROCESS_ERROR_CODES,
   PROFILE_ERROR_CODES,
-  SERVICE_ERROR_CODES,
+  APP_ERROR_CODES,
   AI_ERROR_CODES,
 } from '@laris/shared';
 import type { FormError } from './forms.model';
@@ -19,7 +19,7 @@ import type { FormError } from './forms.model';
 export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(AUTH_ERROR_CODES),
   ...Object.values(CONTAINER_ACTION_ERROR_CODES),
-  ...Object.values(SERVICE_ERROR_CODES),
+  ...Object.values(APP_ERROR_CODES),
   ...Object.values(BACKUP_ERROR_CODES),
   ...Object.values(DISK_ERROR_CODES),
   ...Object.values(ALERT_ERROR_CODES),

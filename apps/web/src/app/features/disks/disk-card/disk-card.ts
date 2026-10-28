@@ -23,7 +23,7 @@ import type { MountTarget, UnmountTarget } from '../disks.model';
 })
 export class DiskCard {
   readonly disk = input.required<Disk>();
-  /** Names being unmounted. */
+  /** Mount points being unmounted. */
   readonly pending = input<string[]>([]);
 
   readonly mount = output<MountTarget>();
@@ -46,9 +46,8 @@ export class DiskCard {
   }
 
   protected askUnmount(partition: DiskPartition): void {
-    if (!partition.managedName || !partition.mountPoint) return;
+    if (!partition.managed || !partition.mountPoint) return;
     this.unmount.emit({
-      name: partition.managedName,
       mountPoint: partition.mountPoint,
       connected: true,
     });

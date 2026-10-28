@@ -9,21 +9,25 @@
     <form [formRoot]="form" class="grid gap-4">
       <laris-form-errors [form]="form" />
       <div hlmField>
-        <label hlmFieldLabel for="disk-name">{{ 'disks.mountDialog.name' | translate }}</label>
+        <label hlmFieldLabel for="mount-point">{{ 'disks.mountDialog.mountPoint' | translate }}</label>
         <input
           hlmInput
-          id="disk-name"
+          id="mount-point"
           dir="ltr"
           autocomplete="off"
           spellcheck="false"
-          [formField]="form.name"
+          [formField]="form.mountPoint"
         />
-        <laris-field-errors [field]="form.name" />
+        <laris-field-errors [field]="form.mountPoint" />
+        <p class="text-sm text-muted-foreground">{{ 'disks.mountDialog.mountPointHelp' | translate }}</p>
       </div>
-      <p class="text-sm">
-        {{ 'disks.mountDialog.path' | translate }}
-        <code class="break-all" dir="ltr">{{ path() }}</code>
-      </p>
+      <label class="flex items-start gap-2 text-sm">
+        <input type="checkbox" class="mt-0.5 size-4" [formField]="form.makeMine" />
+        <span class="grid gap-0.5">
+          <span>{{ 'disks.mountDialog.makeMine' | translate }}</span>
+          <span class="text-muted-foreground">{{ 'disks.mountDialog.makeMineHelp' | translate }}</span>
+        </span>
+      </label>
       <p class="text-sm text-muted-foreground">{{ 'disks.mountDialog.kept' | translate }}</p>
       <hlm-alert-dialog-footer>
         <button hlmBtn type="button" variant="outline" (click)="close()">

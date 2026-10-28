@@ -45,7 +45,7 @@ export class DisksPage {
   }
 
   protected forget(disk: DisconnectedDisk): void {
-    this.unmountDialog().open({ name: disk.name, mountPoint: disk.mountPoint, connected: false });
+    this.unmountDialog().open({ mountPoint: disk.mountPoint, connected: false });
   }
 
   protected unmount(target: UnmountTarget): void {

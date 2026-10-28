@@ -79,8 +79,8 @@ const initialState: ProcessesPageState = {
 
 function groupOf(process: Process): ProcessGroupId {
   if (process.container) {
-    return process.container.catalogId
-      ? { kind: 'service', name: process.container.catalogId }
+    return process.container.app
+      ? { kind: 'service', name: process.container.app }
       : { kind: 'container', name: process.container.name ?? '' };
   }
   if (process.system) return { kind: 'system', name: '' };
