@@ -7,11 +7,11 @@ import { AlertRecords } from './alert-records.js';
 import { NEVER_SENT_AFTER_MS } from './alerts.constants.js';
 import type { AlertCondition, AlertEvent } from './alerts.model.js';
 
-const down = (subject: string, catalogId = subject): AlertCondition => ({
+const down = (subject: string, app = subject): AlertCondition => ({
   kind: 'serviceDown',
   subject,
   severity: 'critical',
-  details: { catalogId },
+  details: { app },
 });
 const full = (percent: number): AlertCondition => ({
   kind: 'diskFull',
@@ -60,7 +60,7 @@ describe('AlertRecords (database)', () => {
         kind: 'serviceDown',
         subject: 'immich',
         severity: 'critical',
-        catalogId: 'immich',
+        app: 'immich',
         closedAt: null,
       }),
     ]);

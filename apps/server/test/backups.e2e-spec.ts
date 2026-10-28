@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import {
   appendFileSync,
   chmodSync,
-  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -21,18 +20,18 @@ import type { BackupItem, BackupPlan, BackupRestore, BackupRun } from '@laris/sh
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
+import { DockerService } from '../src/docker/docker.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
 import { testHasher } from './realtime-client.js';
 
 // Backups end to end: the app, the executor in direct mode, the real backup wrapper
-// (system/wrappers/laris-backup.mts) and the real Borg — with a fake `docker` (the platform's
+// (system/programs/laris-backup.mts) and the real Borg — with a fake `docker` (the platform's
 // dump, a service stopped and started) and a pretend disk (a folder listed in a mount table).
 
-const FIXTURES = fileURLToPath(new URL('./fixtures/catalog', import.meta.url));
 const FAKE_DOCKER = fileURLToPath(
-  new URL('../../../system/wrappers/testing/fake-docker.cjs', import.meta.url),
+  new URL('../../../system/programs/testing/fake-docker.cjs', import.meta.url),
 );
 const WRAPPER_CONFIG = resolve('.dev/wrappers.test.json');
 const BORG = ['/usr/bin/borg', '/usr/local/bin/borg'].find((p) => existsSync(p));
@@ -45,7 +44,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
   let dir: string;
   let storage: string;
   let disk: string;
-  let serviceId: string;
+  const project = 'test-hello';
 
   const api = () => ({
     get: (path: string) => request(origin).get(`/api${path}`).set('Cookie', cookie),
@@ -53,6 +52,8 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
       request(origin).post(`/api${path}`).set('Origin', origin).set('Cookie', cookie).send(body),
     put: (path: string, body: object) =>
       request(origin).put(`/api${path}`).set('Origin', origin).set('Cookie', cookie).send(body),
+    patch: (path: string, body: object) =>
+      request(origin).patch(`/api${path}`).set('Origin', origin).set('Cookie', cookie).send(body),
     delete: (path: string) =>
       request(origin).delete(`/api${path}`).set('Origin', origin).set('Cookie', cookie),
   });
@@ -78,7 +79,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     until(async () => {
       const restore = (await api().get(`/backups/restores/${id}`).expect(200))
         .body as BackupRestore;
-      return restore.job.status !== 'running' ? restore : undefined;
+      return restore.status !== 'running' ? restore : undefined;
     });
 
   const plan = async () => (await api().get('/backups/plan').expect(200)).body.plan as BackupPlan;
@@ -94,12 +95,6 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     writeFileSync(join(storage, 'test-hello', 'site', 'index.html'), 'version 1');
     writeFileSync(join(storage, 'docs', 'letter.txt'), 'Dear …');
     writeFileSync(join(dir, 'mountinfo'), `100 30 8:17 / ${disk} rw - ext4 /dev/sdb1 rw\n`);
-    // The test recipe, with a backup section.
-    cpSync(FIXTURES, join(dir, 'catalog'), { recursive: true });
-    const metaFile = join(dir, 'catalog', 'test-hello', 'meta.json');
-    const meta = JSON.parse(readFileSync(metaFile, 'utf8'));
-    meta.backup = { folders: [{ field: 'SITE_DIR' }], mode: 'stop' };
-    writeFileSync(metaFile, JSON.stringify(meta));
     writeFileSync(
       join(dir, 'docker'),
       `#!${process.execPath}\n${readFileSync(FAKE_DOCKER, 'utf8')}`,
@@ -107,14 +102,11 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
         mode: 0o755,
       },
     );
-    writeFileSync(join(dir, 'running.txt'), 'hl-test-hello');
+    writeFileSync(join(dir, 'running.txt'), project);
     mkdirSync(resolve('.dev'), { recursive: true });
     writeFileSync(
       WRAPPER_CONFIG,
       JSON.stringify({
-        catalogDir: join(dir, 'catalog'),
-        storageRoots: [storage],
-        serviceRoot: storage,
         reservedPorts: [22, 3000],
         protectedPaths: [],
         dockerBin: join(dir, 'docker'),
@@ -158,16 +150,10 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
       .concat(login.headers['set-cookie'] ?? [])
       .find((c) => c.startsWith('__Host-sid='))!
       .split(';')[0];
-    serviceId = (
-      await prisma.service.create({
-        data: {
-          catalogId: 'test-hello',
-          catalogVersion: '1',
-          status: 'installed',
-          settings: { WEB_PORT: 18080, SITE_DIR: join(storage, 'test-hello', 'site') },
-        },
-      })
-    ).id;
+    // The app as Docker would show it: its folder.
+    vi.spyOn(app.get(DockerService), 'appFolders').mockResolvedValue(
+      new Map([[project, [join(storage, 'test-hello', 'site')]]]),
+    );
   }, 60_000);
 
   afterAll(async () => {
@@ -193,7 +179,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     ]);
   });
 
-  it('refuses a disk that is not mounted, and folders outside the allowed places', async () => {
+  it('refuses a disk that is not mounted, and system folders', async () => {
     const setup = {
       destination: join(dir, 'mnt', 'other'),
       schedule: { frequency: 'daily', time: '03:00' },
@@ -212,7 +198,10 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
         items: [{ kind: 'folder', path: '/etc' }],
       })
       .expect(400);
-    expect(bad.body.errors[0]).toMatchObject({ field: 'items.0', code: 'path_not_allowed' });
+    expect(bad.body.errors[0]).toMatchObject({
+      field: 'items.0.path',
+      message: 'validation.backupFolderSystem',
+    });
     expect((await api().get('/backups/plan').expect(200)).body).toEqual({ plan: null });
   });
 
@@ -222,7 +211,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
       schedule: { frequency: 'daily', time: '03:00' },
       retention: { daily: 7, weekly: 4, monthly: 6 },
       items: [
-        { kind: 'service', serviceId },
+        { kind: 'app', project, folders: [], skip: [], mode: 'stop' },
         { kind: 'folder', path: join(storage, 'docs') },
       ],
     });
@@ -230,7 +219,8 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     expect(res.body.passphrase.split(' ')).toHaveLength(6);
     expect(existsSync(join(disk, 'laris-backups', 'config'))).toBe(true);
     const current = await plan();
-    expect(current.items.map((i) => i.kind)).toEqual(['platform', 'service', 'folder']);
+    expect(current.items.map((i) => i.kind)).toEqual(['platform', 'app', 'folder']);
+    expect(current.items[1]).toMatchObject({ project, folders: [join(storage, 'test-hello', 'site')], newFolders: [] });
     expect(current.destinationStatus).toMatchObject({ mountPoint: disk, hasRepository: true });
     await api()
       .post('/backups/plan', { ...res.body, destination: disk })
@@ -252,34 +242,36 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     expect(status).toMatchObject({ configured: true, warnings: [], running: null });
     expect(status.lastSuccessAt).not.toBeNull();
     expect(
-      status.items.find((i: { serviceId: string }) => i.serviceId === serviceId).lastStatus,
+      status.items.find((i: { project: string }) => i.project === project).lastStatus,
     ).toBe('ok');
   }, 90_000);
 
-  it('restores a folder to a new folder', async () => {
+  it('restores a folder into a chosen folder — its own unit, followed from its events', async () => {
     const folder = (await plan()).items.find((i) => i.kind === 'folder')!;
     const [archive] = (await api().get(`/backups/items/${folder.id}/archives`).expect(200)).body
       .archives;
+    const target = join(dir, 'restored');
     const started = await api()
-      .post('/backups/restores', { itemId: folder.id, archive: archive.name, target: 'newFolder' })
+      .post('/backups/restores', { itemId: folder.id, archive: archive.name, target })
       .expect(202);
     const restore = await finishedRestore(started.body.restoreId);
-    expect(restore.job.status, restore.job.output.join('\n')).toBe('succeeded');
-    const copy = join(restore.targetPath!, join(storage, 'docs').slice(1), 'letter.txt');
+    expect(restore.status, restore.output.join('\n')).toBe('succeeded');
+    expect(restore.targetPath).toBe(target);
+    const copy = join(target, join(storage, 'docs').slice(1), 'letter.txt');
     expect(readFileSync(copy, 'utf8')).toBe('Dear …');
   }, 60_000);
 
-  it('restores a service in place — the current version set aside until deleted', async () => {
-    const service = (await plan()).items.find((i) => i.kind === 'service')! as BackupItem;
+  it('restores an app back where it was — the current version set aside until deleted', async () => {
+    const service = (await plan()).items.find((i) => i.kind === 'app')! as BackupItem;
     const [archive] = (await api().get(`/backups/items/${service.id}/archives`).expect(200)).body
       .archives;
     writeFileSync(join(storage, 'test-hello', 'site', 'index.html'), 'broken');
     const started = await api()
-      .post('/backups/restores', { itemId: service.id, archive: archive.name, target: 'inPlace' })
+      .post('/backups/restores', { itemId: service.id, archive: archive.name, target: null })
       .expect(202);
     const restore = await finishedRestore(started.body.restoreId);
-    expect(restore.job.status, restore.job.output.join('\n')).toBe('succeeded');
-    expect(restore.job.phase).toBe('done');
+    expect(restore.status, restore.output.join('\n')).toBe('succeeded');
+    expect(restore.phase).toBe('done');
     expect(readFileSync(join(storage, 'test-hello', 'site', 'index.html'), 'utf8')).toBe(
       'version 1',
     );
@@ -303,23 +295,24 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
       .post('/backups/restores', {
         itemId: folder.id,
         archive: `${folder.id}-2020-01-01T00:00:00`,
-        target: 'newFolder',
+        target: join(dir, 'never'),
       })
       .expect(404);
   });
 
-  it('shows the passphrase again only with the app password', async () => {
-    const wrong = await api().post('/backups/passphrase', { password: 'not it' }).expect(400);
-    expect(wrong.body.errors[0]).toMatchObject({ field: 'password', code: 'wrong_password' });
-    // Like sign-in: a wrong password delays the next try (1 s, doubling).
-    await api().post('/backups/passphrase', { password: PASSWORD }).expect(429);
-    await new Promise((r) => setTimeout(r, 1100));
-    const right = await api().post('/backups/passphrase', { password: PASSWORD }).expect(200);
+  it('shows the passphrase again (through the person’s sudo in production), audited without it', async () => {
+    const right = await api().post('/backups/passphrase', {}).expect(200);
     expect(right.body.passphrase.split(' ')).toHaveLength(6);
     const audit = await app
       .get(PrismaService)
       .auditEvent.findMany({ where: { action: 'backup.passphrase' } });
     expect(audit.map((e) => e.outcome)).toEqual(['requested', 'success', 'requested', 'success']);
+    expect(audit.map((e) => (e.details as { reason?: string }).reason)).toEqual([
+      'setup',
+      'setup',
+      'show',
+      'show',
+    ]);
     expect(JSON.stringify(audit)).not.toContain(right.body.passphrase);
   });
 
@@ -363,23 +356,15 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     expect(status.warnings).toContain('lastRunFailed');
   }, 30_000);
 
-  it('keeps nothing of a change the backup wrapper refuses — and later changes still work', async () => {
-    // The wrapper's copy of the recipe has no backup any more (the app's still has): it refuses
-    // the plan with the service in it.
-    const metaFile = join(dir, 'catalog', 'test-hello', 'meta.json');
-    const original = readFileSync(metaFile, 'utf8');
-    const meta = JSON.parse(original);
-    delete meta.backup;
-    writeFileSync(metaFile, JSON.stringify(meta));
-    try {
-      const before = (await plan()).items.map((i) => [i.id, i.removed]);
-      const service = (await plan()).items.find((i) => i.kind === 'service')!;
-      const refused = await api().delete(`/backups/items/${service.id}`).expect(422);
-      expect(refused.body.code).toBe('invalid_plan');
-      expect((await plan()).items.map((i) => [i.id, i.removed])).toEqual(before);
-    } finally {
-      writeFileSync(metaFile, original);
-    }
+  it('keeps nothing of a change the backup program refuses — and later changes still work', async () => {
+    // The app's folder gone into a system folder (as if Docker said so): the program refuses the plan.
+    const before = (await plan()).items.map((i) => [i.id, i.removed]);
+    const app = (await plan()).items.find((i) => i.kind === 'app')!;
+    const refused = await api()
+      .patch(`/backups/items/${app.id}`, { folders: ['/var/lib/laris/x'] })
+      .expect(400);
+    expect(refused.body.errors?.[0]?.code ?? refused.body.code).toBeTruthy();
+    expect((await plan()).items.map((i) => [i.id, i.removed])).toEqual(before);
     await api()
       .put('/backups/plan', { retention: { daily: 7, weekly: 4, monthly: 6 } })
       .expect(200);
@@ -421,11 +406,14 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
       .expect(400);
   });
 
-  it('lets one privileged operation run at a time', async () => {
+  it('lets one root operation run at a time: the program’s lock — a second run is recorded as busy', async () => {
     const first = api().post('/backups/runs', {});
     const second = api().post('/backups/runs', {});
     const [a, b] = await Promise.all([first, second]);
-    expect([a.status, b.status].sort((x, y) => x - y)).toEqual([202, 409]);
-    await finishedRun((a.status === 202 ? a : b).body.runId);
+    expect([a.status, b.status]).toEqual([202, 202]);
+    const runs = await Promise.all([finishedRun(a.body.runId), finishedRun(b.body.runId)]);
+    // Started together, they can't both have run at once (whichever got the lock first).
+    const busy = runs.filter((run) => run.errorCode === 'busy');
+    expect(busy.length + runs.filter((run) => run.status !== 'failed').length).toBe(2);
   }, 90_000);
 });

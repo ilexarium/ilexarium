@@ -76,7 +76,7 @@ describe('activity (e2e)', () => {
         kind: 'serviceDown',
         subject: 'immich-server-1',
         severity: 'critical',
-        details: { catalogId: 'immich' },
+        details: { app: 'immich' },
         openedAt: minutesAgo(10),
         closedAt: minutesAgo(5),
       },
@@ -96,7 +96,7 @@ describe('activity (e2e)', () => {
       'backup',
       'action',
     ]);
-    expect(items[0].source === 'alert' && items[0].alert.serviceName).toBe('Immich');
+    expect(items[0].source === 'alert' && items[0].alert.app).toBe('immich');
     expect(items[3]).toMatchObject({
       action: 'container.restart',
       username: 'owner',
