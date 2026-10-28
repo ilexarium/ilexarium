@@ -35,7 +35,10 @@ function fakeSftp(): SFTPWrapper {
     stat: (path: string, cb: never) => fs.stat(path, done(cb)),
     readdir: (path: string, cb: (e: Error | null, list?: unknown) => void) =>
       fs.readdir(path, (error, names) =>
-        done(cb)(error, names?.map((filename) => ({ filename, attrs: {} }))),
+        done(cb)(
+          error,
+          names?.map((filename) => ({ filename, attrs: {} })),
+        ),
       ),
     open: (path: string, _flags: string, cb: (e: Error | null, h?: Buffer) => void) =>
       fs.open(path, 'r', (error, fd) => {
@@ -43,8 +46,14 @@ function fakeSftp(): SFTPWrapper {
         if (!error) handles.set(handle.toString(), fd);
         done(cb)(error, handle);
       }),
-    read: (handle: Buffer, buffer: Buffer, offset: number, length: number, position: number, cb: never) =>
-      fs.read(handles.get(handle.toString())!, buffer, offset, length, position, done(cb)),
+    read: (
+      handle: Buffer,
+      buffer: Buffer,
+      offset: number,
+      length: number,
+      position: number,
+      cb: never,
+    ) => fs.read(handles.get(handle.toString())!, buffer, offset, length, position, done(cb)),
     close: (handle: Buffer, cb: () => void) => fs.close(handles.get(handle.toString())!, cb),
     writeFile: (path: string, data: string, options: { mode: number }, cb: never) =>
       fs.writeFile(path, data, { mode: options.mode }, done(cb)),
@@ -53,7 +62,8 @@ function fakeSftp(): SFTPWrapper {
     rename: (from: string, to: string, cb: never) => fs.rename(from, to, done(cb)),
     unlink: (path: string, cb: never) => fs.unlink(path, done(cb)),
     rmdir: (path: string, cb: never) => fs.rmdir(path, done(cb)),
-    mkdir: (path: string, options: { mode: number }, cb: never) => fs.mkdir(path, options, done(cb)),
+    mkdir: (path: string, options: { mode: number }, cb: never) =>
+      fs.mkdir(path, options, done(cb)),
   } as unknown as SFTPWrapper;
 }
 
@@ -171,7 +181,11 @@ describe('AppManager.install', () => {
   it('writes the files as the person (.env private), makes the data folders, checks, then starts', async () => {
     const started = await install('PORT=8080\nMEDIA=./media\n');
     const folder = join(home, 'apps', 'music');
-    expect(started).toMatchObject({ name: 'music', folder, task: { action: 'up', state: 'running' } });
+    expect(started).toMatchObject({
+      name: 'music',
+      folder,
+      task: { action: 'up', state: 'running' },
+    });
     expect(readFileSync(join(folder, 'compose.yml'), 'utf8')).toBe(compose);
     expect(statSync(join(folder, '.env')).mode & 0o777).toBe(0o600);
     expect(existsSync(join(folder, 'data'))).toBe(true);
@@ -196,7 +210,9 @@ describe('AppManager.install', () => {
 
   it('leaves nothing behind when Compose refuses the files', async () => {
     checkFails = true;
-    await expect(install()).rejects.toMatchObject({ response: { code: 'compose_invalid', detail: 'bad file' } });
+    await expect(install()).rejects.toMatchObject({
+      response: { code: 'compose_invalid', detail: 'bad file' },
+    });
     expect(existsSync(join(home, 'apps'))).toBe(false);
   });
 });
@@ -214,10 +230,18 @@ describe('AppManager: reading and saving', () => {
     ]);
     writeFileSync(join(folder, '.env'), 'PORT=9000\n');
     const save = (overwrite: boolean) =>
-      manager().save(SESSION, 'music', { folder, compose, env: 'PORT=1\n', hash: details.hash, overwrite }, ACTOR);
+      manager().save(
+        SESSION,
+        'music',
+        { folder, compose, env: 'PORT=1\n', hash: details.hash, overwrite },
+        ACTOR,
+      );
     await expect(save(false)).rejects.toMatchObject({ response: { code: 'changed_on_disk' } });
     // The task before succeeded: a new one may start.
-    writeFileSync(join(folder, '.laris', 'tasks', '20261028T120000-up.log'), 'ok\n@@laris-result\nsuccess\n');
+    writeFileSync(
+      join(folder, '.laris', 'tasks', '20261028T120000-up.log'),
+      'ok\n@@laris-result\nsuccess\n',
+    );
     await expect(save(true)).resolves.toMatchObject({ task: { action: 'up' } });
     expect(readFileSync(join(folder, '.env'), 'utf8')).toBe('PORT=1\n');
   });
@@ -230,7 +254,7 @@ describe('AppManager: reading and saving', () => {
         name: 'music',
         folder: null,
         template: 'demo',
-        compose: `${compose.replace("image: example/web", "labels:\n      laris.template: demo@1\n    image: example/web")}`,
+        compose: `${compose.replace('image: example/web', 'labels:\n      laris.template: demo@1\n    image: example/web')}`,
         env: '# mine\nPORT=8080\nMEDIA=/srv/music\n',
       },
       ACTOR,
@@ -263,15 +287,27 @@ describe('AppManager: removing', () => {
   it('deletes only after its down succeeded, only what the removal listed; all inside ticked: the whole folder', async () => {
     await install();
     const folder = join(home, 'apps', 'music');
-    const request = { folder, settings: true, folders: [join(folder, 'data')], volumes: ['music_cache', 'other'] };
+    const request = {
+      folder,
+      settings: true,
+      folders: [join(folder, 'data')],
+      volumes: ['music_cache', 'other'],
+    };
     await expect(manager().delete(SESSION, 'music', request, ACTOR)).rejects.toMatchObject({
       response: { code: 'app_task_running' },
     });
     taskResult = 'removed\n@@laris-result\nsuccess\nexited\n0\n';
     await manager().remove(SESSION, 'music', folder, ACTOR);
-    await manager().delete(SESSION, 'music', { ...request, folders: [...request.folders, '/etc'] }, ACTOR);
+    await manager().delete(
+      SESSION,
+      'music',
+      { ...request, folders: [...request.folders, '/etc'] },
+      ACTOR,
+    );
     expect(existsSync(folder)).toBe(false);
-    const removals = asked.filter((a) => a.action === 'paths.remove' || a.action === 'volumes.remove');
+    const removals = asked.filter(
+      (a) => a.action === 'paths.remove' || a.action === 'volumes.remove',
+    );
     expect(removals).toEqual([
       { action: 'volumes.remove', names: ['music_cache'], docker: 'direct' },
       { action: 'paths.remove', paths: [folder], administrator: false },
@@ -283,7 +319,12 @@ describe('AppManager: removing', () => {
     const folder = join(home, 'apps', 'music');
     taskResult = '@@laris-result\nsuccess\n';
     await manager().remove(SESSION, 'music', folder, ACTOR);
-    await manager().delete(SESSION, 'music', { folder, settings: true, folders: [], volumes: [] }, ACTOR);
+    await manager().delete(
+      SESSION,
+      'music',
+      { folder, settings: true, folders: [], volumes: [] },
+      ACTOR,
+    );
     expect(existsSync(join(folder, 'compose.yml'))).toBe(false);
     expect(existsSync(join(folder, 'data'))).toBe(true);
   });
@@ -327,4 +368,3 @@ volumes:
     });
   });
 });
-

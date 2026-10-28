@@ -62,7 +62,8 @@ async function loadEntry(
     return null;
   }
   const template = parsed.data;
-  if (template.id !== id) problems.push(`template.json id "${template.id}" is not the folder's name`);
+  if (template.id !== id)
+    problems.push(`template.json id "${template.id}" is not the folder's name`);
   const compose = await readText(folder, 'compose.yml');
   problems.push(...checkTemplate(template, compose).map((p) => `compose.yml ${p}`));
 
@@ -105,7 +106,9 @@ export function checkTemplate(template: Template, compose: string): string[] {
     else if (MOVING_TAGS.test(tag)) problems.push(`${name}: the tag "${tag}" moves`);
     const labels = service['labels'];
     const value = Array.isArray(labels)
-      ? labels.find((l) => typeof l === 'string' && l.startsWith(`${TEMPLATE_LABEL}=`))?.split('=')[1]
+      ? labels
+          .find((l) => typeof l === 'string' && l.startsWith(`${TEMPLATE_LABEL}=`))
+          ?.split('=')[1]
       : (labels as Record<string, unknown> | undefined)?.[TEMPLATE_LABEL];
     if (value !== label) problems.push(`${name}: needs the label ${TEMPLATE_LABEL}: ${label}`);
   }

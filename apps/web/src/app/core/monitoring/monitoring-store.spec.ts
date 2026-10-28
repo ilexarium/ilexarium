@@ -80,6 +80,8 @@ const container = (id: string, containerStats: ContainerStats | null): Container
   ports: [],
   protected: false,
   composeProject: null,
+  composeWorkingDir: null,
+  template: null,
   stats: containerStats,
 });
 

@@ -111,7 +111,10 @@ describe('checkTemplate', () => {
     expect(checkTemplate(template, compose.replace("['laris.template=demo@1']", '[]'))).toEqual([
       'db: needs the label laris.template: demo@1',
     ]);
-    const moving = { ...template, fields: template.fields.map((f) => (f.kind === 'version' ? { ...f, default: 'nightly' } : f)) };
+    const moving = {
+      ...template,
+      fields: template.fields.map((f) => (f.kind === 'version' ? { ...f, default: 'nightly' } : f)),
+    };
     expect(checkTemplate(moving, compose)).toEqual(['DEMO_VERSION: the default "nightly" moves']);
   });
 });
@@ -153,7 +156,9 @@ describe('loadCatalog', () => {
   it('names every problem of every template', async () => {
     await writeEntry('a', { 'template.json': JSON.stringify({ ...template, id: 'b' }) });
     await writeEntry('c', { 'icon.svg': '<svg onload="alert(1)"></svg>' });
-    await writeEntry('d', { 'template.json': JSON.stringify({ ...template, id: 'd', website: 'x' }) });
+    await writeEntry('d', {
+      'template.json': JSON.stringify({ ...template, id: 'd', website: 'x' }),
+    });
     await mkdir(join(dir, 'Bad_Name'));
     const problems = await problemsOf();
     expect(problems).toEqual([
@@ -178,4 +183,3 @@ describe('loadCatalog', () => {
     expect(problems.join('\n')).toMatch(/bomb: .*alias/i);
   });
 });
-

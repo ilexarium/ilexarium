@@ -238,9 +238,7 @@ export class SystemReader {
   }
 
   /** The mount units the disk wrapper wrote in `unitDir` (an absolute path). */
-  async diskUnits(
-    unitDir: string,
-  ): Promise<{ uuid: string | null; where: string }[]> {
+  async diskUnits(unitDir: string): Promise<{ uuid: string | null; where: string }[]> {
     const units = [];
     for (const file of (await this.list(unitDir)) ?? []) {
       if (!file.endsWith('.mount')) continue;

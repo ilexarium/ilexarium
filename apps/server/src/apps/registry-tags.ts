@@ -19,12 +19,16 @@ export function registryOf(image: string): { host: string; repository: string } 
   if (!/^[a-z0-9][a-z0-9._/:-]*$/.test(name) || name.includes('$')) return null;
   const parts = name.split('/');
   const first = parts[0];
-  const hosted = parts.length > 1 && (first.includes('.') || first.includes(':') || first === 'localhost');
+  const hosted =
+    parts.length > 1 && (first.includes('.') || first.includes(':') || first === 'localhost');
   const host = hosted ? first : DOCKER_HUB;
   const rest = hosted ? parts.slice(1) : parts;
   const repository = !hosted && rest.length === 1 ? `library/${rest[0]}` : rest.join('/');
   if (host === 'docker.io' || host === 'index.docker.io') {
-    return { host: DOCKER_HUB, repository: repository.includes('/') ? repository : `library/${repository}` };
+    return {
+      host: DOCKER_HUB,
+      repository: repository.includes('/') ? repository : `library/${repository}`,
+    };
   }
   return repository ? { host, repository } : null;
 }
@@ -73,7 +77,9 @@ export class RegistryTags {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const body = response.body as { tags?: unknown };
       if (Array.isArray(body.tags)) {
-        tags.push(...body.tags.filter((t): t is string => typeof t === 'string' && t.length <= 128));
+        tags.push(
+          ...body.tags.filter((t): t is string => typeof t === 'string' && t.length <= 128),
+        );
       }
       const next = /<([^>]+)>;\s*rel="next"/.exec(response.headers.get('link') ?? '')?.[1];
       url = next ? new URL(next, `https://${host}`).toString() : null;

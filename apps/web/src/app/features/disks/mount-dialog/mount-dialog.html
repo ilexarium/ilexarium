@@ -9,7 +9,9 @@
     <form [formRoot]="form" class="grid gap-4">
       <laris-form-errors [form]="form" />
       <div hlmField>
-        <label hlmFieldLabel for="mount-point">{{ 'disks.mountDialog.mountPoint' | translate }}</label>
+        <label hlmFieldLabel for="mount-point">{{
+          'disks.mountDialog.mountPoint' | translate
+        }}</label>
         <input
           hlmInput
           id="mount-point"
@@ -19,13 +21,17 @@
           [formField]="form.mountPoint"
         />
         <laris-field-errors [field]="form.mountPoint" />
-        <p class="text-sm text-muted-foreground">{{ 'disks.mountDialog.mountPointHelp' | translate }}</p>
+        <p class="text-sm text-muted-foreground">
+          {{ 'disks.mountDialog.mountPointHelp' | translate }}
+        </p>
       </div>
       <label class="flex items-start gap-2 text-sm">
         <input type="checkbox" class="mt-0.5 size-4" [formField]="form.makeMine" />
         <span class="grid gap-0.5">
           <span>{{ 'disks.mountDialog.makeMine' | translate }}</span>
-          <span class="text-muted-foreground">{{ 'disks.mountDialog.makeMineHelp' | translate }}</span>
+          <span class="text-muted-foreground">{{
+            'disks.mountDialog.makeMineHelp' | translate
+          }}</span>
         </span>
       </label>
       <p class="text-sm text-muted-foreground">{{ 'disks.mountDialog.kept' | translate }}</p>

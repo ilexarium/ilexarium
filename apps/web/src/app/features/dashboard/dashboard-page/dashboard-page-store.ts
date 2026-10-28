@@ -219,11 +219,7 @@ export const DashboardPageStore = signalStore(
     }),
   ),
   withHooks(
-    (
-      store,
-      monitoringStore = inject(MonitoringStore),
-      backupsStore = inject(BackupsStore),
-    ) => {
+    (store, monitoringStore = inject(MonitoringStore), backupsStore = inject(BackupsStore)) => {
       const stops: (() => void)[] = [];
       return {
         onInit() {

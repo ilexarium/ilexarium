@@ -59,7 +59,9 @@ export class AppSftp {
         const read = await new Promise<number>((ok, fail) =>
           this.sftp.read(handle, buffer, 0, buffer.length, position, (error, bytes) =>
             // ssh2 reports the end of the file as an error with code 1 (EOF).
-            error && (error as { code?: unknown }).code !== 1 ? fail(toFilesError(error)) : ok(bytes ?? 0),
+            error && (error as { code?: unknown }).code !== 1
+              ? fail(toFilesError(error))
+              : ok(bytes ?? 0),
           ),
         );
         if (read <= 0) break;
@@ -83,7 +85,10 @@ export class AppSftp {
 
   /** Written whole: to a new file beside it, then renamed over it (a crash never leaves half). */
   async writeText(path: string, text: string, mode: number): Promise<void> {
-    const temporary = posix.join(posix.dirname(path), `.${posix.basename(path)}.laris-${process.pid}`);
+    const temporary = posix.join(
+      posix.dirname(path),
+      `.${posix.basename(path)}.laris-${process.pid}`,
+    );
     await call<void>((done) =>
       this.sftp.writeFile(temporary, text, { mode, flag: 'w' }, (error) => done(error)),
     );

@@ -14,7 +14,13 @@ const config = {
 
 describe('backup paths', () => {
   it('allows any folder but the system’s and the platform’s', () => {
-    for (const path of ['/srv/laris/docs', '/home/alice', '/home/alice/Photos', '/data', '/mnt/usb/x']) {
+    for (const path of [
+      '/srv/laris/docs',
+      '/home/alice',
+      '/home/alice/Photos',
+      '/data',
+      '/mnt/usb/x',
+    ]) {
       expect(isAllowedFolder(config, path), path).toBe(true);
     }
   });

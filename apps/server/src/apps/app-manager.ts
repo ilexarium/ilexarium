@@ -194,11 +194,17 @@ export class AppManager {
 
   /** The setup form of a file (a template's or a pasted one). */
   fields(appSessionId: string, request: AppFieldsRequest): AppFields {
-    const template = request.template ? this.catalogService.require(request.template).template : null;
+    const template = request.template
+      ? this.catalogService.require(request.template).template
+      : null;
     return composeFields(request.compose, request.env, template, this.context(appSessionId));
   }
 
-  async install(appSessionId: string, request: AppInstallRequest, actor: LinuxActor): Promise<AppStarted> {
+  async install(
+    appSessionId: string,
+    request: AppInstallRequest,
+    actor: LinuxActor,
+  ): Promise<AppStarted> {
     const account = this.linuxSessions.account(appSessionId);
     const sftp = this.sftp(appSessionId);
     const folder = request.folder ?? posix.join(account.home, APPS_FOLDER, request.name);
@@ -213,7 +219,11 @@ export class AppManager {
     if ((access.system || access.quick === 'sudo') && !account.sudoUnlocked) {
       throw linuxError(FILES_ERROR_CODES.sudoRequired, 'sudo is locked');
     }
-    const details = { name: request.name, folder, ...(request.template && { template: request.template }) };
+    const details = {
+      name: request.name,
+      folder,
+      ...(request.template && { template: request.template }),
+    };
     return this.audited('app.install', actor, details, async () => {
       const created = await sftp.makeFolders(folder);
       const written: string[] = [];
@@ -265,13 +275,23 @@ export class AppManager {
     };
   }
 
-  async task(appSessionId: string, name: string, folderHint: string | undefined, from: number): Promise<AppTask | null> {
+  async task(
+    appSessionId: string,
+    name: string,
+    folderHint: string | undefined,
+    from: number,
+  ): Promise<AppTask | null> {
     const { folder } = await this.locate(appSessionId, name, folderHint);
     return this.appTasks.read(appSessionId, this.sftp(appSessionId), folder, from);
   }
 
   /** Saves both files and applies them (`up`); refused when they changed on disk meanwhile. */
-  async save(appSessionId: string, name: string, request: AppSaveRequest, actor: LinuxActor): Promise<AppStarted> {
+  async save(
+    appSessionId: string,
+    name: string,
+    request: AppSaveRequest,
+    actor: LinuxActor,
+  ): Promise<AppStarted> {
     const sftp = this.sftp(appSessionId);
     const folder = request.folder;
     const files = await this.readFiles(sftp, folder);
@@ -290,7 +310,13 @@ export class AppManager {
   }
 
   /** Update: the running digests saved first (the way back), then pull and start again. */
-  async update(appSessionId: string, name: string, folder: string, actor: LinuxActor, details: Record<string, string> = {}): Promise<AppStarted> {
+  async update(
+    appSessionId: string,
+    name: string,
+    folder: string,
+    actor: LinuxActor,
+    details: Record<string, string> = {},
+  ): Promise<AppStarted> {
     const sftp = this.sftp(appSessionId);
     await this.notBusy(appSessionId, sftp, folder);
     return this.audited('app.update', actor, { name, folder, ...details }, async () => {
@@ -302,40 +328,67 @@ export class AppManager {
   }
 
   /** A pasted file's fixed tag changed in its `image:` line (comments kept), then Update. */
-  async imageTag(appSessionId: string, name: string, request: AppImageTagRequest, actor: LinuxActor): Promise<AppStarted> {
+  async imageTag(
+    appSessionId: string,
+    name: string,
+    request: AppImageTagRequest,
+    actor: LinuxActor,
+  ): Promise<AppStarted> {
     const sftp = this.sftp(appSessionId);
     const files = await this.readFiles(sftp, request.folder);
     const changed = withImageTag(files.compose, request.service, request.tag);
-    if (changed === null) throw appError(APP_ERROR_CODES.serviceNotFound, 'No such service or image line');
+    if (changed === null)
+      throw appError(APP_ERROR_CODES.serviceNotFound, 'No such service or image line');
     await sftp.writeText(posix.join(request.folder, files.composeName), changed, 0o644);
-    return this.update(appSessionId, name, request.folder, actor, { service: request.service, tag: request.tag });
+    return this.update(appSessionId, name, request.folder, actor, {
+      service: request.service,
+      tag: request.tag,
+    });
   }
 
   /**
    * "Use the current template": the old file kept beside it, the template's written, `.env` kept
    * with the new variables added (defaults, new secrets). The person looks, then updates.
    */
-  async useTemplate(appSessionId: string, name: string, folder: string, actor: LinuxActor): Promise<AppDetails> {
+  async useTemplate(
+    appSessionId: string,
+    name: string,
+    folder: string,
+    actor: LinuxActor,
+  ): Promise<AppDetails> {
     const sftp = this.sftp(appSessionId);
     const files = await this.readFiles(sftp, folder);
-    const label = this.labelIn(files.compose) ?? (await this.locate(appSessionId, name, folder)).summary.template;
+    const label =
+      this.labelIn(files.compose) ??
+      (await this.locate(appSessionId, name, folder)).summary.template;
     if (!label) throw appError(APP_ERROR_CODES.templateNotFound, 'This app has no template');
     const entry = this.catalogService.require(label.id);
-    await this.audited('app.change', actor, { name, folder, template: `${label.id}@${entry.template.version}` }, async () => {
-      const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const names = await sftp.list(folder);
-      let kept = `${files.composeName}.before-template-${date}`;
-      for (let n = 2; names.includes(kept); n++) kept = `${files.composeName}.before-template-${date}-${n}`;
-      await sftp.rename(posix.join(folder, files.composeName), posix.join(folder, kept));
-      await sftp.writeText(posix.join(folder, files.composeName), entry.compose, 0o644);
-      const known = parseEnv(files.env);
-      const added: Record<string, string> = {};
-      for (const field of composeFields(entry.compose, files.env, entry.template, this.context(appSessionId)).fields) {
-        if (!known.has(field.key)) added[field.key] = field.value;
-      }
-      await sftp.writeText(posix.join(folder, ENV_FILE), setEnvValues(files.env, added), 0o600);
-      return null;
-    });
+    await this.audited(
+      'app.change',
+      actor,
+      { name, folder, template: `${label.id}@${entry.template.version}` },
+      async () => {
+        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const names = await sftp.list(folder);
+        let kept = `${files.composeName}.before-template-${date}`;
+        for (let n = 2; names.includes(kept); n++)
+          kept = `${files.composeName}.before-template-${date}-${n}`;
+        await sftp.rename(posix.join(folder, files.composeName), posix.join(folder, kept));
+        await sftp.writeText(posix.join(folder, files.composeName), entry.compose, 0o644);
+        const known = parseEnv(files.env);
+        const added: Record<string, string> = {};
+        for (const field of composeFields(
+          entry.compose,
+          files.env,
+          entry.template,
+          this.context(appSessionId),
+        ).fields) {
+          if (!known.has(field.key)) added[field.key] = field.value;
+        }
+        await sftp.writeText(posix.join(folder, ENV_FILE), setEnvValues(files.env, added), 0o600);
+        return null;
+      },
+    );
     return this.details(appSessionId, name, folder);
   }
 
@@ -345,7 +398,11 @@ export class AppManager {
     const files = await this.readFiles(sftp, folder);
     const mounts = composeMounts(files.compose, files.env, folder, name);
     const paths = [folder, ...mounts.folders.filter((path) => path !== folder)];
-    const answer = await this.linuxSessions.ask(appSessionId, { action: 'paths.size', paths }, { timeoutMs: LONG_MS });
+    const answer = await this.linuxSessions.ask(
+      appSessionId,
+      { action: 'paths.size', paths },
+      { timeoutMs: LONG_MS },
+    );
     const sizes = answer.ok ? (answer['sizes'] as Record<string, { bytes: number | null }>) : {};
     const items: AppRemovalItem[] = [
       { kind: 'settings', path: folder, bytes: null, outside: false },
@@ -359,13 +416,23 @@ export class AppManager {
           bytes: sizes[path]?.bytes ?? null,
           outside: !inside(path, folder),
         })),
-      ...mounts.volumes.map((volume) => ({ kind: 'volume' as const, path: volume, bytes: null, outside: false })),
+      ...mounts.volumes.map((volume) => ({
+        kind: 'volume' as const,
+        path: volume,
+        bytes: null,
+        outside: false,
+      })),
     ];
     return { items };
   }
 
   /** `docker compose down`, as a task; what to delete comes after it, with `delete`. */
-  async remove(appSessionId: string, name: string, folder: string, actor: LinuxActor): Promise<AppStarted> {
+  async remove(
+    appSessionId: string,
+    name: string,
+    folder: string,
+    actor: LinuxActor,
+  ): Promise<AppStarted> {
     const sftp = this.sftp(appSessionId);
     await this.notBusy(appSessionId, sftp, folder);
     return this.audited('app.remove', actor, { name, folder }, async () => {
@@ -379,7 +446,12 @@ export class AppManager {
    * what containers wrote as another user. Every inside folder and the settings ticked: the whole
    * app folder goes.
    */
-  async delete(appSessionId: string, name: string, request: AppDeleteRequest, actor: LinuxActor): Promise<void> {
+  async delete(
+    appSessionId: string,
+    name: string,
+    request: AppDeleteRequest,
+    actor: LinuxActor,
+  ): Promise<void> {
     const sftp = this.sftp(appSessionId);
     const { folder } = request;
     const task = await this.appTasks.read(appSessionId, sftp, folder);
@@ -389,10 +461,20 @@ export class AppManager {
     const files = await this.readFiles(sftp, folder);
     const mounts = composeMounts(files.compose, files.env, folder, name);
     // Only what the removal listed: never another path.
-    const folders = request.folders.filter((path) => mounts.folders.includes(path) && path !== folder);
+    const folders = request.folders.filter(
+      (path) => mounts.folders.includes(path) && path !== folder,
+    );
     const volumes = request.volumes.filter((volume) => mounts.volumes.includes(volume));
-    const insideAll = mounts.folders.filter((path) => path !== folder && inside(path, folder)).every((path) => folders.includes(path));
-    const details = { name, folder, folders: folders.length, volumes: volumes.length, settings: request.settings };
+    const insideAll = mounts.folders
+      .filter((path) => path !== folder && inside(path, folder))
+      .every((path) => folders.includes(path));
+    const details = {
+      name,
+      folder,
+      folders: folders.length,
+      volumes: volumes.length,
+      settings: request.settings,
+    };
     await this.audited('app.delete', actor, details, async () => {
       if (volumes.length > 0) {
         const access = await this.appTasks.dockerAccess(appSessionId);
@@ -406,7 +488,16 @@ export class AppManager {
       const whole = request.settings && insideAll;
       const targets = whole
         ? [folder, ...folders.filter((path) => !inside(path, folder))]
-        : [...folders, ...(request.settings ? [posix.join(folder, files.composeName), posix.join(folder, ENV_FILE), posix.join(folder, LARIS_DIR)] : [])];
+        : [
+            ...folders,
+            ...(request.settings
+              ? [
+                  posix.join(folder, files.composeName),
+                  posix.join(folder, ENV_FILE),
+                  posix.join(folder, LARIS_DIR),
+                ]
+              : []),
+          ];
       if (targets.length > 0) await this.removePaths(appSessionId, targets);
       return null;
     });
@@ -414,7 +505,11 @@ export class AppManager {
 
   /** As the account first; what it may not delete (a container's files) through its sudo. */
   private async removePaths(appSessionId: string, paths: string[]): Promise<void> {
-    const own = await this.linuxSessions.ask(appSessionId, { action: 'paths.remove', paths, administrator: false }, { timeoutMs: LONG_MS });
+    const own = await this.linuxSessions.ask(
+      appSessionId,
+      { action: 'paths.remove', paths, administrator: false },
+      { timeoutMs: LONG_MS },
+    );
     if (own.ok) return;
     if (own.error !== 'not_permitted') throw helperError(own);
     const root = await this.linuxSessions.ask(
@@ -442,9 +537,15 @@ export class AppManager {
   }
 
   /** Where an app's folder is: Docker's label, else the hint, else `~/apps/<name>`. */
-  private async locate(appSessionId: string, name: string, hint?: string): Promise<{ folder: string; summary: AppSummary }> {
+  private async locate(
+    appSessionId: string,
+    name: string,
+    hint?: string,
+  ): Promise<{ folder: string; summary: AppSummary }> {
     const containers = await this.dockerService.listContainers().catch(() => []);
-    const known = appsFromContainers(containers, (id) => this.catalogService.webPort(id)).find((app) => app.name === name);
+    const known = appsFromContainers(containers, (id) => this.catalogService.webPort(id)).find(
+      (app) => app.name === name,
+    );
     const home = this.linuxSessions.account(appSessionId).home;
     const folder = known?.folder ?? hint ?? posix.join(home, APPS_FOLDER, name);
     const summary: AppSummary = known ?? {
@@ -464,7 +565,10 @@ export class AppManager {
     return COMPOSE_FILES.find((name) => names.includes(name)) ?? null;
   }
 
-  private async readFiles(sftp: AppSftp, folder: string): Promise<{ compose: string; env: string; composeName: string }> {
+  private async readFiles(
+    sftp: AppSftp,
+    folder: string,
+  ): Promise<{ compose: string; env: string; composeName: string }> {
     const composeName = await this.composeFileIn(sftp, folder).catch((error: unknown) => {
       if (filesCode(error) === FILES_ERROR_CODES.permissionDenied) throw error;
       return null;
@@ -476,13 +580,20 @@ export class AppManager {
   }
 
   private labelIn(compose: string): { id: string; version: string } | null {
-    const match = /laris\.template['"]?\s*[:=]\s*['"]?([a-z0-9][a-z0-9-]{0,39}@[0-9]{1,6})/.exec(compose);
+    const match = /laris\.template['"]?\s*[:=]\s*['"]?([a-z0-9][a-z0-9-]{0,39}@[0-9]{1,6})/.exec(
+      compose,
+    );
     const parts = match ? TEMPLATE_LABEL_PATTERN.exec(match[1]) : null;
     return parts ? { id: parts[1], version: parts[2] } : null;
   }
 
   /** Folders a Compose file mounts that don't exist yet: made as the person (Docker would make them as root). */
-  private async makeDataFolders(sftp: AppSftp, compose: string, env: string, folder: string): Promise<string[]> {
+  private async makeDataFolders(
+    sftp: AppSftp,
+    compose: string,
+    env: string,
+    folder: string,
+  ): Promise<string[]> {
     const created: string[] = [];
     for (const path of composeMounts(compose, env, folder, 'app').folders) {
       // A file mounted (a config file) is the person's to create; only folders without a dot-name are made.
@@ -498,7 +609,9 @@ export class AppManager {
   }
 
   private async beforeUpdate(sftp: AppSftp, folder: string): Promise<AppBeforeUpdate | null> {
-    const text = await sftp.readText(posix.join(folder, BEFORE_UPDATE_FILE), 64 * 1024).catch(() => null);
+    const text = await sftp
+      .readText(posix.join(folder, BEFORE_UPDATE_FILE), 64 * 1024)
+      .catch(() => null);
     if (!text) return null;
     try {
       return JSON.parse(text) as AppBeforeUpdate;
@@ -508,7 +621,12 @@ export class AppManager {
   }
 
   /** `.laris/before-update.json`: each service's image, tag and the digest it ran. */
-  private async saveDigests(appSessionId: string, sftp: AppSftp, folder: string, project: string): Promise<void> {
+  private async saveDigests(
+    appSessionId: string,
+    sftp: AppSftp,
+    folder: string,
+    project: string,
+  ): Promise<void> {
     const access = await this.appTasks.dockerAccess(appSessionId);
     const answer = await this.linuxSessions.ask(
       appSessionId,
@@ -521,18 +639,35 @@ export class AppManager {
       throw helperError(answer);
     }
     const containers = await this.dockerService.listContainers().catch(() => []);
-    const images = (answer['images'] as { container: string; repository: string; tag: string; digests: string[] }[])
+    const images = (
+      answer['images'] as {
+        container: string;
+        repository: string;
+        tag: string;
+        digests: string[];
+      }[]
+    )
       .map((image) => {
         const container = containers.find((c) => c.name === image.container);
-        const digest = image.digests.find((d) => splitImage(d).image === image.repository) ?? image.digests[0];
+        const digest =
+          image.digests.find((d) => splitImage(d).image === image.repository) ?? image.digests[0];
         const service = container?.name ?? image.container;
-        return digest ? { service, image: image.repository, tag: image.tag, digest: digest.split('@')[1] ?? '' } : null;
+        return digest
+          ? { service, image: image.repository, tag: image.tag, digest: digest.split('@')[1] ?? '' }
+          : null;
       })
-      .filter((image): image is AppBeforeUpdate['images'][number] => image !== null && image.digest !== '');
+      .filter(
+        (image): image is AppBeforeUpdate['images'][number] =>
+          image !== null && image.digest !== '',
+      );
     if (images.length === 0) return;
     const record: AppBeforeUpdate = { at: new Date().toISOString(), images };
     await sftp.makeFolders(posix.join(folder, LARIS_DIR), 0o700);
-    await sftp.writeText(posix.join(folder, BEFORE_UPDATE_FILE), `${JSON.stringify(record, null, 2)}\n`, 0o600);
+    await sftp.writeText(
+      posix.join(folder, BEFORE_UPDATE_FILE),
+      `${JSON.stringify(record, null, 2)}\n`,
+      0o600,
+    );
   }
 
   /** `requested` first (no record, no action), then the outcome — like every change as the person. */
@@ -562,7 +697,8 @@ export class AppManager {
     } catch (error) {
       const code = filesCode(error) ?? 'failed';
       await this.auditService.tryRecord(entry('failure', code));
-      if (code === 'failed') this.logger.warn(`${action} ${details['name']}: ${(error as Error).message}`);
+      if (code === 'failed')
+        this.logger.warn(`${action} ${details['name']}: ${(error as Error).message}`);
       throw error;
     }
   }

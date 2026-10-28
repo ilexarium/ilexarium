@@ -84,7 +84,8 @@ export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
     if (!item.archives.includes(request.archive)) {
       throw new NotFoundException(apiError('No such backup', BACKUP_ERROR_CODES.archiveNotFound));
     }
-    if (request.target !== null) this.backupChecks.checkRestoreTarget(request.target, plan.destination);
+    if (request.target !== null)
+      this.backupChecks.checkRestoreTarget(request.target, plan.destination);
     const row = await this.prisma.backupRestore.create({
       data: {
         itemId: item.id,
@@ -129,7 +130,9 @@ export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
   async discardPrevious(id: string, actor: RootActor): Promise<BackupRestore> {
     const row = await this.prisma.backupRestore.findUnique({ where: { id } });
     if (!row || row.setAside.length === 0 || row.setAsideDeletedAt) {
-      throw new NotFoundException(apiError('Nothing set aside', BACKUP_ERROR_CODES.restoreNotFound));
+      throw new NotFoundException(
+        apiError('Nothing set aside', BACKUP_ERROR_CODES.restoreNotFound),
+      );
     }
     for (const path of row.setAside) {
       const outcome = await this.rootPrograms.backupDiscard(path, actor);
@@ -176,7 +179,7 @@ export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
     if (this.reading) return;
     this.reading = true;
     try {
-      for (const id of [...this.following.keys()]) await this.read(id);
+      for (const id of this.following.keys()) await this.read(id);
     } catch (error) {
       this.logger.error('Could not follow a restore', error);
     } finally {

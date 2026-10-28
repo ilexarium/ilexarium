@@ -31,7 +31,9 @@
         }
       </fieldset>
       @if (warnOutside()) {
-        <p role="alert" class="text-sm text-destructive">{{ 'apps.remove.outsideWarning' | translate }}</p>
+        <p role="alert" class="text-sm text-destructive">
+          {{ 'apps.remove.outsideWarning' | translate }}
+        </p>
       }
       <p class="text-sm text-muted-foreground">{{ 'apps.remove.backupsStay' | translate }}</p>
     } @else {
@@ -41,7 +43,12 @@
     }
     <hlm-alert-dialog-footer>
       <button hlmAlertDialogCancel>{{ 'apps.remove.cancel' | translate }}</button>
-      <button hlmAlertDialogAction variant="destructive" [disabled]="!items()" (click)="confirmed()">
+      <button
+        hlmAlertDialogAction
+        variant="destructive"
+        [disabled]="!items()"
+        (click)="confirmed()"
+      >
         @if (count() > 0) {
           {{ 'apps.remove.confirmDelete' | plural: count() }}
         } @else {

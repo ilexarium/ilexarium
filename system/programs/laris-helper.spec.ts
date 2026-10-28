@@ -248,19 +248,31 @@ describe('laris-helper', () => {
       '-nG',
     ]);
     writeFileSync(join(dir, 'systemd-run-exit.txt'), '1');
-    expect(await ask({ action: 'docker.access' })).toMatchObject({ userUnits: false, unitDocker: false });
+    expect(await ask({ action: 'docker.access' })).toMatchObject({
+      userUnits: false,
+      unitDocker: false,
+    });
   });
 
   it('starts an app’s task as a unit: its log in the app’s folder, its result added at the end', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(app, { recursive: true });
-    const started = await ask({ action: 'app.task', folder: app, project: 'music', task: 'update', system: false });
+    const started = await ask({
+      action: 'app.task',
+      folder: app,
+      project: 'music',
+      task: 'update',
+      system: false,
+    });
     expect(started).toMatchObject({ ok: true, system: false, action: 'update' });
     const unit = started['unit'] as string;
     expect(unit).toMatch(/^laris-app-music-update-\d{8}T\d{6}$/);
     const log = join(app, '.laris', 'tasks', started['log'] as string);
     expect(existsSync(log)).toBe(true);
-    expect(JSON.parse(readFileSync(join(app, '.laris', 'task.json'), 'utf8'))).toMatchObject({ unit, system: false });
+    expect(JSON.parse(readFileSync(join(app, '.laris', 'task.json'), 'utf8'))).toMatchObject({
+      unit,
+      system: false,
+    });
     expect(calls('systemd-run')[0]?.args).toEqual([
       '--user',
       `--unit=${unit}`,
@@ -299,9 +311,17 @@ describe('laris-helper', () => {
   it('asks a unit’s state without sudo; refuses a unit not of its own naming', async () => {
     writeFileSync(join(dir, 'systemctl-out.txt'), 'active\n');
     expect(
-      await ask({ action: 'app.taskState', unit: 'laris-app-music-up-20261028T120000', system: true }),
+      await ask({
+        action: 'app.taskState',
+        unit: 'laris-app-music-up-20261028T120000',
+        system: true,
+      }),
     ).toEqual({ ok: true, active: 'active' });
-    expect(calls('systemctl')[0]?.args).toEqual(['is-active', '--', 'laris-app-music-up-20261028T120000.service']);
+    expect(calls('systemctl')[0]?.args).toEqual([
+      'is-active',
+      '--',
+      'laris-app-music-up-20261028T120000.service',
+    ]);
     expect(await ask({ action: 'app.taskState', unit: 'sshd', system: true })).toEqual({
       ok: false,
       error: 'bad_request',
@@ -311,14 +331,21 @@ describe('laris-helper', () => {
   it('checks a Compose file in its folder, saying what Compose said', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(app, { recursive: true });
-    expect(await ask({ action: 'compose.check', folder: app, project: 'music', docker: 'direct' })).toEqual({ ok: true });
+    expect(
+      await ask({ action: 'compose.check', folder: app, project: 'music', docker: 'direct' }),
+    ).toEqual({ ok: true });
     expect(calls('docker')[0]).toMatchObject({
       args: ['compose', '--project-name', 'music', 'config', '--quiet'],
       cwd: app,
     });
     writeFileSync(join(dir, 'docker-exit.txt'), '15');
-    writeFileSync(join(dir, 'docker-err.txt'), 'services.x additional property bad is not allowed\n');
-    expect(await ask({ action: 'compose.check', folder: app, project: 'music', docker: 'direct' })).toEqual({
+    writeFileSync(
+      join(dir, 'docker-err.txt'),
+      'services.x additional property bad is not allowed\n',
+    );
+    expect(
+      await ask({ action: 'compose.check', folder: app, project: 'music', docker: 'direct' }),
+    ).toEqual({
       ok: false,
       error: 'compose_invalid',
       message: 'services.x additional property bad is not allowed',
@@ -331,27 +358,60 @@ describe('laris-helper', () => {
       ok: true,
       sizes: { '/srv/x': { bytes: 4096, partial: false } },
     });
-    for (const path of ['/', '/etc', '/home', '/home/anna', '/var/lib/docker/x', '/opt/laris', '/usr/lib']) {
-      expect(await ask({ action: 'paths.remove', paths: [path], administrator: false }), path).toEqual({
+    for (const path of [
+      '/',
+      '/etc',
+      '/home',
+      '/home/anna',
+      '/var/lib/docker/x',
+      '/opt/laris',
+      '/usr/lib',
+    ]) {
+      expect(
+        await ask({ action: 'paths.remove', paths: [path], administrator: false }),
+        path,
+      ).toEqual({
         ok: false,
         error: 'path_protected',
       });
     }
-    expect(await ask({ action: 'paths.remove', paths: ['/home/anna/apps/x'], administrator: false })).toEqual({ ok: true });
-    expect(calls('rm').at(-1)?.args).toEqual(['-r', '-f', '--one-file-system', '--', '/home/anna/apps/x']);
-    expect(await ask({ action: 'paths.remove', paths: ['relative'], administrator: false })).toEqual({
+    expect(
+      await ask({ action: 'paths.remove', paths: ['/home/anna/apps/x'], administrator: false }),
+    ).toEqual({ ok: true });
+    expect(calls('rm').at(-1)?.args).toEqual([
+      '-r',
+      '-f',
+      '--one-file-system',
+      '--',
+      '/home/anna/apps/x',
+    ]);
+    expect(
+      await ask({ action: 'paths.remove', paths: ['relative'], administrator: false }),
+    ).toEqual({
       ok: false,
       error: 'bad_request',
     });
   });
 
   it('runs a root program through sudo -n, its input on stdin — only its known actions', async () => {
-    const request = { action: 'root.run', program: 'backup', command: 'start', input: '{"runId":"r"}' };
+    const request = {
+      action: 'root.run',
+      program: 'backup',
+      command: 'start',
+      input: '{"runId":"r"}',
+    };
     expect(await ask(request)).toEqual({ ok: false, error: 'sudo_required' });
     await ask({ action: 'sudo.unlock', password: 'right' });
     writeFileSync(join(dir, 'laris-backup.mts-out.txt'), '@@result {"started":true}\n');
-    expect(await ask(request)).toEqual({ ok: true, code: 0, output: '@@result {"started":true}\n' });
-    expect(calls('laris-backup.mts').at(-1)).toMatchObject({ args: ['start'], input: '{"runId":"r"}' });
+    expect(await ask(request)).toEqual({
+      ok: true,
+      code: 0,
+      output: '@@result {"started":true}\n',
+    });
+    expect(calls('laris-backup.mts').at(-1)).toMatchObject({
+      args: ['start'],
+      input: '{"runId":"r"}',
+    });
     for (const bad of [
       { ...request, command: 'run-scheduled' },
       { ...request, program: 'compose' },

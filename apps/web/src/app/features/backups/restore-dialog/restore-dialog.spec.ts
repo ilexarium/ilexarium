@@ -1,25 +1,18 @@
 import { Component, signal, viewChild } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { BackupArchive, BackupItem } from '@laris/shared';
+import { testAppItem, testItem } from '../../../core/backups/testing';
 import type { ItemLabel, ItemRow, RestoreChoice } from '../backups.model';
 import { RestoreDialog } from './restore-dialog';
 
 const ITEM = '0193a000-0000-7000-8000-000000000002';
 
-const row = (kind: BackupItem['kind'], removed = false): ItemRow => ({
-  item: {
-    id: ITEM,
-    kind,
-    serviceId: null,
-    catalogId: kind === 'service' ? 'immich' : null,
-    path: kind === 'folder' ? '/srv/x' : null,
-    excludedFields: [],
-    removed,
-    lastSuccessAt: null,
-    lastResult: null,
-  },
-  name: 'Immich',
-  folders: [],
+const row = (kind: BackupItem['kind'], appRemoved = false): ItemRow => ({
+  item:
+    kind === 'app'
+      ? testAppItem('immich', { id: ITEM, appRemoved })
+      : testItem({ id: ITEM, kind, path: kind === 'folder' ? '/srv/x' : null }),
+  name: 'immich',
 });
 
 @Component({
@@ -56,43 +49,48 @@ async function open(r: ItemRow) {
   return fixture;
 }
 
+const folderInput = () => dialog().querySelector<HTMLInputElement>('input[dir="ltr"]')!;
+
 describe('RestoreDialog', () => {
   afterEach(() => document.querySelectorAll('[role="alertdialog"]').forEach((d) => d.remove()));
 
-  it('restores a service in place by default, from the newest backup', async () => {
-    const fixture = await open(row('service'));
+  it('restores an app back where it was by default, from the newest backup', async () => {
+    const fixture = await open(row('app'));
     expect(dialog().textContent).toContain('current folders are set aside');
     button('Restore in place').click();
     await fixture.whenStable();
     expect(fixture.componentInstance.chosen()).toEqual({
       itemId: ITEM,
       archive: `${ITEM}-2026-10-14T03:00:00`,
-      target: 'inPlace',
+      target: null,
     });
   });
 
-  it('restores an older backup to a new folder when chosen', async () => {
-    const fixture = await open(row('service'));
+  it('restores an older backup into a chosen folder — never a system folder', async () => {
+    const fixture = await open(row('app'));
     dialog().querySelectorAll<HTMLInputElement>('input[name="archive"]')[1].click();
     dialog().querySelectorAll<HTMLInputElement>('input[name="target"]')[1].click();
+    await fixture.whenStable();
+    folderInput().value = '/etc/restored';
+    folderInput().dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(button('Restore').disabled).toBe(true);
+    expect(dialog().textContent).toContain('system folder');
+    folderInput().value = ' /home/anna/restored ';
+    folderInput().dispatchEvent(new Event('input'));
     await fixture.whenStable();
     button('Restore').click();
     await fixture.whenStable();
     expect(fixture.componentInstance.chosen()).toEqual({
       itemId: ITEM,
       archive: `${ITEM}-2026-10-13T03:00:00`,
-      target: 'newFolder',
+      target: '/home/anna/restored',
     });
   });
 
-  it('offers folders only a new folder', async () => {
-    await open(row('folder'));
+  it('offers this app’s own data only a folder', async () => {
+    await open(row('platform'));
     expect(dialog().querySelectorAll('input[name="target"]')).toHaveLength(1);
     expect(dialog().textContent).not.toContain('Back in place');
-  });
-
-  it('says to install a removed service again after restoring it', async () => {
-    await open(row('service', true));
-    expect(dialog().textContent).toContain('Then install the service again');
   });
 });

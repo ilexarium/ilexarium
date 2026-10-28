@@ -19,8 +19,7 @@ const disk = testAlert({
   kind: 'diskFull',
   subject: '/mnt/usb',
   severity: 'warning',
-  catalogId: null,
-  serviceName: null,
+  app: null,
   percent: 93,
   acknowledgedAt: '2026-10-17T13:00:00.000Z',
   acknowledgedBy: 'owner',
@@ -30,8 +29,7 @@ const resolvedBackup = testAlert({
   kind: 'backup',
   subject: 'lastRunFailed',
   severity: 'warning',
-  catalogId: null,
-  serviceName: null,
+  app: null,
   warning: 'lastRunFailed',
   closedAt: '2026-10-18T09:00:00.000Z',
 });
@@ -75,7 +73,7 @@ describe('AlertsMenu', () => {
     expect(menu.textContent).toContain('2 open');
     expect(menu.getAttribute('aria-label')).toBe('Alerts: 2 open');
     const [first, second, all] = items();
-    expect(first.textContent).toContain('Immich');
+    expect(first.textContent).toContain('immich');
     expect(first.getAttribute('href')).toBe('/containers/hl-immich-server-1/logs');
     expect(second.textContent).toContain('/mnt/usb');
     expect(second.textContent).toContain('Acknowledged');

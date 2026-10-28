@@ -16,8 +16,9 @@ export function orderVersions(tags: readonly string[]): string[] {
   const kept = tags
     .filter((tag) => !HIDDEN_TAG.test(tag) && !NOISE_TAG.test(tag))
     .map((tag) => ({ tag, parts: parts(tag) }))
-    .filter((entry): entry is { tag: string; parts: NonNullable<ReturnType<typeof parts>> } =>
-      entry.parts !== null,
+    .filter(
+      (entry): entry is { tag: string; parts: NonNullable<ReturnType<typeof parts>> } =>
+        entry.parts !== null,
     );
   kept.sort((a, b) => {
     const length = Math.max(a.parts.numbers.length, b.parts.numbers.length);

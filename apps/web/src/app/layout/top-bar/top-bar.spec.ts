@@ -171,6 +171,6 @@ describe('TopBar alerts bell', () => {
     expect(bell.getAttribute('aria-label')).toBe('Alerts: 2 open');
     bell.click();
     await fixture.whenStable();
-    expect(document.querySelector('[data-slot="dropdown-menu"]')!.textContent).toContain('Immich');
+    expect(document.querySelector('[data-slot="dropdown-menu"]')!.textContent).toContain('immich');
   });
 });

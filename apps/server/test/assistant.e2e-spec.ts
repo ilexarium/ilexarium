@@ -67,7 +67,6 @@ describe('assistant (e2e)', () => {
     };
   }
 
-
   /** The streamed answer, as its lines. */
   async function chat(cookie: string, body: object) {
     const response = await as(cookie).post('/assistant/chat', body);

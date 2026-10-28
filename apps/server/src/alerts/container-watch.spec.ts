@@ -64,10 +64,7 @@ describe('ContainerWatch', () => {
       watch.died('immich', 'immich', 1_000);
       watch.seen([{ name: 'immich', app: 'immich', running: true, health: 'healthy' }], 500);
       expect(kinds(watch, 1_000 + DOWN_AFTER_MS)).toEqual(['serviceDown:immich:critical']);
-      watch.seen(
-        [{ name: 'immich', app: 'immich', running: true, health: 'healthy' }],
-        2_000,
-      );
+      watch.seen([{ name: 'immich', app: 'immich', running: true, health: 'healthy' }], 2_000);
       expect(kinds(watch, 1_000 + DOWN_AFTER_MS)).toEqual([]);
     });
 
@@ -78,10 +75,7 @@ describe('ContainerWatch', () => {
 
     it('a list showing it stopped doesn’t count when the app stopped it, or on purpose', () => {
       watch.expect('immich', 0);
-      watch.seen(
-        [{ name: 'immich', app: 'immich', running: false, health: 'none' }],
-        5 * MINUTE,
-      );
+      watch.seen([{ name: 'immich', app: 'immich', running: false, health: 'none' }], 5 * MINUTE);
       expect(kinds(watch, 10 * MINUTE)).toEqual([]);
 
       const other = new ContainerWatch();
@@ -150,10 +144,7 @@ describe('ContainerWatch', () => {
 
     it('counts from the first failure, not from each list', () => {
       watch.health('immich', 'immich', 'unhealthy', 0);
-      watch.seen(
-        [{ name: 'immich', app: 'immich', running: true, health: 'unhealthy' }],
-        MINUTE,
-      );
+      watch.seen([{ name: 'immich', app: 'immich', running: true, health: 'unhealthy' }], MINUTE);
       expect(kinds(watch, 2 * MINUTE)).toEqual(['unhealthy:immich:warning']);
     });
   });

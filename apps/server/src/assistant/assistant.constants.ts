@@ -1,6 +1,7 @@
 /** The catalog entry that runs the models, and its fields. */
 /** Ollama's image, with or without Docker Hub's name in front (any tag). */
-export const OLLAMA_IMAGE = /^(?:(?:docker\.io|registry-1\.docker\.io)\/)?ollama\/ollama(?::[^/@]+)?(?:@sha256:[0-9a-f]{64})?$/;
+export const OLLAMA_IMAGE =
+  /^(?:(?:docker\.io|registry-1\.docker\.io)\/)?ollama\/ollama(?::[^/@]+)?(?:@sha256:[0-9a-f]{64})?$/;
 /** Its API inside the container. */
 export const OLLAMA_API_PORT = 11434;
 /** Published where this machine reaches it at 127.0.0.1. */

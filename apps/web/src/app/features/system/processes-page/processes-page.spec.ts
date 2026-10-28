@@ -47,7 +47,7 @@ const IMMICH = proc({
   user: 'root',
   cpuPercent: 12,
   memoryBytes: 1e9,
-  container: { name: 'immich-server', catalogId: 'immich' },
+  container: { name: 'immich-server', app: 'immich' },
 });
 const KTHREAD = proc({
   pid: 2,

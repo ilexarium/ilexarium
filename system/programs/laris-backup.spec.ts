@@ -284,7 +284,10 @@ describe('laris-backup configure', () => {
     ['a folder in /etc', () => withItem({ id: RUN, kind: 'folder', path: '/etc' })],
     ['a folder in /root', () => withItem({ id: RUN, kind: 'folder', path: '/root/secrets' })],
     ['all of /', () => withItem({ id: RUN, kind: 'folder', path: '/' })],
-    ['Docker’s own folder', () => withItem({ id: RUN, kind: 'folder', path: '/var/lib/docker/volumes' })],
+    [
+      'Docker’s own folder',
+      () => withItem({ id: RUN, kind: 'folder', path: '/var/lib/docker/volumes' }),
+    ],
     [
       'a platform folder',
       () => withItem({ id: RUN, kind: 'folder', path: join(storage, 'platform') }),
@@ -315,7 +318,8 @@ describe('laris-backup configure', () => {
     ],
     [
       'an app skip with ..',
-      () => withItem({ ...plan().items[1], id: RUN, skip: [join(storage, 'demo', 'data', '..', 'x')] }),
+      () =>
+        withItem({ ...plan().items[1], id: RUN, skip: [join(storage, 'demo', 'data', '..', 'x')] }),
     ],
     ['an app without a mode', () => withItem({ ...plan().items[1], id: RUN, mode: 'pause' })],
     [
@@ -868,12 +872,11 @@ describe('laris-backup restore', () => {
   it('back where it was: stops the app, sets the current folders aside, extracts, starts it again', async () => {
     const result = await restore(restoreInput());
     expect(result.code, result.lines.join('\n')).toBe(0);
-    expect(events().filter((e) => e.type === 'phase').map((e) => e.phase)).toEqual([
-      'stopping',
-      'restoring',
-      'starting',
-      'done',
-    ]);
+    expect(
+      events()
+        .filter((e) => e.type === 'phase')
+        .map((e) => e.phase),
+    ).toEqual(['stopping', 'restoring', 'starting', 'done']);
     const data = join(storage, 'demo', 'data');
     const setAside = done()!.setAside as string[];
     expect(done()).toMatchObject({ status: 'succeeded', errorCode: null });
@@ -915,9 +918,7 @@ describe('laris-backup restore', () => {
 
   it('into a chosen folder: everything with its full paths, nothing stopped', async () => {
     const target = join(dir, 'restored');
-    const result = await restore(
-      restoreInput({ itemId: FOLDER, archive: folderArchive, target }),
-    );
+    const result = await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(done()).toMatchObject({ status: 'succeeded', setAside: [] });
     expect(existsSync(join(target, join(storage, 'docs').slice(1), 'restored.txt'))).toBe(true);
@@ -935,7 +936,10 @@ describe('laris-backup restore', () => {
 
   it('the platform only into a folder', async () => {
     expectRefused(
-      await wrapper('restore-start', restoreInput({ itemId: PLATFORM, archive: archive.replace(SERVICE, PLATFORM) })),
+      await wrapper(
+        'restore-start',
+        restoreInput({ itemId: PLATFORM, archive: archive.replace(SERVICE, PLATFORM) }),
+      ),
       'invalid_request',
     );
   });
@@ -949,7 +953,10 @@ describe('laris-backup restore', () => {
       await wrapper('restore-start', restoreInput({ archive: `${SERVICE}-latest` })),
       'invalid_request',
     );
-    expectRefused(await wrapper('restore-start', restoreInput({ target: '/etc' })), 'path_not_allowed');
+    expectRefused(
+      await wrapper('restore-start', restoreInput({ target: '/etc' })),
+      'path_not_allowed',
+    );
     expectRefused(await wrapper('restore-start', restoreInput({ path: '/' })), 'invalid_request');
     expect(calls('systemctl')).toEqual([]);
   });
@@ -1044,7 +1051,11 @@ describe('laris-backup check-scheduled', () => {
 
 describe('laris-backup and the platform’s folders', () => {
   it('never backs up the platform’s own folders, nor a folder holding them', async () => {
-    for (const path of [join(storage, 'platform'), join(storage, 'platform', 'x'), '/var/lib/laris/backups']) {
+    for (const path of [
+      join(storage, 'platform'),
+      join(storage, 'platform', 'x'),
+      '/var/lib/laris/backups',
+    ]) {
       const items = [plan().items[0], { id: RUN, kind: 'folder', path }];
       expectRefused(await wrapper('configure', plan({ items })), 'invalid_plan');
     }

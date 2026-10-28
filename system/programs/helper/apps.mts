@@ -81,8 +81,7 @@ function folder(request: Request): string | null {
   }
 }
 
-const stamp = (date = new Date()) =>
-  date.toISOString().slice(0, 19).replace(/[-:]/g, '');
+const stamp = (date = new Date()) => date.toISOString().slice(0, 19).replace(/[-:]/g, '');
 
 /**
  * Starts a task (`up`, `update`, `down`) in the app's folder: `docker compose -p <project> …` as

@@ -1,12 +1,5 @@
-import type {
-  BackupRun,
-  BackupsStatus,
-  Container,
-  DiskUsage,
-  InstalledService,
-} from '@laris/shared';
+import type { AppSummary, BackupRun, BackupsStatus, Container, DiskUsage } from '@laris/shared';
 import { testAlert } from '../../../core/alerts/testing';
-import type { ServiceRuntime } from '../../../core/services/services.model';
 import {
   appTiles,
   backupDays,
@@ -20,7 +13,7 @@ import {
 
 const GB = 1e9;
 const words: RackWords = {
-  alertTitle: (alert) => [`alerts.kind.${alert.kind}`, { name: alert.serviceName }],
+  alertTitle: (alert) => [`alerts.kind.${alert.kind}`, { name: alert.app }],
   bytes: (bytes) => `${bytes / GB} GB`,
   ago: () => '3 hours ago',
   dateTime: () => 'tonight 03:00',
@@ -28,18 +21,14 @@ const words: RackWords = {
   machine: (name) => name,
 };
 
-const service = (catalogId: string, change: Partial<InstalledService> = {}): InstalledService => ({
-  id: `0193a000-0000-7000-8000-0000000000${catalogId.length}${catalogId.charCodeAt(0)}`.slice(
-    0,
-    36,
-  ),
-  catalogId,
-  name: catalogId[0].toUpperCase() + catalogId.slice(1),
-  status: 'installed',
-  settings: {},
+const app = (name: string, change: Partial<AppSummary> = {}): AppSummary => ({
+  name,
+  folder: `/home/anna/apps/${name}`,
+  owner: 'anna',
+  template: null,
+  state: 'running',
+  containers: [`${name}-server-1`],
   webPort: 8080,
-  job: null,
-  updatedAt: '2026-10-26T10:00:00.000Z',
   ...change,
 });
 
@@ -53,6 +42,8 @@ const container = (name: string, change: Partial<Container> = {}): Container => 
   ports: [],
   protected: false,
   composeProject: null,
+  composeWorkingDir: null,
+  template: null,
   stats: null,
   ...change,
 });
@@ -81,8 +72,7 @@ const backups = (change: Partial<BackupsStatus> = {}): BackupsStatus => ({
 function input(change: Partial<RackInput> = {}): RackInput {
   return {
     alerts: [],
-    services: [service('immich')],
-    runtimes: new Map<string, ServiceRuntime>([['immich', 'running']]),
+    apps: [app('immich')],
     docker: true,
     backups: backups(),
     disks: shownDisks([disk('/', 46)], null),
@@ -97,7 +87,7 @@ describe('rackUnits', () => {
   it('all green: apps running, the last backup and the next, space free', () => {
     const units = rackUnits(input(), words);
     expect(units.map((u) => [u.id, u.light, u.link])).toEqual([
-      ['apps', 'ok', '/services'],
+      ['apps', 'ok', '/apps'],
       ['backups', 'ok', '/backups'],
       ['space', 'ok', '/disks'],
     ]);
@@ -116,7 +106,7 @@ describe('rackUnits', () => {
   });
 
   it('waits while anything is still unknown', () => {
-    const units = rackUnits(input({ services: null, backups: null, disks: null }), words);
+    const units = rackUnits(input({ apps: null, backups: null, disks: null }), words);
     expect(units.map((u) => [u.light, u.text.key])).toEqual([
       ['idle', 'dashboard.rack.loading'],
       ['idle', 'dashboard.rack.loading'],
@@ -126,52 +116,47 @@ describe('rackUnits', () => {
   });
 
   describe('apps', () => {
-    it('an open service alert lights it red (critical) or amber, in the alert’s words', () => {
+    it('an open app alert lights it red (critical) or amber, in the alert’s words', () => {
       const down = unit({ alerts: [testAlert(), testAlert({ kind: 'restartLoop' })] }, 'apps');
       expect(down.light).toBe('fail');
-      expect(down.text).toEqual({ key: 'alerts.kind.serviceDown', params: { name: 'Immich' } });
+      expect(down.text).toEqual({ key: 'alerts.kind.serviceDown', params: { name: 'immich' } });
       expect(down.sub).toEqual({ key: 'dashboard.rack.more', count: 1 });
       expect(unit({ alerts: [testAlert({ severity: 'warning' })] }, 'apps').light).toBe('warn');
     });
 
-    it('a failed install or a partly running app is amber', () => {
-      expect(unit({ services: [service('immich', { status: 'failed' })] }, 'apps')).toMatchObject({
+    it('a partly running or unhealthy app is amber', () => {
+      expect(unit({ apps: [app('immich', { state: 'partial' })] }, 'apps')).toMatchObject({
         light: 'warn',
-        text: { key: 'dashboard.rack.apps.failed', params: { name: 'Immich' } },
+        text: { key: 'dashboard.rack.apps.partial', params: { name: 'immich' } },
       });
-      expect(unit({ runtimes: new Map([['immich', 'partial']]) }, 'apps').text.key).toBe(
-        'dashboard.rack.apps.partial',
+      expect(unit({ apps: [app('immich', { state: 'unhealthy' })] }, 'apps').text.key).toBe(
+        'dashboard.rack.apps.unhealthy',
       );
     });
 
     it('an app stopped by hand is no problem: still green, the count says so', () => {
       const stopped = unit(
-        {
-          services: [service('immich'), service('navidrome')],
-          runtimes: new Map<string, ServiceRuntime>([
-            ['immich', 'running'],
-            ['navidrome', 'stopped'],
-          ]),
-        },
+        { apps: [app('immich'), app('navidrome', { state: 'stopped' })] },
         'apps',
       );
       expect(stopped.light).toBe('ok');
+      expect(stopped.text).toEqual({ key: 'dashboard.rack.apps.running', count: 1 });
       expect(stopped.sub).toEqual({ key: 'dashboard.rack.apps.stopped', count: 1 });
     });
 
     it('never green while the containers are unknown: waiting, or amber when Docker is down', () => {
-      expect(unit({ runtimes: null }, 'apps')).toMatchObject({
+      expect(unit({ apps: null }, 'apps')).toMatchObject({
         light: 'idle',
         text: { key: 'dashboard.rack.loading' },
       });
-      expect(unit({ runtimes: null, docker: false }, 'apps')).toMatchObject({
+      expect(unit({ apps: null, docker: false }, 'apps')).toMatchObject({
         light: 'warn',
         text: { key: 'dashboard.rack.apps.dockerDown' },
       });
     });
 
-    it('no apps yet: grey, with the way to install one', () => {
-      expect(unit({ services: [] }, 'apps')).toMatchObject({
+    it('no apps yet: grey, with the way to add one', () => {
+      expect(unit({ apps: [] }, 'apps')).toMatchObject({
         light: 'idle',
         text: { key: 'dashboard.rack.apps.none' },
       });
@@ -289,36 +274,31 @@ describe('shownDisks', () => {
 });
 
 describe('appTiles and otherContainers', () => {
-  const immich = service('immich');
-  const ollama = service('ollama');
   const containers = [
-    container('hl-immich-server-1', { composeProject: 'hl-immich' }),
-    container('hl-immich-ml-1', { composeProject: 'hl-immich', state: 'exited' }),
-    container('hl-ollama-ollama-1', { composeProject: 'hl-ollama' }),
+    container('immich-server-1', { composeProject: 'immich' }),
+    container('immich-ml-1', { composeProject: 'immich', state: 'exited' }),
+    container('ollama-ollama-1', { composeProject: 'ollama' }),
     container('laris-postgres-1', { protected: true }),
     container('my-own-thing'),
   ];
 
   it('each app with its stopped containers, whether one is busy, and the Assistant marked', () => {
     const tiles = appTiles(
-      [immich, ollama, service('gone', { status: 'removed' })],
+      [
+        app('immich', { state: 'partial' }),
+        app('ollama', { template: { id: 'ollama', version: '2' } }),
+      ],
       containers,
-      new Map<string, ServiceRuntime>([
-        ['immich', 'partial'],
-        ['ollama', 'running'],
-      ]),
-      new Map([['hl-immich-ml-1', 'start']]),
+      new Map([['immich-ml-1', 'start']]),
     );
-    expect(
-      tiles.map((t) => [t.service.catalogId, t.runtime, t.stopped, t.pending, t.assistant]),
-    ).toEqual([
-      ['immich', 'partial', ['hl-immich-ml-1'], true, false],
-      ['ollama', 'running', [], false, true],
+    expect(tiles.map((t) => [t.app.name, t.stopped, t.pending, t.assistant])).toEqual([
+      ['immich', ['immich-ml-1'], true, false],
+      ['ollama', [], false, true],
     ]);
   });
 
-  it('counts the containers of no app, leaving out the platform’s own', () => {
-    expect(otherContainers([immich, ollama], containers)).toBe(1);
+  it('counts the containers outside Compose, leaving out the platform’s own', () => {
+    expect(otherContainers(containers)).toBe(1);
   });
 });
 

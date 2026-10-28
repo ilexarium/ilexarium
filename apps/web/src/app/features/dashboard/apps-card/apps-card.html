@@ -29,7 +29,13 @@
           >
             <div class="flex items-center gap-3">
               @if (row.iconUrl; as icon) {
-                <img [src]="icon" alt="" width="40" height="40" class="size-10 shrink-0 rounded-lg" />
+                <img
+                  [src]="icon"
+                  alt=""
+                  width="40"
+                  height="40"
+                  class="size-10 shrink-0 rounded-lg"
+                />
               } @else {
                 <span
                   class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
@@ -55,9 +61,7 @@
                 size="sm"
                 type="button"
                 [disabled]="app.pending"
-                [attr.aria-label]="
-                  'dashboard.apps.startLabel' | translate: { name: app.app.name }
-                "
+                [attr.aria-label]="'dashboard.apps.startLabel' | translate: { name: app.app.name }"
                 (click)="start.emit(app)"
               >
                 @if (app.pending) {

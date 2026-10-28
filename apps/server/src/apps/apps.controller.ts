@@ -56,7 +56,10 @@ export class AppsController {
   }
 
   @Get('name')
-  name(@CurrentSession() session: Session, @Query() { name }: AppNameQueryDto): Promise<AppNameCheck> {
+  name(
+    @CurrentSession() session: Session,
+    @Query() { name }: AppNameQueryDto,
+  ): Promise<AppNameCheck> {
     return this.appManager.checkName(session.id, name);
   }
 

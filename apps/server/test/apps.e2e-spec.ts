@@ -123,7 +123,13 @@ describe('apps and templates (e2e)', () => {
     await api().get('/apps/versions?image=').expect(400);
     // Larger than any Compose file: refused before it's read.
     await api()
-      .post('/apps', { name: 'ok', folder: null, template: null, compose: 'x'.repeat(300_000), env: '' })
+      .post('/apps', {
+        name: 'ok',
+        folder: null,
+        template: null,
+        compose: 'x'.repeat(300_000),
+        env: '',
+      })
       .expect((r) => expect([400, 413]).toContain(r.status));
   });
 
@@ -131,40 +137,65 @@ describe('apps and templates (e2e)', () => {
     const reading = await api().get('/apps/music').expect(403);
     expect(reading.body.code).toBe('linux_session_required');
     const installing = await api()
-      .post('/apps', { name: 'music', folder: null, template: null, compose: 'services: {}', env: '' })
+      .post('/apps', {
+        name: 'music',
+        folder: null,
+        template: null,
+        compose: 'services: {}',
+        env: '',
+      })
       .expect(403);
     expect(installing.body.code).toBe('linux_session_required');
   });
 
-  it.skipIf(!sshdUp)('as anna: an app folder of hers is read fresh; another’s is hers to read', async () => {
-    await api().post('/files/session', ANNA).expect(200);
-    const folder = `/home/anna/apps/e2e-${Date.now()}`;
-    await api().post('/files/folder', { parent: '/home/anna', name: 'apps' });
-    await api().post('/files/folder', { parent: '/home/anna/apps', name: folder.split('/').pop() });
-    const compose = "services:\n  web:\n    image: nginx:1.27\n    ports: ['${PORT:-8080}:80']\n";
-    await request(origin)
-      .put(`/api/files/upload?folder=${encodeURIComponent(folder)}&name=compose.yml`)
-      .set('Origin', origin)
-      .set('Cookie', cookie)
-      .set('Content-Type', 'application/octet-stream')
-      .send(compose)
-      .expect(204);
-    const name = folder.split('/').pop()!;
-    const details = (await api().get(`/apps/${name}?folder=${encodeURIComponent(folder)}`).expect(200))
-      .body as AppDetails;
-    expect(details).toMatchObject({ folder, compose, env: '', task: null, beforeUpdate: null });
-    expect(details.fields.map((f) => [f.key, f.kind, f.value])).toEqual([['PORT', 'port', '8080']]);
-    expect(details.images).toEqual([{ service: 'web', image: 'nginx', tag: '1.27', variable: null }]);
-    expect(details.app).toMatchObject({ name, state: 'none', owner: 'anna' });
+  it.skipIf(!sshdUp)(
+    'as anna: an app folder of hers is read fresh; another’s is hers to read',
+    async () => {
+      await api().post('/files/session', ANNA).expect(200);
+      const folder = `/home/anna/apps/e2e-${Date.now()}`;
+      await api().post('/files/folder', { parent: '/home/anna', name: 'apps' });
+      await api().post('/files/folder', {
+        parent: '/home/anna/apps',
+        name: folder.split('/').pop(),
+      });
+      const compose = "services:\n  web:\n    image: nginx:1.27\n    ports: ['${PORT:-8080}:80']\n";
+      await request(origin)
+        .put(`/api/files/upload?folder=${encodeURIComponent(folder)}&name=compose.yml`)
+        .set('Origin', origin)
+        .set('Cookie', cookie)
+        .set('Content-Type', 'application/octet-stream')
+        .send(compose)
+        .expect(204);
+      const name = folder.split('/').pop()!;
+      const details = (
+        await api()
+          .get(`/apps/${name}?folder=${encodeURIComponent(folder)}`)
+          .expect(200)
+      ).body as AppDetails;
+      expect(details).toMatchObject({ folder, compose, env: '', task: null, beforeUpdate: null });
+      expect(details.fields.map((f) => [f.key, f.kind, f.value])).toEqual([
+        ['PORT', 'port', '8080'],
+      ]);
+      expect(details.images).toEqual([
+        { service: 'web', image: 'nginx', tag: '1.27', variable: null },
+      ]);
+      expect(details.app).toMatchObject({ name, state: 'none', owner: 'anna' });
 
-    // Saved with a hash from before a change on disk: refused, nothing written.
-    const changed = await api()
-      .put(`/apps/${name}/files`, { folder, compose: 'services: {}\n', env: '', hash: 'old', overwrite: false })
-      .expect(409);
-    expect(changed.body.code).toBe('changed_on_disk');
+      // Saved with a hash from before a change on disk: refused, nothing written.
+      const changed = await api()
+        .put(`/apps/${name}/files`, {
+          folder,
+          compose: 'services: {}\n',
+          env: '',
+          hash: 'old',
+          overwrite: false,
+        })
+        .expect(409);
+      expect(changed.body.code).toBe('changed_on_disk');
 
-    const other = await api().get('/apps/x?folder=%2Froot%2Fapps%2Fx').expect(403);
-    expect(other.body.code).toBe('permission_denied');
-    await api().post('/files/session/sudo').expect(400);
-  });
+      const other = await api().get('/apps/x?folder=%2Froot%2Fapps%2Fx').expect(403);
+      expect(other.body.code).toBe('permission_denied');
+      await api().post('/files/session/sudo').expect(400);
+    },
+  );
 });

@@ -2,7 +2,6 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import type { AddressInfo } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
@@ -25,7 +24,11 @@ const PHOTOS = '4E21-9A07';
 const ROOT = '6f1e2d3c-0000-4000-8000-000000000001';
 
 /** A mount request at /mnt/<name>. */
-const mount = (uuid: string, name: string) => ({ uuid, mountPoint: `/mnt/${name}`, makeMine: false });
+const mount = (uuid: string, name: string) => ({
+  uuid,
+  mountPoint: `/mnt/${name}`,
+  makeMine: false,
+});
 
 describe('disks (e2e)', () => {
   let app: NestExpressApplication;
@@ -174,13 +177,15 @@ describe('disks (e2e)', () => {
   it('refuses the system disk, other filesystems, a disk in use and a bad request', async () => {
     const system = await api().post('/disks/mount', mount(ROOT, 'root')).expect(422);
     expect(system.body.code).toBe('system_disk');
-    const ntfs = await api()
-      .post('/disks/mount', mount('01D9A1B2C3D4E5F6', 'win'))
-      .expect(422);
+    const ntfs = await api().post('/disks/mount', mount('01D9A1B2C3D4E5F6', 'win')).expect(422);
     expect(ntfs.body.code).toBe('unsupported_filesystem');
     await api().post('/disks/mount', mount('nope', 'x')).expect(404);
-    await api().post('/disks/mount', { ...mount(PHOTOS, 'x'), mountPoint: '/etc/x' }).expect(400);
-    await api().post('/disks/mount', { ...mount(PHOTOS, 'x'), options: 'exec' }).expect(400);
+    await api()
+      .post('/disks/mount', { ...mount(PHOTOS, 'x'), mountPoint: '/etc/x' })
+      .expect(400);
+    await api()
+      .post('/disks/mount', { ...mount(PHOTOS, 'x'), options: 'exec' })
+      .expect(400);
 
     await api().post('/disks/mount', mount(PHOTOS, 'photos')).expect(200);
     const again = await api().post('/disks/mount', mount(PHOTOS, 'other')).expect(409);

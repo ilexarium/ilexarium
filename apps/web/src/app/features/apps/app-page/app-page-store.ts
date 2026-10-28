@@ -200,7 +200,7 @@ export const AppPageStore = signalStore(
         );
         if (!run) return false;
         toast.info(translator.t('apps.update.backingUp', { name: store.name() }));
-        for (const deadline = Date.now() + BACKUP_WAIT_MS; Date.now() < deadline; ) {
+        for (const deadline = Date.now() + BACKUP_WAIT_MS; Date.now() < deadline;) {
           await new Promise((resolve) => setTimeout(resolve, 2000));
           const running = backupsStore.running();
           if (running?.runId === run.runId) continue;
@@ -301,7 +301,11 @@ export const AppPageStore = signalStore(
           started(
             await asPerson('apps.update.failed', () =>
               firstValueFrom(
-                appsApi.imageTag(store.name(), { folder: store.folder(), service: image.service, tag }),
+                appsApi.imageTag(store.name(), {
+                  folder: store.folder(),
+                  service: image.service,
+                  tag,
+                }),
               ),
             ),
           );
@@ -314,7 +318,8 @@ export const AppPageStore = signalStore(
           const values: Record<string, string> = {};
           for (const field of store.details()?.fields ?? []) {
             const image = before.images.find((i) => field.image && i.image.endsWith(field.image));
-            if (field.kind === 'version' && image) values[field.key] = `${image.tag}@${image.digest}`;
+            if (field.kind === 'version' && image)
+              values[field.key] = `${image.tag}@${image.digest}`;
           }
           patchState(store, { env: setEnvValues(store.env(), values) });
           toast.info(translator.t('apps.undo.filled'));

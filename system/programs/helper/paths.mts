@@ -13,7 +13,13 @@ import {
   type Answer,
   type Request,
 } from './answers.mts';
-import { LONG_TIMEOUT_MS, NEVER_REMOVED, NEVER_REMOVED_BELOW, PATHS_MAX, PROGRAMS } from './config.mts';
+import {
+  LONG_TIMEOUT_MS,
+  NEVER_REMOVED,
+  NEVER_REMOVED_BELOW,
+  PATHS_MAX,
+  PROGRAMS,
+} from './config.mts';
 
 function paths(request: Request): string[] | null {
   const list = request['paths'];

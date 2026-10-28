@@ -83,7 +83,9 @@ export class BackupsPage {
       .active.concat(this.backupsPageStore.rows().removed)
       .find((r) => r.item.id === restore?.itemId);
     const app = this.backupsPageStore.apps().find((a) => a.name === row?.item.project);
-    const template = app?.template ? this.appsStore.templatesById().get(app.template.id) : undefined;
+    const template = app?.template
+      ? this.appsStore.templatesById().get(app.template.id)
+      : undefined;
     return template?.backupRestoreNote ? `catalog.${template.id}.backup.restoreNote` : null;
   });
 

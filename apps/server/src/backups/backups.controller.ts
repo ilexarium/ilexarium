@@ -147,7 +147,11 @@ export class BackupsController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.backupPlanManager.removeItem(id, archives === 'delete', { user, ip, appSessionId: session.id });
+    return this.backupPlanManager.removeItem(id, archives === 'delete', {
+      user,
+      ip,
+      appSessionId: session.id,
+    });
   }
 
   @Get('items/:id/archives')

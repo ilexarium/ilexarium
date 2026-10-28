@@ -4,13 +4,13 @@ import type {
   ActivityItem,
   BackupsStatus,
   Container,
-  InstalledService,
   SystemSnapshot,
   SystemUpdate,
 } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of } from 'rxjs';
 import { ActivityApi } from '../../../core/activity/activity-api';
+import { AppsApi } from '../../../core/apps/apps-api';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
 import { alertsStatus, testAlert } from '../../../core/alerts/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -56,16 +56,6 @@ const snapshot: SystemSnapshot = {
   history: [],
 };
 
-const immich: InstalledService = {
-  id: '0193a000-0000-7000-8000-0000000000aa',
-  catalogId: 'immich',
-  name: 'Immich',
-  status: 'installed',
-  settings: {},
-  webPort: 2283,
-  job: null,
-  updatedAt: '2026-10-26T10:00:00.000Z',
-};
 const container = (name: string, change: Partial<Container> = {}): Container => ({
   id: name,
   name,
@@ -75,7 +65,9 @@ const container = (name: string, change: Partial<Container> = {}): Container => 
   startedAt: null,
   ports: [],
   protected: false,
-  composeProject: 'hl-immich',
+  composeProject: 'immich',
+  composeWorkingDir: '/home/anna/apps/immich',
+  template: null,
   stats: null,
   ...change,
 });
@@ -127,6 +119,7 @@ async function render() {
       { provide: ContainersApi, useValue: containersApi },
       { provide: ActivityApi, useValue: activityApi },
       { provide: BackupsApi, useValue: backupsApi },
+      { provide: AppsApi, useValue: { templates: vi.fn(() => of([])) } },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -159,10 +152,17 @@ async function render() {
 /** Everything a calm machine sends: the system, its apps and their containers, backups, alerts. */
 async function allFine(receive: (message: unknown) => Promise<void>) {
   await receive({ event: 'system:snapshot', data: snapshot });
-  await receive({ event: 'services:snapshot', data: { services: [immich] } });
   await receive({
     event: 'containers:snapshot',
-    data: { dockerAvailable: true, containers: [container('hl-immich-server-1')], history: {} },
+    data: {
+      dockerAvailable: true,
+      containers: [
+        container('immich-server-1', {
+          ports: [{ privatePort: 2283, publicPort: 2283, ip: '0.0.0.0', protocol: 'tcp' }],
+        }),
+      ],
+      history: {},
+    },
   });
   await receive({ event: 'backups:snapshot', data: backups });
   await receive({ event: 'alerts:snapshot', data: alertsStatus() });
@@ -173,7 +173,7 @@ describe('DashboardPage', () => {
 
   it('follows the live data, and waits before saying anything about the server', async () => {
     const { el, socket, headline } = await render();
-    for (const topic of ['system', 'containers', 'services']) {
+    for (const topic of ['system', 'containers']) {
       expect(socket.sent).toContainEqual({ event: 'subscribe', data: { topic } });
     }
     expect(headline()).toBe('Checking your server…');
@@ -238,7 +238,7 @@ describe('DashboardPage', () => {
 
     expect(headline()).toBe('One thing needs your attention');
     expect(unit('fail')).toHaveLength(1);
-    expect(unit('fail')[0].textContent).toContain('Immich has stopped');
+    expect(unit('fail')[0].textContent).toContain('immich has stopped');
     expect(unit('fail')[0].textContent).toContain('Needs attention');
     expect(el.querySelector('a[href="/alerts"]')!.textContent).toContain('1 open alert');
   });
@@ -252,27 +252,25 @@ describe('DashboardPage', () => {
       data: {
         dockerAvailable: true,
         containers: [
-          container('hl-immich-server-1', { state: 'exited' }),
-          container('hl-immich-ml-1', { state: 'exited' }),
+          container('immich-server-1', { state: 'exited' }),
+          container('immich-ml-1', { state: 'exited' }),
         ],
       },
     });
     const apps = card('apps');
     expect(apps.textContent).toContain('Stopped');
-    const start = apps.querySelector<HTMLButtonElement>('button[aria-label="Start Immich"]')!;
+    const start = apps.querySelector<HTMLButtonElement>('button[aria-label="Start immich"]')!;
     start.click();
     await TestBed.inject(ContainersApi).act('x', 'start'); // let the store's awaits run
-    expect(containersApi.act).toHaveBeenCalledWith('hl-immich-server-1', 'start');
-    expect(containersApi.act).toHaveBeenCalledWith('hl-immich-ml-1', 'start');
-    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('Immich started'));
+    expect(containersApi.act).toHaveBeenCalledWith('immich-server-1', 'start');
+    expect(containersApi.act).toHaveBeenCalledWith('immich-ml-1', 'start');
+    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('immich started'));
   });
 
   it('opens a running app on its own port', async () => {
     const { receive, card } = await render();
     await allFine(receive);
-    const open = card('apps').querySelector<HTMLAnchorElement>(
-      'a[aria-label="Open Immich in a new tab"]',
-    )!;
+    const open = card('apps').querySelector<HTMLAnchorElement>('a[aria-label="Open immich"]')!;
     expect(open.href).toBe(`http://${location.hostname}:2283/`);
     expect(open.target).toBe('_blank');
   });

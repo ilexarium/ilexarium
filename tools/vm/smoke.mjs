@@ -152,7 +152,15 @@ async function securitySetup() {
   check('sudo: the app may run nothing', !/NOPASSWD|\(root\)|\(ALL/.test(sudo), sudo.trim());
   check(
     'sudo: not even a root program',
-    fails('runuser', ['-u', 'laris', '--', 'sudo', '-n', '/opt/laris/libexec/laris-backup.mts', 'passphrase']),
+    fails('runuser', [
+      '-u',
+      'laris',
+      '--',
+      'sudo',
+      '-n',
+      '/opt/laris/libexec/laris-backup.mts',
+      'passphrase',
+    ]),
   );
   check(
     'the app can’t read the database owner’s password',
@@ -526,7 +534,11 @@ async function install() {
     mode('/home/anna/apps/navidrome/data').uid === uidOf('anna'),
   );
   const ollama = await installTemplate('ollama', 'ollama');
-  check('Ollama installed', ollama.task?.state === 'succeeded', JSON.stringify(ollama).slice(0, 600));
+  check(
+    'Ollama installed',
+    ollama.task?.state === 'succeeded',
+    JSON.stringify(ollama).slice(0, 600),
+  );
   // Reached from the machine itself, refused on its network address (the template's default).
   const answers = async (host) => {
     try {
@@ -553,7 +565,11 @@ async function install() {
     },
     2 * 60_000,
   );
-  check('the Assistant finds Ollama', assistant.value?.state === 'ready', JSON.stringify(assistant.value));
+  check(
+    'the Assistant finds Ollama',
+    assistant.value?.state === 'ready',
+    JSON.stringify(assistant.value),
+  );
 
   console.log('\nBacking up, through anna’s sudo');
   const plan = await api('POST', '/backups/plan', {
@@ -562,7 +578,11 @@ async function install() {
     retention: { daily: 7, weekly: 4, monthly: 6 },
     items: [{ kind: 'app', project: 'navidrome', folders: [], skip: [], mode: 'stop' }],
   });
-  check('backups set up', plan.status === 200 || plan.status === 201, `${plan.status} ${plan.text}`);
+  check(
+    'backups set up',
+    plan.status === 200 || plan.status === 201,
+    `${plan.status} ${plan.text}`,
+  );
   check('the passphrase shown once', typeof plan.json?.passphrase === 'string');
   const run = await api('POST', '/backups/runs', {});
   check('"Back up now" started', run.status === 202, `${run.status} ${run.text}`);
@@ -580,7 +600,11 @@ async function install() {
     JSON.stringify(result.value).slice(0, 400),
   );
   const again = await api('POST', '/backups/passphrase', {});
-  check('the passphrase again, through her sudo', typeof again.json?.passphrase === 'string', `${again.status}`);
+  check(
+    'the passphrase again, through her sudo',
+    typeof again.json?.passphrase === 'string',
+    `${again.status}`,
+  );
 
   console.log('\nRestoring into a new folder (its own unit)');
   const items = (await api('GET', '/backups/plan')).json?.plan?.items ?? [];
@@ -631,7 +655,9 @@ async function install() {
   });
   check(
     'removed, its folder deleted as bob',
-    removed.status === 202 && down?.state === 'succeeded' && deleted.status === 204 &&
+    removed.status === 202 &&
+      down?.state === 'succeeded' &&
+      deleted.status === 204 &&
       !existsSync('/home/bob/apps/hello'),
     `${removed.status} ${down?.state} ${deleted.status} ${deleted.text}`,
   );
@@ -672,7 +698,10 @@ await (process.argv[2] === 'update' ? update() : install());
 
 /** Signs the app session in to Linux as this person. */
 async function linuxSignIn(user) {
-  const res = await api('POST', '/files/session', { username: user, password: `${user}-smoke-password` });
+  const res = await api('POST', '/files/session', {
+    username: user,
+    password: `${user}-smoke-password`,
+  });
   check(`signed in to Linux as ${user}`, res.status === 200, `${res.status} ${res.text}`);
 }
 
@@ -683,7 +712,10 @@ async function waitTask(name, folder) {
   const end = await until(
     `${name}: its task finished`,
     async () => {
-      const r = await api('GET', `/apps/${name}/task?folder=${encodeURIComponent(folder)}&from=${from}`);
+      const r = await api(
+        'GET',
+        `/apps/${name}/task?folder=${encodeURIComponent(folder)}&from=${from}`,
+      );
       const task = r.json?.task;
       if (task) {
         output = [...output, ...task.output];
@@ -703,13 +735,25 @@ async function installTemplate(id, name) {
   const env = (fields?.fields ?? []).map((f) => `${f.key}=${f.value}`).join('\n') + '\n';
   const started = await api('POST', '/apps', { name, folder: null, template: id, compose, env });
   check(`${name}: install started`, started.status === 202, `${started.status} ${started.text}`);
-  return { started: started.json, task: started.json ? await waitTask(name, started.json.folder) : null };
+  return {
+    started: started.json,
+    task: started.json ? await waitTask(name, started.json.folder) : null,
+  };
 }
 
 async function installPasted(name, compose) {
-  const started = await api('POST', '/apps', { name, folder: null, template: null, compose, env: '' });
+  const started = await api('POST', '/apps', {
+    name,
+    folder: null,
+    template: null,
+    compose,
+    env: '',
+  });
   check(`${name}: install started`, started.status === 202, `${started.status} ${started.text}`);
-  return { started: started.json, task: started.json ? await waitTask(name, started.json.folder) : null };
+  return {
+    started: started.json,
+    task: started.json ? await waitTask(name, started.json.folder) : null,
+  };
 }
 
 /** An app as the containers topic's snapshot shows it (one per Compose project). */

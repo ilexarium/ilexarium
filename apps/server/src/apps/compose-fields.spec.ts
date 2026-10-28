@@ -33,7 +33,15 @@ describe('composeFields guesses each kind from where it is used', () => {
         published: \${LONG}
         host_ip: \${LONG_IP}
 `),
-    ).toEqual({ P: 'port', IP: 'text', Q: 'port', R1: 'port', R2: 'port', LONG: 'port', LONG_IP: 'text' });
+    ).toEqual({
+      P: 'port',
+      IP: 'text',
+      Q: 'port',
+      R1: 'port',
+      R2: 'port',
+      LONG: 'port',
+      LONG_IP: 'text',
+    });
   });
 
   it('folders: a bind mount’s source, a variable alone, below a variable; a named volume is text', () => {
@@ -113,7 +121,8 @@ describe('composeFields guesses each kind from where it is used', () => {
         { key: 'PORT', kind: 'port', default: 8080 },
       ],
     } as unknown as Template;
-    const compose = 'services:\n  a:\n    image: x:1\n    user: "${USER_ID}"\n    environment: [ "TZ=${TZ}", "P=${DB_PASSWORD}" ]\n    ports: ["${PORT}:80"]\n';
+    const compose =
+      'services:\n  a:\n    image: x:1\n    user: "${USER_ID}"\n    environment: [ "TZ=${TZ}", "P=${DB_PASSWORD}" ]\n    ports: ["${PORT}:80"]\n';
     const fields = composeFields(compose, '', template, context).fields;
     expect(fields.map((f) => [f.key, f.kind, f.fromTemplate])).toEqual([
       ['USER_ID', 'text', true],
@@ -125,7 +134,9 @@ describe('composeFields guesses each kind from where it is used', () => {
     expect(fields[1].value).toBe('Europe/Berlin');
     expect(fields[2].value).toMatch(/^[A-Za-z0-9_-]{32}$/);
     // Kept when .env has it.
-    expect(composeFields(compose, 'DB_PASSWORD=kept\n', template, context).fields[2].value).toBe('kept');
+    expect(composeFields(compose, 'DB_PASSWORD=kept\n', template, context).fields[2].value).toBe(
+      'kept',
+    );
   });
 
   it('says why a file can’t be read', () => {
@@ -136,7 +147,15 @@ describe('composeFields guesses each kind from where it is used', () => {
 
 describe('splitImage', () => {
   it('the tag after the last ":" past the last "/" (a registry port is not one)', () => {
-    expect(splitImage('registry:5000/x/y')).toEqual({ image: 'registry:5000/x/y', tag: null, digest: null });
-    expect(splitImage('x/y:1.2@sha256:abc')).toEqual({ image: 'x/y', tag: '1.2', digest: 'sha256:abc' });
+    expect(splitImage('registry:5000/x/y')).toEqual({
+      image: 'registry:5000/x/y',
+      tag: null,
+      digest: null,
+    });
+    expect(splitImage('x/y:1.2@sha256:abc')).toEqual({
+      image: 'x/y',
+      tag: '1.2',
+      digest: 'sha256:abc',
+    });
   });
 });

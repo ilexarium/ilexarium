@@ -73,7 +73,8 @@ export const LinuxSessionStore = signalStore(
       patchState(store, { sudoPrompt: false });
     };
     /** The sign-in's answer: signed in, or not (closed). */
-    let signingIn: { promise: Promise<boolean>; resolve: (signedIn: boolean) => void } | null = null;
+    let signingIn: { promise: Promise<boolean>; resolve: (signedIn: boolean) => void } | null =
+      null;
     const answerSignIn = (signedIn: boolean) => {
       signingIn?.resolve(signedIn);
       signingIn = null;

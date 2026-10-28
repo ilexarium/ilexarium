@@ -1,7 +1,11 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import type { ProgramBackupConfig, ProgramConfig, ProgramDiskConfig } from './root-programs.model.js';
+import type {
+  ProgramBackupConfig,
+  ProgramConfig,
+  ProgramDiskConfig,
+} from './root-programs.model.js';
 
 // Development only (never production): pretend disks for the disk wrapper — see
 // WrapperConfigService, which adds them to a development config that has none.
@@ -103,10 +107,14 @@ export async function withDevelopmentDisks(
     `21 1 253:2 / / rw - ext4 /dev/vda2 rw\n22 21 253:1 / /boot rw - vfat /dev/vda1 rw\n${backupMounts}`,
   );
   await writeFile(resolve(host, 'proc/swaps'), 'Filename Type Size Used Priority\n');
+  // Mount points live under the pretend root: its usual parent folders exist, like a machine's.
+  const mountRoot = backup.dev!.destinationRoots[0];
+  for (const folder of ['mnt', 'media'])
+    await mkdir(resolve(mountRoot, folder), { recursive: true });
   const disk: ProgramDiskConfig = {
     dev: {
       root: host,
-      mountRoot: backup.dev!.destinationRoots[0],
+      mountRoot,
       unitDir: resolve(dir, 'units'),
       backupPlan: resolve(backup.dev!.dir, 'backup.json'),
     },

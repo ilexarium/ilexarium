@@ -176,7 +176,12 @@ describe('laris-disk', () => {
     expectRefused(await wrapper(['format']), 'invalid_request');
     expectRefused(await wrapper(['mount', 'x']), 'invalid_request');
     expectRefused(
-      await wrapper(['mount'], { uuid: EXT4, mountPoint: '/mnt/usb', owner: null, options: 'exec' }),
+      await wrapper(['mount'], {
+        uuid: EXT4,
+        mountPoint: '/mnt/usb',
+        owner: null,
+        options: 'exec',
+      }),
       'invalid_request',
     );
     expectRefused(await wrapper(['mount'], 'not json'), 'invalid_request');
@@ -286,8 +291,22 @@ describe('laris-disk', () => {
     });
 
     it('checks the mount point and the UUID: their form, never a system folder, and a folder that is free', async () => {
-      for (const where of ['', 'relative', '/', '/etc', '/etc/x', '/var/data', '/usr/x', '/mnt/../etc', '/proc/x', '/opt/laris/x']) {
-        expectRefused(await wrapper(['mount'], { uuid: EXT4, mountPoint: where, owner: null }), 'invalid_request');
+      for (const where of [
+        '',
+        'relative',
+        '/',
+        '/etc',
+        '/etc/x',
+        '/var/data',
+        '/usr/x',
+        '/mnt/../etc',
+        '/proc/x',
+        '/opt/laris/x',
+      ]) {
+        expectRefused(
+          await wrapper(['mount'], { uuid: EXT4, mountPoint: where, owner: null }),
+          'invalid_request',
+        );
       }
       expectRefused(
         await wrapper(['mount'], { uuid: EXT4, mountPoint: '/mnt/x', owner: { uid: -1, gid: 0 } }),
@@ -378,10 +397,7 @@ describe('laris-disk', () => {
 
     it('refuses the disk the backups are kept on', async () => {
       await mount(EXT4, 'usb');
-      writeFileSync(
-        join(dir, 'backup.json'),
-        JSON.stringify({ destination: '/mnt/usb' }),
-      );
+      writeFileSync(join(dir, 'backup.json'), JSON.stringify({ destination: '/mnt/usb' }));
       expectRefused(await unmount('usb'), 'used_for_backups');
       expect(mountedAt('/mnt/usb')).toBe(true);
     });

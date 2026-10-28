@@ -9,9 +9,7 @@ import { fromAlert, fromAudit, fromBackupRun, mergeActivity } from './activity-i
  */
 @Injectable()
 export class ActivityService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async recent(): Promise<ActivityItem[]> {
     const take = ACTIVITY_LIMIT;

@@ -220,7 +220,11 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     expect(existsSync(join(disk, 'laris-backups', 'config'))).toBe(true);
     const current = await plan();
     expect(current.items.map((i) => i.kind)).toEqual(['platform', 'app', 'folder']);
-    expect(current.items[1]).toMatchObject({ project, folders: [join(storage, 'test-hello', 'site')], newFolders: [] });
+    expect(current.items[1]).toMatchObject({
+      project,
+      folders: [join(storage, 'test-hello', 'site')],
+      newFolders: [],
+    });
     expect(current.destinationStatus).toMatchObject({ mountPoint: disk, hasRepository: true });
     await api()
       .post('/backups/plan', { ...res.body, destination: disk })
@@ -241,9 +245,9 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     const status = (await api().get('/backups/status').expect(200)).body;
     expect(status).toMatchObject({ configured: true, warnings: [], running: null });
     expect(status.lastSuccessAt).not.toBeNull();
-    expect(
-      status.items.find((i: { project: string }) => i.project === project).lastStatus,
-    ).toBe('ok');
+    expect(status.items.find((i: { project: string }) => i.project === project).lastStatus).toBe(
+      'ok',
+    );
   }, 90_000);
 
   it('restores a folder into a chosen folder — its own unit, followed from its events', async () => {

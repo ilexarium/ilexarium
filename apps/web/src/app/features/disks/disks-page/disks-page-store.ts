@@ -55,59 +55,61 @@ export const DisksPageStore = signalStore(
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
-    // After a change too: the latest answer wins.
-    const load = rxMethod<void>(
-      pipe(
-        switchMap(() =>
-          disksApi.status().pipe(
-            tap((status) => patchState(store, { status, failed: false })),
-            catchError(() => {
-              if (!store.status()) patchState(store, { failed: true });
-              return EMPTY;
-            }),
+      // After a change too: the latest answer wins.
+      const load = rxMethod<void>(
+        pipe(
+          switchMap(() =>
+            disksApi.status().pipe(
+              tap((status) => patchState(store, { status, failed: false })),
+              catchError(() => {
+                if (!store.status()) patchState(store, { failed: true });
+                return EMPTY;
+              }),
+            ),
           ),
         ),
-      ),
-    );
-    return {
-      load,
+      );
+      return {
+        load,
 
-      update(status: DisksStatus): void {
-        patchState(store, { status, failed: false });
-      },
+        update(status: DisksStatus): void {
+          patchState(store, { status, failed: false });
+        },
 
-      /**
-       * Mounts a disk as the person (their sudo); rejects with the server's error (the dialog
-       * puts it on its field). False when a prompt was closed.
-       */
-      async mount(request: DiskMountRequest): Promise<boolean> {
-        const answer = await linuxSessionStore.asPerson(() => firstValueFrom(disksApi.mount(request)));
-        if (!answer) return false;
-        toast.success(translator.t('disks.mounted', { path: answer.mountPoint }));
-        load();
-        return true;
-      },
-
-      /** Unmounts (already confirmed) — or forgets a disk that isn't connected. */
-      async unmount({ mountPoint, connected }: UnmountTarget): Promise<void> {
-        patchState(store, { pending: [...store.pending(), mountPoint] });
-        try {
-          const done = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(disksApi.unmount(mountPoint)).then(() => true),
+        /**
+         * Mounts a disk as the person (their sudo); rejects with the server's error (the dialog
+         * puts it on its field). False when a prompt was closed.
+         */
+        async mount(request: DiskMountRequest): Promise<boolean> {
+          const answer = await linuxSessionStore.asPerson(() =>
+            firstValueFrom(disksApi.mount(request)),
           );
-          if (!done) return;
-          toast.success(translator.t(connected ? 'disks.unmounted' : 'disks.forgotten'));
+          if (!answer) return false;
+          toast.success(translator.t('disks.mounted', { path: answer.mountPoint }));
           load();
-        } catch (error) {
-          toast.error(translator.t('disks.unmountFailed'), {
-            description: translator.t(...apiErrorText(error)),
-          });
-        } finally {
-          patchState(store, { pending: store.pending().filter((n) => n !== mountPoint) });
-        }
-      },
-    };
-  },
+          return true;
+        },
+
+        /** Unmounts (already confirmed) — or forgets a disk that isn't connected. */
+        async unmount({ mountPoint, connected }: UnmountTarget): Promise<void> {
+          patchState(store, { pending: [...store.pending(), mountPoint] });
+          try {
+            const done = await linuxSessionStore.asPerson(() =>
+              firstValueFrom(disksApi.unmount(mountPoint)).then(() => true),
+            );
+            if (!done) return;
+            toast.success(translator.t(connected ? 'disks.unmounted' : 'disks.forgotten'));
+            load();
+          } catch (error) {
+            toast.error(translator.t('disks.unmountFailed'), {
+              description: translator.t(...apiErrorText(error)),
+            });
+          } finally {
+            patchState(store, { pending: store.pending().filter((n) => n !== mountPoint) });
+          }
+        },
+      };
+    },
   ),
   withHooks((store, realtimeService = inject(RealtimeService)) => {
     let stop: (() => void) | null = null;

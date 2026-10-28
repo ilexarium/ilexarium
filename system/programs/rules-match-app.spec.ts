@@ -80,7 +80,17 @@ describe('the app and the root programs check the same rules', () => {
     expect(wrapperDiskConfig.ROOT_PATHS.mountRoot).toBe(DISK_MOUNT_ROOT);
     expect(ROOT_PLACES.unitDir).toBe(wrapperDiskConfig.ROOT_PATHS.unitDir);
     expect(String(wrapperDiskMount.UUID)).toBe(String(DISK_UUID_PATTERN));
-    for (const where of ['/mnt/usb', '/home/anna/disk', '/', '/etc', '/var/x', '/srv/../etc', 'x', '/opt/laris/y', '/a b']) {
+    for (const where of [
+      '/mnt/usb',
+      '/home/anna/disk',
+      '/',
+      '/etc',
+      '/var/x',
+      '/srv/../etc',
+      'x',
+      '/opt/laris/y',
+      '/a b',
+    ]) {
       let program = true;
       try {
         wrapperDiskMount.parseMountPoint(where);

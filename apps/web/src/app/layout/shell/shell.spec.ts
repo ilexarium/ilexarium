@@ -89,7 +89,7 @@ describe('Shell (app layout)', () => {
     expect(nav.getAttribute('aria-label')).toBe('Main');
     expect(navLink('Dashboard')!.getAttribute('href')).toBe('/');
     expect(navLink('Containers')!.getAttribute('href')).toBe('/containers');
-    expect(navLink('Services')!.getAttribute('href')).toBe('/services');
+    expect(navLink('Apps')!.getAttribute('href')).toBe('/apps');
     expect(navLink('Assistant')!.getAttribute('href')).toBe('/assistant');
     expect(navLink('Notifications')!.getAttribute('href')).toBe('/settings/notifications');
     expect(nav.textContent).toContain('Settings');
@@ -97,7 +97,7 @@ describe('Shell (app layout)', () => {
     expect(order).toEqual([
       'Dashboard',
       'Containers',
-      'Services',
+      'Apps',
       'Assistant',
       'Backups',
       'Alerts',

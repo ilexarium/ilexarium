@@ -21,10 +21,7 @@ import { Observable, Subject } from 'rxjs';
 import { DockerService } from '../docker/docker.service.js';
 import type { BackupItem as BackupItemRow, Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type {
-  ProgramBackupItem,
-  RootActor,
-} from '../root-programs/root-programs.model.js';
+import type { ProgramBackupItem, RootActor } from '../root-programs/root-programs.model.js';
 import { RootPrograms } from '../root-programs/root-programs.js';
 import { BackupChecks } from './backup-checks.js';
 import { apiError, programCall } from './backup-errors.js';
@@ -85,7 +82,9 @@ export class BackupPlanManager {
       }
       await this.backupChecks.checkDestination(request.destination);
       const items = await this.backupChecks.checkNewItems(request.items, request.destination);
-      const init = await programCall(() => this.rootPrograms.backupInit(request.destination, actor));
+      const init = await programCall(() =>
+        this.rootPrograms.backupInit(request.destination, actor),
+      );
       await this.applyPlanChange(actor, async (tx) => {
         await tx.backupPlan.create({
           data: {
@@ -180,7 +179,9 @@ export class BackupPlanManager {
           where: { id },
           data: {
             ...(change.folders && { folders: [...new Set(change.folders)] }),
-            ...(change.excludedFolders && { excludedFolders: [...new Set(change.excludedFolders)] }),
+            ...(change.excludedFolders && {
+              excludedFolders: [...new Set(change.excludedFolders)],
+            }),
             ...(change.skip && { skip: [...new Set(change.skip)] }),
             ...(change.mode && { mode: change.mode }),
           },
