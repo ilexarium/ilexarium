@@ -6,7 +6,7 @@
         [text]="'assistant.notInstalled' | translate"
         [detail]="'assistant.notInstalledText' | translate"
       >
-        <a hlmBtn size="sm" routerLink="/services">{{ 'assistant.installOllama' | translate }}</a>
+        <a hlmBtn size="sm" routerLink="/apps/new">{{ 'assistant.installOllama' | translate }}</a>
       </laris-empty-state>
     }
     @case ('not_running') {

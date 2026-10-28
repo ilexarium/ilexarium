@@ -5,8 +5,6 @@
     "dashboard": "Dashboard",
     "containers": "Containers",
     "logs": "Logs · {{name}}",
-    "services": "Services",
-    "installService": "Install a service",
     "backups": "Backups",
     "disks": "Disks",
     "alerts": "Alerts",
@@ -16,7 +14,10 @@
     "terminal": "Terminal",
     "assistant": "Assistant",
     "assistantModels": "Models",
-    "profile": "Profile"
+    "profile": "Profile",
+    "apps": "Apps",
+    "newApp": "Add app",
+    "app": "App"
   },
   "app": {
     "loading": "Loading…",
@@ -34,7 +35,6 @@
     "dashboard": "Dashboard",
     "containers": "Containers",
     "settings": "Settings",
-    "services": "Services",
     "backups": "Backups",
     "attention": "(needs attention)",
     "disks": "Disks",
@@ -45,7 +45,8 @@
     "processes": "Processes",
     "files": "Files",
     "terminal": "Terminal",
-    "assistant": "Assistant"
+    "assistant": "Assistant",
+    "apps": "Apps"
   },
   "userMenu": {
     "open": "Account menu",
@@ -123,7 +124,7 @@
     "portInvalid": "Enter a port number",
     "portRange": "A port from {{portMin}} to {{portMax}}",
     "pathRequired": "Enter a folder",
-    "pathInvalid": "A full folder path, like /srv/laris/music",
+    "pathInvalid": "A full folder path, like /home/you/music",
     "textRequired": "Enter a value",
     "textTooLong": "At most {{textMax}} characters",
     "text": {
@@ -165,7 +166,15 @@
     "displayNameTooLong": "At most {{displayNameMax}} characters",
     "emailTooLong": "At most {{emailMax}} characters",
     "nothingToChange": "Nothing to change",
-    "passwordInvalid": "One line, without line breaks"
+    "passwordInvalid": "One line, without line breaks",
+    "appNameInvalid": "Lowercase letters, digits, - and _, starting with a letter or digit.",
+    "fileTooLarge": "The file is too large.",
+    "composeRequired": "A Compose file is needed.",
+    "tagInvalid": "Not a version.",
+    "backupSkipInvalid": "A path below the folder, without .. or brackets.",
+    "backupFolderSystem": "Not a system folder.",
+    "mountPointRequired": "Enter a folder.",
+    "mountPointInvalid": "An absolute folder, not / or a system folder."
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -182,19 +191,11 @@
     "container_protected": "This container is part of the platform itself and can't be stopped or restarted here.",
     "docker_unavailable": "Docker isn't reachable right now. Make sure it's running and try again.",
     "action_failed": "Docker couldn't do it. The container's logs may tell why.",
-    "catalog_entry_not_found": "This service isn't in the catalog.",
-    "service_not_found": "This service doesn't exist anymore.",
-    "service_already_installed": "This service is already installed.",
-    "service_not_installed": "This service isn't installed.",
+    "catalog_entry_not_found": "This template isn't in the catalog.",
     "busy": "Another operation (an install, a backup, a restore or a disk being mounted) is running. Try again when it has finished.",
-    "port_in_use": "This port is already in use.",
-    "port_reserved": "This port is reserved for the system.",
     "path_not_allowed": "This folder is not in an allowed area.",
     "path_not_found": "This folder doesn't exist.",
-    "invalid_values": "Some settings are not valid.",
-    "policy_violation": "This service's recipe was refused by the safety checks.",
-    "compose_failed": "The service could not be started. The output shows why.",
-    "executor_unavailable": "This server isn't set up for this yet.",
+    "compose_failed": "Compose failed. The output shows why.",
     "timed_out": "This took too long and was stopped.",
     "interrupted": "The app restarted while this was running.",
     "audit_unavailable": "Nothing was done: the action couldn't be recorded in the audit log.",
@@ -205,8 +206,8 @@
     "passphrase_invalid": "The backup passphrase on this server is missing or wrong.",
     "disk_full": "The backup disk is full.",
     "source_missing": "A folder to back up is missing.",
-    "service_not_stopped": "The service couldn't be stopped for its backup, so it wasn't backed up.",
-    "service_not_restarted": "The service didn't start again after its backup. Start it on the Containers page.",
+    "service_not_stopped": "The app couldn't be stopped for its backup, so it wasn't backed up.",
+    "service_not_restarted": "The app didn't start again after its backup. Start it on the Apps page.",
     "dump_failed": "The app's database couldn't be saved.",
     "repository_damaged": "The check found damage in the backups.",
     "borg_failed": "The backup program reported an error. Its output has the details.",
@@ -219,8 +220,6 @@
     "backup_archive_not_found": "That backup doesn't exist (any more).",
     "backup_restore_not_found": "There is nothing to delete for this restore.",
     "backup_run_not_found": "That backup run is not in the history (any more).",
-    "service_not_backed_up": "This service can't be backed up.",
-    "paths_changed": "The service uses other folders now. Restore to a new folder instead.",
     "invalid_plan": "The backup program refused this change. Nothing was changed.",
     "backup_set_aside_kept": "A restore still keeps the previous version of this. Delete that first (on the restore), then its backups.",
     "invalid_request": "The request wasn't valid.",
@@ -228,7 +227,6 @@
     "disk_in_use": "This disk is in use: mounted already, swap, or part of another device.",
     "system_disk": "The system runs from this disk: it isn't changed here.",
     "unsupported_filesystem": "This disk's format can't be mounted here (ext4, XFS, Btrfs and exFAT can).",
-    "name_taken": "This name is in use. Choose another.",
     "not_managed": "This disk wasn't mounted here, so it isn't unmounted here either.",
     "used_for_backups": "Backups are kept on this disk. Choose another backup disk first.",
     "disk_busy": "Files on this disk are open. Close them, or stop what uses them, and try again.",
@@ -272,7 +270,20 @@
     "sudo_not_allowed": "This account may not use sudo on this machine.",
     "sudo_required": "This needs administrator rights: unlock sudo with the Linux account’s password.",
     "helper_unavailable": "Administrator actions aren’t available in this Linux session (Laris’s helper didn’t start). Sign in to Linux again; if it stays, install Laris again.",
-    "sudo_failed": "sudo didn’t answer, or failed without saying why. Try again; if it stays, check sudo in a terminal."
+    "sudo_failed": "sudo didn’t answer, or failed without saying why. Try again; if it stays, check sudo in a terminal.",
+    "app_not_found": "There's no Compose file in this app's folder.",
+    "app_name_taken": "An app of this name exists.",
+    "app_folder_exists": "That folder isn't empty.",
+    "compose_invalid": "Docker refused the Compose file.",
+    "changed_on_disk": "The files changed on disk meanwhile.",
+    "app_task_running": "A task of this app is running.",
+    "app_task_not_started": "The task didn't start.",
+    "app_service_not_found": "No such service in the file.",
+    "path_protected": "That folder is never deleted.",
+    "app_failed": "It didn't work.",
+    "program_unavailable": "The root program didn't run (not installed?).",
+    "target_not_empty": "That folder has something in it.",
+    "mount_point_in_use": "That folder is in use, or its parent is missing."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -415,8 +426,6 @@
       "none": "Nothing has happened yet.",
       "resolved": "Resolved: {{what}}",
       "action": {
-        "serviceDeploy": "{{name}} installed",
-        "serviceRemove": "{{name}} removed",
         "containerStart": "{{name}} started",
         "containerStop": "{{name}} stopped",
         "containerRestart": "{{name}} restarted",
@@ -424,7 +433,10 @@
         "backupRestore": "A backup was restored",
         "diskMount": "Disk {{name}} mounted",
         "diskUnmount": "Disk {{name}} unmounted",
-        "modelPull": "Model {{name}} downloaded"
+        "modelPull": "Model {{name}} downloaded",
+        "appInstall": "{{name}} installed",
+        "appUpdate": "{{name}} updated",
+        "appRemove": "{{name}} removed"
       },
       "backup": {
         "ok": "Backup finished",
@@ -449,7 +461,7 @@
       "text": "Container information is unavailable right now. Make sure Docker is running; this page updates by itself once it is."
     },
     "none": "No containers yet.",
-    "noneAction": "Install a service",
+    "noneAction": "Add an app",
     "column": {
       "name": "Name",
       "state": "State",
@@ -577,16 +589,28 @@
         },
         "MUSIC_DIR": {
           "label": "Music folder",
-          "help": "Where your music is. Navidrome only reads it, it never changes or deletes files."
+          "help": "Where your music is. Navidrome only reads it."
         },
         "DATA_DIR": {
           "label": "Data folder",
           "help": "Where Navidrome keeps its database, playlists and covers."
+        },
+        "NAVIDROME_VERSION": {
+          "label": "Version",
+          "help": "Navidrome's version."
+        },
+        "USER_ID": {
+          "label": "Runs as",
+          "help": "The user and group it runs as (yours by default), so it can read your music."
         }
       }
     },
     "immich": {
       "description": "Back up and browse your photos and videos, with automatic upload from your phone, albums, faces and search.",
+      "backup": {
+        "restoreNote": "Your photos and videos are back. Albums, people and Immich's other data live in its database: its latest database backup came back with the photos — restore it in Immich (Immich's documentation explains how)."
+      },
+      "note": "Immich's database is in ./postgres and isn't backed up as files: Immich's own dumps in library/backups are. After a restore, restore its database in Immich.",
       "fields": {
         "WEB_PORT": {
           "label": "Web port",
@@ -594,125 +618,55 @@
         },
         "UPLOAD_DIR": {
           "label": "Photo library folder",
-          "help": "Where Immich stores your photos and videos. Immich manages this folder: add and delete photos in Immich, not here."
+          "help": "Where Immich stores your photos and videos. Add and delete photos in Immich, not here."
+        },
+        "IMMICH_VERSION": {
+          "label": "Version",
+          "help": "The server and machine learning share it: they must match."
         },
         "TZ": {
           "label": "Time zone",
           "help": "For dates in the logs, e.g. Europe/Berlin."
+        },
+        "DB_DATA_DIR": {
+          "label": "Database folder",
+          "help": "Postgres's own files."
+        },
+        "MODEL_CACHE_DIR": {
+          "label": "Model cache folder",
+          "help": "Machine learning models, downloaded again when missing."
+        },
+        "DB_PASSWORD": {
+          "label": "Database password",
+          "help": "Made for you."
         }
-      },
-      "backup": {
-        "restoreNote": "Your photos and videos are back. Albums, people and Immich's other data live in its database: its latest database backup came back with the photos — restore it in Immich (Immich's documentation explains how)."
       }
     },
     "ollama": {
       "description": "Runs language models on this server, for the Assistant. Your chats never leave it.",
+      "note": "For a graphics card, add the lines from Ollama's documentation (deploy → resources → devices) to compose.yml, under the settings.",
       "fields": {
+        "DATA_DIR": {
+          "label": "Models folder",
+          "help": "Where the models are kept. They are large (often several GB each)."
+        },
         "API_PORT": {
           "label": "API port",
-          "help": "Only this server can reach it: Ollama has no sign-in of its own."
+          "help": "Ollama has no sign-in of its own: keep it on this machine."
         },
-        "MODELS_DIR": {
-          "label": "Models folder",
-          "help": "Where the models are kept. They are large (often several GB each), so a big disk is a good place."
+        "API_ADDRESS": {
+          "label": "Address",
+          "help": "127.0.0.1: only this machine can reach it."
+        },
+        "OLLAMA_VERSION": {
+          "label": "Version",
+          "help": "Ollama's version."
+        },
+        "USER_ID": {
+          "label": "Runs as",
+          "help": "The user and group it runs as (yours by default)."
         }
       }
-    }
-  },
-  "services": {
-    "installed": {
-      "title": "Installed",
-      "none": "Nothing installed yet. Pick a service from the catalog below.",
-      "loading": "Loading installed services"
-    },
-    "catalog": {
-      "title": "Catalog",
-      "description": "Reviewed services you can install with one click.",
-      "failed": "The catalog couldn't be loaded. Try again in a moment.",
-      "loading": "Loading the catalog"
-    },
-    "category": {
-      "media": "Media",
-      "photos": "Photos",
-      "productivity": "Productivity",
-      "monitoring": "Monitoring",
-      "network": "Network",
-      "tools": "Tools"
-    },
-    "status": {
-      "installing": "Installing…",
-      "installed": "Installed",
-      "failed": "Failed",
-      "removing": "Removing…",
-      "removed": "Removed"
-    },
-    "runtime": {
-      "running": "Running",
-      "partial": "Partly running",
-      "stopped": "Stopped",
-      "unhealthy": "Unhealthy"
-    },
-    "phase": {
-      "deploy": {
-        "pulling": "Downloading",
-        "starting": "Starting",
-        "done": "Ready"
-      },
-      "remove": {
-        "removing": "Removing",
-        "done": "Done"
-      },
-      "restore": {
-        "stopping": "Stopping",
-        "restoring": "Restoring",
-        "starting": "Starting",
-        "done": "Restored"
-      }
-    },
-    "job": {
-      "output": "Output",
-      "omitted": "Earlier lines not shown: {{count}}"
-    },
-    "install": "Install",
-    "installLabel": "Install {{name}}",
-    "reinstall": "Install again",
-    "reinstallLabel": "Install {{name}} again",
-    "open": "Open",
-    "openLabel": "Open {{name}} in a new tab",
-    "retry": "Try again",
-    "remove": {
-      "action": "Remove",
-      "title": "Remove {{name}}?",
-      "text": "Its containers are deleted. Its data and settings are kept, so you can install it again later.",
-      "cancel": "Cancel",
-      "confirm": "Remove",
-      "failed": "Couldn't remove {{name}}"
-    },
-    "back": "Back to services",
-    "notFound": "This service isn't in the catalog.",
-    "form": {
-      "advanced": "Advanced settings",
-      "duration": "Installing downloads the images and starts the service. This can take a few minutes; you can follow it on the services page.",
-      "submit": "Install",
-      "submitting": "Starting…",
-      "secretKept": "Leave empty to keep the current one",
-      "includeInBackups": "Include in backups",
-      "includeInBackupsHelp": "Its folders are backed up with the next backup."
-    },
-    "access": {
-      "title": "{{name}} will be able to:",
-      "port": "Use port {{port}}",
-      "read": "Read",
-      "write": "Read and change",
-      "volumes": "Keep its own data in Docker volumes",
-      "generatedSecrets": "Use passwords made for it, stored encrypted and never shown",
-      "images": "It runs these images:"
-    },
-    "backup": {
-      "ok": "Backed up {{time}} ago",
-      "failed": "Backup failed",
-      "never": "Not backed up yet",
-      "none": "Not backed up"
     }
   },
   "backups": {
@@ -720,9 +674,9 @@
     "failed": "The backups couldn't be loaded. Reload the page to try again.",
     "setup": {
       "title": "Set up backups",
-      "text": "Your services' data, chosen folders and this app are backed up every day — encrypted, and only changes take space. Backups run even when this app is down.",
+      "text": "Your apps' data, chosen folders and this app are backed up every day — encrypted, and only changes take space. Backups run even when this app is down.",
       "disk": "1. The backup disk",
-      "noDisk": "No disk is mounted under /mnt or /media. Connect a USB disk or a second drive and mount it on the Disks page.",
+      "noDisk": "No disk is mounted besides the system's. Connect a USB disk or a second drive and mount it on the Disks page.",
       "diskSpace": "{{free}} free of {{total}} ({{filesystem}})",
       "unsupported": "This disk's format can't be used for backups.",
       "sameDisk": "This is the same disk as your data: if it breaks, the backups are gone too. A separate disk is safer.",
@@ -761,12 +715,9 @@
       "copyFailed": "Couldn't copy. Select the words and copy them yourself.",
       "saved": "I've saved it",
       "again": "Show the passphrase again",
-      "againHint": "Lost the passphrase? You can see it again with your password.",
-      "againTitle": "Show the passphrase",
-      "againText": "Enter your password to see the backup passphrase.",
-      "password": "Password",
+      "againHint": "Lost the passphrase? You can see it again with your Linux account's sudo.",
       "cancel": "Cancel",
-      "show": "Show"
+      "failed": "Couldn't show the passphrase"
     },
     "overview": {
       "title": "Backups",
@@ -801,7 +752,7 @@
     },
     "warning": {
       "serviceNotRestarted": {
-        "title": "A service didn't start again",
+        "title": "An app didn't start again",
         "text": "It was stopped for its backup and didn't start again. Start it on the Containers page."
       },
       "repositoryDamaged": {
@@ -839,7 +790,6 @@
       "restore": "Restore…",
       "remove": "Remove from backups",
       "folders": "Folders backed up",
-      "addService": "Back up {{name}}",
       "addFolder": "Add a folder",
       "addFailed": "Couldn't add it to the backups",
       "foldersFailed": "Couldn't change its folders",
@@ -847,7 +797,13 @@
       "deleteFailed": "Couldn't delete its backups",
       "removedTitle": "No longer backed up",
       "removedText": "Their backups are kept until you delete them.",
-      "deleteBackups": "Delete backups"
+      "deleteBackups": "Delete backups",
+      "addApp": "Add {{name}}",
+      "appRemoved": "The app is removed; its backups stay.",
+      "mode": "While it's backed up",
+      "newFolder": "not backed up yet",
+      "skipped": "Skipped:",
+      "unskip": "Back up"
     },
     "remove": {
       "title": "Stop backing up {{name}}?",
@@ -861,7 +817,7 @@
     },
     "folders": {
       "title": "Choose a folder",
-      "text": "Folders in the service storage and home folders can be backed up.",
+      "text": "Any folder but the system's own can be backed up.",
       "up": "Up",
       "empty": "No folders inside.",
       "unreadable": "This app may not look inside, but the folder can still be backed up.",
@@ -876,10 +832,9 @@
       "which": "Backup",
       "where": "Restore to",
       "inPlace": "Back in place",
-      "inPlaceText": "The service is stopped, its current folders are set aside (kept until you delete them), the backup is put back, and the service starts again.",
-      "newFolder": "A new folder",
-      "newFolderText": "Into a new folder under /srv/laris/restores. Nothing else changes.",
-      "reinstall": "Then install the service again — its previous settings are filled in.",
+      "inPlaceText": "An app using it is stopped, the current folders are set aside (kept until you delete them), the backup is put back, and the app starts again.",
+      "newFolder": "Into a folder",
+      "newFolderText": "Into a folder you choose (missing or empty), with the full paths below it. Nothing else changes.",
       "cancel": "Cancel",
       "confirm": "Restore",
       "confirmInPlace": "Restore in place",
@@ -891,7 +846,18 @@
       "setAside": "The previous version is kept here until you delete it:",
       "discard": "Delete previous version",
       "discarded": "The previous version was deleted.",
-      "discardFailed": "Couldn't delete the previous version"
+      "discardFailed": "Couldn't delete the previous version",
+      "folderLabel": "Folder to restore into",
+      "phase": {
+        "stopping": "Stopping the app…",
+        "restoring": "Restoring…",
+        "starting": "Starting the app again…",
+        "done": "Finishing…"
+      },
+      "status": {
+        "failed": "The restore failed.",
+        "interrupted": "The restore was interrupted."
+      }
     },
     "history": {
       "title": "History",
@@ -944,12 +910,14 @@
     "forget": "Forget",
     "mountDialog": {
       "title": "Mount {{name}}",
-      "text": "Choose a name for its folder.",
-      "name": "Name",
-      "path": "It will be at",
+      "text": "Choose the folder it's mounted at.",
       "kept": "It stays mounted after a restart. If the disk isn't connected then, the machine starts as usual.",
       "cancel": "Cancel",
-      "confirm": "Mount"
+      "confirm": "Mount",
+      "mountPoint": "Folder",
+      "mountPointHelp": "Missing folders are created. Not a system folder.",
+      "makeMine": "Make the top folder mine",
+      "makeMineHelp": "Your Linux account owns the disk's top folder (nothing inside changes)."
     },
     "unmountDialog": {
       "title": "Unmount this disk?",
@@ -1339,6 +1307,11 @@
       "submitting": "Unlocking…",
       "cancel": "Cancel",
       "close": "Close"
+    },
+    "asPerson": {
+      "title": "Sign in as a Linux user",
+      "text": "Laris does this as your Linux account, with its rights.",
+      "submit": "Sign in and continue"
     }
   },
   "assistant": {
@@ -1359,7 +1332,7 @@
     "stopped": "stopped",
     "toLatest": "Jump to the latest message",
     "notInstalled": "Ollama isn’t installed",
-    "notInstalledText": "Ollama runs the language models on this server. Install it from the Services page, then download a model.",
+    "notInstalledText": "Ollama runs the language models on this server. Add it on the Apps page, then download a model.",
     "installOllama": "Install Ollama",
     "notRunning": "Ollama isn’t running",
     "notRunningText": "It’s installed but doesn’t answer. Check its container on the Containers page.",
@@ -1477,5 +1450,183 @@
       "failed": "Couldn’t sign out everywhere"
     },
     "languageNotLoaded": "The language couldn’t be loaded"
+  },
+  "apps": {
+    "title": "Apps",
+    "description": "Each app is a folder with a Compose file, run as its owner's Linux account.",
+    "add": "Add app",
+    "none": "No apps yet.",
+    "loading": "Loading",
+    "dockerUnavailable": "Docker can't be reached: the apps' state is unknown.",
+    "owner": "{{account}}'s",
+    "open": "Open",
+    "openLabel": "Open {{name}}",
+    "start": "Start",
+    "startLabel": "Start {{name}}",
+    "stop": "Stop",
+    "stopLabel": "Stop {{name}}",
+    "state": {
+      "running": "Running",
+      "partial": "Partly running",
+      "unhealthy": "Unhealthy",
+      "stopped": "Stopped",
+      "none": "Not running"
+    },
+    "fields": {
+      "required": "(required)",
+      "kindLabel": "How {{key}} is shown",
+      "kind": {
+        "text": "Text",
+        "port": "Port",
+        "folder": "Folder",
+        "secret": "Secret",
+        "generated": "Generated",
+        "version": "Version"
+      },
+      "showVersions": "Show available versions",
+      "versionsLabel": "Versions for {{key}}",
+      "chooseVersion": "Choose a version",
+      "versionsUnavailable": "The list isn't available for this image.",
+      "folderHelp": "A path starting with ./ is inside the app's folder. Missing folders are created as you.",
+      "generatedHelp": "Made for you when the app is set up.",
+      "advanced": "Advanced"
+    },
+    "editor": {
+      "title": "Files (compose.yml, .env)",
+      "text": "Changed here, the form follows the file. Docker checks it before anything starts."
+    },
+    "backup": {
+      "title": "Backup",
+      "include": "Back this app up with the others",
+      "mode": "While it's backed up",
+      "stop": "Stop it (safest)",
+      "live": "Keep it running",
+      "skip": "Skipped",
+      "removeSkip": "Don't skip {{path}}",
+      "newSkip": "A subfolder to skip",
+      "newSkipPlaceholder": "data/cache or *.tmp",
+      "addSkip": "Skip",
+      "added": "{{name}} is backed up from now on.",
+      "failed": "Couldn't add {{name}} to the backups",
+      "last": "Backed up {{time}}",
+      "never": "Not backed up yet",
+      "manage": "Backups",
+      "notIncluded": "Not in the backups.",
+      "add": "Back it up"
+    },
+    "new": {
+      "templates": "From a template",
+      "templatesText": "A starting point: after setup, the app's folder is yours to change.",
+      "use": "Use",
+      "useLabel": "Use the {{name}} template",
+      "paste": "Paste a Compose file",
+      "pasteText": "Any compose.yml: Laris finds its settings and shows them as a form.",
+      "pasteLabel": "compose.yml",
+      "continue": "Continue",
+      "back": "Back",
+      "pastedTitle": "Your Compose file",
+      "name": "Name",
+      "nameHelp": "Lowercase letters, digits, - and _.",
+      "nameFree": "This name is free.",
+      "nameTaken": "Taken. {{suggestion}} is free.",
+      "folder": "Folder",
+      "folderHelp": "Empty: in your home, under apps/. Another folder must be empty.",
+      "composeRefused": "Docker refused the files:",
+      "install": "Install",
+      "asYou": "Installed as your Linux account; your sudo is asked for if Docker needs it.",
+      "installingText": "Installing. It goes on if you leave this page.",
+      "toApp": "Open the app",
+      "installed": "{{name}} is installed.",
+      "installFailed": "Couldn't install",
+      "templateFailed": "Couldn't load the template",
+      "fieldsFailed": "Couldn't read the Compose file",
+      "backupFailed": "Installed, but not added to the backups"
+    },
+    "page": {
+      "signIn": "Sign in as a Linux user to see this app's files.",
+      "signInButton": "Sign in",
+      "notYours": "This app belongs to {{account}}: sign in as them to change it.",
+      "failed": "Couldn't read this app.",
+      "retry": "Try again"
+    },
+    "task": {
+      "title": "Task",
+      "action": {
+        "up": "Applying",
+        "update": "Updating",
+        "down": "Removing"
+      },
+      "state": {
+        "running": "Running",
+        "succeeded": "Done",
+        "failed": "Failed",
+        "interrupted": "Interrupted"
+      },
+      "system": "through sudo",
+      "outputLabel": "Output",
+      "waiting": "Waiting for output…"
+    },
+    "update": {
+      "title": "Update",
+      "text": "Gets the newest images of the versions set, and starts the app again.",
+      "backupFirst": "Back this app up first",
+      "action": "Update",
+      "versionFor": "Version of {{image}}",
+      "backingUp": "Backing {{name}} up first…",
+      "notBackedUp": "{{name}} wasn't updated: its backup didn't succeed.",
+      "backupFailed": "Couldn't back {{name}} up",
+      "failed": "Couldn't update {{name}}"
+    },
+    "undo": {
+      "title": "Undo this update",
+      "text": "Updated {{time}}. To go back:",
+      "restore": "Restore its data from the backup before it:",
+      "restoreLink": "Restore",
+      "versions": "Set the versions it ran before, then save:",
+      "fill": "Fill them in",
+      "filled": "The previous versions are filled in: save to apply them."
+    },
+    "template": {
+      "newer": "The {{name}} template has a newer version ({{version}}).",
+      "use": "Use the current template",
+      "done": "The current template is in place: check the settings, then update.",
+      "failed": "Couldn't use the current template",
+      "kept": "Kept from before:"
+    },
+    "settings": {
+      "title": "Settings",
+      "text": "Read from the app's folder just now."
+    },
+    "save": {
+      "action": "Save and apply",
+      "discard": "Discard changes",
+      "conflict": "The files changed on disk since they were read.",
+      "reload": "Reload",
+      "overwrite": "Overwrite",
+      "failed": "Couldn't save {{name}}"
+    },
+    "remove": {
+      "section": "Remove",
+      "sectionText": "Its containers go; you choose what of its files goes too.",
+      "action": "Remove…",
+      "title": "Remove",
+      "text": "Its containers are removed. Nothing below is deleted unless you tick it.",
+      "delete": "Also delete",
+      "kind": {
+        "settings": "Its settings (compose.yml, .env)",
+        "folder": "Data folder",
+        "volume": "Docker volume"
+      },
+      "outside": "Outside the app's folder: may be used elsewhere",
+      "outsideWarning": "A ticked folder is outside the app's folder: make sure nothing else uses it.",
+      "backupsStay": "Its backups stay.",
+      "cancel": "Cancel",
+      "confirm": "Remove",
+      "confirmDelete_one": "Remove and delete {{count}} item",
+      "confirmDelete_other": "Remove and delete {{count}} items",
+      "done": "{{name}} was removed.",
+      "failed": "Couldn't remove {{name}}",
+      "deleteFailed": "{{name}} was removed, but not everything ticked was deleted"
+    }
   }
 }

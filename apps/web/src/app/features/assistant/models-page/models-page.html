@@ -20,7 +20,7 @@
         "
       >
         @if (status.state === 'not_installed') {
-          <a hlmBtn size="sm" routerLink="/services">{{ 'assistant.installOllama' | translate }}</a>
+          <a hlmBtn size="sm" routerLink="/apps/new">{{ 'assistant.installOllama' | translate }}</a>
         } @else {
           <div class="flex flex-wrap justify-center gap-2">
             <button hlmBtn size="sm" (click)="modelsPageStore.load()">
