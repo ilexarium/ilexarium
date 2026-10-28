@@ -9,6 +9,6 @@ export default defineConfig({
     globals: true,
     root: './',
     // The root wrapper's tests too (system/ has no package of its own; they need no database).
-    include: ['**/*.spec.ts', '../../system/wrappers/*.spec.ts'],
+    include: ['**/*.spec.ts', '../../system/programs/*.spec.ts'],
   },
 });

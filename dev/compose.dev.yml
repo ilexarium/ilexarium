@@ -59,7 +59,7 @@ services:
       - '127.0.0.1:2222:22'
     volumes:
       - ../apps/server/.dev/sshd:/keys
-      - ../system/wrappers:/opt/laris/libexec:ro
+      - ../system/programs:/opt/laris/libexec:ro
     restart: unless-stopped
 
   # Something to start, stop and restart: the container actions' e2e tests and trying the menu.

@@ -2,7 +2,7 @@
 //   release/laris-<version>.tar.gz and its .sha256
 // holding the built server and web app, their production packages (one archive for amd64 and
 // arm64: no native modules, and Prisma's migration engine for both), the migrations, the catalog
-// and system/ (the installer, wrappers, units). Usage: npm run release
+// and system/ (the installer, the root programs and the helper, units). Usage: npm run release
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -122,7 +122,7 @@ if (native.length > 0) {
   );
 }
 
-// The catalog, and system/ without the wrappers' tests.
+// The catalog, and system/ without the programs' tests.
 copy('catalog', join(STAGE, 'catalog'));
 copy(
   'system',

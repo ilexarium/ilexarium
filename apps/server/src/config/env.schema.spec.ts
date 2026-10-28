@@ -45,7 +45,7 @@ describe('validateEnv', () => {
 
   it('starts the installed helper, or one at another plain absolute path', () => {
     expect(validateEnv(base).LINUX_HELPER).toBe('/opt/laris/libexec/laris-helper.mts');
-    const path = '/home/dev/laris/system/wrappers/laris-helper.mts';
+    const path = '/home/dev/laris/system/programs/laris-helper.mts';
     expect(validateEnv({ ...base, LINUX_HELPER: path }).LINUX_HELPER).toBe(path);
   });
 

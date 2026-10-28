@@ -5,7 +5,7 @@
 #   bob  / bob-dev-password  (uid 1501) — whose home is private (permission denied for anna); no sudo
 # Its host keys are made at the first start into /keys, a folder shared with the app
 # (apps/server/.dev/sshd), which pins them like production pins /etc/ssh/ssh_host_*_key.pub.
-# Node 24 runs the helper (system/wrappers/laris-helper.mts, mounted where the installer puts it).
+# Node 24 runs the helper (system/programs/laris-helper.mts, mounted where the installer puts it).
 FROM node:24-slim AS node
 
 FROM debian:13-slim

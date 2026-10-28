@@ -2,7 +2,7 @@ import type { ProcessSignal, PublicUser } from '@laris/shared';
 import type { ClientChannel, Client, SFTPWrapper } from 'ssh2';
 import type { LinuxHelper } from './linux-helper.js';
 
-/** What the helper is asked (system/wrappers/laris-helper.mts lists the same). */
+/** What the helper is asked (system/programs/laris-helper.mts lists the same). */
 export type HelperRequest =
   | { action: 'hello' }
   | { action: 'sudo.unlock'; password: string }

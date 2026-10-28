@@ -1,5 +1,5 @@
 {
-  // Type checking only (editors, `npx tsc -p system/wrappers`): Node runs the wrappers' .mts
+  // Type checking only (editors, `npx tsc -p system/programs`): Node runs the programs' .mts
   // directly, stripping the types — nothing here is compiled or installed as code.
   "compilerOptions": {
     "module": "nodenext",

@@ -19,7 +19,7 @@ export const ANSWER_MARGIN_MS = 10_000;
 export const PATH = '/usr/sbin:/usr/bin:/sbin:/bin';
 
 const repo = (file: string) =>
-  fileURLToPath(new URL(`../../../../system/wrappers/${file}`, import.meta.url));
+  fileURLToPath(new URL(`../../../../system/programs/${file}`, import.meta.url));
 
 /** In this repository: run directly in development (`ROOT_PROGRAMS=direct`), never in production. */
 export const PROGRAM_FILES = {
