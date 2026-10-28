@@ -18,6 +18,11 @@ export const FILES_LIMITS = {
   uploadMaxBytes: 10 * 1024 ** 3,
   /** A Linux session closes after this long without use. */
   idleMinutes: 30,
+  /**
+   * sudo's usual cache time (`timestamp_timeout`), counted from the last use: the estimate both
+   * sides show. The machine may set another; sudo's own `sudo_required` is the truth.
+   */
+  sudoEstimateMinutes: 15,
   /** "How much is in this folder" stops counting here. */
   summaryMaxEntries: 10_000,
 } as const;
@@ -37,8 +42,12 @@ export const FILES_ERROR_CODES = {
   sudoPasswordWrong: 'sudo_password_wrong',
   /** The account may not use sudo (or sudo isn't installed). */
   sudoNotAllowed: 'sudo_not_allowed',
+  /** sudo didn't answer in time, or failed in a way it didn't explain. */
+  sudoFailed: 'sudo_failed',
   /** The Linux session has no helper (not installed, or it ended): no administrator actions. */
   helperUnavailable: 'helper_unavailable',
+  /** Unlocking sudo is recorded first; without the audit log, nothing is done. */
+  auditUnavailable: 'audit_unavailable',
   notFound: 'file_not_found',
   permissionDenied: 'permission_denied',
   /** Something is already there (upload without replacing, rename onto it, new folder). */

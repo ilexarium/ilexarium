@@ -26,6 +26,16 @@ function sudoRefusal(result: RunResult): string | null {
   return null;
 }
 
+/** One line on sudo's stdin: a line break would end it early, and sudo would read the rest. */
+export function acceptablePassword(password: unknown): password is string {
+  return (
+    typeof password === 'string' &&
+    password.length > 0 &&
+    password.length <= PASSWORD_MAX &&
+    !/[\r\n\0]/.test(password)
+  );
+}
+
 function hello(): Answer {
   const me = userInfo();
   return ok({ uid: me.uid, user: me.username, home: me.homedir });
@@ -33,11 +43,7 @@ function hello(): Answer {
 
 async function unlockSudo(request: Request): Promise<Answer> {
   const password = request['password'];
-  if (typeof password !== 'string' || password.length === 0 || password.length > PASSWORD_MAX) {
-    return BAD_REQUEST;
-  }
-  // One line on sudo's stdin: a line break would end it early, and sudo would read the rest.
-  if (/[\r\n\0]/.test(password)) return BAD_REQUEST;
+  if (!acceptablePassword(password)) return BAD_REQUEST;
   const result = await run(PROGRAMS.sudo, ['-S', '-v'], {
     input: `${password}\n`,
     timeoutMs: SUDO_TIMEOUT_MS,

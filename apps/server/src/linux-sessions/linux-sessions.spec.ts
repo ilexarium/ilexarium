@@ -19,6 +19,8 @@ let helperMode: 'answers' | 'missing' | 'refuses' | 'silent' = 'answers';
 /** Its answers, by action. */
 let helperAnswers: Record<string, Record<string, unknown>> = {};
 const asked: Record<string, unknown>[] = [];
+/** Where an answer is cut in two (bytes): a character may be split. */
+let splitAt = 5;
 const started: { command: string; options: Record<string, unknown> }[] = [];
 
 class FakeClient extends EventEmitter {
@@ -58,10 +60,10 @@ class FakeClient extends EventEmitter {
         if (helperMode === 'silent') return;
         const answer = helperAnswers[request['action'] as string] ?? { ok: true };
         // The terminal turns "\n" into "\r\n", and an answer may arrive in pieces.
-        const text = `${JSON.stringify({ id: request['id'], ...answer })}\r\n`;
+        const bytes = Buffer.from(`${JSON.stringify({ id: request['id'], ...answer })}\r\n`);
         setImmediate(() => {
-          channel.emit('data', Buffer.from(text.slice(0, 5)));
-          channel.emit('data', Buffer.from(text.slice(5)));
+          channel.emit('data', bytes.subarray(0, splitAt));
+          channel.emit('data', bytes.subarray(splitAt));
         });
       },
     });
@@ -101,7 +103,7 @@ const ACTOR = { user: USER, ip: '127.0.0.1' };
 describe('LinuxSessions', () => {
   let dir: string;
   let events: Subject<Record<string, unknown>>;
-  let audit: { tryRecord: ReturnType<typeof vi.fn> };
+  let audit: { record: ReturnType<typeof vi.fn>; tryRecord: ReturnType<typeof vi.fn> };
   let sessions: InstanceType<typeof LinuxSessions>;
 
   beforeEach(async () => {
@@ -113,6 +115,7 @@ describe('LinuxSessions', () => {
     helperAnswers = { hello: { ok: true, uid: 1500, user: 'anna', home: '/home/anna' } };
     asked.length = 0;
     started.length = 0;
+    splitAt = 5;
     dir = mkdtempSync(join(tmpdir(), 'host-keys-'));
     writeFileSync(
       join(dir, 'ssh_host_ed25519_key.pub'),
@@ -123,7 +126,7 @@ describe('LinuxSessions', () => {
       `ssh-ed25519 ${Buffer.from('other').toString('base64')}\n`,
     );
     events = new Subject();
-    audit = { tryRecord: vi.fn(async () => undefined) };
+    audit = { record: vi.fn(async () => undefined), tryRecord: vi.fn(async () => undefined) };
     const config = {
       get: (key: string) => ({ SSH_PORT: 2222, LINUX_HELPER: HELPER })[key] ?? dir,
     } as unknown as ConfigService<Env, true>;
@@ -166,7 +169,7 @@ describe('LinuxSessions', () => {
     expect(asked).toEqual([{ id: 1, action: 'hello' }]);
   });
 
-  it('without a helper (missing, or refusing to start) still signs in, without administrator actions', async () => {
+  it('without a helper (missing, or refusing to start) still signs in for Files and the terminal; ending processes and sudo say it has none', async () => {
     for (const mode of ['missing', 'refuses'] as const) {
       helperMode = mode;
       expect(await signIn()).toEqual({ ...SESSION, uid: null });
@@ -237,14 +240,17 @@ describe('LinuxSessions', () => {
 
   it('a password sudo refuses, or an account it refuses: 403 with its code, audited', async () => {
     await signIn();
-    for (const [error, code] of [
-      ['wrong_password', 'sudo_password_wrong'],
-      ['sudo_not_allowed', 'sudo_not_allowed'],
-      ['sudo_unavailable', 'sudo_not_allowed'],
-    ]) {
+    for (const [error, status, code] of [
+      ['wrong_password', 403, 'sudo_password_wrong'],
+      ['sudo_not_allowed', 403, 'sudo_not_allowed'],
+      ['sudo_unavailable', 403, 'sudo_not_allowed'],
+      ['timed_out', 502, 'sudo_failed'],
+      ['failed', 502, 'sudo_failed'],
+      ['something new', 502, 'sudo_failed'],
+    ] as const) {
       helperAnswers['sudo.unlock'] = { ok: false, error };
       await expect(sessions.unlockSudo('s1', 'pw', ACTOR)).rejects.toMatchObject({
-        status: 403,
+        status,
         response: { code },
       });
       expect(audit.tryRecord).toHaveBeenLastCalledWith(
@@ -256,6 +262,76 @@ describe('LinuxSessions', () => {
       );
     }
     expect(sessions.current('s1')?.sudoUntil).toBeNull();
+  });
+
+  it('unlocking is recorded first: without the audit log, sudo is never asked', async () => {
+    await signIn();
+    audit.record.mockRejectedValueOnce(new Error('no audit table'));
+    await expect(sessions.unlockSudo('s1', 'pw', ACTOR)).rejects.toMatchObject({
+      status: 503,
+      response: { code: 'audit_unavailable' },
+    });
+    expect(asked.some((r) => r['action'] === 'sudo.unlock')).toBe(false);
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'linux.sudo_unlock', outcome: 'requested' }),
+    );
+  });
+
+  it('a session that ended while sudo ran: sign in again, not “no helper”', async () => {
+    await signIn();
+    helperMode = 'silent';
+    const unlocking = sessions.unlockSudo('s1', 'pw', ACTOR);
+    const refused = expect(unlocking).rejects.toMatchObject({
+      response: { code: 'linux_session_required' },
+    });
+    events.next({ type: 'sign-out', userId: 'u1', sessionId: 's1' });
+    await vi.advanceTimersByTimeAsync(25_000);
+    await refused;
+  });
+
+  it('“Lock now” closes only the session it locked, not a newer sign-in meanwhile', async () => {
+    await signIn();
+    helperMode = 'silent';
+    const locking = sessions.lockSudo('s1', ACTOR);
+    const again = signIn();
+    // Its "hello" goes unanswered too (5 s), once it's sent.
+    for (let i = 0; i < 10; i++) await vi.advanceTimersByTimeAsync(1_000);
+    await again;
+    await vi.advanceTimersByTimeAsync(25_000);
+    await locking;
+    expect(sessions.current('s1')).not.toBeNull();
+    expect(clients[0].ended).toBe(true);
+    expect(clients.at(-1)!.ended).toBe(false);
+  });
+
+  it('reads a character split between two chunks whole', async () => {
+    helperAnswers['hello'] = { ok: true, uid: 1500, user: 'jürgen', home: '/home/jürgen' };
+    // Inside the first "ü" (two bytes in UTF-8).
+    splitAt = Buffer.from('{"id":1,"ok":true,"uid":1500,"user":"j').length + 1;
+    await signIn();
+    expect(asked).toHaveLength(1);
+    expect(sessions.current('s1')?.uid).toBe(1500);
+    helperAnswers['process.signal'] = { ok: true, said: 'jürgen' };
+    expect(
+      await sessions.ask('s1', {
+        action: 'process.signal',
+        pid: 9,
+        signal: 'TERM',
+        administrator: false,
+      }),
+    ).toEqual({ ok: true, said: 'jürgen' });
+  });
+
+  it('a line the helper couldn’t read fails what waits at once, without its timeout', async () => {
+    await signIn();
+    helperAnswers['process.signal'] = { id: null, ok: false, error: 'bad_request' };
+    const answer = await sessions.ask('s1', {
+      action: 'process.signal',
+      pid: 9,
+      signal: 'TERM',
+      administrator: false,
+    });
+    expect(answer).toEqual({ ok: false, error: 'ended' });
   });
 
   it('“Lock now” locks sudo and ends the Linux session', async () => {

@@ -271,7 +271,8 @@
     "sudo_password_wrong": "sudo didn’t accept this password.",
     "sudo_not_allowed": "This account may not use sudo on this machine.",
     "sudo_required": "This needs administrator rights: unlock sudo with the Linux account’s password.",
-    "helper_unavailable": "Administrator actions aren’t available in this Linux session (Laris’s helper didn’t start). Sign in to Linux again; if it stays, install Laris again."
+    "helper_unavailable": "Administrator actions aren’t available in this Linux session (Laris’s helper didn’t start). Sign in to Linux again; if it stays, install Laris again.",
+    "sudo_failed": "sudo didn’t answer, or failed without saying why. Try again; if it stays, check sudo in a terminal."
   },
   "format": {
     "lessThanAMinute": "less than a minute"

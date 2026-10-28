@@ -13,7 +13,11 @@ import {
   DISK_UUID_PATTERN,
   ENUM_OPTION_PATTERN,
   FIELD_KEY_PATTERN,
+  FILES_LIMITS,
+  linuxSudoRequestSchema,
   PATH_FORBIDDEN,
+  PROCESS_LIMITS,
+  PROCESS_SIGNALS,
   TEXT_PATTERNS,
 } from '@laris/shared';
 import {
@@ -38,6 +42,8 @@ import * as wrapperDiskConfig from './disk/config.mts';
 import * as wrapperDiskDevices from './disk/devices.mts';
 import * as wrapperDiskMount from './disk/mount.mts';
 import * as wrapperDiskUnits from './disk/units.mts';
+import * as helperActions from './helper/actions.mts';
+import * as helperConfig from './helper/config.mts';
 import * as wrapperPaths from './lib/paths.mts';
 
 // The app's rules and the root wrappers' are written twice on purpose (the wrappers share no code
@@ -113,5 +119,26 @@ describe('the app and the root wrappers check the same rules', () => {
     expect(ROOT_PLACES.unitDir).toBe(wrapperDiskConfig.ROOT_PATHS.unitDir);
     expect(String(wrapperDiskUnits.NAME)).toBe(String(DISK_NAME_PATTERN));
     expect(String(wrapperDiskMount.UUID)).toBe(String(DISK_UUID_PATTERN));
+  });
+
+  it('the helper: the highest PID, the signals, and which sudo passwords go on one line', () => {
+    expect(helperConfig.PID_MAX).toBe(PROCESS_LIMITS.maxPid);
+    expect([...helperConfig.SIGNALS]).toEqual([...PROCESS_SIGNALS]);
+    expect(helperConfig.PASSWORD_MAX).toBe(FILES_LIMITS.passwordMax);
+    for (const password of [
+      'right',
+      'with spaces and ünïcödé',
+      'x'.repeat(FILES_LIMITS.passwordMax),
+      'x'.repeat(FILES_LIMITS.passwordMax + 1),
+      '',
+      'line\nbreak',
+      'carriage\rreturn',
+      'nul\0byte',
+      'tab\tis fine',
+    ]) {
+      expect(helperActions.acceptablePassword(password), JSON.stringify(password)).toBe(
+        linuxSudoRequestSchema.safeParse({ password }).success,
+      );
+    }
   });
 });
