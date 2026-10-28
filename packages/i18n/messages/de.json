@@ -5,8 +5,6 @@
     "dashboard": "Übersicht",
     "containers": "Container",
     "logs": "Logs · {{name}}",
-    "services": "Dienste",
-    "installService": "Dienst installieren",
     "backups": "Backups",
     "disks": "Laufwerke",
     "alerts": "Warnungen",
@@ -16,7 +14,10 @@
     "terminal": "Terminal",
     "assistant": "Assistent",
     "assistantModels": "Modelle",
-    "profile": "Profil"
+    "profile": "Profil",
+    "apps": "Apps",
+    "newApp": "App hinzufügen",
+    "app": "App"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -34,7 +35,6 @@
     "dashboard": "Übersicht",
     "containers": "Container",
     "settings": "Einstellungen",
-    "services": "Dienste",
     "backups": "Backups",
     "attention": "(braucht Aufmerksamkeit)",
     "disks": "Laufwerke",
@@ -45,7 +45,8 @@
     "processes": "Prozesse",
     "files": "Dateien",
     "terminal": "Terminal",
-    "assistant": "Assistent"
+    "assistant": "Assistent",
+    "apps": "Apps"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -123,7 +124,7 @@
     "portInvalid": "Gib eine Portnummer ein",
     "portRange": "Ein Port von {{portMin}} bis {{portMax}}",
     "pathRequired": "Gib einen Ordner ein",
-    "pathInvalid": "Ein vollständiger Ordnerpfad, z. B. /srv/laris/music",
+    "pathInvalid": "Ein vollständiger Ordnerpfad, z. B. /home/du/musik",
     "textRequired": "Gib einen Wert ein",
     "textTooLong": "Höchstens {{textMax}} Zeichen",
     "text": {
@@ -165,7 +166,15 @@
     "displayNameTooLong": "Höchstens {{displayNameMax}} Zeichen",
     "emailTooLong": "Höchstens {{emailMax}} Zeichen",
     "nothingToChange": "Nichts zu ändern",
-    "passwordInvalid": "Eine Zeile, ohne Zeilenumbrüche"
+    "passwordInvalid": "Eine Zeile, ohne Zeilenumbrüche",
+    "appNameInvalid": "Kleinbuchstaben, Ziffern, - und _, am Anfang ein Buchstabe oder eine Ziffer.",
+    "fileTooLarge": "Die Datei ist zu groß.",
+    "composeRequired": "Eine Compose-Datei wird gebraucht.",
+    "tagInvalid": "Keine Version.",
+    "backupSkipInvalid": "Ein Pfad unterhalb des Ordners, ohne .. oder Klammern.",
+    "backupFolderSystem": "Kein Systemordner.",
+    "mountPointRequired": "Gib einen Ordner ein.",
+    "mountPointInvalid": "Ein absoluter Ordner, nicht / und kein Systemordner."
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -182,19 +191,11 @@
     "container_protected": "Dieser Container gehört zur Plattform selbst und kann hier nicht gestoppt oder neu gestartet werden.",
     "docker_unavailable": "Docker ist gerade nicht erreichbar. Prüfe, ob es läuft, und versuche es noch einmal.",
     "action_failed": "Docker konnte das nicht ausführen. Die Logs des Containers verraten vielleicht, warum.",
-    "catalog_entry_not_found": "Diesen Dienst gibt es im Katalog nicht.",
-    "service_not_found": "Diesen Dienst gibt es nicht mehr.",
-    "service_already_installed": "Dieser Dienst ist bereits installiert.",
-    "service_not_installed": "Dieser Dienst ist nicht installiert.",
+    "catalog_entry_not_found": "Diese Vorlage ist nicht im Katalog.",
     "busy": "Ein anderer Vorgang (eine Installation, ein Backup, eine Wiederherstellung oder das Einbinden eines Laufwerks) läuft. Versuche es erneut, wenn er fertig ist.",
-    "port_in_use": "Dieser Port wird bereits verwendet.",
-    "port_reserved": "Dieser Port ist für das System reserviert.",
     "path_not_allowed": "Dieser Ordner liegt nicht in einem erlaubten Bereich.",
     "path_not_found": "Diesen Ordner gibt es nicht.",
-    "invalid_values": "Einige Einstellungen sind ungültig.",
-    "policy_violation": "Das Rezept dieses Dienstes wurde von den Sicherheitsprüfungen abgelehnt.",
-    "compose_failed": "Der Dienst konnte nicht gestartet werden. Die Ausgabe zeigt, warum.",
-    "executor_unavailable": "Dieser Server ist dafür noch nicht eingerichtet.",
+    "compose_failed": "Compose ist fehlgeschlagen. Die Ausgabe zeigt warum.",
     "timed_out": "Das hat zu lange gedauert und wurde abgebrochen.",
     "interrupted": "Die App wurde neu gestartet, während das lief.",
     "audit_unavailable": "Es wurde nichts getan: Die Aktion konnte nicht im Audit-Log festgehalten werden.",
@@ -205,8 +206,8 @@
     "passphrase_invalid": "Die Backup-Passphrase auf diesem Server fehlt oder ist falsch.",
     "disk_full": "Das Backup-Laufwerk ist voll.",
     "source_missing": "Ein zu sichernder Ordner fehlt.",
-    "service_not_stopped": "Der Dienst konnte für sein Backup nicht gestoppt werden und wurde daher nicht gesichert.",
-    "service_not_restarted": "Der Dienst ist nach seinem Backup nicht wieder gestartet. Starte ihn auf der Seite „Container“.",
+    "service_not_stopped": "Die App konnte für die Sicherung nicht gestoppt werden und wurde daher nicht gesichert.",
+    "service_not_restarted": "Die App ist nach der Sicherung nicht wieder gestartet. Starte sie auf der Seite Apps.",
     "dump_failed": "Die Datenbank der App konnte nicht gesichert werden.",
     "repository_damaged": "Die Prüfung hat Schäden in den Backups gefunden.",
     "borg_failed": "Das Backup-Programm hat einen Fehler gemeldet. Die Ausgabe enthält die Einzelheiten.",
@@ -219,8 +220,6 @@
     "backup_archive_not_found": "Dieses Backup gibt es nicht (mehr).",
     "backup_restore_not_found": "Für diese Wiederherstellung gibt es nichts zu löschen.",
     "backup_run_not_found": "Dieser Backup-Lauf ist nicht (mehr) im Verlauf.",
-    "service_not_backed_up": "Dieser Dienst kann nicht gesichert werden.",
-    "paths_changed": "Der Dienst nutzt inzwischen andere Ordner. Stelle stattdessen in einen neuen Ordner wieder her.",
     "invalid_plan": "Das Backup-Programm hat diese Änderung abgelehnt. Es wurde nichts geändert.",
     "backup_set_aside_kept": "Eine Wiederherstellung bewahrt noch die vorherige Version davon auf. Lösche zuerst diese (bei der Wiederherstellung), dann die Backups.",
     "invalid_request": "Die Anfrage war ungültig.",
@@ -228,7 +227,6 @@
     "disk_in_use": "Dieses Laufwerk wird verwendet: bereits eingebunden, als Auslagerungsspeicher oder als Teil eines anderen Geräts.",
     "system_disk": "Das System läuft von diesem Laufwerk: Es wird hier nicht verändert.",
     "unsupported_filesystem": "Das Format dieses Laufwerks kann hier nicht eingebunden werden (ext4, XFS, Btrfs und exFAT schon).",
-    "name_taken": "Dieser Name wird bereits verwendet. Wähle einen anderen.",
     "not_managed": "Dieses Laufwerk wurde nicht hier eingebunden und wird daher auch nicht hier ausgehängt.",
     "used_for_backups": "Auf diesem Laufwerk liegen die Backups. Wähle zuerst ein anderes Backup-Laufwerk.",
     "disk_busy": "Dateien auf diesem Laufwerk sind geöffnet. Schließe sie oder beende, was sie verwendet, und versuche es erneut.",
@@ -272,7 +270,20 @@
     "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden.",
     "sudo_required": "Dafür sind Administratorrechte nötig: Entsperre sudo mit dem Passwort des Linux-Kontos.",
     "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Laris ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Laris erneut.",
-    "sudo_failed": "sudo hat nicht geantwortet oder ist ohne Begründung fehlgeschlagen. Versuche es erneut; bleibt es so, prüfe sudo in einem Terminal."
+    "sudo_failed": "sudo hat nicht geantwortet oder ist ohne Begründung fehlgeschlagen. Versuche es erneut; bleibt es so, prüfe sudo in einem Terminal.",
+    "app_not_found": "Im Ordner dieser App ist keine Compose-Datei.",
+    "app_name_taken": "Eine App mit diesem Namen gibt es schon.",
+    "app_folder_exists": "Dieser Ordner ist nicht leer.",
+    "compose_invalid": "Docker hat die Compose-Datei abgelehnt.",
+    "changed_on_disk": "Die Dateien wurden inzwischen auf der Festplatte geändert.",
+    "app_task_running": "Eine Aufgabe dieser App läuft.",
+    "app_task_not_started": "Die Aufgabe ist nicht gestartet.",
+    "app_service_not_found": "Diesen Dienst gibt es in der Datei nicht.",
+    "path_protected": "Dieser Ordner wird nie gelöscht.",
+    "app_failed": "Es hat nicht funktioniert.",
+    "program_unavailable": "Das Root-Programm ist nicht gelaufen (nicht installiert?).",
+    "target_not_empty": "In diesem Ordner ist schon etwas.",
+    "mount_point_in_use": "Dieser Ordner wird benutzt, oder sein übergeordneter Ordner fehlt."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -415,8 +426,6 @@
       "none": "Bisher ist nichts passiert.",
       "resolved": "Behoben: {{what}}",
       "action": {
-        "serviceDeploy": "{{name}} installiert",
-        "serviceRemove": "{{name}} entfernt",
         "containerStart": "{{name}} gestartet",
         "containerStop": "{{name}} gestoppt",
         "containerRestart": "{{name}} neu gestartet",
@@ -424,7 +433,10 @@
         "backupRestore": "Ein Backup wurde wiederhergestellt",
         "diskMount": "Laufwerk {{name}} eingebunden",
         "diskUnmount": "Laufwerk {{name}} ausgehängt",
-        "modelPull": "Modell {{name}} heruntergeladen"
+        "modelPull": "Modell {{name}} heruntergeladen",
+        "appInstall": "{{name}} installiert",
+        "appUpdate": "{{name}} aktualisiert",
+        "appRemove": "{{name}} entfernt"
       },
       "backup": {
         "ok": "Backup abgeschlossen",
@@ -449,7 +461,7 @@
       "text": "Container-Informationen sind gerade nicht verfügbar. Prüfe, ob Docker läuft; diese Seite aktualisiert sich dann von selbst."
     },
     "none": "Noch keine Container.",
-    "noneAction": "Dienst installieren",
+    "noneAction": "App hinzufügen",
     "column": {
       "name": "Name",
       "state": "Status",
@@ -573,146 +585,88 @@
       "fields": {
         "WEB_PORT": {
           "label": "Web-Port",
-          "help": "Der Port, unter dem sich die Webseite von Navidrome öffnet."
+          "help": "Der Port, auf dem sich die Webseite von Navidrome öffnet."
         },
         "MUSIC_DIR": {
           "label": "Musikordner",
-          "help": "Wo deine Musik liegt. Navidrome liest sie nur und ändert oder löscht nie Dateien."
+          "help": "Wo deine Musik liegt. Navidrome liest sie nur."
         },
         "DATA_DIR": {
           "label": "Datenordner",
-          "help": "Wo Navidrome seine Datenbank, Playlists und Cover speichert."
+          "help": "Wo Navidrome seine Datenbank, Playlists und Cover ablegt."
+        },
+        "NAVIDROME_VERSION": {
+          "label": "Version",
+          "help": "Die Version von Navidrome."
+        },
+        "USER_ID": {
+          "label": "Läuft als",
+          "help": "Benutzer und Gruppe, als die es läuft (standardmäßig deine), damit es deine Musik lesen kann."
         }
       }
     },
     "immich": {
       "description": "Sichere und durchsuche deine Fotos und Videos – mit automatischem Upload vom Handy, Alben, Gesichtern und Suche.",
+      "backup": {
+        "restoreNote": "Deine Fotos und Videos sind zurück. Alben, Personen und Immichs übrige Daten liegen in seiner Datenbank: Ihre letzte Sicherung kam mit den Fotos zurück — stelle sie in Immich wieder her (Immichs Dokumentation erklärt, wie)."
+      },
+      "note": "Die Datenbank von Immich liegt in ./postgres und wird nicht als Dateien gesichert: Immichs eigene Dumps in library/backups schon. Nach einer Wiederherstellung stelle die Datenbank in Immich wieder her.",
       "fields": {
         "WEB_PORT": {
           "label": "Web-Port",
-          "help": "Der Port, mit dem sich die Webseite und die Handy-App von Immich verbinden."
+          "help": "Der Port, mit dem sich Webseite und Handy-App von Immich verbinden."
         },
         "UPLOAD_DIR": {
           "label": "Ordner der Fotobibliothek",
-          "help": "Wo Immich deine Fotos und Videos speichert. Immich verwaltet diesen Ordner: Füge Fotos in Immich hinzu und lösche sie dort, nicht hier."
+          "help": "Wo Immich deine Fotos und Videos speichert. Füge Fotos in Immich hinzu und lösche sie dort, nicht hier."
+        },
+        "IMMICH_VERSION": {
+          "label": "Version",
+          "help": "Server und maschinelles Lernen teilen sie: Sie müssen zusammenpassen."
         },
         "TZ": {
           "label": "Zeitzone",
           "help": "Für Zeitangaben in den Logs, z. B. Europe/Berlin."
+        },
+        "DB_DATA_DIR": {
+          "label": "Datenbankordner",
+          "help": "Die Dateien von Postgres."
+        },
+        "MODEL_CACHE_DIR": {
+          "label": "Ordner für den Modell-Cache",
+          "help": "Modelle für maschinelles Lernen, werden bei Bedarf neu geladen."
+        },
+        "DB_PASSWORD": {
+          "label": "Datenbankpasswort",
+          "help": "Wird für dich erzeugt."
         }
-      },
-      "backup": {
-        "restoreNote": "Deine Fotos und Videos sind zurück. Alben, Personen und Immichs übrige Daten liegen in seiner Datenbank: Ihre letzte Sicherung kam mit den Fotos zurück — stelle sie in Immich wieder her (Immichs Dokumentation erklärt, wie)."
       }
     },
     "ollama": {
       "description": "Führt Sprachmodelle auf diesem Server aus, für den Assistenten. Deine Chats verlassen ihn nie.",
+      "note": "Für eine Grafikkarte füge die Zeilen aus der Ollama-Dokumentation (deploy → resources → devices) in compose.yml ein, unter den Einstellungen.",
       "fields": {
+        "DATA_DIR": {
+          "label": "Modellordner",
+          "help": "Wo die Modelle liegen. Sie sind groß (oft mehrere GB)."
+        },
         "API_PORT": {
           "label": "API-Port",
-          "help": "Nur dieser Server erreicht ihn: Ollama hat keine eigene Anmeldung."
+          "help": "Ollama hat keine eigene Anmeldung: Lass ihn auf diesem Rechner."
         },
-        "MODELS_DIR": {
-          "label": "Modellordner",
-          "help": "Wo die Modelle liegen. Sie sind groß (oft mehrere GB pro Modell), eine große Festplatte ist ein guter Ort."
+        "API_ADDRESS": {
+          "label": "Adresse",
+          "help": "127.0.0.1: Nur dieser Rechner erreicht ihn."
+        },
+        "OLLAMA_VERSION": {
+          "label": "Version",
+          "help": "Die Version von Ollama."
+        },
+        "USER_ID": {
+          "label": "Läuft als",
+          "help": "Benutzer und Gruppe, als die es läuft (standardmäßig deine)."
         }
       }
-    }
-  },
-  "services": {
-    "installed": {
-      "title": "Installiert",
-      "none": "Noch nichts installiert. Wähle unten einen Dienst aus dem Katalog.",
-      "loading": "Installierte Dienste werden geladen"
-    },
-    "catalog": {
-      "title": "Katalog",
-      "description": "Geprüfte Dienste, die du mit einem Klick installieren kannst.",
-      "failed": "Der Katalog konnte nicht geladen werden. Versuche es gleich noch einmal.",
-      "loading": "Katalog wird geladen"
-    },
-    "category": {
-      "media": "Medien",
-      "photos": "Fotos",
-      "productivity": "Produktivität",
-      "monitoring": "Überwachung",
-      "network": "Netzwerk",
-      "tools": "Werkzeuge"
-    },
-    "status": {
-      "installing": "Wird installiert…",
-      "installed": "Installiert",
-      "failed": "Fehlgeschlagen",
-      "removing": "Wird entfernt…",
-      "removed": "Entfernt"
-    },
-    "runtime": {
-      "running": "Läuft",
-      "partial": "Läuft teilweise",
-      "stopped": "Gestoppt",
-      "unhealthy": "Fehlerhaft"
-    },
-    "phase": {
-      "deploy": {
-        "pulling": "Herunterladen",
-        "starting": "Starten",
-        "done": "Bereit"
-      },
-      "remove": {
-        "removing": "Entfernen",
-        "done": "Fertig"
-      },
-      "restore": {
-        "stopping": "Wird gestoppt",
-        "restoring": "Wird wiederhergestellt",
-        "starting": "Wird gestartet",
-        "done": "Wiederhergestellt"
-      }
-    },
-    "job": {
-      "output": "Ausgabe",
-      "omitted": "Nicht angezeigte frühere Zeilen: {{count}}"
-    },
-    "install": "Installieren",
-    "installLabel": "{{name}} installieren",
-    "reinstall": "Erneut installieren",
-    "reinstallLabel": "{{name}} erneut installieren",
-    "open": "Öffnen",
-    "openLabel": "{{name}} in neuem Tab öffnen",
-    "retry": "Erneut versuchen",
-    "remove": {
-      "action": "Entfernen",
-      "title": "{{name}} entfernen?",
-      "text": "Seine Container werden gelöscht. Seine Daten und Einstellungen bleiben erhalten, sodass du ihn später erneut installieren kannst.",
-      "cancel": "Abbrechen",
-      "confirm": "Entfernen",
-      "failed": "{{name}} konnte nicht entfernt werden"
-    },
-    "back": "Zurück zu den Diensten",
-    "notFound": "Diesen Dienst gibt es im Katalog nicht.",
-    "form": {
-      "advanced": "Erweiterte Einstellungen",
-      "duration": "Bei der Installation werden die Images heruntergeladen und der Dienst gestartet. Das kann einige Minuten dauern; du kannst es auf der Dienste-Seite verfolgen.",
-      "submit": "Installieren",
-      "submitting": "Wird gestartet…",
-      "secretKept": "Leer lassen, um das bisherige zu behalten",
-      "includeInBackups": "In Backups aufnehmen",
-      "includeInBackupsHelp": "Seine Ordner werden beim nächsten Backup gesichert."
-    },
-    "access": {
-      "title": "{{name}} wird Folgendes können:",
-      "port": "Port {{port}} verwenden",
-      "read": "Lesen",
-      "write": "Lesen und ändern",
-      "volumes": "Eigene Daten in Docker-Volumes speichern",
-      "generatedSecrets": "Für ihn erzeugte Passwörter verwenden – verschlüsselt gespeichert und nie angezeigt",
-      "images": "Er führt diese Images aus:"
-    },
-    "backup": {
-      "ok": "Vor {{time}} gesichert",
-      "failed": "Backup fehlgeschlagen",
-      "never": "Noch nicht gesichert",
-      "none": "Nicht gesichert"
     }
   },
   "backups": {
@@ -720,9 +674,9 @@
     "failed": "Die Backups konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
     "setup": {
       "title": "Backups einrichten",
-      "text": "Die Daten deiner Dienste, ausgewählte Ordner und diese App werden jeden Tag gesichert – verschlüsselt, und nur Änderungen belegen Platz. Backups laufen auch, wenn diese App nicht läuft.",
+      "text": "Die Daten deiner Apps, gewählte Ordner und diese App werden täglich gesichert – verschlüsselt, und nur Änderungen brauchen Platz. Sicherungen laufen auch, wenn diese App nicht läuft.",
       "disk": "1. Das Backup-Laufwerk",
-      "noDisk": "Unter /mnt oder /media ist kein Laufwerk eingebunden. Schließe ein USB-Laufwerk oder eine zweite Festplatte an und binde sie auf der Seite „Laufwerke“ ein.",
+      "noDisk": "Außer der Systemplatte ist keine Festplatte eingehängt. Schließe eine USB-Festplatte oder ein zweites Laufwerk an und hänge es auf der Seite Festplatten ein.",
       "diskSpace": "{{free}} frei von {{total}} ({{filesystem}})",
       "unsupported": "Das Format dieses Laufwerks kann nicht für Backups genutzt werden.",
       "sameDisk": "Das ist dasselbe Laufwerk wie deine Daten: Fällt es aus, sind auch die Backups weg. Ein eigenes Laufwerk ist sicherer.",
@@ -761,12 +715,9 @@
       "copyFailed": "Kopieren ist fehlgeschlagen. Markiere die Wörter und kopiere sie selbst.",
       "saved": "Ich habe sie gespeichert",
       "again": "Passphrase erneut anzeigen",
-      "againHint": "Passphrase verloren? Mit deinem Passwort kannst du sie erneut sehen.",
-      "againTitle": "Passphrase anzeigen",
-      "againText": "Gib dein Passwort ein, um die Backup-Passphrase zu sehen.",
-      "password": "Passwort",
+      "againHint": "Passphrase verloren? Mit dem sudo deines Linux-Kontos kannst du sie wieder sehen.",
       "cancel": "Abbrechen",
-      "show": "Anzeigen"
+      "failed": "Die Passphrase konnte nicht gezeigt werden"
     },
     "overview": {
       "title": "Backups",
@@ -801,7 +752,7 @@
     },
     "warning": {
       "serviceNotRestarted": {
-        "title": "Ein Dienst ist nicht wieder gestartet",
+        "title": "Eine App ist nicht wieder gestartet",
         "text": "Er wurde für sein Backup gestoppt und ist nicht wieder gestartet. Starte ihn auf der Seite „Container“."
       },
       "repositoryDamaged": {
@@ -839,7 +790,6 @@
       "restore": "Wiederherstellen …",
       "remove": "Aus den Backups entfernen",
       "folders": "Gesicherte Ordner",
-      "addService": "{{name}} sichern",
       "addFolder": "Ordner hinzufügen",
       "addFailed": "Konnte nicht zu den Backups hinzugefügt werden",
       "foldersFailed": "Die Ordner konnten nicht geändert werden",
@@ -847,7 +797,13 @@
       "deleteFailed": "Die Backups konnten nicht gelöscht werden",
       "removedTitle": "Nicht mehr gesichert",
       "removedText": "Ihre Backups bleiben erhalten, bis du sie löschst.",
-      "deleteBackups": "Backups löschen"
+      "deleteBackups": "Backups löschen",
+      "addApp": "{{name}} hinzufügen",
+      "appRemoved": "Die App ist entfernt; ihre Sicherungen bleiben.",
+      "mode": "Während der Sicherung",
+      "newFolder": "noch nicht gesichert",
+      "skipped": "Ausgelassen:",
+      "unskip": "Sichern"
     },
     "remove": {
       "title": "{{name}} nicht mehr sichern?",
@@ -861,7 +817,7 @@
     },
     "folders": {
       "title": "Ordner wählen",
-      "text": "Ordner im Dienstspeicher und Benutzerordner können gesichert werden.",
+      "text": "Jeder Ordner außer denen des Systems kann gesichert werden.",
       "up": "Nach oben",
       "empty": "Keine Ordner darin.",
       "unreadable": "Diese App darf nicht hineinschauen, der Ordner kann aber trotzdem gesichert werden.",
@@ -876,10 +832,9 @@
       "which": "Backup",
       "where": "Wiederherstellen nach",
       "inPlace": "An den alten Ort",
-      "inPlaceText": "Der Dienst wird gestoppt, seine aktuellen Ordner werden beiseitegelegt (bis du sie löschst), das Backup wird zurückgeschrieben und der Dienst wieder gestartet.",
-      "newFolder": "In einen neuen Ordner",
-      "newFolderText": "In einen neuen Ordner unter /srv/laris/restores. Sonst ändert sich nichts.",
-      "reinstall": "Installiere den Dienst danach erneut – seine bisherigen Einstellungen sind eingetragen.",
+      "inPlaceText": "Eine App, die sie nutzt, wird gestoppt, die aktuellen Ordner werden beiseitegelegt (bis du sie löschst), die Sicherung wird zurückgelegt und die App startet wieder.",
+      "newFolder": "In einen Ordner",
+      "newFolderText": "In einen Ordner deiner Wahl (fehlend oder leer), mit den vollständigen Pfaden darunter. Sonst ändert sich nichts.",
       "cancel": "Abbrechen",
       "confirm": "Wiederherstellen",
       "confirmInPlace": "Am alten Ort wiederherstellen",
@@ -891,7 +846,18 @@
       "setAside": "Die vorherige Version liegt hier, bis du sie löschst:",
       "discard": "Vorherige Version löschen",
       "discarded": "Die vorherige Version wurde gelöscht.",
-      "discardFailed": "Die vorherige Version konnte nicht gelöscht werden"
+      "discardFailed": "Die vorherige Version konnte nicht gelöscht werden",
+      "folderLabel": "Ordner, in den wiederhergestellt wird",
+      "phase": {
+        "stopping": "App wird gestoppt…",
+        "restoring": "Wird wiederhergestellt…",
+        "starting": "App wird wieder gestartet…",
+        "done": "Wird abgeschlossen…"
+      },
+      "status": {
+        "failed": "Die Wiederherstellung ist fehlgeschlagen.",
+        "interrupted": "Die Wiederherstellung wurde unterbrochen."
+      }
     },
     "history": {
       "title": "Verlauf",
@@ -944,12 +910,14 @@
     "forget": "Vergessen",
     "mountDialog": {
       "title": "{{name}} einbinden",
-      "text": "Wähle einen Namen für seinen Ordner.",
-      "name": "Name",
-      "path": "Es liegt dann unter",
+      "text": "Wähle den Ordner, in dem sie eingehängt wird.",
       "kept": "Es bleibt nach einem Neustart eingebunden. Ist das Laufwerk dann nicht angeschlossen, startet der Rechner wie gewohnt.",
       "cancel": "Abbrechen",
-      "confirm": "Einbinden"
+      "confirm": "Einbinden",
+      "mountPoint": "Ordner",
+      "mountPointHelp": "Fehlende Ordner werden angelegt. Kein Systemordner.",
+      "makeMine": "Oberster Ordner gehört mir",
+      "makeMineHelp": "Dein Linux-Konto bekommt den obersten Ordner der Festplatte (darin ändert sich nichts)."
     },
     "unmountDialog": {
       "title": "Dieses Laufwerk aushängen?",
@@ -1339,6 +1307,11 @@
       "submitting": "Wird entsperrt…",
       "cancel": "Abbrechen",
       "close": "Schließen"
+    },
+    "asPerson": {
+      "title": "Als Linux-Benutzer anmelden",
+      "text": "Laris tut das als dein Linux-Konto, mit dessen Rechten.",
+      "submit": "Anmelden und weiter"
     }
   },
   "assistant": {
@@ -1359,7 +1332,7 @@
     "stopped": "abgebrochen",
     "toLatest": "Zur neuesten Nachricht",
     "notInstalled": "Ollama ist nicht installiert",
-    "notInstalledText": "Ollama führt die Sprachmodelle auf diesem Server aus. Installiere es auf der Seite Dienste und lade dann ein Modell herunter.",
+    "notInstalledText": "Ollama führt die Sprachmodelle auf diesem Server aus. Füge es auf der Seite Apps hinzu und lade dann ein Modell herunter.",
     "installOllama": "Ollama installieren",
     "notRunning": "Ollama läuft nicht",
     "notRunningText": "Es ist installiert, antwortet aber nicht. Sieh dir seinen Container auf der Seite Container an.",
@@ -1477,5 +1450,183 @@
       "failed": "Abmelden auf allen Geräten fehlgeschlagen"
     },
     "languageNotLoaded": "Die Sprache konnte nicht geladen werden"
+  },
+  "apps": {
+    "title": "Apps",
+    "description": "Jede App ist ein Ordner mit einer Compose-Datei und läuft als das Linux-Konto ihres Besitzers.",
+    "add": "App hinzufügen",
+    "none": "Noch keine Apps.",
+    "loading": "Wird geladen",
+    "dockerUnavailable": "Docker ist nicht erreichbar: Der Zustand der Apps ist unbekannt.",
+    "owner": "Gehört {{account}}",
+    "open": "Öffnen",
+    "openLabel": "{{name}} öffnen",
+    "start": "Starten",
+    "startLabel": "{{name}} starten",
+    "stop": "Stoppen",
+    "stopLabel": "{{name}} stoppen",
+    "state": {
+      "running": "Läuft",
+      "partial": "Läuft teilweise",
+      "unhealthy": "Fehlerhaft",
+      "stopped": "Gestoppt",
+      "none": "Läuft nicht"
+    },
+    "fields": {
+      "required": "(erforderlich)",
+      "kindLabel": "Wie {{key}} angezeigt wird",
+      "kind": {
+        "text": "Text",
+        "port": "Port",
+        "folder": "Ordner",
+        "secret": "Geheim",
+        "generated": "Erzeugt",
+        "version": "Version"
+      },
+      "showVersions": "Verfügbare Versionen zeigen",
+      "versionsLabel": "Versionen für {{key}}",
+      "chooseVersion": "Version wählen",
+      "versionsUnavailable": "Für dieses Image ist keine Liste verfügbar.",
+      "folderHelp": "Ein Pfad mit ./ am Anfang liegt im Ordner der App. Fehlende Ordner werden in deinem Namen angelegt.",
+      "generatedHelp": "Wird beim Einrichten für dich erzeugt.",
+      "advanced": "Erweitert"
+    },
+    "editor": {
+      "title": "Dateien (compose.yml, .env)",
+      "text": "Hier geändert, folgt das Formular der Datei. Docker prüft sie, bevor etwas startet."
+    },
+    "backup": {
+      "title": "Sicherung",
+      "include": "Diese App mit den anderen sichern",
+      "mode": "Während der Sicherung",
+      "stop": "Stoppen (am sichersten)",
+      "live": "Weiterlaufen lassen",
+      "skip": "Ausgelassen",
+      "removeSkip": "{{path}} nicht auslassen",
+      "newSkip": "Ein Unterordner zum Auslassen",
+      "newSkipPlaceholder": "data/cache oder *.tmp",
+      "addSkip": "Auslassen",
+      "added": "{{name}} wird ab jetzt gesichert.",
+      "failed": "{{name}} konnte nicht zu den Sicherungen hinzugefügt werden",
+      "last": "Gesichert {{time}}",
+      "never": "Noch nicht gesichert",
+      "manage": "Sicherungen",
+      "notIncluded": "Nicht in den Sicherungen.",
+      "add": "Sichern"
+    },
+    "new": {
+      "templates": "Aus einer Vorlage",
+      "templatesText": "Ein Ausgangspunkt: Nach dem Einrichten gehört der Ordner der App dir.",
+      "use": "Verwenden",
+      "useLabel": "Vorlage {{name}} verwenden",
+      "paste": "Compose-Datei einfügen",
+      "pasteText": "Jede compose.yml: Laris findet ihre Einstellungen und zeigt sie als Formular.",
+      "pasteLabel": "compose.yml",
+      "continue": "Weiter",
+      "back": "Zurück",
+      "pastedTitle": "Deine Compose-Datei",
+      "name": "Name",
+      "nameHelp": "Kleinbuchstaben, Ziffern, - und _.",
+      "nameFree": "Dieser Name ist frei.",
+      "nameTaken": "Vergeben. {{suggestion}} ist frei.",
+      "folder": "Ordner",
+      "folderHelp": "Leer: in deinem Home-Ordner unter apps/. Ein anderer Ordner muss leer sein.",
+      "composeRefused": "Docker hat die Dateien abgelehnt:",
+      "install": "Installieren",
+      "asYou": "Wird als dein Linux-Konto installiert; dein sudo wird erfragt, wenn Docker es braucht.",
+      "installingText": "Wird installiert. Es läuft weiter, wenn du die Seite verlässt.",
+      "toApp": "App öffnen",
+      "installed": "{{name}} ist installiert.",
+      "installFailed": "Installation nicht möglich",
+      "templateFailed": "Die Vorlage konnte nicht geladen werden",
+      "fieldsFailed": "Die Compose-Datei konnte nicht gelesen werden",
+      "backupFailed": "Installiert, aber nicht zu den Sicherungen hinzugefügt"
+    },
+    "page": {
+      "signIn": "Melde dich als Linux-Benutzer an, um die Dateien dieser App zu sehen.",
+      "signInButton": "Anmelden",
+      "notYours": "Diese App gehört {{account}}: Melde dich als dieses Konto an, um sie zu ändern.",
+      "failed": "Diese App konnte nicht gelesen werden.",
+      "retry": "Erneut versuchen"
+    },
+    "task": {
+      "title": "Aufgabe",
+      "action": {
+        "up": "Wird angewendet",
+        "update": "Wird aktualisiert",
+        "down": "Wird entfernt"
+      },
+      "state": {
+        "running": "Läuft",
+        "succeeded": "Fertig",
+        "failed": "Fehlgeschlagen",
+        "interrupted": "Unterbrochen"
+      },
+      "system": "über sudo",
+      "outputLabel": "Ausgabe",
+      "waiting": "Warte auf Ausgabe…"
+    },
+    "update": {
+      "title": "Aktualisieren",
+      "text": "Holt die neuesten Images der eingestellten Versionen und startet die App neu.",
+      "backupFirst": "Diese App zuerst sichern",
+      "action": "Aktualisieren",
+      "versionFor": "Version von {{image}}",
+      "backingUp": "{{name}} wird zuerst gesichert…",
+      "notBackedUp": "{{name}} wurde nicht aktualisiert: Die Sicherung ist nicht gelungen.",
+      "backupFailed": "{{name}} konnte nicht gesichert werden",
+      "failed": "{{name}} konnte nicht aktualisiert werden"
+    },
+    "undo": {
+      "title": "Diese Aktualisierung rückgängig machen",
+      "text": "Aktualisiert {{time}}. Um zurückzugehen:",
+      "restore": "Die Daten aus der Sicherung davor wiederherstellen:",
+      "restoreLink": "Wiederherstellen",
+      "versions": "Die vorher laufenden Versionen eintragen, dann speichern:",
+      "fill": "Eintragen",
+      "filled": "Die vorherigen Versionen sind eingetragen: Speichere, um sie anzuwenden."
+    },
+    "template": {
+      "newer": "Die Vorlage {{name}} hat eine neuere Version ({{version}}).",
+      "use": "Aktuelle Vorlage verwenden",
+      "done": "Die aktuelle Vorlage ist eingesetzt: Prüfe die Einstellungen, dann aktualisiere.",
+      "failed": "Die aktuelle Vorlage konnte nicht verwendet werden",
+      "kept": "Von vorher behalten:"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "text": "Eben aus dem Ordner der App gelesen."
+    },
+    "save": {
+      "action": "Speichern und anwenden",
+      "discard": "Änderungen verwerfen",
+      "conflict": "Die Dateien wurden seit dem Lesen auf der Festplatte geändert.",
+      "reload": "Neu laden",
+      "overwrite": "Überschreiben",
+      "failed": "{{name}} konnte nicht gespeichert werden"
+    },
+    "remove": {
+      "section": "Entfernen",
+      "sectionText": "Ihre Container werden entfernt; du wählst, was von ihren Dateien mitgeht.",
+      "action": "Entfernen…",
+      "title": "Entfernen",
+      "text": "Ihre Container werden entfernt. Unten wird nichts gelöscht, was du nicht ankreuzt.",
+      "delete": "Auch löschen",
+      "kind": {
+        "settings": "Ihre Einstellungen (compose.yml, .env)",
+        "folder": "Datenordner",
+        "volume": "Docker-Volume"
+      },
+      "outside": "Außerhalb des App-Ordners: wird vielleicht anderswo genutzt",
+      "outsideWarning": "Ein angekreuzter Ordner liegt außerhalb des App-Ordners: Stelle sicher, dass ihn nichts anderes nutzt.",
+      "backupsStay": "Ihre Sicherungen bleiben.",
+      "cancel": "Abbrechen",
+      "confirm": "Entfernen",
+      "confirmDelete_one": "Entfernen und {{count}} Eintrag löschen",
+      "confirmDelete_other": "Entfernen und {{count}} Einträge löschen",
+      "done": "{{name}} wurde entfernt.",
+      "failed": "{{name}} konnte nicht entfernt werden",
+      "deleteFailed": "{{name}} wurde entfernt, aber nicht alles Angekreuzte wurde gelöscht"
+    }
   }
 }
