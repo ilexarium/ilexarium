@@ -8,6 +8,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { ModelPulls } from '../src/assistant/model-pulls.js';
+import { DockerService } from '../src/docker/docker.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
@@ -48,18 +49,24 @@ describe('assistant (e2e)', () => {
       .split(';')[0];
   }
 
-  /** Ollama "installed": the service row the app finds it by. */
+  /** Ollama "installed": a running container Docker lists, its API published on loopback. */
+  let ollamaContainer: object | null = null;
   async function install(port = ollama.port): Promise<void> {
-    await prisma.service.create({
-      data: {
-        catalogId: 'ollama',
-        catalogVersion: '1',
-        status: 'installed',
-        // A real folder: downloads need its free space (they're refused when it can't be read).
-        settings: { API_PORT: port, MODELS_DIR: tmpdir() },
-      },
-    });
+    ollamaContainer = {
+      id: 'ollama',
+      name: 'ollama-ollama-1',
+      image: 'ollama/ollama:0.40.6',
+      state: 'running',
+      health: 'none',
+      startedAt: null,
+      ports: [{ privatePort: 11434, publicPort: port, ip: '127.0.0.1', protocol: 'tcp' }],
+      protected: false,
+      composeProject: 'ollama',
+      composeWorkingDir: '/home/anna/apps/ollama',
+      template: 'ollama@2',
+    };
   }
+
 
   /** The streamed answer, as its lines. */
   async function chat(cookie: string, body: object) {
@@ -79,6 +86,12 @@ describe('assistant (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PasswordHasher)
       .useValue(testHasher)
+      .overrideProvider(DockerService)
+      .useValue({
+        listContainers: async () => (ollamaContainer ? [ollamaContainer] : []),
+        // A real folder: downloads need its free space (they're refused when it can't be read).
+        bindMounts: async () => [tmpdir()],
+      })
       .compile();
     app = configureApp(moduleRef.createNestApplication<NestExpressApplication>());
     await app.listen(0, '127.0.0.1');
@@ -92,7 +105,7 @@ describe('assistant (e2e)', () => {
 
   beforeEach(async () => {
     await prisma.chat.deleteMany();
-    await prisma.service.deleteMany();
+    ollamaContainer = null;
     await prisma.auditEvent.deleteMany();
     ollama.models = [{ name: 'smollm2:135m', size: 270_898_672 }];
     ollama.answer = { pieces: ['Hello', ' there', '!'] };

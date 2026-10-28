@@ -112,8 +112,10 @@ function volumeUses(entry: string): Use[] {
 /** An image reference's parts: the tag is after the last ":" that comes after the last "/". */
 export function splitImage(reference: string): { image: string; tag: string | null; digest: string | null } {
   const [name, digest = null] = reference.split('@') as [string, string?];
-  const slash = name.lastIndexOf('/');
-  const colon = name.lastIndexOf(':');
+  // Colons inside a variable (`${V:-1}`) aren't the tag's.
+  const plain = name.replace(/\$\{[^}]*\}/g, (variable) => '_'.repeat(variable.length));
+  const slash = plain.lastIndexOf('/');
+  const colon = plain.lastIndexOf(':');
   return colon > slash
     ? { image: name.slice(0, colon), tag: name.slice(colon + 1), digest }
     : { image: name, tag: null, digest };

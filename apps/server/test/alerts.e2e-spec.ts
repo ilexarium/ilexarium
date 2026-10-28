@@ -108,7 +108,7 @@ describe('alerts (e2e)', () => {
           kind: 'serviceDown',
           subject: 'hl-immich-server-1',
           severity: 'critical',
-          details: { catalogId: 'immich' },
+          details: { app: 'immich' },
         },
       ],
     );
@@ -121,8 +121,7 @@ describe('alerts (e2e)', () => {
     expect(status.open).toEqual([
       expect.objectContaining({
         kind: 'serviceDown',
-        catalogId: 'immich',
-        serviceName: 'Immich',
+        app: 'immich',
         acknowledgedAt: null,
       }),
     ]);

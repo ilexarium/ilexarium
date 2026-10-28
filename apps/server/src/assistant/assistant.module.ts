@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module.js';
+import { DockerModule } from '../docker/docker.module.js';
 import { HostModule } from '../host/host.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
 import { AssistantController } from './assistant.controller.js';
@@ -11,11 +12,11 @@ import { ModelPulls } from './model-pulls.js';
 import { OllamaService } from './ollama-service.js';
 
 /**
- * The Assistant (docs/plans/ai_assistant.md): chats with local models run by the `ollama`
- * catalog service, model downloads (the `assistant` topic), Hugging Face search.
+ * The Assistant (docs/plans/ai_assistant.md): chats with local models run by Ollama (found
+ * through Docker), model downloads (the `assistant` topic), Hugging Face search.
  */
 @Module({
-  imports: [AuditModule, HostModule, RealtimeModule],
+  imports: [AuditModule, DockerModule, HostModule, RealtimeModule],
   controllers: [AssistantController],
   providers: [AssistantTopic, ChatAnswers, ChatStore, HfLibrary, ModelPulls, OllamaService],
 })

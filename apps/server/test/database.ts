@@ -12,7 +12,7 @@ function assertTestDatabase(): void {
 /** Empties every table between tests. Only ever runs against the test database. */
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   assertTestDatabase();
-  await prisma.$executeRaw`TRUNCATE TABLE "ChatMessage", "Chat", "Alert", "AlertChannel", "BackupItemResult", "BackupRestore", "BackupRun", "BackupItem", "BackupPlan", "BackupCheck", "AuditEvent", "Session", "ServiceJob", "ServiceSecret", "Service", "UserAvatar", "User" CASCADE`;
+  await prisma.$executeRaw`TRUNCATE TABLE "ChatMessage", "Chat", "Alert", "AlertChannel", "BackupItemResult", "BackupRestore", "BackupRun", "BackupItem", "BackupPlan", "BackupCheck", "AuditEvent", "Session", "UserAvatar", "User" CASCADE`;
 }
 
 /** Same, through its own connection: for tests that need an empty database before the app starts. */

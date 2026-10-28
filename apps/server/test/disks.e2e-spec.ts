@@ -16,14 +16,16 @@ import { resetDatabase } from './database.js';
 import { testHasher } from './realtime-client.js';
 
 // Disks end to end: the app, the executor in direct mode and the real disk wrapper
-// (system/wrappers/laris-disk.mts) — against a pretend host (its /sys, udev database,
+// (system/programs/laris-disk.mts) — against a pretend host (its /sys, udev database,
 // /dev/disk/by-uuid and mountinfo), the wrapper pretending its mounts (no systemd).
 
-const FIXTURES = fileURLToPath(new URL('./fixtures/catalog', import.meta.url));
 const WRAPPER_CONFIG = resolve('.dev/wrappers.test.json');
 const PASSWORD = 'correct horse battery staple';
 const PHOTOS = '4E21-9A07';
 const ROOT = '6f1e2d3c-0000-4000-8000-000000000001';
+
+/** A mount request at /mnt/<name>. */
+const mount = (uuid: string, name: string) => ({ uuid, mountPoint: `/mnt/${name}`, makeMine: false });
 
 describe('disks (e2e)', () => {
   let app: NestExpressApplication;
@@ -70,7 +72,7 @@ describe('disks (e2e)', () => {
     for (const folder of ['sys/class/block', 'run/udev/data', 'dev/disk/by-uuid', 'proc/self']) {
       mkdirSync(join(host, folder), { recursive: true });
     }
-    mkdirSync(join(dir, 'mnt'));
+    mkdirSync(join(dir, 'mnt', 'mnt'), { recursive: true });
     mkdirSync(join(dir, 'srv'));
     addDisk('vda', '253:0', [['vda1', '253:1', 'ext4', ROOT]]);
     addDisk('sdx', '8:208', [
@@ -83,9 +85,6 @@ describe('disks (e2e)', () => {
     writeFileSync(
       WRAPPER_CONFIG,
       JSON.stringify({
-        catalogDir: FIXTURES,
-        storageRoots: [join(dir, 'srv')],
-        serviceRoot: join(dir, 'srv'),
         reservedPorts: [22],
         protectedPaths: [],
         dockerBin: '/usr/bin/docker',
@@ -143,22 +142,22 @@ describe('disks (e2e)', () => {
     expect(disconnected).toEqual([]);
   });
 
-  it('mounts a disk at /mnt/<name> and unmounts it, audited', async () => {
-    const where = join(dir, 'mnt', 'photos');
-    const mounted = await api().post('/disks/mount', { uuid: PHOTOS, name: 'photos' }).expect(200);
+  it('mounts a disk at a folder and unmounts it, audited', async () => {
+    const where = '/mnt/photos';
+    const mounted = await api().post('/disks/mount', mount(PHOTOS, 'photos')).expect(200);
     expect(mounted.body).toEqual({ mountPoint: where });
     expect(await partition('sdx1')).toMatchObject({
       state: 'mounted',
       mountPoint: where,
-      managedName: 'photos',
+      managed: true,
       usedForBackups: false,
     });
     expect(readFileSync(join(dir, 'units', 'mnt-photos.mount'), 'utf8')).toContain(
       `What=/dev/disk/by-uuid/${PHOTOS}`,
     );
 
-    await api().delete('/disks/photos').expect(204);
-    expect(await partition('sdx1')).toMatchObject({ state: 'available', managedName: null });
+    await api().post('/disks/unmount', { mountPoint: '/mnt/photos' }).expect(204);
+    expect(await partition('sdx1')).toMatchObject({ state: 'available', managed: false });
 
     const audit = await app.get(PrismaService).auditEvent.findMany({
       where: { action: { in: ['disk.mount', 'disk.unmount'] } },
@@ -172,44 +171,44 @@ describe('disks (e2e)', () => {
     ]);
   });
 
-  it('refuses the system disk, other filesystems, a taken name and a bad request', async () => {
-    const system = await api().post('/disks/mount', { uuid: ROOT, name: 'root' }).expect(422);
+  it('refuses the system disk, other filesystems, a disk in use and a bad request', async () => {
+    const system = await api().post('/disks/mount', mount(ROOT, 'root')).expect(422);
     expect(system.body.code).toBe('system_disk');
     const ntfs = await api()
-      .post('/disks/mount', { uuid: '01D9A1B2C3D4E5F6', name: 'win' })
+      .post('/disks/mount', mount('01D9A1B2C3D4E5F6', 'win'))
       .expect(422);
     expect(ntfs.body.code).toBe('unsupported_filesystem');
-    await api().post('/disks/mount', { uuid: 'nope', name: 'x' }).expect(404);
-    await api().post('/disks/mount', { uuid: PHOTOS, name: '../etc' }).expect(400);
-    await api().post('/disks/mount', { uuid: PHOTOS, name: 'x', options: 'exec' }).expect(400);
+    await api().post('/disks/mount', mount('nope', 'x')).expect(404);
+    await api().post('/disks/mount', { ...mount(PHOTOS, 'x'), mountPoint: '/etc/x' }).expect(400);
+    await api().post('/disks/mount', { ...mount(PHOTOS, 'x'), options: 'exec' }).expect(400);
 
-    await api().post('/disks/mount', { uuid: PHOTOS, name: 'photos' }).expect(200);
-    const again = await api().post('/disks/mount', { uuid: PHOTOS, name: 'other' }).expect(409);
+    await api().post('/disks/mount', mount(PHOTOS, 'photos')).expect(200);
+    const again = await api().post('/disks/mount', mount(PHOTOS, 'other')).expect(409);
     expect(again.body.code).toBe('disk_in_use');
-    await api().delete('/disks/photos').expect(204);
+    await api().post('/disks/unmount', { mountPoint: '/mnt/photos' }).expect(204);
   });
 
   it('unmounts only disks mounted here, never the backup disk', async () => {
-    const unknown = await api().delete('/disks/nothing').expect(404);
+    const unknown = await api().post('/disks/unmount', { mountPoint: '/mnt/nothing' }).expect(404);
     expect(unknown.body.code).toBe('not_managed');
-    await api().delete('/disks/..').expect(400);
+    await api().post('/disks/unmount', { mountPoint: '/etc' }).expect(400);
 
-    await api().post('/disks/mount', { uuid: PHOTOS, name: 'photos' }).expect(200);
+    await api().post('/disks/mount', mount(PHOTOS, 'photos')).expect(200);
     const prisma = app.get(PrismaService);
     await prisma.backupPlan.create({
       data: {
         id: 1,
-        destination: join(dir, 'mnt', 'photos'),
+        destination: '/mnt/photos',
         repositoryId: 'r'.repeat(64),
         schedule: { frequency: 'daily', time: '03:00' },
         retention: { daily: 7, weekly: 4, monthly: 6 },
       },
     });
     expect((await partition('sdx1')).usedForBackups).toBe(true);
-    const refused = await api().delete('/disks/photos').expect(409);
+    const refused = await api().post('/disks/unmount', { mountPoint: '/mnt/photos' }).expect(409);
     expect(refused.body.code).toBe('used_for_backups');
     await prisma.backupPlan.delete({ where: { id: 1 } });
-    await api().delete('/disks/photos').expect(204);
+    await api().post('/disks/unmount', { mountPoint: '/mnt/photos' }).expect(204);
   });
 
   it('needs a session', async () => {
@@ -217,7 +216,7 @@ describe('disks (e2e)', () => {
     await request(origin)
       .post('/api/disks/mount')
       .set('Origin', origin)
-      .send({ uuid: PHOTOS, name: 'x' })
+      .send(mount(PHOTOS, 'x'))
       .expect(401);
   });
 });
