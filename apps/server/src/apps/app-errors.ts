@@ -36,8 +36,7 @@ export function helperError(answer: Extract<HelperAnswer, { ok: false }>): HttpE
   if (sudo && answer.error !== 'failed' && answer.error !== 'timed_out') {
     return linuxError(sudo, 'sudo refused it');
   }
-  const detail = (answer as { message?: unknown }).message;
-  const said = typeof detail === 'string' ? detail.slice(0, 4000) : undefined;
+  const said = answer.message;
   switch (answer.error) {
     case 'compose_invalid':
       return appError(APP_ERROR_CODES.composeInvalid, 'Compose refused the files', said);

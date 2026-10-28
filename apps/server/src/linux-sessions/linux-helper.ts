@@ -2,6 +2,7 @@ import { StringDecoder } from 'node:string_decoder';
 import type { Client, ClientChannel } from 'ssh2';
 import {
   HELPER_ANSWER_MAX,
+  HELPER_MESSAGE_MAX,
   HELPER_READY,
   HELPER_START_TIMEOUT_MS,
 } from './linux-sessions.constants.js';
@@ -126,11 +127,17 @@ export class LinuxHelper {
     if (!resolve) return;
     this.waiting.delete(parsed.id as number);
     const { id: _, ...answer } = parsed;
-    resolve(
-      answer['ok'] === true
-        ? (answer as HelperAnswer)
-        : { ok: false, error: typeof answer['error'] === 'string' ? answer['error'] : 'failed' },
-    );
+    if (answer['ok'] === true) {
+      resolve(answer as HelperAnswer);
+      return;
+    }
+    const message = answer['message'];
+    resolve({
+      ok: false,
+      error: typeof answer['error'] === 'string' ? answer['error'] : 'failed',
+      // What a program said, for the person (Compose's refusal of a file).
+      ...(typeof message === 'string' && { message: message.slice(0, HELPER_MESSAGE_MAX) }),
+    });
   }
 
   private end(): void {
