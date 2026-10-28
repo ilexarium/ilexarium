@@ -8,7 +8,6 @@ import { dirname } from 'node:path';
 import type { Config } from './model.mts';
 import { Refusal } from '../lib/output.mts';
 import { DENIED_PATHS, inside, isPlainAbsolutePath } from '../lib/paths.mts';
-import { isRoot } from '../lib/startup.mts';
 
 export const below = (path: string, root: string) => path.startsWith(`${root}/`);
 
@@ -47,8 +46,9 @@ export function resolveSource(path: string, allowed: (p: string) => boolean): st
 export function assertParentsSafe(path: string): void {
   for (let parent = dirname(path); ; parent = dirname(parent)) {
     const stat = lstatSync(parent);
-    const sticky = (stat.mode & 0o1000) !== 0;
-    if (stat.isSymbolicLink() || ((stat.mode & 0o022) !== 0 && !(isRoot && sticky && stat.uid === 0))) {
+    // A sticky folder of root's (/tmp): others can't rename or delete what isn't theirs in it.
+    const sticky = (stat.mode & 0o1000) !== 0 && stat.uid === 0;
+    if (stat.isSymbolicLink() || ((stat.mode & 0o022) !== 0 && !sticky)) {
       throw new Refusal('path_not_allowed', `${parent} can be changed by others`);
     }
     if (parent === '/') return;

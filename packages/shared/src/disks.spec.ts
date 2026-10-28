@@ -1,31 +1,56 @@
 import { describe, expect, it } from 'vitest';
-import { DISK_NAME_PATTERN, diskMountRequestSchema, suggestDiskName } from './disks.js';
+import {
+  DISK_NAME_PATTERN,
+  diskMountRequestSchema,
+  isMountPointAllowed,
+  suggestDiskName,
+} from './disks.js';
 
 const UUID = '0b6e6e2c-1111-4a6e-9f0e-6c2c8b3d1a01';
 
 describe('diskMountRequestSchema', () => {
-  it('takes a UUID (exFAT ones too) and a name for /mnt/<name>', () => {
-    expect(diskMountRequestSchema.safeParse({ uuid: UUID, name: 'backup-disk' }).success).toBe(
-      true,
-    );
-    expect(diskMountRequestSchema.safeParse({ uuid: 'AB12-CD34', name: 'usb' }).success).toBe(true);
+  const mount = { uuid: UUID, mountPoint: '/mnt/backup-disk', makeMine: false };
+
+  it('takes a UUID (exFAT ones too), a folder anywhere but the system’s, and "make it mine"', () => {
+    expect(diskMountRequestSchema.safeParse(mount).success).toBe(true);
+    expect(
+      diskMountRequestSchema.safeParse({
+        ...mount,
+        uuid: 'AB12-CD34',
+        mountPoint: '/home/anna/disk',
+        makeMine: true,
+      }).success,
+    ).toBe(true);
   });
 
-  it('refuses names that aren’t a plain folder name, with message keys', () => {
-    for (const name of ['Big', '../etc', 'a/b', '-x', 'x y', 'a'.repeat(33)]) {
-      const result = diskMountRequestSchema.safeParse({ uuid: UUID, name });
-      expect(result.error?.issues[0].message).toBe('validation.diskNameInvalid');
+  it('refuses system folders and tricks, with message keys', () => {
+    for (const mountPoint of [
+      '/',
+      '/etc',
+      '/var/data',
+      '/usr/local/x',
+      '/mnt/../etc',
+      'mnt/x',
+      '/opt/laris',
+    ]) {
+      const result = diskMountRequestSchema.safeParse({ ...mount, mountPoint });
+      expect(result.error?.issues[0].message, mountPoint).toBe('validation.mountPointInvalid');
     }
     expect(
-      diskMountRequestSchema.safeParse({ uuid: UUID, name: '' }).error?.issues[0].message,
-    ).toBe('validation.diskNameRequired');
+      diskMountRequestSchema.safeParse({ ...mount, mountPoint: '' }).error?.issues[0].message,
+    ).toBe('validation.mountPointRequired');
   });
 
   it('refuses a UUID with path characters, and any other key', () => {
-    expect(diskMountRequestSchema.safeParse({ uuid: '../sda1', name: 'x' }).success).toBe(false);
-    expect(
-      diskMountRequestSchema.safeParse({ uuid: UUID, name: 'x', options: 'exec' }).success,
-    ).toBe(false);
+    expect(diskMountRequestSchema.safeParse({ ...mount, uuid: '../sda1' }).success).toBe(false);
+    expect(diskMountRequestSchema.safeParse({ ...mount, options: 'exec' }).success).toBe(false);
+  });
+});
+
+describe('isMountPointAllowed', () => {
+  it('anywhere but the system’s folders', () => {
+    expect(isMountPointAllowed('/srv/disk')).toBe(true);
+    expect(isMountPointAllowed('/run/media/x')).toBe(false);
   });
 });
 

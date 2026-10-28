@@ -4,6 +4,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { absolute, isObject } from './config.mts';
+import { destinationAllowed } from './destination.mts';
 import type { Config, Paths, Plan } from './model.mts';
 import { allowedFolder, overlaps } from './places.mts';
 import { Refusal } from '../lib/output.mts';
@@ -47,7 +48,7 @@ export function checkPlan(raw: unknown, config: Config, paths: Paths): Plan {
   if (!isObject(raw)) return refuse('not an object');
   exactKeys(raw, ['destination', 'schedule', 'retention', 'items'], [], 'plan');
   const { destination, schedule, retention, items } = raw;
-  if (!absolute(destination) || !allowedFolder(config, destination)) refuse('destination');
+  if (!destinationAllowed(config, paths, destination)) refuse('destination');
   if (!isObject(schedule)) return refuse('schedule');
   exactKeys(schedule, ['frequency', 'time'], [], 'schedule');
   if (!['daily', 'every12h', 'every6h'].includes(String(schedule.frequency))) refuse('frequency');

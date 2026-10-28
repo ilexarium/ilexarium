@@ -5,7 +5,7 @@ import {
   MAX_PENDING_LENGTH,
   maskSecrets,
   parseWrapperLine,
-} from './wrapper-output.js';
+} from './output.js';
 
 describe('LineSplitter', () => {
   it('joins lines and characters split across chunks', () => {
@@ -57,11 +57,11 @@ describe('maskSecrets', () => {
 
 describe('parseWrapperLine', () => {
   it('reads the markers', () => {
-    expect(parseWrapperLine('@@phase pulling')).toEqual({ type: 'phase', phase: 'pulling' });
-    expect(parseWrapperLine('@@error code=port_in_use field=WEB_PORT')).toEqual({
+    expect(parseWrapperLine('@@phase restoring')).toEqual({ type: 'phase', phase: 'restoring' });
+    expect(parseWrapperLine('@@error code=mount_point_in_use field=mountPoint')).toEqual({
       type: 'error',
-      code: 'port_in_use',
-      field: 'WEB_PORT',
+      code: 'mount_point_in_use',
+      field: 'mountPoint',
     });
     expect(parseWrapperLine('@@error code=busy')).toEqual({
       type: 'error',
@@ -98,7 +98,7 @@ describe('parseWrapperLine', () => {
     '@@phase done extra',
     '@@error code=Bad-Code',
     '@@error code=busy; rm -rf /',
-    '@@error code=busy field=lower',
+    '@@error code=busy field=no-field!',
     '@@error code=busy field=WEB_PORT extra',
     '@@result not json',
     '@@result [1,2]',

@@ -349,8 +349,10 @@ export class AppManager {
     const sizes = answer.ok ? (answer['sizes'] as Record<string, { bytes: number | null }>) : {};
     const items: AppRemovalItem[] = [
       { kind: 'settings', path: folder, bytes: null, outside: false },
+      // Its own folders first, then the ones outside (may be used elsewhere).
       ...mounts.folders
         .filter((path) => path !== folder)
+        .sort((a, b) => Number(!inside(a, folder)) - Number(!inside(b, folder)))
         .map((path) => ({
           kind: 'folder' as const,
           path,

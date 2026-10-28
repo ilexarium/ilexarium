@@ -14,7 +14,9 @@ export const SYSTEM_FOLDERS = [
   '/sys',
   '/usr',
   '/var/lib/docker',
+  '/var/lib/laris',
   '/var/run',
+  '/opt/laris',
 ];
 
 /**

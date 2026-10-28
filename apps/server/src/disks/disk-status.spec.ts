@@ -51,7 +51,7 @@ describe('disksStatus', () => {
       devices: devices(),
       mounts: [...systemMounts, mount('/mnt/usb', '8:17')],
       swaps: [],
-      units: [{ name: 'usb', uuid: 'u1', where: '/mnt/usb' }],
+      units: [{ uuid: 'u1', where: '/mnt/usb' }],
       backupDestination: '/mnt/usb',
     });
     expect(disks.map((d) => [d.device, d.system])).toEqual([
@@ -77,7 +77,7 @@ describe('disksStatus', () => {
     const usb = disks[0].partitions[0];
     expect(usb).toMatchObject({
       mountPoint: '/mnt/usb',
-      managedName: 'usb',
+      managed: true,
       usedForBackups: true,
       label: 'Backups',
     });
@@ -117,13 +117,13 @@ describe('disksStatus', () => {
       mounts: systemMounts,
       swaps: [],
       units: [
-        { name: 'old', uuid: 'gone', where: '/mnt/old' },
-        { name: 'usb', uuid: 'u1', where: '/mnt/usb' },
+        { uuid: 'gone', where: '/mnt/old' },
+        { uuid: 'u1', where: '/mnt/usb' },
       ],
       backupDestination: '/mnt/old',
     });
     expect(disconnected).toEqual([
-      { name: 'old', mountPoint: '/mnt/old', uuid: 'gone', usedForBackups: true },
+      { mountPoint: '/mnt/old', uuid: 'gone', usedForBackups: true },
     ]);
   });
 });

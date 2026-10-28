@@ -1,5 +1,5 @@
 import { NEVER } from 'rxjs';
-import { OperationSlot } from '../jobs/operation-slot.js';
+import { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { BackupFiles } from './backup-files.js';
 import { BackupProgressFollower } from './backup-progress.js';
 
@@ -42,9 +42,9 @@ const runEvent = (pid = process.pid) => ({
 });
 
 describe('BackupProgressFollower', () => {
-  it('follows a run: items, phases, output, results — and tells the slot while it runs', async () => {
+  it('follows a run: items, phases, output, results — and says a change is underway while it runs', async () => {
     const { files, write } = fakeFiles();
-    const slot = new OperationSlot();
+    const slot = new ChangesUnderway();
     const follower = new BackupProgressFollower(files, slot);
     write(runEvent());
     write({ type: 'item', itemId: A, phase: 'archiving' });
@@ -59,7 +59,7 @@ describe('BackupProgressFollower', () => {
       ],
       output: ['Creating archive'],
     });
-    expect(slot.current()).toBe('backup');
+    expect(slot.anything()).toBe(true);
 
     write({
       type: 'itemDone',
@@ -87,12 +87,12 @@ describe('BackupProgressFollower', () => {
     });
     await follower.refresh();
     expect(follower.running()).toBeNull();
-    expect(slot.current()).toBeNull();
+    expect(slot.anything()).toBe(false);
   });
 
   it('reports a run whose process died as interrupted, once — never as running', async () => {
     const { files, write } = fakeFiles();
-    const follower = new BackupProgressFollower(files, new OperationSlot());
+    const follower = new BackupProgressFollower(files, new ChangesUnderway());
     const interrupted = vi.fn();
     follower.interrupted$.subscribe(interrupted);
     write(runEvent(DEAD_PID));
@@ -105,7 +105,7 @@ describe('BackupProgressFollower', () => {
 
   it('starts over when a new run starts the file afresh, and skips lines it doesn’t understand', async () => {
     const { files, write, restart } = fakeFiles();
-    const follower = new BackupProgressFollower(files, new OperationSlot());
+    const follower = new BackupProgressFollower(files, new ChangesUnderway());
     write(runEvent());
     write({ type: 'line', itemId: A, text: 'x'.repeat(100) });
     await follower.refresh();

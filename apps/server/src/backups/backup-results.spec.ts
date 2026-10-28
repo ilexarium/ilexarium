@@ -1,6 +1,6 @@
 import type { AuditService } from '../audit/audit.service.js';
 import { NEVER } from 'rxjs';
-import { OperationSlot } from '../jobs/operation-slot.js';
+import { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { BackupFiles } from './backup-files.js';
 import { BackupProgressFollower } from './backup-progress.js';
@@ -36,7 +36,7 @@ describe('BackupResults', () => {
       backupItem: { findMany: vi.fn(async () => []) },
       $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(prisma),
     } as unknown as PrismaService;
-    const follower = new BackupProgressFollower(files, new OperationSlot());
+    const follower = new BackupProgressFollower(files, new ChangesUnderway());
     new BackupResults(prisma, files, {} as AuditService, follower);
     // The follower's startup read (onModuleInit) — before any onApplicationBootstrap.
     await follower.refresh();
@@ -72,7 +72,7 @@ describe('BackupResults', () => {
       backupItem: { findMany: vi.fn(async () => []) },
       $transaction: async (work: (tx: unknown) => Promise<unknown>) => work(prisma),
     } as unknown as PrismaService;
-    const follower = new BackupProgressFollower(files, new OperationSlot());
+    const follower = new BackupProgressFollower(files, new ChangesUnderway());
     const results$ = new BackupResults(
       prisma,
       files,
@@ -176,7 +176,7 @@ describe('BackupResults, runs.jsonl unchanged', () => {
       prisma,
       files,
       { tryRecord: vi.fn(async () => undefined) } as unknown as AuditService,
-      new BackupProgressFollower(files, new OperationSlot()),
+      new BackupProgressFollower(files, new ChangesUnderway()),
     );
     await imports.import();
     await imports.import();

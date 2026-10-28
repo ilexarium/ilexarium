@@ -1,5 +1,4 @@
 import { Subject } from 'rxjs';
-import type { CatalogService } from '../catalog/catalog.service.js';
 import type { AlertChannels } from './alert-channels.js';
 import { AlertNotifier } from './alert-notifier.js';
 import { REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.js';
@@ -14,7 +13,7 @@ function alert(subject: string, overrides: Partial<OpenAlert> = {}): OpenAlert {
     kind: 'serviceDown',
     subject,
     severity: 'critical',
-    details: { catalogId: subject },
+    details: { app: subject },
     openedAt: new Date(),
     acknowledgedAt: null,
     lastSentAt: null,
@@ -55,10 +54,7 @@ describe('AlertNotifier', () => {
         return null;
       },
     } as unknown as AlertChannels;
-    const catalog = {
-      get: (id: string) => (id === 'immich' ? { meta: { name: 'Immich' } } : undefined),
-    } as unknown as CatalogService;
-    notifier = new AlertNotifier(records, channels, catalog);
+    notifier = new AlertNotifier(records, channels);
     notifier.onModuleInit();
   });
 
@@ -75,8 +71,8 @@ describe('AlertNotifier', () => {
     events.next({ type: 'closed', alert: alert('immich') });
     await settle();
     expect(sent.map((m) => [m.title, m.severity])).toEqual([
-      ['Immich has stopped', 'critical'],
-      ['Resolved: Immich has stopped', 'resolved'],
+      ['immich has stopped', 'critical'],
+      ['Resolved: immich has stopped', 'resolved'],
     ]);
     expect(marked).toEqual(['id-immich']);
   });
@@ -168,7 +164,7 @@ describe('AlertNotifier', () => {
   it('reminds of critical alerts once a day until acknowledged', async () => {
     reminders = [alert('immich', { lastSentAt: new Date(Date.now() - 86_400_000) })];
     await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS);
-    expect(sent.map((m) => m.title)).toEqual(['Still: Immich has stopped']);
+    expect(sent.map((m) => m.title)).toEqual(['Still: immich has stopped']);
     expect(marked).toEqual(['id-immich']);
   });
 });

@@ -1,76 +1,41 @@
-import { Subject } from 'rxjs';
-import type { ExecutorService } from '../executor/executor.service.js';
-import { OperationSlot } from '../jobs/operation-slot.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
-import type { BackupProgressFollower } from './backup-progress.js';
-import type { BackupResults } from './backup-results.js';
+import type { RootPrograms } from '../root-programs/root-programs.js';
 import { BackupRuns } from './backup-runs.js';
-import { HANDOVER_MS } from './backups.constants.js';
 
-const actor = { user: { id: 'u1', username: 'alice' }, ip: '127.0.0.1' } as never;
+const actor = { user: { id: 'u1', username: 'alice' }, ip: '127.0.0.1', appSessionId: 's1' } as never;
 
-function setUp() {
-  const progressChanges = new Subject<void>();
-  const resultChanges = new Subject<void>();
-  let followed: string | null = null;
-  let finishedAt: Date | null = null;
-  const follower = {
-    changes$: progressChanges.asObservable(),
-    followedRunId: () => followed,
-  } as unknown as BackupProgressFollower;
-  const results = { changes$: resultChanges.asObservable() } as unknown as BackupResults;
+function setUp(start: () => Promise<unknown>) {
   const prisma = {
     backupPlan: { findUnique: vi.fn(async () => ({ id: 1 })) },
     backupRun: {
       create: vi.fn(async () => undefined),
-      findUnique: vi.fn(async () => ({ finishedAt })),
+      delete: vi.fn(async () => undefined),
     },
   } as unknown as PrismaService;
-  const executor = {
-    backupStart: vi.fn(async () => ({ ok: true, result: { started: true } })),
-  } as unknown as ExecutorService;
-  const slot = new OperationSlot();
-  const runs = new BackupRuns(prisma, executor, slot, follower, results);
-  return {
-    runs,
-    slot,
-    showRun: (id: string) => {
-      followed = id;
-      progressChanges.next();
-    },
-    finish: () => {
-      finishedAt = new Date();
-      resultChanges.next();
-    },
-  };
+  const rootPrograms = { backupStart: vi.fn(start) } as unknown as RootPrograms;
+  return { runs: new BackupRuns(prisma, rootPrograms), prisma, rootPrograms };
 }
 
 describe('BackupRuns.runNow', () => {
-  afterEach(() => vi.useRealTimers());
-
-  it('keeps the slot until the run shows in the progress file', async () => {
-    const { runs, slot, showRun } = setUp();
+  it('records the run, then starts it through the person’s sudo', async () => {
+    const { runs, prisma, rootPrograms } = setUp(async () => ({ ok: true, result: null }));
     const { runId } = await runs.runNow({}, actor);
-    expect(slot.current()).toBe('backup');
-    await vi.waitFor(() => expect(slot.current()).toBe('backup'));
-    showRun(runId);
-    await vi.waitFor(() => expect(slot.current()).toBeNull());
+    expect(prisma.backupRun.create).toHaveBeenCalledOnce();
+    expect(rootPrograms.backupStart).toHaveBeenCalledWith({ runId }, actor);
   });
 
-  it('frees the slot when the run already has its result (refused at once)', async () => {
-    const { runs, slot, finish } = setUp();
-    await runs.runNow({}, actor);
-    finish();
-    await vi.waitFor(() => expect(slot.current()).toBeNull());
+  it('forgets the run when it didn’t start (the program refused)', async () => {
+    const { runs, prisma } = setUp(async () => ({ ok: false, code: 'busy', result: null }));
+    await expect(runs.runNow({}, actor)).rejects.toMatchObject({ status: 409 });
+    expect(prisma.backupRun.delete).toHaveBeenCalledOnce();
   });
 
-  it('frees the slot after a while when the run never shows', async () => {
-    vi.useFakeTimers();
-    const { runs, slot } = setUp();
-    await runs.runNow({}, actor);
-    await vi.advanceTimersByTimeAsync(HANDOVER_MS - 1);
-    expect(slot.current()).toBe('backup');
-    await vi.advanceTimersByTimeAsync(1);
-    expect(slot.current()).toBeNull();
+  it('forgets it too when sudo said no (locked): the web app asks and tries again', async () => {
+    const locked = Object.assign(new Error('sudo'), { status: 403 });
+    const { runs, prisma } = setUp(async () => {
+      throw locked;
+    });
+    await expect(runs.runNow({}, actor)).rejects.toBe(locked);
+    expect(prisma.backupRun.delete).toHaveBeenCalledOnce();
   });
 });

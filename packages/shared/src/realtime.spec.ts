@@ -53,6 +53,8 @@ const container: Container = {
   ports: [{ privatePort: 8096, publicPort: 8096, ip: '0.0.0.0', protocol: 'tcp' }],
   protected: false,
   composeProject: null,
+  composeWorkingDir: null,
+  template: null,
   stats: {
     at: 1_791_720_000_000,
     cpuPercent: 150,

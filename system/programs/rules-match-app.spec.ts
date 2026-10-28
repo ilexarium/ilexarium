@@ -1,33 +1,25 @@
 import {
-  BACKUP_DESTINATION_ROOTS,
+  APP_NAME_PATTERN,
   BACKUP_FILESYSTEMS,
   BACKUP_FREQUENCIES,
   BACKUP_LIMITS,
   BACKUP_REPOSITORY_FOLDER,
+  BACKUP_SYSTEM_FOLDERS,
   BACKUP_TIME_PATTERN,
-  CATALOG_ID_PATTERN,
   CATALOG_LIMITS,
   DISK_FILESYSTEMS,
   DISK_MOUNT_ROOT,
-  DISK_NAME_PATTERN,
+  DISK_SYSTEM_FOLDERS,
   DISK_UUID_PATTERN,
-  ENUM_OPTION_PATTERN,
-  FIELD_KEY_PATTERN,
   FILES_LIMITS,
+  isMountPointAllowed,
   linuxSudoRequestSchema,
   PATH_FORBIDDEN,
   PROCESS_LIMITS,
   PROCESS_SIGNALS,
-  TEXT_PATTERNS,
+  RELATIVE_PATH_PATTERN,
+  VOLUME_NAME_PATTERN,
 } from '@laris/shared';
-import {
-  LOG_DRIVERS,
-  PINNED_IMAGE,
-  PORT_HOST_ADDRESSES,
-  RESERVED_LABEL,
-  SERVICE_KEYS,
-  VOLUME_KEYS,
-} from '../../apps/server/src/catalog/compose-policy.constants.ts';
 import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
 import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
@@ -35,9 +27,6 @@ import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
 import * as wrapperPlan from './backup/plan.mts';
-import * as wrapperCatalog from './compose/catalog.mts';
-import * as wrapperPolicy from './compose/policy.mts';
-import * as wrapperValues from './compose/values.mts';
 import * as wrapperDiskConfig from './disk/config.mts';
 import * as wrapperDiskDevices from './disk/devices.mts';
 import * as wrapperDiskMount from './disk/mount.mts';
@@ -46,56 +35,29 @@ import * as helperActions from './helper/actions.mts';
 import * as helperConfig from './helper/config.mts';
 import * as wrapperPaths from './lib/paths.mts';
 
-// The app's rules and the root wrappers' are written twice on purpose (the wrappers share no code
-// with the app). This keeps the two copies the same; that they are right is the wrappers' own
+// The app's rules and the root programs' are written twice on purpose (the programs share no code
+// with the app). This keeps the two copies the same; that they are right is the programs' own
 // tests and the review of system/. Compared as whole regular expressions (flags included).
-describe('the app and the root wrappers check the same rules', () => {
-  it('service keys: the same, the wrapper also allowing `networks` (docker compose config writes it)', () => {
-    expect([...wrapperPolicy.SERVICE_KEYS].sort()).toEqual([...SERVICE_KEYS, 'networks'].sort());
-  });
-
-  it('log drivers, volume entry keys, and where a port may be published (every address or loopback only)', () => {
-    expect(new Set(wrapperPolicy.LOG_DRIVERS)).toEqual(LOG_DRIVERS);
-    expect(new Set(wrapperPolicy.VOLUME_KEYS)).toEqual(VOLUME_KEYS);
-    expect(wrapperPolicy.PORT_HOST_ADDRESSES).toEqual(PORT_HOST_ADDRESSES);
-  });
-
-  it('images pinned by digest, and the reserved labels', () => {
-    expect(String(wrapperPolicy.PINNED_IMAGE)).toBe(String(PINNED_IMAGE));
-    expect(String(wrapperPolicy.RESERVED_LABEL)).toBe(String(RESERVED_LABEL));
-  });
-
-  it('the folders never allowed, and the characters a folder may not hold', () => {
+describe('the app and the root programs check the same rules', () => {
+  it('the folders never backed up, restored into or listed, and the characters a path may not hold', () => {
     expect(new Set(wrapperPaths.DENIED_PATHS)).toEqual(new Set(SYSTEM_FOLDERS));
+    expect(new Set(wrapperPaths.DENIED_PATHS)).toEqual(new Set(BACKUP_SYSTEM_FOLDERS));
     expect(String(wrapperPaths.PATH_FORBIDDEN)).toBe(String(PATH_FORBIDDEN));
     expect(wrapperPaths.PATH_MAX).toBe(CATALOG_LIMITS.pathMax);
   });
 
-  it('ports, secrets, text patterns, ids, field keys and enum options', () => {
-    expect(wrapperValues.TEXT_MAX).toBe(CATALOG_LIMITS.textMax);
-    expect([wrapperValues.PORT_MIN, wrapperValues.PORT_MAX]).toEqual([
-      CATALOG_LIMITS.portMin,
-      CATALOG_LIMITS.portMax,
-    ]);
-    expect(String(wrapperValues.SECRET_PATTERN)).toBe(
-      `/^[^\\x00-\\x1f\\x7f]{${CATALOG_LIMITS.secretMin},${CATALOG_LIMITS.secretMax}}$/`,
-    );
-    expect(
-      Object.fromEntries(
-        Object.entries(wrapperCatalog.TEXT_PATTERNS).map(([k, v]) => [k, String(v)]),
-      ),
-    ).toEqual(Object.fromEntries(Object.entries(TEXT_PATTERNS).map(([k, v]) => [k, String(v)])));
-    expect(String(wrapperCatalog.ID_PATTERN)).toBe(String(CATALOG_ID_PATTERN));
-    expect(String(wrapperCatalog.KEY_PATTERN)).toBe(String(FIELD_KEY_PATTERN));
-    expect(String(wrapperCatalog.ENUM_OPTION_PATTERN)).toBe(String(ENUM_OPTION_PATTERN));
-  });
-
-  it('backups: where disks may be, their formats, the repository folder, the item limit, the time', () => {
-    expect(wrapperBackupConfig.DESTINATION_ROOTS).toEqual([...BACKUP_DESTINATION_ROOTS]);
+  it('backups: disks, their formats, the repository folder, the item limit, the time', () => {
+    expect(new Set(wrapperBackupConfig.SYSTEM_MOUNTS)).toEqual(new Set(SYSTEM_MOUNTS));
     expect(wrapperDestination.FILESYSTEMS).toEqual(new Set(BACKUP_FILESYSTEMS));
     expect(wrapperDestination.REPOSITORY_FOLDER).toBe(BACKUP_REPOSITORY_FOLDER);
     expect(wrapperPlan.MAX_ITEMS).toBe(BACKUP_LIMITS.maxItems);
     expect(String(wrapperPlan.TIME_PATTERN)).toBe(String(BACKUP_TIME_PATTERN));
+  });
+
+  it('backups: an app’s name and what may be skipped in its folders', () => {
+    expect(String(wrapperPlan.PROJECT_PATTERN)).toBe(String(APP_NAME_PATTERN));
+    expect(String(wrapperPlan.SKIP_PATTERN)).toBe(String(RELATIVE_PATH_PATTERN));
+    expect(wrapperPlan.MAX_SKIPS).toBe(CATALOG_LIMITS.maxBackupSkips);
   });
 
   it('backups: the timer runs at the hours the app shows as the next run', () => {
@@ -111,20 +73,30 @@ describe('the app and the root wrappers check the same rules', () => {
     }
   });
 
-  it('disks: the system disk, the file systems, the mount folder, names and UUIDs', () => {
+  it('disks: the system disk, the file systems, the mount folders, UUIDs', () => {
     expect(new Set(wrapperDiskDevices.SYSTEM_MOUNTS)).toEqual(new Set(SYSTEM_MOUNTS));
     expect(new Set(wrapperDiskUnits.FILESYSTEMS)).toEqual(new Set(DISK_FILESYSTEMS));
+    expect(new Set(wrapperDiskUnits.SYSTEM_FOLDERS)).toEqual(new Set(DISK_SYSTEM_FOLDERS));
     expect(wrapperDiskConfig.ROOT_PATHS.mountRoot).toBe(DISK_MOUNT_ROOT);
-    expect(ROOT_PLACES.mountRoot).toBe(DISK_MOUNT_ROOT);
     expect(ROOT_PLACES.unitDir).toBe(wrapperDiskConfig.ROOT_PATHS.unitDir);
-    expect(String(wrapperDiskUnits.NAME)).toBe(String(DISK_NAME_PATTERN));
     expect(String(wrapperDiskMount.UUID)).toBe(String(DISK_UUID_PATTERN));
+    for (const where of ['/mnt/usb', '/home/anna/disk', '/', '/etc', '/var/x', '/srv/../etc', 'x', '/opt/laris/y', '/a b']) {
+      let program = true;
+      try {
+        wrapperDiskMount.parseMountPoint(where);
+      } catch {
+        program = false;
+      }
+      expect(program, where).toBe(isMountPointAllowed(where));
+    }
   });
 
-  it('the helper: the highest PID, the signals, and which sudo passwords go on one line', () => {
+  it('the helper: PIDs, signals, sudo passwords on one line, app and volume names', () => {
     expect(helperConfig.PID_MAX).toBe(PROCESS_LIMITS.maxPid);
     expect([...helperConfig.SIGNALS]).toEqual([...PROCESS_SIGNALS]);
     expect(helperConfig.PASSWORD_MAX).toBe(FILES_LIMITS.passwordMax);
+    expect(String(helperConfig.PROJECT_PATTERN)).toBe(String(APP_NAME_PATTERN));
+    expect(String(helperConfig.VOLUME_PATTERN)).toBe(String(VOLUME_NAME_PATTERN));
     for (const password of [
       'right',
       'with spaces and ünïcödé',

@@ -9,7 +9,7 @@ import { Refusal } from './output.mts';
 
 export const SAFE_PATH = '/usr/sbin:/usr/bin:/sbin:/bin';
 
-export const PATH_FORBIDDEN = /[\x00-\x1f\x7f:,]/;
+export const PATH_FORBIDDEN = /[\x00-\x1f\x7f]/;
 
 export const PATH_MAX = 1024;
 
@@ -29,7 +29,9 @@ export const DENIED_PATHS = [
   '/sys',
   '/usr',
   '/var/lib/docker',
+  '/var/lib/laris',
   '/var/run',
+  '/opt/laris',
 ];
 
 export function isPlainAbsolutePath(path: string): boolean {

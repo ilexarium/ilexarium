@@ -1,6 +1,6 @@
 import type { BackupsStatus } from '@laris/shared';
 import { Subject } from 'rxjs';
-import { OperationSlot } from '../jobs/operation-slot.js';
+import { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { BackupPlanManager } from './backup-plan-manager.js';
 import type { BackupProgressFollower } from './backup-progress.js';
@@ -22,7 +22,7 @@ function setUp() {
     restores: new Subject<void>(),
   };
   const status = vi.fn(async () => STATUS);
-  const slot = new OperationSlot();
+  const slot = new ChangesUnderway();
   const topic = new BackupsTopic(
     { status } as unknown as BackupStatusReader,
     { changes$: changes.plans } as unknown as BackupPlanManager,
@@ -47,7 +47,7 @@ describe('BackupsTopic', () => {
     changes.progress.next();
     changes.progress.next();
     changes.results.next();
-    slot.claim('backup');
+    slot.notify();
     await vi.advanceTimersByTimeAsync(BACKUPS_PUBLISH_MS - 1);
     expect(publish).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
@@ -81,7 +81,7 @@ describe('BackupsTopic', () => {
     stop();
     expect(vi.getTimerCount()).toBe(0);
     changes.runs.next();
-    slot.claim('backup');
+    slot.notify();
     await vi.advanceTimersByTimeAsync(120_000);
     expect(publish).not.toHaveBeenCalled();
   });

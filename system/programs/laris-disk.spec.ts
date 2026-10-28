@@ -69,7 +69,8 @@ function writeConfig(systemctl: boolean) {
     ...(systemctl ? { systemctlBin: join(dir, 'systemctl') } : {}),
     dev: {
       root: host,
-      mountRoot: join(dir, 'mnt'),
+      // The pretend root mount points are made in: /mnt/usb is <dir>/root/mnt/usb.
+      mountRoot: join(dir, 'root'),
       unitDir: join(dir, 'units'),
       backupPlan: join(dir, 'backup.json'),
     },
@@ -105,8 +106,12 @@ function wrapper(args: string[], input: unknown = ''): Promise<Run> {
   });
 }
 
-const mount = (uuid: string, name: string) => wrapper(['mount'], { uuid, name });
-const unmount = (name: string) => wrapper(['unmount'], { name });
+/** At /mnt/<name> unless `name` is a path. */
+const at = (name: string) => (name.startsWith('/') ? name : `/mnt/${name}`);
+const folderOf = (name: string) => join(dir, 'root', at(name));
+const mount = (uuid: string, name: string, owner: { uid: number; gid: number } | null = null) =>
+  wrapper(['mount'], { uuid, mountPoint: at(name), owner });
+const unmount = (name: string) => wrapper(['unmount'], { mountPoint: at(name) });
 
 function expectRefused(run: Run, code: string) {
   expect(run.out).toContain(`@@error code=${code}`);
@@ -128,7 +133,7 @@ beforeEach(() => {
   for (const folder of ['sys/class/block', 'run/udev/data', 'dev/disk/by-uuid', 'proc/self']) {
     mkdirSync(join(host, folder), { recursive: true });
   }
-  mkdirSync(join(dir, 'mnt'));
+  mkdirSync(join(dir, 'root', 'mnt'), { recursive: true });
   // The system disk: /boot and / on vda, and a spare partition on it.
   addDisk('vda', '253:0', [
     { name: 'vda1', number: '253:1', fsType: 'vfat', uuid: 'B007-0001' },
@@ -171,7 +176,7 @@ describe('laris-disk', () => {
     expectRefused(await wrapper(['format']), 'invalid_request');
     expectRefused(await wrapper(['mount', 'x']), 'invalid_request');
     expectRefused(
-      await wrapper(['mount'], { uuid: EXT4, name: 'usb', options: 'exec' }),
+      await wrapper(['mount'], { uuid: EXT4, mountPoint: '/mnt/usb', owner: null, options: 'exec' }),
       'invalid_request',
     );
     expectRefused(await wrapper(['mount'], 'not json'), 'invalid_request');
@@ -181,7 +186,7 @@ describe('laris-disk', () => {
     it('mounts at /mnt/<name> with its own unit, kept after a restart, nothing waiting for it', async () => {
       const run = await mount(EXT4, 'backup-disk');
       expect(run.code).toBe(0);
-      const where = join(dir, 'mnt', 'backup-disk');
+      const where = '/mnt/backup-disk';
       expect(run.result).toEqual({ mountPoint: where });
       expect(mountedAt(where)).toBe(true);
       // `-` escaped the way systemd names mount units.
@@ -191,7 +196,7 @@ describe('laris-disk', () => {
           '# Managed by laris (laris-disk).',
           '# It is not in /etc/fstab: `systemctl list-units --type=mount` lists it.',
           '[Unit]',
-          'Description=laris disk backup-disk',
+          'Description=laris disk at /mnt/backup-disk',
           '',
           '[Mount]',
           `What=/dev/disk/by-uuid/${EXT4}`,
@@ -206,7 +211,7 @@ describe('laris-disk', () => {
         ].join('\n'),
       );
       expect(statSync(unit).mode & 0o777).toBe(0o644);
-      expect(statSync(where).mode & 0o777).toBe(0o755);
+      expect(statSync(folderOf('backup-disk')).mode & 0o777).toBe(0o755);
       expect(calls()).toEqual([
         ['daemon-reload'],
         ['enable', '--now', 'mnt-backup\\x2ddisk.mount'],
@@ -280,32 +285,45 @@ describe('laris-disk', () => {
       expectRefused(await mount(BTRFS, 'big'), 'disk_in_use');
     });
 
-    it('checks the name and the UUID: their form, and a folder that is free', async () => {
-      for (const name of ['', 'Big', '../etc', 'a/b', '-x', 'a'.repeat(33), 'x y']) {
-        expectRefused(await mount(EXT4, name), 'invalid_request');
+    it('checks the mount point and the UUID: their form, never a system folder, and a folder that is free', async () => {
+      for (const where of ['', 'relative', '/', '/etc', '/etc/x', '/var/data', '/usr/x', '/mnt/../etc', '/proc/x', '/opt/laris/x']) {
+        expectRefused(await wrapper(['mount'], { uuid: EXT4, mountPoint: where, owner: null }), 'invalid_request');
       }
+      expectRefused(
+        await wrapper(['mount'], { uuid: EXT4, mountPoint: '/mnt/x', owner: { uid: -1, gid: 0 } }),
+        'invalid_request',
+      );
       for (const uuid of ['', '../sdb1', 'a/b', 'x'.repeat(65)]) {
         expectRefused(await mount(uuid, 'usb'), 'invalid_request');
       }
-      mkdirSync(join(dir, 'mnt', 'full'));
-      writeFileSync(join(dir, 'mnt', 'full', 'file'), 'x');
-      expectRefused(await mount(EXT4, 'full'), 'name_taken');
-      symlinkSync('/etc', join(dir, 'mnt', 'link'));
-      expectRefused(await mount(EXT4, 'link'), 'name_taken');
-      writeFileSync(join(dir, 'mnt', 'file'), 'x');
-      expectRefused(await mount(EXT4, 'file'), 'name_taken');
+      mkdirSync(folderOf('full'), { recursive: true });
+      writeFileSync(join(folderOf('full'), 'file'), 'x');
+      expectRefused(await mount(EXT4, 'full'), 'mount_point_in_use');
+      symlinkSync('/etc', folderOf('link'));
+      expectRefused(await mount(EXT4, '/nowhere/disk'), 'mount_point_in_use');
+      expectRefused(await mount(EXT4, 'link'), 'mount_point_in_use');
+      writeFileSync(folderOf('file'), 'x');
+      expectRefused(await mount(EXT4, 'file'), 'mount_point_in_use');
       expect(calls()).toEqual([]);
     });
 
+    it('mounts anywhere but the system’s folders — a folder in a home too', async () => {
+      mkdirSync(join(dir, 'root', 'home', 'anna'), { recursive: true });
+      const run = await mount(EXT4, '/home/anna/my disk');
+      expect(run.code, run.out).toBe(0);
+      expect(mountedAt('/home/anna/my\\040disk')).toBe(true);
+      expect(calls().at(-1)).toEqual(['enable', '--now', 'home-anna-my\\x20disk.mount']);
+    });
+
     it('uses an empty folder that is already there', async () => {
-      mkdirSync(join(dir, 'mnt', 'usb'));
+      mkdirSync(folderOf('usb'));
       expect((await mount(EXT4, 'usb')).code).toBe(0);
     });
 
     it('refuses a name whose unit exists', async () => {
       mkdirSync(join(dir, 'units'));
       writeFileSync(join(dir, 'units', 'mnt-usb.mount'), '[Mount]\n');
-      expectRefused(await mount(EXT4, 'usb'), 'name_taken');
+      expectRefused(await mount(EXT4, 'usb'), 'mount_point_in_use');
     });
 
     it('undoes everything when systemd fails to mount it', async () => {
@@ -314,8 +332,8 @@ describe('laris-disk', () => {
       expectRefused(run, 'mount_failed');
       expect(run.out).toContain('@@info Job for x.mount failed');
       expect(existsSync(join(dir, 'units', 'mnt-usb.mount'))).toBe(false);
-      expect(existsSync(join(dir, 'mnt', 'usb'))).toBe(false);
-      expect(mountedAt(join(dir, 'mnt', 'usb'))).toBe(false);
+      expect(existsSync(folderOf('usb'))).toBe(false);
+      expect(mountedAt('/mnt/usb')).toBe(false);
       expect(calls().at(-1)).toEqual(['daemon-reload']);
     });
 
@@ -328,10 +346,10 @@ describe('laris-disk', () => {
     it('only pretends in development without systemd', async () => {
       writeConfig(false);
       expect((await mount(EXT4, 'usb')).code).toBe(0);
-      expect(mountedAt(join(dir, 'mnt', 'usb'))).toBe(true);
+      expect(mountedAt('/mnt/usb')).toBe(true);
       expect((await unmount('usb')).code).toBe(0);
-      expect(mountedAt(join(dir, 'mnt', 'usb'))).toBe(false);
-      expect(existsSync(join(dir, 'mnt', 'usb'))).toBe(false);
+      expect(mountedAt('/mnt/usb')).toBe(false);
+      expect(existsSync(folderOf('usb'))).toBe(false);
     });
   });
 
@@ -340,9 +358,9 @@ describe('laris-disk', () => {
       await mount(EXT4, 'usb');
       const run = await unmount('usb');
       expect(run.code).toBe(0);
-      expect(mountedAt(join(dir, 'mnt', 'usb'))).toBe(false);
+      expect(mountedAt('/mnt/usb')).toBe(false);
       expect(existsSync(join(dir, 'units', 'mnt-usb.mount'))).toBe(false);
-      expect(existsSync(join(dir, 'mnt', 'usb'))).toBe(false);
+      expect(existsSync(folderOf('usb'))).toBe(false);
       expect(calls().slice(-2)).toEqual([['disable', '--now', 'mnt-usb.mount'], ['daemon-reload']]);
     });
 
@@ -362,17 +380,17 @@ describe('laris-disk', () => {
       await mount(EXT4, 'usb');
       writeFileSync(
         join(dir, 'backup.json'),
-        JSON.stringify({ destination: join(dir, 'mnt', 'usb') }),
+        JSON.stringify({ destination: '/mnt/usb' }),
       );
       expectRefused(await unmount('usb'), 'used_for_backups');
-      expect(mountedAt(join(dir, 'mnt', 'usb'))).toBe(true);
+      expect(mountedAt('/mnt/usb')).toBe(true);
     });
 
     it('waits for nobody: refused while another operation holds the lock', async () => {
       await mount(EXT4, 'usb');
       writeFileSync(`${join(dir, 'units')}.lock`, String(process.pid));
       expectRefused(await unmount('usb'), 'busy');
-      expect(mountedAt(join(dir, 'mnt', 'usb'))).toBe(true);
+      expect(mountedAt('/mnt/usb')).toBe(true);
     });
 
     it('touches only units it wrote', async () => {
@@ -380,7 +398,7 @@ describe('laris-disk', () => {
       writeFileSync(join(dir, 'units', 'mnt-data.mount'), '[Mount]\nWhat=/dev/sda1\n');
       expectRefused(await unmount('data'), 'not_managed');
       expectRefused(await unmount('nothing'), 'not_managed');
-      expectRefused(await unmount('../x'), 'invalid_request');
+      expectRefused(await unmount('/etc/x'), 'invalid_request');
       expect(existsSync(join(dir, 'units', 'mnt-data.mount'))).toBe(true);
     });
 

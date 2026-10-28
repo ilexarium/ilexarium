@@ -10,7 +10,7 @@ describe('ContainerWatch', () => {
   let watch: ContainerWatch;
   beforeEach(() => {
     watch = new ContainerWatch();
-    watch.seen([{ name: 'immich', catalogId: 'immich', running: true, health: 'healthy' }], 0);
+    watch.seen([{ name: 'immich', app: 'immich', running: true, health: 'healthy' }], 0);
   });
 
   describe('service down', () => {
@@ -62,41 +62,41 @@ describe('ContainerWatch', () => {
 
     it('a list asked for before the death doesn’t undo it', () => {
       watch.died('immich', 'immich', 1_000);
-      watch.seen([{ name: 'immich', catalogId: 'immich', running: true, health: 'healthy' }], 500);
+      watch.seen([{ name: 'immich', app: 'immich', running: true, health: 'healthy' }], 500);
       expect(kinds(watch, 1_000 + DOWN_AFTER_MS)).toEqual(['serviceDown:immich:critical']);
       watch.seen(
-        [{ name: 'immich', catalogId: 'immich', running: true, health: 'healthy' }],
+        [{ name: 'immich', app: 'immich', running: true, health: 'healthy' }],
         2_000,
       );
       expect(kinds(watch, 1_000 + DOWN_AFTER_MS)).toEqual([]);
     });
 
     it('a list showing stopped what ran before: its death was missed — it counts', () => {
-      watch.seen([{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }], MINUTE);
+      watch.seen([{ name: 'immich', app: 'immich', running: false, health: 'none' }], MINUTE);
       expect(kinds(watch, MINUTE + DOWN_AFTER_MS)).toEqual(['serviceDown:immich:critical']);
     });
 
     it('a list showing it stopped doesn’t count when the app stopped it, or on purpose', () => {
       watch.expect('immich', 0);
       watch.seen(
-        [{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }],
+        [{ name: 'immich', app: 'immich', running: false, health: 'none' }],
         5 * MINUTE,
       );
       expect(kinds(watch, 10 * MINUTE)).toEqual([]);
 
       const other = new ContainerWatch();
-      other.seen([{ name: 'immich', catalogId: 'immich', running: true, health: 'none' }], 0);
+      other.seen([{ name: 'immich', app: 'immich', running: true, health: 'none' }], 0);
       other.seen(
-        [{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }],
+        [{ name: 'immich', app: 'immich', running: false, health: 'none' }],
         MINUTE,
-        true,
+        () => true,
       );
       expect(kinds(other, 10 * MINUTE)).toEqual([]);
     });
 
     it('a container already stopped when first seen doesn’t count (crash or on purpose: unknown)', () => {
       const fresh = new ContainerWatch();
-      fresh.seen([{ name: 'immich', catalogId: 'immich', running: false, health: 'none' }], 0);
+      fresh.seen([{ name: 'immich', app: 'immich', running: false, health: 'none' }], 0);
       expect(kinds(fresh, 10 * MINUTE)).toEqual([]);
     });
 
@@ -151,7 +151,7 @@ describe('ContainerWatch', () => {
     it('counts from the first failure, not from each list', () => {
       watch.health('immich', 'immich', 'unhealthy', 0);
       watch.seen(
-        [{ name: 'immich', catalogId: 'immich', running: true, health: 'unhealthy' }],
+        [{ name: 'immich', app: 'immich', running: true, health: 'unhealthy' }],
         MINUTE,
       );
       expect(kinds(watch, 2 * MINUTE)).toEqual(['unhealthy:immich:warning']);
@@ -169,7 +169,7 @@ describe('ContainerWatch', () => {
     watch.died('immich', 'immich', 0);
     const conditions = watch.conditions(DOWN_AFTER_MS);
     expect(conditions.find((c) => c.subject === 'immich')!.details).toEqual({
-      catalogId: 'immich',
+      app: 'immich',
     });
     expect(conditions.find((c) => c.subject === 'laris-postgres')!.details).toEqual({});
   });
@@ -180,7 +180,7 @@ describe('ContainerWatch', () => {
       kind,
       subject: 'immich',
       severity: 'critical',
-      details: { catalogId: 'immich' },
+      details: { app: 'immich' },
       openedAt: new Date(openedAt),
       acknowledgedAt: null,
       lastSentAt: null,
@@ -201,7 +201,7 @@ describe('ContainerWatch', () => {
       'unhealthy:immich:warning',
     ]);
     // The first list shows it running and healthy: those close.
-    fresh.seen([{ name: 'immich', catalogId: 'immich', running: true, health: 'healthy' }], now);
+    fresh.seen([{ name: 'immich', app: 'immich', running: true, health: 'healthy' }], now);
     expect(kinds(fresh, now)).toEqual(['outOfMemory:immich:warning']);
   });
 });

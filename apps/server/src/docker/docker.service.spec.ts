@@ -197,6 +197,8 @@ describe('DockerService', () => {
         ports: [],
         protected: false,
         composeProject: null,
+        composeWorkingDir: null,
+        template: null,
       },
       {
         id: ID_B,
@@ -211,6 +213,8 @@ describe('DockerService', () => {
         ],
         protected: true,
         composeProject: 'hl-web',
+        composeWorkingDir: null,
+        template: null,
       },
     ]);
     expect(fake.requests.map((r) => new URL(r.url, 'http://d').searchParams.get('all'))).toContain(
@@ -361,6 +365,8 @@ describe('DockerService', () => {
       (name) => name !== 'constructor',
     );
     expect(methods.sort()).toEqual([
+      'appFolders',
+      'bindMounts',
       'containerEvents',
       'containerLogs',
       'containerNames',

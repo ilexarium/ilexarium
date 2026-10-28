@@ -42,10 +42,7 @@ export function checkDestination(config: Config, paths: Paths, destination: stri
     throw new Refusal('destination_unavailable', `${destination}: ${why}`, 5);
   };
   const roots = paths.destinationRoots;
-  const allowed = roots
-    ? roots.some((r) => below(destination, r))
-    : notSystem(config, destination) && !SYSTEM_MOUNTS.includes(destination);
-  if (!absolute(destination) || !allowed) {
+  if (!destinationAllowed(config, paths, destination)) {
     throw new Refusal('destination_not_allowed', 'not a disk that may hold backups');
   }
   if (!existsSync(destination)) refuse('not there');
@@ -65,6 +62,15 @@ export function checkDestination(config: Config, paths: Paths, destination: stri
     if (writable) refuse(`${current} can be changed by the app or by everyone`);
     if (current === '/') break;
   }
+}
+
+/** Where a disk may be: not a system folder or one of the system's mounts (development: the pretend disks). */
+export function destinationAllowed(config: Config, paths: Paths, destination: unknown): boolean {
+  if (!absolute(destination)) return false;
+  const roots = paths.destinationRoots;
+  return roots
+    ? roots.some((r) => below(destination, r))
+    : notSystem(config, destination) && !SYSTEM_MOUNTS.includes(destination);
 }
 
 /** A Borg repository's id, from its config file (root-only; read as root). */

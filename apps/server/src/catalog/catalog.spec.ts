@@ -1,95 +1,65 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import en from '@laris/i18n/en.json' with { type: 'json' };
-import type { CatalogMeta } from '@laris/shared';
+import type { Template } from '@laris/shared';
 import { flattenMessages } from '@laris/i18n';
-import { CatalogError, loadCatalog } from './catalog-loader.js';
-import { checkComposePolicy, checkPlaceholders } from './compose-policy.js';
+import { CatalogError, checkTemplate, loadCatalog } from './catalog-loader.js';
 
 const CATALOG_DIR = fileURLToPath(new URL('../../../../catalog', import.meta.url));
-const DIGEST = `@sha256:${'a'.repeat(64)}`;
 
-const meta: CatalogMeta = {
-  schemaVersion: 1,
+const template: Template = {
   id: 'demo',
   version: '1',
   name: 'Demo',
   category: 'tools',
   website: 'https://example.org',
-  webPort: 'WEB_PORT',
-  dataOwner: { uid: 1000, gid: 1000 },
+  web: { port: 80 },
   fields: [
-    { key: 'WEB_PORT', type: 'port', default: 8080 },
-    { key: 'MEDIA_DIR', type: 'path', default: '/srv/laris/demo/media', access: 'read' },
-    { key: 'DATA_DIR', type: 'path', default: '/srv/laris/demo/data', access: 'write' },
+    { key: 'WEB_PORT', kind: 'port', default: 8080 },
+    { key: 'DATA_DIR', kind: 'folder', default: './data' },
+    { key: 'DEMO_VERSION', kind: 'version', image: 'example/app', default: '1.2' },
   ],
 };
 
-/** A recipe that passes every rule; each bad case changes one thing. */
-function goodTemplate(): Record<string, any> {
-  return {
-    services: {
-      app: {
-        image: `example/app:1.0${DIGEST}`,
-        ports: ['${WEB_PORT}:80'],
-        volumes: [
-          { type: 'bind', source: '${MEDIA_DIR}', target: '/media', read_only: true },
-          { type: 'bind', source: '${DATA_DIR}', target: '/data' },
-          'cache:/cache',
-        ],
-        depends_on: ['db'],
-        restart: 'unless-stopped',
-        logging: { driver: 'json-file', options: { 'max-size': '10m' } },
-      },
-      db: {
-        image: `postgres:18${DIGEST}`,
-        volumes: [{ type: 'volume', source: 'db', target: '/var/lib/postgresql' }],
-        restart: 'unless-stopped',
-        logging: { driver: 'local', options: { 'max-size': '10m' } },
-      },
-    },
-    volumes: { cache: null, db: {} },
-  };
-}
-
-function withChange(change: (template: Record<string, any>) => void) {
-  const template = goodTemplate();
-  change(template);
-  return checkComposePolicy(template, meta);
-}
+const compose = `services:
+  app:
+    image: example/app:\${DEMO_VERSION}
+    ports: ['\${WEB_PORT}:80']
+    volumes: ['\${DATA_DIR}:/data']
+    labels:
+      laris.template: demo@1
+  db:
+    image: postgres:18
+    labels: ['laris.template=demo@1']
+`;
 
 describe('the catalog', () => {
-  it('loads every entry, each passing every rule', async () => {
+  it('loads every template, each passing every check', async () => {
     const entries = await loadCatalog(CATALOG_DIR);
-    expect(entries.map((entry) => entry.meta.id)).toEqual(['immich', 'navidrome', 'ollama']);
-    const immich = entries.find((entry) => entry.meta.id === 'immich')!;
-    expect(immich.volumes).toEqual(['model-cache', 'database']);
-    expect(immich.images).toHaveLength(4);
+    expect(entries.map((entry) => entry.template.id)).toEqual(['immich', 'navidrome', 'ollama']);
   });
 
-  it("publishes Ollama's API on loopback only and has no Open link (it has no sign-in)", async () => {
+  it('puts Ollama’s API on 127.0.0.1 by default and gives it no Open link (it has no sign-in)', async () => {
     const entries = await loadCatalog(CATALOG_DIR);
-    const ollama = entries.find((entry) => entry.meta.id === 'ollama')!;
-    const recipe = await readFile(join(CATALOG_DIR, 'ollama', 'compose.yml'), 'utf8');
-    expect(recipe).toMatch(/^\s+- '127\.0\.0\.1:\$\{API_PORT\}:11434'$/m);
-    expect(recipe.match(/^\s+- '.*:11434'$/gm)).toHaveLength(1);
-    expect(ollama.meta.webPort).toBeUndefined();
-    expect(ollama.meta.backup).toBeUndefined();
+    const ollama = entries.find((entry) => entry.template.id === 'ollama')!;
+    expect(ollama.compose).toMatch(/'\$\{API_ADDRESS\}:\$\{API_PORT\}:11434'/);
+    expect(ollama.template.fields.find((f) => f.key === 'API_ADDRESS')?.default).toBe('127.0.0.1');
+    expect(ollama.template.web).toBeUndefined();
   });
 
-  it('has the texts of every entry in English (the consistency test covers the other languages)', async () => {
+  it('has the texts of every template in English (the consistency test covers the other languages)', async () => {
     const keys = new Set(Object.keys(flattenMessages(en)));
-    for (const { meta: entry } of await loadCatalog(CATALOG_DIR)) {
+    for (const { template: entry } of await loadCatalog(CATALOG_DIR)) {
       expect(keys.has(`catalog.${entry.id}.description`), entry.id).toBe(true);
       for (const field of entry.fields) {
-        if (field.type === 'generatedSecret') continue;
         for (const part of ['label', 'help']) {
           const key = `catalog.${entry.id}.fields.${field.key}.${part}`;
           expect(keys.has(key), key).toBe(true);
         }
       }
+      if (entry.note) expect(keys.has(`catalog.${entry.id}.note`), entry.id).toBe(true);
       if (entry.backup?.restoreNote) {
         const key = `catalog.${entry.id}.backup.restoreNote`;
         expect(keys.has(key), key).toBe(true);
@@ -97,170 +67,52 @@ describe('the catalog', () => {
     }
   });
 
-  it('backs up Immich live without the folders it rebuilds, and stops Navidrome', async () => {
+  it('backs Immich up live without what it rebuilds, Navidrome stopped; Immich’s images share one version', async () => {
     const entries = await loadCatalog(CATALOG_DIR);
-    const backup = (id: string) => entries.find((entry) => entry.meta.id === id)!.meta.backup;
-    expect(backup('immich')).toEqual({
-      folders: [{ field: 'UPLOAD_DIR', skip: ['thumbs', 'encoded-video'] }],
+    const immich = entries.find((e) => e.template.id === 'immich')!;
+    expect(immich.template.backup).toEqual({
       mode: 'live',
+      skip: ['library/thumbs', 'library/encoded-video', 'model-cache', 'postgres'],
       restoreNote: true,
     });
-    expect(backup('navidrome')).toEqual({
-      folders: [{ field: 'DATA_DIR' }, { field: 'MUSIC_DIR' }],
-      mode: 'stop',
-    });
+    expect(immich.compose.match(/:\$\{IMMICH_VERSION\}/g)).toHaveLength(2);
+    const navidrome = entries.find((e) => e.template.id === 'navidrome')!;
+    expect(navidrome.template.backup?.mode).toBe('stop');
+  });
+
+  it('keeps the data in folders inside the app’s folder by default', async () => {
+    for (const { template: entry } of await loadCatalog(CATALOG_DIR)) {
+      for (const field of entry.fields.filter((f) => f.kind === 'folder')) {
+        expect(String(field.default), `${entry.id} ${field.key}`).toMatch(/^\.\//);
+      }
+    }
   });
 });
 
-describe('checkComposePolicy', () => {
-  it('accepts a good recipe', () => {
-    expect(checkComposePolicy(goodTemplate(), meta)).toEqual([]);
+describe('checkTemplate', () => {
+  it('accepts a good template', () => {
+    expect(checkTemplate(template, compose)).toEqual([]);
   });
 
-  it('accepts a port bound to loopback only (a service without its own sign-in)', () => {
-    expect(withChange((t) => (t.services.app.ports = ['127.0.0.1:${WEB_PORT}:80']))).toEqual([]);
+  it('names variables that are no field, and fields not used', () => {
+    expect(checkTemplate(template, compose.replace('${DATA_DIR}', '${OTHER}'))).toEqual([
+      '${OTHER} is not a field',
+      'field DATA_DIR is not used',
+    ]);
   });
 
-  // One deliberately bad recipe per rule: each must be refused.
-  it.each<[string, (t: Record<string, any>) => void, RegExp]>([
-    ['privileged', (t) => (t.services.app.privileged = true), /privileged: not allowed/],
-    ['cap_add', (t) => (t.services.app.cap_add = ['SYS_ADMIN']), /cap_add: not allowed/],
-    ['devices', (t) => (t.services.app.devices = ['/dev/sda']), /devices: not allowed/],
-    ['host network', (t) => (t.services.app.network_mode = 'host'), /network_mode: not allowed/],
-    ['host pid', (t) => (t.services.app.pid = 'host'), /pid: not allowed/],
-    ['host ipc', (t) => (t.services.app.ipc = 'host'), /ipc: not allowed/],
-    ['userns_mode', (t) => (t.services.app.userns_mode = 'host'), /userns_mode: not allowed/],
-    [
-      'security_opt',
-      (t) => (t.services.app.security_opt = ['seccomp:unconfined']),
-      /security_opt: not allowed/,
-    ],
-    ['sysctls', (t) => (t.services.app.sysctls = { 'net.x': 1 }), /sysctls: not allowed/],
-    ['build', (t) => (t.services.app.build = '.'), /build: not allowed/],
-    ['extends', (t) => (t.services.app.extends = { file: 'x.yml' }), /extends: not allowed/],
-    ['env_file', (t) => (t.services.app.env_file = ['.env']), /env_file: not allowed/],
-    ['volumes_from', (t) => (t.services.app.volumes_from = ['db']), /volumes_from: not allowed/],
-    ['container_name', (t) => (t.services.app.container_name = 'x'), /container_name: not/],
-    ['a runtime', (t) => (t.services.app.runtime = 'runc'), /runtime: not allowed/],
-    ['include', (t) => (t.include = ['other.yml']), /include: top-level key not allowed/],
-    ['a project name', (t) => (t.name = 'immich'), /name: top-level key not allowed/],
-    ['networks', (t) => (t.networks = { x: { external: true } }), /networks: top-level/],
-    ['file secrets', (t) => (t.secrets = { s: { file: '/etc/shadow' } }), /secrets: top-level/],
-    ['an external volume', (t) => (t.volumes.db = { external: true }), /volumes.db: named/],
-    [
-      'a volume that binds a host folder',
-      (t) => (t.volumes.db = { driver_opts: { type: 'none', o: 'bind', device: '/etc' } }),
-      /volumes.db: named volumes take no options/,
-    ],
-    [
-      'the Docker socket',
-      (t) =>
-        t.services.app.volumes.push({
-          type: 'bind',
-          source: '/var/run/docker.sock',
-          target: '/var/run/docker.sock',
-        }),
-      /bind mount source must be exactly/,
-    ],
-    [
-      'a host folder in short syntax',
-      (t) => t.services.app.volumes.push('/:/host'),
-      /short syntax only/,
-    ],
-    [
-      'a field folder in short syntax',
-      (t) => (t.services.app.volumes[0] = '${MEDIA_DIR}:/media:ro'),
-      /short syntax only/,
-    ],
-    [
-      'a read folder mounted writable',
-      (t) => delete t.services.app.volumes[0].read_only,
-      /MEDIA_DIR is read-only/,
-    ],
-    [
-      'bind propagation options',
-      (t) => (t.services.app.volumes[1].bind = { propagation: 'shared' }),
-      /volumes\[1\]\.bind: not allowed/,
-    ],
-    [
-      'a volume not declared in the file',
-      (t) => (t.services.db.volumes[0].source = 'other'),
-      /not a volume declared/,
-    ],
-    ['a fixed host port', (t) => (t.services.app.ports = ['80:80']), /only '\$\{PORT_FIELD\}/],
-    [
-      'a host address on a port',
-      (t) => (t.services.app.ports = ['0.0.0.0:${WEB_PORT}:80']),
-      /only '\$\{PORT_FIELD\}/,
-    ],
-    [
-      'a host address other than loopback',
-      (t) => (t.services.app.ports = ['192.168.1.10:${WEB_PORT}:80']),
-      /only '\$\{PORT_FIELD\}/,
-    ],
-    [
-      'loopback written another way',
-      (t) => (t.services.app.ports = ['127.0.0.2:${WEB_PORT}:80']),
-      /only '\$\{PORT_FIELD\}/,
-    ],
-    [
-      'a port in long syntax',
-      (t) => (t.services.app.ports = [{ target: 80, published: '${WEB_PORT}' }]),
-      /only '\$\{PORT_FIELD\}/,
-    ],
-    ['ports not as a list', (t) => (t.services.app.ports = { a: 1 }), /ports: must be a list/],
-    ['an image without a digest', (t) => (t.services.app.image = 'example/app:1.0'), /pinned/],
-    ['another restart policy', (t) => (t.services.app.restart = 'always'), /unless-stopped/],
-    ['no log rotation', (t) => delete t.services.app.logging, /logging: json-file or local/],
-    [
-      'a protected label',
-      (t) => (t.services.app.labels = { 'laris.protected': 'true' }),
-      /reserved label/,
-    ],
-    [
-      'a Compose project label (posing as another project)',
-      (t) => (t.services.app.labels = ['com.docker.compose.project=hl-immich']),
-      /reserved label/,
-    ],
-    ['an unknown dependency', (t) => (t.services.app.depends_on = ['x']), /unknown service x/],
-    [
-      'a port field never published',
-      (t) => (t.services.app.ports = []),
-      /WEB_PORT: port field never published/,
-    ],
-    [
-      'a folder field never mounted',
-      (t) => t.services.app.volumes.splice(1, 1),
-      /DATA_DIR: folder never mounted/,
-    ],
-  ])('refuses %s', (_, change, expected) => {
-    const problems = withChange(change);
-    expect(
-      problems.some((problem) => expected.test(problem)),
-      problems.join('\n'),
-    ).toBe(true);
-  });
-});
-
-describe('checkPlaceholders', () => {
-  const ok = 'a: ${WEB_PORT}\nb: ${MEDIA_DIR}\nc: ${DATA_DIR}\nd: $$literal';
-
-  it('accepts declared ${KEY}s and $$', () => {
-    expect(checkPlaceholders(ok, meta)).toEqual([]);
-  });
-
-  it.each([
-    ['an undeclared key', `${ok}\ne: \${HOME_DIR}`, /HOME_DIR\}: not a declared field/],
-    ['a default', `${ok}\ne: \${WEB_PORT:-80}`, /only \$\{KEY\}/],
-    ['a bare $NAME', `${ok}\ne: $HOME`, /only \$\{KEY\}/],
-    ['a lowercase key', `${ok}\ne: \${home}`, /only \$\{KEY\}/],
-    ['a field never used', 'a: ${WEB_PORT}\nb: ${MEDIA_DIR}', /DATA_DIR: declared but never used/],
-  ])('refuses %s', (_, text, expected) => {
-    const problems = checkPlaceholders(text, meta);
-    expect(
-      problems.some((problem) => expected.test(problem)),
-      problems.join('\n'),
-    ).toBe(true);
+  it('refuses moving tags and missing labels', () => {
+    expect(checkTemplate(template, compose.replace('postgres:18', 'postgres:latest'))).toEqual([
+      'db: the tag "latest" moves',
+    ]);
+    expect(checkTemplate(template, compose.replace('postgres:18', 'postgres'))).toEqual([
+      'db: the image has no tag',
+    ]);
+    expect(checkTemplate(template, compose.replace("['laris.template=demo@1']", '[]'))).toEqual([
+      'db: needs the label laris.template: demo@1',
+    ]);
+    const moving = { ...template, fields: template.fields.map((f) => (f.kind === 'version' ? { ...f, default: 'nightly' } : f)) };
+    expect(checkTemplate(moving, compose)).toEqual(['DEMO_VERSION: the default "nightly" moves']);
   });
 });
 
@@ -276,8 +128,8 @@ describe('loadCatalog', () => {
   async function writeEntry(id: string, files: Partial<Record<string, string>>) {
     await mkdir(join(dir, id));
     const defaults = {
-      'meta.json': JSON.stringify({ ...meta, id }),
-      'compose.yml': JSON.stringify(goodTemplate()), // JSON is YAML
+      'template.json': JSON.stringify({ ...template, id }),
+      'compose.yml': compose.replaceAll('demo@1', `${id}@1`),
       'icon.svg': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>',
     };
     for (const [name, content] of Object.entries({ ...defaults, ...files })) {
@@ -291,24 +143,27 @@ describe('loadCatalog', () => {
     return (error as CatalogError).problems;
   }
 
-  it('loads a good entry', async () => {
-    await writeEntry('demo', {});
+  it('loads a good template, its compose.yml as written (comments kept)', async () => {
+    await writeEntry('demo', { 'compose.yml': `# mine\n${compose}` });
     const [entry] = await loadCatalog(dir);
-    expect(entry.meta.id).toBe('demo');
-    expect(entry.volumes).toEqual(['cache', 'db']);
+    expect(entry.template.id).toBe('demo');
+    expect(entry.compose.startsWith('# mine\n')).toBe(true);
   });
 
-  it('names every problem of every entry', async () => {
-    await writeEntry('a', { 'meta.json': JSON.stringify({ ...meta, id: 'b' }) });
+  it('names every problem of every template', async () => {
+    await writeEntry('a', { 'template.json': JSON.stringify({ ...template, id: 'b' }) });
     await writeEntry('c', { 'icon.svg': '<svg onload="alert(1)"></svg>' });
-    await writeEntry('d', { 'meta.json': JSON.stringify({ ...meta, id: 'd', website: 'x' }) });
+    await writeEntry('d', { 'template.json': JSON.stringify({ ...template, id: 'd', website: 'x' }) });
     await mkdir(join(dir, 'Bad_Name'));
     const problems = await problemsOf();
     expect(problems).toEqual([
-      'a: meta.json id "b" is not the folder\'s name',
-      'Bad_Name: not a valid catalog id',
+      expect.stringMatching(/^a: template\.json id "b" is not the folder's name/),
+      // Its label names the folder's id, not the file's.
+      'a: compose.yml app: needs the label laris.template: b@1',
+      'a: compose.yml db: needs the label laris.template: b@1',
+      'Bad_Name: not a valid template id',
       expect.stringMatching(/^c: icon\.svg must be a plain SVG/),
-      expect.stringMatching(/^d: meta\.json website/),
+      expect.stringMatching(/^d: template\.json website/),
     ]);
   });
 
@@ -323,3 +178,4 @@ describe('loadCatalog', () => {
     expect(problems.join('\n')).toMatch(/bomb: .*alias/i);
   });
 });
+

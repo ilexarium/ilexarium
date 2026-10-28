@@ -1,38 +1,33 @@
-import type { WrapperConfig } from '../executor/executor.model.js';
+import type { ProgramConfig } from '../root-programs/root-programs.model.js';
 import {
   archiveTime,
   destinationRoots,
   isAllowedFolder,
-  isAllowedServiceFolder,
-  isDestinationPath,
+  overlaps,
+  skipInside,
   stateDir,
 } from './backup-paths.js';
 
 const config = {
-  storageRoots: ['/srv/laris'],
   protectedPaths: ['/opt/laris', '/etc/laris', '/var/lib/laris'],
-} as WrapperConfig;
+} as ProgramConfig;
 
 describe('backup paths', () => {
-  it('allows folders in the storage roots and home folders', () => {
-    for (const path of ['/srv/laris/docs', '/home/alice', '/home/alice/Photos']) {
+  it('allows any folder but the system’s and the platform’s', () => {
+    for (const path of ['/srv/laris/docs', '/home/alice', '/home/alice/Photos', '/data', '/mnt/usb/x']) {
       expect(isAllowedFolder(config, path), path).toBe(true);
     }
   });
 
-  it('refuses system and platform folders, all of /home, and tricks', () => {
+  it('refuses system and platform folders, what holds them, and tricks', () => {
     for (const path of [
       '/',
       '/etc',
       '/root/x',
-      '/home',
       '/var/lib/laris',
-      '/srv',
-      // All of it would take in the restore area (a restored master key, a database dump) —
-      // as the wrapper refuses it.
-      '/srv/laris',
-      '/srv/laris/restores/2026-10-23',
-      '/srv/laris/../../etc',
+      '/var/lib/docker/volumes',
+      '/opt',
+      '/srv/../etc',
       'srv/laris/docs',
       '/srv/laris/docs/',
     ]) {
@@ -40,22 +35,22 @@ describe('backup paths', () => {
     }
   });
 
-  it('allows service folders only in the storage roots', () => {
-    expect(isAllowedServiceFolder(config, '/srv/laris/immich/library')).toBe(true);
-    expect(isAllowedServiceFolder(config, '/home/alice')).toBe(false);
+  it('a skip is inside one of the folders; overlap goes both ways', () => {
+    expect(skipInside('/a/b/cache', ['/a/b'])).toBe(true);
+    expect(skipInside('/a/bc', ['/a/b'])).toBe(false);
+    expect(overlaps('/a', '/a/b')).toBe(true);
+    expect(overlaps('/a/b', '/a')).toBe(true);
+    expect(overlaps('/a/b', '/a/c')).toBe(false);
   });
 
-  it('takes disks below /mnt and /media (development: its pretend ones)', () => {
-    expect(destinationRoots(config)).toEqual(['/mnt', '/media']);
-    expect(isDestinationPath(config, '/mnt/usb')).toBe(true);
-    expect(isDestinationPath(config, '/mnt')).toBe(false);
-    expect(isDestinationPath(config, '/srv/laris')).toBe(false);
+  it('any disk in production; the pretend ones in development', () => {
+    expect(destinationRoots(config)).toBeNull();
     const dev = {
       ...config,
       backup: { dev: { dir: '/d', destinationRoots: ['/d/mnt'], mountInfo: '/d/m' } },
     };
-    expect(isDestinationPath(dev as WrapperConfig, '/d/mnt/usb')).toBe(true);
-    expect(stateDir(dev as WrapperConfig)).toBe('/d/state');
+    expect(destinationRoots(dev as ProgramConfig)).toEqual(['/d/mnt']);
+    expect(stateDir(dev as ProgramConfig)).toBe('/d/state');
     expect(stateDir(config)).toBe('/var/lib/laris/backups');
   });
 

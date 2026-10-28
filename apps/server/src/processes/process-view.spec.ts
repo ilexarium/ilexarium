@@ -33,7 +33,7 @@ const context = (change: Partial<ProcessContext> = {}): ProcessContext => ({
   cores: 4,
   cpuTotalTicks: 800,
   previousTicks: new Map([[processKey(raw()), 600]]),
-  containers: new Map([[ID, { name: 'immich-server', catalogId: 'immich' }]]),
+  containers: new Map([[ID, { name: 'immich-server', app: 'immich' }]]),
   ...change,
 });
 
@@ -74,12 +74,12 @@ describe('toProcess', () => {
 
   it('names the container a process runs in, and the service', () => {
     const p = toProcess(raw({ containerId: ID, uids: [0, 0, 0, 0] }), context());
-    expect(p.container).toEqual({ name: 'immich-server', catalogId: 'immich' });
+    expect(p.container).toEqual({ name: 'immich-server', app: 'immich' });
     // Root inside a container: not a system process (shown at first).
     expect(p).toMatchObject({ system: false });
     expect(toProcess(raw({ containerId: '' }), context()).container).toEqual({
       name: null,
-      catalogId: null,
+      app: null,
     });
   });
 
