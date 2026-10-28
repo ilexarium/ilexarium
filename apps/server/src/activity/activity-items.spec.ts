@@ -2,7 +2,6 @@ import type { Alert as AlertRow, AuditEvent, BackupRun } from '../generated/pris
 import { fromAlert, fromAudit, fromBackupRun, mergeActivity } from './activity-items.js';
 
 const at = new Date('2026-10-26T10:00:00Z');
-const names = (id: string) => (id === 'immich' ? 'Immich' : null);
 
 function event(action: string, details: Record<string, unknown>, outcome = 'success'): AuditEvent {
   return {
@@ -18,7 +17,7 @@ function event(action: string, details: Record<string, unknown>, outcome = 'succ
 }
 
 function subjectOf(e: AuditEvent): string | null | undefined {
-  const item = fromAudit(e, names);
+  const item = fromAudit(e);
   return item?.source === 'action' ? item.subject : undefined;
 }
 
@@ -26,7 +25,6 @@ describe('fromAudit', () => {
   it('shows the action, who, and the one allowed detail — nothing else', () => {
     const item = fromAudit(
       event('container.restart', { container: 'immich-server-1', reason: 'x', token: 'y' }),
-      names,
     );
     expect(item).toEqual({
       source: 'action',
@@ -39,13 +37,14 @@ describe('fromAudit', () => {
     expect(JSON.stringify(item)).not.toContain('192.168');
   });
 
-  it('names a service by its catalog name, or its id if the catalog has none', () => {
-    expect(subjectOf(event('service.deploy', { catalogId: 'immich' }))).toBe('Immich');
-    expect(subjectOf(event('service.remove', { catalogId: 'gone' }))).toBe('gone');
+  it('names an app by its name, a disk by its folder', () => {
+    expect(subjectOf(event('app.install', { name: 'immich', folder: '/home/a/apps/immich' }))).toBe('immich');
+    expect(subjectOf(event('app.remove', { name: 'Bad Name' }))).toBeNull();
+    expect(subjectOf(event('disk.mount', { mountPoint: '/mnt/usb', uuid: 'abc' }))).toBe('/mnt/usb');
   });
 
   it('drops a detail that fails its check', () => {
-    expect(subjectOf(event('disk.mount', { name: '../etc', uuid: 'abc' }))).toBeNull();
+    expect(subjectOf(event('disk.mount', { mountPoint: '/etc', uuid: 'abc' }))).toBeNull();
     expect(subjectOf(event('assistant.model_pull', { model: 'a b' }))).toBeNull();
     expect(subjectOf(event('container.stop', { container: 42 }))).toBeNull();
   });
@@ -55,10 +54,10 @@ describe('fromAudit', () => {
   });
 
   it('leaves out other actions and anything but successes', () => {
-    expect(fromAudit(event('auth.login', {}), names)).toBeNull();
-    expect(fromAudit(event('files.delete', { path: '/home/x' }), names)).toBeNull();
-    expect(fromAudit(event('container.stop', { container: 'a' }, 'requested'), names)).toBeNull();
-    expect(fromAudit(event('container.stop', { container: 'a' }, 'failure'), names)).toBeNull();
+    expect(fromAudit(event('auth.login', {}))).toBeNull();
+    expect(fromAudit(event('files.delete', { path: '/home/x' }))).toBeNull();
+    expect(fromAudit(event('container.stop', { container: 'a' }, 'requested'))).toBeNull();
+    expect(fromAudit(event('container.stop', { container: 'a' }, 'failure'))).toBeNull();
   });
 });
 
@@ -97,7 +96,7 @@ describe('fromAlert', () => {
     kind: 'serviceDown',
     subject: 'immich-server-1',
     severity: 'critical',
-    details: { catalogId: 'immich' },
+    details: { app: 'immich' },
     openedAt: at,
     closedAt,
     acknowledgedAt: null,
@@ -107,13 +106,13 @@ describe('fromAlert', () => {
   });
 
   it('an open alert once, a closed one twice', () => {
-    expect(fromAlert(row(null), names).map((i) => i.id)).toEqual(['a1-opened']);
-    const closed = fromAlert(row(new Date('2026-10-26T11:00:00Z')), names);
+    expect(fromAlert(row(null)).map((i) => i.id)).toEqual(['a1-opened']);
+    const closed = fromAlert(row(new Date('2026-10-26T11:00:00Z')));
     expect(closed.map((i) => [i.id, i.at])).toEqual([
       ['a1-opened', at.toISOString()],
       ['a1-closed', '2026-10-26T11:00:00.000Z'],
     ]);
-    expect(closed[0].source === 'alert' && closed[0].alert.serviceName).toBe('Immich');
+    expect(closed[0].source === 'alert' && closed[0].alert.app).toBe('immich');
   });
 });
 

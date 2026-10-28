@@ -11,6 +11,8 @@ import { CATALOG_ID_PATTERN, fieldKindSchema, isPlainAbsolutePath } from './cata
 
 /** A Compose project's name, as Compose allows it: also the app's name. */
 export const APP_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/;
+/** A named Docker volume (Docker's own rule). */
+export const VOLUME_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/;
 
 /** On an app's containers: the template it came from, `<id>@<version>`. */
 export const TEMPLATE_LABEL = 'laris.template';
@@ -30,9 +32,7 @@ export const APP_LIMITS = {
 /** The folder an app gets by default, inside the person's home. */
 export const APPS_FOLDER = 'apps';
 
-export const appNameSchema = z
-  .string()
-  .regex(APP_NAME_PATTERN, 'validation.appNameInvalid');
+export const appNameSchema = z.string().regex(APP_NAME_PATTERN, 'validation.appNameInvalid');
 
 const absolutePath = z
   .string()
@@ -167,7 +167,11 @@ export const appInstallRequestSchema = z.strictObject({
 export type AppInstallRequest = z.infer<typeof appInstallRequestSchema>;
 
 /** After an install, a change, an update or a removal started. */
-export const appStartedSchema = z.object({ name: z.string(), folder: z.string(), task: appTaskSchema });
+export const appStartedSchema = z.object({
+  name: z.string(),
+  folder: z.string(),
+  task: appTaskSchema,
+});
 export type AppStarted = z.infer<typeof appStartedSchema>;
 
 // One app.
@@ -198,7 +202,9 @@ export const appDetailsSchema = z.object({
   images: z.array(appImageSchema),
   problem: z.string().nullable(),
   /** Its template, and the catalog's current version of it (null: no longer in the catalog). */
-  template: z.object({ id: z.string(), version: z.string(), current: z.string().nullable() }).nullable(),
+  template: z
+    .object({ id: z.string(), version: z.string(), current: z.string().nullable() })
+    .nullable(),
   /** Its latest task. */
   task: appTaskSchema.nullable(),
   /** What ran before the last update (`.laris/before-update.json`): "Undo this update". */
@@ -225,7 +231,11 @@ export type AppUpdateRequest = z.infer<typeof appUpdateRequestSchema>;
 export const appImageTagRequestSchema = z.strictObject({
   folder: absolutePath,
   service: z.string().min(1).max(128),
-  tag: z.string().min(1).max(256).regex(/^[A-Za-z0-9_][A-Za-z0-9_.:@-]*$/, 'validation.tagInvalid'),
+  tag: z
+    .string()
+    .min(1)
+    .max(256)
+    .regex(/^[A-Za-z0-9_][A-Za-z0-9_.:@-]*$/, 'validation.tagInvalid'),
 });
 export type AppImageTagRequest = z.infer<typeof appImageTagRequestSchema>;
 
@@ -263,7 +273,7 @@ export const appDeleteRequestSchema = z.strictObject({
   folder: absolutePath,
   settings: z.boolean(),
   folders: z.array(absolutePath).max(50),
-  volumes: z.array(z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/)).max(50),
+  volumes: z.array(z.string().regex(VOLUME_NAME_PATTERN)).max(50),
 });
 export type AppDeleteRequest = z.infer<typeof appDeleteRequestSchema>;
 

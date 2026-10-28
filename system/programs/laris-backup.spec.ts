@@ -35,24 +35,6 @@ let storage: string;
 let destination: string;
 let dev: string;
 
-const stopMeta = {
-  id: 'demo',
-  fields: [
-    { key: 'WEB_PORT', type: 'port', default: 8080 },
-    { key: 'DATA_DIR', type: 'path', default: '/x', access: 'write' },
-    { key: 'MEDIA_DIR', type: 'path', default: '/x', access: 'read' },
-  ],
-  backup: {
-    folders: [{ field: 'DATA_DIR', skip: ['cache'] }, { field: 'MEDIA_DIR' }],
-    mode: 'stop',
-  },
-};
-const liveMeta = {
-  id: 'live',
-  fields: [{ key: 'UPLOAD_DIR', type: 'path', default: '/x', access: 'write' }],
-  backup: { folders: [{ field: 'UPLOAD_DIR', skip: ['thumbs'] }], mode: 'live' },
-};
-
 function plan(change: Record<string, unknown> = {}): Record<string, any> {
   return {
     destination,
@@ -62,18 +44,19 @@ function plan(change: Record<string, unknown> = {}): Record<string, any> {
       { id: PLATFORM, kind: 'platform' },
       {
         id: SERVICE,
-        kind: 'service',
-        catalogId: 'demo',
-        folders: {
-          DATA_DIR: join(storage, 'demo', 'data'),
-          MEDIA_DIR: join(storage, 'demo', 'media'),
-        },
+        kind: 'app',
+        project: 'demo',
+        folders: [join(storage, 'demo', 'data'), join(storage, 'demo', 'media')],
+        skip: [join(storage, 'demo', 'data', 'cache')],
+        mode: 'stop',
       },
       {
         id: LIVE,
-        kind: 'service',
-        catalogId: 'live',
-        folders: { UPLOAD_DIR: join(storage, 'live') },
+        kind: 'app',
+        project: 'live',
+        folders: [join(storage, 'live')],
+        skip: [join(storage, 'live', 'thumbs')],
+        mode: 'live',
       },
       { id: FOLDER, kind: 'folder', path: join(storage, 'docs') },
     ],
@@ -83,9 +66,6 @@ function plan(change: Record<string, unknown> = {}): Record<string, any> {
 
 function writeConfig(change: Record<string, unknown> = {}) {
   const config = {
-    catalogDir: join(dir, 'catalog'),
-    storageRoots: [storage],
-    serviceRoot: storage,
     reservedPorts: [],
     protectedPaths: [join(storage, 'platform')],
     dockerBin: join(dir, 'docker'),
@@ -215,18 +195,11 @@ beforeEach(() => {
   mkdirSync(destination, { recursive: true });
   mkdirSync(join(dir, 'etc'), { recursive: true });
   writeFileSync(join(dir, 'etc', 'master.key'), 'key');
-  for (const [id, meta] of [
-    ['demo', stopMeta],
-    ['live', liveMeta],
-  ] as const) {
-    mkdirSync(join(dir, 'catalog', id), { recursive: true });
-    writeFileSync(join(dir, 'catalog', id, 'meta.json'), JSON.stringify(meta));
-  }
   for (const fake of ['borg', 'docker', 'systemctl']) {
     const source = readFileSync(join(FAKES, `fake-${fake}.cjs`), 'utf8');
     writeFileSync(join(dir, fake), `#!${process.execPath}\n${source}`, { mode: 0o755 });
   }
-  writeFileSync(join(dir, 'running.txt'), 'hl-demo\nhl-live');
+  writeFileSync(join(dir, 'running.txt'), 'demo\nlive');
   writeMounts([mountLine(destination)]);
   writeConfig();
 });
@@ -310,7 +283,8 @@ describe('laris-backup configure', () => {
     ['two platform items', () => plan({ items: [...plan().items, { id: RUN, kind: 'platform' }] })],
     ['a folder in /etc', () => withItem({ id: RUN, kind: 'folder', path: '/etc' })],
     ['a folder in /root', () => withItem({ id: RUN, kind: 'folder', path: '/root/secrets' })],
-    ['all of /home', () => withItem({ id: RUN, kind: 'folder', path: '/home' })],
+    ['all of /', () => withItem({ id: RUN, kind: 'folder', path: '/' })],
+    ['Docker’s own folder', () => withItem({ id: RUN, kind: 'folder', path: '/var/lib/docker/volumes' })],
     [
       'a platform folder',
       () => withItem({ id: RUN, kind: 'folder', path: join(storage, 'platform') }),
@@ -324,35 +298,32 @@ describe('laris-backup configure', () => {
       () => withItem({ id: 'x', kind: 'folder', path: join(storage, 'docs') }),
     ],
     [
-      'a service field that is not in its recipe’s backup',
-      () =>
-        withItem({
-          id: RUN,
-          kind: 'service',
-          catalogId: 'demo',
-          folders: { WEB_PORT: join(storage, 'x') },
-        }),
+      'an app project that is not a Compose name',
+      () => withItem({ ...plan().items[1], id: RUN, project: '../demo' }),
     ],
     [
-      'a service folder outside the storage roots',
-      () =>
-        withItem({
-          id: RUN,
-          kind: 'service',
-          catalogId: 'demo',
-          folders: { DATA_DIR: '/home/alice' },
-        }),
+      'an app folder in a system folder',
+      () => withItem({ ...plan().items[1], id: RUN, folders: ['/etc/ssh'] }),
     ],
     [
-      'a service without a backup section',
-      () => withItem({ id: RUN, kind: 'service', catalogId: 'nope', folders: {} }),
+      'an app skip outside its folders',
+      () => withItem({ ...plan().items[1], id: RUN, skip: [join(storage, 'docs', 'x')] }),
     ],
     [
-      'a service catalog id that could leave the catalog',
-      () => withItem({ id: RUN, kind: 'service', catalogId: '../demo', folders: {} }),
+      'an app skip that could read as an option or more of a pattern',
+      () => withItem({ ...plan().items[1], id: RUN, skip: [join(storage, 'demo', 'data', '-x')] }),
     ],
     [
-      'a skip list sent by the app (only recipes declare them)',
+      'an app skip with ..',
+      () => withItem({ ...plan().items[1], id: RUN, skip: [join(storage, 'demo', 'data', '..', 'x')] }),
+    ],
+    ['an app without a mode', () => withItem({ ...plan().items[1], id: RUN, mode: 'pause' })],
+    [
+      'a service item (before apps)',
+      () => withItem({ id: RUN, kind: 'service', catalogId: 'demo', folders: {} }),
+    ],
+    [
+      'a skip list on a folder item',
       () => withItem({ id: RUN, kind: 'folder', path: join(storage, 'docs'), skip: ['x'] }),
     ],
   ])('refuses %s', async (_, value) => {
@@ -360,13 +331,13 @@ describe('laris-backup configure', () => {
     expect(existsSync(join(dev, 'backup.json'))).toBe(false);
   });
 
-  it('refuses a recipe with an unsafe skip (it is checked here too)', async () => {
-    const meta = {
-      ...stopMeta,
-      backup: { ...stopMeta.backup, folders: [{ field: 'DATA_DIR', skip: ['--x'] }] },
-    };
-    writeFileSync(join(dir, 'catalog', 'demo', 'meta.json'), JSON.stringify(meta));
-    expectRefused(await wrapper('configure', plan()), 'setup', 6);
+  it('reads a plan written before apps, its service items left out', async () => {
+    expect((await wrapper('configure', plan())).code).toBe(0);
+    const stored = JSON.parse(readFileSync(join(dev, 'backup.json'), 'utf8'));
+    stored.items.push({ id: RUN, kind: 'service', catalogId: 'demo', folders: {} });
+    writeFileSync(join(dev, 'backup.json'), JSON.stringify(stored), { mode: 0o600 });
+    const run = await wrapper(['run-requested', `${RUN}_${FOLDER}`]);
+    expect(run.markers.join('\n')).not.toContain('stored plan');
   });
 });
 
@@ -538,8 +509,8 @@ describe('laris-backup run', () => {
     const compose = calls('docker')
       .filter((c) => c.args[0] === 'compose')
       .map((c) => c.args.slice(2).join(' '));
-    expect(compose).toEqual(['hl-demo ps -q', 'hl-demo stop', 'hl-demo start']);
-    expect(readFileSync(join(dir, 'running.txt'), 'utf8')).toContain('hl-demo');
+    expect(compose).toEqual(['demo ps -q', 'demo stop', 'demo start']);
+    expect(readFileSync(join(dir, 'running.txt'), 'utf8')).toContain('demo');
   });
 
   it('starts a stopped service again even when its archive fails', async () => {
@@ -550,7 +521,7 @@ describe('laris-backup run', () => {
       .filter((c) => c.args[0] === 'compose')
       .map((c) => c.args[3]);
     expect(compose).toEqual(['ps', 'stop', 'start']);
-    expect(readFileSync(join(dir, 'running.txt'), 'utf8')).toContain('hl-demo');
+    expect(readFileSync(join(dir, 'running.txt'), 'utf8')).toContain('demo');
   });
 
   it('retries starting a service, and reports one that did not start as the most serious failure', async () => {
@@ -558,7 +529,7 @@ describe('laris-backup run', () => {
     expect((await runNow({ runId: RUN })).code).toBe(0);
     rmSync(join(dir, 'archives.json'));
 
-    writeFileSync(join(dir, 'running.txt'), 'hl-demo');
+    writeFileSync(join(dir, 'running.txt'), 'demo');
     writeFileSync(join(dir, 'start-fails.txt'), '3');
     const result = await runNow({ runId: RUN });
     expect(result.code).toBe(5);
@@ -863,27 +834,49 @@ describe('laris-backup restore', () => {
     archive = items.find((i: any) => i.itemId === SERVICE).archive;
     folderArchive = items.find((i: any) => i.itemId === FOLDER).archive;
     resetCalls();
+    useSystemctl();
   });
 
   const restoreInput = (change: Record<string, unknown> = {}) => ({
     restoreId: RESTORE,
     itemId: SERVICE,
     archive,
-    target: 'inPlace',
+    target: null,
     ...change,
   });
+  const events = () => jsonLines(join(dev, 'state', 'restores', `${RESTORE}.jsonl`));
+  const done = () => events().find((e) => e.type === 'done');
+  /** As the person's sudo starts it, then as its unit runs it. */
+  async function restore(input: Record<string, unknown>): Promise<Run> {
+    const started = await wrapper('restore-start', input);
+    expect(started.code, started.lines.join('\n')).toBe(0);
+    return wrapper(['restore-run', RESTORE]);
+  }
 
-  it('in place: stops, sets the current folders aside, extracts, starts again', async () => {
-    const result = await wrapper('restore', restoreInput());
+  it('restore-start keeps the request (root-only) and starts its unit, nothing more', async () => {
+    const started = await wrapper('restore-start', restoreInput());
+    expect(started.code, started.lines.join('\n')).toBe(0);
+    const request = join(dev, 'state', 'restore-requests', `${RESTORE}.json`);
+    expect(JSON.parse(readFileSync(request, 'utf8'))).toEqual(restoreInput());
+    expect(statSync(request).mode & 0o777).toBe(0o600);
+    expect(calls('systemctl').map((c) => c.args)).toEqual([
+      ['start', '--no-block', `laris-restore@${RESTORE}.service`],
+    ]);
+    expect(calls('borg')).toEqual([]);
+  });
+
+  it('back where it was: stops the app, sets the current folders aside, extracts, starts it again', async () => {
+    const result = await restore(restoreInput());
     expect(result.code, result.lines.join('\n')).toBe(0);
-    expect(result.markers.filter((m) => m.startsWith('@@phase'))).toEqual([
-      '@@phase stopping',
-      '@@phase restoring',
-      '@@phase starting',
-      '@@phase done',
+    expect(events().filter((e) => e.type === 'phase').map((e) => e.phase)).toEqual([
+      'stopping',
+      'restoring',
+      'starting',
+      'done',
     ]);
     const data = join(storage, 'demo', 'data');
-    const setAside = result.result!.setAside as string[];
+    const setAside = done()!.setAside as string[];
+    expect(done()).toMatchObject({ status: 'succeeded', errorCode: null });
     expect(setAside).toHaveLength(2);
     expect(setAside[0]).toMatch(new RegExp(`^${data}\\.before-restore-\\d{8}-\\d{6}$`));
     // The previous version is kept whole; the folder now holds the restored data.
@@ -899,14 +892,20 @@ describe('laris-backup restore', () => {
       data.slice(1),
       join(storage, 'demo', 'media').slice(1),
     ]);
-    const compose = calls('docker').map((c) => c.args[3]);
-    expect(compose).toEqual(['ps', 'stop', 'start']);
+    expect(calls('docker').map((c) => c.args.slice(1, 4))).toEqual([
+      ['-p', 'demo', 'ps'],
+      ['-p', 'demo', 'stop'],
+      ['-p', 'demo', 'start'],
+    ]);
+    // The request is gone once done.
+    expect(existsSync(join(dev, 'state', 'restore-requests', `${RESTORE}.json`))).toBe(false);
   });
 
   it('puts everything back when the extraction fails', async () => {
     writeFileSync(join(dir, 'exit-extract.txt'), '2');
-    const result = await wrapper('restore', restoreInput());
+    const result = await restore(restoreInput());
     expect(result.code).toBe(5);
+    expect(done()).toMatchObject({ status: 'failed', setAside: [] });
     const data = join(storage, 'demo', 'data');
     expect(readFileSync(join(data, 'db.sqlite'), 'utf8')).toBe('data');
     expect(existsSync(join(data, 'partial.txt'))).toBe(false);
@@ -914,55 +913,59 @@ describe('laris-backup restore', () => {
     expect(calls('docker').map((c) => c.args[3])).toEqual(['ps', 'stop', 'start']);
   });
 
-  it('to a new folder: everything, under the restore area, nothing stopped', async () => {
-    const result = await wrapper(
-      'restore',
-      restoreInput({ itemId: FOLDER, archive: folderArchive, target: 'newFolder' }),
+  it('into a chosen folder: everything with its full paths, nothing stopped', async () => {
+    const target = join(dir, 'restored');
+    const result = await restore(
+      restoreInput({ itemId: FOLDER, archive: folderArchive, target }),
     );
     expect(result.code, result.lines.join('\n')).toBe(0);
-    const target = result.result!.targetPath as string;
-    expect(target).toMatch(new RegExp(`^${join(dev, 'restores')}/44444444-\\d{8}-\\d{6}$`));
+    expect(done()).toMatchObject({ status: 'succeeded', setAside: [] });
     expect(existsSync(join(target, join(storage, 'docs').slice(1), 'restored.txt'))).toBe(true);
     expect(calls('borg').find((c) => c.args[0] === 'extract')!.cwd).toBe(target);
     expect(calls('docker')).toEqual([]);
   });
 
-  it('restores folders and the platform only to a new folder', async () => {
+  it('refuses a chosen folder that has something in it', async () => {
+    const target = join(storage, 'docs');
+    writeFileSync(join(target, 'mine.txt'), 'x');
+    const result = await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
+    expect(result.code).toBe(2);
+    expect(done()).toMatchObject({ status: 'failed', errorCode: 'target_not_empty' });
+  });
+
+  it('the platform only into a folder', async () => {
     expectRefused(
-      await wrapper('restore', restoreInput({ itemId: FOLDER, archive: folderArchive })),
+      await wrapper('restore-start', restoreInput({ itemId: PLATFORM, archive: archive.replace(SERVICE, PLATFORM) })),
       'invalid_request',
     );
   });
 
-  it('refuses an archive of another item, or a name that is not one of ours', async () => {
+  it('refuses an archive of another item, a name that is not one of ours, a system folder', async () => {
     expectRefused(
-      await wrapper('restore', restoreInput({ archive: folderArchive })),
+      await wrapper('restore-start', restoreInput({ archive: folderArchive })),
       'invalid_request',
     );
     expectRefused(
-      await wrapper('restore', restoreInput({ archive: `${SERVICE}-latest` })),
+      await wrapper('restore-start', restoreInput({ archive: `${SERVICE}-latest` })),
       'invalid_request',
     );
-    expectRefused(await wrapper('restore', restoreInput({ target: '/etc' })), 'invalid_request');
-    expectRefused(await wrapper('restore', restoreInput({ path: '/' })), 'invalid_request');
+    expectRefused(await wrapper('restore-start', restoreInput({ target: '/etc' })), 'path_not_allowed');
+    expectRefused(await wrapper('restore-start', restoreInput({ path: '/' })), 'invalid_request');
+    expect(calls('systemctl')).toEqual([]);
   });
 
-  it('refuses in place when the service uses other folders now', async () => {
-    const items = plan().items.map((i: any) =>
-      i.id === SERVICE ? { ...i, folders: { DATA_DIR: join(storage, 'demo', 'new') } } : i,
-    );
-    await wrapper('configure', plan({ items }));
-    expectRefused(await wrapper('restore', restoreInput()), 'paths_changed');
-    expect(calls('docker')).toEqual([]);
+  it('a run without its request (or another restore’s) does nothing', async () => {
+    const result = await wrapper(['restore-run', RESTORE]);
+    expect(result.code).toBe(2);
+    expect(done()).toMatchObject({ status: 'failed', errorCode: 'not_found' });
+    expect(calls('borg')).toEqual([]);
   });
 
   it('reports an archive that is gone', async () => {
     const gone = `${SERVICE}-2020-01-01T00:00:00`;
-    expectRefused(
-      await wrapper('restore', restoreInput({ archive: gone })),
-      'archive_not_found',
-      5,
-    );
+    const result = await restore(restoreInput({ archive: gone }));
+    expect(result.code).toBe(5);
+    expect(done()).toMatchObject({ status: 'failed', errorCode: 'archive_not_found' });
   });
 });
 
@@ -974,13 +977,13 @@ describe('laris-backup discard, forget and passphrase', () => {
 
   it('discard deletes a folder a restore set aside — and nothing else', async () => {
     const archive = results()[0].items.find((i: any) => i.itemId === SERVICE).archive;
-    const restored = await wrapper('restore', {
-      restoreId: RESTORE,
-      itemId: SERVICE,
-      archive,
-      target: 'inPlace',
-    });
-    const [first] = restored.result!.setAside as string[];
+    useSystemctl();
+    await wrapper('restore-start', { restoreId: RESTORE, itemId: SERVICE, archive, target: null });
+    await wrapper(['restore-run', RESTORE]);
+    const done = jsonLines(join(dev, 'state', 'restores', `${RESTORE}.jsonl`)).find(
+      (e) => e.type === 'done',
+    );
+    const [first] = done!.setAside as string[];
     expect((await wrapper('discard', { path: first })).code).toBe(0);
     expect(existsSync(first)).toBe(false);
     // Not listed (any more), or not a set-aside name: refused.
@@ -1039,13 +1042,9 @@ describe('laris-backup check-scheduled', () => {
   });
 });
 
-describe('laris-backup and the restore area', () => {
-  it('never backs up the restore area, nor a folder holding it (restored secrets live there)', async () => {
-    // Storage that holds the development restore area, so only that rule can refuse.
-    writeConfig({ storageRoots: [dir] });
-    const restores = join(dev, 'restores', 'abc');
-    mkdirSync(restores, { recursive: true });
-    for (const path of [restores, dev]) {
+describe('laris-backup and the platform’s folders', () => {
+  it('never backs up the platform’s own folders, nor a folder holding them', async () => {
+    for (const path of [join(storage, 'platform'), join(storage, 'platform', 'x'), '/var/lib/laris/backups']) {
       const items = [plan().items[0], { id: RUN, kind: 'folder', path }];
       expectRefused(await wrapper('configure', plan({ items })), 'invalid_plan');
     }

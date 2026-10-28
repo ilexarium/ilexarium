@@ -55,6 +55,20 @@ const runs = () =>
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 
+/** As the person's sudo starts it (a systemctl that starts nothing), then as its unit runs it. */
+async function restore(input: Record<string, unknown>) {
+  const started = await wrapper('restore-start', input);
+  if (started.code !== 0) return started;
+  return wrapper(['restore-run', String(input['restoreId'])]);
+}
+
+const restoreDone = (id: string) =>
+  readFileSync(join(dev, 'state', 'restores', `${id}.jsonl`), 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .find((e) => e.type === 'done');
+
 describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
   beforeAll(async () => {
     dir = mkdtempSync(join(tmpdir(), 'backup-borg-'));
@@ -71,15 +85,6 @@ describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
     writeFileSync(join(storage, 'docs', 'private.txt'), 'only mine', { mode: 0o600 });
     mkdirSync(join(dir, 'etc'));
     writeFileSync(join(dir, 'etc', 'master.key'), 'key');
-    mkdirSync(join(dir, 'catalog', 'demo'), { recursive: true });
-    writeFileSync(
-      join(dir, 'catalog', 'demo', 'meta.json'),
-      JSON.stringify({
-        id: 'demo',
-        fields: [{ key: 'DATA_DIR', type: 'path', default: '/x', access: 'write' }],
-        backup: { folders: [{ field: 'DATA_DIR', skip: ['cache'] }], mode: 'stop' },
-      }),
-    );
     writeFileSync(
       join(dir, 'docker'),
       `#!${process.execPath}\n${readFileSync(FAKE_DOCKER, 'utf8')}`,
@@ -87,14 +92,12 @@ describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
         mode: 0o755,
       },
     );
-    writeFileSync(join(dir, 'running.txt'), 'hl-demo');
+    writeFileSync(join(dir, 'running.txt'), 'demo');
+    writeFileSync(join(dir, 'systemctl'), `#!${process.execPath}\n`, { mode: 0o755 });
     writeFileSync(join(dir, 'mountinfo'), `100 30 8:17 / ${destination} rw - ext4 /dev/sdb1 rw\n`);
     writeFileSync(
       join(dir, 'wrappers.json'),
       JSON.stringify({
-        catalogDir: join(dir, 'catalog'),
-        storageRoots: [storage],
-        serviceRoot: storage,
         reservedPorts: [],
         protectedPaths: [],
         dockerBin: join(dir, 'docker'),
@@ -102,6 +105,7 @@ describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
         home: dir,
         backup: {
           borgBin: BORG,
+          systemctlBin: join(dir, 'systemctl'),
           platform: {
             container: 'db',
             database: 'laris',
@@ -125,9 +129,11 @@ describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
         { id: PLATFORM, kind: 'platform' },
         {
           id: SERVICE,
-          kind: 'service',
-          catalogId: 'demo',
-          folders: { DATA_DIR: join(storage, 'demo', 'data') },
+          kind: 'app',
+          project: 'demo',
+          folders: [join(storage, 'demo', 'data')],
+          skip: [join(storage, 'demo', 'data', 'cache')],
+          mode: 'stop',
         },
         { id: FOLDER, kind: 'folder', path: join(storage, 'docs') },
       ],
@@ -156,33 +162,33 @@ describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
   it('restores a service in place, the current version set aside, without what was skipped', async () => {
     const archive = runs()[1].items[1].archive;
     writeFileSync(join(storage, 'demo', 'data', 'db.sqlite'), 'broken');
-    const result = await wrapper('restore', {
+    const result = await restore({
       restoreId: '66666666-6666-4666-8666-666666666661',
       itemId: SERVICE,
       archive,
-      target: 'inPlace',
+      target: null,
     });
     expect(result.code, result.out).toBe(0);
     expect(readFileSync(join(storage, 'demo', 'data', 'db.sqlite'), 'utf8')).toBe('version 2');
     expect(existsSync(join(storage, 'demo', 'data', 'cache'))).toBe(false);
-    const [setAside] = result.result.setAside;
+    const [setAside] = restoreDone('66666666-6666-4666-8666-666666666661').setAside;
     expect(readFileSync(join(setAside, 'db.sqlite'), 'utf8')).toBe('broken');
-    expect(readFileSync(join(dir, 'running.txt'), 'utf8')).toContain('hl-demo');
+    expect(readFileSync(join(dir, 'running.txt'), 'utf8')).toContain('demo');
 
     expect((await wrapper('discard', { path: setAside })).code).toBe(0);
     expect(existsSync(setAside)).toBe(false);
   }, 60_000);
 
-  it('restores a folder to a new folder, with its full path below it', async () => {
+  it('restores a folder into a chosen folder, with its full path below it', async () => {
     const archive = runs()[1].items[2].archive;
-    const result = await wrapper('restore', {
+    const result = await restore({
       restoreId: '66666666-6666-4666-8666-666666666662',
       itemId: FOLDER,
       archive,
-      target: 'newFolder',
+      target: join(dir, 'restored-docs'),
     });
     expect(result.code, result.out).toBe(0);
-    const target: string = result.result.targetPath;
+    const target = join(dir, 'restored-docs');
     const restored = join(target, join(storage, 'docs').slice(1), 'letter.txt');
     expect(readFileSync(restored, 'utf8')).toBe('Dear …');
     // Every folder from the restore area down to the restored one can be passed through
@@ -200,14 +206,14 @@ describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
 
   it('the platform archive holds the dump and the platform files', async () => {
     const archive = runs()[1].items[0].archive;
-    const result = await wrapper('restore', {
+    const result = await restore({
       restoreId: '66666666-6666-4666-8666-666666666663',
       itemId: PLATFORM,
       archive,
-      target: 'newFolder',
+      target: join(dir, 'restored-platform'),
     });
     expect(result.code, result.out).toBe(0);
-    const target = result.result.targetPath;
+    const target = join(dir, 'restored-platform');
     expect(readFileSync(join(target, join(dir, 'etc', 'master.key').slice(1)), 'utf8')).toBe('key');
     const dumps = readdirSync(join(target, join(dev, 'state', 'platform').slice(1)));
     expect(dumps).toEqual(['laris.dump']);
@@ -241,11 +247,11 @@ describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
     expect((await wrapper('configure', plan)).code).toBe(0);
     const forgotten = await wrapper('forget', { itemId: FOLDER });
     expect(forgotten.code, forgotten.out).toBe(0);
-    const again = await wrapper('restore', {
+    const again = await restore({
       restoreId: '66666666-6666-4666-8666-666666666664',
       itemId: FOLDER,
       archive: runs()[1].items[2].archive,
-      target: 'newFolder',
+      target: join(dir, 'restored-again'),
     });
     expect(again.out).toContain('@@error code=archive_not_found');
   }, 60_000);

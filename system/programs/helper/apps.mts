@@ -4,7 +4,7 @@
 // and systemd adds its result at the end (`@@laris-result`, then SERVICE_RESULT, EXIT_CODE,
 // EXIT_STATUS): what happened is in the file, whatever happens to the unit afterwards.
 
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { userInfo } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -128,6 +128,8 @@ export async function startTask(request: Request): Promise<Answer> {
   ];
   const result = await runAs(system, PROGRAMS.systemdRun, args, { timeoutMs: QUICK_TIMEOUT_MS });
   if (result.code !== 0) {
+    // Nothing started: no log left behind (a try again a moment later gets the same name).
+    rmSync(log, { force: true });
     if (result.timedOut) return refused('timed_out');
     if (system) {
       const refusal = sudoRefusal(result);

@@ -11,8 +11,7 @@ import type { DiskManager } from '../disks/disk-manager.js';
 import type { DockerContainer, DockerContainerEvent } from '../docker/docker.model.js';
 import type { DockerService } from '../docker/docker.service.js';
 import type { SystemReader } from '../host/system-reader.js';
-import type { OperationSlot } from '../jobs/operation-slot.js';
-import type { PrismaService } from '../prisma/prisma.service.js';
+import type { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { AlertRecords } from './alert-records.js';
 import { AlertWatcher } from './alert-watcher.js';
 import { CONTAINER_TICK_MS, DOWN_AFTER_MS, SLOW_POLL_MS } from './alerts.constants.js';
@@ -31,7 +30,7 @@ class EventFeed {
     this.wake?.();
   }
 
-  push(name: string, action: string, project = `hl-${name}`): void {
+  push(name: string, action: string, project: string | null = name): void {
     this.queue.push({ containerId: name, action, name, composeProject: project, protected: false });
     this.wake?.();
   }
@@ -61,21 +60,21 @@ const container = (name: string, state = 'running'): DockerContainer => ({
   startedAt: null,
   ports: [],
   protected: false,
-  composeProject: `hl-${name}`,
+  composeProject: name,
+  composeWorkingDir: `/home/anna/apps/${name}`,
+  template: null,
 });
 
 describe('AlertWatcher', () => {
   let feed: EventFeed;
   let list: DockerContainer[];
-  let installed: Set<string>;
-  let slotTaken: string | null;
+  let onPurpose: boolean;
   let requests: Subject<ContainerActionParams>;
   let disks: DiskUsage[];
   let disconnected: { mountPoint: string }[];
   let warnings: BackupWarning[];
   let backupChanges: Subject<void>;
   let open: Map<string, AlertCondition[]>;
-  let findUnique: ReturnType<typeof vi.fn>;
   let watcher: AlertWatcher;
 
   /** The conditions last reported for a kind, as `kind:subject:severity`. */
@@ -89,8 +88,7 @@ describe('AlertWatcher', () => {
     vi.useFakeTimers();
     feed = new EventFeed();
     list = [container('immich')];
-    installed = new Set(['immich']);
-    slotTaken = null;
+    onPurpose = false;
     requests = new Subject();
     disks = [];
     disconnected = [];
@@ -112,22 +110,12 @@ describe('AlertWatcher', () => {
       containerEvents: (signal: AbortSignal) => feed.events(signal),
       listContainers: async () => list,
     } as unknown as DockerService;
-    findUnique = vi.fn(async ({ where }: { where: { catalogId: string } }) =>
-      installed.has(where.catalogId) ? { status: 'installed' } : { status: 'removing' },
-    );
-    const prisma = {
-      service: {
-        findUnique,
-        findMany: async () => [...installed].map((catalogId) => ({ catalogId })),
-      },
-    } as unknown as PrismaService;
     watcher = new AlertWatcher(
       { get: () => 'on' } as unknown as ConfigService<Env, true>,
       records,
       docker,
       { requests$: requests.asObservable() } as unknown as ContainerActionsService,
-      { current: () => slotTaken } as unknown as OperationSlot,
-      prisma,
+      { app: () => onPurpose } as unknown as ChangesUnderway,
       { disks: async () => disks } as unknown as SystemReader,
       {
         changes$: new Subject<void>(),
@@ -147,7 +135,7 @@ describe('AlertWatcher', () => {
     vi.useRealTimers();
   });
 
-  it('opens "service down" when an installed service’s container dies by itself', async () => {
+  it('opens "service down" when an app’s container dies by itself', async () => {
     feed.push('immich', 'die');
     list = [container('immich', 'exited')];
     await vi.advanceTimersByTimeAsync(DOWN_AFTER_MS + CONTAINER_TICK_MS);
@@ -172,31 +160,18 @@ describe('AlertWatcher', () => {
     expect(openNow()).toEqual(['serviceDown:immich:critical']);
   });
 
-  it('asks the database only for the events the rules use', async () => {
-    findUnique.mockClear();
-    for (const action of ['create', 'stop', 'kill', 'destroy', 'restart'])
-      feed.push('immich', action);
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(findUnique).not.toHaveBeenCalled();
+  it('doesn’t count an app stopping while it’s changed on purpose (its task, a backup, a restore)', async () => {
+    onPurpose = true;
     feed.push('immich', 'die');
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(findUnique).toHaveBeenCalledTimes(1);
-  });
-
-  it('doesn’t count anything stopping while an install, removal, restore or backup runs', async () => {
-    slotTaken = 'backup';
-    feed.push('immich', 'die');
-    await vi.advanceTimersByTimeAsync(1_000);
-    slotTaken = null;
+    onPurpose = false;
     list = [container('immich', 'exited')];
     await vi.advanceTimersByTimeAsync(5 * 60_000);
     expect(openNow()).toEqual([]);
   });
 
-  it('ignores containers of services not installed (being installed or removed) and of others', async () => {
-    installed.clear();
-    feed.push('immich', 'die');
-    feed.push('random', 'die', 'someone-elses-project');
+  it('ignores containers outside Compose', async () => {
+    feed.push('random', 'die', null);
     await vi.advanceTimersByTimeAsync(5 * 60_000);
     expect(openNow()).toEqual([]);
   });

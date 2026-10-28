@@ -8,6 +8,8 @@ export const MAX_LINE_LENGTH = 4096;
  */
 export const MAX_PENDING_LENGTH = 256 * 1024;
 const MASK = '••••';
+/** The phases the root programs announce. */
+const PHASES = ['mounting', 'unmounting', 'stopping', 'restoring', 'starting', 'done'] as const;
 
 /** Bytes in, whole lines out — UTF-8 safe across chunk edges (a chunk may end mid-character). */
 export class LineSplitter {
@@ -69,7 +71,7 @@ const ERROR_MARKER = /^@@error code=([a-z_]{1,40})(?: field=([A-Za-z][A-Za-z0-9_
 export function parseWrapperLine(line: string): WrapperLine {
   if (line.startsWith('@@phase ')) {
     const phase = line.slice('@@phase '.length);
-    if (/^[a-z]{1,20}$/.test(phase)) return { type: 'phase', phase };
+    if ((PHASES as readonly string[]).includes(phase)) return { type: 'phase', phase };
   }
   const error = ERROR_MARKER.exec(line);
   if (error) return { type: 'error', code: error[1], field: error[2] ?? null };

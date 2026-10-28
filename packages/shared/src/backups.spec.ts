@@ -10,7 +10,7 @@ import {
   backupSetupRequestSchema,
   DEFAULT_BACKUP_RETENTION,
   DEFAULT_BACKUP_SCHEDULE,
-  isBackupDestinationPath,
+  isBackupFolder,
 } from './backups.js';
 
 const ITEM = '0b6f3c1e-2d4a-4f8b-9c3e-1a2b3c4d5e6f';
@@ -24,27 +24,25 @@ function errors(schema: { safeParse(v: unknown): { error?: { issues: any[] } } }
   return first;
 }
 
-describe('isBackupDestinationPath', () => {
-  it('accepts folders under /mnt and /media', () => {
-    for (const path of ['/mnt/backup', '/media/alice/USB Disk', '/mnt/disks/2']) {
-      expect(isBackupDestinationPath(path), path).toBe(true);
+describe('isBackupFolder', () => {
+  it('accepts any folder but the system’s', () => {
+    for (const path of ['/home/alice/Documents', '/srv/media', '/mnt/usb', '/data', '/opt/other']) {
+      expect(isBackupFolder(path), path).toBe(true);
     }
   });
 
-  it('refuses the roots themselves, other places and tricks', () => {
+  it('refuses system folders, what holds them, and tricks', () => {
     for (const path of [
-      '/mnt',
-      '/media',
-      '/mnt/',
-      '/mntx/backup',
-      '/srv/laris',
       '/',
-      '/mnt/../etc',
-      '/mnt/./x',
-      'mnt/backup',
-      '/mnt/a\nb',
+      '/etc',
+      '/etc/ssh',
+      '/var/lib/docker/x',
+      '/opt/laris',
+      '/var',
+      '/home/../etc',
+      'relative',
     ]) {
-      expect(isBackupDestinationPath(path), JSON.stringify(path)).toBe(false);
+      expect(isBackupFolder(path), JSON.stringify(path)).toBe(false);
     }
   });
 });
@@ -112,15 +110,15 @@ describe('backupRetentionSchema', () => {
 });
 
 describe('backupItemRequestSchema', () => {
-  it('accepts a service and a folder', () => {
-    expect(backupItemRequestSchema.safeParse({ kind: 'service', serviceId: ITEM }).success).toBe(
-      true,
-    );
+  const app = { kind: 'app', project: 'immich', folders: [], skip: [], mode: 'live' };
+
+  it('accepts an app (its folders from Docker when none are given) and a folder', () => {
+    expect(backupItemRequestSchema.safeParse(app).success).toBe(true);
     expect(
       backupItemRequestSchema.safeParse({
-        kind: 'service',
-        serviceId: ITEM,
-        excludedFields: ['MUSIC_DIR'],
+        ...app,
+        folders: ['/home/anna/apps/immich'],
+        skip: ['/home/anna/apps/immich/library/thumbs', '/home/anna/apps/immich/*.tmp'],
       }).success,
     ).toBe(true);
     expect(
@@ -132,27 +130,20 @@ describe('backupItemRequestSchema', () => {
     expect(backupItemRequestSchema.safeParse({ kind: 'platform' }).success).toBe(false);
   });
 
-  it.each(['relative', '/home/../etc', '/home/alice/', '/srv/a:b'])(
-    'refuses the folder %j',
-    (path) => {
-      expect(errors(backupItemRequestSchema, { kind: 'folder', path })).toEqual({
-        path: 'validation.pathInvalid',
-      });
-    },
-  );
+  it.each(['relative', '/home/../etc', '/home/alice/'])('refuses the folder %j', (path) => {
+    expect(errors(backupItemRequestSchema, { kind: 'folder', path })).toEqual({
+      path: 'validation.pathInvalid',
+    });
+  });
 
-  it('refuses mixed shapes and bad field keys', () => {
-    expect(
-      backupItemRequestSchema.safeParse({ kind: 'folder', path: '/srv/x', serviceId: ITEM })
-        .success,
-    ).toBe(false);
-    expect(
-      backupItemRequestSchema.safeParse({
-        kind: 'service',
-        serviceId: ITEM,
-        excludedFields: ['../x'],
-      }).success,
-    ).toBe(false);
+  it('refuses a system folder, a bad project, a skip outside a path', () => {
+    expect(errors(backupItemRequestSchema, { kind: 'folder', path: '/etc' })).toEqual({
+      path: 'validation.backupFolderSystem',
+    });
+    expect(backupItemRequestSchema.safeParse({ ...app, project: 'Bad Name' }).success).toBe(false);
+    expect(backupItemRequestSchema.safeParse({ ...app, skip: ['relative'] }).success).toBe(false);
+    expect(backupItemRequestSchema.safeParse({ ...app, skip: ['/x/../y'] }).success).toBe(false);
+    expect(backupItemRequestSchema.safeParse({ ...app, mode: 'pause' }).success).toBe(false);
   });
 });
 
@@ -161,7 +152,7 @@ describe('backupSetupRequestSchema', () => {
     destination: '/mnt/backup',
     schedule: DEFAULT_BACKUP_SCHEDULE,
     retention: DEFAULT_BACKUP_RETENTION,
-    items: [{ kind: 'service', serviceId: ITEM }],
+    items: [{ kind: 'app', project: 'navidrome', folders: [], skip: [], mode: 'stop' }],
   };
 
   it('accepts a complete setup', () => {
@@ -193,13 +184,13 @@ describe('backupSetupRequestSchema', () => {
 });
 
 describe('backupRestoreRequestSchema', () => {
-  const restore = { itemId: ITEM, archive: `${ITEM}-2026-10-14T03:00:12`, target: 'inPlace' };
+  const restore = { itemId: ITEM, archive: `${ITEM}-2026-10-14T03:00:12`, target: null };
 
-  it('accepts an archive of the wrapper’s naming', () => {
+  it('accepts an archive of the program’s naming, back where it was or into a folder', () => {
     expect(backupRestoreRequestSchema.safeParse(restore).success).toBe(true);
-    expect(backupRestoreRequestSchema.safeParse({ ...restore, target: 'newFolder' }).success).toBe(
-      true,
-    );
+    expect(
+      backupRestoreRequestSchema.safeParse({ ...restore, target: '/home/anna/restored' }).success,
+    ).toBe(true);
   });
 
   it.each([
@@ -212,7 +203,7 @@ describe('backupRestoreRequestSchema', () => {
     expect(backupRestoreRequestSchema.safeParse({ ...restore, archive }).success).toBe(false);
   });
 
-  it('refuses other targets, such as a free path', () => {
+  it('refuses a system folder or an unknown key', () => {
     expect(backupRestoreRequestSchema.safeParse({ ...restore, target: '/etc' }).success).toBe(
       false,
     );

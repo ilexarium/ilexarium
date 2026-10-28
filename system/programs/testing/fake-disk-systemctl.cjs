@@ -11,6 +11,8 @@ fs.appendFileSync(path.join(dir, 'systemctl-calls.jsonl'), JSON.stringify({ args
 const mountinfo = path.join(dir, 'host', 'proc', 'self', 'mountinfo');
 const unitFile = (unit) => fs.readFileSync(path.join(dir, 'units', unit), 'utf8');
 const field = (text, key) => new RegExp(`^${key}=(.*)$`, 'm').exec(text)[1];
+// As the kernel writes a mount point in mountinfo.
+const escape = (point) => point.replace(/ /g, '\\040');
 
 if (args[0] === 'enable' && args[1] === '--now') {
   if (fs.existsSync(path.join(dir, 'fail-enable'))) {
@@ -27,14 +29,14 @@ if (args[0] === 'enable' && args[1] === '--now') {
     .trim();
   fs.appendFileSync(
     mountinfo,
-    `500 1 ${number} / ${field(text, 'Where')} rw - ${field(text, 'Type')} /dev/${name} rw\n`,
+    `500 1 ${number} / ${escape(field(text, 'Where'))} rw - ${field(text, 'Type')} /dev/${name} rw\n`,
   );
 } else if (args[0] === 'disable' && args[1] === '--now') {
   if (fs.existsSync(path.join(dir, 'busy'))) {
     process.stderr.write('umount: target is busy.\n');
     process.exit(1);
   }
-  const where = field(unitFile(args[2]), 'Where');
+  const where = escape(field(unitFile(args[2]), 'Where'));
   const lines = fs
     .readFileSync(mountinfo, 'utf8')
     .split('\n')
