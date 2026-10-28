@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Ip,
-  Param,
-  Post,
-  UseFilters,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { DiskMountedResponse, DisksStatus, PublicUser } from '@laris/shared';

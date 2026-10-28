@@ -23,6 +23,8 @@ const web: Container = {
   ],
   protected: false,
   composeProject: null,
+  composeWorkingDir: null,
+  template: null,
   stats: {
     at: NOW,
     cpuPercent: 12.4,

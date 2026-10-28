@@ -58,7 +58,13 @@ export function variablesIn(text: string): (Omit<Use, 'kind'> & { at: number; en
     }
     const bare = /^[A-Za-z_][A-Za-z0-9_]*/.exec(text.slice(i + 1));
     if (bare) {
-      found.push({ key: bare[0], default: null, required: false, at: i, end: i + 1 + bare[0].length });
+      found.push({
+        key: bare[0],
+        default: null,
+        required: false,
+        at: i,
+        end: i + 1 + bare[0].length,
+      });
       i += bare[0].length;
     }
   }
@@ -110,7 +116,11 @@ function volumeUses(entry: string): Use[] {
 }
 
 /** An image reference's parts: the tag is after the last ":" that comes after the last "/". */
-export function splitImage(reference: string): { image: string; tag: string | null; digest: string | null } {
+export function splitImage(reference: string): {
+  image: string;
+  tag: string | null;
+  digest: string | null;
+} {
   const [name, digest = null] = reference.split('@') as [string, string?];
   // Colons inside a variable (`${V:-1}`) aren't the tag's.
   const plain = name.replace(/\$\{[^}]*\}/g, (variable) => '_'.repeat(variable.length));
@@ -152,7 +162,9 @@ function usesIn(file: Tree): Use[] {
         uses.push(...volumeUses(value));
       } else if (service && section === 'volumes' && field === 'source') {
         const bind = /^[/.~$]/.test(value);
-        uses.push(...plainUses(value).map((use) => (bind ? { ...use, kind: 'folder' as const } : use)));
+        uses.push(
+          ...plainUses(value).map((use) => (bind ? { ...use, kind: 'folder' as const } : use)),
+        );
       } else if (service && section === 'image' && path.length === 3) {
         uses.push(...imageUses(value));
       } else {
@@ -241,8 +253,7 @@ export function composeFields(
     byKey.delete(field.key);
     const fallback = filled(field.default, context) ?? use?.default ?? null;
     const value =
-      values.get(field.key) ??
-      (field.kind === 'generated' ? generateSecret() : (fallback ?? ''));
+      values.get(field.key) ?? (field.kind === 'generated' ? generateSecret() : (fallback ?? ''));
     fields.push({
       key: field.key,
       kind: field.kind,

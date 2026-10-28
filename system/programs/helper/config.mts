@@ -26,15 +26,7 @@ export const TASK_END = {
 export const ROOT_PROGRAMS: Record<string, { path: string; actions: readonly string[] }> = {
   backup: {
     path: program('/opt/laris/libexec/laris-backup.mts'),
-    actions: [
-      'configure',
-      'init',
-      'start',
-      'restore-start',
-      'discard',
-      'forget',
-      'passphrase',
-    ],
+    actions: ['configure', 'init', 'start', 'restore-start', 'discard', 'forget', 'passphrase'],
   },
   disk: {
     path: program('/opt/laris/libexec/laris-disk.mts'),

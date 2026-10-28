@@ -80,18 +80,30 @@ export class RootPrograms {
     destination: string,
     actor: RootActor,
   ): Promise<BackupOutcome<{ repositoryId: string; created: boolean }>> {
-    return this.backup('init', actor, 'backup.init', { destination }, {
-      audit: { destination },
-      read: (result) =>
-        typeof result?.['repositoryId'] === 'string'
-          ? { repositoryId: result['repositoryId'], created: result['created'] === true }
-          : undefined,
-    });
+    return this.backup(
+      'init',
+      actor,
+      'backup.init',
+      { destination },
+      {
+        audit: { destination },
+        read: (result) =>
+          typeof result?.['repositoryId'] === 'string'
+            ? { repositoryId: result['repositoryId'], created: result['created'] === true }
+            : undefined,
+      },
+    );
   }
 
   /** "Back up now": systemd starts the run as its own unit; returns at once. */
-  backupStart(input: { runId: string; itemId?: string }, actor: RootActor): Promise<BackupOutcome<null>> {
-    return this.backup('start', actor, 'backup.run', input, { audit: { ...input }, read: () => null });
+  backupStart(
+    input: { runId: string; itemId?: string },
+    actor: RootActor,
+  ): Promise<BackupOutcome<null>> {
+    return this.backup('start', actor, 'backup.run', input, {
+      audit: { ...input },
+      read: () => null,
+    });
   }
 
   /** A restore: systemd starts it as its own unit (`laris-restore@<id>`); returns at once. */
@@ -109,24 +121,41 @@ export class RootPrograms {
 
   /** Deletes a folder a restore set aside ("Delete previous version"). */
   backupDiscard(path: string, actor: RootActor): Promise<BackupOutcome<null>> {
-    return this.backup('discard', actor, 'backup.discard', { path }, { audit: { path }, read: () => null });
+    return this.backup(
+      'discard',
+      actor,
+      'backup.discard',
+      { path },
+      { audit: { path }, read: () => null },
+    );
   }
 
   /** Deletes all archives of an item that is no longer backed up. */
   backupForget(itemId: string, actor: RootActor): Promise<BackupOutcome<null>> {
-    return this.backup('forget', actor, 'backup.forget', { itemId }, {
-      audit: { itemId },
-      timeoutMs: BACKUP_LONG_TIMEOUT_MS,
-      read: () => null,
-    });
+    return this.backup(
+      'forget',
+      actor,
+      'backup.forget',
+      { itemId },
+      {
+        audit: { itemId },
+        timeoutMs: BACKUP_LONG_TIMEOUT_MS,
+        read: () => null,
+      },
+    );
   }
 
   /** The passphrase reaches the caller only: never the audit details, an output line or a log. */
-  backupPassphrase(actor: RootActor, reason: 'setup' | 'show'): Promise<BackupOutcome<{ passphrase: string }>> {
+  backupPassphrase(
+    actor: RootActor,
+    reason: 'setup' | 'show',
+  ): Promise<BackupOutcome<{ passphrase: string }>> {
     return this.backup('passphrase', actor, 'backup.passphrase', null, {
       audit: { reason },
       read: (result) =>
-        typeof result?.['passphrase'] === 'string' ? { passphrase: result['passphrase'] } : undefined,
+        typeof result?.['passphrase'] === 'string'
+          ? { passphrase: result['passphrase'] }
+          : undefined,
     });
   }
 
@@ -141,7 +170,8 @@ export class RootPrograms {
         details: { uuid: input.uuid, mountPoint: input.mountPoint, mine: input.owner !== null },
       },
       timeoutMs: DISK_TIMEOUT_MS,
-      read: (r) => (typeof r?.['mountPoint'] === 'string' ? { mountPoint: r['mountPoint'] } : undefined),
+      read: (r) =>
+        typeof r?.['mountPoint'] === 'string' ? { mountPoint: r['mountPoint'] } : undefined,
     });
     return result.ok ? { ok: true, result: result.value } : { ok: false, code: result.code };
   }
@@ -175,7 +205,9 @@ export class RootPrograms {
       timeoutMs: options.timeoutMs ?? BACKUP_TASK_TIMEOUT_MS,
       read: options.read,
     });
-    return result.ok ? { ok: true, result: result.value } : { ok: false, code: result.code, result: result.value };
+    return result.ok
+      ? { ok: true, result: result.value }
+      : { ok: false, code: result.code, result: result.value };
   }
 
   /**
@@ -200,7 +232,11 @@ export class RootPrograms {
       ip: actor.ip,
     };
     try {
-      await this.auditService.record({ ...entry, outcome: 'requested', details: options.audit.details });
+      await this.auditService.record({
+        ...entry,
+        outcome: 'requested',
+        details: options.audit.details,
+      });
     } catch {
       throw linuxError(FILES_ERROR_CODES.auditUnavailable, 'The audit log is unavailable');
     }
@@ -211,27 +247,40 @@ export class RootPrograms {
         ? await this.spawnDirect(kind.name, command, stdin, options.timeoutMs)
         : await this.throughSudo(kind.name, command, stdin, actor.appSessionId, options.timeoutMs);
     } catch (error) {
-      const reason = (error as { getResponse?: () => { code?: string } }).getResponse?.().code ?? 'failed';
-      await this.auditService.tryRecord({ ...entry, outcome: 'failure', details: { ...options.audit.details, reason } });
+      const reason =
+        (error as { getResponse?: () => { code?: string } }).getResponse?.().code ?? 'failed';
+      await this.auditService.tryRecord({
+        ...entry,
+        outcome: 'failure',
+        details: { ...options.audit.details, reason },
+      });
       throw error;
     }
     const result = this.outcome(kind, raw, options.read(raw.results.at(-1)));
     await this.auditService.tryRecord({
       ...entry,
       outcome: result.ok ? 'success' : 'failure',
-      details: result.ok ? options.audit.details : { ...options.audit.details, reason: result.code },
+      details: result.ok
+        ? options.audit.details
+        : { ...options.audit.details, reason: result.code },
     });
     return result;
   }
 
-  private outcome<Code extends string, T>(kind: ProgramKind<Code>, raw: RawRun, value: T | undefined): Result<Code, T> {
+  private outcome<Code extends string, T>(
+    kind: ProgramKind<Code>,
+    raw: RawRun,
+    value: T | undefined,
+  ): Result<Code, T> {
     const fail = (code: Code): Result<Code, T> => ({ ok: false, code, value: value ?? null });
     if (raw.notStarted) return fail(kind.unavailable);
     if (raw.timedOut) return fail(kind.timedOut);
     if (value !== undefined && raw.exitCode === 0) return { ok: true, value };
     if (raw.lastError) {
       // Own keys only: a code like `constructor` must count as unknown, not as Object's own.
-      const known = Object.hasOwn(kind.codes, raw.lastError) ? kind.codes[raw.lastError] : undefined;
+      const known = Object.hasOwn(kind.codes, raw.lastError)
+        ? kind.codes[raw.lastError]
+        : undefined;
       if (!known) {
         this.logger.error(`laris-${kind.name} refused: ${raw.lastError} (${raw.lastInfo ?? ''})`);
       }
@@ -264,17 +313,24 @@ export class RootPrograms {
     if (!answer.ok) {
       const sudo = SUDO_ERRORS[answer.error];
       if (answer.error === 'timed_out') return { ...raw, timedOut: true };
-      if (answer.error === 'ended') throw linuxError(FILES_ERROR_CODES.linuxSessionRequired, 'Sign in as a Linux user first');
+      if (answer.error === 'ended')
+        throw linuxError(FILES_ERROR_CODES.linuxSessionRequired, 'Sign in as a Linux user first');
       if (sudo && answer.error !== 'failed') throw linuxError(sudo, 'sudo refused it');
       return { ...raw, notStarted: true };
     }
     raw.exitCode = typeof answer['code'] === 'number' ? answer['code'] : null;
-    for (const line of String(answer['output'] ?? '').split('\n')) this.read(raw, line);
+    const output = typeof answer['output'] === 'string' ? answer['output'] : '';
+    for (const line of output.split('\n')) this.read(raw, line);
     return raw;
   }
 
   /** Development: the repository's program, as the developer — never in production. */
-  private spawnDirect(program: 'backup' | 'disk', command: string, stdin: string, timeoutMs: number): Promise<RawRun> {
+  private spawnDirect(
+    program: 'backup' | 'disk',
+    command: string,
+    stdin: string,
+    timeoutMs: number,
+  ): Promise<RawRun> {
     return new Promise((resolve) => {
       const raw: RawRun = {
         exitCode: null,
@@ -302,7 +358,9 @@ export class RootPrograms {
       }, timeoutMs);
       for (const stream of [child.stdout, child.stderr]) {
         const splitter = new LineSplitter();
-        stream.on('data', (chunk: Buffer) => splitter.push(chunk).forEach((line) => this.read(raw, line)));
+        stream.on('data', (chunk: Buffer) =>
+          splitter.push(chunk).forEach((line) => this.read(raw, line)),
+        );
         stream.on('end', () => splitter.end().forEach((line) => this.read(raw, line)));
       }
       child.on('error', (error) => {
@@ -325,6 +383,7 @@ export class RootPrograms {
     if (parsed?.type !== 'result') parsed = parseWrapperLine(cleanLine(line));
     if (parsed.type === 'result') raw.results.push(parsed.value);
     else if (parsed.type === 'error') raw.lastError = parsed.code;
-    else if (parsed.type === 'output' && line.startsWith('@@info ')) raw.lastInfo = parsed.text.slice(0, 500);
+    else if (parsed.type === 'output' && line.startsWith('@@info '))
+      raw.lastInfo = parsed.text.slice(0, 500);
   }
 }

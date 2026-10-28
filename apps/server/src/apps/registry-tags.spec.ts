@@ -2,8 +2,14 @@ import { RegistryTags, registryOf } from './registry-tags.js';
 
 describe('registryOf', () => {
   it('Docker Hub’s names, other registries by their host', () => {
-    expect(registryOf('nginx')).toEqual({ host: 'registry-1.docker.io', repository: 'library/nginx' });
-    expect(registryOf('ollama/ollama:0.40')).toEqual({ host: 'registry-1.docker.io', repository: 'ollama/ollama' });
+    expect(registryOf('nginx')).toEqual({
+      host: 'registry-1.docker.io',
+      repository: 'library/nginx',
+    });
+    expect(registryOf('ollama/ollama:0.40')).toEqual({
+      host: 'registry-1.docker.io',
+      repository: 'ollama/ollama',
+    });
     expect(registryOf('docker.io/valkey/valkey:9')).toEqual({
       host: 'registry-1.docker.io',
       repository: 'valkey/valkey',
@@ -20,7 +26,12 @@ describe('registryOf', () => {
   });
 });
 
-type Answer = { status: number; ok: boolean; headers: { get(n: string): string | null }; body: unknown };
+type Answer = {
+  status: number;
+  ok: boolean;
+  headers: { get(n: string): string | null };
+  body: unknown;
+};
 const answer = (status: number, body: unknown, headers: Record<string, string> = {}): Answer => ({
   status,
   ok: status < 300,
@@ -45,10 +56,15 @@ describe('RegistryTags', () => {
   it('asks anonymously, then with the token the registry names; follows its pages', async () => {
     const registry = new FakeRegistry([
       answer(401, null, {
-        'www-authenticate': 'Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="repository:x/y:pull"',
+        'www-authenticate':
+          'Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="repository:x/y:pull"',
       }),
       answer(200, { token: 't0k' }),
-      answer(200, { tags: ['1.0', 'latest'] }, { link: '</v2/x/y/tags/list?last=latest&n=1000>; rel="next"' }),
+      answer(
+        200,
+        { tags: ['1.0', 'latest'] },
+        { link: '</v2/x/y/tags/list?last=latest&n=1000>; rel="next"' },
+      ),
       answer(200, { tags: ['2.0', '2.1-rc1'] }),
     ]);
     expect(await registry.versions('ghcr.io/x/y:1.0')).toEqual(['2.0', '1.0']);
@@ -61,7 +77,11 @@ describe('RegistryTags', () => {
   });
 
   it('a registry that wants a sign-in (no token for us), or fails: no list', async () => {
-    expect(await new FakeRegistry([answer(401, null, { 'www-authenticate': 'Basic realm="x"' })]).versions('ghcr.io/a/b')).toBeNull();
+    expect(
+      await new FakeRegistry([
+        answer(401, null, { 'www-authenticate': 'Basic realm="x"' }),
+      ]).versions('ghcr.io/a/b'),
+    ).toBeNull();
     expect(await new FakeRegistry([answer(500, null)]).versions('ghcr.io/a/b')).toBeNull();
   });
 

@@ -26,7 +26,9 @@
                   hlmBtn
                   variant="ghost"
                   size="sm"
-                  [disabled]="disk.usedForBackups || disksPageStore.pending().includes(disk.mountPoint)"
+                  [disabled]="
+                    disk.usedForBackups || disksPageStore.pending().includes(disk.mountPoint)
+                  "
                   (click)="forget(disk)"
                 >
                   {{ 'disks.forget' | translate }}

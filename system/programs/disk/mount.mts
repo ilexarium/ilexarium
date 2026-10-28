@@ -97,8 +97,6 @@ export async function mount(config: Config, paths: Paths, input: string): Promis
   try {
     const { device, number, fsType } = checkDevice(paths, uuid);
     const folder = folderOf(paths, where);
-    // Development: the pretend root has no folders of its own yet.
-    if (!isRoot) mkdirSync(dirname(folder), { recursive: true });
     checkMountPoint(paths, where, folder);
     const unit = unitPath(paths, where);
     if (existsSync(unit)) {

@@ -81,7 +81,9 @@
               (input)="setFolder($event)"
             />
             @if (folder() && !folderValid()) {
-              <p class="text-sm text-destructive">{{ 'validation.backupFolderSystem' | translate }}</p>
+              <p class="text-sm text-destructive">
+                {{ 'validation.backupFolderSystem' | translate }}
+              </p>
             }
           }
         </fieldset>

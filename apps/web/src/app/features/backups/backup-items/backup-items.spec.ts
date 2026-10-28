@@ -1,26 +1,15 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { BackupItem } from '@laris/shared';
+import { testItem } from '../../../core/backups/testing';
 import type { ItemLabel, ItemRow } from '../backups.model';
 import { BackupItems } from './backup-items';
 
 const ITEM = '0193a000-0000-7000-8000-000000000003';
 
 const row = (change: Partial<BackupItem> = {}): ItemRow => ({
-  item: {
-    id: ITEM,
-    kind: 'folder',
-    serviceId: null,
-    catalogId: null,
-    path: '/srv/laris/docs',
-    excludedFields: [],
-    removed: false,
-    lastSuccessAt: null,
-    lastResult: null,
-    ...change,
-  },
+  item: testItem({ id: ITEM, path: '/srv/laris/docs', ...change }),
   name: null,
-  folders: [],
 });
 
 @Component({

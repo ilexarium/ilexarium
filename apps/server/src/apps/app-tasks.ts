@@ -15,6 +15,7 @@ import {
 import type { DockerAccess, TaskRecord } from './apps.model.js';
 
 /** Terminal colours and carriage returns: the log is shown as plain lines. */
+// oxlint-disable-next-line no-control-regex
 const CONTROL = /\x1b\[[0-9;?]*[A-Za-z]|\r/g;
 
 /** The end of a task's log: the marker systemd adds, then SERVICE_RESULT, EXIT_CODE, EXIT_STATUS. */
@@ -50,7 +51,11 @@ export class AppTasks {
   async dockerAccess(appSessionId: string): Promise<DockerAccess> {
     const cached = this.access.get(appSessionId);
     if (cached && Date.now() - cached.at < 60_000) return cached.access;
-    const answer = await this.linuxSessions.ask(appSessionId, { action: 'docker.access' }, { timeoutMs: QUICK_MS });
+    const answer = await this.linuxSessions.ask(
+      appSessionId,
+      { action: 'docker.access' },
+      { timeoutMs: QUICK_MS },
+    );
     if (!answer.ok) throw helperError(answer);
     const userUnits = answer['userUnits'] === true;
     const unitDocker = answer['unitDocker'] === true;
@@ -103,7 +108,12 @@ export class AppTasks {
   }
 
   /** The app's latest task, its output from byte `from` on; null when it never had one. */
-  async read(appSessionId: string, sftp: AppSftp, folder: string, from = 0): Promise<AppTask | null> {
+  async read(
+    appSessionId: string,
+    sftp: AppSftp,
+    folder: string,
+    from = 0,
+  ): Promise<AppTask | null> {
     const recordText = await sftp.readText(posix.join(folder, TASK_FILE), 4096).catch(() => null);
     if (!recordText) return null;
     let record: TaskRecord;
@@ -135,7 +145,11 @@ export class AppTasks {
       state = ['active', 'activating', 'reloading'].includes(active) ? 'running' : 'interrupted';
     }
     // Past the result: nothing more to show.
-    const markerAt = result ? size - Buffer.byteLength(tail) + Buffer.byteLength(tail.slice(0, tail.lastIndexOf(TASK_RESULT_MARKER))) : size;
+    const markerAt = result
+      ? size -
+        Buffer.byteLength(tail) +
+        Buffer.byteLength(tail.slice(0, tail.lastIndexOf(TASK_RESULT_MARKER)))
+      : size;
     const lines = start >= markerAt ? [] : taskLines(text);
     if (lines.at(-1) === '') lines.pop();
     return {

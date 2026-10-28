@@ -98,10 +98,10 @@ async function render(api = fakeApi(), url = '/assistant') {
 describe('ChatPage', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('points to the Services page while Ollama isn’t installed', async () => {
+  it('points to adding Ollama while it isn’t installed', async () => {
     const { el } = await render(fakeApi({ state: 'not_installed', version: null }));
     expect(el.textContent).toContain('Ollama isn’t installed');
-    expect(el.querySelector('a[href="/services"]')?.textContent).toContain('Install Ollama');
+    expect(el.querySelector('a[href="/apps/new"]')?.textContent).toContain('Install Ollama');
     expect(el.querySelector('textarea')).toBeNull();
   });
 

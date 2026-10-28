@@ -20,6 +20,8 @@ const stopped: Container = {
   ports: [],
   protected: false,
   composeProject: null,
+  composeWorkingDir: null,
+  template: null,
   stats: null,
 };
 

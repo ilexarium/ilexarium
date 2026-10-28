@@ -83,7 +83,10 @@ export class DiskManager {
       if (uid !== null) owner = { uid, gid: gid ?? uid };
     }
     const outcome = await this.changing(() =>
-      this.rootPrograms.diskMount({ uuid: request.uuid, mountPoint: request.mountPoint, owner }, actor),
+      this.rootPrograms.diskMount(
+        { uuid: request.uuid, mountPoint: request.mountPoint, owner },
+        actor,
+      ),
     );
     if (!outcome.ok) {
       const field = outcome.code === DISK_ERROR_CODES.mountPointInUse ? 'mountPoint' : null;
@@ -96,7 +99,9 @@ export class DiskManager {
     const status = await this.status();
     const managed =
       status.disconnected.find((d) => d.mountPoint === mountPoint) ??
-      status.disks.flatMap((d) => d.partitions).find((p) => p.managed && p.mountPoint === mountPoint);
+      status.disks
+        .flatMap((d) => d.partitions)
+        .find((p) => p.managed && p.mountPoint === mountPoint);
     if (!managed) throw diskError(DISK_ERROR_CODES.notManaged);
     if (managed.usedForBackups) throw diskError(DISK_ERROR_CODES.usedForBackups);
     const outcome = await this.changing(() => this.rootPrograms.diskUnmount(mountPoint, actor));

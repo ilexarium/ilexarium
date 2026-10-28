@@ -19,7 +19,9 @@
         @for (app of apps; track app.name) {
           <laris-app-card
             [app]="app"
-            [template]="app.template ? (appsPageStore.templates().get(app.template.id) ?? null) : null"
+            [template]="
+              app.template ? (appsPageStore.templates().get(app.template.id) ?? null) : null
+            "
             [pending]="app.containers.some((c) => appsPageStore.pending().has(c))"
             (start)="appsPageStore.act(app, 'start')"
             (stop)="appsPageStore.act(app, 'stop')"

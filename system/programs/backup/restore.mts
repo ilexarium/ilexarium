@@ -56,15 +56,21 @@ interface RestoreRequest {
   target: string | null;
 }
 
-const requestFile = (paths: Paths, id: string) => join(paths.state, 'restore-requests', `${id}.json`);
+const requestFile = (paths: Paths, id: string) =>
+  join(paths.state, 'restore-requests', `${id}.json`);
 
 /** A request, from the app (`restore-start`) or the root-only file (`restore-run`): checked the same. */
-function checkRequest(config: Config, paths: Paths, given: Record<string, unknown>): RestoreRequest {
+function checkRequest(
+  config: Config,
+  paths: Paths,
+  given: Record<string, unknown>,
+): RestoreRequest {
   const { restoreId, itemId, archive, target } = given;
   if (typeof restoreId !== 'string' || !UUID.test(restoreId)) {
     throw new Refusal('invalid_request', 'restoreId');
   }
-  if (typeof itemId !== 'string' || !UUID.test(itemId)) throw new Refusal('invalid_request', 'itemId');
+  if (typeof itemId !== 'string' || !UUID.test(itemId))
+    throw new Refusal('invalid_request', 'itemId');
   if (typeof archive !== 'string' || ARCHIVE_PATTERN.exec(archive)?.[1] !== itemId) {
     throw new Refusal('invalid_request', 'not an archive of this item');
   }
@@ -86,13 +92,23 @@ function checkRequest(config: Config, paths: Paths, given: Record<string, unknow
 
 /** `restore-start`: checks it, keeps it, has systemd run it; returns at once. */
 export async function restoreStart(config: Config, paths: Paths, input: string): Promise<void> {
-  const request = checkRequest(config, paths, parseInput(input, ['restoreId', 'itemId', 'archive', 'target']));
+  const request = checkRequest(
+    config,
+    paths,
+    parseInput(input, ['restoreId', 'itemId', 'archive', 'target']),
+  );
   prepareState(config, paths);
   mkdirSync(dirname(requestFile(paths, request.restoreId)), { recursive: true, mode: 0o700 });
-  if (existsSync(requestFile(paths, request.restoreId))) throw new Refusal('busy', 'started already', 3);
+  if (existsSync(requestFile(paths, request.restoreId)))
+    throw new Refusal('busy', 'started already', 3);
   writeAtomic(requestFile(paths, request.restoreId), `${JSON.stringify(request)}\n`, 0o600);
   if (await startUnit(config, `laris-restore@${request.restoreId}.service`)) return;
-  startDetached(config, paths, ['restore-run', request.restoreId], `restore-${request.restoreId}.log`);
+  startDetached(
+    config,
+    paths,
+    ['restore-run', request.restoreId],
+    `restore-${request.restoreId}.log`,
+  );
 }
 
 /** The events file the app follows: one JSON object per line. */
@@ -129,7 +145,11 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
   try {
     const file = requestFile(paths, restoreId);
     if (!existsSync(file)) throw new Refusal('not_found', 'no such restore request');
-    const request = checkRequest(config, paths, JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>);
+    const request = checkRequest(
+      config,
+      paths,
+      JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>,
+    );
     if (request.restoreId !== restoreId) throw new Refusal('invalid_request', 'another restore');
     // A backup run may hold the lock: a restore waits for it, like a scheduled run would.
     release = await takeLock(paths, true);
@@ -179,7 +199,8 @@ async function restoreArchive(
   const sources = archiveSources(info.stdout, request.archive);
   const allowed =
     item.kind === 'platform'
-      ? (p: string) => p === join(paths.state, 'platform') || config.backup.platform.files.includes(p)
+      ? (p: string) =>
+          p === join(paths.state, 'platform') || config.backup.platform.files.includes(p)
       : (p: string) => allowedFolder(config, p);
   if (sources.length === 0 || !sources.every((s) => isPlainAbsolutePath(s) && allowed(s))) {
     throw new Refusal('archive_not_found', 'the archive holds unexpected paths', 5);
@@ -245,7 +266,8 @@ async function restoreArchive(
     if (wasRunning) {
       phase('stopping');
       const stop = await docker(config, ['compose', '-p', project!, 'stop'], { onLine: line });
-      if (stop.code !== 0) throw new Refusal('service_not_stopped', 'the app could not be stopped', 5);
+      if (stop.code !== 0)
+        throw new Refusal('service_not_stopped', 'the app could not be stopped', 5);
     }
     phase('restoring');
     const suffix = `.before-restore-${folderStamp()}`;
@@ -279,7 +301,10 @@ async function restoreArchive(
       renameSync(to, from);
     }
     for (const path of created) rmSync(path, { recursive: true, force: true });
-    writeSetAside(paths, readSetAside(paths).filter((e) => !moved.some((m) => m.to === e.path)));
+    writeSetAside(
+      paths,
+      readSetAside(paths).filter((e) => !moved.some((m) => m.to === e.path)),
+    );
     moved.length = 0;
   } finally {
     if (wasRunning) {
@@ -318,7 +343,8 @@ export async function discard(config: Config, paths: Paths, input: string): Prom
   try {
     const list = readSetAside(paths);
     // Only a folder a restore set aside (its own list, root-only) — never any other path.
-    if (!list.some((e) => e.path === path)) throw new Refusal('not_found', 'not a set-aside folder');
+    if (!list.some((e) => e.path === path))
+      throw new Refusal('not_found', 'not a set-aside folder');
     if (!allowedFolder(config, path)) throw new Refusal('path_not_allowed', 'not allowed');
     if (existsSync(path)) {
       const stat = lstatSync(path);

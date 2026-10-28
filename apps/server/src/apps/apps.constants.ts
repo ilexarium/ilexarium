@@ -20,7 +20,12 @@ export const TASKS_DIR = '.laris/tasks';
 export const BEFORE_UPDATE_FILE = '.laris/before-update.json';
 export const COMPOSE_FILE = 'compose.yml';
 /** Other names Compose reads, in its own order (an app made outside Laris may use them). */
-export const COMPOSE_FILES = ['compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml'];
+export const COMPOSE_FILES = [
+  'compose.yaml',
+  'compose.yml',
+  'docker-compose.yaml',
+  'docker-compose.yml',
+];
 export const ENV_FILE = '.env';
 export const KEPT_FILE = /^(compose|docker-compose)\.ya?ml\.before-template-\d{8}(-\d+)?$/;
 
@@ -48,7 +53,8 @@ export const DOCKER_HUB = 'registry-1.docker.io';
 export const HIDDEN_TAG =
   /^(latest|nightly|edge|dev|develop|main|master|release|stable|beta|alpha|test|testing|unstable)$|(^|[-.])(rc|beta|alpha|pre|preview|dev|nightly|snapshot|canary|next)[-.]?\d*($|[-.])/i;
 /** Architecture-only or build tags (`amd64`, `sha-1a2b3c`, `pr-12`). */
-export const NOISE_TAG = /^(sha256-|sha-|pr-|amd64|arm64|armv7|arm|i386|ppc64le|s390x|windows)|\.sig$|\.att$|\.sbom$/i;
+export const NOISE_TAG =
+  /^(sha256-|sha-|pr-|amd64|arm64|armv7|arm|i386|ppc64le|s390x|windows)|\.sig$|\.att$|\.sbom$/i;
 
 /** Changes as the person: a few a minute (each may start a unit). */
 export const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };

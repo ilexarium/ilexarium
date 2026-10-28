@@ -37,7 +37,12 @@
       }
       @switch (appPageStore.summary()?.state) {
         @case ('stopped') {
-          <button hlmBtn variant="outline" [disabled]="appPageStore.pending()" (click)="appPageStore.act('start')">
+          <button
+            hlmBtn
+            variant="outline"
+            [disabled]="appPageStore.pending()"
+            (click)="appPageStore.act('start')"
+          >
             <ng-icon name="lucidePlay" aria-hidden="true" />
             {{ 'apps.start' | translate }}
           </button>
@@ -45,7 +50,12 @@
         @case ('none') {}
         @case (undefined) {}
         @default {
-          <button hlmBtn variant="ghost" [disabled]="appPageStore.pending()" (click)="appPageStore.act('stop')">
+          <button
+            hlmBtn
+            variant="ghost"
+            [disabled]="appPageStore.pending()"
+            (click)="appPageStore.act('stop')"
+          >
             <ng-icon name="lucideSquare" aria-hidden="true" />
             {{ 'apps.stop' | translate }}
           </button>
@@ -80,8 +90,7 @@
           @case (codes.permissionDenied) {
             <p class="text-sm">
               {{
-                'apps.page.notYours'
-                  | translate: { account: appPageStore.summary()?.owner ?? '?' }
+                'apps.page.notYours' | translate: { account: appPageStore.summary()?.owner ?? '?' }
               }}
             </p>
           }
@@ -118,7 +127,12 @@
             </li>
             <li>
               {{ 'apps.undo.versions' | translate }}
-              <button hlmBtn variant="link" class="h-auto p-0" (click)="appPageStore.fillPrevious()">
+              <button
+                hlmBtn
+                variant="link"
+                class="h-auto p-0"
+                (click)="appPageStore.fillPrevious()"
+              >
                 {{ 'apps.undo.fill' | translate }}
               </button>
             </li>
@@ -154,7 +168,12 @@
               </p>
             }
             <div>
-              <button hlmBtn variant="outline" [disabled]="appPageStore.busy() || appPageStore.running()" (click)="appPageStore.useTemplate()">
+              <button
+                hlmBtn
+                variant="outline"
+                [disabled]="appPageStore.busy() || appPageStore.running()"
+                (click)="appPageStore.useTemplate()"
+              >
                 {{ 'apps.template.use' | translate }}
               </button>
             </div>
@@ -202,7 +221,9 @@
               </button>
               @if (appPageStore.versionLists().get(image.image); as list) {
                 @if (!list.loading && !list.available) {
-                  <span class="text-sm text-muted-foreground">{{ 'apps.fields.versionsUnavailable' | translate }}</span>
+                  <span class="text-sm text-muted-foreground">{{
+                    'apps.fields.versionsUnavailable' | translate
+                  }}</span>
                 } @else if (list.versions.length > 0) {
                   <select
                     class="h-9 rounded-md border bg-background px-2 text-sm"
@@ -316,10 +337,17 @@
                 {{ 'apps.backup.never' | translate }}
               }
             </span>
-            <a hlmBtn variant="outline" routerLink="/backups">{{ 'apps.backup.manage' | translate }}</a>
+            <a hlmBtn variant="outline" routerLink="/backups">{{
+              'apps.backup.manage' | translate
+            }}</a>
           } @else {
             <span class="text-muted-foreground">{{ 'apps.backup.notIncluded' | translate }}</span>
-            <button hlmBtn variant="outline" [disabled]="appPageStore.busy()" (click)="appPageStore.addToBackups()">
+            <button
+              hlmBtn
+              variant="outline"
+              [disabled]="appPageStore.busy()"
+              (click)="appPageStore.addToBackups()"
+            >
               {{ 'apps.backup.add' | translate }}
             </button>
           }
@@ -351,4 +379,8 @@
   }
 </div>
 
-<laris-remove-dialog [name]="appPageStore.name()" [items]="appPageStore.removal()" (remove)="remove($event)" />
+<laris-remove-dialog
+  [name]="appPageStore.name()"
+  [items]="appPageStore.removal()"
+  (remove)="remove($event)"
+/>

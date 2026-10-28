@@ -19,16 +19,7 @@ import {
   type Template,
 } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import {
-  catchError,
-  debounceTime,
-  EMPTY,
-  firstValueFrom,
-  map,
-  pipe,
-  switchMap,
-  tap,
-} from 'rxjs';
+import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -157,16 +148,15 @@ export const NewAppPageStore = signalStore(
       /** Starts with the name the file or template suggests, made free. */
       const suggestName = (wanted: string) =>
         firstValueFrom(appsApi.checkName(wanted)).then(
-          (check) => patchState(store, { name: check.suggestion, nameCheck: { ...check, free: true } }),
+          (check) =>
+            patchState(store, { name: check.suggestion, nameCheck: { ...check, free: true } }),
           () => patchState(store, { name: wanted }),
         );
 
       const follow = rxMethod<{ name: string; folder: string }>(
         pipe(
           switchMap(({ name, folder }) =>
-            followTask(appsApi, name, folder).pipe(
-              map((task) => ({ task, name, folder })),
-            ),
+            followTask(appsApi, name, folder).pipe(map((task) => ({ task, name, folder }))),
           ),
           tap(({ task, name, folder }) => {
             patchState(store, { task, lines: [...store.lines(), ...task.output] });

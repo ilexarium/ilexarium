@@ -1,13 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type {
-  BackupDestination,
-  BackupPlan,
-  BackupsStatus,
-  CatalogEntrySummary,
-  InstalledService,
-} from '@laris/shared';
+import type { BackupDestination, BackupPlan, BackupsStatus, Container } from '@laris/shared';
 import { defer, of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
@@ -15,45 +9,30 @@ import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
-import { ServicesApi } from '../../../core/services/services-api';
+import { AppsApi } from '../../../core/apps/apps-api';
+import { testAppItem, testItem } from '../../../core/backups/testing';
+import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { formatBytes } from '../../../shared/format/format';
 import { BackupsPage } from './backups-page';
 
 const PLATFORM = '0193a000-0000-7000-8000-000000000001';
 const IMMICH_ITEM = '0193a000-0000-7000-8000-000000000002';
 const FOLDER_ITEM = '0193a000-0000-7000-8000-000000000003';
-const IMMICH = '0193a000-0000-7000-8000-0000000000aa';
-const NAVIDROME = '0193a000-0000-7000-8000-0000000000bb';
 const PASSPHRASE = 'acorn bagel cactus dolphin ember fjord';
 
-const catalog: CatalogEntrySummary[] = [
-  {
-    id: 'immich',
-    name: 'Immich',
-    category: 'photos',
-    status: 'installed',
-    backupFolders: ['UPLOAD_DIR'],
-    backupRestoreNote: true,
-  },
-  {
-    id: 'navidrome',
-    name: 'Navidrome',
-    category: 'media',
-    status: 'installed',
-    backupFolders: ['DATA_DIR', 'MUSIC_DIR'],
-    backupRestoreNote: false,
-  },
-];
-
-const service = (id: string, catalogId: string, name: string): InstalledService => ({
-  id,
-  catalogId,
-  name,
-  status: 'installed',
-  settings: {},
-  webPort: null,
-  job: null,
-  updatedAt: '2026-10-14T00:00:00.000Z',
+/** An app's container as the containers topic shows it. */
+const container = (project: string, template: string | null): Omit<Container, 'stats'> => ({
+  id: project,
+  name: `${project}-server-1`,
+  image: `example/${project}:1`,
+  state: 'running',
+  health: 'none',
+  startedAt: null,
+  ports: [],
+  protected: false,
+  composeProject: project,
+  composeWorkingDir: `/home/anna/apps/${project}`,
+  template,
 });
 
 const disk = (change: Partial<BackupDestination> = {}): BackupDestination => ({
@@ -75,25 +54,9 @@ const plan = (): BackupPlan => ({
   retention: { daily: 7, weekly: 4, monthly: 6 },
   destinationStatus: disk({ hasRepository: true }),
   items: [
-    {
-      id: PLATFORM,
-      kind: 'platform',
-      serviceId: null,
-      catalogId: null,
-      path: null,
-      excludedFields: [],
-      removed: false,
-      lastSuccessAt: ago(9),
-      lastResult: null,
-    },
-    {
+    testItem({ id: PLATFORM, kind: 'platform', path: null, lastSuccessAt: ago(9) }),
+    testAppItem('immich', {
       id: IMMICH_ITEM,
-      kind: 'service',
-      serviceId: IMMICH,
-      catalogId: 'immich',
-      path: null,
-      excludedFields: [],
-      removed: false,
       lastSuccessAt: ago(9),
       lastResult: {
         itemId: IMMICH_ITEM,
@@ -104,16 +67,10 @@ const plan = (): BackupPlan => ({
         addedBytes: 1e6,
         warnings: [],
       },
-    },
-    {
+    }),
+    testItem({
       id: FOLDER_ITEM,
-      kind: 'folder',
-      serviceId: null,
-      catalogId: null,
       path: '/home/alice/Documents',
-      excludedFields: [],
-      removed: false,
-      lastSuccessAt: null,
       lastResult: {
         itemId: FOLDER_ITEM,
         status: 'failed',
@@ -123,7 +80,7 @@ const plan = (): BackupPlan => ({
         addedBytes: null,
         warnings: [],
       },
-    },
+    }),
   ],
   createdAt: '2026-10-01T00:00:00.000Z',
   updatedAt: '2026-10-01T00:00:00.000Z',
@@ -169,13 +126,23 @@ async function render(start: BackupPlan | null) {
     runNow: vi.fn(() => of({ runId: 'r1' })),
     passphrase: vi.fn(() => of({ passphrase: PASSPHRASE })),
   };
+  const apps = {
+    templates: vi.fn(() => of([])),
+    // Immich's template: stopped while backed up, its thumbnails skipped.
+    template: vi.fn(() =>
+      of({ template: { backup: { mode: 'stop', skip: ['thumbs'] } }, compose: '' }),
+    ),
+  };
+  // Signed in to Linux with sudo at hand: every action goes straight through.
+  const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       auth.provider,
       sockets.provider,
       { provide: BackupsApi, useValue: api },
-      { provide: ServicesApi, useValue: { catalog: vi.fn(() => of(catalog)) } },
+      { provide: AppsApi, useValue: apps },
+      { provide: LinuxSessionStore, useValue: { asPerson } },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -187,9 +154,14 @@ async function render(start: BackupPlan | null) {
   const fixture = TestBed.createComponent(BackupsPage);
   await fixture.whenStable();
   socket.receive({
-    event: 'services:snapshot',
+    event: 'containers:snapshot',
     data: {
-      services: [service(IMMICH, 'immich', 'Immich'), service(NAVIDROME, 'navidrome', 'Navidrome')],
+      dockerAvailable: true,
+      containers: [
+        { ...container('immich', 'immich@2'), stats: null },
+        { ...container('notes', null), stats: null },
+      ],
+      history: {},
     },
   });
   await fixture.whenStable();
@@ -202,10 +174,8 @@ async function render(start: BackupPlan | null) {
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
       b.textContent?.includes(text),
     )!;
-  return { fixture, el, api, socket, pushStatus, button };
+  return { fixture, el, api, asPerson, socket, pushStatus, button };
 }
-
-const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
 
 describe('BackupsPage before setup', () => {
   it('offers the mounted disks, warns about the data’s own disk, refuses unsupported ones', async () => {
@@ -217,24 +187,26 @@ describe('BackupsPage before setup', () => {
     expect(el.textContent).toContain('This is the same disk as your data');
   });
 
-  it('sets up with the chosen disk and services, then shows the passphrase until it is saved', async () => {
-    const { el, api, fixture, button } = await render(null);
+  it('sets up as the person with the chosen disk and apps (templates’ presets), then shows the passphrase until saved', async () => {
+    const { el, api, asPerson, fixture, button } = await render(null);
     el.querySelector<HTMLInputElement>('input[value="/mnt/usb"]')!.click();
-    // Navidrome's music folder switched off.
-    const music = [...el.querySelectorAll('label')].find((l) =>
-      l.textContent?.includes('Music folder'),
-    )!;
-    music.querySelector('input')!.click();
-    await fixture.whenStable();
+    expect([...el.querySelectorAll('label')].map((l) => l.textContent?.trim())).toContain('notes');
     button('Set up backups').click();
     await vi.waitFor(() => expect(api.setup).toHaveBeenCalled());
+    expect(asPerson).toHaveBeenCalled();
     expect(api.setup).toHaveBeenCalledWith({
       destination: '/mnt/usb',
       schedule: { frequency: 'daily', time: '03:00' },
       retention: { daily: 7, weekly: 4, monthly: 6 },
       items: [
-        { kind: 'service', serviceId: IMMICH, excludedFields: [] },
-        { kind: 'service', serviceId: NAVIDROME, excludedFields: ['MUSIC_DIR'] },
+        {
+          kind: 'app',
+          project: 'immich',
+          folders: [],
+          skip: ['/home/anna/apps/immich/thumbs'],
+          mode: 'stop',
+        },
+        { kind: 'app', project: 'notes', folders: [], skip: [], mode: 'stop' },
       ],
     });
     await fixture.whenStable();
@@ -244,6 +216,21 @@ describe('BackupsPage before setup', () => {
     button("I've saved it").click();
     await fixture.whenStable();
     expect(el.textContent).not.toContain('acorn');
+  });
+
+  it('leaves out an app switched off', async () => {
+    const { el, api, fixture, button } = await render(null);
+    el.querySelector<HTMLInputElement>('input[value="/mnt/usb"]')!.click();
+    [...el.querySelectorAll('label')]
+      .find((l) => l.textContent?.trim() === 'notes')!
+      .querySelector('input')!
+      .click();
+    await fixture.whenStable();
+    button('Set up backups').click();
+    await vi.waitFor(() => expect(api.setup).toHaveBeenCalled());
+    expect(api.setup).toHaveBeenCalledWith(
+      expect.objectContaining({ items: [expect.objectContaining({ project: 'immich' })] }),
+    );
   });
 
   it('asks for a disk before setting up', async () => {
@@ -273,11 +260,11 @@ describe('BackupsPage before setup', () => {
 });
 
 describe('BackupsPage with a plan', () => {
-  it('names each item: this app, the service, the folder (left to right)', async () => {
+  it('names each item: this app, the app, the folder (left to right)', async () => {
     const { el } = await render(plan());
     const items = el.querySelector('section[aria-labelledby="items-title"]')!;
     expect(items.textContent).toContain('This app');
-    expect(items.textContent).toContain('Immich');
+    expect(items.textContent).toContain('immich');
     const path = [...items.querySelectorAll('p')].find(
       (p) => p.textContent?.trim() === '/home/alice/Documents',
     )!;
@@ -313,7 +300,7 @@ describe('BackupsPage with a plan', () => {
     );
     expect(el.querySelector('[role="alert"]')!.textContent).toContain('The last backup failed');
     expect(el.textContent).toContain('Scheduled backup running: 1 of 3 done');
-    expect(el.textContent).toContain('Immich — copying');
+    expect(el.textContent).toContain('immich — copying');
     expect(button('Back up now').disabled).toBe(true);
   });
 
@@ -339,36 +326,20 @@ describe('BackupsPage with a plan', () => {
     expect(api.runs).toHaveBeenCalledTimes(2);
   });
 
-  it('shows the passphrase again only with the password', async () => {
-    const { el, api, fixture, button } = await render(plan());
+  it('shows the passphrase again through the person’s sudo', async () => {
+    const { el, api, asPerson, button } = await render(plan());
     button('Show the passphrase again').click();
-    await vi.waitFor(() => expect(dialog()).not.toBeNull());
-    const password = dialog()!.querySelector<HTMLInputElement>('#confirm-password')!;
-    api.passphrase.mockReturnValueOnce(
-      throwError(
-        () =>
-          new HttpErrorResponse({
-            status: 400,
-            error: {
-              message: 'Validation failed',
-              errors: [{ field: 'password', code: 'wrong_password', message: 'x' }],
-            },
-          }),
-      ),
-    );
-    password.value = 'nope';
-    password.dispatchEvent(new Event('input'));
-    [...dialog()!.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Show')!
-      .click();
-    await vi.waitFor(() => expect(dialog()!.textContent).toContain('password is incorrect'));
-    password.value = 'correct horse';
-    password.dispatchEvent(new Event('input'));
-    [...dialog()!.querySelectorAll('button')]
-      .find((b) => b.textContent?.trim() === 'Show')!
-      .click();
-    await vi.waitFor(() => expect(api.passphrase).toHaveBeenLastCalledWith('correct horse'));
-    await fixture.whenStable();
+    await vi.waitFor(() => expect(api.passphrase).toHaveBeenCalledWith());
+    expect(asPerson).toHaveBeenCalled();
     await vi.waitFor(() => expect(el.textContent).toContain('dolphin'));
+  });
+
+  it('shows nothing when the sudo prompt is closed', async () => {
+    const { el, api, asPerson, button, fixture } = await render(plan());
+    asPerson.mockResolvedValueOnce(null);
+    button('Show the passphrase again').click();
+    await fixture.whenStable();
+    expect(api.passphrase).not.toHaveBeenCalled();
+    expect(el.textContent).not.toContain('dolphin');
   });
 });

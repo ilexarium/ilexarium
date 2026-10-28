@@ -32,10 +32,19 @@ function programs(): RootPrograms {
     }),
   } as unknown as LinuxSessions;
   const config = { get: () => 'sudo' } as unknown as ConfigService<Env, true>;
-  return new RootPrograms(config, audit, { file: '/unused' } as ProgramConfigService, linuxSessions);
+  return new RootPrograms(
+    config,
+    audit,
+    { file: '/unused' } as ProgramConfigService,
+    linuxSessions,
+  );
 }
 
-const ran = (output: string[], code = 0): HelperAnswer => ({ ok: true, code, output: output.join('\n') });
+const ran = (output: string[], code = 0): HelperAnswer => ({
+  ok: true,
+  code,
+  output: output.join('\n'),
+});
 
 beforeEach(() => {
   entries = [];
@@ -77,7 +86,10 @@ describe('RootPrograms (through the person’s sudo)', () => {
       .catch((e: unknown) => e)) as HttpException;
     expect(error.getStatus()).toBe(403);
     expect(error.getResponse()).toMatchObject({ code: 'sudo_required' });
-    expect(entries.at(-1)).toMatchObject({ outcome: 'failure', details: { reason: 'sudo_required' } });
+    expect(entries.at(-1)).toMatchObject({
+      outcome: 'failure',
+      details: { reason: 'sudo_required' },
+    });
   });
 
   it('hands the passphrase to the caller only — never to the audit log', async () => {
@@ -111,7 +123,10 @@ describe('RootPrograms (through the person’s sudo)', () => {
 
   it('counts an action without a result as done when it exits 0', async () => {
     answer = ran(['@@phase done']);
-    expect(await programs().backupStart({ runId: 'r1' }, ACTOR)).toEqual({ ok: true, result: null });
+    expect(await programs().backupStart({ runId: 'r1' }, ACTOR)).toEqual({
+      ok: true,
+      result: null,
+    });
   });
 
   it('mounts with the owner of the top folder on stdin, audited without it', async () => {

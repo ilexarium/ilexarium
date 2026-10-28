@@ -1,5 +1,12 @@
 import { computed, inject } from '@angular/core';
-import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
+import {
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { AppSummary } from '@laris/shared';
 import { catchError, EMPTY, exhaustMap, pipe, tap } from 'rxjs';
@@ -40,16 +47,14 @@ export const AppsPageStore = signalStore(
     }),
   ),
   withMethods(
-    (
-      store,
-      appsApi = inject(AppsApi),
-      containerActionsStore = inject(ContainerActionsStore),
-    ) => ({
+    (store, appsApi = inject(AppsApi), containerActionsStore = inject(ContainerActionsStore)) => ({
       loadResting: rxMethod<void>(
         pipe(
           exhaustMap(() =>
             appsApi.list().pipe(
-              tap(({ apps }) => patchState(store, { resting: apps.filter((a) => a.state === 'none') })),
+              tap(({ apps }) =>
+                patchState(store, { resting: apps.filter((a) => a.state === 'none') }),
+              ),
               catchError(() => EMPTY),
             ),
           ),

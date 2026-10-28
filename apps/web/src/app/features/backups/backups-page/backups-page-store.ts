@@ -249,7 +249,8 @@ export const BackupsPageStore = signalStore(
             const answer = await linuxSessionStore.asPerson(() =>
               firstValueFrom(backupsApi.passphrase()),
             );
-            if (answer) patchState(store, { passphrase: answer.passphrase, passphraseFirst: false });
+            if (answer)
+              patchState(store, { passphrase: answer.passphrase, passphraseFirst: false });
           } catch (error) {
             failed('backups.passphrase.failed', error);
           }
@@ -281,10 +282,8 @@ export const BackupsPageStore = signalStore(
 
         async addFolder(path: string): Promise<void> {
           if (
-            await act(
-              `add:${path}`,
-              'backups.items.addFailed',
-              () => backupsApi.addItem({ kind: 'folder', path }),
+            await act(`add:${path}`, 'backups.items.addFailed', () =>
+              backupsApi.addItem({ kind: 'folder', path }),
             )
           ) {
             patchState(store, { folders: null });
@@ -308,7 +307,9 @@ export const BackupsPageStore = signalStore(
             ? 'backups.items.deleteFailed'
             : 'backups.items.removeFailed';
           if (
-            await act(`remove:${itemId}`, failure, () => backupsApi.removeItem(itemId, deleteArchives))
+            await act(`remove:${itemId}`, failure, () =>
+              backupsApi.removeItem(itemId, deleteArchives),
+            )
           ) {
             reload();
           }
@@ -340,10 +341,8 @@ export const BackupsPageStore = signalStore(
 
         async discardPrevious(restoreId: string): Promise<void> {
           if (
-            await act(
-              `discard:${restoreId}`,
-              'backups.restore.discardFailed',
-              () => backupsApi.discardPrevious(restoreId),
+            await act(`discard:${restoreId}`, 'backups.restore.discardFailed', () =>
+              backupsApi.discardPrevious(restoreId),
             )
           ) {
             toast.success(translator.t('backups.restore.discarded'));
@@ -388,38 +387,40 @@ export const BackupsPageStore = signalStore(
       };
     },
   ),
-  withHooks((store, monitoringStore = inject(MonitoringStore), backupsStore = inject(BackupsStore)) => {
-    let stop: (() => void) | null = null;
-    return {
-      onInit() {
-        stop = monitoringStore.watch(['containers']);
-        store.load();
-        // What the topic says changed (a run ended, a restore moved on, setup elsewhere): reload.
-        // The key is a string, so the effect runs only when it really changes.
-        const changes = computed(() => {
-          const status = backupsStore.status();
-          return status
-            ? [
-                status.configured,
-                status.lastRun?.id,
-                status.lastRun?.status,
-                status.restore?.id,
-                status.restore?.status,
-                status.running?.runId,
-              ].join('|')
-            : null;
-        });
-        let seen: string | null = null;
-        effect(() => {
-          const key = changes();
-          if (key === null || key === seen) return;
-          if (seen !== null) untracked(() => store.reload());
-          seen = key;
-        });
-      },
-      onDestroy() {
-        stop?.();
-      },
-    };
-  }),
+  withHooks(
+    (store, monitoringStore = inject(MonitoringStore), backupsStore = inject(BackupsStore)) => {
+      let stop: (() => void) | null = null;
+      return {
+        onInit() {
+          stop = monitoringStore.watch(['containers']);
+          store.load();
+          // What the topic says changed (a run ended, a restore moved on, setup elsewhere): reload.
+          // The key is a string, so the effect runs only when it really changes.
+          const changes = computed(() => {
+            const status = backupsStore.status();
+            return status
+              ? [
+                  status.configured,
+                  status.lastRun?.id,
+                  status.lastRun?.status,
+                  status.restore?.id,
+                  status.restore?.status,
+                  status.running?.runId,
+                ].join('|')
+              : null;
+          });
+          let seen: string | null = null;
+          effect(() => {
+            const key = changes();
+            if (key === null || key === seen) return;
+            if (seen !== null) untracked(() => store.reload());
+            seen = key;
+          });
+        },
+        onDestroy() {
+          stop?.();
+        },
+      };
+    },
+  ),
 );

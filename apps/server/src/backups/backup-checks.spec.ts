@@ -14,7 +14,9 @@ function checksWith(
   const prisma = {
     backupItem: { findMany: vi.fn(async () => active) },
   } as unknown as PrismaService;
-  const config = { config: { protectedPaths: ['/var/lib/laris'] } } as unknown as ProgramConfigService;
+  const config = {
+    config: { protectedPaths: ['/var/lib/laris'] },
+  } as unknown as ProgramConfigService;
   const reader = { folder: vi.fn(async () => 'folder') } as unknown as SystemReader;
   const docker = {
     appFolders: vi.fn(
@@ -110,7 +112,12 @@ describe('BackupChecks.checkNewItems', () => {
   it('returns the checked rows, each with a new id', async () => {
     const rows = await checksWith([]).checkNewItems(
       [
-        { ...APP, project: 'music', excludedFolders: ['/mnt/usb/music'], skip: ['/home/anna/apps/music/cache'] },
+        {
+          ...APP,
+          project: 'music',
+          excludedFolders: ['/mnt/usb/music'],
+          skip: ['/home/anna/apps/music/cache'],
+        },
         { kind: 'folder', path: '/srv/laris/docs' },
       ],
       DISK,

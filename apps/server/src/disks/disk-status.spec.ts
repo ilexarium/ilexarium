@@ -122,9 +122,7 @@ describe('disksStatus', () => {
       ],
       backupDestination: '/mnt/old',
     });
-    expect(disconnected).toEqual([
-      { mountPoint: '/mnt/old', uuid: 'gone', usedForBackups: true },
-    ]);
+    expect(disconnected).toEqual([{ mountPoint: '/mnt/old', uuid: 'gone', usedForBackups: true }]);
   });
 });
 

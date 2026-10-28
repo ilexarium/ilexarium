@@ -61,7 +61,9 @@
                 hlmBtn
                 variant="outline"
                 size="sm"
-                [disabled]="partition.usedForBackups || pending().includes(partition.mountPoint ?? '')"
+                [disabled]="
+                  partition.usedForBackups || pending().includes(partition.mountPoint ?? '')
+                "
                 [attr.aria-label]="'disks.actionsFor' | translate: { name: label(partition) }"
                 (click)="askUnmount(partition)"
               >

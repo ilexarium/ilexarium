@@ -194,7 +194,9 @@
 
           @if (newAppPageStore.backupsConfigured()) {
             <fieldset class="grid gap-3 rounded-md border p-3">
-              <legend class="px-1 text-sm font-medium">{{ 'apps.backup.title' | translate }}</legend>
+              <legend class="px-1 text-sm font-medium">
+                {{ 'apps.backup.title' | translate }}
+              </legend>
               <label class="flex items-start gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -257,15 +259,22 @@
 
           @if (newAppPageStore.problem(); as problem) {
             <div role="alert" class="grid gap-1">
-              <p class="text-sm font-medium text-destructive">{{ 'apps.new.composeRefused' | translate }}</p>
-              <pre class="overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap" dir="ltr">{{ problem }}</pre>
+              <p class="text-sm font-medium text-destructive">
+                {{ 'apps.new.composeRefused' | translate }}
+              </p>
+              <pre
+                class="overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap"
+                dir="ltr"
+                >{{ problem }}</pre>
             </div>
           }
 
           <div class="flex flex-wrap items-center gap-3">
             <button
               hlmBtn
-              [disabled]="!newAppPageStore.nameValid() || newAppPageStore.nameCheck()?.free === false"
+              [disabled]="
+                !newAppPageStore.nameValid() || newAppPageStore.nameCheck()?.free === false
+              "
               (click)="newAppPageStore.install()"
             >
               {{ 'apps.new.install' | translate }}
@@ -288,11 +297,7 @@
           <laris-task-output [task]="task" [lines]="newAppPageStore.lines()" />
           @if (task.state === 'failed' || task.state === 'interrupted') {
             <div>
-              <a
-                hlmBtn
-                variant="outline"
-                [routerLink]="['/apps', newAppPageStore.name()]"
-              >
+              <a hlmBtn variant="outline" [routerLink]="['/apps', newAppPageStore.name()]">
                 {{ 'apps.new.toApp' | translate }}
               </a>
             </div>

@@ -42,8 +42,7 @@ export const routes: Routes = [
       {
         path: 'apps',
         title: 'pages.apps',
-        loadComponent: () =>
-          import('./features/apps/apps-page/apps-page').then((m) => m.AppsPage),
+        loadComponent: () => import('./features/apps/apps-page/apps-page').then((m) => m.AppsPage),
       },
       {
         path: 'apps/new',
@@ -54,8 +53,7 @@ export const routes: Routes = [
       {
         path: 'apps/:name',
         title: 'pages.app',
-        loadComponent: () =>
-          import('./features/apps/app-page/app-page').then((m) => m.AppPage),
+        loadComponent: () => import('./features/apps/app-page/app-page').then((m) => m.AppPage),
       },
       { path: 'services', redirectTo: 'apps' },
       {

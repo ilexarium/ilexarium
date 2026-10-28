@@ -88,13 +88,19 @@ export class BackupChecks {
   /** The folder picker: the starting places (homes, /srv, the disks), or the folders inside one. */
   async folders(path?: string): Promise<BackupFoldersResponse> {
     const config = this.programConfigService.config;
-    const entry = (p: string, name: string) => ({ name, path: p, allowed: isAllowedFolder(config, p) });
+    const entry = (p: string, name: string) => ({
+      name,
+      path: p,
+      allowed: isAllowedFolder(config, p),
+    });
     if (path === undefined) {
       const homes = (await this.systemReader.subfolders('/home')) ?? [];
       const disks = (await this.destinations()).map((d) => d.mountPoint);
       const places = [...homes.map((home) => home.path), ...FOLDER_PLACES, ...disks];
       const existing = await Promise.all(
-        [...new Set(places)].map(async (p) => ((await this.systemReader.folder(p)) === 'missing' ? null : p)),
+        [...new Set(places)].map(async (p) =>
+          (await this.systemReader.folder(p)) === 'missing' ? null : p,
+        ),
       );
       return {
         path: null,
@@ -237,7 +243,10 @@ export class BackupChecks {
 
   /** A restore's own folder: allowed, off the backup disk. */
   checkRestoreTarget(target: string, destination: string): void {
-    if (!isAllowedFolder(this.programConfigService.config, target) || overlaps(target, destination)) {
+    if (
+      !isAllowedFolder(this.programConfigService.config, target) ||
+      overlaps(target, destination)
+    ) {
       throw validationFailed([
         { field: 'target', code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' },
       ]);
@@ -271,7 +280,8 @@ export class BackupChecks {
     destination: string,
   ): Omit<FieldError, 'field'> | null {
     const config = this.programConfigService.config;
-    if (folders.length === 0) return { code: BACKUP_ERROR_CODES.sourceMissing, message: 'No folders' };
+    if (folders.length === 0)
+      return { code: BACKUP_ERROR_CODES.sourceMissing, message: 'No folders' };
     if (!folders.every((folder) => isAllowedFolder(config, folder))) {
       return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' };
     }
@@ -300,4 +310,3 @@ export class BackupChecks {
     return null;
   }
 }
-

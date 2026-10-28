@@ -31,10 +31,7 @@ import { NewAppPageStore } from './new-app-page-store';
     TaskOutput,
     TranslatePipe,
   ],
-  providers: [
-    NewAppPageStore,
-    provideIcons({ lucideArrowLeft, lucideClipboardPaste, lucideX }),
-  ],
+  providers: [NewAppPageStore, provideIcons({ lucideArrowLeft, lucideClipboardPaste, lucideX })],
   templateUrl: './new-app-page.html',
 })
 export class NewAppPage {
@@ -69,7 +66,9 @@ export class NewAppPage {
   }
 
   protected addSkip(): void {
-    const skip = this.newSkip().trim().replace(/^\.?\/+/, '');
+    const skip = this.newSkip()
+      .trim()
+      .replace(/^\.?\/+/, '');
     if (!skip) return;
     const { skip: list } = this.newAppPageStore.backup();
     if (!list.includes(skip)) this.newAppPageStore.setBackup({ skip: [...list, skip] });

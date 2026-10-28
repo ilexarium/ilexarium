@@ -38,9 +38,13 @@ describe('fromAudit', () => {
   });
 
   it('names an app by its name, a disk by its folder', () => {
-    expect(subjectOf(event('app.install', { name: 'immich', folder: '/home/a/apps/immich' }))).toBe('immich');
+    expect(subjectOf(event('app.install', { name: 'immich', folder: '/home/a/apps/immich' }))).toBe(
+      'immich',
+    );
     expect(subjectOf(event('app.remove', { name: 'Bad Name' }))).toBeNull();
-    expect(subjectOf(event('disk.mount', { mountPoint: '/mnt/usb', uuid: 'abc' }))).toBe('/mnt/usb');
+    expect(subjectOf(event('disk.mount', { mountPoint: '/mnt/usb', uuid: 'abc' }))).toBe(
+      '/mnt/usb',
+    );
   });
 
   it('drops a detail that fails its check', () => {

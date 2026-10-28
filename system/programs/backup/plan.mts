@@ -79,7 +79,12 @@ export function checkPlan(raw: unknown, config: Config, paths: Paths): Plan {
       exactKeys(item, ['id', 'kind'], [], 'platform item');
       platforms++;
     } else if (kind === 'app') {
-      exactKeys(item, ['id', 'kind', 'project', 'folders', 'skip', 'mode'], ['removed'], 'app item');
+      exactKeys(
+        item,
+        ['id', 'kind', 'project', 'folders', 'skip', 'mode'],
+        ['removed'],
+        'app item',
+      );
       const { project, folders: own, skip, mode } = item;
       if (typeof project !== 'string' || !PROJECT_PATTERN.test(project)) refuse('project');
       if (mode !== 'stop' && mode !== 'live') refuse('mode');
@@ -87,7 +92,8 @@ export function checkPlan(raw: unknown, config: Config, paths: Paths): Plan {
       if (own.length === 0 && removed !== true) refuse('no folders');
       for (const path of own) {
         if (!absolute(path) || !allowedFolder(config, path)) refuse('app folder: not allowed');
-        if (overlaps(path as string, destination as string)) refuse('app folder: overlaps the disk');
+        if (overlaps(path as string, destination as string))
+          refuse('app folder: overlaps the disk');
       }
       if (new Set(own).size !== own.length) refuse('app folder: twice');
       if (!Array.isArray(skip) || skip.length > MAX_SKIPS) return refuse('skip');
@@ -134,7 +140,9 @@ export function loadPlan(config: Config, paths: Paths): Plan {
   try {
     const stored = JSON.parse(readFileSync(paths.plan, 'utf8')) as unknown;
     if (isObject(stored) && Array.isArray(stored['items'])) {
-      stored['items'] = stored['items'].filter((item) => !isObject(item) || item['kind'] !== 'service');
+      stored['items'] = stored['items'].filter(
+        (item) => !isObject(item) || item['kind'] !== 'service',
+      );
     }
     return checkPlan(stored, config, paths);
   } catch (error) {
