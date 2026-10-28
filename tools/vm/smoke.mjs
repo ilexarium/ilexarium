@@ -329,48 +329,76 @@ async function sleeper(user) {
 }
 
 /**
- * Ending processes as anna over this machine's sshd (the Linux session is open): her own; not
- * root's; root's with her own sudo and its password. No root path of the app's.
+ * Ending processes as anna through her Linux session's helper: her own; root's only through her
+ * own sudo, unlocked with her password (kept by sudo, in the helper's terminal); "Lock now" ends
+ * it. No root path of the app's.
  */
 async function processes() {
-  console.log('\nEnding processes (as anna, over the Linux sign-in)');
+  console.log('\nEnding processes and sudo (as anna, through her helper)');
+  const helper = mode('/opt/laris/libexec/laris-helper.mts');
+  check(
+    'the helper is installed root-owned, runnable, writable by root only',
+    helper.uid === 0 && helper.mode === '0755',
+    helper.mode,
+  );
   const own = await sleeper('anna');
   const end = await api('POST', '/processes/signal', { ...own.request, signal: 'TERM' });
   check('anna ends her own process', end.status === 204, `${end.status} ${end.text}`);
   check('it got SIGTERM', (await own.signal()) === 'SIGTERM');
 
   const roots = await sleeper('root');
-  const refused = await api('POST', '/processes/signal', { ...roots.request, signal: 'KILL' });
+  const locked = await api('POST', '/processes/signal', { ...roots.request, signal: 'KILL' });
   check(
-    'Linux refuses root’s to her (403 process_not_permitted)',
-    refused.status === 403 && refused.json?.code === 'process_not_permitted',
-    `${refused.status} ${refused.text}`,
+    'root’s needs her sudo, locked (403 sudo_required)',
+    locked.status === 403 && locked.json?.code === 'sudo_required',
+    `${locked.status} ${locked.text}`,
   );
-  const noSudo = await api('POST', '/processes/signal-as-administrator', {
-    ...roots.request,
-    signal: 'TERM',
-    password: 'anna-smoke-password',
-  });
+  const noSudo = await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
   check(
-    'as administrator without sudo rights: not allowed',
+    'unlocking sudo without sudo rights: not allowed',
     noSudo.status === 403 && noSudo.json?.code === 'sudo_not_allowed',
     `${noSudo.status} ${noSudo.text}`,
   );
   sh('usermod', ['-aG', 'sudo', 'anna']);
   // Group changes count from the next sign-in.
   await api('POST', '/files/session', { username: 'anna', password: 'anna-smoke-password' });
-  const admin = await api('POST', '/processes/signal-as-administrator', {
-    ...roots.request,
-    signal: 'TERM',
-    password: 'anna-smoke-password',
-  });
+  const wrong = await api('POST', '/files/session/sudo', { password: 'wrong' });
   check(
-    'as administrator with her sudo: ended',
+    'a wrong sudo password refused',
+    wrong.status === 403 && wrong.json?.code === 'sudo_password_wrong',
+    `${wrong.status} ${wrong.text}`,
+  );
+  const unlocked = await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  check(
+    'sudo unlocked with her password',
+    unlocked.status === 200 && Date.parse(unlocked.json?.sudoUntil) > Date.now(),
+    `${unlocked.status} ${unlocked.text}`,
+  );
+  const admin = await api('POST', '/processes/signal', { ...roots.request, signal: 'TERM' });
+  check(
+    'root’s process ended through her sudo',
     admin.status === 204,
     `${admin.status} ${admin.text}`,
   );
   check('root’s process got SIGTERM', (await roots.signal()) === 'SIGTERM');
   roots.stop();
+
+  const lock = await api('DELETE', '/files/session/sudo');
+  const after = await api('GET', '/files/session');
+  check(
+    '“Lock now” ends the Linux session',
+    lock.status === 204 && after.json?.session === null,
+    `${lock.status} ${after.text}`,
+  );
+  await api('POST', '/files/session', { username: 'anna', password: 'anna-smoke-password' });
+  const roots2 = await sleeper('root');
+  const again = await api('POST', '/processes/signal', { ...roots2.request, signal: 'TERM' });
+  check(
+    'a new session never has the old one’s sudo',
+    again.status === 403 && again.json?.code === 'sudo_required',
+    `${again.status} ${again.text}`,
+  );
+  roots2.stop();
   sh('gpasswd', ['-d', 'anna', 'sudo']);
   const init = await api('POST', '/processes/signal', { pid: 1, startTicks: '1', signal: 'KILL' });
   check('PID 1 refused', init.status === 403 || init.status === 404, `${init.status}`);

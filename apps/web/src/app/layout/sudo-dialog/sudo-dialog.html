@@ -12,9 +12,7 @@
     <hlm-dialog-header>
       <h2 hlmDialogTitle>{{ 'linux.sudo.title' | translate }}</h2>
       <p hlmDialogDescription>
-        {{
-          'linux.sudo.text' | translate: { account: linuxSessionStore.session()?.username ?? '' }
-        }}
+        {{ 'linux.sudo.text' | translate: { account: account() } }}
       </p>
     </hlm-dialog-header>
     <form id="sudo-form" [formRoot]="form" class="grid gap-5">

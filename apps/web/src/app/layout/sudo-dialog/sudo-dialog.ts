@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { type LinuxSudoRequest, linuxSudoRequestSchema } from '@laris/shared';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -7,6 +7,7 @@ import { HlmDialogImports } from '@ui/dialog';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { LinuxSessionStore } from '../../core/linux/linux-session-store';
+import { Formatter } from '../../shared/format/formatter';
 import { FieldErrors } from '../../shared/forms/field-errors';
 import { FormErrors } from '../../shared/forms/form-errors';
 import { PasswordToggle } from '../../shared/forms/password-toggle';
@@ -36,6 +37,11 @@ import { toSubmissionErrors } from '../../shared/forms/submission-errors';
 export class SudoDialog {
   protected readonly linuxSessionStore = inject(LinuxSessionStore);
   protected readonly showPassword = signal(false);
+  private readonly formatter = inject(Formatter);
+  /** Kept left to right inside a right-to-left sentence. */
+  protected readonly account = computed(() =>
+    this.formatter.machine(this.linuxSessionStore.session()?.username ?? ''),
+  );
 
   private readonly model = signal<LinuxSudoRequest>({ password: '' });
   protected readonly form = form(
