@@ -74,7 +74,7 @@ export class FilesController {
     return this.linuxSessions.signOut(session.id, { user, ip });
   }
 
-  /** Unlocks the account's sudo with its password (the same as its sign-in); kept by sudo. */
+  /** Unlocks the account's sudo with its password (the same as its sign-in): laris-root runs. */
   @Post('session/sudo')
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
@@ -88,15 +88,15 @@ export class FilesController {
     return this.linuxSessions.unlockSudo(session.id, body.password, { user, ip });
   }
 
-  /** "Lock now": sudo locked, and the Linux session ends. */
+  /** "Lock now": sudo locked (laris-root ends); the Linux session stays. */
   @Delete('session/sudo')
-  @HttpCode(204)
-  lockSudo(
+  @HttpCode(200)
+  async lockSudo(
     @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
-  ): Promise<void> {
-    return this.linuxSessions.lockSudo(session.id, { user, ip });
+  ): Promise<{ session: LinuxSession | null }> {
+    return { session: await this.linuxSessions.lockSudo(session.id, { user, ip }) };
   }
 
   @Get('list')

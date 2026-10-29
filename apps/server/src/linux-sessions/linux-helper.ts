@@ -10,9 +10,9 @@ import type { HelperAnswer, HelperRequest } from './linux-sessions.model.js';
 
 /**
  * The helper of one Linux session (system/programs/laris-helper.mts): started as the account in a
- * channel with a terminal — sudo's cache is tied to that terminal, so it lives as long as the
- * session. One JSON request per line, answers matched by id. Lines before its first are the
- * account's login noise, skipped; nothing is sent before it (until then the terminal echoes).
+ * channel of its own (plain pipes, no terminal), for the session's life. One JSON request per
+ * line, answers matched by id; `{"event":…}` lines are its own news (laris-root ended). Lines
+ * before its first are the account's login noise, skipped; nothing is sent before it.
  */
 export class LinuxHelper {
   private readonly waiting = new Map<number, (answer: HelperAnswer) => void>();
@@ -28,7 +28,7 @@ export class LinuxHelper {
   static start(client: Client, path: string): Promise<LinuxHelper> {
     return new Promise((resolve, reject) => {
       // The path is the server's setting (LINUX_HELPER: a plain absolute path), never a request's.
-      client.exec(path, { pty: { term: 'dumb', cols: 200, rows: 24 } }, (error, channel) => {
+      client.exec(path, (error, channel) => {
         if (error) {
           reject(error);
           return;
@@ -96,13 +96,15 @@ export class LinuxHelper {
     this.end();
   }
 
+  /** Called with each event it sends (`sudo.locked`: laris-root ended on its own). */
+  onEvent: (event: string) => void = () => {};
+
   private onLine: (line: string) => void = () => {};
 
   private receive(chunk: Buffer): void {
     this.buffer += this.decoder.write(chunk);
-    // The terminal turns "\n" into "\r\n".
     for (let end = this.buffer.indexOf('\n'); end >= 0; end = this.buffer.indexOf('\n')) {
-      const line = this.buffer.slice(0, end).replace(/\r$/, '');
+      const line = this.buffer.slice(0, end);
       this.buffer = this.buffer.slice(end + 1);
       this.onLine(line);
     }
@@ -115,6 +117,10 @@ export class LinuxHelper {
     try {
       parsed = JSON.parse(line) as typeof parsed;
     } catch {
+      return;
+    }
+    if (typeof parsed['event'] === 'string' && parsed.id === undefined) {
+      this.onEvent(parsed['event']);
       return;
     }
     // A line it couldn't read (it never gets one from here): the channel is garbled, so every

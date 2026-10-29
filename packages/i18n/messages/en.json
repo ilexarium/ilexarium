@@ -1283,7 +1283,7 @@
     }
   },
   "linux": {
-    "locked": "sudo is locked, and the Linux session is closed.",
+    "locked": "sudo is locked.",
     "status": {
       "label": "Linux session: {{account}}",
       "labelAdmin_one": "Linux session: {{account}}, administrator for {{count}} more minute",

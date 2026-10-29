@@ -21,7 +21,8 @@ let helperAnswers: Record<string, Record<string, unknown>> = {};
 const asked: Record<string, unknown>[] = [];
 /** Where an answer is cut in two (bytes): a character may be split. */
 let splitAt = 5;
-const started: { command: string; options: Record<string, unknown> }[] = [];
+const started: { command: string; options: unknown }[] = [];
+let helperChannel: EventEmitter | null = null;
 
 class FakeClient extends EventEmitter {
   ended = false;
@@ -46,12 +47,9 @@ class FakeClient extends EventEmitter {
       realpath: (_p: string, cb: (e: undefined, p: string) => void) => cb(undefined, '/home/anna'),
     });
   }
-  exec(
-    command: string,
-    options: Record<string, unknown>,
-    done: (error: Error | undefined, channel: unknown) => void,
-  ) {
-    started.push({ command, options });
+  exec(command: string, ...rest: unknown[]) {
+    const done = rest.at(-1) as (error: Error | undefined, channel: unknown) => void;
+    started.push({ command, options: rest.length > 1 ? rest[0] : undefined });
     const channel = Object.assign(new EventEmitter(), {
       close: () => setImmediate(() => channel.emit('close')),
       write: (line: string) => {
@@ -59,8 +57,8 @@ class FakeClient extends EventEmitter {
         asked.push(request);
         if (helperMode === 'silent') return;
         const answer = helperAnswers[request['action'] as string] ?? { ok: true };
-        // The terminal turns "\n" into "\r\n", and an answer may arrive in pieces.
-        const bytes = Buffer.from(`${JSON.stringify({ id: request['id'], ...answer })}\r\n`);
+        // An answer may arrive in pieces.
+        const bytes = Buffer.from(`${JSON.stringify({ id: request['id'], ...answer })}\n`);
         setImmediate(() => {
           channel.emit('data', bytes.subarray(0, splitAt));
           channel.emit('data', bytes.subarray(splitAt));
@@ -68,16 +66,17 @@ class FakeClient extends EventEmitter {
       },
     });
     done(undefined, channel);
+    helperChannel = channel;
     setImmediate(() => {
       if (helperMode === 'missing') {
-        channel.emit('data', Buffer.from('bash: laris-helper.mts: No such file or directory\r\n'));
+        channel.emit('data', Buffer.from('bash: laris-helper.mts: No such file or directory\n'));
         channel.emit('close');
         return;
       }
-      channel.emit('data', Buffer.from('Welcome to the box!\r\n'));
+      channel.emit('data', Buffer.from('Welcome to the box!\n'));
       const ready =
         helperMode === 'refuses' ? { 'laris-helper': 1, error: 'setup' } : { 'laris-helper': 1 };
-      channel.emit('data', Buffer.from(`${JSON.stringify(ready)}\r\n`));
+      channel.emit('data', Buffer.from(`${JSON.stringify(ready)}\n`));
     });
   }
   end() {
@@ -163,9 +162,9 @@ describe('LinuxSessions', () => {
     expect(sessions.current('other')).toBeNull();
   });
 
-  it('starts the helper with a terminal, past the login’s greeting, and asks it who it is', async () => {
+  it('starts the helper without a terminal, past the login’s greeting, and asks it who it is', async () => {
     await signIn();
-    expect(started).toEqual([{ command: HELPER, options: { pty: expect.any(Object) } }]);
+    expect(started).toEqual([{ command: HELPER, options: undefined }]);
     expect(asked).toEqual([{ id: 1, action: 'hello' }]);
   });
 
@@ -214,7 +213,7 @@ describe('LinuxSessions', () => {
     expect(await answer).toEqual({ ok: false, error: 'timed_out' });
   });
 
-  it('unlocks sudo with the password, audited without it; the estimate follows sudo’s answers', async () => {
+  it('unlocks sudo with the password, audited without it; the time left follows laris-root’s answers', async () => {
     await signIn();
     const unlocked = await sessions.unlockSudo('s1', 'pw', ACTOR);
     expect(asked.at(-1)).toEqual({ id: 2, action: 'sudo.unlock', password: 'pw' });
@@ -224,7 +223,7 @@ describe('LinuxSessions', () => {
     );
     expect(JSON.stringify(audit.tryRecord.mock.calls)).not.toContain('pw"');
 
-    // A use restarts sudo's time; sudo saying it's locked ends the estimate.
+    // A use starts laris-root's idle time again; `sudo_required`: it isn't running.
     const signal = {
       action: 'process.signal',
       pid: 7,
@@ -240,12 +239,17 @@ describe('LinuxSessions', () => {
     expect(sessions.current('s1')?.sudoUntil).toBeNull();
   });
 
-  it('the estimate runs out after 15 minutes without use', async () => {
+  it('locked after 15 minutes without use, as laris-root ends; at once when the helper says it ended', async () => {
     await signIn();
     await sessions.unlockSudo('s1', 'pw', ACTOR);
     sessions.sftp('s1');
     vi.advanceTimersByTime(15 * 60_000 + 1);
     expect(sessions.current('s1')?.sudoUntil).toBeNull();
+    await sessions.unlockSudo('s1', 'pw', ACTOR);
+    expect(sessions.current('s1')?.sudoUntil).not.toBeNull();
+    helperChannel!.emit('data', Buffer.from('{"event":"sudo.locked"}\n'));
+    expect(sessions.current('s1')?.sudoUntil).toBeNull();
+    expect(sessions.current('s1')).not.toBeNull();
   });
 
   it('a password sudo refuses, or an account it refuses: 403 with its code, audited', async () => {
@@ -344,16 +348,27 @@ describe('LinuxSessions', () => {
     expect(answer).toEqual({ ok: false, error: 'ended' });
   });
 
-  it('“Lock now” locks sudo and ends the Linux session', async () => {
+  it('“Lock now” locks sudo; the Linux session stays', async () => {
     await signIn();
     await sessions.unlockSudo('s1', 'pw', ACTOR);
-    await sessions.lockSudo('s1', ACTOR);
+    expect(await sessions.lockSudo('s1', ACTOR)).toEqual(SESSION);
     expect(asked.at(-1)).toMatchObject({ action: 'sudo.lock' });
-    expect(sessions.current('s1')).toBeNull();
-    expect(clients[0].ended).toBe(true);
+    expect(sessions.current('s1')).toEqual(SESSION);
+    expect(clients[0].ended).toBe(false);
     expect(audit.tryRecord).toHaveBeenLastCalledWith(
       expect.objectContaining({ action: 'linux.sudo_lock', outcome: 'success' }),
     );
+  });
+
+  it('“Lock now” without the helper’s answer ends the Linux session (and laris-root with it)', async () => {
+    await signIn();
+    await sessions.unlockSudo('s1', 'pw', ACTOR);
+    helperMode = 'silent';
+    const locking = sessions.lockSudo('s1', ACTOR);
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(await locking).toBeNull();
+    expect(sessions.current('s1')).toBeNull();
+    expect(clients[0].ended).toBe(true);
   });
 
   it('a refused sign-in keeps the running session (a typo never closes a terminal)', async () => {

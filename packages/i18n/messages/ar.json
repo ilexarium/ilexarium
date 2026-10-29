@@ -1355,7 +1355,7 @@
     }
   },
   "linux": {
-    "locked": "أُقفل sudo، وأُغلقت جلسة لينكس.",
+    "locked": "أُقفل sudo.",
     "status": {
       "label": "جلسة لينكس: {{account}}",
       "labelAdmin_zero": "جلسة لينكس: {{account}}، مسؤول لمدة {{count}} دقيقة أخرى",

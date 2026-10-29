@@ -22,7 +22,8 @@ export const HELPER_MESSAGE_MAX = 4000;
 export const HELPER_QUICK_MS = 5_000;
 /** Above the helper's own limits (sudo's delay after a wrong password: 20 s; kill: 10 s). */
 export const HELPER_TIMEOUT_MS = 25_000;
-export const SUDO_ESTIMATE_MS = FILES_LIMITS.sudoEstimateMinutes * 60_000;
+/** laris-root's own idle limit: it ends this long after its last action. */
+export const SUDO_IDLE_MS = FILES_LIMITS.sudoIdleMinutes * 60_000;
 /** The helper's sudo answers, as the API says them. */
 export const SUDO_ERRORS: Partial<Record<string, FilesErrorCode>> = {
   wrong_password: FILES_ERROR_CODES.sudoPasswordWrong,
