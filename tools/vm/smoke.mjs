@@ -315,6 +315,10 @@ async function files() {
 }
 
 /** A sleep of `user`, by PID and start time (as the process list names it). */
+/** laris-root runs (root's, started by her sudo). */
+const larisRootRunning = () =>
+  !fails('pgrep', ['-u', 'root', '-f', '^/usr/bin/node /opt/laris/libexec/laris-root.mts']);
+
 async function sleeper(user) {
   const child = spawn(
     'setpriv',
@@ -339,8 +343,8 @@ async function sleeper(user) {
 
 /**
  * Ending processes as anna through her Linux session's helper: her own; root's only through her
- * own sudo, unlocked with her password (kept by sudo, in the helper's terminal); "Lock now" ends
- * it. No root path of the app's.
+ * own sudo, unlocked with her password — laris-root, started by it, runs for the unlock; "Lock
+ * now" ends it, and so does its own end (idle). No root path of the app's.
  */
 async function processes() {
   console.log('\nEnding processes and sudo (as anna, through her helper)');
@@ -349,6 +353,12 @@ async function processes() {
     'the helper is installed root-owned, runnable, writable by root only',
     helper.uid === 0 && helper.mode === '0755',
     helper.mode,
+  );
+  const larisRoot = mode('/opt/laris/libexec/laris-root.mts');
+  check(
+    'laris-root is installed root-owned, runnable, writable by root only',
+    larisRoot.uid === 0 && larisRoot.mode === '0755',
+    larisRoot.mode,
   );
   const own = await sleeper('anna');
   const end = await api('POST', '/processes/signal', { ...own.request, signal: 'TERM' });
@@ -383,6 +393,7 @@ async function processes() {
     unlocked.status === 200 && Date.parse(unlocked.json?.sudoUntil) > Date.now(),
     `${unlocked.status} ${unlocked.text}`,
   );
+  check('laris-root runs as root while unlocked', larisRootRunning());
   const admin = await api('POST', '/processes/signal', { ...roots.request, signal: 'TERM' });
   check(
     'root’s process ended through her sudo',
@@ -395,17 +406,32 @@ async function processes() {
   const lock = await api('DELETE', '/files/session/sudo');
   const after = await api('GET', '/files/session');
   check(
-    '“Lock now” ends the Linux session',
-    lock.status === 204 && after.json?.session === null,
+    '“Lock now” locks sudo, the Linux session stays',
+    lock.status === 200 &&
+      after.json?.session?.username === 'anna' &&
+      after.json?.session?.sudoUntil === null,
     `${lock.status} ${after.text}`,
   );
-  await api('POST', '/files/session', { username: 'anna', password: 'anna-smoke-password' });
+  await sleep(500);
+  check('laris-root ended at “Lock now”', !larisRootRunning());
   const roots2 = await sleeper('root');
   const again = await api('POST', '/processes/signal', { ...roots2.request, signal: 'TERM' });
   check(
-    'a new session never has the old one’s sudo',
+    'locked: root’s process needs her sudo again',
     again.status === 403 && again.json?.code === 'sudo_required',
     `${again.status} ${again.text}`,
+  );
+  // laris-root ending on its own (as after 15 minutes idle): the app sees it locked at once.
+  await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  sh('pkill', ['-u', 'root', '-f', '^/usr/bin/node /opt/laris/libexec/laris-root.mts']);
+  await sleep(500);
+  const ended = await api('GET', '/files/session');
+  check('laris-root ended on its own: locked', ended.json?.session?.sudoUntil === null, ended.text);
+  const third = await api('POST', '/processes/signal', { ...roots2.request, signal: 'TERM' });
+  check(
+    'and its actions need her sudo again',
+    third.status === 403 && third.json?.code === 'sudo_required',
+    `${third.status} ${third.text}`,
   );
   roots2.stop();
   sh('gpasswd', ['-d', 'anna', 'sudo']);
