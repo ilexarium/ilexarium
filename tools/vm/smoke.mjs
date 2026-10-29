@@ -557,6 +557,8 @@ async function install() {
   // Taken out of the sudo group above (the "not allowed" check): an administrator again.
   sh('usermod', ['-aG', 'sudo', 'anna']);
   await linuxSignIn('anna');
+  // The sudo checks above used the minute's unlock attempts (SUDO_LIMIT: 5 a minute).
+  await sleep(61_000);
   const unlock = await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
   check('anna’s sudo unlocked', unlock.status === 200, `${unlock.status} ${unlock.text}`);
   const navidrome = await installTemplate('navidrome', 'navidrome');
