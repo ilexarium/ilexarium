@@ -369,6 +369,17 @@ export async function startAgain(
     if (start.code === 0) return;
     if (attempt < RESTART_ATTEMPTS) await sleep(paths.retryDelayMs);
   }
+  // `up` refused (an image it can't pull, a file it can't read): running as it was beats stopped.
+  if (files.length > 0) {
+    const start = await docker(config, ['compose', '-p', project, 'start'], { onLine: keep });
+    if (start.code === 0) {
+      result.status = 'warning';
+      const warning = `${project} started as it was: its restored files didn't apply`;
+      result.warnings.push(warning);
+      keep(warning);
+      return;
+    }
+  }
   result.status = 'failed';
   result.errorCode = 'service_not_restarted';
   keep(`${project} could not be started again`);

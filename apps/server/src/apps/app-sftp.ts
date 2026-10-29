@@ -102,10 +102,6 @@ export class AppSftp {
     }
   }
 
-  rename(from: string, to: string): Promise<void> {
-    return call<void>((done) => this.sftp.rename(from, to, done));
-  }
-
   remove(path: string): Promise<void> {
     return call<void>((done) => this.sftp.unlink(path, done)).catch((error: unknown) => {
       if (!missing(error)) throw error;
