@@ -526,20 +526,21 @@ export class AppManager {
         );
         if (!answer.ok) throw helperError(answer);
       }
-      const whole = request.settings && insideAll;
-      const targets = whole
-        ? [folder, ...folders.filter((path) => !inside(path, folder))]
-        : [
-            ...folders,
-            ...(request.settings
-              ? [
-                  posix.join(folder, files.composeName),
-                  posix.join(folder, ENV_FILE),
-                  posix.join(folder, LARIS_DIR),
-                ]
-              : []),
-          ];
-      if (targets.length > 0) await this.removePaths(appSessionId, targets);
+      // The data first, the app's own files last: when a container's files need sudo, the files
+      // this request is checked against stay, and the retry after the sudo prompt can go on.
+      if (folders.length > 0) await this.removePaths(appSessionId, folders);
+      if (request.settings) {
+        await this.removePaths(
+          appSessionId,
+          insideAll
+            ? [folder]
+            : [
+                posix.join(folder, files.composeName),
+                posix.join(folder, ENV_FILE),
+                posix.join(folder, LARIS_DIR),
+              ],
+        );
+      }
       return null;
     });
   }
