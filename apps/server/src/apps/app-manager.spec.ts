@@ -72,6 +72,9 @@ let home: string;
 let asked: HelperRequest[];
 let taskResult: string | null;
 let checkFails: boolean;
+/** Not in the docker group, sudo locked: a task would need the account's sudo. */
+let withoutDocker: boolean;
+let taskActive: string;
 let containers: Record<string, unknown>[];
 
 /** The helper as the person: tasks write their record and log as the real one does. */
@@ -79,7 +82,12 @@ async function helper(request: HelperRequest) {
   asked.push(request);
   switch (request.action) {
     case 'docker.access':
-      return { ok: true, userUnits: true, unitDocker: true, loginDocker: true } as const;
+      return {
+        ok: true,
+        userUnits: true,
+        unitDocker: !withoutDocker,
+        loginDocker: !withoutDocker,
+      } as const;
     case 'compose.check':
       return checkFails
         ? ({ ok: false, error: 'compose_invalid', message: 'bad file' } as const)
@@ -100,7 +108,7 @@ async function helper(request: HelperRequest) {
       return { ok: true, ...record } as const;
     }
     case 'app.taskState':
-      return { ok: true, active: 'inactive' } as const;
+      return { ok: true, active: taskActive } as const;
     case 'paths.size':
       return {
         ok: true,
@@ -145,6 +153,7 @@ const compose = `services:
       - ./data:/data
       - \${MEDIA}:/media:ro
       - cache:/cache
+      - /var/run/docker.sock:/var/run/docker.sock
 volumes:
   cache:
 `;
@@ -169,6 +178,8 @@ beforeEach(() => {
   asked = [];
   taskResult = null;
   checkFails = false;
+  withoutDocker = false;
+  taskActive = 'inactive';
   containers = [];
 });
 
@@ -271,6 +282,65 @@ describe('AppManager: reading and saving', () => {
   });
 });
 
+describe('AppManager: a change that doesn’t start changes nothing', () => {
+  const folder = () => join(home, 'apps', 'music');
+  const finished = () =>
+    writeFileSync(
+      join(folder(), '.laris', 'tasks', '20261028T120000-up.log'),
+      'ok\n@@laris-result\nsuccess\n',
+    );
+
+  it('a save Compose refuses: the files as they were, so trying again isn’t “changed on disk”', async () => {
+    await install();
+    finished();
+    const details = await manager().details(SESSION, 'music', folder());
+    checkFails = true;
+    const request = {
+      folder: folder(),
+      compose: 'services: {}\n',
+      env: 'PORT=1\n',
+      hash: details.hash,
+      overwrite: false,
+    };
+    await expect(manager().save(SESSION, 'music', request, ACTOR)).rejects.toMatchObject({
+      response: { code: 'compose_invalid' },
+    });
+    expect(readFileSync(join(folder(), 'compose.yml'), 'utf8')).toBe(compose);
+    expect(readFileSync(join(folder(), '.env'), 'utf8')).toBe('PORT=8080\nMEDIA=/srv/music\n');
+    checkFails = false;
+    await expect(manager().save(SESSION, 'music', request, ACTOR)).resolves.toMatchObject({
+      task: { action: 'up' },
+    });
+  });
+
+  it('sudo locked and needed: asked before anything is written', async () => {
+    await install();
+    finished();
+    const details = await manager().details(SESSION, 'music', folder());
+    withoutDocker = true;
+    const request = {
+      folder: folder(),
+      compose: 'services: {}\n',
+      env: '',
+      hash: details.hash,
+      overwrite: false,
+    };
+    await expect(manager().save(SESSION, 'music', request, ACTOR)).rejects.toMatchObject({
+      response: { code: 'sudo_required' },
+    });
+    expect(readFileSync(join(folder(), 'compose.yml'), 'utf8')).toBe(compose);
+  });
+
+  it('a new image tag while a task runs: refused, the file untouched', async () => {
+    await install();
+    taskActive = 'active';
+    await expect(
+      manager().imageTag(SESSION, 'music', { folder: folder(), service: 'web', tag: '2.0' }, ACTOR),
+    ).rejects.toMatchObject({ response: { code: 'app_task_running' } });
+    expect(readFileSync(join(folder(), 'compose.yml'), 'utf8')).toBe(compose);
+  });
+});
+
 describe('AppManager: removing', () => {
   it('lists the settings, each data folder (one outside marked) and each named volume, nothing ticked', async () => {
     await install();
@@ -349,6 +419,7 @@ describe('composeMounts and interpolate', () => {
         source: ../shared
         target: /shared
       - db:/db
+      - /var/lib/postgresql/data
       - ext:/ext
       - named:/named
 volumes:

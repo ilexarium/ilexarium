@@ -10,6 +10,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
@@ -373,6 +374,7 @@ describe('laris-helper', () => {
       ok: true,
       sizes: { '/srv/x': { bytes: 4096, partial: false } },
     });
+    symlinkSync('/etc', join(dir, 'etc-link'));
     for (const path of [
       '/',
       '/etc',
@@ -381,6 +383,8 @@ describe('laris-helper', () => {
       '/var/lib/docker/x',
       '/opt/laris',
       '/usr/lib',
+      // Through a symlink: where it really is counts (/var/run is /run).
+      join(dir, 'etc-link', 'passwd'),
     ]) {
       expect(
         await ask({ action: 'paths.remove', paths: [path], administrator: false }),
@@ -427,6 +431,15 @@ describe('laris-helper', () => {
       args: ['start'],
       input: '{"runId":"r"}',
     });
+    // A long output keeps its end, from a line start: the result marker is last.
+    writeFileSync(
+      join(dir, 'laris-backup.mts-out.txt'),
+      `${'> borg: x\n'.repeat(8000)}@@result {"started":true}\n`,
+    );
+    const long = (await ask(request)) as { output: string };
+    expect(long.output.endsWith('@@result {"started":true}\n')).toBe(true);
+    expect(long.output.startsWith('> borg: x\n')).toBe(true);
+    expect(long.output.length).toBeLessThanOrEqual(48 * 1024);
     for (const bad of [
       { ...request, command: 'run-scheduled' },
       { ...request, program: 'compose' },

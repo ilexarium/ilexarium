@@ -155,7 +155,7 @@ export class BackupChecks {
     const rows: NewItemRow[] = [];
     const items = await this.prisma.backupItem.findMany();
     const active = items.filter((item) => !item.removedAt);
-    const apps = await this.dockerService.appFolders().catch(() => new Map<string, string[]>());
+    const apps = (await this.appFolders()) ?? new Map<string, string[]>();
     for (const [i, request] of requests.entries()) {
       const field = `items.${i}`;
       const problem =
@@ -239,6 +239,22 @@ export class BackupChecks {
         ),
       );
     }
+  }
+
+  /**
+   * Each app's folders as Docker sees them, only those a backup may hold — not a system path an
+   * app mounts too (`/etc/localtime`, the Docker socket). Null: Docker didn't answer.
+   */
+  async appFolders(): Promise<Map<string, string[]> | null> {
+    const config = this.programConfigService.config;
+    const apps = await this.dockerService.appFolders().catch(() => null);
+    if (!apps) return null;
+    return new Map(
+      [...apps].map(([project, folders]) => [
+        project,
+        folders.filter((folder) => isAllowedFolder(config, folder)),
+      ]),
+    );
   }
 
   /** A restore's own folder: allowed, off the backup disk. */

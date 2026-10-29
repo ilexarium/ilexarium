@@ -58,6 +58,8 @@ const container = (id: string, state: DockerContainer['state'] = 'running'): Doc
   ports: [],
   protected: false,
   composeProject: null,
+  composeWorkingDir: null,
+  template: null,
 });
 
 const stats = (cpuPercent: number): ContainerStats => ({

@@ -20,6 +20,7 @@ import {
   type AppTask,
   FILES_ERROR_CODES,
   folderOwner,
+  isBackupFolder,
   parseEnv,
   setEnvValues,
   TEMPLATE_LABEL_PATTERN,
@@ -55,6 +56,17 @@ import { withImageTag } from './image-tag.js';
 const hashOf = (compose: string, env: string) =>
   createHash('sha256').update(compose).update('\0').update(env).digest('hex');
 
+interface ComposeMounts {
+  folders: string[];
+  volumes: string[];
+}
+
+/** Never offered for deletion: a system path an app mounts (`/etc/localtime`, the Docker socket). */
+const deletable = (mounts: ComposeMounts): ComposeMounts => ({
+  ...mounts,
+  folders: mounts.folders.filter(isBackupFolder),
+});
+
 const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
 
 /** A value with its `${VARIABLES}` filled from `.env` (or their defaults), as Compose does. */
@@ -76,7 +88,7 @@ export function composeMounts(
   env: string,
   folder: string,
   project: string,
-): { folders: string[]; volumes: string[] } {
+): ComposeMounts {
   let file: {
     services?: Record<string, { volumes?: unknown[] }>;
     volumes?: Record<string, { name?: unknown; external?: unknown } | null>;
@@ -95,6 +107,8 @@ export function composeMounts(
       let bind = false;
       if (typeof entry === 'string') {
         const filled = interpolate(entry, values);
+        // `- /var/lib/mysql` alone is an anonymous volume inside the container, not a host folder.
+        if (!filled.includes(':')) continue;
         source = filled.split(':')[0] ?? null;
         bind = /^[/.~]/.test(source ?? '');
       } else if (entry && typeof entry === 'object') {
@@ -214,11 +228,7 @@ export class AppManager {
     if ((await sftp.list(folder)).length > 0) {
       throw appError(APP_ERROR_CODES.folderExists, 'That folder is not empty');
     }
-    // Without the docker group it starts through sudo: asked before anything is written.
-    const access = await this.appTasks.dockerAccess(appSessionId);
-    if ((access.system || access.quick === 'sudo') && !account.sudoUnlocked) {
-      throw linuxError(FILES_ERROR_CODES.sudoRequired, 'sudo is locked');
-    }
+    await this.sudoFirst(appSessionId);
     const details = {
       name: request.name,
       folder,
@@ -299,13 +309,23 @@ export class AppManager {
       throw appError(APP_ERROR_CODES.changedOnDisk, 'The files changed on disk');
     }
     await this.notBusy(appSessionId, sftp, folder);
+    await this.sudoFirst(appSessionId);
     return this.audited('app.change', actor, { name, folder }, async () => {
-      await sftp.writeText(posix.join(folder, files.composeName), request.compose, 0o644);
-      await sftp.writeText(posix.join(folder, ENV_FILE), request.env, 0o600);
-      await this.makeDataFolders(sftp, request.compose, request.env, folder);
-      await this.appTasks.check(appSessionId, folder, name);
-      const task = await this.appTasks.start(appSessionId, folder, name, 'up');
-      return { name, folder, task };
+      const composePath = posix.join(folder, files.composeName);
+      const envPath = posix.join(folder, ENV_FILE);
+      try {
+        await sftp.writeText(composePath, request.compose, 0o644);
+        await sftp.writeText(envPath, request.env, 0o600);
+        await this.makeDataFolders(sftp, request.compose, request.env, folder);
+        await this.appTasks.check(appSessionId, folder, name);
+        const task = await this.appTasks.start(appSessionId, folder, name, 'up');
+        return { name, folder, task };
+      } catch (error) {
+        // Not applied: the files as they were, so the form's next try isn't "changed on disk".
+        await sftp.writeText(composePath, files.compose, 0o644).catch(() => undefined);
+        await sftp.writeText(envPath, files.env, 0o600).catch(() => undefined);
+        throw error;
+      }
     });
   }
 
@@ -316,10 +336,13 @@ export class AppManager {
     folder: string,
     actor: LinuxActor,
     details: Record<string, string> = {},
+    prepare?: () => Promise<void>,
   ): Promise<AppStarted> {
     const sftp = this.sftp(appSessionId);
     await this.notBusy(appSessionId, sftp, folder);
+    await this.sudoFirst(appSessionId);
     return this.audited('app.update', actor, { name, folder, ...details }, async () => {
+      await prepare?.();
       await this.saveDigests(appSessionId, sftp, folder, name);
       await this.appTasks.check(appSessionId, folder, name);
       const task = await this.appTasks.start(appSessionId, folder, name, 'update');
@@ -339,11 +362,25 @@ export class AppManager {
     const changed = withImageTag(files.compose, request.service, request.tag);
     if (changed === null)
       throw appError(APP_ERROR_CODES.serviceNotFound, 'No such service or image line');
-    await sftp.writeText(posix.join(request.folder, files.composeName), changed, 0o644);
-    return this.update(appSessionId, name, request.folder, actor, {
-      service: request.service,
-      tag: request.tag,
-    });
+    const composePath = posix.join(request.folder, files.composeName);
+    // Written only once recorded and nothing else runs; put back if the update doesn't start.
+    let written = false;
+    try {
+      return await this.update(
+        appSessionId,
+        name,
+        request.folder,
+        actor,
+        { service: request.service, tag: request.tag },
+        async () => {
+          await sftp.writeText(composePath, changed, 0o644);
+          written = true;
+        },
+      );
+    } catch (error) {
+      if (written) await sftp.writeText(composePath, files.compose, 0o644).catch(() => undefined);
+      throw error;
+    }
   }
 
   /**
@@ -396,7 +433,7 @@ export class AppManager {
   async removal(appSessionId: string, name: string, folder: string): Promise<AppRemoval> {
     const sftp = this.sftp(appSessionId);
     const files = await this.readFiles(sftp, folder);
-    const mounts = composeMounts(files.compose, files.env, folder, name);
+    const mounts = deletable(composeMounts(files.compose, files.env, folder, name));
     const paths = [folder, ...mounts.folders.filter((path) => path !== folder)];
     const answer = await this.linuxSessions.ask(
       appSessionId,
@@ -459,7 +496,7 @@ export class AppManager {
       throw appError(APP_ERROR_CODES.taskRunning, 'Remove the app first');
     }
     const files = await this.readFiles(sftp, folder);
-    const mounts = composeMounts(files.compose, files.env, folder, name);
+    const mounts = deletable(composeMounts(files.compose, files.env, folder, name));
     // Only what the removal listed: never another path.
     const folders = request.folders.filter(
       (path) => mounts.folders.includes(path) && path !== folder,
@@ -603,6 +640,15 @@ export class AppManager {
     return created;
   }
 
+  /** Without the docker group a task starts through sudo: asked before anything is written. */
+  private async sudoFirst(appSessionId: string): Promise<void> {
+    const access = await this.appTasks.dockerAccess(appSessionId);
+    const account = this.linuxSessions.account(appSessionId);
+    if ((access.system || access.quick === 'sudo') && !account.sudoUnlocked) {
+      throw linuxError(FILES_ERROR_CODES.sudoRequired, 'sudo is locked');
+    }
+  }
+
   private async notBusy(appSessionId: string, sftp: AppSftp, folder: string): Promise<void> {
     const task = await this.appTasks.read(appSessionId, sftp, folder, Number.MAX_SAFE_INTEGER);
     if (task?.state === 'running') throw appError(APP_ERROR_CODES.taskRunning, 'A task is running');
@@ -638,7 +684,6 @@ export class AppManager {
       if (answer.error === 'compose_failed') return;
       throw helperError(answer);
     }
-    const containers = await this.dockerService.listContainers().catch(() => []);
     const images = (
       answer['images'] as {
         container: string;
@@ -648,10 +693,10 @@ export class AppManager {
       }[]
     )
       .map((image) => {
-        const container = containers.find((c) => c.name === image.container);
         const digest =
           image.digests.find((d) => splitImage(d).image === image.repository) ?? image.digests[0];
-        const service = container?.name ?? image.container;
+        // `compose images` names the container, not the service: the undo matches by image.
+        const service = image.container;
         return digest
           ? { service, image: image.repository, tag: image.tag, digest: digest.split('@')[1] ?? '' }
           : null;

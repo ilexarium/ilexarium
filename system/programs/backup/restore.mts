@@ -1,5 +1,3 @@
-// backup/restore.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
-//
 // Restores and `discard`. `restore-start` checks the request, keeps it in a root-only file and has
 // systemd run `restore-run <id>` as its own unit (laris-restore@<id>.service), so a restore goes
 // on if the app stops. Its phases, output and result go to <state>/restores/<id>.jsonl, which the

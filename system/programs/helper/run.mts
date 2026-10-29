@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { userInfo } from 'node:os';
+import { StringDecoder } from 'node:string_decoder';
 import { OUTPUT_MAX, PATH } from './config.mts';
 
 export interface RunResult {
@@ -27,7 +28,10 @@ const ENVIRONMENT = {
   DBUS_SESSION_BUS_ADDRESS: `unix:path=/run/user/${me.uid}/bus`,
 };
 
-/** Runs a program (no shell), `input` on its stdin; output kept up to `outputMax`. */
+/**
+ * Runs a program (no shell), `input` on its stdin; of its output the last `outputMax` characters
+ * are kept, from a line start — the end is what matters (the root programs' result markers).
+ */
 export function run(
   program: string,
   args: string[],
@@ -45,8 +49,16 @@ export function run(
     let stdout = '';
     let stderr = '';
     let timedOut = false;
-    const keep = (text: string, chunk: Buffer) =>
-      text.length < max ? (text + chunk.toString('utf8')).slice(0, max) : text;
+    const keep = (text: string, piece: string) => {
+      const all = text + piece;
+      if (all.length <= max) return all;
+      const cut = all.slice(all.length - max);
+      const lineStart = cut.indexOf('\n');
+      return lineStart >= 0 ? cut.slice(lineStart + 1) : cut;
+    };
+    // A character split between two chunks is decoded whole.
+    const outDecoder = new StringDecoder('utf8');
+    const errDecoder = new StringDecoder('utf8');
     const child = spawn(program, args, {
       env: ENVIRONMENT,
       cwd: options.cwd ?? me.homedir,
@@ -56,8 +68,8 @@ export function run(
       timedOut = true;
       child.kill('SIGKILL');
     }, options.timeoutMs);
-    child.stdout.on('data', (chunk: Buffer) => (stdout = keep(stdout, chunk)));
-    child.stderr.on('data', (chunk: Buffer) => (stderr = keep(stderr, chunk)));
+    child.stdout.on('data', (chunk: Buffer) => (stdout = keep(stdout, outDecoder.write(chunk))));
+    child.stderr.on('data', (chunk: Buffer) => (stderr = keep(stderr, errDecoder.write(chunk))));
     child.on('error', () => {
       done({ code: null, stdout, stderr, missing: true, timedOut: false });
     });

@@ -22,7 +22,8 @@ function checksWith(
     appFolders: vi.fn(
       async () =>
         new Map([
-          ['immich', ['/home/anna/apps/immich']],
+          // System files an app mounts too are never offered for its backup.
+          ['immich', ['/etc/localtime', '/home/anna/apps/immich', '/var/run/docker.sock']],
           ['music', ['/home/anna/apps/music', '/mnt/usb/music']],
         ]),
     ),
@@ -107,6 +108,11 @@ describe('BackupChecks.checkNewItems', () => {
     }));
     const response = await problems(checksWith([]).checkNewItems(requests, DISK));
     expect(response.code).toBe(BACKUP_ERROR_CODES.tooManyItems);
+  });
+
+  it('an app without folders asked: Docker’s, but never a system path it mounts', async () => {
+    const [row] = await checksWith([]).checkNewItems([{ ...APP, project: 'immich' }], DISK);
+    expect(row).toMatchObject({ kind: 'app', folders: ['/home/anna/apps/immich'] });
   });
 
   it('returns the checked rows, each with a new id', async () => {
