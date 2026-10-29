@@ -56,6 +56,8 @@ export interface OpenLinuxSession {
   helper: LinuxHelper | null;
   /** Until when laris-root runs (ms): its idle limit after the last action; null: locked. */
   sudoUntil: number | null;
+  /** Counts the locks: an answer to a request sent before one never unlocks again. */
+  locks: number;
   /** The app user who opened it (an "everywhere" sign-out closes all of theirs). */
   userId: string;
   /** Closes it after 30 minutes without use; refreshed on every use. */

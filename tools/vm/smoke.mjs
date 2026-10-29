@@ -414,6 +414,12 @@ async function processes() {
   );
   await sleep(500);
   check('laris-root ended at “Lock now”', !larisRootRunning());
+  const wrongAfterLock = await api('POST', '/files/session/sudo', { password: 'wrong' });
+  check(
+    'after “Lock now”, a wrong password is refused (sudo’s own cache never unlocks)',
+    wrongAfterLock.status === 403 && wrongAfterLock.json?.code === 'sudo_password_wrong',
+    `${wrongAfterLock.status} ${wrongAfterLock.text}`,
+  );
   const roots2 = await sleeper('root');
   const again = await api('POST', '/processes/signal', { ...roots2.request, signal: 'TERM' });
   check(
@@ -603,6 +609,8 @@ async function install() {
   );
 
   console.log('\nBacking up, through anna’s sudo');
+  // Unlocked again: the installs above may have taken longer than laris-root's 15 idle minutes.
+  await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
   const plan = await api('POST', '/backups/plan', {
     destination: '/mnt/backup',
     schedule: { frequency: 'daily', time: '03:00' },

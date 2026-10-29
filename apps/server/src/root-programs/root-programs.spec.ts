@@ -54,7 +54,7 @@ beforeEach(() => {
 });
 
 describe('RootPrograms (through the person’s sudo)', () => {
-  it('asks their helper for `sudo -n <program> <action>`, the input on stdin, audited before and after', async () => {
+  it('asks their helper (laris-root) for `<program> <action>`, the input on stdin, audited before and after', async () => {
     const outcome = await programs().backupInit('/mnt/usb', ACTOR);
     expect(outcome).toEqual({ ok: true, result: { repositoryId: 'abc', created: true } });
     expect(asked[0].request).toEqual({

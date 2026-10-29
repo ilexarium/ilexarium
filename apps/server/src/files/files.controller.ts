@@ -15,7 +15,13 @@ import {
 } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { FileList, FileSummary, LinuxSession, PublicUser } from '@laris/shared';
+import type {
+  FileList,
+  FileSummary,
+  LinuxSession,
+  LinuxSessionAnswer,
+  PublicUser,
+} from '@laris/shared';
 import contentDisposition from 'content-disposition';
 import type { Request, Response } from 'express';
 import { pipeline } from 'node:stream/promises';
@@ -46,7 +52,7 @@ export class FilesController {
   ) {}
 
   @Get('session')
-  session(@CurrentSession() session: { id: string }): { session: LinuxSession | null } {
+  session(@CurrentSession() session: { id: string }): LinuxSessionAnswer {
     return { session: this.linuxSessions.current(session.id) };
   }
 
@@ -95,7 +101,7 @@ export class FilesController {
     @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
-  ): Promise<{ session: LinuxSession | null }> {
+  ): Promise<LinuxSessionAnswer> {
     return { session: await this.linuxSessions.lockSudo(session.id, { user, ip }) };
   }
 
