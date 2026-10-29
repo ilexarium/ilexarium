@@ -1584,7 +1584,8 @@
       "restoreLink": "Wiederherstellen",
       "versions": "Die vorher laufenden Versionen eintragen, dann speichern:",
       "fill": "Eintragen",
-      "filled": "Die vorherigen Versionen sind eingetragen: Speichere, um sie anzuwenden."
+      "filled": "Die vorherigen Versionen sind eingetragen: Speichere, um sie anzuwenden.",
+      "filledShared": "Die vorherigen Versionen sind eingetragen: Speichern, um sie anzuwenden. {{keys}} gilt für mehrere Images, daher ist nur die Version gesetzt, nicht der genaue Build jedes Images."
     },
     "template": {
       "newer": "Die Vorlage {{name}} hat eine neuere Version ({{version}}).",

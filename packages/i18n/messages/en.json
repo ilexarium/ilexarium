@@ -1584,7 +1584,8 @@
       "restoreLink": "Restore",
       "versions": "Set the versions it ran before, then save:",
       "fill": "Fill them in",
-      "filled": "The previous versions are filled in: save to apply them."
+      "filled": "The previous versions are filled in: save to apply them.",
+      "filledShared": "The previous versions are filled in: save to apply them. {{keys}} sets several images, so only its version is set, not each image's exact build."
     },
     "template": {
       "newer": "The {{name}} template has a newer version ({{version}}).",

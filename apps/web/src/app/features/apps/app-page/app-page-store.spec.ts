@@ -163,6 +163,78 @@ describe('AppPageStore', () => {
     expect(store.removed()).toBe(false);
   });
 
+  it('“Undo this update”: each version back to the exact build it ran', async () => {
+    const { store, appsApi } = await setup();
+    appsApi.details.mockReturnValueOnce(
+      of(
+        testDetails('music', {
+          beforeUpdate: {
+            at: '2026-10-29T15:00:00.000Z',
+            images: [
+              {
+                service: 'music-web-1',
+                image: 'docker.io/library/nginx',
+                tag: '1.27',
+                digest: 'sha256:aaa',
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    store.reload();
+    await vi.waitFor(() => expect(store.details()?.beforeUpdate).not.toBeNull());
+    store.fillPrevious();
+    expect(store.env()).toBe('VERSION=1.27@sha256:aaa\n');
+  });
+
+  it('a version two images share, which ran different builds: only the version, said so', async () => {
+    const { store, appsApi } = await setup();
+    const info = vi.spyOn(toast, 'info');
+    appsApi.details.mockReturnValueOnce(
+      of(
+        testDetails('music', {
+          images: [
+            {
+              service: 'server',
+              image: 'ghcr.io/immich-app/immich-server',
+              tag: null,
+              variable: 'VERSION',
+            },
+            {
+              service: 'ml',
+              image: 'ghcr.io/immich-app/immich-machine-learning',
+              tag: null,
+              variable: 'VERSION',
+            },
+          ],
+          beforeUpdate: {
+            at: '2026-10-29T15:00:00.000Z',
+            images: [
+              {
+                service: 's-1',
+                image: 'ghcr.io/immich-app/immich-server',
+                tag: 'v3',
+                digest: 'sha256:aaa',
+              },
+              {
+                service: 'm-1',
+                image: 'ghcr.io/immich-app/immich-machine-learning',
+                tag: 'v3',
+                digest: 'sha256:bbb',
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    store.reload();
+    await vi.waitFor(() => expect(store.details()?.beforeUpdate).not.toBeNull());
+    store.fillPrevious();
+    expect(store.env()).toBe('VERSION=v3\n');
+    expect(info).toHaveBeenCalledWith(expect.stringContaining('VERSION sets several images'));
+  });
+
   it('adds the app to the backups as the person', async () => {
     const { store, backupsApi } = await setup();
     await store.addToBackups();
