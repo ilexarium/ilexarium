@@ -346,7 +346,10 @@ export async function backupItem(
   }
 }
 
-/** Starts a stopped app again — retried; a failure is the most serious result there is. */
+/**
+ * Starts a stopped app again — retried; a failure is the most serious result there is. With its
+ * Compose files (a restore): `up -d`, so the restored files and versions apply at once.
+ */
 export async function startAgain(
   config: Config,
   paths: Paths,
@@ -354,10 +357,15 @@ export async function startAgain(
   phase: (phase: string) => void,
   keep: (line: string) => void,
   result: ItemResult,
+  files: string[] = [],
 ): Promise<void> {
   phase('starting');
+  const args =
+    files.length > 0
+      ? ['compose', '-p', project, ...files.flatMap((file) => ['-f', file]), 'up', '-d']
+      : ['compose', '-p', project, 'start'];
   for (let attempt = 1; attempt <= RESTART_ATTEMPTS; attempt++) {
-    const start = await docker(config, ['compose', '-p', project, 'start'], { onLine: keep });
+    const start = await docker(config, args, { onLine: keep });
     if (start.code === 0) return;
     if (attempt < RESTART_ATTEMPTS) await sleep(paths.retryDelayMs);
   }

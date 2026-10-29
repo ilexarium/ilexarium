@@ -358,8 +358,8 @@ export type BackupRunRequest = z.infer<typeof backupRunRequestSchema>;
 
 /**
  * `POST /api/backups/restores`: `target` null puts it back where it was (each current folder set
- * aside as `<folder>.before-restore-<date>` first; an app using it stopped and started around
- * it); a path restores everything below that folder instead (missing or empty), with its full
+ * aside as `<folder>.before-restore-<date>` first; an app using it stopped, then brought up with
+ * the restored files); a path restores everything below that folder instead (missing or empty), with its full
  * paths. Runs as its own unit, through the person's sudo.
  */
 /** Archive names as the wrapper makes them: `<item uuid>-<YYYY-MM-DDTHH:MM:SS>`. */
