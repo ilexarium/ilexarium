@@ -32,7 +32,7 @@ export async function signalProcess(request: Request): Promise<Answer> {
 }
 
 /** What laris-root does for this account (docs/plans/laris_root.md): forwarded to it. */
-function privileged(request: Request): boolean {
+export function privileged(request: Request): boolean {
   switch (request['action']) {
     case 'process.signal':
     case 'paths.remove':

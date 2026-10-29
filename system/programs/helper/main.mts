@@ -1,5 +1,6 @@
 import { handle, type Answer, type Request } from './actions.mts';
 import { LINE_MAX } from './config.mts';
+import { lock } from './sudo.mts';
 
 function answer(id: number | null, result: Answer): void {
   process.stdout.write(`${JSON.stringify({ id, ...result })}\n`);
@@ -30,13 +31,15 @@ async function request(
 
 /**
  * Answers JSON requests on stdin, one per line, until stdin ends — then exits once the requests
- * still running are answered. `idleMs`: it also exits that long after its last request.
+ * still running are answered (`onEnd` runs at once). `idleMs`: it also exits that long after its
+ * last request.
  */
 export function serve(
   ready: string,
   handler: (request: Request) => Promise<Answer> | Answer,
-  idleMs?: number,
+  options: { idleMs?: number; onEnd?: () => void } = {},
 ): void {
+  const { idleMs, onEnd } = options;
   let running = 0;
   let ended = false;
   let idle: NodeJS.Timeout | undefined;
@@ -80,6 +83,7 @@ export function serve(
   });
   process.stdin.on('end', () => {
     ended = true;
+    onEnd?.();
     settle();
   });
   // Nobody reads the answers any more (the helper or the session ended): what's running finishes.
@@ -89,5 +93,6 @@ export function serve(
 }
 
 export function start(): void {
-  serve('laris-helper', handle);
+  // The session ended: laris-root too (after what it's doing), never left running without it.
+  serve('laris-helper', handle, { onEnd: () => void lock() });
 }

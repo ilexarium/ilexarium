@@ -1,7 +1,9 @@
 // A fake `sudo` for laris-helper.spec.ts (copied into the test's bin folder as `sudo`, with a
-// shebang). Like the real ones (sudo and sudo-rs, checked), `-S -p '' -- <program>` reads one
+// shebang). Like the real ones (sudo and sudo-rs, checked), `[-k] -S -p '' -- <program>` reads one
 // line per try — "right" is the password, three tries — then runs the program, which reads the
-// rest of stdin. Records each call (args, the lines it read) in sudo-calls.jsonl.
+// rest of stdin. Like them without a terminal, a success is cached (the file `cached`): without
+// -k, the next call asks nothing. `-k` alone empties the cache. Records each call (args, the lines
+// it read) in sudo-calls.jsonl.
 // not-allowed.txt: the account isn't in sudoers. rs.txt: sudo-rs's messages.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -41,10 +43,19 @@ function readLine() {
   }
 }
 
-if (!(args[0] === '-S' && args[1] === '-p' && args[2] === '' && args[3] === '--' && args[4])) {
+const cached = path.join(dir, 'cached');
+if (args.length === 1 && args[0] === '-k') {
+  fs.rmSync(cached, { force: true });
+  record();
+  process.exit(0);
+}
+const ignoreCache = args[0] === '-k';
+const rest = ignoreCache ? args.slice(1) : args;
+if (!(rest[0] === '-S' && rest[1] === '-p' && rest[2] === '' && rest[3] === '--' && rest[4])) {
   fail(`fake sudo: unexpected ${args.join(' ')}`);
 }
-for (let attempt = 1; ; attempt++) {
+const asks = ignoreCache || !fs.existsSync(cached);
+for (let attempt = 1; asks; attempt++) {
   const line = readLine();
   if (line === null)
     fail(rs ? 'sudo-rs: no password was provided' : 'sudo: no password was provided');
@@ -64,7 +75,8 @@ if (has('not-allowed.txt')) {
     rs ? "sudo-rs: I'm sorry anna. I'm afraid I can't do that" : 'anna is not in the sudoers file.',
   );
 }
+fs.writeFileSync(cached, '');
 record();
 // The program by Node itself, so the test's environment (its fake programs) reaches it.
-const result = spawnSync(process.execPath, [args[4], ...args.slice(5)], { stdio: 'inherit' });
+const result = spawnSync(process.execPath, [rest[4], ...rest.slice(5)], { stdio: 'inherit' });
 process.exit(result.status ?? 1);

@@ -120,8 +120,8 @@ describe('laris-helper', () => {
     expect(await ask({ action: 'sudo.unlock', password: 'right' })).toEqual({ ok: true });
     // Never a second try: after "try again", sudo's stdin closed.
     expect(calls('sudo')).toEqual([
-      { args: ['-S', '-p', '', '--', join(dir, 'bin', 'laris-root.mts')], input: 'wrong\n' },
-      { args: ['-S', '-p', '', '--', join(dir, 'bin', 'laris-root.mts')], input: 'right\n' },
+      { args: ['-k', '-S', '-p', '', '--', join(dir, 'bin', 'laris-root.mts')], input: 'wrong\n' },
+      { args: ['-k', '-S', '-p', '', '--', join(dir, 'bin', 'laris-root.mts')], input: 'right\n' },
     ]);
     // Unlocked again: the same laris-root.
     expect(await ask({ action: 'sudo.unlock', password: 'right' })).toEqual({ ok: true });
@@ -140,13 +140,41 @@ describe('laris-helper', () => {
     expect(calls('kill').map((call) => call.args)).toEqual([['-s', 'KILL', '--', '1234']]);
   });
 
-  it('locks again: laris-root ends', async () => {
+  it('locks again: laris-root ends, and sudo’s cache is emptied', async () => {
     await ask({ action: 'sudo.unlock', password: 'right' });
     expect(await ask({ action: 'sudo.lock' })).toEqual({ ok: true });
+    expect(calls('sudo').at(-1)?.args).toEqual(['-k']);
     expect(
       await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
     ).toEqual({ ok: false, error: 'sudo_required' });
     expect(calls('kill')).toEqual([]);
+  });
+
+  it('after a lock, a wrong password never unlocks — though sudo’s cache would let it', async () => {
+    await ask({ action: 'sudo.unlock', password: 'right' });
+    await ask({ action: 'sudo.lock' });
+    // As if sudo -k had no effect (another sudo of this account, or its timeout set long).
+    writeFileSync(join(dir, 'cached'), '');
+    expect(await ask({ action: 'sudo.unlock', password: 'wrong' })).toEqual({
+      ok: false,
+      error: 'wrong_password',
+    });
+    expect(
+      await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
+    ).toEqual({ ok: false, error: 'sudo_required' });
+  });
+
+  it('a lock while sudo is still asked: that unlock never takes effect', async () => {
+    helper.stdin.write(
+      `${JSON.stringify({ id: 998, action: 'sudo.unlock', password: 'right' })}\n`,
+    );
+    helper.stdin.write(`${JSON.stringify({ id: 999, action: 'sudo.lock' })}\n`);
+    const answers = [await nextLine(), await nextLine()];
+    expect(answers).toContainEqual({ id: 999, ok: true });
+    expect(answers).toContainEqual({ id: 998, ok: false, error: 'sudo_required' });
+    expect(
+      await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
+    ).toEqual({ ok: false, error: 'sudo_required' });
   });
 
   it('says when laris-root ended on its own (idle), and is locked from then on', async () => {

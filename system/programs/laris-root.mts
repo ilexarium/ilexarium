@@ -27,6 +27,9 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MODULES = ['root', 'helper'];
 
+// Run as root even in development (dev/sshd mounts the repository), so the rule is the entry's
+// owner, not who runs it: whoever owns this file already decides what sudo runs, and trusting
+// their modules adds nothing. Installed, that is root, and the folders above are checked too.
 function untrustedModule(): string | null {
   const entryOwner = lstatSync(fileURLToPath(import.meta.url)).uid;
   const unsafe = (path: string): boolean => {
