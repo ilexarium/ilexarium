@@ -14,8 +14,8 @@ export const HOST_KEY_FILE = /^ssh_host_\w+_key\.pub$/;
 export const HELPER_READY = 'laris-helper';
 /** The sign-in waits this long for it (Node starting on a slow machine). */
 export const HELPER_START_TIMEOUT_MS = 10_000;
-/** Its answers are short; a longer line means something else is talking. */
-export const HELPER_ANSWER_MAX = 64 * 1024;
+/** Its longest answer is a root program's output (the helper's ROOT_ANSWER_MAX, the same). */
+export const HELPER_ANSWER_MAX = 256 * 1024;
 /** What a program said, passed on with a refusal (Compose's own words). */
 export const HELPER_MESSAGE_MAX = 4000;
 /** A request it answers at once (who it runs as). */

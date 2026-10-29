@@ -289,7 +289,7 @@ export class RootPrograms {
     return fail(kind.failed);
   }
 
-  /** Through the person's helper: `sudo -n <program> <command>`, the input on its stdin. */
+  /** Through the person's helper and their unlocked laris-root: `<program> <command>`, the input on its stdin. */
   private async throughSudo(
     program: 'backup' | 'disk',
     command: string,

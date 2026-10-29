@@ -4,6 +4,7 @@ import type {
   FileList,
   FileSummary,
   LinuxSession,
+  LinuxSessionAnswer,
   LinuxSignInRequest,
   LinuxSudoRequest,
 } from '@laris/shared';
@@ -14,8 +15,8 @@ import { filter, map, type Observable } from 'rxjs';
 export class FilesApi {
   private readonly http = inject(HttpClient);
 
-  session(): Observable<{ session: LinuxSession | null }> {
-    return this.http.get<{ session: LinuxSession | null }>('/api/files/session');
+  session(): Observable<LinuxSessionAnswer> {
+    return this.http.get<LinuxSessionAnswer>('/api/files/session');
   }
 
   signIn(request: LinuxSignInRequest): Observable<LinuxSession> {
@@ -32,8 +33,8 @@ export class FilesApi {
   }
 
   /** "Lock now": sudo locked; the Linux session stays. */
-  lockSudo(): Observable<{ session: LinuxSession | null }> {
-    return this.http.delete<{ session: LinuxSession | null }>('/api/files/session/sudo');
+  lockSudo(): Observable<LinuxSessionAnswer> {
+    return this.http.delete<LinuxSessionAnswer>('/api/files/session/sudo');
   }
 
   list(path: string): Observable<FileList> {

@@ -171,9 +171,11 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       throw linuxError(FILES_ERROR_CODES.helperUnavailable, 'This Linux session has no helper');
     }
     session.idle.refresh();
+    const locks = session.locks;
     const answer = await session.helper.request(request, options.timeoutMs ?? HELPER_TIMEOUT_MS);
     if (options.sudo) {
-      if (answer.ok) session.sudoUntil = Date.now() + SUDO_IDLE_MS;
+      // Locked meanwhile: laris-root ends after this request, whatever it answered.
+      if (answer.ok && session.locks === locks) session.sudoUntil = Date.now() + SUDO_IDLE_MS;
       else if (answer.error === 'sudo_required') session.sudoUntil = null;
     }
     return answer;
@@ -227,6 +229,8 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   async lockSudo(appSessionId: string, actor: LinuxActor): Promise<LinuxSession | null> {
     const session = this.sessions.get(appSessionId);
     if (!session) return null;
+    session.locks += 1;
+    session.sudoUntil = null;
     // Without a helper there is no laris-root either.
     if (session.helper?.running) {
       const answer = await session.helper.request({ action: 'sudo.lock' }, HELPER_TIMEOUT_MS);
@@ -235,7 +239,6 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         this.close(appSessionId, 'locked');
       }
     }
-    session.sudoUntil = null;
     await this.auditService.tryRecord({
       action: 'linux.sudo_lock',
       outcome: 'success',
@@ -309,6 +312,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         gid,
         helper,
         sudoUntil: null,
+        locks: 0,
         userId: actor.user.id,
         idle,
         closing: new Set(),

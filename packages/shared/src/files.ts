@@ -105,6 +105,11 @@ export const linuxSessionSchema = z.object({
 });
 export type LinuxSession = z.infer<typeof linuxSessionSchema>;
 
+/** The Linux session of this app session, if any (`GET`, and after "Lock now"). */
+export interface LinuxSessionAnswer {
+  session: LinuxSession | null;
+}
+
 /** `POST /api/files/session/sudo`: unlock the account's sudo with its password. */
 export const linuxSudoRequestSchema = z.strictObject({
   password: z

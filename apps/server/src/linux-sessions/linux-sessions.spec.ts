@@ -360,6 +360,23 @@ describe('LinuxSessions', () => {
     );
   });
 
+  it('a sudo request answered after “Lock now” doesn’t show it unlocked again', async () => {
+    await signIn();
+    await sessions.unlockSudo('s1', 'pw', ACTOR);
+    helperMode = 'silent';
+    const signal = sessions.ask(
+      's1',
+      { action: 'process.signal', pid: 7, signal: 'TERM', administrator: true },
+      { sudo: true },
+    );
+    helperMode = 'answers';
+    await sessions.lockSudo('s1', ACTOR);
+    // The request still running answers ok after the lock.
+    helperChannel!.emit('data', Buffer.from(`${JSON.stringify({ id: 3, ok: true })}\n`));
+    expect(await signal).toEqual({ ok: true });
+    expect(sessions.current('s1')?.sudoUntil).toBeNull();
+  });
+
   it('“Lock now” without the helper’s answer ends the Linux session (and laris-root with it)', async () => {
     await signIn();
     await sessions.unlockSudo('s1', 'pw', ACTOR);
