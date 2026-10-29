@@ -1,7 +1,7 @@
 // The actions laris-root does: the helper's privileged branches, run here as root. Each is the
 // helper's own code for it (helper/), asked only in its privileged form — anything else is refused.
 
-import { signalProcess } from '../helper/actions.mts';
+import { privileged, signalProcess } from '../helper/actions.mts';
 import { BAD_REQUEST, ok, type Answer, type Request } from '../helper/answers.mts';
 import { checkCompose, removeVolumes, startSystemTask } from '../helper/apps.mts';
 import { FAKE_BIN, ROOT_IDLE_MS } from '../helper/config.mts';
@@ -10,20 +10,22 @@ import { removePaths } from '../helper/paths.mts';
 import { runRoot } from '../helper/root.mts';
 
 function handle(request: Request): Promise<Answer> | Answer {
+  // Unlocking while unlocked: the idle time starts again.
+  if (request['action'] === 'touch') return ok();
+  // The same test the helper forwards by: only the privileged form of an action. A system task
+  // comes as its unit alone (the helper makes its files first).
+  if (!privileged(request) && request['action'] !== 'app.task') return BAD_REQUEST;
   switch (request['action']) {
-    // Unlocking while unlocked: the idle time starts again.
-    case 'touch':
-      return ok();
     case 'root.run':
       return runRoot(request);
     case 'process.signal':
-      return request['administrator'] === true ? signalProcess(request) : BAD_REQUEST;
+      return signalProcess(request);
     case 'paths.remove':
-      return request['administrator'] === true ? removePaths(request) : BAD_REQUEST;
+      return removePaths(request);
     case 'compose.check':
-      return request['docker'] === 'sudo' ? checkCompose(request) : BAD_REQUEST;
+      return checkCompose(request);
     case 'volumes.remove':
-      return request['docker'] === 'sudo' ? removeVolumes(request) : BAD_REQUEST;
+      return removeVolumes(request);
     case 'app.task':
       return startSystemTask(request);
     default:
@@ -37,5 +39,5 @@ export function start(): void {
     process.stdout.write(`${JSON.stringify({ 'laris-root': 1, error: 'not_root' })}\n`);
     process.exit(6);
   }
-  serve('laris-root', handle, ROOT_IDLE_MS);
+  serve('laris-root', handle, { idleMs: ROOT_IDLE_MS });
 }
