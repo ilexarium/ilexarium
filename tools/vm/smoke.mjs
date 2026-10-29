@@ -519,6 +519,8 @@ async function install() {
   await files();
 
   console.log('\nApps, as anna (not in the docker group: system units through her sudo)');
+  // Taken out of the sudo group above (the "not allowed" check): an administrator again.
+  sh('usermod', ['-aG', 'sudo', 'anna']);
   await linuxSignIn('anna');
   const unlock = await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
   check('anna’s sudo unlocked', unlock.status === 200, `${unlock.status} ${unlock.text}`);
@@ -698,10 +700,13 @@ await (process.argv[2] === 'update' ? update() : install());
 
 /** Signs the app session in to Linux as this person. */
 async function linuxSignIn(user) {
-  const res = await api('POST', '/files/session', {
-    username: user,
-    password: `${user}-smoke-password`,
-  });
+  const body = { username: user, password: `${user}-smoke-password` };
+  let res = await api('POST', '/files/session', body);
+  // Five Linux sign-ins a minute (the checks before use some): wait it out once.
+  if (res.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 61_000));
+    res = await api('POST', '/files/session', body);
+  }
   check(`signed in to Linux as ${user}`, res.status === 200, `${res.status} ${res.text}`);
 }
 

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Subscription } from 'rxjs';
-import type { WrapperConfigService } from '../executor/wrapper-config.js';
+import type { ProgramConfigService } from '../root-programs/program-config.js';
 import { BackupFiles } from './backup-files.js';
 import { BACKUP_FILES_POLL_MS } from './backups.constants.js';
 
@@ -41,7 +41,7 @@ afterEach(() => {
 });
 
 function filesIn(root: string) {
-  const config = { config: { backup: { dev: { dir: root } } } } as WrapperConfigService;
+  const config = { config: { backup: { dev: { dir: root } } } } as unknown as ProgramConfigService;
   return new BackupFiles(config);
 }
 

@@ -58,3 +58,10 @@ export const NOISE_TAG =
 
 /** Changes as the person: a few a minute (each may start a unit). */
 export const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
+
+/** Terminal colours and carriage returns: a task's log is shown as plain lines. */
+// oxlint-disable-next-line no-control-regex
+export const LOG_CONTROL = /\x1b\[[0-9;?]*[A-Za-z]|\r/g;
+
+/** How an account runs Docker is asked again after this long. */
+export const DOCKER_ACCESS_CACHE_MS = 60_000;

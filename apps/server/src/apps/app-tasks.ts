@@ -6,6 +6,8 @@ import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import { AppSftp } from './app-sftp.js';
 import { helperError } from './app-errors.js';
 import {
+  DOCKER_ACCESS_CACHE_MS,
+  LOG_CONTROL,
   QUICK_MS,
   TASK_FILE,
   TASK_READ_BYTES,
@@ -13,10 +15,6 @@ import {
   TASKS_DIR,
 } from './apps.constants.js';
 import type { DockerAccess, TaskRecord } from './apps.model.js';
-
-/** Terminal colours and carriage returns: the log is shown as plain lines. */
-// oxlint-disable-next-line no-control-regex
-const CONTROL = /\x1b\[[0-9;?]*[A-Za-z]|\r/g;
 
 /** The end of a task's log: the marker systemd adds, then SERVICE_RESULT, EXIT_CODE, EXIT_STATUS. */
 export function taskResult(tail: string): { succeeded: boolean } | null {
@@ -28,7 +26,7 @@ export function taskResult(tail: string): { succeeded: boolean } | null {
 
 /** Output lines, the result lines left out. */
 export function taskLines(text: string): string[] {
-  const lines = text.split('\n').map((line) => line.replace(CONTROL, ''));
+  const lines = text.split('\n').map((line) => line.replace(LOG_CONTROL, ''));
   const at = lines.indexOf(TASK_RESULT_MARKER);
   return at >= 0 ? lines.slice(0, at) : lines;
 }
@@ -47,10 +45,12 @@ export class AppTasks {
     private readonly changesUnderway: ChangesUnderway,
   ) {}
 
-  /** How this account runs Docker (asked once a minute at most). */
+  /** How this account runs Docker (asked once a minute at most, per account signed in). */
   async dockerAccess(appSessionId: string): Promise<DockerAccess> {
-    const cached = this.access.get(appSessionId);
-    if (cached && Date.now() - cached.at < 60_000) return cached.access;
+    // Another account signed in meanwhile has its own groups.
+    const key = `${appSessionId}\n${this.linuxSessions.account(appSessionId).username}`;
+    const cached = this.access.get(key);
+    if (cached && Date.now() - cached.at < DOCKER_ACCESS_CACHE_MS) return cached.access;
     const answer = await this.linuxSessions.ask(
       appSessionId,
       { action: 'docker.access' },
@@ -65,9 +65,9 @@ export class AppTasks {
       quick: loginDocker ? 'direct' : 'sudo',
       restartNeeded: userUnits && loginDocker && !unitDocker,
     };
-    this.access.set(appSessionId, { at: Date.now(), access });
-    for (const [key, entry] of this.access) {
-      if (Date.now() - entry.at > 60_000) this.access.delete(key);
+    this.access.set(key, { at: Date.now(), access });
+    for (const [old, entry] of this.access) {
+      if (Date.now() - entry.at > DOCKER_ACCESS_CACHE_MS) this.access.delete(old);
     }
     return access;
   }
@@ -127,12 +127,6 @@ export class AppTasks {
     const size = (await sftp.stat(log))?.size ?? 0;
     const tail = (await sftp.read(log, 512, Math.max(0, size - 512)))?.toString('utf8') ?? '';
     const result = taskResult(tail);
-    const start = Math.min(from, size);
-    const chunk = (await sftp.read(log, TASK_READ_BYTES, start)) ?? Buffer.alloc(0);
-    // Whole lines only, unless it's done (the last line then has no break of its own).
-    const lastBreak = chunk.lastIndexOf(0x0a);
-    const whole = result || start + chunk.length >= size ? chunk : chunk.subarray(0, lastBreak + 1);
-    const text = whole.toString('utf8');
     let state: AppTask['state'];
     if (result) state = result.succeeded ? 'succeeded' : 'failed';
     else {
@@ -144,6 +138,20 @@ export class AppTasks {
       const active = answer.ok ? String(answer['active']) : 'unknown';
       state = ['active', 'activating', 'reloading'].includes(active) ? 'running' : 'interrupted';
     }
+    const running = state === 'running';
+    let start = Math.min(from, size);
+    // Finished with more left than one read: its end (where a failure says why), from a line start.
+    const skipped = !running && size - start > TASK_READ_BYTES;
+    if (skipped) start = size - TASK_READ_BYTES;
+    let chunk = (await sftp.read(log, TASK_READ_BYTES, start)) ?? Buffer.alloc(0);
+    if (skipped) {
+      const firstBreak = chunk.indexOf(0x0a);
+      start += firstBreak + 1;
+      chunk = chunk.subarray(firstBreak + 1);
+    }
+    // While it runs, whole lines only (the rest comes with the next read).
+    const whole = running ? chunk.subarray(0, chunk.lastIndexOf(0x0a) + 1) : chunk;
+    const text = whole.toString('utf8');
     // Past the result: nothing more to show.
     const markerAt = result
       ? size -
@@ -158,7 +166,7 @@ export class AppTasks {
       startedAt: record.startedAt,
       system: record.system,
       output: lines,
-      next: result ? size : start + whole.length,
+      next: running ? start + whole.length : size,
     };
   }
 }

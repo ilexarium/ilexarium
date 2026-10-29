@@ -18,7 +18,6 @@ import {
   type BackupSetupRequest,
 } from '@laris/shared';
 import { Observable, Subject } from 'rxjs';
-import { DockerService } from '../docker/docker.service.js';
 import type { BackupItem as BackupItemRow, Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { ProgramBackupItem, RootActor } from '../root-programs/root-programs.model.js';
@@ -44,7 +43,6 @@ export class BackupPlanManager {
     private readonly prisma: PrismaService,
     private readonly rootPrograms: RootPrograms,
     private readonly backupChecks: BackupChecks,
-    private readonly dockerService: DockerService,
   ) {}
 
   /** The plan or its items changed. */
@@ -301,7 +299,7 @@ export class BackupPlanManager {
 
   /** Each app's folders as Docker sees them now (null: Docker didn't answer). */
   private appFolders(): Promise<Map<string, string[]> | null> {
-    return this.dockerService.appFolders().catch(() => null);
+    return this.backupChecks.appFolders();
   }
 
   private async item(id: string): Promise<BackupItem> {

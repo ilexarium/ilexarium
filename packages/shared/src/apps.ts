@@ -21,8 +21,6 @@ export const TEMPLATE_LABEL_PATTERN = /^([a-z0-9][a-z0-9-]{0,39})@([0-9]{1,6})$/
 export const APP_LIMITS = {
   /** compose.yml and .env, each. */
   fileMaxBytes: 256 * 1024,
-  /** A task's output lines in one answer. */
-  taskLines: 2000,
   /** A variable's value: one line. */
   valueMax: 4096,
   /** How often the web asks for a running task's output. */

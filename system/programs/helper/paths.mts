@@ -1,6 +1,8 @@
 // Folders: their sizes (the removal dialog) and deleting them (a removal's ticked folders) — as
 // this account, or through its sudo for what containers wrote as another user.
 
+import { realpathSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import {
   BAD_REQUEST,
   inside,
@@ -57,12 +59,26 @@ export async function pathSizes(request: Request): Promise<Answer> {
   return ok({ sizes });
 }
 
+/**
+ * Where a path really is: its folder with symlinks resolved (`rm` follows them up to the last
+ * part) — `/var/run/docker.sock` is `/run/docker.sock`. Unchanged when its folder is missing.
+ */
+function realLocation(path: string): string {
+  try {
+    return join(realpathSync(dirname(path)), basename(path));
+  } catch {
+    return path;
+  }
+}
+
 /** Deletes folders (`rm -r --one-file-system`), through sudo when asked. */
 export async function removePaths(request: Request): Promise<Answer> {
   const list = paths(request);
   const administrator = request['administrator'];
   if (!list || typeof administrator !== 'boolean') return BAD_REQUEST;
-  if (list.some(protectedPath)) return refused('path_protected');
+  if (list.some((path) => protectedPath(path) || protectedPath(realLocation(path)))) {
+    return refused('path_protected');
+  }
   const result = await runAs(
     administrator,
     PROGRAMS.rm,
