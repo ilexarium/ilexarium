@@ -16,7 +16,7 @@ export interface RunResult {
 const me = userInfo();
 
 /** Built from scratch: nothing of the SSH session's environment reaches a program. */
-const ENVIRONMENT = {
+export const ENVIRONMENT = {
   PATH,
   HOME: me.homedir,
   USER: me.username,

@@ -1,5 +1,5 @@
 // Apps (docs/plans/acting_as_you.md, "Apps"): Compose folders run as this account. Long work runs
-// as a systemd unit — a user unit with the docker group, a system unit through sudo without it —
+// as a systemd unit — a user unit with the docker group, a system unit by laris-root without it —
 // so it goes on when the session or Laris ends. Its output goes to a file in the app's folder,
 // and systemd adds its result at the end (`@@laris-result`, then SERVICE_RESULT, EXIT_CODE,
 // EXIT_STATUS): what happened is in the file, whatever happens to the unit afterwards.
@@ -12,9 +12,7 @@ import {
   ok,
   plainPath,
   refused,
-  runAs,
   said,
-  sudoRefusal,
   type Answer,
   type Request,
 } from './answers.mts';
@@ -29,6 +27,7 @@ import {
   type TaskAction,
 } from './config.mts';
 import { run } from './run.mts';
+import { forward } from './sudo.mts';
 
 /** The groups this account has now (its SSH login) — by number, from /etc/group (no program). */
 function loginGroups(): Set<string> {
@@ -83,32 +82,16 @@ function folder(request: Request): string | null {
 
 const stamp = (date = new Date()) => date.toISOString().slice(0, 19).replace(/[-:]/g, '');
 
-/**
- * Starts a task (`up`, `update`, `down`) in the app's folder: `docker compose -p <project> …` as
- * a unit, its output appended to `.laris/tasks/<time>-<action>.log`, recorded in
- * `.laris/task.json`. `system`: a system unit through sudo -n.
- */
-export async function startTask(request: Request): Promise<Answer> {
-  const name = project(request);
-  const dir = folder(request);
-  const action = request['task'];
-  const system = request['system'];
-  if (!name || !dir || typeof system !== 'boolean') return BAD_REQUEST;
-  if (typeof action !== 'string' || !Object.hasOwn(TASK_ACTIONS, action)) return BAD_REQUEST;
-  const time = stamp();
-  const unit = `laris-app-${name}-${action}-${time}`;
-  if (!UNIT_PATTERN.test(unit)) return BAD_REQUEST;
-  const tasks = join(dir, '.laris', 'tasks');
-  const logName = `${time}-${action}.log`;
-  const log = join(tasks, logName);
-  try {
-    mkdirSync(tasks, { recursive: true, mode: 0o700 });
-    // Ours, so the person reads it; root's unit appends to it.
-    writeFileSync(log, '', { flag: 'wx', mode: 0o600 });
-  } catch {
-    return refused('folder_not_writable');
-  }
-  const args = [
+/** `systemd-run` for a task: a user unit, or a system unit (`system`, run by laris-root). */
+function unitArgs(
+  system: boolean,
+  unit: string,
+  dir: string,
+  log: string,
+  name: string,
+  action: TaskAction,
+) {
+  return [
     ...(system ? [] : ['--user']),
     `--unit=${unit}`,
     '--collect',
@@ -123,22 +106,82 @@ export async function startTask(request: Request): Promise<Answer> {
     'compose',
     '--project-name',
     name,
-    ...TASK_ACTIONS[action as TaskAction],
+    ...TASK_ACTIONS[action],
   ];
-  const result = await runAs(system, PROGRAMS.systemdRun, args, { timeoutMs: QUICK_TIMEOUT_MS });
-  if (result.code !== 0) {
+}
+
+function task(request: Request): TaskAction | null {
+  const action = request['task'];
+  return typeof action === 'string' && Object.hasOwn(TASK_ACTIONS, action)
+    ? (action as TaskAction)
+    : null;
+}
+
+/**
+ * Starts a task (`up`, `update`, `down`) in the app's folder: `docker compose -p <project> …` as
+ * a unit, its output appended to `.laris/tasks/<time>-<action>.log`, recorded in
+ * `.laris/task.json`. `system`: a system unit, started by laris-root (the files stay this
+ * account's).
+ */
+export async function startTask(request: Request): Promise<Answer> {
+  const name = project(request);
+  const dir = folder(request);
+  const action = task(request);
+  const system = request['system'];
+  if (!name || !dir || !action || typeof system !== 'boolean') return BAD_REQUEST;
+  const time = stamp();
+  const unit = `laris-app-${name}-${action}-${time}`;
+  if (!UNIT_PATTERN.test(unit)) return BAD_REQUEST;
+  const tasks = join(dir, '.laris', 'tasks');
+  const logName = `${time}-${action}.log`;
+  const log = join(tasks, logName);
+  try {
+    mkdirSync(tasks, { recursive: true, mode: 0o700 });
+    // Ours, so the person reads it; root's unit appends to it.
+    writeFileSync(log, '', { flag: 'wx', mode: 0o600 });
+  } catch {
+    return refused('folder_not_writable');
+  }
+  const started = system
+    ? await forward({ action: 'app.task', project: name, folder: dir, task: action, unit, log })
+    : await runUnit(unitArgs(false, unit, dir, log, name, action));
+  if (!started.ok) {
     // Nothing started: no log left behind (a try again a moment later gets the same name).
     rmSync(log, { force: true });
-    if (result.timedOut) return refused('timed_out');
-    if (system) {
-      const refusal = sudoRefusal(result);
-      if (refusal) return refused(refusal);
-    }
-    return { ok: false, error: 'task_not_started', message: said(result) } as Answer;
+    return started;
   }
-  const task = { unit, system, action, log: logName, startedAt: new Date().toISOString() };
-  writeFileSync(join(dir, '.laris', 'task.json'), `${JSON.stringify(task)}\n`, { mode: 0o600 });
-  return ok(task);
+  const record = { unit, system, action, log: logName, startedAt: new Date().toISOString() };
+  writeFileSync(join(dir, '.laris', 'task.json'), `${JSON.stringify(record)}\n`, { mode: 0o600 });
+  return ok(record);
+}
+
+async function runUnit(args: string[]): Promise<Answer> {
+  const result = await run(PROGRAMS.systemdRun, args, { timeoutMs: QUICK_TIMEOUT_MS });
+  if (result.code === 0) return ok();
+  if (result.timedOut) return refused('timed_out');
+  return { ok: false, error: 'task_not_started', message: said(result) } as Answer;
+}
+
+/**
+ * laris-root's half of a system task: the unit, for a log the account made beforehand — the
+ * unit's name and the log's path as `startTask` builds them.
+ */
+export async function startSystemTask(request: Request): Promise<Answer> {
+  const name = project(request);
+  const dir = folder(request);
+  const action = task(request);
+  const { unit, log } = request;
+  if (!name || !dir || !action || typeof unit !== 'string' || typeof log !== 'string') {
+    return BAD_REQUEST;
+  }
+  const time = /^laris-app-.+-(\d{8}T\d{6})$/.exec(unit)?.[1];
+  if (!time || unit !== `laris-app-${name}-${action}-${time}` || !UNIT_PATTERN.test(unit)) {
+    return BAD_REQUEST;
+  }
+  if (log !== join(dir, '.laris', 'tasks', `${time}-${action}.log`) || !existsSync(log)) {
+    return BAD_REQUEST;
+  }
+  return runUnit(unitArgs(true, unit, dir, log, name, action));
 }
 
 /** Whether a task's unit still runs (`systemctl [--user] is-active`; reading needs no sudo). */
@@ -157,19 +200,14 @@ export async function taskState(request: Request): Promise<Answer> {
   return ok({ active: result.stdout.trim().split('\n')[0] ?? 'unknown' });
 }
 
-/** How Docker is run for a quick command: `direct` (the docker group) or `sudo`. */
+/** How Docker is run for a quick command: `direct` (the docker group) or `sudo` (laris-root). */
 function docker(request: Request): boolean | null {
   const how = request['docker'];
   return how === 'sudo' ? true : how === 'direct' ? false : null;
 }
 
-function dockerRefusal(administrator: boolean, result: Awaited<ReturnType<typeof run>>): Answer {
+function dockerRefusal(result: Awaited<ReturnType<typeof run>>): Answer {
   if (result.timedOut) return refused('timed_out');
-  if (result.missing && !existsSync(PROGRAMS.docker)) return refused('docker_unavailable');
-  if (administrator) {
-    const refusal = sudoRefusal(result);
-    if (refusal) return refused(refusal);
-  }
   if (result.missing) return refused('docker_unavailable');
   return { ok: false, error: 'compose_failed', message: said(result) } as Answer;
 }
@@ -180,17 +218,16 @@ export async function checkCompose(request: Request): Promise<Answer> {
   const dir = folder(request);
   const administrator = docker(request);
   if (!name || !dir || administrator === null) return BAD_REQUEST;
-  const result = await runAs(
-    administrator,
+  const result = await run(
     PROGRAMS.docker,
     ['compose', '--project-name', name, 'config', '--quiet'],
     { timeoutMs: QUICK_TIMEOUT_MS, cwd: dir },
   );
   if (result.code === 0) return ok();
-  if (!result.timedOut && !result.missing && !(administrator && sudoRefusal(result))) {
+  if (!result.timedOut && !result.missing) {
     return { ok: false, error: 'compose_invalid', message: said(result) } as Answer;
   }
-  return dockerRefusal(administrator, result);
+  return dockerRefusal(result);
 }
 
 /** Deletes an app's named volumes (after its removal; Docker refuses one still in use). */
@@ -201,8 +238,8 @@ export async function removeVolumes(request: Request): Promise<Answer> {
     return BAD_REQUEST;
   }
   if (!names.every((n) => typeof n === 'string' && VOLUME_PATTERN.test(n))) return BAD_REQUEST;
-  const result = await runAs(administrator, PROGRAMS.docker, ['volume', 'rm', '--', ...names], {
+  const result = await run(PROGRAMS.docker, ['volume', 'rm', '--', ...names], {
     timeoutMs: QUICK_TIMEOUT_MS,
   });
-  return result.code === 0 ? ok() : dockerRefusal(administrator, result);
+  return result.code === 0 ? ok() : dockerRefusal(result);
 }

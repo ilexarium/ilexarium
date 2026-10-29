@@ -50,7 +50,7 @@ services:
   # explorer sign in to it (anna / anna-dev-password). Its host key is shared with the app in
   # apps/server/.dev/sshd, which pins it.
   # The host's PIDs, so ending a process over it ends the one the process list (the host's /proc)
-  # shows. Development only: anna's `sudo kill` is root in here, and may signal this machine's
+  # shows. Development only: anna's laris-root is root in here, and may signal this machine's
   # processes — as the real sudo would on the real machine.
   sshd:
     build: ./sshd

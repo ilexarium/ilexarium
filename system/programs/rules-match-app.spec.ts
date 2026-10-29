@@ -31,7 +31,7 @@ import * as wrapperDiskConfig from './disk/config.mts';
 import * as wrapperDiskDevices from './disk/devices.mts';
 import * as wrapperDiskMount from './disk/mount.mts';
 import * as wrapperDiskUnits from './disk/units.mts';
-import * as helperActions from './helper/actions.mts';
+import * as helperSudo from './helper/sudo.mts';
 import * as helperConfig from './helper/config.mts';
 import * as wrapperPaths from './lib/paths.mts';
 
@@ -101,10 +101,11 @@ describe('the app and the root programs check the same rules', () => {
     }
   });
 
-  it('the helper: PIDs, signals, sudo passwords on one line, app and volume names', () => {
+  it('the helper: PIDs, signals, sudo passwords on one line, root’s idle time, app and volume names', () => {
     expect(helperConfig.PID_MAX).toBe(PROCESS_LIMITS.maxPid);
     expect([...helperConfig.SIGNALS]).toEqual([...PROCESS_SIGNALS]);
     expect(helperConfig.PASSWORD_MAX).toBe(FILES_LIMITS.passwordMax);
+    expect(helperConfig.ROOT_IDLE_MS).toBe(FILES_LIMITS.sudoIdleMinutes * 60_000);
     expect(String(helperConfig.PROJECT_PATTERN)).toBe(String(APP_NAME_PATTERN));
     expect(String(helperConfig.VOLUME_PATTERN)).toBe(String(VOLUME_NAME_PATTERN));
     for (const password of [
@@ -118,7 +119,7 @@ describe('the app and the root programs check the same rules', () => {
       'nul\0byte',
       'tab\tis fine',
     ]) {
-      expect(helperActions.acceptablePassword(password), JSON.stringify(password)).toBe(
+      expect(helperSudo.acceptablePassword(password), JSON.stringify(password)).toBe(
         linuxSudoRequestSchema.safeParse({ password }).success,
       );
     }
