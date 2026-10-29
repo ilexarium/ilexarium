@@ -869,7 +869,7 @@ describe('laris-backup restore', () => {
     expect(calls('borg')).toEqual([]);
   });
 
-  const composeFile = () => join(storage, 'demo', 'compose.yml');
+  const composeFile = () => join(storage, 'demo', 'data', 'compose.yml');
   const composeLs = (file: string) =>
     writeFileSync(
       join(dir, 'compose-ls.json'),
@@ -934,8 +934,11 @@ describe('laris-backup restore', () => {
     ]);
   });
 
-  it('Compose files Docker doesn’t know, or in a system place: started as it was', async () => {
-    composeLs('/etc/demo/compose.yml');
+  it.each([
+    ['in a system place', () => '/etc/demo/compose.yml'],
+    ['outside the restored folders', () => join(storage, 'elsewhere', 'compose.yml')],
+  ])('Compose files %s: started as it was, never applied as root', async (_, file) => {
+    composeLs(file());
     const result = await restore(restoreInput());
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(
@@ -943,6 +946,24 @@ describe('laris-backup restore', () => {
         .map((c) => c.args)
         .at(-1),
     ).toEqual(['compose', '-p', 'demo', 'start']);
+  });
+
+  it('`up` refused every time: started as it was, said so', async () => {
+    composeLs(composeFile());
+    writeFileSync(join(dir, 'exit-up.txt'), '1');
+    const result = await restore(restoreInput());
+    expect(result.code, result.lines.join('\n')).toBe(0);
+    expect(done()).toMatchObject({ status: 'succeeded' });
+    expect(calls('docker').map((c) => (c.args[1] === 'ls' ? 'ls' : c.args.at(-1)))).toEqual([
+      '-q',
+      'ls',
+      'stop',
+      '-d',
+      '-d',
+      '-d',
+      'start',
+    ]);
+    expect(JSON.stringify(events())).toContain('demo started as it was');
   });
 
   it('into a chosen folder: everything with its full paths, nothing stopped', async () => {

@@ -24,7 +24,7 @@ import { openRepository } from './destination.mts';
 import { folderStamp, prepareState, shareWithApp, writeAtomic } from './files.mts';
 import { parseInput } from './input.mts';
 import type { Config, ItemResult, Paths, SetAside } from './model.mts';
-import { allowedFolder, assertParentsSafe, overlaps } from './places.mts';
+import { allowedFolder, assertParentsSafe, below, overlaps } from './places.mts';
 import { ARCHIVE_PATTERN, UUID, loadPlan } from './plan.mts';
 import { borg, borgFailure, docker, takeLock } from './programs.mts';
 import { startAgain } from './run.mts';
@@ -247,7 +247,7 @@ async function restoreArchive(
   if (project) {
     const ps = await docker(config, ['compose', '-p', project, 'ps', '-q'], { capture: true });
     wasRunning = ps.code === 0 && ps.stdout.trim().length > 0;
-    if (wasRunning) files = await composeFiles(config, project);
+    if (wasRunning) files = await composeFiles(config, project, sources);
   }
   const moved: { from: string; to: string }[] = [];
   /** Sources that weren't there before: on a failure, what was extracted of them goes. */
@@ -323,10 +323,11 @@ async function restoreArchive(
 
 /**
  * An app's Compose files as Docker recorded them (`compose ls`), read before it stops: started
- * with them, the restored `compose.yml`, `.env` and versions apply. None, or one in a system
- * place: started as it was.
+ * with them, the restored `compose.yml`, `.env` and versions apply. Only files inside the
+ * restored folders, in folders only their owners can change (root reads and applies them); else
+ * none, and the app is started as it was.
  */
-async function composeFiles(config: Config, project: string): Promise<string[]> {
+async function composeFiles(config: Config, project: string, sources: string[]): Promise<string[]> {
   const listed = await docker(
     config,
     ['compose', 'ls', '--all', '--format', 'json', '--filter', `name=${project}`],
@@ -339,7 +340,11 @@ async function composeFiles(config: Config, project: string): Promise<string[]> 
       ? (rows as { Name?: unknown; ConfigFiles?: unknown }[]).find((r) => r?.Name === project)
       : undefined;
     const files = typeof row?.ConfigFiles === 'string' ? row.ConfigFiles.split(',') : [];
-    return files.length > 0 && files.every((file) => allowedFolder(config, file)) ? files : [];
+    const restored = (file: string) =>
+      allowedFolder(config, file) && sources.some((source) => below(file, source));
+    if (files.length === 0 || !files.every(restored)) return [];
+    for (const file of files) assertParentsSafe(file);
+    return files;
   } catch {
     return [];
   }
