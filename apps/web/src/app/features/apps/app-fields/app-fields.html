@@ -27,59 +27,18 @@
         </select>
       }
     </div>
-    <div class="flex flex-wrap gap-2">
-      <input
-        hlmInput
-        class="min-w-0 flex-1"
-        dir="ltr"
-        autocomplete="off"
-        spellcheck="false"
-        [id]="'field-' + field.key"
-        [type]="inputType(field)"
-        [attr.inputmode]="field.kind === 'port' ? 'numeric' : null"
-        [value]="value(field)"
-        [disabled]="disabled()"
-        (change)="edit(field, $event)"
-      />
-      @if (field.kind === 'version' && field.image) {
-        <button
-          hlmBtn
-          type="button"
-          variant="outline"
-          [disabled]="disabled() || versions().get(field.image)?.loading"
-          (click)="askVersions.emit(field.image)"
-        >
-          @if (versions().get(field.image)?.loading) {
-            <ng-icon name="lucideLoaderCircle" class="animate-spin" aria-hidden="true" />
-          } @else {
-            <ng-icon name="lucideList" aria-hidden="true" />
-          }
-          {{ 'apps.fields.showVersions' | translate }}
-        </button>
-      }
-    </div>
-    @if (field.kind === 'version' && field.image) {
-      @if (versions().get(field.image); as list) {
-        @if (!list.loading && !list.available) {
-          <p class="text-sm text-muted-foreground">
-            {{ 'apps.fields.versionsUnavailable' | translate }}
-          </p>
-        } @else if (!list.loading && list.versions.length > 0) {
-          <select
-            class="h-9 rounded-md border bg-background px-2 text-sm"
-            dir="ltr"
-            [attr.aria-label]="'apps.fields.versionsLabel' | translate: { key: field.key }"
-            [disabled]="disabled()"
-            (change)="pickVersion(field, $event)"
-          >
-            <option value="">{{ 'apps.fields.chooseVersion' | translate }}</option>
-            @for (version of list.versions; track version) {
-              <option [value]="version">{{ version }}</option>
-            }
-          </select>
-        }
-      }
-    }
+    <input
+      hlmInput
+      dir="ltr"
+      autocomplete="off"
+      spellcheck="false"
+      [id]="'field-' + field.key"
+      [type]="inputType(field)"
+      [attr.inputmode]="field.kind === 'port' ? 'numeric' : null"
+      [value]="value(field)"
+      [disabled]="disabled()"
+      (change)="edit(field, $event)"
+    />
     @if (help(field); as key) {
       <p class="text-sm text-muted-foreground">{{ key | translate }}</p>
     } @else if (field.kind === 'folder') {

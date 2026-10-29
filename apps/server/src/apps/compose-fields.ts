@@ -2,7 +2,6 @@ import { randomBytes } from 'node:crypto';
 import {
   type AppField,
   type AppFields,
-  type AppImage,
   CATALOG_LIMITS,
   type FieldKind,
   parseEnv,
@@ -180,26 +179,6 @@ function usesIn(file: Tree): Use[] {
   return uses;
 }
 
-/** Every service's image line, for the versions list. */
-function imagesIn(file: Tree): AppImage[] {
-  const services = (file as { services?: Record<string, { image?: unknown }> } | null)?.services;
-  if (!services || typeof services !== 'object') return [];
-  const images: AppImage[] = [];
-  for (const [service, definition] of Object.entries(services)) {
-    const reference = definition?.image;
-    if (typeof reference !== 'string') continue;
-    const { image, tag } = splitImage(reference);
-    const variable = tag ? (variablesIn(tag)[0]?.key ?? null) : null;
-    images.push({
-      service,
-      image,
-      tag: tag && !variable ? tag : null,
-      variable,
-    });
-  }
-  return images;
-}
-
 /** A random secret (letters, digits, "-" and "_": written bare in `.env`). */
 export const generateSecret = () =>
   randomBytes(Math.ceil((CATALOG_LIMITS.generatedSecretLength * 3) / 4))
@@ -229,10 +208,10 @@ export function composeFields(
   try {
     file = parse(compose, { maxAliasCount: 100, uniqueKeys: false, prettyErrors: false });
   } catch (error) {
-    return { fields: [], images: [], problem: (error as Error).message.split('\n')[0] };
+    return { fields: [], problem: (error as Error).message.split('\n')[0] };
   }
   if (file !== null && (typeof file !== 'object' || Array.isArray(file))) {
-    return { fields: [], images: [], problem: 'Not a Compose file' };
+    return { fields: [], problem: 'Not a Compose file' };
   }
   const values = parseEnv(env);
   const byKey = new Map<string, Use>();
@@ -261,11 +240,9 @@ export function composeFields(
       default: fallback,
       required: (use?.required ?? false) || fallback === null,
       advanced: field.advanced ?? false,
-      image: field.image ?? null,
       fromTemplate: true,
     });
   }
-  const images = imagesIn(file);
   for (const use of byKey.values()) {
     fields.push({
       key: use.key,
@@ -274,12 +251,8 @@ export function composeFields(
       default: use.default,
       required: use.required,
       advanced: false,
-      image:
-        use.kind === 'version'
-          ? (images.find((image) => image.variable === use.key)?.image ?? null)
-          : null,
       fromTemplate: false,
     });
   }
-  return { fields, images, problem: null };
+  return { fields, problem: null };
 }

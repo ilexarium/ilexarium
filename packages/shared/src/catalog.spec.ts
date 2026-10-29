@@ -20,7 +20,7 @@ const template: Template = {
   fields: [
     { key: 'WEB_PORT', kind: 'port', default: 8080 },
     { key: 'DATA_DIR', kind: 'folder', default: './data' },
-    { key: 'DEMO_VERSION', kind: 'version', image: 'example/demo', default: '1.2' },
+    { key: 'DEMO_VERSION', kind: 'version', default: '1.2' },
     { key: 'DB_PASSWORD', kind: 'generated' },
     { key: 'USER_ID', kind: 'text', default: '@account', advanced: true },
   ],
@@ -65,12 +65,8 @@ describe('templateSchema', () => {
       (t: Record<string, unknown>) => (t['fields'] = [{ key: 'A', kind: 'enum' }]),
     ],
     [
-      'a version field without its image',
-      (t: Record<string, unknown>) => (t['fields'] = [{ key: 'V', kind: 'version' }]),
-    ],
-    [
-      'an image on a field that is no version',
-      (t: Record<string, unknown>) => (t['fields'] = [{ key: 'V', kind: 'text', image: 'x/y' }]),
+      'a field setting it doesn’t know',
+      (t: Record<string, unknown>) => (t['fields'] = [{ key: 'V', kind: 'version', image: 'x/y' }]),
     ],
     ['an unknown backup mode', (t: Record<string, unknown>) => (t['backup'] = { mode: 'pause' })],
     [

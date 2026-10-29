@@ -1,12 +1,7 @@
 import { Component, DOCUMENT, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  type AppImage,
-  type AppRemovalItem,
-  FILES_ERROR_CODES,
-  type FieldKind,
-} from '@laris/shared';
+import { type AppRemovalItem, FILES_ERROR_CODES, type FieldKind } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowLeft,
@@ -31,7 +26,7 @@ import { RemoveDialog } from '../remove-dialog/remove-dialog';
 import { TaskOutput } from '../task-output/task-output';
 import { AppPageStore } from './app-page-store';
 
-/** One app: state, Open, Start/Stop, settings (form and files), update, versions, backup, removal. */
+/** One app: state, Open, Start/Stop, settings (form and files), update, backup, removal. */
 @Component({
   selector: 'laris-app-page',
   imports: [
@@ -80,10 +75,6 @@ export class AppPage {
       ? `http://${this.location.hostname}:${summary.webPort}/`
       : null;
   });
-  /** A pasted file's images with a fixed tag (their `image:` line can be changed here). */
-  protected readonly fixedImages = computed(() =>
-    (this.appPageStore.details()?.images ?? []).filter((image) => image.tag !== null),
-  );
 
   constructor() {
     effect(() => {
@@ -95,7 +86,7 @@ export class AppPage {
   }
 
   protected text(event: Event): string {
-    return (event.target as HTMLTextAreaElement | HTMLSelectElement).value;
+    return (event.target as HTMLTextAreaElement).value;
   }
 
   protected change(change: FieldChange): void {
@@ -104,11 +95,6 @@ export class AppPage {
 
   protected kind(change: { key: string; kind: FieldKind }): void {
     this.appPageStore.setKind(change.key, change.kind);
-  }
-
-  protected pickTag(image: AppImage, event: Event): void {
-    const tag = this.text(event);
-    if (tag) void this.appPageStore.changeTag(image, tag);
   }
 
   protected askRemove(): void {

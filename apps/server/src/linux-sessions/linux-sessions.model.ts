@@ -18,7 +18,6 @@ export type HelperRequest =
     }
   | { action: 'app.taskState'; unit: string; system: boolean }
   | { action: 'compose.check'; folder: string; project: string; docker: 'direct' | 'sudo' }
-  | { action: 'compose.images'; folder: string; project: string; docker: 'direct' | 'sudo' }
   | { action: 'volumes.remove'; names: string[]; docker: 'direct' | 'sudo' }
   | { action: 'paths.size'; paths: string[] }
   | { action: 'paths.remove'; paths: string[]; administrator: boolean }

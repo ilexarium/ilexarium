@@ -60,7 +60,7 @@ export const RELATIVE_PATH_PATTERN =
 /**
  * What a variable is, for the form: `port` (a published port), `folder` (a bind mount's source),
  * `secret` (entered, shown masked), `generated` (a random secret made at setup), `version` (an
- * image's tag: the versions list), `text`. Only a hint — any text is accepted.
+ * image's tag), `text`. Only a hint — any text is accepted.
  */
 export const FIELD_KINDS = ['text', 'port', 'folder', 'secret', 'generated', 'version'] as const;
 export const fieldKindSchema = z.enum(FIELD_KINDS);
@@ -70,8 +70,6 @@ export const templateFieldSchema = z.strictObject({
   key: z.string().regex(FIELD_KEY_PATTERN),
   kind: fieldKindSchema,
   default: z.union([z.string(), z.number()]).optional(),
-  /** `version`: the image (without tag) whose versions are listed. */
-  image: z.string().min(1).max(255).optional(),
   /** Folded under "Advanced": the default works. */
   advanced: z.boolean().optional(),
 });
@@ -112,7 +110,7 @@ export const templateSchema = z
     web: z.strictObject({ port: z.number().int().min(1).max(65535) }).optional(),
     fields: z.array(templateFieldSchema).min(1).max(CATALOG_LIMITS.maxFields),
     backup: templateBackupSchema.optional(),
-    /** `catalog.<id>.note`: what changed in this version, what to copy (shown at setup and when it's newer). */
+    /** `catalog.<id>.note`: what to know or copy at setup (shown on the setup form). */
     note: z.boolean().optional(),
   })
   .superRefine((template, ctx) => {
@@ -120,15 +118,6 @@ export const templateSchema = z
     if (new Set(keys).size !== keys.length) {
       ctx.addIssue({ code: 'custom', path: ['fields'], message: 'field keys must be unique' });
     }
-    template.fields.forEach((field, i) => {
-      if ((field.kind === 'version') !== (field.image !== undefined)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['fields', i, 'image'],
-          message: 'an image for version fields, and only for them',
-        });
-      }
-    });
   });
 export type Template = z.infer<typeof templateSchema>;
 

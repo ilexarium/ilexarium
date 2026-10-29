@@ -12,7 +12,6 @@
     {
       "key": "NAVIDROME_VERSION",
       "kind": "version",
-      "image": "deluan/navidrome",
       "default": "0.64.2"
     },
     { "key": "USER_ID", "kind": "text", "default": "@account", "advanced": true }

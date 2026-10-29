@@ -19,7 +19,7 @@ const template: Template = {
   fields: [
     { key: 'WEB_PORT', kind: 'port', default: 8080 },
     { key: 'DATA_DIR', kind: 'folder', default: './data' },
-    { key: 'DEMO_VERSION', kind: 'version', image: 'example/app', default: '1.2' },
+    { key: 'DEMO_VERSION', kind: 'version', default: '1.2' },
   ],
 };
 

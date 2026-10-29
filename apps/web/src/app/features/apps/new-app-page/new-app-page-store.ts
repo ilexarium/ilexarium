@@ -28,7 +28,6 @@ import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
 import { NAME_CHECK_MS } from '../apps.constants';
-import type { VersionList } from '../apps.model';
 import { followTask } from '../task-follower';
 
 interface NewAppState {
@@ -43,7 +42,6 @@ interface NewAppState {
   nameCheck: AppNameCheck | null;
   /** Null: `~/apps/<name>`. */
   folder: string | null;
-  versions: Record<string, VersionList>;
   backup: { include: boolean; mode: BackupMode; skip: string[] };
   /** What Compose said when it refused the files. */
   problem: string | null;
@@ -62,7 +60,6 @@ const initialState: NewAppState = {
   name: '',
   nameCheck: null,
   folder: null,
-  versions: {},
   backup: { include: true, mode: 'stop', skip: [] },
   problem: null,
   task: null,
@@ -89,7 +86,6 @@ export const NewAppPageStore = signalStore(
         kind: store.kinds()[field.key] ?? field.kind,
       })),
     ),
-    versionLists: computed(() => new Map(Object.entries(store.versions()))),
     backupsConfigured: backupsStore.configured,
     nameValid: computed(() => /^[a-z0-9][a-z0-9_-]{0,62}$/.test(store.name())),
   })),
@@ -250,18 +246,6 @@ export const NewAppPageStore = signalStore(
 
         setBackup(change: Partial<NewAppState['backup']>): void {
           patchState(store, { backup: { ...store.backup(), ...change } });
-        },
-
-        async askVersions(image: string): Promise<void> {
-          const set = (list: VersionList) =>
-            patchState(store, { versions: { ...store.versions(), [image]: list } });
-          set({ loading: true, versions: [], available: true });
-          try {
-            const { versions, available } = await firstValueFrom(appsApi.versions(image));
-            set({ loading: false, versions, available });
-          } catch {
-            set({ loading: false, versions: [], available: false });
-          }
         },
 
         /** Installs as the person: their Linux sign-in, their sudo if Docker needs it. */

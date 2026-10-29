@@ -21,7 +21,6 @@
     {
       "key": "IMMICH_VERSION",
       "kind": "version",
-      "image": "ghcr.io/immich-app/immich-server",
       "default": "v3"
     },
     {

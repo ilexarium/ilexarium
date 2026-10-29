@@ -4,12 +4,10 @@ import {
   APP_NAME_PATTERN,
   APPS_FOLDER,
   appsFromContainers,
-  type AppBeforeUpdate,
   type AppDeleteRequest,
   type AppDetails,
   type AppFields,
   type AppFieldsRequest,
-  type AppImageTagRequest,
   type AppInstallRequest,
   type AppNameCheck,
   type AppRemoval,
@@ -40,18 +38,15 @@ import { appError, helperError } from './app-errors.js';
 import { AppSftp } from './app-sftp.js';
 import { AppTasks } from './app-tasks.js';
 import {
-  BEFORE_UPDATE_FILE,
   COMPOSE_FILE,
   COMPOSE_FILES,
   ENV_FILE,
-  KEPT_FILE,
   LARIS_DIR,
   LONG_MS,
   QUICK_MS,
 } from './apps.constants.js';
 import type { FieldContext } from './apps.model.js';
-import { composeFields, splitImage, variablesIn } from './compose-fields.js';
-import { withImageTag } from './image-tag.js';
+import { composeFields, variablesIn } from './compose-fields.js';
 
 const hashOf = (compose: string, env: string) =>
   createHash('sha256').update(compose).update('\0').update(env).digest('hex');
@@ -274,7 +269,6 @@ export class AppManager {
       entry?.template ?? null,
       this.context(appSessionId),
     );
-    const names = await sftp.list(folder);
     return {
       app: { ...summary, template: label },
       folder,
@@ -282,10 +276,8 @@ export class AppManager {
       env: files.env,
       hash: hashOf(files.compose, files.env),
       ...fields,
-      template: label ? { ...label, current: entry?.template.version ?? null } : null,
+      template: label,
       task: await this.appTasks.read(appSessionId, sftp, folder),
-      beforeUpdate: await this.beforeUpdate(sftp, folder),
-      keptFiles: names.filter((n) => KEPT_FILE.test(n)).sort(),
     };
   }
 
@@ -333,104 +325,21 @@ export class AppManager {
     });
   }
 
-  /** Update: the running digests saved first (the way back), then pull and start again. */
+  /** Update: pull and start again. The way back is the app's backup from before. */
   async update(
     appSessionId: string,
     name: string,
     folder: string,
     actor: LinuxActor,
-    details: Record<string, string> = {},
-    prepare?: () => Promise<void>,
   ): Promise<AppStarted> {
     const sftp = this.sftp(appSessionId);
     await this.notBusy(appSessionId, sftp, folder);
     await this.sudoFirst(appSessionId);
-    return this.audited('app.update', actor, { name, folder, ...details }, async () => {
-      await prepare?.();
-      await this.saveDigests(appSessionId, sftp, folder, name);
+    return this.audited('app.update', actor, { name, folder }, async () => {
       await this.appTasks.check(appSessionId, folder, name);
       const task = await this.appTasks.start(appSessionId, folder, name, 'update');
       return { name, folder, task };
     });
-  }
-
-  /** A pasted file's fixed tag changed in its `image:` line (comments kept), then Update. */
-  async imageTag(
-    appSessionId: string,
-    name: string,
-    request: AppImageTagRequest,
-    actor: LinuxActor,
-  ): Promise<AppStarted> {
-    const sftp = this.sftp(appSessionId);
-    const files = await this.readFiles(sftp, request.folder);
-    const changed = withImageTag(files.compose, request.service, request.tag);
-    if (changed === null)
-      throw appError(APP_ERROR_CODES.serviceNotFound, 'No such service or image line');
-    const composePath = posix.join(request.folder, files.composeName);
-    // Written only once recorded and nothing else runs; put back if the update doesn't start.
-    let written = false;
-    try {
-      return await this.update(
-        appSessionId,
-        name,
-        request.folder,
-        actor,
-        { service: request.service, tag: request.tag },
-        async () => {
-          await sftp.writeText(composePath, changed, 0o644);
-          written = true;
-        },
-      );
-    } catch (error) {
-      if (written) await sftp.writeText(composePath, files.compose, 0o644).catch(() => undefined);
-      throw error;
-    }
-  }
-
-  /**
-   * "Use the current template": the old file kept beside it, the template's written, `.env` kept
-   * with the new variables added (defaults, new secrets). The person looks, then updates.
-   */
-  async useTemplate(
-    appSessionId: string,
-    name: string,
-    folder: string,
-    actor: LinuxActor,
-  ): Promise<AppDetails> {
-    const sftp = this.sftp(appSessionId);
-    const files = await this.readFiles(sftp, folder);
-    const label =
-      this.labelIn(files.compose) ??
-      (await this.locate(appSessionId, name, folder)).summary.template;
-    if (!label) throw appError(APP_ERROR_CODES.templateNotFound, 'This app has no template');
-    const entry = this.catalogService.require(label.id);
-    await this.audited(
-      'app.change',
-      actor,
-      { name, folder, template: `${label.id}@${entry.template.version}` },
-      async () => {
-        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const names = await sftp.list(folder);
-        let kept = `${files.composeName}.before-template-${date}`;
-        for (let n = 2; names.includes(kept); n++)
-          kept = `${files.composeName}.before-template-${date}-${n}`;
-        await sftp.rename(posix.join(folder, files.composeName), posix.join(folder, kept));
-        await sftp.writeText(posix.join(folder, files.composeName), entry.compose, 0o644);
-        const known = parseEnv(files.env);
-        const added: Record<string, string> = {};
-        for (const field of composeFields(
-          entry.compose,
-          files.env,
-          entry.template,
-          this.context(appSessionId),
-        ).fields) {
-          if (!known.has(field.key)) added[field.key] = field.value;
-        }
-        await sftp.writeText(posix.join(folder, ENV_FILE), setEnvValues(files.env, added), 0o600);
-        return null;
-      },
-    );
-    return this.details(appSessionId, name, folder);
   }
 
   /** What a removal may delete: the settings, each data folder, each named volume — with sizes. */
@@ -670,67 +579,6 @@ export class AppManager {
   private async notBusy(appSessionId: string, sftp: AppSftp, folder: string): Promise<void> {
     const task = await this.appTasks.read(appSessionId, sftp, folder, Number.MAX_SAFE_INTEGER);
     if (task?.state === 'running') throw appError(APP_ERROR_CODES.taskRunning, 'A task is running');
-  }
-
-  private async beforeUpdate(sftp: AppSftp, folder: string): Promise<AppBeforeUpdate | null> {
-    const text = await sftp
-      .readText(posix.join(folder, BEFORE_UPDATE_FILE), 64 * 1024)
-      .catch(() => null);
-    if (!text) return null;
-    try {
-      return JSON.parse(text) as AppBeforeUpdate;
-    } catch {
-      return null;
-    }
-  }
-
-  /** `.laris/before-update.json`: each service's image, tag and the digest it ran. */
-  private async saveDigests(
-    appSessionId: string,
-    sftp: AppSftp,
-    folder: string,
-    project: string,
-  ): Promise<void> {
-    const access = await this.appTasks.dockerAccess(appSessionId);
-    const answer = await this.linuxSessions.ask(
-      appSessionId,
-      { action: 'compose.images', folder, project, docker: access.quick },
-      { sudo: access.quick === 'sudo', timeoutMs: QUICK_MS },
-    );
-    if (!answer.ok) {
-      // Nothing running yet (no images): nothing to go back to.
-      if (answer.error === 'compose_failed') return;
-      throw helperError(answer);
-    }
-    const images = (
-      answer['images'] as {
-        container: string;
-        repository: string;
-        tag: string;
-        digests: string[];
-      }[]
-    )
-      .map((image) => {
-        const digest =
-          image.digests.find((d) => splitImage(d).image === image.repository) ?? image.digests[0];
-        // `compose images` names the container, not the service: the undo matches by image.
-        const service = image.container;
-        return digest
-          ? { service, image: image.repository, tag: image.tag, digest: digest.split('@')[1] ?? '' }
-          : null;
-      })
-      .filter(
-        (image): image is AppBeforeUpdate['images'][number] =>
-          image !== null && image.digest !== '',
-      );
-    if (images.length === 0) return;
-    const record: AppBeforeUpdate = { at: new Date().toISOString(), images };
-    await sftp.makeFolders(posix.join(folder, LARIS_DIR), 0o700);
-    await sftp.writeText(
-      posix.join(folder, BEFORE_UPDATE_FILE),
-      `${JSON.stringify(record, null, 2)}\n`,
-      0o600,
-    );
   }
 
   /** `requested` first (no record, no action), then the outcome — like every change as the person. */

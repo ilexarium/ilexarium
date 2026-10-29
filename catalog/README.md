@@ -9,7 +9,7 @@ catalog/<id>/
 └── icon.svg        shown on the card (only ever used in <img>)
 ```
 
-Texts are translation keys in `packages/i18n/messages/*.json`: `catalog.<id>.description`, `catalog.<id>.fields.<KEY>.label` and `.help`, `catalog.<id>.note` (with `"note": true`: what changed in this version, what to copy), `catalog.<id>.backup.restoreNote` (with `backup.restoreNote`).
+Texts are translation keys in `packages/i18n/messages/*.json`: `catalog.<id>.description`, `catalog.<id>.fields.<KEY>.label` and `.help`, `catalog.<id>.note` (with `"note": true`: what to know or copy at setup), `catalog.<id>.backup.restoreNote` (with `backup.restoreNote`).
 
 ## Rules (checked by `apps/server/src/catalog/` at startup and in its tests)
 
@@ -25,8 +25,8 @@ No Compose policy and no warnings: the person may change anything; `docker compo
 
 1. The image comes from the project itself (official or verified publisher), multi-arch (amd64 and arm64).
 2. Compare with the project's own Compose file; every difference is deliberate and commented at the top of `compose.yml`.
-3. Bump `version` in `template.json` and the label whenever `compose.yml` changes; write `catalog.<id>.note` when a person updating needs to know something.
+3. Bump `version` in `template.json` and the label whenever `compose.yml` changes; write `catalog.<id>.note` when a person setting it up needs to know something.
 4. Texts in en, de and ar.
 5. `npm test` passes (the catalog tests check every template).
 
-Templates are updated by hand every few months: a newer version shows on an app's page as "Use the current template".
+Templates are updated by hand every few months. They're used once, at install: an installed app is the person's, and a newer template doesn't change it.

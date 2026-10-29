@@ -120,7 +120,9 @@ describe('apps and templates (e2e)', () => {
     ]) {
       await api().post('/apps', body).expect(400);
     }
-    await api().get('/apps/versions?image=').expect(400);
+    // Gone: versions from registries, changing an image tag, using the current template.
+    await api().post('/apps/ok/image', { folder: '/home/anna/apps/ok' }).expect(404);
+    await api().post('/apps/ok/template', { folder: '/home/anna/apps/ok' }).expect(404);
     // Larger than any Compose file: refused before it's read.
     await api()
       .post('/apps', {
@@ -172,12 +174,9 @@ describe('apps and templates (e2e)', () => {
           .get(`/apps/${name}?folder=${encodeURIComponent(folder)}`)
           .expect(200)
       ).body as AppDetails;
-      expect(details).toMatchObject({ folder, compose, env: '', task: null, beforeUpdate: null });
+      expect(details).toMatchObject({ folder, compose, env: '', task: null, template: null });
       expect(details.fields.map((f) => [f.key, f.kind, f.value])).toEqual([
         ['PORT', 'port', '8080'],
-      ]);
-      expect(details.images).toEqual([
-        { service: 'web', image: 'nginx', tag: '1.27', variable: null },
       ]);
       expect(details.app).toMatchObject({ name, state: 'none', owner: 'anna' });
 
