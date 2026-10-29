@@ -1,7 +1,7 @@
 // Root through this account's own sudo (docs/plans/laris_root.md): unlocking starts laris-root
-// with `sudo -k -S`, the password the one line sudo reads; it runs until it's locked, idle for 15
-// minutes, or this helper ends (its stdin closes). Unlocked means it runs. Every privileged action
-// is forwarded to it; while it isn't running, they answer sudo_required.
+// with `sudo -k -S`, the password the one line sudo reads; it runs until it's idle for 15 minutes
+// or this helper ends (its stdin closes) — "Lock now" is a new helper. Unlocked means it runs.
+// Every privileged action is forwarded to it; while it isn't running, they answer sudo_required.
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
@@ -14,7 +14,7 @@ import {
   ROOT_ANSWER_MAX,
   SUDO_TIMEOUT_MS,
 } from './config.mts';
-import { ENVIRONMENT, run } from './run.mts';
+import { ENVIRONMENT } from './run.mts';
 
 interface Root {
   child: ChildProcessWithoutNullStreams;
@@ -23,8 +23,6 @@ interface Root {
 }
 
 let root: Root | null = null;
-/** Changes at every lock: an unlock still waiting for sudo then never takes effect. */
-let generation = 0;
 
 const testSettings = () =>
   Object.fromEntries(
@@ -134,7 +132,6 @@ export async function unlock(request: Request): Promise<Answer> {
   if (!acceptablePassword(password)) return BAD_REQUEST;
   // Already unlocked: its idle time starts again.
   if (root) return forward({ action: 'touch' });
-  const unlocking = generation;
   // -k: sudo's own cache (tied to this process, without a terminal) is never used — sudo always
   // reads the password and checks it, and never takes it for a request to laris-root.
   const child = spawn(PROGRAMS.sudo, ['-k', '-S', '-p', '', '--', PROGRAMS.root], {
@@ -145,11 +142,6 @@ export async function unlock(request: Request): Promise<Answer> {
   const started: Root = { child, waiting: new Map(), nextId: 0 };
   const result = await ready(started, password);
   if (!result.ok) return result;
-  // Locked while sudo was asked: it ends at once.
-  if (generation !== unlocking) {
-    child.stdin.end();
-    return refused('sudo_required');
-  }
   child.on('close', (code) => {
     // It ends on its own (idle, or its stdin closed) only with nothing running: what still waits
     // was never taken, and asks for the password again. Otherwise it failed during the request.
@@ -167,17 +159,11 @@ export async function unlock(request: Request): Promise<Answer> {
   return ok();
 }
 
-/**
- * "Lock now", and the helper's end: laris-root's stdin closes, and it ends once what it's doing
- * is done; sudo's own cache is emptied too.
- */
-export async function lock(): Promise<Answer> {
-  generation += 1;
+/** The helper ends: laris-root's stdin closes, and it ends once what it's doing is done. */
+export function endRoot(): void {
   const current = root;
   root = null;
   current?.child.stdin.end();
-  await run(PROGRAMS.sudo, ['-k'], { timeoutMs: SUDO_TIMEOUT_MS });
-  return ok();
 }
 
 /** A privileged request, done by laris-root; sudo_required while it isn't running. */

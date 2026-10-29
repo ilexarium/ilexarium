@@ -171,11 +171,9 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       throw linuxError(FILES_ERROR_CODES.helperUnavailable, 'This Linux session has no helper');
     }
     session.idle.refresh();
-    const locks = session.locks;
     const answer = await session.helper.request(request, options.timeoutMs ?? HELPER_TIMEOUT_MS);
     if (options.sudo) {
-      // Locked meanwhile: laris-root ends after this request, whatever it answered.
-      if (answer.ok && session.locks === locks) session.sudoUntil = Date.now() + SUDO_IDLE_MS;
+      if (answer.ok) session.sudoUntil = Date.now() + SUDO_IDLE_MS;
       else if (answer.error === 'sudo_required') session.sudoUntil = null;
     }
     return answer;
@@ -225,20 +223,19 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     throw linuxError(code, 'sudo was not unlocked');
   }
 
-  /** "Lock now": laris-root ends; the Linux session stays. */
+  /**
+   * "Lock now": a new helper. laris-root ends with the old one (after what it's doing; an answer
+   * still awaited is `ended`); the Linux session stays.
+   */
   async lockSudo(appSessionId: string, actor: LinuxActor): Promise<LinuxSession | null> {
     const session = this.sessions.get(appSessionId);
     if (!session) return null;
-    session.locks += 1;
+    session.helper?.close();
     session.sudoUntil = null;
-    // Without a helper there is no laris-root either.
-    if (session.helper?.running) {
-      const answer = await session.helper.request({ action: 'sudo.lock' }, HELPER_TIMEOUT_MS);
-      // Not locked for sure (no answer): the session ends, and laris-root with its helper.
-      if (!answer.ok && this.sessions.get(appSessionId) === session) {
-        this.close(appSessionId, 'locked');
-      }
-    }
+    session.helper = await this.startHelper(session.client, session.username);
+    // Closed or replaced meanwhile: its new helper goes too.
+    if (this.sessions.get(appSessionId) !== session) session.helper?.close();
+    else this.follow(session);
     await this.auditService.tryRecord({
       action: 'linux.sudo_lock',
       outcome: 'success',
@@ -290,10 +287,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         sftp.realpath('.', (error, path) => (error ? fail(error) : ok(path))),
       );
       // No helper (an account without a shell, not installed): its files still open.
-      const helper = await LinuxHelper.start(client, this.helperPath).catch((error: Error) => {
-        this.logger.warn(`No helper for ${request.username}: ${error.message}`);
-        return null;
-      });
+      const helper = await this.startHelper(client, request.username);
       // Whose processes it may end.
       const hello = helper ? await helper.request({ action: 'hello' }, HELPER_QUICK_MS) : null;
       const uid = hello?.ok && Number.isSafeInteger(hello['uid']) ? (hello['uid'] as number) : null;
@@ -312,16 +306,11 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         gid,
         helper,
         sudoUntil: null,
-        locks: 0,
         userId: actor.user.id,
         idle,
         closing: new Set(),
       };
-      if (helper) {
-        helper.onEvent = (event) => {
-          if (event === 'sudo.locked') session.sudoUntil = null;
-        };
-      }
+      this.follow(session);
       // Replaces the previous one, also one signed in at the same time (no connection left open).
       this.close(appSessionId, 'replaced');
       this.sessions.set(appSessionId, session);
@@ -353,6 +342,22 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       ip: actor.ip,
       details: { linuxUser: session.username },
     });
+  }
+
+  /** The account's helper on this connection; null when it doesn't start (logged). */
+  private startHelper(client: Client, username: string): Promise<LinuxHelper | null> {
+    return LinuxHelper.start(client, this.helperPath).catch((error: Error) => {
+      this.logger.warn(`No helper for ${username}: ${error.message}`);
+      return null;
+    });
+  }
+
+  /** laris-root ended on its own (idle): locked at once. */
+  private follow(session: OpenLinuxSession): void {
+    if (!session.helper) return;
+    session.helper.onEvent = (event) => {
+      if (event === 'sudo.locked') session.sudoUntil = null;
+    };
   }
 
   private close(appSessionId: string, why: LinuxCloseReason): void {

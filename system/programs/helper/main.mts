@@ -1,6 +1,6 @@
 import { handle, type Answer, type Request } from './actions.mts';
 import { LINE_MAX } from './config.mts';
-import { lock } from './sudo.mts';
+import { endRoot } from './sudo.mts';
 
 function answer(id: number | null, result: Answer): void {
   process.stdout.write(`${JSON.stringify({ id, ...result })}\n`);
@@ -93,6 +93,6 @@ export function serve(
 }
 
 export function start(): void {
-  // The session ended: laris-root too (after what it's doing), never left running without it.
-  serve('laris-helper', handle, { onEnd: () => void lock() });
+  // The session ended, or "Lock now": laris-root too (after what it's doing), never left without it.
+  serve('laris-helper', handle, { onEnd: endRoot });
 }

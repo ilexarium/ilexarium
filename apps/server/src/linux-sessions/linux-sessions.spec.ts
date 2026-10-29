@@ -23,6 +23,7 @@ const asked: Record<string, unknown>[] = [];
 let splitAt = 5;
 const started: { command: string; options: unknown }[] = [];
 let helperChannel: EventEmitter | null = null;
+let closedHelpers = 0;
 
 class FakeClient extends EventEmitter {
   ended = false;
@@ -51,7 +52,10 @@ class FakeClient extends EventEmitter {
     const done = rest.at(-1) as (error: Error | undefined, channel: unknown) => void;
     started.push({ command, options: rest.length > 1 ? rest[0] : undefined });
     const channel = Object.assign(new EventEmitter(), {
-      close: () => setImmediate(() => channel.emit('close')),
+      close: () => {
+        closedHelpers += 1;
+        setImmediate(() => channel.emit('close'));
+      },
       write: (line: string) => {
         const request = JSON.parse(line) as Record<string, unknown>;
         asked.push(request);
@@ -114,6 +118,7 @@ describe('LinuxSessions', () => {
     helperAnswers = { hello: { ok: true, uid: 1500, user: 'anna', home: '/home/anna' } };
     asked.length = 0;
     started.length = 0;
+    closedHelpers = 0;
     splitAt = 5;
     dir = mkdtempSync(join(tmpdir(), 'host-keys-'));
     writeFileSync(
@@ -303,15 +308,10 @@ describe('LinuxSessions', () => {
     await refused;
   });
 
-  it('“Lock now” closes only the session it locked, not a newer sign-in meanwhile', async () => {
+  it('“Lock now” while a newer sign-in replaces the session: that one stays', async () => {
     await signIn();
-    helperMode = 'silent';
     const locking = sessions.lockSudo('s1', ACTOR);
-    const again = signIn();
-    // Its "hello" goes unanswered too (5 s), once it's sent.
-    for (let i = 0; i < 10; i++) await vi.advanceTimersByTimeAsync(1_000);
-    await again;
-    await vi.advanceTimersByTimeAsync(25_000);
+    await signIn();
     await locking;
     expect(sessions.current('s1')).not.toBeNull();
     expect(clients[0].ended).toBe(true);
@@ -348,19 +348,29 @@ describe('LinuxSessions', () => {
     expect(answer).toEqual({ ok: false, error: 'ended' });
   });
 
-  it('“Lock now” locks sudo; the Linux session stays', async () => {
+  it('“Lock now” is a new helper (laris-root ends with the old one); the Linux session stays', async () => {
     await signIn();
     await sessions.unlockSudo('s1', 'pw', ACTOR);
     expect(await sessions.lockSudo('s1', ACTOR)).toEqual(SESSION);
-    expect(asked.at(-1)).toMatchObject({ action: 'sudo.lock' });
+    expect(closedHelpers).toBe(1);
+    expect(started).toHaveLength(2);
     expect(sessions.current('s1')).toEqual(SESSION);
     expect(clients[0].ended).toBe(false);
     expect(audit.tryRecord).toHaveBeenLastCalledWith(
       expect.objectContaining({ action: 'linux.sudo_lock', outcome: 'success' }),
     );
+    // The new helper answers.
+    expect(
+      await sessions.ask('s1', {
+        action: 'process.signal',
+        pid: 9,
+        signal: 'TERM',
+        administrator: false,
+      }),
+    ).toEqual({ ok: true });
   });
 
-  it('a sudo request answered after “Lock now” doesn’t show it unlocked again', async () => {
+  it('a sudo request still running at “Lock now” ends with its helper, never unlocking again', async () => {
     await signIn();
     await sessions.unlockSudo('s1', 'pw', ACTOR);
     helperMode = 'silent';
@@ -371,21 +381,22 @@ describe('LinuxSessions', () => {
     );
     helperMode = 'answers';
     await sessions.lockSudo('s1', ACTOR);
-    // The request still running answers ok after the lock.
-    helperChannel!.emit('data', Buffer.from(`${JSON.stringify({ id: 3, ok: true })}\n`));
-    expect(await signal).toEqual({ ok: true });
+    expect(await signal).toEqual({ ok: false, error: 'ended' });
     expect(sessions.current('s1')?.sudoUntil).toBeNull();
   });
 
-  it('“Lock now” without the helper’s answer ends the Linux session (and laris-root with it)', async () => {
+  it('a helper that doesn’t start again: the session stays, without one', async () => {
     await signIn();
-    await sessions.unlockSudo('s1', 'pw', ACTOR);
-    helperMode = 'silent';
-    const locking = sessions.lockSudo('s1', ACTOR);
-    await vi.advanceTimersByTimeAsync(25_000);
-    expect(await locking).toBeNull();
-    expect(sessions.current('s1')).toBeNull();
-    expect(clients[0].ended).toBe(true);
+    helperMode = 'missing';
+    expect(await sessions.lockSudo('s1', ACTOR)).toEqual(SESSION);
+    await expect(
+      sessions.ask('s1', {
+        action: 'process.signal',
+        pid: 9,
+        signal: 'TERM',
+        administrator: false,
+      }),
+    ).rejects.toMatchObject({ response: { code: 'helper_unavailable' } });
   });
 
   it('a refused sign-in keeps the running session (a typo never closes a terminal)', async () => {

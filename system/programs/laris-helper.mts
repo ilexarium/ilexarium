@@ -7,8 +7,7 @@
 //
 //   {"id":1,"action":"hello"}                                  → {"uid","user","home"}
 //   {"id":2,"action":"sudo.unlock","password":"…"}             → starts laris-root through sudo -S
-//   {"id":3,"action":"sudo.lock"}                              → ends laris-root
-//   {"id":4,"action":"process.signal","pid":1234,"signal":"TERM","administrator":false}
+//   {"id":3,"action":"process.signal","pid":1234,"signal":"TERM","administrator":false}
 //
 // Answers: {"id","ok":true,…} or {"id","ok":false,"error":"<code>"}. The first line it writes is
 // {"laris-helper":1}: requests are sent only after it (lines before it are the login's noise).
@@ -16,7 +15,8 @@
 //
 // Root is laris-root (docs/plans/laris_root.md), started by this account's sudo with the password
 // as the one line sudo reads, running for the unlock: privileged requests are forwarded to it,
-// and answer sudo_required while it isn't running. This program never keeps a password.
+// and answer sudo_required while it isn't running. It ends with this program ("Lock now" starts
+// a new helper). This program never keeps a password.
 // It has the person's rights and nothing more: its checks are for correctness, not a boundary.
 // No shell: every program runs from a fixed path with an argument list.
 //
