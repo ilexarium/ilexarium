@@ -75,6 +75,9 @@ let checkFails: boolean;
 /** Not in the docker group, sudo locked: a task would need the account's sudo. */
 let withoutDocker: boolean;
 let taskActive: string;
+/** A container's files (not the account's): deleting them needs sudo, locked until set. */
+let foreign: string | null;
+let sudoLocked: boolean;
 let containers: Record<string, unknown>[];
 
 /** The helper as the person: tasks write their record and log as the real one does. */
@@ -114,9 +117,18 @@ async function helper(request: HelperRequest) {
         ok: true,
         sizes: Object.fromEntries(request.paths.map((p) => [p, { bytes: 100, partial: false }])),
       } as const;
-    case 'paths.remove':
+    case 'paths.remove': {
+      const needsSudo = foreign !== null && request.paths.some((p) => foreign!.startsWith(p));
+      if (needsSudo && !request.administrator) {
+        // `rm -r -f` deletes what it can, then fails on the rest.
+        for (const path of request.paths)
+          if (path !== foreign) rmSync(path, { recursive: true, force: true });
+        return { ok: false, error: 'not_permitted' } as const;
+      }
+      if (needsSudo && sudoLocked) return { ok: false, error: 'sudo_required' } as const;
       for (const path of request.paths) rmSync(path, { recursive: true, force: true });
       return { ok: true } as const;
+    }
     case 'volumes.remove':
       return { ok: true } as const;
     default:
@@ -181,6 +193,8 @@ beforeEach(() => {
   checkFails = false;
   withoutDocker = false;
   taskActive = 'inactive';
+  foreign = null;
+  sudoLocked = false;
   containers = [];
 });
 
@@ -392,8 +406,26 @@ describe('AppManager: removing', () => {
     );
     expect(removals).toEqual([
       { action: 'volumes.remove', names: ['music_cache'], docker: 'direct' },
+      { action: 'paths.remove', paths: [join(folder, 'data')], administrator: false },
       { action: 'paths.remove', paths: [folder], administrator: false },
     ]);
+  });
+
+  it('a container’s files need sudo, locked: the app’s files stay, so the retry after unlocking works', async () => {
+    await install();
+    const folder = join(home, 'apps', 'music');
+    taskResult = '@@laris-result\nsuccess\n';
+    await manager().remove(SESSION, 'music', folder, ACTOR);
+    foreign = join(folder, 'data');
+    sudoLocked = true;
+    const request = { folder, settings: true, folders: [join(folder, 'data')], volumes: [] };
+    await expect(manager().delete(SESSION, 'music', request, ACTOR)).rejects.toMatchObject({
+      response: { code: 'sudo_required' },
+    });
+    expect(existsSync(join(folder, 'compose.yml'))).toBe(true);
+    sudoLocked = false;
+    await manager().delete(SESSION, 'music', request, ACTOR);
+    expect(existsSync(folder)).toBe(false);
   });
 
   it('only the settings: the files, never the data', async () => {
