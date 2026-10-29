@@ -1,6 +1,6 @@
-// Tests for the helper (laris-helper.mts): the real program over pipes, with a fake `sudo` and
-// `kill` (testing/fake-sudo.cjs, fake-kill.cjs) in a bin folder of its own. Run by the server's
-// unit tests.
+// Tests for the helper (laris-helper.mts) and laris-root behind it: the real programs over pipes,
+// with a fake `sudo` and `kill` (testing/fake-sudo.cjs, fake-kill.cjs) in a bin folder of its own
+// — the fake sudo starts the real laris-root, not as root. Run by the server's unit tests.
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import {
   chmodSync,
@@ -8,6 +8,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -89,6 +90,7 @@ beforeEach(async () => {
   for (const name of ['systemd-run', 'systemctl', 'docker', 'du', 'rm', 'laris-backup.mts']) {
     fake(name, 'fake-program.cjs');
   }
+  symlinkSync(join(HERE, 'laris-root.mts'), join(dir, 'bin', 'laris-root.mts'));
   start();
   expect(await nextLine()).toEqual({ 'laris-helper': 1 });
 });
@@ -97,8 +99,6 @@ afterEach(() => {
   helper.kill();
   rmSync(dir, { recursive: true, force: true });
 });
-
-const KILL = () => join(dir, 'bin', 'kill');
 
 describe('laris-helper', () => {
   it('says who it runs as', async () => {
@@ -112,34 +112,49 @@ describe('laris-helper', () => {
     });
   });
 
-  it('unlocks sudo with the password on stdin, never in the arguments', async () => {
+  it('unlocks by starting laris-root through sudo, the password the one line sudo reads', async () => {
     expect(await ask({ action: 'sudo.unlock', password: 'wrong' })).toEqual({
       ok: false,
       error: 'wrong_password',
     });
     expect(await ask({ action: 'sudo.unlock', password: 'right' })).toEqual({ ok: true });
+    // Never a second try: after "try again", sudo's stdin closed.
     expect(calls('sudo')).toEqual([
-      { args: ['-S', '-v'], input: 'wrong\n' },
-      { args: ['-S', '-v'], input: 'right\n' },
+      { args: ['-S', '-p', '', '--', join(dir, 'bin', 'laris-root.mts')], input: 'wrong\n' },
+      { args: ['-S', '-p', '', '--', join(dir, 'bin', 'laris-root.mts')], input: 'right\n' },
     ]);
+    // Unlocked again: the same laris-root.
+    expect(await ask({ action: 'sudo.unlock', password: 'right' })).toEqual({ ok: true });
+    expect(calls('sudo')).toHaveLength(2);
   });
 
-  it('ends another’s process through the unlocked sudo, never asking', async () => {
+  it('ends another’s process through laris-root — locked, it says so', async () => {
     expect(
       await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
     ).toEqual({ ok: false, error: 'sudo_required' });
+    expect(calls('kill')).toEqual([]);
     await ask({ action: 'sudo.unlock', password: 'right' });
     expect(
       await ask({ action: 'process.signal', pid: 1234, signal: 'KILL', administrator: true }),
     ).toEqual({ ok: true });
-    expect(calls('sudo').at(-1)?.args).toEqual(['-n', '--', KILL(), '-s', 'KILL', '--', '1234']);
     expect(calls('kill').map((call) => call.args)).toEqual([['-s', 'KILL', '--', '1234']]);
   });
 
-  it('locks sudo again', async () => {
+  it('locks again: laris-root ends', async () => {
     await ask({ action: 'sudo.unlock', password: 'right' });
     expect(await ask({ action: 'sudo.lock' })).toEqual({ ok: true });
-    expect(calls('sudo').at(-1)?.args).toEqual(['-k']);
+    expect(
+      await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
+    ).toEqual({ ok: false, error: 'sudo_required' });
+    expect(calls('kill')).toEqual([]);
+  });
+
+  it('says when laris-root ended on its own (idle), and is locked from then on', async () => {
+    helper.kill();
+    start(undefined, { LARIS_ROOT_IDLE_MS: '300' });
+    await nextLine();
+    await ask({ action: 'sudo.unlock', password: 'right' });
+    expect(await nextLine()).toEqual({ event: 'sudo.locked' });
     expect(
       await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
     ).toEqual({ ok: false, error: 'sudo_required' });
@@ -151,9 +166,6 @@ describe('laris-helper', () => {
       ok: false,
       error: 'wrong_password',
     });
-    expect(
-      await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
-    ).toEqual({ ok: false, error: 'sudo_required' });
     writeFileSync(join(dir, 'not-allowed.txt'), '');
     expect(await ask({ action: 'sudo.unlock', password: 'right' })).toEqual({
       ok: false,
@@ -169,7 +181,7 @@ describe('laris-helper', () => {
     });
     expect(
       await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
-    ).toEqual({ ok: false, error: 'sudo_not_allowed' });
+    ).toEqual({ ok: false, error: 'sudo_required' });
   });
 
   it('says when there is no sudo', async () => {
@@ -178,6 +190,24 @@ describe('laris-helper', () => {
       ok: false,
       error: 'sudo_unavailable',
     });
+  });
+
+  it('says when laris-root refused to start (its modules unsafe)', async () => {
+    const copy = join(dir, 'copy');
+    mkdirSync(copy);
+    cpSync(join(HERE, 'laris-root.mts'), join(copy, 'laris-root.mts'));
+    cpSync(join(HERE, 'root'), join(copy, 'root'), { recursive: true });
+    cpSync(join(HERE, 'helper'), join(copy, 'helper'), { recursive: true });
+    chmodSync(join(copy, 'root', 'main.mts'), 0o666);
+    rmSync(join(dir, 'bin', 'laris-root.mts'));
+    symlinkSync(join(copy, 'laris-root.mts'), join(dir, 'bin', 'laris-root.mts'));
+    expect(await ask({ action: 'sudo.unlock', password: 'right' })).toEqual({
+      ok: false,
+      error: 'failed',
+    });
+    expect(
+      await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
+    ).toEqual({ ok: false, error: 'sudo_required' });
   });
 
   it('ends its own processes as itself, saying why one could not be ended', async () => {
@@ -297,16 +327,61 @@ describe('laris-helper', () => {
     ]);
   });
 
-  it('without the docker group: a system unit through sudo -n — locked, it says so', async () => {
+  it('without the docker group: a system unit by laris-root — locked, it says so', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(app, { recursive: true });
     const request = { action: 'app.task', folder: app, project: 'music', task: 'up', system: true };
     expect(await ask(request)).toEqual({ ok: false, error: 'sudo_required' });
+    // Nothing started: no log left behind.
+    expect(readdirSync(join(app, '.laris', 'tasks'))).toEqual([]);
     await ask({ action: 'sudo.unlock', password: 'right' });
-    expect(await ask(request)).toMatchObject({ ok: true, system: true });
-    const viaSudo = calls('sudo').at(-1)!.args;
-    expect(viaSudo.slice(0, 3)).toEqual(['-n', '--', join(dir, 'bin', 'systemd-run')]);
-    expect(viaSudo).not.toContain('--user');
+    const started = await ask(request);
+    expect(started).toMatchObject({ ok: true, system: true });
+    const args = calls('systemd-run').at(-1)!.args;
+    expect(args).not.toContain('--user');
+    expect(args).toContain(`--unit=${started['unit'] as string}`);
+    expect(args).toContain(
+      `--property=StandardOutput=append:${join(app, '.laris', 'tasks', started['log'] as string)}`,
+    );
+  });
+
+  it('laris-root starts a system unit only for a log the account made, as the helper names it', async () => {
+    const app = join(dir, 'apps', 'music');
+    mkdirSync(join(app, '.laris', 'tasks'), { recursive: true });
+    const unit = 'laris-app-music-up-20261029T120000';
+    const log = join(app, '.laris', 'tasks', '20261029T120000-up.log');
+    writeFileSync(log, '');
+    const base = { action: 'app.task', project: 'music', folder: app, task: 'up', unit, log };
+    const root = spawn(process.execPath, [join(HERE, 'laris-root.mts')], {
+      env: { PATH: process.env['PATH'] ?? '', LARIS_HELPER_FAKE_BIN: join(dir, 'bin') },
+    });
+    const answers: string[] = [];
+    root.stdout.setEncoding('utf8');
+    root.stdout.on('data', (chunk: string) => answers.push(...chunk.trim().split('\n')));
+    const requests = [
+      base,
+      { ...base, unit: 'laris-app-other-up-20261029T120000' },
+      { ...base, unit: 'laris-app-music-down-20261029T120000' },
+      { ...base, log: join(app, '.laris', 'tasks', '20261029T120001-up.log') },
+      { ...base, log: '/etc/passwd' },
+      { ...base, folder: '/nowhere' },
+    ];
+    requests.forEach((request, index) =>
+      root.stdin.write(`${JSON.stringify({ id: index + 1, ...request })}\n`),
+    );
+    root.stdin.end();
+    await new Promise((resolve) => root.on('close', resolve));
+    const byId = Object.fromEntries(
+      answers.slice(1).map((line) => {
+        const { id, ...answer } = JSON.parse(line) as { id: number; ok: boolean; error?: string };
+        return [id, answer];
+      }),
+    );
+    expect(answers[0]).toBe('{"laris-root":1}');
+    expect(byId[1]).toEqual({ ok: true });
+    for (const id of [2, 3, 4, 5, 6])
+      expect(byId[id], String(id)).toEqual({ ok: false, error: 'bad_request' });
+    expect(calls('systemd-run')).toHaveLength(1);
   });
 
   it('asks a unit’s state without sudo; refuses a unit not of its own naming', async () => {
@@ -353,10 +428,11 @@ describe('laris-helper', () => {
     });
   });
 
-  it('says Docker is missing — through sudo too, without asking sudo', async () => {
+  it('says Docker is missing — as root too', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(app, { recursive: true });
     rmSync(join(dir, 'bin', 'docker'));
+    await ask({ action: 'sudo.unlock', password: 'right' });
     for (const docker of ['direct', 'sudo']) {
       expect(await ask({ action: 'compose.check', folder: app, project: 'music', docker })).toEqual(
         {
@@ -365,7 +441,33 @@ describe('laris-helper', () => {
         },
       );
     }
-    expect(calls('sudo')).toEqual([]);
+  });
+
+  it('runs Docker and deletes folders as root through laris-root only', async () => {
+    const app = join(dir, 'apps', 'music');
+    mkdirSync(app, { recursive: true });
+    const asRoot = [
+      { action: 'compose.check', folder: app, project: 'music', docker: 'sudo' },
+      { action: 'volumes.remove', names: ['music_data'], docker: 'sudo' },
+      { action: 'paths.remove', paths: ['/srv/music'], administrator: true },
+    ];
+    for (const request of asRoot) {
+      expect(await ask(request)).toEqual({ ok: false, error: 'sudo_required' });
+    }
+    expect(calls('docker')).toEqual([]);
+    expect(calls('rm')).toEqual([]);
+    await ask({ action: 'sudo.unlock', password: 'right' });
+    for (const request of asRoot) expect(await ask(request)).toEqual({ ok: true });
+    expect(calls('docker').map((call) => call.args)).toEqual([
+      ['compose', '--project-name', 'music', 'config', '--quiet'],
+      ['volume', 'rm', '--', 'music_data'],
+    ]);
+    expect(calls('rm').at(-1)?.args).toEqual(['-r', '-f', '--one-file-system', '--', '/srv/music']);
+    // Protected paths stay protected as root.
+    expect(await ask({ action: 'paths.remove', paths: ['/etc'], administrator: true })).toEqual({
+      ok: false,
+      error: 'path_protected',
+    });
   });
 
   it('measures and deletes folders — never the system’s or a home itself', async () => {
@@ -412,7 +514,7 @@ describe('laris-helper', () => {
     });
   });
 
-  it('runs a root program through sudo -n, its input on stdin — only its known actions', async () => {
+  it('runs a root program through laris-root, its input on stdin — only its known actions', async () => {
     const request = {
       action: 'root.run',
       program: 'backup',

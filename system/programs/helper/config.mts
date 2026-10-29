@@ -2,7 +2,7 @@ import { join } from 'node:path';
 
 // Tests start it with `node` and a folder of fake programs; installed, the shebang's `env -i`
 // empties the environment, so this is never set.
-const FAKE_BIN = process.env['LARIS_HELPER_FAKE_BIN'];
+export const FAKE_BIN = process.env['LARIS_HELPER_FAKE_BIN'];
 const program = (path: string) => (FAKE_BIN ? join(FAKE_BIN, path.split('/').pop()!) : path);
 
 export const PROGRAMS = {
@@ -14,6 +14,7 @@ export const PROGRAMS = {
   rm: program('/usr/bin/rm'),
   du: program('/usr/bin/du'),
   id: program('/usr/bin/id'),
+  root: program('/opt/laris/libexec/laris-root.mts'),
 };
 
 /** Run by systemd at a task's end, so its result is in its log (never a shell). */
@@ -44,6 +45,13 @@ export const OUTPUT_MAX = 16 * 1024;
 export const ROOT_OUTPUT_MAX = 48 * 1024;
 /** sudo waits a few seconds after a wrong password (PAM's delay). */
 export const SUDO_TIMEOUT_MS = 20_000;
+/** laris-root ends this long after its last request (FILES_LIMITS.sudoIdleMinutes in the app). */
+export const ROOT_IDLE_MS =
+  FAKE_BIN && process.env['LARIS_ROOT_IDLE_MS']
+    ? Number(process.env['LARIS_ROOT_IDLE_MS'])
+    : 15 * 60_000;
+/** What is read of laris-root's answer lines (a root program's output is the longest). */
+export const ROOT_ANSWER_MAX = 256 * 1024;
 export const KILL_TIMEOUT_MS = 10_000;
 /** Starting a unit, asking for its state, checking a Compose file: quick. */
 export const QUICK_TIMEOUT_MS = 30_000;
@@ -121,7 +129,6 @@ export const PATHS_MAX = 50;
 export const MESSAGES = {
   wrongPassword:
     /incorrect password|Sorry, try again|incorrect authentication|authentication failed(?!: interaction required)|no password was provided/i,
-  passwordRequired: /a password is required|interaction required/i,
   notAllowed:
     /not in the sudoers|not allowed to (?:run|execute)|may not run sudo|I'm afraid I can't do that/i,
   notFound: /No such process/i,

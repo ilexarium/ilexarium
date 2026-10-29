@@ -1,19 +1,22 @@
 #!/usr/bin/env -S -i /usr/bin/node
 // laris-helper — runs as the signed-in person, not root: the server starts it over that person's
-// SSH session, in its own channel with a terminal, for the session's life
-// (docs/plans/acting_as_you.md, "The helper").
+// SSH session, in its own channel, for the session's life (docs/plans/acting_as_you.md, "The
+// helper").
 //
 // One JSON request per line on stdin, one JSON answer per line on stdout, matched by `id`:
 //
 //   {"id":1,"action":"hello"}                                  → {"uid","user","home"}
-//   {"id":2,"action":"sudo.unlock","password":"…"}             → sudo -S -v, the password on stdin
-//   {"id":3,"action":"sudo.lock"}                              → sudo -k
+//   {"id":2,"action":"sudo.unlock","password":"…"}             → starts laris-root through sudo -S
+//   {"id":3,"action":"sudo.lock"}                              → ends laris-root
 //   {"id":4,"action":"process.signal","pid":1234,"signal":"TERM","administrator":false}
 //
 // Answers: {"id","ok":true,…} or {"id","ok":false,"error":"<code>"}. The first line it writes is
-// {"laris-helper":1}: requests are sent only after it (before it, the terminal still echoes).
+// {"laris-helper":1}: requests are sent only after it (lines before it are the login's noise).
+// {"event":"sudo.locked"}: laris-root ended on its own (idle).
 //
-// sudo's own cache keeps the unlock (tied to this terminal); this program never keeps a password.
+// Root is laris-root (docs/plans/laris_root.md), started by this account's sudo with the password
+// as the one line sudo reads, running for the unlock: privileged requests are forwarded to it,
+// and answer sudo_required while it isn't running. This program never keeps a password.
 // It has the person's rights and nothing more: its checks are for correctness, not a boundary.
 // No shell: every program runs from a fixed path with an argument list.
 //
