@@ -77,6 +77,9 @@ const initialState: AppPageState = {
  * the editor, Update, the versions, the template's newer version, the backup, the removal — each
  * change done as the person, its task followed live.
  */
+/** The same image, with or without its registry (`nginx`, `docker.io/library/nginx`). */
+const sameImage = (a: string, b: string) => a === b || a.endsWith(`/${b}`) || b.endsWith(`/${a}`);
+
 export const AppPageStore = signalStore(
   withState<AppPageState>(initialState),
   withComputed(
@@ -316,13 +319,33 @@ export const AppPageStore = signalStore(
           const before = store.details()?.beforeUpdate;
           if (!before) return;
           const values: Record<string, string> = {};
-          for (const field of store.details()?.fields ?? []) {
-            const image = before.images.find((i) => field.image && i.image.endsWith(field.image));
-            if (field.kind === 'version' && image)
-              values[field.key] = `${image.tag}@${image.digest}`;
+          const shared: string[] = [];
+          const details = store.details();
+          for (const field of details?.fields ?? []) {
+            if (field.kind !== 'version') continue;
+            // Every image this variable sets (Immich's server and machine learning share one).
+            const names = (details?.images ?? [])
+              .filter((image) => image.variable === field.key)
+              .map((image) => image.image);
+            if (names.length === 0 && field.image) names.push(field.image);
+            const ran = before.images.filter((b) => names.some((name) => sameImage(b.image, name)));
+            const tags = new Set(ran.map((b) => b.tag));
+            if (tags.size !== 1) continue;
+            const [tag] = tags;
+            const digests = new Set(ran.map((b) => b.digest));
+            // One variable can't pin two builds: then only the version, not the exact build.
+            if (digests.size === 1) values[field.key] = `${tag}@${[...digests][0]}`;
+            else {
+              values[field.key] = tag;
+              shared.push(field.key);
+            }
           }
           patchState(store, { env: setEnvValues(store.env(), values) });
-          toast.info(translator.t('apps.undo.filled'));
+          toast.info(
+            shared.length > 0
+              ? translator.t('apps.undo.filledShared', { keys: shared.join(', ') })
+              : translator.t('apps.undo.filled'),
+          );
         },
 
         async useTemplate(): Promise<void> {
