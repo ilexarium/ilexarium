@@ -38,12 +38,17 @@ ensure_base() {
   for tool in curl gpg sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
   # The program, not the shell's builtin: ending a process runs `env kill` as the person.
   [[ -x /usr/bin/kill ]] || missing+=(kill)
+  # A person's own systemd and its bus (user units: apps without sudo for the docker group).
+  for package in libpam-systemd dbus-user-session; do
+    dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'ok installed' ||
+      missing+=("$package")
+  done
   if ((${#missing[@]} > 0)); then
-    confirm "Install curl, gnupg, sudo and procps (missing: ${missing[*]})?" || die 'They are needed'
+    confirm "Install the basics Laris needs (missing: ${missing[*]})?" || die 'They are needed'
     apt_update
-    apt_install ca-certificates curl gnupg sudo procps
+    apt_install ca-certificates curl gnupg sudo procps libpam-systemd dbus-user-session
   fi
-  info 'curl, gnupg, sudo, procps'
+  info 'curl, gnupg, sudo, procps, libpam-systemd, dbus-user-session'
 }
 
 # Node 24 or newer at /usr/bin/node — that one, whatever else is on PATH: the root wrappers'

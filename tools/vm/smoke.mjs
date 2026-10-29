@@ -256,6 +256,8 @@ function ensurePerson(user = 'anna', uid = 1500) {
 async function files() {
   console.log('\nLinux sign-in and files (through this machine’s sshd)');
   ensurePerson();
+  // Without sudo at first (the "not allowed" check below); an earlier pass gave it back.
+  fails('gpasswd', ['-d', 'anna', 'sudo']);
   const effective = (addr) =>
     sh('sshd', ['-T', '-C', `user=anna,host=client,addr=${addr}`]).match(
       /^passwordauthentication (\w+)/m,
