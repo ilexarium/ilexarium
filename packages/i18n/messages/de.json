@@ -170,7 +170,6 @@
     "appNameInvalid": "Kleinbuchstaben, Ziffern, - und _, am Anfang ein Buchstabe oder eine Ziffer.",
     "fileTooLarge": "Die Datei ist zu groß.",
     "composeRequired": "Eine Compose-Datei wird gebraucht.",
-    "tagInvalid": "Keine Version.",
     "backupSkipInvalid": "Ein Pfad unterhalb des Ordners, ohne .. oder Klammern.",
     "backupFolderSystem": "Kein Systemordner.",
     "mountPointRequired": "Gib einen Ordner ein.",
@@ -278,7 +277,6 @@
     "changed_on_disk": "Die Dateien wurden inzwischen auf der Festplatte geändert.",
     "app_task_running": "Eine Aufgabe dieser App läuft.",
     "app_task_not_started": "Die Aufgabe ist nicht gestartet.",
-    "app_service_not_found": "Diesen Dienst gibt es in der Datei nicht.",
     "path_protected": "Dieser Ordner wird nie gelöscht.",
     "app_failed": "Es hat nicht funktioniert.",
     "program_unavailable": "Das Root-Programm ist nicht gelaufen (nicht installiert?).",
@@ -1483,10 +1481,6 @@
         "generated": "Erzeugt",
         "version": "Version"
       },
-      "showVersions": "Verfügbare Versionen zeigen",
-      "versionsLabel": "Versionen für {{key}}",
-      "chooseVersion": "Version wählen",
-      "versionsUnavailable": "Für dieses Image ist keine Liste verfügbar.",
       "folderHelp": "Ein Pfad mit ./ am Anfang liegt im Ordner der App. Fehlende Ordner werden in deinem Namen angelegt.",
       "generatedHelp": "Wird beim Einrichten für dich erzeugt.",
       "advanced": "Erweitert"
@@ -1568,31 +1562,15 @@
     },
     "update": {
       "title": "Aktualisieren",
-      "text": "Holt die neuesten Images der eingestellten Versionen und startet die App neu.",
+      "text": "Holt die neuesten Images der eingestellten Versionen und startet die App neu. Um eine Version zu ändern, stelle sie unter Einstellungen ein und speichere.",
       "backupFirst": "Diese App zuerst sichern",
       "action": "Aktualisieren",
-      "versionFor": "Version von {{image}}",
+      "wayBack": "Wenn ein Update schiefgeht, stelle die Sicherung dieser App von davor wieder her: Daten, Einstellungen und Versionen sind sofort wieder da.",
+      "restoreLink": "Sicherung wiederherstellen",
       "backingUp": "{{name}} wird zuerst gesichert…",
       "notBackedUp": "{{name}} wurde nicht aktualisiert: Die Sicherung ist nicht gelungen.",
       "backupFailed": "{{name}} konnte nicht gesichert werden",
       "failed": "{{name}} konnte nicht aktualisiert werden"
-    },
-    "undo": {
-      "title": "Diese Aktualisierung rückgängig machen",
-      "text": "Aktualisiert {{time}}. Um zurückzugehen:",
-      "restore": "Die Daten aus der Sicherung davor wiederherstellen:",
-      "restoreLink": "Wiederherstellen",
-      "versions": "Die vorher laufenden Versionen eintragen, dann speichern:",
-      "fill": "Eintragen",
-      "filled": "Die vorherigen Versionen sind eingetragen: Speichere, um sie anzuwenden.",
-      "filledShared": "Die vorherigen Versionen sind eingetragen: Speichern, um sie anzuwenden. {{keys}} gilt für mehrere Images, daher ist nur die Version gesetzt, nicht der genaue Build jedes Images."
-    },
-    "template": {
-      "newer": "Die Vorlage {{name}} hat eine neuere Version ({{version}}).",
-      "use": "Aktuelle Vorlage verwenden",
-      "done": "Die aktuelle Vorlage ist eingesetzt: Prüfe die Einstellungen, dann aktualisiere.",
-      "failed": "Die aktuelle Vorlage konnte nicht verwendet werden",
-      "kept": "Von vorher behalten:"
     },
     "settings": {
       "title": "Einstellungen",

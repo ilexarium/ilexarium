@@ -76,24 +76,10 @@ export const appFieldSchema = z.object({
   /** `${KEY:?…}` or a template field without a default: Compose refuses to start without it. */
   required: z.boolean(),
   advanced: z.boolean(),
-  /** `version`: the image whose versions are listed. */
-  image: z.string().nullable(),
   /** In the template (its texts are `catalog.<id>.fields.<KEY>.*`). */
   fromTemplate: z.boolean(),
 });
 export type AppField = z.infer<typeof appFieldSchema>;
-
-/** An image line of the file: the versions list offers its tags. */
-export const appImageSchema = z.object({
-  service: z.string(),
-  /** Without its tag or digest. */
-  image: z.string(),
-  /** Null when the tag is a variable or missing. */
-  tag: z.string().nullable(),
-  /** The variable its tag is, if any (`${NAVIDROME_VERSION}`). */
-  variable: z.string().nullable(),
-});
-export type AppImage = z.infer<typeof appImageSchema>;
 
 export const appFieldsRequestSchema = z.strictObject({
   compose: fileText,
@@ -104,7 +90,6 @@ export type AppFieldsRequest = z.infer<typeof appFieldsRequestSchema>;
 
 export const appFieldsSchema = z.object({
   fields: z.array(appFieldSchema),
-  images: z.array(appImageSchema),
   /** Why the file couldn't be read (YAML), or null. */
   problem: z.string().nullable(),
 });
@@ -181,14 +166,6 @@ export type AppParams = z.infer<typeof appParamsSchema>;
 export const appFolderQuerySchema = z.strictObject({ folder: absolutePath.optional() });
 export type AppFolderQuery = z.infer<typeof appFolderQuerySchema>;
 
-export const appBeforeUpdateSchema = z.object({
-  at: z.iso.datetime(),
-  images: z.array(
-    z.object({ service: z.string(), image: z.string(), tag: z.string(), digest: z.string() }),
-  ),
-});
-export type AppBeforeUpdate = z.infer<typeof appBeforeUpdateSchema>;
-
 export const appDetailsSchema = z.object({
   app: appSummarySchema,
   folder: z.string(),
@@ -197,18 +174,11 @@ export const appDetailsSchema = z.object({
   /** Of both files as read: a save with another one was changed on disk meanwhile. */
   hash: z.string(),
   fields: z.array(appFieldSchema),
-  images: z.array(appImageSchema),
   problem: z.string().nullable(),
-  /** Its template, and the catalog's current version of it (null: no longer in the catalog). */
-  template: z
-    .object({ id: z.string(), version: z.string(), current: z.string().nullable() })
-    .nullable(),
+  /** The template it came from (its texts), or null. */
+  template: z.object({ id: z.string(), version: z.string() }).nullable(),
   /** Its latest task. */
   task: appTaskSchema.nullable(),
-  /** What ran before the last update (`.laris/before-update.json`): "Undo this update". */
-  beforeUpdate: appBeforeUpdateSchema.nullable(),
-  /** Files kept by "Use the current template" (`compose.yml.before-template-<date>`). */
-  keptFiles: z.array(z.string()),
 });
 export type AppDetails = z.infer<typeof appDetailsSchema>;
 
@@ -224,31 +194,6 @@ export type AppSaveRequest = z.infer<typeof appSaveRequestSchema>;
 
 export const appUpdateRequestSchema = z.strictObject({ folder: absolutePath });
 export type AppUpdateRequest = z.infer<typeof appUpdateRequestSchema>;
-
-/** A pasted file's fixed tag, changed in place (its `image:` line; comments kept). */
-export const appImageTagRequestSchema = z.strictObject({
-  folder: absolutePath,
-  service: z.string().min(1).max(128),
-  tag: z
-    .string()
-    .min(1)
-    .max(256)
-    .regex(/^[A-Za-z0-9_][A-Za-z0-9_.:@-]*$/, 'validation.tagInvalid'),
-});
-export type AppImageTagRequest = z.infer<typeof appImageTagRequestSchema>;
-
-// Versions.
-
-export const appVersionsQuerySchema = z.strictObject({ image: z.string().min(1).max(255) });
-export type AppVersionsQuery = z.infer<typeof appVersionsQuerySchema>;
-
-export const appVersionsSchema = z.object({
-  /** Newest first; `latest`, nightlies and pre-releases left out. */
-  versions: z.array(z.string()),
-  /** False: the registry wasn't reachable or wants a sign-in ("list not available"). */
-  available: z.boolean(),
-});
-export type AppVersions = z.infer<typeof appVersionsSchema>;
 
 // Removing.
 
@@ -287,7 +232,6 @@ export const APP_ERROR_CODES = {
   taskNotStarted: 'app_task_not_started',
   dockerUnavailable: 'docker_unavailable',
   templateNotFound: 'catalog_entry_not_found',
-  serviceNotFound: 'app_service_not_found',
   pathProtected: 'path_protected',
   failed: 'app_failed',
 } as const;
@@ -298,7 +242,6 @@ export type AppErrorCode = (typeof APP_ERROR_CODES)[keyof typeof APP_ERROR_CODES
 export const APPS_PATH = '/api/apps';
 export const APP_FIELDS_PATH = `${APPS_PATH}/fields`;
 export const APP_NAME_CHECK_PATH = `${APPS_PATH}/name`;
-export const APP_VERSIONS_PATH = `${APPS_PATH}/versions`;
 
 export function appPath(name: string): string {
   return `${APPS_PATH}/${encodeURIComponent(name)}`;
@@ -308,8 +251,6 @@ export function appPath(name: string): string {
 export const appFilesPath = (name: string) => `${appPath(name)}/files`;
 export const appTaskPath = (name: string) => `${appPath(name)}/task`;
 export const appUpdatePath = (name: string) => `${appPath(name)}/update`;
-export const appImageTagPath = (name: string) => `${appPath(name)}/image`;
-export const appTemplatePath = (name: string) => `${appPath(name)}/template`;
 export const appRemovalPath = (name: string) => `${appPath(name)}/removal`;
 export const appRemovePath = (name: string) => `${appPath(name)}/remove`;
 export const appDeletePath = (name: string) => `${appPath(name)}/delete`;

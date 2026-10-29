@@ -282,30 +282,6 @@ describe('AppManager: reading and saving', () => {
     await expect(save(true)).resolves.toMatchObject({ task: { action: 'up' } });
     expect(readFileSync(join(folder, '.env'), 'utf8')).toBe('PORT=1\n');
   });
-
-  it('“Use the current template”: the old file kept beside it, .env kept, new variables added', async () => {
-    const folder = join(home, 'apps', 'music');
-    await manager().install(
-      SESSION,
-      {
-        name: 'music',
-        folder: null,
-        template: 'demo',
-        compose: `${compose.replace('image: example/web', 'labels:\n      laris.template: demo@1\n    image: example/web')}`,
-        env: '# mine\nPORT=8080\nMEDIA=/srv/music\n',
-      },
-      ACTOR,
-    );
-    const details = await manager().useTemplate(SESSION, 'music', folder, ACTOR);
-    const kept = readdirSync(folder).find((n) => n.startsWith('compose.yml.before-template-'))!;
-    expect(kept).toMatch(/^compose\.yml\.before-template-\d{8}$/);
-    expect(readFileSync(join(folder, kept), 'utf8')).toContain('demo@1');
-    expect(readFileSync(join(folder, 'compose.yml'), 'utf8')).toBe(entry.compose);
-    const env = readFileSync(join(folder, '.env'), 'utf8');
-    expect(env.startsWith('# mine\nPORT=8080\nMEDIA=/srv/music\n')).toBe(true);
-    expect(env).toMatch(/\nNEW_SECRET=[A-Za-z0-9_-]{32}\n$/);
-    expect(details.keptFiles).toEqual([kept]);
-  });
 });
 
 describe('AppManager: a change that doesn’t start changes nothing', () => {
@@ -357,13 +333,18 @@ describe('AppManager: a change that doesn’t start changes nothing', () => {
     expect(readFileSync(join(folder(), 'compose.yml'), 'utf8')).toBe(compose);
   });
 
-  it('a new image tag while a task runs: refused, the file untouched', async () => {
+  it('an update while a task runs: refused; after it: pull and up, nothing saved beside', async () => {
     await install();
     taskActive = 'active';
-    await expect(
-      manager().imageTag(SESSION, 'music', { folder: folder(), service: 'web', tag: '2.0' }, ACTOR),
-    ).rejects.toMatchObject({ response: { code: 'app_task_running' } });
-    expect(readFileSync(join(folder(), 'compose.yml'), 'utf8')).toBe(compose);
+    await expect(manager().update(SESSION, 'music', folder(), ACTOR)).rejects.toMatchObject({
+      response: { code: 'app_task_running' },
+    });
+    taskActive = 'inactive';
+    finished();
+    await expect(manager().update(SESSION, 'music', folder(), ACTOR)).resolves.toMatchObject({
+      task: { action: 'update' },
+    });
+    expect(readdirSync(join(folder(), '.laris')).sort()).toEqual(['task.json', 'tasks']);
   });
 });
 

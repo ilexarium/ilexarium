@@ -3,29 +3,24 @@ import { inject, Service } from '@angular/core';
 import {
   APP_FIELDS_PATH,
   APP_NAME_CHECK_PATH,
-  APP_VERSIONS_PATH,
   type AppDeleteRequest,
   type AppDetails,
   type AppFields,
   type AppFieldsRequest,
-  type AppImageTagRequest,
   type AppInstallRequest,
   type AppNameCheck,
   type AppRemoval,
   type AppSaveRequest,
   type AppStarted,
   type AppTask,
-  type AppVersions,
   type AppsList,
   APPS_PATH,
   appDeletePath,
   appFilesPath,
-  appImageTagPath,
   appPath,
   appRemovalPath,
   appRemovePath,
   appTaskPath,
-  appTemplatePath,
   appUpdatePath,
   CATALOG_PATH,
   catalogEntryPath,
@@ -59,10 +54,6 @@ export class AppsApi {
     return this.http.post<AppFields>(APP_FIELDS_PATH, request);
   }
 
-  versions(image: string): Observable<AppVersions> {
-    return this.http.get<AppVersions>(APP_VERSIONS_PATH, { params: { image } });
-  }
-
   install(request: AppInstallRequest): Observable<AppStarted> {
     return this.http.post<AppStarted>(APPS_PATH, request);
   }
@@ -83,14 +74,6 @@ export class AppsApi {
 
   update(name: string, folder: string): Observable<AppStarted> {
     return this.http.post<AppStarted>(appUpdatePath(name), { folder });
-  }
-
-  imageTag(name: string, request: AppImageTagRequest): Observable<AppStarted> {
-    return this.http.post<AppStarted>(appImageTagPath(name), request);
-  }
-
-  useTemplate(name: string, folder: string): Observable<AppDetails> {
-    return this.http.post<AppDetails>(appTemplatePath(name), { folder });
   }
 
   removal(name: string, folder: string): Observable<AppRemoval> {

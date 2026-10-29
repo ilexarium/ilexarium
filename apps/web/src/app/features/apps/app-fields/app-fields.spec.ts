@@ -10,7 +10,6 @@ const field = (key: string, kind: AppField['kind'], value = ''): AppField => ({
   default: null,
   required: false,
   advanced: false,
-  image: kind === 'version' ? 'nginx' : null,
   fromTemplate: false,
 });
 
@@ -48,7 +47,6 @@ describe('AppFields', () => {
     expect(kinds).toEqual(['version', 'port', 'folder', 'secret']);
     expect(el.querySelector<HTMLInputElement>('#field-PORT')!.value).toBe('9000');
     expect(el.querySelector<HTMLInputElement>('#field-ADMIN_PASSWORD')!.type).toBe('password');
-    expect(el.textContent).toContain('Show available versions');
   });
 
   it('reports a kind changed and a value edited', async () => {

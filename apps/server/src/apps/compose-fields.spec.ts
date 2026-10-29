@@ -84,7 +84,6 @@ describe('composeFields guesses each kind from where it is used', () => {
       TZ: 'text',
       NEEDED: 'text',
     });
-    expect(fields.find((f) => f.key === 'Y_VERSION')?.image).toBe('ghcr.io/x/y');
     expect(fields.find((f) => f.key === 'TZ')).toMatchObject({ value: 'UTC', default: 'UTC' });
     expect(fields.find((f) => f.key === 'NEEDED')?.required).toBe(true);
   });

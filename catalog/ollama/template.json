@@ -11,7 +11,6 @@
     {
       "key": "OLLAMA_VERSION",
       "kind": "version",
-      "image": "ollama/ollama",
       "default": "0.40.6"
     },
     { "key": "USER_ID", "kind": "text", "default": "@account", "advanced": true }

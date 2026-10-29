@@ -152,10 +152,8 @@
               [fields]="newAppPageStore.shownFields()"
               [values]="newAppPageStore.values()"
               [templateId]="newAppPageStore.template()?.id ?? null"
-              [versions]="newAppPageStore.versionLists()"
               (changed)="change($event)"
               (kindChanged)="kind($event)"
-              (askVersions)="newAppPageStore.askVersions($event)"
             />
           } @else {
             <hlm-skeleton class="h-24 w-full" />

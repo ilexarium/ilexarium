@@ -170,7 +170,6 @@
     "appNameInvalid": "Lowercase letters, digits, - and _, starting with a letter or digit.",
     "fileTooLarge": "The file is too large.",
     "composeRequired": "A Compose file is needed.",
-    "tagInvalid": "Not a version.",
     "backupSkipInvalid": "A path below the folder, without .. or brackets.",
     "backupFolderSystem": "Not a system folder.",
     "mountPointRequired": "Enter a folder.",
@@ -278,7 +277,6 @@
     "changed_on_disk": "The files changed on disk meanwhile.",
     "app_task_running": "A task of this app is running.",
     "app_task_not_started": "The task didn't start.",
-    "app_service_not_found": "No such service in the file.",
     "path_protected": "That folder is never deleted.",
     "app_failed": "It didn't work.",
     "program_unavailable": "The root program didn't run (not installed?).",
@@ -1483,10 +1481,6 @@
         "generated": "Generated",
         "version": "Version"
       },
-      "showVersions": "Show available versions",
-      "versionsLabel": "Versions for {{key}}",
-      "chooseVersion": "Choose a version",
-      "versionsUnavailable": "The list isn't available for this image.",
       "folderHelp": "A path starting with ./ is inside the app's folder. Missing folders are created as you.",
       "generatedHelp": "Made for you when the app is set up.",
       "advanced": "Advanced"
@@ -1568,31 +1562,15 @@
     },
     "update": {
       "title": "Update",
-      "text": "Gets the newest images of the versions set, and starts the app again.",
+      "text": "Gets the newest images of the versions set, and starts the app again. To change a version, set it under Settings and save.",
       "backupFirst": "Back this app up first",
       "action": "Update",
-      "versionFor": "Version of {{image}}",
+      "wayBack": "If an update goes wrong, restore this app's backup from before it: its data, settings and versions come back at once.",
+      "restoreLink": "Restore a backup",
       "backingUp": "Backing {{name}} up first…",
       "notBackedUp": "{{name}} wasn't updated: its backup didn't succeed.",
       "backupFailed": "Couldn't back {{name}} up",
       "failed": "Couldn't update {{name}}"
-    },
-    "undo": {
-      "title": "Undo this update",
-      "text": "Updated {{time}}. To go back:",
-      "restore": "Restore its data from the backup before it:",
-      "restoreLink": "Restore",
-      "versions": "Set the versions it ran before, then save:",
-      "fill": "Fill them in",
-      "filled": "The previous versions are filled in: save to apply them.",
-      "filledShared": "The previous versions are filled in: save to apply them. {{keys}} sets several images, so only its version is set, not each image's exact build."
-    },
-    "template": {
-      "newer": "The {{name}} template has a newer version ({{version}}).",
-      "use": "Use the current template",
-      "done": "The current template is in place: check the settings, then update.",
-      "failed": "Couldn't use the current template",
-      "kept": "Kept from before:"
     },
     "settings": {
       "title": "Settings",

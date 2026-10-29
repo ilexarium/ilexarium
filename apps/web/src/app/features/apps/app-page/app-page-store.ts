@@ -11,7 +11,6 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import {
   APP_ERROR_CODES,
   type AppDetails,
-  type AppImage,
   type AppRemovalItem,
   type AppStarted,
   type AppTask,
@@ -31,7 +30,6 @@ import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 import { BACKUP_WAIT_MS } from '../apps.constants';
-import type { VersionList } from '../apps.model';
 import { followTask } from '../task-follower';
 
 interface AppPageState {
@@ -44,7 +42,6 @@ interface AppPageState {
   compose: string;
   env: string;
   kinds: Record<string, FieldKind>;
-  versions: Record<string, VersionList>;
   /** Saved with other files on disk meanwhile: reload, or overwrite. */
   conflict: boolean;
   busy: boolean;
@@ -63,7 +60,6 @@ const initialState: AppPageState = {
   compose: '',
   env: '',
   kinds: {},
-  versions: {},
   conflict: false,
   busy: false,
   task: null,
@@ -74,12 +70,9 @@ const initialState: AppPageState = {
 
 /**
  * One app's page: its files read as the signed-in Linux account (fresh each time), the form and
- * the editor, Update, the versions, the template's newer version, the backup, the removal — each
- * change done as the person, its task followed live.
+ * the editor, Update, the backup, the removal — each change done as the person, its task followed
+ * live.
  */
-/** The same image, with or without its registry (`nginx`, `docker.io/library/nginx`). */
-const sameImage = (a: string, b: string) => a === b || a.endsWith(`/${b}`) || b.endsWith(`/${a}`);
-
 export const AppPageStore = signalStore(
   withState<AppPageState>(initialState),
   withComputed(
@@ -103,14 +96,9 @@ export const AppPageStore = signalStore(
           kind: store.kinds()[field.key] ?? field.kind,
         })),
       ),
-      versionLists: computed(() => new Map(Object.entries(store.versions()))),
       changed: computed(() => {
         const details = store.details();
         return !!details && (details.compose !== store.compose() || details.env !== store.env());
-      }),
-      templateNewer: computed(() => {
-        const template = store.details()?.template;
-        return !!template?.current && Number(template.current) > Number(template.version);
       }),
       backup: computed(() => backupsStore.apps().get(store.name()) ?? null),
       backupsConfigured: backupsStore.configured,
@@ -244,18 +232,6 @@ export const AppPageStore = signalStore(
           patchState(store, { env });
         },
 
-        async askVersions(image: string): Promise<void> {
-          const set = (list: VersionList) =>
-            patchState(store, { versions: { ...store.versions(), [image]: list } });
-          set({ loading: true, versions: [], available: true });
-          try {
-            const { versions, available } = await firstValueFrom(appsApi.versions(image));
-            set({ loading: false, versions, available });
-          } catch {
-            set({ loading: false, versions: [], available: false });
-          }
-        },
-
         /** Saves both files and applies them; `overwrite` after "changed on disk". */
         async save(overwrite = false): Promise<void> {
           const details = store.details();
@@ -297,64 +273,6 @@ export const AppPageStore = signalStore(
               firstValueFrom(appsApi.update(store.name(), store.folder())),
             ),
           );
-        },
-
-        /** A pasted file's fixed tag: its `image:` line changed, then Update. */
-        async changeTag(image: AppImage, tag: string): Promise<void> {
-          started(
-            await asPerson('apps.update.failed', () =>
-              firstValueFrom(
-                appsApi.imageTag(store.name(), {
-                  folder: store.folder(),
-                  service: image.service,
-                  tag,
-                }),
-              ),
-            ),
-          );
-        },
-
-        /** "Undo this update": the versions it ran before, filled in (saved by the person). */
-        fillPrevious(): void {
-          const before = store.details()?.beforeUpdate;
-          if (!before) return;
-          const values: Record<string, string> = {};
-          const shared: string[] = [];
-          const details = store.details();
-          for (const field of details?.fields ?? []) {
-            if (field.kind !== 'version') continue;
-            // Every image this variable sets (Immich's server and machine learning share one).
-            const names = (details?.images ?? [])
-              .filter((image) => image.variable === field.key)
-              .map((image) => image.image);
-            if (names.length === 0 && field.image) names.push(field.image);
-            const ran = before.images.filter((b) => names.some((name) => sameImage(b.image, name)));
-            const tags = new Set(ran.map((b) => b.tag));
-            if (tags.size !== 1) continue;
-            const [tag] = tags;
-            const digests = new Set(ran.map((b) => b.digest));
-            // One variable can't pin two builds: then only the version, not the exact build.
-            if (digests.size === 1) values[field.key] = `${tag}@${[...digests][0]}`;
-            else {
-              values[field.key] = tag;
-              shared.push(field.key);
-            }
-          }
-          patchState(store, { env: setEnvValues(store.env(), values) });
-          toast.info(
-            shared.length > 0
-              ? translator.t('apps.undo.filledShared', { keys: shared.join(', ') })
-              : translator.t('apps.undo.filled'),
-          );
-        },
-
-        async useTemplate(): Promise<void> {
-          const details = await asPerson('apps.template.failed', () =>
-            firstValueFrom(appsApi.useTemplate(store.name(), store.folder())),
-          );
-          if (!details) return;
-          patchState(store, { details, compose: details.compose, env: details.env });
-          toast.success(translator.t('apps.template.done'));
         },
 
         async addToBackups(): Promise<void> {

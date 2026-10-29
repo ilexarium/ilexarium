@@ -8,14 +8,7 @@ import {
   type Answer,
   type Request,
 } from './answers.mts';
-import {
-  checkCompose,
-  composeImages,
-  dockerAccess,
-  removeVolumes,
-  startTask,
-  taskState,
-} from './apps.mts';
+import { checkCompose, dockerAccess, removeVolumes, startTask, taskState } from './apps.mts';
 import {
   KILL_TIMEOUT_MS,
   MESSAGES,
@@ -106,8 +99,6 @@ export function handle(request: Request): Promise<Answer> | Answer {
       return taskState(request);
     case 'compose.check':
       return checkCompose(request);
-    case 'compose.images':
-      return composeImages(request);
     case 'volumes.remove':
       return removeVolumes(request);
     case 'paths.size':

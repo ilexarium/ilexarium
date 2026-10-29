@@ -193,53 +193,6 @@ export async function checkCompose(request: Request): Promise<Answer> {
   return dockerRefusal(administrator, result);
 }
 
-/** The images an app's containers run, with their digests (saved before an update). */
-export async function composeImages(request: Request): Promise<Answer> {
-  const name = project(request);
-  const dir = folder(request);
-  const administrator = docker(request);
-  if (!name || !dir || administrator === null) return BAD_REQUEST;
-  const listed = await runAs(
-    administrator,
-    PROGRAMS.docker,
-    ['compose', '--project-name', name, 'images', '--format', 'json'],
-    { timeoutMs: QUICK_TIMEOUT_MS, cwd: dir },
-  );
-  if (listed.code !== 0) return dockerRefusal(administrator, listed);
-  let rows: { ContainerName?: unknown; Repository?: unknown; Tag?: unknown; ID?: unknown }[];
-  try {
-    const parsed: unknown = JSON.parse(listed.stdout || '[]');
-    rows = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return refused('failed');
-  }
-  const images = [];
-  for (const row of rows) {
-    const id = String(row.ID ?? '');
-    if (!/^(sha256:)?[0-9a-f]{12,64}$/.test(id)) continue;
-    const inspected = await runAs(
-      administrator,
-      PROGRAMS.docker,
-      ['image', 'inspect', '--format', '{{json .RepoDigests}}', '--', id],
-      { timeoutMs: QUICK_TIMEOUT_MS },
-    );
-    let digests: string[] = [];
-    try {
-      const parsed: unknown = JSON.parse(inspected.stdout.trim() || '[]');
-      if (Array.isArray(parsed)) digests = parsed.filter((d) => typeof d === 'string');
-    } catch {
-      // no digests known (an image built here)
-    }
-    images.push({
-      container: String(row.ContainerName ?? ''),
-      repository: String(row.Repository ?? ''),
-      tag: String(row.Tag ?? ''),
-      digests,
-    });
-  }
-  return ok({ images });
-}
-
 /** Deletes an app's named volumes (after its removal; Docker refuses one still in use). */
 export async function removeVolumes(request: Request): Promise<Answer> {
   const names = request['names'];
