@@ -2,8 +2,8 @@
 // shebang). Like the real ones (sudo and sudo-rs, checked), `[-k] -S -p '' -- <program>` reads one
 // line per try — "right" is the password, three tries — then runs the program, which reads the
 // rest of stdin. Like them without a terminal, a success is cached (the file `cached`): without
-// -k, the next call asks nothing. `-k` alone empties the cache. Records each call (args, the lines
-// it read) in sudo-calls.jsonl.
+// -k, the next call asks nothing. Records each call (args, the lines it read) in sudo-calls.jsonl,
+// and writes the file `ended` once the program it ran has ended.
 // not-allowed.txt: the account isn't in sudoers. rs.txt: sudo-rs's messages.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -44,11 +44,6 @@ function readLine() {
 }
 
 const cached = path.join(dir, 'cached');
-if (args.length === 1 && args[0] === '-k') {
-  fs.rmSync(cached, { force: true });
-  record();
-  process.exit(0);
-}
 const ignoreCache = args[0] === '-k';
 const rest = ignoreCache ? args.slice(1) : args;
 if (!(rest[0] === '-S' && rest[1] === '-p' && rest[2] === '' && rest[3] === '--' && rest[4])) {
@@ -79,4 +74,5 @@ fs.writeFileSync(cached, '');
 record();
 // The program by Node itself, so the test's environment (its fake programs) reaches it.
 const result = spawnSync(process.execPath, [rest[4], ...rest.slice(5)], { stdio: 'inherit' });
+fs.writeFileSync(path.join(dir, 'ended'), '');
 process.exit(result.status ?? 1);

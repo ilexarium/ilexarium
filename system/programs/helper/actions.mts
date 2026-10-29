@@ -4,7 +4,7 @@ import { checkCompose, dockerAccess, removeVolumes, startTask, taskState } from 
 import { KILL_TIMEOUT_MS, MESSAGES, PID_MAX, PROGRAMS, SIGNALS } from './config.mts';
 import { pathSizes, removePaths } from './paths.mts';
 import { run } from './run.mts';
-import { forward, lock, unlock } from './sudo.mts';
+import { forward, unlock } from './sudo.mts';
 
 export type { Answer, Request } from './answers.mts';
 
@@ -54,8 +54,6 @@ export function handle(request: Request): Promise<Answer> | Answer {
       return hello();
     case 'sudo.unlock':
       return unlock(request);
-    case 'sudo.lock':
-      return lock();
     case 'process.signal':
       return signalProcess(request);
     case 'docker.access':

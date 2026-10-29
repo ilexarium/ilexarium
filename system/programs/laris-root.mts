@@ -1,8 +1,8 @@
 #!/usr/bin/env -S -i /usr/bin/node
 // laris-root — runs as root, started by the signed-in person's own sudo when they unlock it
-// (docs/plans/laris_root.md): the helper runs `sudo -S -p '' -- laris-root.mts`, the password the
-// one line sudo reads. It does the helper's privileged actions until it's locked, 15 minutes after
-// its last request, or when its stdin closes (the helper, and so the Linux session, ended).
+// (docs/plans/laris_root.md): the helper runs `sudo -k -S -p '' -- laris-root.mts`, the password the
+// one line sudo reads. It does the helper's privileged actions until 15 minutes after its last
+// request, or until its stdin closes (the helper ended: the Linux session, or "Lock now").
 //
 // One JSON request per line on stdin, one JSON answer per line on stdout, matched by `id` — the
 // helper's own requests, in their privileged form:

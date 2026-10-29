@@ -140,38 +140,31 @@ describe('laris-helper', () => {
     expect(calls('kill').map((call) => call.args)).toEqual([['-s', 'KILL', '--', '1234']]);
   });
 
-  it('locks again: laris-root ends, and sudo’s cache is emptied', async () => {
+  /** The helper's stdin closes (the session ended, or "Lock now"); resolves once it exited. */
+  async function endHelper() {
+    const exited = new Promise((resolve) => helper.on('exit', resolve));
+    helper.stdin.end();
+    await exited;
+  }
+
+  it('laris-root ends with its helper (the session’s end, or “Lock now”)', async () => {
     await ask({ action: 'sudo.unlock', password: 'right' });
-    expect(await ask({ action: 'sudo.lock' })).toEqual({ ok: true });
-    expect(calls('sudo').at(-1)?.args).toEqual(['-k']);
-    expect(
-      await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
-    ).toEqual({ ok: false, error: 'sudo_required' });
-    expect(calls('kill')).toEqual([]);
+    expect(existsSync(join(dir, 'ended'))).toBe(false);
+    await endHelper();
+    await vi.waitFor(() => expect(existsSync(join(dir, 'ended'))).toBe(true));
   });
 
-  it('after a lock, a wrong password never unlocks — though sudo’s cache would let it', async () => {
+  it('a new helper never unlocks with a wrong password — though sudo’s cache would let it', async () => {
     await ask({ action: 'sudo.unlock', password: 'right' });
-    await ask({ action: 'sudo.lock' });
-    // As if sudo -k had no effect (another sudo of this account, or its timeout set long).
+    await endHelper();
+    start();
+    await nextLine();
+    // As if the cache were shared (a real sudo keeps it for this account a while).
     writeFileSync(join(dir, 'cached'), '');
     expect(await ask({ action: 'sudo.unlock', password: 'wrong' })).toEqual({
       ok: false,
       error: 'wrong_password',
     });
-    expect(
-      await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
-    ).toEqual({ ok: false, error: 'sudo_required' });
-  });
-
-  it('a lock while sudo is still asked: that unlock never takes effect', async () => {
-    helper.stdin.write(
-      `${JSON.stringify({ id: 998, action: 'sudo.unlock', password: 'right' })}\n`,
-    );
-    helper.stdin.write(`${JSON.stringify({ id: 999, action: 'sudo.lock' })}\n`);
-    const answers = [await nextLine(), await nextLine()];
-    expect(answers).toContainEqual({ id: 999, ok: true });
-    expect(answers).toContainEqual({ id: 998, ok: false, error: 'sudo_required' });
     expect(
       await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),
     ).toEqual({ ok: false, error: 'sudo_required' });
