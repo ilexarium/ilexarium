@@ -13,7 +13,7 @@ import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
 // The process list end to end: the `processes` topic from this machine's /proc, and ending
 // processes as a Linux account through its helper on the development SSH server (dev/sshd, which
 // shares this machine's PIDs and runs the repo's helper): anna ends her own; bob's through her
-// sudo once unlocked (her rule allows `kill`); bob has no sudo. Skipped when the SSH server isn't
+// sudo once unlocked (laris-root, which her rule allows); bob has no sudo. Skipped when the SSH server isn't
 // running (npm run db:up starts it).
 
 const ANNA = { username: 'anna', password: 'anna-dev-password' };
@@ -198,21 +198,23 @@ describe.skipIf(!sshdUp)('processes (e2e)', () => {
     expect(events).not.toContain(ANNA.password);
   });
 
-  it('“Lock now” locks sudo and ends the Linux session', async () => {
+  it('“Lock now” locks sudo (laris-root ends); the Linux session stays', async () => {
     await signInAs(ANNA);
     await unlock(ANNA.password).expect(200);
-    await request(client.session!.origin)
+    const res = await request(client.session!.origin)
       .delete('/api/files/session/sudo')
       .set('Origin', client.session!.origin)
       .set('Cookie', client.session!.cookie)
-      .expect(204);
-    expect(await linuxSession()).toBeNull();
+      .expect(200);
+    expect(res.body.session).toMatchObject({ username: 'anna', sudoUntil: null });
+    expect(await linuxSession()).toMatchObject({ username: 'anna', sudoUntil: null });
 
-    // A new session's terminal never has the old one's sudo.
     const others = await sleeperOf(BOB);
-    await signInAs(ANNA);
     const locked = await end({ ...others, signal: 'TERM' });
     expect([locked.status, locked.body.code]).toEqual([403, 'sudo_required']);
+    // Unlocked again: the same session, a new laris-root.
+    await unlock(ANNA.password).expect(200);
+    await end({ ...others, signal: 'TERM' }).expect(204);
   });
 
   it('an account without sudo: "not allowed"', async () => {

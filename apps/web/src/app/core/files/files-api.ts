@@ -31,9 +31,9 @@ export class FilesApi {
     return this.http.post<LinuxSession>('/api/files/session/sudo', request);
   }
 
-  /** "Lock now": sudo locked, and the Linux session ends. */
-  lockSudo(): Observable<void> {
-    return this.http.delete<void>('/api/files/session/sudo');
+  /** "Lock now": sudo locked; the Linux session stays. */
+  lockSudo(): Observable<{ session: LinuxSession | null }> {
+    return this.http.delete<{ session: LinuxSession | null }>('/api/files/session/sudo');
   }
 
   list(path: string): Observable<FileList> {

@@ -25,7 +25,7 @@ import {
   KEEPALIVE_INTERVAL_MS,
   SSH_HOST,
   SUDO_ERRORS,
-  SUDO_ESTIMATE_MS,
+  SUDO_IDLE_MS,
 } from './linux-sessions.constants.js';
 import type {
   HelperAnswer,
@@ -46,7 +46,9 @@ import type {
  *
  * Each session runs the helper (`LINUX_HELPER`, docs/plans/acting_as_you.md) as the account, for
  * what Laris does as that person: ending processes, and sudo — unlocked with the same password,
- * kept by sudo's own cache in the helper's terminal, never here.
+ * which starts laris-root through the account's own sudo (docs/plans/laris_root.md); the password
+ * is never kept here. Unlocked means laris-root runs: it ends 15 minutes after its last action
+ * (the helper says so), at "Lock now", and with the session.
  */
 @Injectable()
 export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
@@ -155,8 +157,8 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Asks the session's helper (counts as use). With `sudo`, the action runs through the account's
-   * sudo: its answer moves the estimate (a use restarts sudo's time; `sudo_required`: locked).
+   * Asks the session's helper (counts as use). With `sudo`, the action is laris-root's: an answer
+   * starts its idle time again; `sudo_required`: it isn't running (locked).
    */
   async ask(
     appSessionId: string,
@@ -171,13 +173,13 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     session.idle.refresh();
     const answer = await session.helper.request(request, options.timeoutMs ?? HELPER_TIMEOUT_MS);
     if (options.sudo) {
-      if (answer.ok) session.sudoUntil = Date.now() + SUDO_ESTIMATE_MS;
+      if (answer.ok) session.sudoUntil = Date.now() + SUDO_IDLE_MS;
       else if (answer.error === 'sudo_required') session.sudoUntil = null;
     }
     return answer;
   }
 
-  /** Unlocks the account's sudo with its password (sudo -v in the helper's terminal). */
+  /** Unlocks the account's sudo with its password: the helper starts laris-root through it. */
   async unlockSudo(
     appSessionId: string,
     password: string,
@@ -221,18 +223,19 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     throw linuxError(code, 'sudo was not unlocked');
   }
 
-  /** "Lock now": sudo -k, and the Linux session ends (signing in again unlocks nothing). */
-  async lockSudo(appSessionId: string, actor: LinuxActor): Promise<void> {
+  /** "Lock now": laris-root ends; the Linux session stays. */
+  async lockSudo(appSessionId: string, actor: LinuxActor): Promise<LinuxSession | null> {
     const session = this.sessions.get(appSessionId);
-    if (!session) return;
-    // Locked even when the helper is gone: closing the session ends its terminal, and sudo's
-    // cache with it (a new terminal never has it).
+    if (!session) return null;
+    // Without a helper there is no laris-root either.
     if (session.helper?.running) {
-      await session.helper.request({ action: 'sudo.lock' }, HELPER_TIMEOUT_MS);
+      const answer = await session.helper.request({ action: 'sudo.lock' }, HELPER_TIMEOUT_MS);
+      // Not locked for sure (no answer): the session ends, and laris-root with its helper.
+      if (!answer.ok && this.sessions.get(appSessionId) === session) {
+        this.close(appSessionId, 'locked');
+      }
     }
-    // Only the session it locked: a newer sign-in meanwhile stays.
-    if (this.sessions.get(appSessionId) === session) this.close(appSessionId, 'locked');
-    else session.client.end();
+    session.sudoUntil = null;
     await this.auditService.tryRecord({
       action: 'linux.sudo_lock',
       outcome: 'success',
@@ -241,6 +244,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       ip: actor.ip,
       details: { linuxUser: session.username },
     });
+    return this.sessions.get(appSessionId) === session ? this.view(session) : null;
   }
 
   /** Signs in as a Linux user; replaces this app session's previous Linux session. */
@@ -309,6 +313,11 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         idle,
         closing: new Set(),
       };
+      if (helper) {
+        helper.onEvent = (event) => {
+          if (event === 'sudo.locked') session.sudoUntil = null;
+        };
+      }
       // Replaces the previous one, also one signed in at the same time (no connection left open).
       this.close(appSessionId, 'replaced');
       this.sessions.set(appSessionId, session);

@@ -23,7 +23,7 @@ async function setup(session: LinuxSession | null = ANNA) {
     signIn: vi.fn(() => of(ANNA)),
     signOut: vi.fn(() => of(undefined)),
     unlockSudo: vi.fn(() => of(unlockedFor(15 * 60_000))),
-    lockSudo: vi.fn(() => of(undefined)),
+    lockSudo: vi.fn(() => of({ session: { ...ANNA, sudoUntil: null } })),
   };
   const auth = fakeAuthApi({ user: OWNER });
   TestBed.configureTestingModule({
@@ -134,11 +134,12 @@ describe('LinuxSessionStore', () => {
     expect(store.sudoMinutes()).toBe(5);
   });
 
-  it('“Lock now” forgets the Linux session', async () => {
+  it('“Lock now” locks sudo; the Linux session stays', async () => {
     const { store, filesApi } = await setup(unlockedFor(5 * 60_000));
     await store.lockNow();
     expect(filesApi.lockSudo).toHaveBeenCalled();
-    expect(store.session()).toBeNull();
+    expect(store.session()).toMatchObject({ username: 'anna', sudoUntil: null });
+    expect(store.sudoMinutes()).toBeNull();
   });
 
   it('forgets everything at the app’s sign-out, a waiting prompt answered “no”', async () => {

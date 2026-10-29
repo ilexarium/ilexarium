@@ -54,7 +54,7 @@ export interface OpenLinuxSession {
   gid: number | null;
   /** Its helper; null when it didn't start (Files and the terminal still work). */
   helper: LinuxHelper | null;
-  /** Until when sudo is probably unlocked (ms); null: locked. */
+  /** Until when laris-root runs (ms): its idle limit after the last action; null: locked. */
   sudoUntil: number | null;
   /** The app user who opened it (an "everywhere" sign-out closes all of theirs). */
   userId: string;
