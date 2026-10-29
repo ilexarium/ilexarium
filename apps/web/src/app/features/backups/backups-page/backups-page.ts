@@ -89,7 +89,7 @@ export class BackupsPage {
     return template?.backupRestoreNote ? `catalog.${template.id}.backup.restoreNote` : null;
   });
 
-  /** Opened from an app's "Undo this update" (`?restore=<item>`): its restore dialog, once. */
+  /** Opened from an app's page (`?restore=<item>`): its restore dialog, once. */
   private readonly restoreAsked = toSignal(this.route.queryParamMap, { requireSync: true });
 
   constructor() {
