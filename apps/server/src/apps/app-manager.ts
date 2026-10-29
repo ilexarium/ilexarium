@@ -240,7 +240,11 @@ export class AppManager {
       try {
         await sftp.writeText(posix.join(folder, COMPOSE_FILE), request.compose, 0o644);
         written.push(posix.join(folder, COMPOSE_FILE));
-        await sftp.writeText(posix.join(folder, ENV_FILE), request.env, 0o600);
+        await sftp.writeText(
+          posix.join(folder, ENV_FILE),
+          this.withAccount(appSessionId, request.template, request.env),
+          0o600,
+        );
         written.push(posix.join(folder, ENV_FILE));
         created.push(...(await this.makeDataFolders(sftp, request.compose, request.env, folder)));
         await this.appTasks.check(appSessionId, folder, request.name);
@@ -563,9 +567,22 @@ export class AppManager {
     return new AppSftp(this.linuxSessions.sftp(appSessionId).sftp);
   }
 
+  /** A template's `@account` fields left empty (the form came before the sign-in): this account. */
+  private withAccount(appSessionId: string, templateId: string | null, env: string): string {
+    const template = templateId ? this.catalogService.get(templateId)?.template : undefined;
+    const values = parseEnv(env);
+    const empty = (template?.fields ?? [])
+      .filter((field) => field.default === '@account' && !values.get(field.key))
+      .map((field) => field.key);
+    if (empty.length === 0) return env;
+    const { account } = this.context(appSessionId);
+    return setEnvValues(env, Object.fromEntries(empty.map((key) => [key, account])));
+  }
+
   private context(appSessionId: string): FieldContext {
     const session = this.linuxSessions.current(appSessionId);
-    let account = '1000:1000';
+    // Never a guess: an account's uid is known only once signed in, and install fills it then.
+    let account = '';
     if (session) {
       const { uid, gid } = this.linuxSessions.account(appSessionId);
       if (uid !== null) account = `${uid}:${gid ?? uid}`;

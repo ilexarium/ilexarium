@@ -1,6 +1,6 @@
 /** What fills a template's `@account` and `@timezone` defaults. */
 export interface FieldContext {
-  /** `<uid>:<gid>` of the signed-in account. */
+  /** `<uid>:<gid>` of the signed-in account; empty before a Linux sign-in (filled at install). */
   account: string;
   timezone: string;
 }
