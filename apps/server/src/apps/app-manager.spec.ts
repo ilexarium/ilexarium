@@ -166,6 +166,7 @@ const entry = {
       { key: 'PORT', kind: 'port', default: 8080 },
       { key: 'MEDIA', kind: 'folder', default: './media' },
       { key: 'NEW_SECRET', kind: 'generated' },
+      { key: 'USER_ID', kind: 'text', default: '@account', advanced: true },
     ],
   },
   compose: `services:\n  web:\n    image: example/web:2\n    ports: ['\${PORT}:80']\n    environment: [ "S=\${NEW_SECRET}" ]\n    volumes: [ "\${MEDIA}:/media" ]\n    labels:\n      laris.template: demo@3\n`,
@@ -202,6 +203,17 @@ describe('AppManager.install', () => {
     expect(existsSync(join(folder, 'data'))).toBe(true);
     expect(existsSync(join(folder, 'media'))).toBe(true);
     expect(asked.map((a) => a.action)).toEqual(['docker.access', 'compose.check', 'app.task']);
+  });
+
+  it('a template’s account field left empty (the form came before the sign-in): this account', async () => {
+    await manager().install(
+      SESSION,
+      { name: 'music', folder: null, template: 'demo', compose, env: 'PORT=8080\nUSER_ID=\n' },
+      ACTOR,
+    );
+    expect(readFileSync(join(home, 'apps', 'music', '.env'), 'utf8')).toBe(
+      'PORT=8080\nUSER_ID=1500:1500\n',
+    );
   });
 
   it('refuses a name Docker knows, and a folder that isn’t empty', async () => {
