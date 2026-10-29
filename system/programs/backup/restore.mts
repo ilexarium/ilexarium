@@ -4,8 +4,9 @@
 // app reads.
 //
 // Back where it was (no target): each folder the archive holds is set aside as
-// `<folder>.before-restore-<date>` first (the way back); an app using them is stopped and started
-// around it. To a target folder (missing or empty): everything, with its full paths below it.
+// `<folder>.before-restore-<date>` first (the way back); an app using them is stopped first and
+// brought up after with its files (`up -d`): the restored data, settings and versions at once.
+// To a target folder (missing or empty): everything, with its full paths below it.
 
 import {
   appendFileSync,
@@ -242,9 +243,11 @@ async function restoreArchive(
   for (const source of sources) assertParentsSafe(source);
   const project = item.kind === 'app' ? item.project! : null;
   let wasRunning = false;
+  let files: string[] = [];
   if (project) {
     const ps = await docker(config, ['compose', '-p', project, 'ps', '-q'], { capture: true });
     wasRunning = ps.code === 0 && ps.stdout.trim().length > 0;
+    if (wasRunning) files = await composeFiles(config, project);
   }
   const moved: { from: string; to: string }[] = [];
   /** Sources that weren't there before: on a failure, what was extracted of them goes. */
@@ -307,7 +310,7 @@ async function restoreArchive(
   } finally {
     if (wasRunning) {
       phase('starting');
-      await startAgain(config, paths, project!, () => undefined, line, result);
+      await startAgain(config, paths, project!, () => undefined, line, result, files);
     }
   }
   if (failure) throw failure;
@@ -316,6 +319,30 @@ async function restoreArchive(
     throw new SetAsideRefusal(result.errorCode, 'the app could not be started again', setAside);
   }
   return setAside;
+}
+
+/**
+ * An app's Compose files as Docker recorded them (`compose ls`), read before it stops: started
+ * with them, the restored `compose.yml`, `.env` and versions apply. None, or one in a system
+ * place: started as it was.
+ */
+async function composeFiles(config: Config, project: string): Promise<string[]> {
+  const listed = await docker(
+    config,
+    ['compose', 'ls', '--all', '--format', 'json', '--filter', `name=${project}`],
+    { capture: true },
+  );
+  if (listed.code !== 0) return [];
+  try {
+    const rows: unknown = JSON.parse(listed.stdout || '[]');
+    const row = Array.isArray(rows)
+      ? (rows as { Name?: unknown; ConfigFiles?: unknown }[]).find((r) => r?.Name === project)
+      : undefined;
+    const files = typeof row?.ConfigFiles === 'string' ? row.ConfigFiles.split(',') : [];
+    return files.length > 0 && files.every((file) => allowedFolder(config, file)) ? files : [];
+  } catch {
+    return [];
+  }
 }
 
 /** The source folders of an archive, from its recorded `borg create` command line. */

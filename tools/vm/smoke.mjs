@@ -1,8 +1,9 @@
 // The installer's smoke test, run as root inside a freshly installed machine (tools/vm/):
 //   node smoke.mjs install   after the first install: setup, sign-in, containers through the proxy
 //                            socket, ending processes as a person, apps installed as a person
-//                            (through her sudo; with the docker group as user units), a backup
-//                            and a restore to a new folder through her sudo, and the security
+//                            (through her sudo; with the docker group as user units), a backup,
+//                            a restore to a new folder and one back where it was (the app brought
+//                            up with the restored settings) through her sudo, and the security
 //                            setup (files, no sudo for the app, who reaches the proxy)
 //   node smoke.mjs update    after running the installer again: everything is still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
@@ -633,6 +634,51 @@ async function install() {
     restored.value?.status === 'succeeded' &&
       existsSync('/home/anna/restored/home/anna/apps/navidrome/compose.yml'),
     JSON.stringify(restored.value).slice(0, 400),
+  );
+
+  console.log('\nRestoring back where it was: its settings back and applied at once (`up -d`)');
+  const folder = '/home/anna/apps/navidrome';
+  const published = () =>
+    sh('docker', [
+      'ps',
+      '--filter',
+      'label=com.docker.compose.project=navidrome',
+      '--format',
+      '{{.Ports}}',
+    ]);
+  const details = (await api('GET', `/apps/navidrome?folder=${encodeURIComponent(folder)}`)).json;
+  const saved = await api('PUT', '/apps/navidrome/files', {
+    folder,
+    compose: details?.compose,
+    env: details?.env.replace(/^WEB_PORT=.*$/m, 'WEB_PORT=4599'),
+    hash: details?.hash,
+    overwrite: false,
+  });
+  const applied = await waitTask('navidrome', folder);
+  check(
+    'a changed setting saved and applied',
+    saved.status === 202 && applied?.state === 'succeeded' && published().includes(':4599->'),
+    `${saved.status} ${published()}`,
+  );
+  const back = await api('POST', '/backups/restores', {
+    itemId: item?.id,
+    archive: archives[0]?.name,
+    target: null,
+  });
+  const backDone = await until(
+    'the restore back where it was finished',
+    async () => {
+      const r = await api('GET', `/backups/restores/${back.json?.restoreId}`);
+      return { done: r.json?.status && r.json.status !== 'running', value: r.json };
+    },
+    10 * 60_000,
+  );
+  check(
+    'restored where it was: the setting from the backup runs again',
+    backDone.value?.status === 'succeeded' &&
+      published().includes(':4533->') &&
+      readFileSync(`${folder}/.env`, 'utf8').includes('WEB_PORT=4533'),
+    `${JSON.stringify(backDone.value).slice(0, 400)} ${published()}`,
   );
 
   console.log('\nApps, as bob (in the docker group: user units, no sudo)');

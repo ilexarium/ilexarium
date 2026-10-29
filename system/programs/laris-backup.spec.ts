@@ -869,7 +869,18 @@ describe('laris-backup restore', () => {
     expect(calls('borg')).toEqual([]);
   });
 
-  it('back where it was: stops the app, sets the current folders aside, extracts, starts it again', async () => {
+  const composeFile = () => join(storage, 'demo', 'compose.yml');
+  const composeLs = (file: string) =>
+    writeFileSync(
+      join(dir, 'compose-ls.json'),
+      JSON.stringify([
+        { Name: 'demo-2', Status: 'running(1)', ConfigFiles: '/etc/x/compose.yml' },
+        { Name: 'demo', Status: 'running(2)', ConfigFiles: file },
+      ]),
+    );
+
+  it('back where it was: stops the app, sets the current folders aside, extracts, brings it up with its files', async () => {
+    composeLs(composeFile());
     const result = await restore(restoreInput());
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(
@@ -895,10 +906,12 @@ describe('laris-backup restore', () => {
       data.slice(1),
       join(storage, 'demo', 'media').slice(1),
     ]);
-    expect(calls('docker').map((c) => c.args.slice(1, 4))).toEqual([
-      ['-p', 'demo', 'ps'],
-      ['-p', 'demo', 'stop'],
-      ['-p', 'demo', 'start'],
+    expect(calls('docker').map((c) => c.args)).toEqual([
+      ['compose', '-p', 'demo', 'ps', '-q'],
+      ['compose', 'ls', '--all', '--format', 'json', '--filter', 'name=demo'],
+      ['compose', '-p', 'demo', 'stop'],
+      // `up`, not `start`: the restored compose.yml, .env and versions apply at once.
+      ['compose', '-p', 'demo', '-f', composeFile(), 'up', '-d'],
     ]);
     // The request is gone once done.
     expect(existsSync(join(dev, 'state', 'restore-requests', `${RESTORE}.json`))).toBe(false);
@@ -913,7 +926,23 @@ describe('laris-backup restore', () => {
     expect(readFileSync(join(data, 'db.sqlite'), 'utf8')).toBe('data');
     expect(existsSync(join(data, 'partial.txt'))).toBe(false);
     expect(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8')).toBe('[]\n');
-    expect(calls('docker').map((c) => c.args[3])).toEqual(['ps', 'stop', 'start']);
+    expect(calls('docker').map((c) => (c.args[1] === 'ls' ? 'ls' : c.args[3]))).toEqual([
+      'ps',
+      'ls',
+      'stop',
+      'start',
+    ]);
+  });
+
+  it('Compose files Docker doesn’t know, or in a system place: started as it was', async () => {
+    composeLs('/etc/demo/compose.yml');
+    const result = await restore(restoreInput());
+    expect(result.code, result.lines.join('\n')).toBe(0);
+    expect(
+      calls('docker')
+        .map((c) => c.args)
+        .at(-1),
+    ).toEqual(['compose', '-p', 'demo', 'start']);
   });
 
   it('into a chosen folder: everything with its full paths, nothing stopped', async () => {

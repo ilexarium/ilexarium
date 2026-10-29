@@ -1,7 +1,8 @@
 // A fake `docker` for laris-backup.spec.ts (copied beside the test's files, with a shebang).
 // Records every call in docker-calls.jsonl. `exec` prints a fake dump. `compose -p <project>`:
-// `ps -q` prints a container id while <project> is in running.txt; `stop` and `start` change
+// `ps -q` prints a container id while <project> is in running.txt; `stop`, `start` and `up` change
 // that; exit-<command>.txt sets an exit code; start-fails.txt makes the next N starts fail.
+// `compose ls` prints compose-ls.json (or `[]`).
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -21,15 +22,21 @@ if (args[0] === 'exec') {
   process.stdout.write('PGDMP fake dump\n');
   process.exit(Number(read('exit-exec.txt', '0')));
 }
+if (args[0] === 'compose' && args[1] === 'ls') {
+  process.stdout.write(read('compose-ls.json', '[]'));
+  process.exit(Number(read('exit-ls.txt', '0')));
+}
 if (args[0] === 'compose') {
   const project = args[2];
-  const command = args[3];
+  let at = 3;
+  while (args[at] === '-f') at += 2;
+  const command = args[at];
   const exit = Number(read(`exit-${command}.txt`, '0'));
   if (command === 'ps') {
     if (running().includes(project)) process.stdout.write('c0ffee\n');
   } else if (command === 'stop') {
     if (exit === 0) setRunning(running().filter((p) => p !== project));
-  } else if (command === 'start') {
+  } else if (command === 'start' || command === 'up') {
     const fails = Number(read('start-fails.txt', '0'));
     if (fails > 0) {
       fs.writeFileSync(file('start-fails.txt'), String(fails - 1));
