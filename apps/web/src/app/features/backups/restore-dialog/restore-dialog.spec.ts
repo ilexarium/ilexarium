@@ -57,6 +57,9 @@ describe('RestoreDialog', () => {
   it('restores an app back where it was by default, from the newest backup', async () => {
     const fixture = await open(row('app'));
     expect(dialog().textContent).toContain('current folders are set aside');
+    // The folders it replaces: the item's in the plan now.
+    expect(dialog().textContent).toContain('Replaces these folders');
+    expect(dialog().textContent).toContain('/home/anna/apps/immich/data');
     button('Restore in place').click();
     await fixture.whenStable();
     expect(fixture.componentInstance.chosen()).toEqual({

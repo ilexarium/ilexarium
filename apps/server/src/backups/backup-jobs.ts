@@ -110,6 +110,7 @@ const restoreDoneSchema = z.object({
   status: z.enum(['succeeded', 'failed']),
   errorCode,
   setAside: z.array(z.string().max(4096)).max(100),
+  appWasRunning: z.boolean().default(false),
 });
 
 export const jobEventSchema = z.discriminatedUnion('type', [
@@ -468,6 +469,7 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
           errorCode: done ? done.errorCode : BACKUP_ERROR_CODES.interrupted,
           // Folders set aside are kept even when starting the app afterwards failed: they're the way back.
           setAside: done?.setAside ?? [],
+          appWasRunning: done?.appWasRunning ?? false,
           output: job.output.join('\n'),
           finishedAt: new Date(),
         },

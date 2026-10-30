@@ -3,10 +3,11 @@
 // on if the app stops. Its phases, output and result go to its job file (<state>/jobs/<id>.jsonl),
 // which the app reads.
 //
-// Back where it was (no target): each folder the archive holds is set aside as
-// `<folder>.before-restore-<date>` first (the way back); an app using them is stopped first and
-// brought up after with its files (`up -d`): the restored data, settings and versions at once.
-// To a target folder (missing or empty): everything, with its full paths below it.
+// Back where it was (no target): the item's folders in the plan now that the archive holds (the
+// list its backup wrote in its comment) — each set aside as `<folder>.before-restore-<date>` first
+// (the way back); a running app is stopped first and started again after (the app then offers to
+// apply the restored settings, as the person). To a target folder (missing or empty): everything,
+// with its full paths below it.
 
 import {
   existsSync,
@@ -14,6 +15,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
 } from 'node:fs';
@@ -23,13 +25,12 @@ import { openRepository } from './destination.mts';
 import { folderStamp, JobFile, prepareState, writeAtomic } from './files.mts';
 import { parseInput } from './input.mts';
 import type { Config, ItemResult, Paths, SetAside } from './model.mts';
-import { allowedFolder, assertParentsSafe, below, overlaps } from './places.mts';
+import { allowedFolder, assertParentsSafe, overlaps } from './places.mts';
 import { ARCHIVE_PATTERN, UUID, loadPlan } from './plan.mts';
 import { borg, borgFailure, docker, takeLock } from './programs.mts';
 import { startAgain } from './run.mts';
 import { startDetached, startUnit } from './start.mts';
 import { Refusal, emit, oneLine } from '../lib/output.mts';
-import { isPlainAbsolutePath } from '../lib/paths.mts';
 
 export const SET_ASIDE_PATTERN = /\.before-restore-\d{8}-\d{6}$/;
 
@@ -122,8 +123,12 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
     events.event({ type: 'phase', phase: name });
   };
   const line = (text: string) => events.event({ type: 'line', text: text.slice(0, 2000) });
-  const done = (status: 'succeeded' | 'failed', errorCode: string | null, setAside: string[]) =>
-    events.event({ type: 'restoreDone', status, errorCode, setAside });
+  const done = (
+    status: 'succeeded' | 'failed',
+    errorCode: string | null,
+    setAside: string[],
+    appWasRunning = false,
+  ) => events.event({ type: 'restoreDone', status, errorCode, setAside, appWasRunning });
   let release: (() => void) | null = null;
   try {
     const file = requestFile(paths, restoreId);
@@ -136,9 +141,9 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
     if (request.restoreId !== restoreId) throw new Refusal('invalid_request', 'another restore');
     // A backup run may hold the lock: a restore waits for it, like a scheduled run would.
     release = await takeLock(paths, true);
-    const setAside = await restoreArchive(config, paths, request, phase, line);
+    const { setAside, appWasRunning } = await restoreArchive(config, paths, request, phase, line);
     phase('done');
-    done('succeeded', null, setAside);
+    done('succeeded', null, setAside, appWasRunning);
     rmSync(file, { force: true });
     return 0;
   } catch (error) {
@@ -168,25 +173,15 @@ async function restoreArchive(
   request: RestoreRequest,
   phase: (name: string) => void,
   line: (text: string) => void,
-): Promise<string[]> {
+): Promise<{ setAside: string[]; appWasRunning: boolean }> {
   const plan = loadPlan(config, paths);
   const item = plan.items.find((i) => i.id === request.itemId)!;
   const repo = openRepository(config, paths, plan);
-  // What the archive holds: the sources its own `borg create` named.
   const info = await borg(config, paths, 'info', ['--json', `${repo.path}::${request.archive}`], {
     capture: true,
   });
   if (info.code !== 0) {
     throw new Refusal(borgFailure(info.logs, 'archive_not_found'), 'no such archive', 5);
-  }
-  const sources = archiveSources(info.stdout, request.archive);
-  const allowed =
-    item.kind === 'platform'
-      ? (p: string) =>
-          p === join(paths.state, 'platform') || config.backup.platform.files.includes(p)
-      : (p: string) => allowedFolder(config, p);
-  if (sources.length === 0 || !sources.every((s) => isPlainAbsolutePath(s) && allowed(s))) {
-    throw new Refusal('archive_not_found', 'the archive holds unexpected paths', 5);
   }
 
   if (request.target !== null) {
@@ -220,18 +215,31 @@ async function restoreArchive(
     } finally {
       process.umask(0o077);
     }
-    return [];
+    return { setAside: [], appWasRunning: false };
   }
 
-  // Back where it was.
+  // Back where it was: what the archive holds of the item's folders in the plan now.
+  const held = archiveFolders(info.stdout);
+  if (!held || held.length === 0 || !held.every((p) => allowedFolder(config, p))) {
+    throw new Refusal('archive_not_found', 'the backup doesn’t list its folders', 5);
+  }
+  const planned = item.kind === 'app' ? (item.folders ?? []) : [item.path!];
+  // The archive lists them as they really were (any symlink above resolved).
+  const same = (held: string, folder: string) =>
+    held === folder || (existsSync(folder) && realpathSync(folder) === held);
+  for (const folder of planned) {
+    if (!held.some((p) => same(p, folder))) line(`${folder}: not in this backup, left as it is`);
+  }
+  const sources = held.filter((p) => planned.some((folder) => same(p, folder)));
+  if (sources.length === 0) {
+    throw new Refusal('archive_not_found', 'none of its folders is in the plan any more', 5);
+  }
   for (const source of sources) assertParentsSafe(source);
   const project = item.kind === 'app' ? item.project! : null;
   let wasRunning = false;
-  let files: string[] = [];
   if (project) {
     const ps = await docker(config, ['compose', '-p', project, 'ps', '-q'], { capture: true });
     wasRunning = ps.code === 0 && ps.stdout.trim().length > 0;
-    if (wasRunning) files = await composeFiles(config, project, sources);
   }
   const moved: { from: string; to: string }[] = [];
   /** Sources that weren't there before: on a failure, what was extracted of them goes. */
@@ -294,7 +302,7 @@ async function restoreArchive(
   } finally {
     if (wasRunning) {
       phase('starting');
-      await startAgain(config, paths, project!, () => undefined, line, result, files);
+      await startAgain(config, paths, project!, () => undefined, line, result);
     }
   }
   if (failure) throw failure;
@@ -302,49 +310,18 @@ async function restoreArchive(
   if (result.errorCode) {
     throw new SetAsideRefusal(result.errorCode, 'the app could not be started again', setAside);
   }
-  return setAside;
+  return { setAside, appWasRunning: wasRunning };
 }
 
-/**
- * An app's Compose files as Docker recorded them (`compose ls`), read before it stops: started
- * with them, the restored `compose.yml`, `.env` and versions apply. Only files inside the
- * restored folders, in folders only their owners can change (root reads and applies them); else
- * none, and the app is started as it was.
- */
-async function composeFiles(config: Config, project: string, sources: string[]): Promise<string[]> {
-  const listed = await docker(
-    config,
-    ['compose', 'ls', '--all', '--format', 'json', '--filter', `name=${project}`],
-    { capture: true },
-  );
-  if (listed.code !== 0) return [];
+/** The folders an archive holds, from the comment its backup wrote; null without one. */
+export function archiveFolders(infoJson: string): string[] | null {
   try {
-    const rows: unknown = JSON.parse(listed.stdout || '[]');
-    const row = Array.isArray(rows)
-      ? (rows as { Name?: unknown; ConfigFiles?: unknown }[]).find((r) => r?.Name === project)
-      : undefined;
-    const files = typeof row?.ConfigFiles === 'string' ? row.ConfigFiles.split(',') : [];
-    const restored = (file: string) =>
-      allowedFolder(config, file) && sources.some((source) => below(file, source));
-    if (files.length === 0 || !files.every(restored)) return [];
-    for (const file of files) assertParentsSafe(file);
-    return files;
+    const info = JSON.parse(infoJson) as { archives?: { comment?: unknown }[] };
+    const comment = info.archives?.[0]?.comment;
+    const folders: unknown = typeof comment === 'string' && comment ? JSON.parse(comment) : null;
+    return Array.isArray(folders) && folders.every((f) => typeof f === 'string') ? folders : null;
   } catch {
-    return [];
-  }
-}
-
-/** The source folders of an archive, from its recorded `borg create` command line. */
-export function archiveSources(infoJson: string, archive: string): string[] {
-  try {
-    const info = JSON.parse(infoJson) as { archives?: { command_line?: unknown }[] };
-    const line = info.archives?.[0]?.command_line;
-    if (!Array.isArray(line)) return [];
-    const at = line.findIndex((arg) => typeof arg === 'string' && arg.endsWith(`::${archive}`));
-    if (at < 0) return [];
-    return line.slice(at + 1).map(String);
-  } catch {
-    return [];
+    return null;
   }
 }
 

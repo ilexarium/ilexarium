@@ -272,6 +272,23 @@ export class AppManager {
     });
   }
 
+  /** Its files as they are, applied (`up -d`) — after a restore back where it was. */
+  async apply(
+    appSessionId: string,
+    name: string,
+    folder: string,
+    actor: LinuxActor,
+  ): Promise<AppStarted> {
+    const sftp = this.sftp(appSessionId);
+    await this.notBusy(appSessionId, sftp, folder);
+    await this.sudoFirst(appSessionId);
+    return this.audited('app.change', actor, { name, folder }, async () => {
+      await this.appTasks.check(appSessionId, folder, name);
+      const task = await this.appTasks.start(appSessionId, folder, name, 'up');
+      return { name, folder, task };
+    });
+  }
+
   /** What a removal may delete: the settings, each data folder, each named volume — with sizes. */
   async removal(appSessionId: string, name: string, folder: string): Promise<AppRemoval> {
     await this.readFiles(this.sftp(appSessionId), folder);

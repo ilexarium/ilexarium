@@ -68,6 +68,8 @@ interface BackupsPageState {
   passphraseFirst: boolean;
   /** Actions waiting for the server, for pending buttons (`run`, `run:<item>`, `remove:<item>`…). */
   pending: string[];
+  /** Restores whose app was told to apply its restored files. */
+  applied: string[];
 }
 
 const initialState: BackupsPageState = {
@@ -83,6 +85,7 @@ const initialState: BackupsPageState = {
   passphrase: null,
   passphraseFirst: false,
   pending: [],
+  applied: [],
 };
 
 /**
@@ -340,6 +343,25 @@ export const BackupsPageStore = signalStore(
           if (await act('restore', 'backups.restore.failed', () => backupsApi.restore(choice))) {
             toast.success(translator.t('backups.restore.started'));
             reload();
+          }
+        },
+
+        /** After a restore back where it was: the app's restored files applied, as the person. */
+        async applyRestored(restore: BackupRestore): Promise<void> {
+          const project = store.plan()?.items.find((i) => i.id === restore.itemId)?.project;
+          const app = store.apps().find((a) => a.name === project);
+          if (!app?.folder) {
+            toast.error(translator.t('backups.restore.applyFailed'));
+            return;
+          }
+          const folder = app.folder;
+          if (
+            await act(`apply:${restore.id}`, 'backups.restore.applyFailed', () =>
+              appsApi.apply(app.name, folder),
+            )
+          ) {
+            patchState(store, { applied: [...store.applied(), restore.id] });
+            toast.success(translator.t('backups.restore.applyStarted'));
           }
         },
 

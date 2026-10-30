@@ -7,8 +7,9 @@ import { Formatter } from '../../../shared/format/formatter';
 import type { ItemLabel, ItemRow, RestoreChoice } from '../backups.model';
 
 /**
- * Restoring one item: which backup (newest first), and where — back where it was (an app is
- * stopped, the current folders set aside as the way back, then it's started again) or into a
+ * Restoring one item: which backup (newest first), and where — back where it was (its folders in
+ * the plan now, listed; an app is stopped, the current folders set aside as the way back, then
+ * it's started again) or into a
  * folder of the person's choice (missing or empty), with the full paths below it. The platform
  * only goes to a folder. The confirm button is the confirmation. UI only: the page
  * opens it (`open`) and loads the archives; the choice goes out through `restore`.
@@ -38,6 +39,12 @@ export class RestoreDialog {
     return (row && this.labels().get(row.item.id)) || { text: '', ltr: false };
   });
   protected readonly inPlaceAllowed = computed(() => this.row()?.item.kind !== 'platform');
+  /** What a restore in place replaces: the item's folders in the plan now. */
+  protected readonly inPlaceFolders = computed(() => {
+    const item = this.row()?.item;
+    if (!item) return [];
+    return item.kind === 'app' ? item.folders : item.path ? [item.path] : [];
+  });
   protected readonly folderValid = computed(() => isBackupFolder(this.folder().trim()));
   /** The newest backup, until one is chosen. */
   protected readonly chosen = computed(() => this.archive() ?? this.archives()?.[0]?.name ?? null);

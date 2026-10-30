@@ -74,7 +74,9 @@ switch (command) {
       log('ERROR', `Archive ${name} does not exist`, 'Archive.DoesNotExist');
       process.exit(2);
     }
-    process.stdout.write(JSON.stringify({ archives: [{ name, command_line: line }] }));
+    const at = line.indexOf('--comment');
+    const comment = at >= 0 ? line[at + 1] : '';
+    process.stdout.write(JSON.stringify({ archives: [{ name, command_line: line, comment }] }));
     break;
   }
   case 'extract': {

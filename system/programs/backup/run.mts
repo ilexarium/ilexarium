@@ -294,7 +294,17 @@ export async function backupItem(
         config,
         paths,
         'create',
-        ['--json', '--compression', 'zstd,3', ...excludes, `${repo.path}::${name}`, ...sources],
+        [
+          '--json',
+          '--compression',
+          'zstd,3',
+          // The folders it holds, read back by a restore in place.
+          '--comment',
+          JSON.stringify(sources),
+          ...excludes,
+          `${repo.path}::${name}`,
+          ...sources,
+        ],
         { capture: true, onLine: keep },
       );
       if (create.code >= 2 || stopping) {
@@ -352,10 +362,7 @@ export async function backupItem(
   }
 }
 
-/**
- * Starts a stopped app again — retried; a failure is the most serious result there is. With its
- * Compose files (a restore): `up -d`, so the restored files and versions apply at once.
- */
+/** Starts a stopped app again — retried; a failure is the most serious result there is. */
 export async function startAgain(
   config: Config,
   paths: Paths,
@@ -363,28 +370,13 @@ export async function startAgain(
   phase: (phase: string) => void,
   keep: (line: string) => void,
   result: ItemResult,
-  files: string[] = [],
 ): Promise<void> {
   phase('starting');
-  const args =
-    files.length > 0
-      ? ['compose', '-p', project, ...files.flatMap((file) => ['-f', file]), 'up', '-d']
-      : ['compose', '-p', project, 'start'];
+  const args = ['compose', '-p', project, 'start'];
   for (let attempt = 1; attempt <= RESTART_ATTEMPTS; attempt++) {
     const start = await docker(config, args, { onLine: keep });
     if (start.code === 0) return;
     if (attempt < RESTART_ATTEMPTS) await sleep(paths.retryDelayMs);
-  }
-  // `up` refused (an image it can't pull, a file it can't read): running as it was beats stopped.
-  if (files.length > 0) {
-    const start = await docker(config, ['compose', '-p', project, 'start'], { onLine: keep });
-    if (start.code === 0) {
-      result.status = 'warning';
-      const warning = `${project} started as it was: its restored files didn't apply`;
-      result.warnings.push(warning);
-      keep(warning);
-      return;
-    }
   }
   result.status = 'failed';
   result.errorCode = 'service_not_restarted';

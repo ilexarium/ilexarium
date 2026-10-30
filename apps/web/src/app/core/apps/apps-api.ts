@@ -15,6 +15,7 @@ import {
   type AppTask,
   type AppsList,
   APPS_PATH,
+  appApplyPath,
   appDeletePath,
   appFilesPath,
   appPath,
@@ -72,6 +73,10 @@ export class AppsApi {
 
   update(name: string, folder: string): Observable<AppStarted> {
     return this.http.post<AppStarted>(appUpdatePath(name), { folder });
+  }
+  /** After a restore back where it was: its restored files applied. */
+  apply(name: string, folder: string): Observable<AppStarted> {
+    return this.http.post<AppStarted>(appApplyPath(name), { folder });
   }
 
   removal(name: string, folder: string): Observable<AppRemoval> {
