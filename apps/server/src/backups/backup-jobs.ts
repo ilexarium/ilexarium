@@ -10,7 +10,6 @@ import {
   BACKUP_ERROR_CODES,
   BACKUP_LIMITS,
   BACKUP_PHASES,
-  backupRestorePhaseSchema,
   type BackupPhase,
   type BackupProgress,
   type BackupRestorePhase,
@@ -25,7 +24,7 @@ import {
   Subject,
   type Subscription,
 } from 'rxjs';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service.js';
 import { safely } from '../common/safely.js';
 import { watchFolder } from '../common/watch-folder.js';
@@ -33,6 +32,16 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProgramConfigService } from '../root-programs/program-config.js';
+import {
+  type ItemResult,
+  JOB_FILE,
+  type JobEvent,
+  type JobStart,
+  jobEventSchema,
+  RESTORE_LINES,
+  type RunDone,
+} from './backup-jobs.constants.js';
+import type { Job } from './backup-jobs.model.js';
 import { stateDir } from './backup-paths.js';
 import {
   BACKUP_FILES_POLL_MS,
@@ -43,112 +52,6 @@ import {
   RUNS_KEPT,
   START_GRACE_MS,
 } from './backups.constants.js';
-
-// What the backup program writes in a job's file (system/programs/backup/files.mts): root-owned,
-// still checked.
-
-const uuid = z.uuid();
-const status = z.enum(['ok', 'warning', 'failed']);
-const errorCode = z.string().max(64).nullable();
-const time = z.iso.datetime();
-
-const itemResultSchema = z.object({
-  itemId: uuid,
-  status,
-  errorCode,
-  archive: z.string().max(128).nullable(),
-  originalBytes: z.number().nonnegative().nullable(),
-  addedBytes: z.number().nonnegative().nullable(),
-  warnings: z.array(z.string().max(1000)).max(50),
-  archives: z.array(z.string().max(128)).max(10_000).nullable().optional(),
-});
-type ItemResult = z.infer<typeof itemResultSchema>;
-
-const runStartSchema = z.object({
-  type: z.literal('run'),
-  runId: uuid,
-  trigger: z.enum(['scheduled', 'manual']),
-  itemId: uuid.nullable(),
-  pid: z.number().int().positive(),
-  startedAt: time,
-  items: z.array(uuid).max(200),
-});
-const checkStartSchema = z.object({
-  type: z.literal('check'),
-  checkId: uuid,
-  full: z.boolean(),
-  pid: z.number().int().positive(),
-  startedAt: time,
-});
-const restoreStartSchema = z.object({
-  type: z.literal('restore'),
-  restoreId: uuid,
-  pid: z.number().int().positive(),
-  startedAt: time,
-});
-const runDoneSchema = z.object({
-  type: z.literal('runDone'),
-  runId: uuid,
-  trigger: z.enum(['scheduled', 'manual']),
-  itemId: uuid.nullable(),
-  status,
-  errorCode,
-  startedAt: time,
-  finishedAt: time,
-  items: z.array(itemResultSchema).max(200),
-  output: z.array(z.string().max(4000)).max(500),
-});
-const checkDoneSchema = z.object({
-  type: z.literal('checkDone'),
-  checkId: uuid,
-  full: z.boolean(),
-  status,
-  errorCode,
-  startedAt: time,
-  finishedAt: time,
-});
-const restoreDoneSchema = z.object({
-  type: z.literal('restoreDone'),
-  status: z.enum(['succeeded', 'failed']),
-  errorCode,
-  setAside: z.array(z.string().max(4096)).max(100),
-  appWasRunning: z.boolean().default(false),
-});
-
-export const jobEventSchema = z.discriminatedUnion('type', [
-  runStartSchema,
-  checkStartSchema,
-  restoreStartSchema,
-  z.object({ type: z.literal('item'), itemId: uuid, phase: z.string().max(32) }),
-  z.object({ type: z.literal('phase'), phase: backupRestorePhaseSchema }),
-  z.object({ type: z.literal('line'), itemId: uuid.optional(), text: z.string().max(4000) }),
-  z.object({ type: z.literal('itemDone'), result: itemResultSchema }),
-  runDoneSchema,
-  checkDoneSchema,
-  restoreDoneSchema,
-]);
-export type JobEvent = z.infer<typeof jobEventSchema>;
-type JobStart = z.infer<
-  typeof runStartSchema | typeof checkStartSchema | typeof restoreStartSchema
->;
-type RunDone = z.infer<typeof runDoneSchema>;
-type JobDone = RunDone | z.infer<typeof checkDoneSchema | typeof restoreDoneSchema>;
-
-/** A job as its file tells it so far. */
-export interface Job {
-  id: string;
-  /** Null: not started (yet), or not this file's job. */
-  start: JobStart | null;
-  /** A run's live view. */
-  progress: BackupProgress | null;
-  /** A restore's phase. */
-  phase: BackupRestorePhase | null;
-  output: string[];
-  done: JobDone | null;
-}
-
-/** Restores keep more of their output than a run's live view. */
-const RESTORE_LINES = BACKUP_LIMITS.progressLines * 20;
 
 /** Parses JSON lines with a schema; lines that don't fit are skipped (and counted). */
 export function parseLines<T>(
@@ -247,8 +150,6 @@ export function processAlive(pid: number): boolean {
 /** Running: its process is alive — and it started less than a day ago (its pid may be reused). */
 const running = (start: JobStart) =>
   processAlive(start.pid) && Date.now() - Date.parse(start.startedAt) < MAX_RUN_MS;
-
-const JOB_FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jsonl$/;
 
 /**
  * The backup program's job files (`<state>/jobs/<id>.jsonl`: a run, a check or a restore) — the
