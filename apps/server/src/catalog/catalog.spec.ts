@@ -3,11 +3,70 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import en from '@laris/i18n/en.json' with { type: 'json' };
-import type { Template } from '@laris/shared';
+import { TEMPLATE_LABEL, type Template, templatePlaceholders } from '@laris/shared';
 import { flattenMessages } from '@laris/i18n';
-import { CatalogError, checkTemplate, loadCatalog } from './catalog-loader.js';
+import { parse } from 'yaml';
+import { CatalogError, loadCatalog } from './catalog-loader.js';
+import type { CatalogEntry } from './catalog.model.js';
 
 const CATALOG_DIR = fileURLToPath(new URL('../../../../catalog', import.meta.url));
+
+const MAX_ICON_BYTES = 64 * 1024;
+/** What an icon must not contain, though it is only ever shown through <img> (where nothing runs). */
+const UNSAFE_SVG = /<script|<foreignObject|\son[a-z]+\s*=|href\s*=|url\(|<!ENTITY/i;
+/** Tags a template never uses: they change under the person without an update. */
+const MOVING_TAGS = /^(latest|nightly|develop|dev|edge|main|master|release)$/i;
+
+/**
+ * A template's rules (catalog/README.md; the person may change anything afterwards): every
+ * variable a field and every field used; no moving tags; each service labelled with the template.
+ */
+function checkTemplate(template: Template, compose: string): string[] {
+  const problems: string[] = [];
+  const used = templatePlaceholders(compose);
+  const fields = template.fields.map((field) => field.key);
+  for (const key of used) if (!fields.includes(key)) problems.push(`\${${key}} is not a field`);
+  for (const key of fields) if (!used.includes(key)) problems.push(`field ${key} is not used`);
+  let file: unknown;
+  try {
+    file = parse(compose, { maxAliasCount: 100, uniqueKeys: true });
+  } catch (error) {
+    return [...problems, `is not YAML: ${(error as Error).message}`];
+  }
+  const services = (file as { services?: Record<string, Record<string, unknown>> } | null)
+    ?.services;
+  if (!services || typeof services !== 'object' || Object.keys(services).length === 0) {
+    return [...problems, 'has no services'];
+  }
+  const label = `${template.id}@${template.version}`;
+  for (const [name, service] of Object.entries(services)) {
+    const image = typeof service['image'] === 'string' ? service['image'] : '';
+    const tag = /:([^/:@]+)(@|$)/.exec(image)?.[1];
+    if (!tag) problems.push(`${name}: the image has no tag`);
+    else if (MOVING_TAGS.test(tag)) problems.push(`${name}: the tag "${tag}" moves`);
+    const labels = service['labels'];
+    const value = Array.isArray(labels)
+      ? labels
+          .find((l) => typeof l === 'string' && l.startsWith(`${TEMPLATE_LABEL}=`))
+          ?.split('=')[1]
+      : (labels as Record<string, unknown> | undefined)?.[TEMPLATE_LABEL];
+    if (value !== label) problems.push(`${name}: needs the label ${TEMPLATE_LABEL}: ${label}`);
+  }
+  for (const field of template.fields) {
+    if (field.kind === 'version' && MOVING_TAGS.test(String(field.default ?? ''))) {
+      problems.push(`${field.key}: the default "${field.default}" moves`);
+    }
+  }
+  return problems;
+}
+
+/** Only ever used in <img>, served with a no-script policy: still plain, small and inert. */
+const iconSafe = (icon: Buffer) => {
+  const svg = icon.toString('utf8');
+  return icon.length <= MAX_ICON_BYTES && /^\s*<svg[\s>]/.test(svg) && !UNSAFE_SVG.test(svg);
+};
+
+const catalog: CatalogEntry[] = await loadCatalog(CATALOG_DIR);
 
 const template: Template = {
   id: 'demo',
@@ -36,10 +95,17 @@ const compose = `services:
 `;
 
 describe('the catalog', () => {
-  it('loads every template, each passing every check', async () => {
-    const entries = await loadCatalog(CATALOG_DIR);
-    expect(entries.map((entry) => entry.template.id)).toEqual(['immich', 'navidrome', 'ollama']);
+  it('loads every template', () => {
+    expect(catalog.map((entry) => entry.template.id)).toEqual(['immich', 'navidrome', 'ollama']);
   });
+
+  it.each(catalog.map((entry) => [entry.template.id, entry] as const))(
+    '%s follows the rules: its variables, tags and labels; a plain icon',
+    (_id, { template: entry, compose: file, icon }) => {
+      expect(checkTemplate(entry, file)).toEqual([]);
+      expect(iconSafe(icon)).toBe(true);
+    },
+  );
 
   it('puts Ollama’s API on 127.0.0.1 by default and gives it no Open link (it has no sign-in)', async () => {
     const entries = await loadCatalog(CATALOG_DIR);
@@ -89,7 +155,7 @@ describe('the catalog', () => {
   });
 });
 
-describe('checkTemplate', () => {
+describe('the rules’ check', () => {
   it('accepts a good template', () => {
     expect(checkTemplate(template, compose)).toEqual([]);
   });
@@ -99,6 +165,13 @@ describe('checkTemplate', () => {
       '${OTHER} is not a field',
       'field DATA_DIR is not used',
     ]);
+  });
+
+  it('a plain SVG icon only', () => {
+    expect(iconSafe(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>'))).toBe(true);
+    expect(iconSafe(Buffer.from('<svg onload="alert(1)"></svg>'))).toBe(false);
+    expect(iconSafe(Buffer.from('<svg><a href="https://x"/></svg>'))).toBe(false);
+    expect(iconSafe(Buffer.from('<html></html>'))).toBe(false);
   });
 
   it('refuses moving tags and missing labels', () => {
@@ -153,9 +226,8 @@ describe('loadCatalog', () => {
     expect(entry.compose.startsWith('# mine\n')).toBe(true);
   });
 
-  it('names every problem of every template', async () => {
+  it('names every problem of every template: its schema, its id', async () => {
     await writeEntry('a', { 'template.json': JSON.stringify({ ...template, id: 'b' }) });
-    await writeEntry('c', { 'icon.svg': '<svg onload="alert(1)"></svg>' });
     await writeEntry('d', {
       'template.json': JSON.stringify({ ...template, id: 'd', website: 'x' }),
     });
@@ -163,23 +235,8 @@ describe('loadCatalog', () => {
     const problems = await problemsOf();
     expect(problems).toEqual([
       expect.stringMatching(/^a: template\.json id "b" is not the folder's name/),
-      // Its label names the folder's id, not the file's.
-      'a: compose.yml app: needs the label laris.template: b@1',
-      'a: compose.yml db: needs the label laris.template: b@1',
       'Bad_Name: not a valid template id',
-      expect.stringMatching(/^c: icon\.svg must be a plain SVG/),
       expect.stringMatching(/^d: template\.json website/),
     ]);
-  });
-
-  it('refuses YAML alias bombs', async () => {
-    const lines = ['a: &a ["x","x","x","x","x","x","x","x","x","x"]'];
-    for (let i = 1; i < 12; i++)
-      lines.push(
-        `${'a'.repeat(i + 1)}: &${'a'.repeat(i + 1)} [*${'a'.repeat(i)},*${'a'.repeat(i)},*${'a'.repeat(i)},*${'a'.repeat(i)},*${'a'.repeat(i)},*${'a'.repeat(i)},*${'a'.repeat(i)},*${'a'.repeat(i)},*${'a'.repeat(i)},*${'a'.repeat(i)}]`,
-      );
-    await writeEntry('bomb', { 'compose.yml': lines.join('\n') });
-    const problems = await problemsOf();
-    expect(problems.join('\n')).toMatch(/bomb: .*alias/i);
   });
 });
