@@ -147,7 +147,11 @@ export const BackupsPageStore = signalStore(
       ) {
         pending(key, true);
         try {
-          return (await linuxSessionStore.asPerson(() => firstValueFrom(request()))) !== null;
+          // `true` once answered: an empty answer (204) is null too, like a dismissed sign-in.
+          const done = await linuxSessionStore.asPerson(() =>
+            firstValueFrom(request()).then(() => true),
+          );
+          return done === true;
         } catch (error) {
           failed(failureKey, error, params);
           return false;
