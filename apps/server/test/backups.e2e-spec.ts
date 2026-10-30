@@ -223,7 +223,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     expect(current.items[1]).toMatchObject({
       project,
       folders: [join(storage, 'test-hello', 'site')],
-      newFolders: [],
+      otherFolders: [],
     });
     expect(current.destinationStatus).toMatchObject({ mountPoint: disk, hasRepository: true });
     await api()

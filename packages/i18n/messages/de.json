@@ -214,7 +214,6 @@
     "backups_already_configured": "Backups sind bereits eingerichtet.",
     "backup_item_not_found": "Das ist nicht (mehr) in den Backups.",
     "backup_item_exists": "Das wird bereits gesichert.",
-    "backup_too_many_items": "Backups können nicht mehr Einträge aufnehmen. Entferne zuerst etwas.",
     "backup_item_fixed": "Diese App selbst wird immer gesichert.",
     "backup_archive_not_found": "Dieses Backup gibt es nicht (mehr).",
     "backup_restore_not_found": "Für diese Wiederherstellung gibt es nichts zu löschen.",
@@ -799,7 +798,7 @@
       "addApp": "{{name}} hinzufügen",
       "appRemoved": "Die App ist entfernt; ihre Sicherungen bleiben.",
       "mode": "Während der Sicherung",
-      "newFolder": "noch nicht gesichert",
+      "notBackedUp": "nicht gesichert",
       "skipped": "Ausgelassen:",
       "unskip": "Sichern"
     },

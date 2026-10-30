@@ -82,23 +82,18 @@ export class BackupItems {
     return this.labels().get(row.item.id) ?? { text: '', ltr: false };
   }
 
-  /** The app's folders: those backed up, those left out, and new ones Docker shows. */
+  /** The app's folders: those backed up, and the others Docker shows. */
   protected allFolders(row: ItemRow): string[] {
-    const { folders, excludedFolders, newFolders } = row.item;
-    return [...new Set([...folders, ...excludedFolders, ...newFolders])].sort();
+    const { folders, otherFolders } = row.item;
+    return [...new Set([...folders, ...otherFolders])].sort();
   }
 
   protected toggleFolder(row: ItemRow, folder: string, event: Event): void {
     const on = (event.target as HTMLInputElement).checked;
-    const { folders, excludedFolders } = row.item;
+    const { folders } = row.item;
     this.change.emit({
       itemId: row.item.id,
-      change: {
-        folders: on ? [...folders, folder] : folders.filter((f) => f !== folder),
-        excludedFolders: on
-          ? excludedFolders.filter((f) => f !== folder)
-          : [...excludedFolders, folder],
-      },
+      change: { folders: on ? [...folders, folder] : folders.filter((f) => f !== folder) },
     });
   }
 

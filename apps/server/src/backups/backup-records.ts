@@ -38,19 +38,19 @@ export async function requireItem(prisma: PrismaService, id: string): Promise<It
 
 /**
  * An item as the API shows it. `apps`: each Compose project's folders as Docker sees them now —
- * an app item's folders not in the plan yet are "new", and an app Docker doesn't know is "removed".
+ * an app item's folders not backed up are shown as such, and an app Docker doesn't know is
+ * "removed".
  */
 export function itemView(item: ItemRow, apps: ReadonlyMap<string, string[]> | null): BackupItem {
   const last = item.results[0];
   const now = item.project ? apps?.get(item.project) : undefined;
-  const known = new Set([...item.folders, ...item.excludedFolders]);
+  const backedUp = new Set(item.folders);
   return {
     id: item.id,
     kind: item.kind,
     project: item.project,
     folders: item.folders,
-    excludedFolders: item.excludedFolders,
-    newFolders: (now ?? []).filter((folder) => !known.has(folder)),
+    otherFolders: (now ?? []).filter((folder) => !backedUp.has(folder)),
     skip: item.skip,
     mode: item.mode === 'stop' || item.mode === 'live' ? item.mode : null,
     appRemoved: item.kind === 'app' && apps !== null && now === undefined,

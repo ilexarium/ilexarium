@@ -214,7 +214,6 @@
     "backups_already_configured": "Backups are set up already.",
     "backup_item_not_found": "That is not in the backups (any more).",
     "backup_item_exists": "That is backed up already.",
-    "backup_too_many_items": "Backups can’t hold more items. Remove something first.",
     "backup_item_fixed": "This app itself is always backed up.",
     "backup_archive_not_found": "That backup doesn't exist (any more).",
     "backup_restore_not_found": "There is nothing to delete for this restore.",
@@ -799,7 +798,7 @@
       "addApp": "Add {{name}}",
       "appRemoved": "The app is removed; its backups stay.",
       "mode": "While it's backed up",
-      "newFolder": "not backed up yet",
+      "notBackedUp": "not backed up",
       "skipped": "Skipped:",
       "unskip": "Back up"
     },

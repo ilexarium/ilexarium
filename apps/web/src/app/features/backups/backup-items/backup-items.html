@@ -104,8 +104,8 @@
                     (change)="toggleFolder(row, folder, $event)"
                   />
                   <code dir="ltr" class="break-all">{{ folder }}</code>
-                  @if (row.item.newFolders.includes(folder)) {
-                    <span class="text-warning">{{ 'backups.items.newFolder' | translate }}</span>
+                  @if (!row.item.folders.includes(folder)) {
+                    <span class="text-warning">{{ 'backups.items.notBackedUp' | translate }}</span>
                   }
                 </label>
               }

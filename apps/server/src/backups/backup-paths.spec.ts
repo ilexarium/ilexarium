@@ -1,12 +1,5 @@
 import type { ProgramConfig } from '../root-programs/root-programs.model.js';
-import {
-  archiveTime,
-  destinationRoots,
-  isAllowedFolder,
-  overlaps,
-  skipInside,
-  stateDir,
-} from './backup-paths.js';
+import { archiveTime, destinationRoots, isAllowedFolder, stateDir } from './backup-paths.js';
 
 const config = {
   protectedPaths: ['/opt/laris', '/etc/laris', '/var/lib/laris'],
@@ -39,14 +32,6 @@ describe('backup paths', () => {
     ]) {
       expect(isAllowedFolder(config, path), path).toBe(false);
     }
-  });
-
-  it('a skip is inside one of the folders; overlap goes both ways', () => {
-    expect(skipInside('/a/b/cache', ['/a/b'])).toBe(true);
-    expect(skipInside('/a/bc', ['/a/b'])).toBe(false);
-    expect(overlaps('/a', '/a/b')).toBe(true);
-    expect(overlaps('/a/b', '/a')).toBe(true);
-    expect(overlaps('/a/b', '/a/c')).toBe(false);
   });
 
   it('any disk in production; the pretend ones in development', () => {
