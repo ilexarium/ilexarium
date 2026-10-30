@@ -128,6 +128,9 @@ async function render(start: BackupPlan | null) {
     // 204: no body.
     removeItem: vi.fn(() => of(null)),
     passphrase: vi.fn(() => of({ passphrase: PASSPHRASE })),
+    applyRestored: vi.fn(() =>
+      of({ name: 'immich', folder: '/home/anna/apps/immich', task: null }),
+    ),
   };
   const apps = {
     templates: vi.fn(() => of([])),
@@ -135,7 +138,6 @@ async function render(start: BackupPlan | null) {
     template: vi.fn(() =>
       of({ template: { backup: { mode: 'stop', skip: ['thumbs'] } }, compose: '' }),
     ),
-    apply: vi.fn(() => of({ name: 'immich', folder: '/home/anna/apps/immich', task: null })),
   };
   // Signed in to Linux with sudo at hand: every action goes straight through.
   const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
@@ -178,7 +180,7 @@ async function render(start: BackupPlan | null) {
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
       b.textContent?.includes(text),
     )!;
-  return { fixture, el, api, apps, asPerson, socket, pushStatus, button };
+  return { fixture, el, api, asPerson, socket, pushStatus, button };
 }
 
 describe('BackupsPage before setup', () => {
@@ -340,12 +342,14 @@ describe('BackupsPage with a plan', () => {
   });
 
   it('applies a restored app’s settings as the person, in its own folder', async () => {
-    const { apps, asPerson, fixture } = await render(plan());
+    const { api, asPerson, fixture } = await render(plan());
     const store = fixture.debugElement.injector.get(BackupsPageStore);
+    const before = api.plan.mock.calls.length;
     await store.applyRestored({ id: 'r1', itemId: IMMICH_ITEM } as never);
     expect(asPerson).toHaveBeenCalled();
-    expect(apps.apply).toHaveBeenCalledWith('immich', '/home/anna/apps/immich');
-    expect(store.applied()).toEqual(['r1']);
+    expect(api.applyRestored).toHaveBeenCalledWith('r1', '/home/anna/apps/immich');
+    // The restore no longer offers it: read again.
+    await vi.waitFor(() => expect(api.plan.mock.calls.length).toBeGreaterThan(before));
   });
 
   it('shows the passphrase again through the person’s sudo', async () => {

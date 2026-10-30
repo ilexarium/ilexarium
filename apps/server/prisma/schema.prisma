@@ -201,7 +201,7 @@ model BackupRestore {
   /// Back where it was: the folders set aside (the way back), until "Delete previous version".
   setAside          String[]   @default([])
   setAsideDeletedAt DateTime?  @db.Timestamptz(3)
-  /// Back where it was, an app that was running: the app page offers to apply its restored files.
+  /// Back where it was, an app that was running: "Apply the restored settings" is offered until used.
   appWasRunning     Boolean    @default(false)
   status            JobStatus
   phase             String?

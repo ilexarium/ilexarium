@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import type {
+  AppStarted,
   BackupArchivesResponse,
   BackupDestinationsResponse,
   BackupFoldersResponse,
@@ -88,6 +89,11 @@ export class BackupsApi {
 
   restores(): Observable<BackupRestoresResponse> {
     return this.http.get<BackupRestoresResponse>('/api/backups/restores');
+  }
+
+  /** "Apply the restored settings": the app's `up` task, as the person. */
+  applyRestored(restoreId: string, folder: string): Observable<AppStarted> {
+    return this.http.post<AppStarted>(`/api/backups/restores/${id(restoreId)}/apply`, { folder });
   }
 
   discardPrevious(restoreId: string): Observable<BackupRestore> {

@@ -479,6 +479,10 @@ export const backupRestoreSchema = z.object({
 export type BackupRestore = z.infer<typeof backupRestoreSchema>;
 
 export const backupRestoreIdParamsSchema = z.strictObject({ id: z.uuid() });
+
+/** `POST /api/backups/restores/:id/apply`: the restored app's folder (as Docker's labels say). */
+export const backupRestoreApplySchema = z.strictObject({ folder: folderPathSchema });
+export type BackupRestoreApply = z.infer<typeof backupRestoreApplySchema>;
 export type BackupRestoreIdParams = z.infer<typeof backupRestoreIdParamsSchema>;
 
 export const backupRunIdParamsSchema = z.strictObject({ id: z.uuid() });

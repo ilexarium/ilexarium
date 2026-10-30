@@ -125,7 +125,8 @@ export async function run(
       for (const item of items) {
         if (stopping) break;
         const keep = (line: string) => {
-          output.push(line);
+          // Cut as the app reads it: one line too long would make it drop the whole result.
+          output.push(line.slice(0, 2000));
           if (output.length > RESULT_OUTPUT_LINES) output.shift();
           job!.event({ type: 'line', itemId: item.id, text: line.slice(0, 2000) });
         };

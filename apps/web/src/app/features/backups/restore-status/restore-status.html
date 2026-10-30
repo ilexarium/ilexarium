@@ -29,7 +29,7 @@
         tabindex="0"
         >{{ restore().output.join('\n') }}</pre>
     }
-    @if (restore().status === 'succeeded' && restore().appWasRunning && !applied()) {
+    @if (restore().status === 'succeeded' && restore().appWasRunning) {
       <div hlmAlert role="note" class="grid gap-2">
         <p hlmAlertDescription>{{ 'backups.restore.applyText' | translate }}</p>
         <button

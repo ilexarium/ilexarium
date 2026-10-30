@@ -719,13 +719,15 @@ async function install() {
       readFileSync(`${folder}/.env`, 'utf8').includes('WEB_PORT=4533'),
     `${JSON.stringify(backDone.value).slice(0, 400)} ${published()}`,
   );
-  const apply = await api('POST', '/apps/navidrome/apply', { folder });
+  const apply = await api('POST', `/backups/restores/${back.json?.restoreId}/apply`, { folder });
   const reapplied = await waitTask('navidrome', folder);
   check(
     'the restored settings applied, as her: the setting from the backup runs again',
     apply.status === 202 && reapplied?.state === 'succeeded' && published().includes(':4533->'),
     `${apply.status} ${apply.text} ${published()}`,
   );
+  const offered = await api('GET', `/backups/restores/${back.json?.restoreId}`);
+  check('Apply offered once', offered.json?.appWasRunning === false, JSON.stringify(offered.json));
 
   console.log('\nApps, as bob (in the docker group: user units, no sudo)');
   ensurePerson('bob', 1501);

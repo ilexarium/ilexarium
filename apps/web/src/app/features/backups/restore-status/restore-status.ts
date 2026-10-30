@@ -27,8 +27,6 @@ export class RestoreStatus {
   /** A translation key: what to do after restoring this app. */
   readonly note = input<string | null>(null);
   readonly pending = input(false);
-  /** Its app was told to apply its restored files already. */
-  readonly applied = input(false);
 
   readonly discard = output<void>();
   readonly apply = output<void>();

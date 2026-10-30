@@ -43,6 +43,8 @@ export const MAX_RUN_MS = 25 * 60 * 60_000;
 
 /** How often the files are looked at when no change notice arrives (fs.watch can miss some). */
 export const BACKUP_FILES_POLL_MS = 5_000;
+/** Changes to the job files are read at most this often. */
+export const JOB_READ_MS = 250;
 /** A job file is far smaller (its output lines stop at 1 MB): anything larger isn't read. */
 export const MAX_JOB_FILE_BYTES = 8 * 1024 * 1024;
 

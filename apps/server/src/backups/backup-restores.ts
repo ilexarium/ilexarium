@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  type AppStarted,
   BACKUP_ERROR_CODES,
   type BackupRestore,
   type BackupRestorePhase,
@@ -7,6 +8,7 @@ import {
 } from '@laris/shared';
 import { Observable, Subject } from 'rxjs';
 import type { BackupRestore as BackupRestoreRow } from '../generated/prisma/client.js';
+import { AppManager } from '../apps/app-manager.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { RootActor } from '../root-programs/root-programs.model.js';
 import { RootPrograms } from '../root-programs/root-programs.js';
@@ -31,6 +33,7 @@ export class BackupRestores {
     private readonly rootPrograms: RootPrograms,
     private readonly backupChecks: BackupChecks,
     private readonly backupJobs: BackupJobs,
+    private readonly appManager: AppManager,
   ) {}
 
   /** A restore started; a set-aside folder was deleted. */
@@ -103,6 +106,29 @@ export class BackupRestores {
     });
     this.notify();
     return this.view(updated);
+  }
+
+  /**
+   * "Apply the restored settings": the restored app's `up` task, as the person (its folder is
+   * checked by the app's own task) — offered once: the restore remembers it was used.
+   */
+  async apply(id: string, folder: string, actor: RootActor): Promise<AppStarted> {
+    const row = await this.prisma.backupRestore.findUnique({
+      where: { id },
+      include: { item: { select: { project: true } } },
+    });
+    if (!row || row.status !== 'succeeded' || !row.appWasRunning || !row.item.project) {
+      throw new NotFoundException(apiError('Nothing to apply', BACKUP_ERROR_CODES.restoreNotFound));
+    }
+    const started = await this.appManager.apply(
+      actor.appSessionId,
+      row.item.project,
+      folder,
+      actor,
+    );
+    await this.prisma.backupRestore.update({ where: { id }, data: { appWasRunning: false } });
+    this.notify();
+    return started;
   }
 
   view(row: BackupRestoreRow, lastLines?: number): BackupRestore {
