@@ -17,4 +17,4 @@ The app holds no root and no sudo rule (`docs/plans/acting_as_you.md`): changes 
 - `platform/compose.yml` — the platform's own containers: Postgres (127.0.0.1 only) and the Docker socket proxy (a Unix socket in `/run/laris/proxy`).
 - `backup-recovery.md` — bringing everything back on a new machine.
 
-Root-owned state the backup program keeps: `/etc/laris/backup.json` (the plan), `/etc/laris/backup-repository.json` (the repository's path and id), `/etc/laris/backup.passphrase` (0400), `/var/lib/laris/backups/` (0750 root:app group — `runs.jsonl`, `current.jsonl` and each restore's events are readable by the app; Borg's cache and restore requests are root-only).
+Root-owned state the backup program keeps: `/etc/laris/backup.json` (the plan), `/etc/laris/backup-repository.json` (the repository's path and id), `/etc/laris/backup.passphrase` (0400), `/var/lib/laris/backups/` (0750 root:app group — each job's file in `jobs/` (a run, a check, a restore; the newest 500 kept) is readable by the app; Borg's cache and restore requests are root-only).
