@@ -724,12 +724,21 @@ async function install() {
   await linuxSignIn('bob');
   const hello = await installPasted(
     'hello',
-    'services:\n  hello:\n    image: busybox:${HELLO_VERSION:-1.37}\n    command: ["sleep", "3600"]\n    volumes:\n      - ./data:/data\n',
+    'services:\n  hello:\n    image: busybox:${HELLO_VERSION:-1.37}\n    command: ["sleep", "3600"]\n    volumes:\n      - ./data:/data\n      - cache:/cache\nvolumes:\n  cache:\n',
   );
   check(
     'a pasted file runs as a user unit',
     hello.task?.state === 'succeeded' && hello.task.system === false,
     JSON.stringify(hello).slice(0, 600),
+  );
+  // What Compose says the file mounts (this machine's Compose version, every profile).
+  const removal = await api('GET', '/apps/hello/removal?folder=%2Fhome%2Fbob%2Fapps%2Fhello');
+  const listed = (removal.json?.items ?? []).map((i) => `${i.kind}:${i.path}`);
+  check(
+    'its removal lists its data folder and its volume',
+    listed.join(' ') ===
+      'settings:/home/bob/apps/hello folder:/home/bob/apps/hello/data volume:hello_cache',
+    `${removal.status} ${removal.text.slice(0, 400)}`,
   );
   const removed = await api('POST', '/apps/hello/remove', { folder: '/home/bob/apps/hello' });
   const down = await waitTask('hello', '/home/bob/apps/hello');
@@ -737,14 +746,15 @@ async function install() {
     folder: '/home/bob/apps/hello',
     settings: true,
     folders: ['/home/bob/apps/hello/data'],
-    volumes: [],
+    volumes: ['hello_cache'],
   });
   check(
-    'removed, its folder deleted as bob',
+    'removed, its folder and volume deleted as bob',
     removed.status === 202 &&
       down?.state === 'succeeded' &&
       deleted.status === 204 &&
-      !existsSync('/home/bob/apps/hello'),
+      !existsSync('/home/bob/apps/hello') &&
+      !sh('docker', ['volume', 'ls', '-q']).split('\n').includes('hello_cache'),
     `${removed.status} ${down?.state} ${deleted.status} ${deleted.text}`,
   );
   await api('DELETE', '/files/session');
@@ -794,33 +804,24 @@ async function linuxSignIn(user) {
   check(`signed in to Linux as ${user}`, res.status === 200, `${res.status} ${res.text}`);
 }
 
-/** A task's end, read back from the app's folder (its output collected for a failure). */
+/** A task's end, read back from the app's folder (the end of its output, for a failure). */
 async function waitTask(name, folder) {
-  let output = [];
-  let from = 0;
   const end = await until(
     `${name}: its task finished`,
     async () => {
-      const r = await api(
-        'GET',
-        `/apps/${name}/task?folder=${encodeURIComponent(folder)}&from=${from}`,
-      );
+      const r = await api('GET', `/apps/${name}/task?folder=${encodeURIComponent(folder)}`);
       const task = r.json?.task;
-      if (task) {
-        output = [...output, ...task.output];
-        from = task.next;
-      }
       return { done: task && task.state !== 'running', value: task };
     },
     20 * 60_000,
   );
-  return end.value ? { ...end.value, output: output.slice(-20) } : null;
+  return end.value ? { ...end.value, output: end.value.output.slice(-20) } : null;
 }
 
 /** An app from a template, as the signed-in person: the form's values, then the install. */
 async function installTemplate(id, name) {
   const { compose } = (await api('GET', `/catalog/${id}`)).json ?? {};
-  const fields = (await api('POST', '/apps/fields', { compose, env: '', template: id })).json;
+  const fields = (await api('POST', '/apps/fields', { template: id })).json;
   const env = (fields?.fields ?? []).map((f) => `${f.key}=${f.value}`).join('\n') + '\n';
   const started = await api('POST', '/apps', { name, folder: null, template: id, compose, env });
   check(`${name}: install started`, started.status === 202, `${started.status} ${started.text}`);

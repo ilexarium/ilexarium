@@ -11,10 +11,11 @@ catalog/<id>/
 
 Texts are translation keys in `packages/i18n/messages/*.json`: `catalog.<id>.description`, `catalog.<id>.fields.<KEY>.label` and `.help`, `catalog.<id>.note` (with `"note": true`: what to know or copy at setup), `catalog.<id>.backup.restoreNote` (with `backup.restoreNote`).
 
-## Rules (checked by `apps/server/src/catalog/` at startup and in its tests)
+## Rules (checked by `apps/server/src/catalog/catalog.spec.ts`, run first by `npm run release`; the server itself checks only `templateSchema` and the folder's id at startup)
 
-- `template.json` matches `templateSchema` (`@laris/shared`). Every `${VAR}` in `compose.yml` is a field and every field is used.
+- `template.json` matches `templateSchema` (`@laris/shared`). Every `${VAR}` in `compose.yml` is a field and every field is used: the setup form is built from `template.json` alone.
 - Each service carries the label `laris.template: <id>@<version>`.
+- `icon.svg`: a plain SVG under 64 KB (no scripts, events, links or entities).
 - Versions in `.env` (`image: …:${NAVIDROME_VERSION}`): the widest compatible line the publisher tags, else an exact version — never `latest`, `nightly`, `develop` or another moving tag. Images that must match share one variable. Databases stay on their major (a literal tag).
 - Data in folders inside the app's folder by default (`./data`), so a backup of the app takes it along. Field defaults may use `@account` (the person's `uid:gid`) and `@timezone`.
 - `backup`: `stop` or `live`, and what to skip (relative to the app's folder) — the preset for the app's backup item.
