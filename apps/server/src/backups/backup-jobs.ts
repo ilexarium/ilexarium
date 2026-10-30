@@ -277,7 +277,10 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly auditService: AuditService,
     changesUnderway: ChangesUnderway,
   ) {
-    changesUnderway.follow(() => this.live.size > 0);
+    // A run or a restore stops apps on purpose; a repository check doesn't (and may take hours).
+    changesUnderway.follow(() =>
+      [...this.live.values()].some(({ job }) => job.start?.type !== 'check'),
+    );
   }
 
   get dir(): string {
