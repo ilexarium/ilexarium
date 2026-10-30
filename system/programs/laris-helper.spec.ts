@@ -87,7 +87,7 @@ beforeEach(async () => {
   mkdirSync(join(dir, 'bin'));
   fake('sudo', 'fake-sudo.cjs');
   fake('kill', 'fake-kill.cjs');
-  for (const name of ['systemd-run', 'systemctl', 'docker', 'du', 'rm', 'laris-backup.mts']) {
+  for (const name of ['systemd-run', 'systemctl', 'docker', 'du', 'rm', 'id', 'laris-backup.mts']) {
     fake(name, 'fake-program.cjs');
   }
   symlinkSync(join(HERE, 'laris-root.mts'), join(dir, 'bin', 'laris-root.mts'));
@@ -284,11 +284,15 @@ describe('laris-helper', () => {
 
   it('tells whether Docker works without sudo: in a user unit, and in this session', async () => {
     writeFileSync(join(dir, 'systemd-run-out.txt'), 'anna sudo docker\n');
-    expect(await ask({ action: 'docker.access' })).toMatchObject({
+    writeFileSync(join(dir, 'id-out.txt'), 'anna sudo\n');
+    expect(await ask({ action: 'docker.access' })).toEqual({
       ok: true,
       userUnits: true,
       unitDocker: true,
+      loginDocker: false,
     });
+    expect(calls('id')[0]?.args).toEqual(['-nG']);
+    writeFileSync(join(dir, 'id-out.txt'), 'anna docker\n');
     expect(calls('systemd-run')[0]?.args).toEqual([
       '--user',
       '--wait',
@@ -303,6 +307,7 @@ describe('laris-helper', () => {
     expect(await ask({ action: 'docker.access' })).toMatchObject({
       userUnits: false,
       unitDocker: false,
+      loginDocker: true,
     });
   });
 
@@ -425,14 +430,46 @@ describe('laris-helper', () => {
     });
   });
 
-  it('checks a Compose file in its folder, saying what Compose said', async () => {
+  it('checks a Compose file in its folder: only its mounts and labels come back, never its values', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(app, { recursive: true });
-    expect(
-      await ask({ action: 'compose.check', folder: app, project: 'music', docker: 'direct' }),
-    ).toEqual({ ok: true });
+    writeFileSync(
+      join(dir, 'docker-out.txt'),
+      JSON.stringify({
+        name: 'music',
+        services: {
+          web: {
+            environment: { PASSWORD: 'hunter2' },
+            labels: { 'laris.template': 'navidrome@2', other: 'x' },
+            volumes: [
+              { type: 'bind', source: `${app}/data`, target: '/data' },
+              { type: 'volume', target: '/cache' },
+              { type: 'volume', source: 'db', target: '/db' },
+            ],
+          },
+          extra: { profiles: ['extra'], volumes: [{ type: 'volume', source: 'ext' }] },
+        },
+        volumes: { db: { name: 'music_db' }, ext: { name: 'shared', external: true } },
+      }),
+    );
+    const answer = await ask({ action: 'compose.check', folder: app, project: 'music' });
+    expect(answer).toEqual({
+      ok: true,
+      mounts: [
+        { type: 'bind', source: `${app}/data` },
+        { type: 'volume', source: null },
+        { type: 'volume', source: 'db' },
+        { type: 'volume', source: 'ext' },
+      ],
+      volumes: [
+        { key: 'db', name: 'music_db', external: false },
+        { key: 'ext', name: 'shared', external: true },
+      ],
+      templates: ['navidrome@2'],
+    });
+    expect(JSON.stringify(answer)).not.toContain('hunter2');
     expect(calls('docker')[0]).toMatchObject({
-      args: ['compose', '--project-name', 'music', 'config', '--quiet'],
+      args: ['compose', '--project-name', 'music', '--profile', '*', 'config', '--format', 'json'],
       cwd: app,
     });
     writeFileSync(join(dir, 'docker-exit.txt'), '15');
@@ -440,35 +477,105 @@ describe('laris-helper', () => {
       join(dir, 'docker-err.txt'),
       'services.x additional property bad is not allowed\n',
     );
-    expect(
-      await ask({ action: 'compose.check', folder: app, project: 'music', docker: 'direct' }),
-    ).toEqual({
+    expect(await ask({ action: 'compose.check', folder: app, project: 'music' })).toEqual({
       ok: false,
       error: 'compose_invalid',
       message: 'services.x additional property bad is not allowed',
     });
   });
 
-  it('says Docker is missing — as root too', async () => {
+  it('refuses an answer too large for the server to read', async () => {
+    const app = join(dir, 'apps', 'music');
+    mkdirSync(app, { recursive: true });
+    const volumes = Array.from({ length: 200 }, (_, i) => ({
+      type: 'bind',
+      source: `/srv/${'x'.repeat(900)}/${i}`,
+    }));
+    writeFileSync(join(dir, 'docker-out.txt'), JSON.stringify({ services: { web: { volumes } } }));
+    expect(await ask({ action: 'compose.check', folder: app, project: 'music' })).toEqual({
+      ok: false,
+      error: 'too_large',
+    });
+  });
+
+  it('says Docker is missing', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(app, { recursive: true });
     rmSync(join(dir, 'bin', 'docker'));
-    await ask({ action: 'sudo.unlock', password: 'right' });
-    for (const docker of ['direct', 'sudo']) {
-      expect(await ask({ action: 'compose.check', folder: app, project: 'music', docker })).toEqual(
-        {
-          ok: false,
-          error: 'docker_unavailable',
-        },
-      );
-    }
+    expect(await ask({ action: 'compose.check', folder: app, project: 'music' })).toEqual({
+      ok: false,
+      error: 'docker_unavailable',
+    });
   });
+
+  it.runIf(existsSync('/usr/bin/docker'))(
+    'with the real Compose: binds, ~, anonymous, named, external and profiled volumes, a missing variable',
+    async () => {
+      const app = join(dir, 'apps', 'music');
+      mkdirSync(app, { recursive: true });
+      rmSync(join(dir, 'bin', 'docker'));
+      symlinkSync('/usr/bin/docker', join(dir, 'bin', 'docker'));
+      writeFileSync(
+        join(app, 'compose.yml'),
+        [
+          'services:',
+          '  web:',
+          '    image: nginx:1.27',
+          '    labels: { laris.template: "nginx@3" }',
+          '    environment: { SECRET: "${PASS:?set PASS}" }',
+          '    volumes:',
+          '      - ./data:/data',
+          '      - ~/music:/music',
+          '      - /var/cache',
+          '      - db:/db',
+          '      - ext:/ext',
+          '      - { type: bind, source: "${DIR:-./other}", target: /other }',
+          '  extra:',
+          '    image: redis:7',
+          '    profiles: [extra]',
+          '    volumes: [named:/n]',
+          'volumes:',
+          '  db:',
+          '  ext: { external: true }',
+          '  named: { name: custom }',
+          '',
+        ].join('\n'),
+      );
+      writeFileSync(join(app, '.env'), 'PASS=hunter2\n');
+      const answer = await ask({ action: 'compose.check', folder: app, project: 'music' });
+      expect(answer).toEqual({
+        ok: true,
+        // Compose's order: services by name.
+        mounts: [
+          { type: 'volume', source: 'named' },
+          { type: 'bind', source: join(app, 'data') },
+          { type: 'bind', source: join(userInfo().homedir, 'music') },
+          { type: 'volume', source: null },
+          { type: 'volume', source: 'db' },
+          { type: 'volume', source: 'ext' },
+          { type: 'bind', source: join(app, 'other') },
+        ],
+        volumes: [
+          { key: 'db', name: 'music_db', external: false },
+          { key: 'ext', name: 'ext', external: true },
+          { key: 'named', name: 'custom', external: false },
+        ],
+        templates: ['nginx@3'],
+      });
+      expect(JSON.stringify(answer)).not.toContain('hunter2');
+      writeFileSync(join(app, '.env'), '');
+      expect(await ask({ action: 'compose.check', folder: app, project: 'music' })).toMatchObject({
+        ok: false,
+        error: 'compose_invalid',
+        message: expect.stringContaining('set PASS'),
+      });
+    },
+  );
 
   it('runs Docker and deletes folders as root through laris-root only', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(app, { recursive: true });
     const asRoot = [
-      { action: 'compose.check', folder: app, project: 'music', docker: 'sudo' },
       { action: 'volumes.remove', names: ['music_data'], docker: 'sudo' },
       { action: 'paths.remove', paths: ['/srv/music'], administrator: true },
     ];
@@ -480,7 +587,6 @@ describe('laris-helper', () => {
     await ask({ action: 'sudo.unlock', password: 'right' });
     for (const request of asRoot) expect(await ask(request)).toEqual({ ok: true });
     expect(calls('docker').map((call) => call.args)).toEqual([
-      ['compose', '--project-name', 'music', 'config', '--quiet'],
       ['volume', 'rm', '--', 'music_data'],
     ]);
     expect(calls('rm').at(-1)?.args).toEqual(['-r', '-f', '--one-file-system', '--', '/srv/music']);

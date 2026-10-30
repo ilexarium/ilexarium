@@ -41,6 +41,10 @@ export const PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 export const LINE_MAX = 64 * 1024;
 /** What is kept of a program's output (its first lines say what happened). */
 export const OUTPUT_MAX = 16 * 1024;
+/** What is read of Compose's filled-in file (`config --format json`): all of it, or nothing. */
+export const COMPOSE_CONFIG_MAX = 4 * 1024 * 1024;
+/** What a Compose check answers at most (the server reads 256 KB of an answer). */
+export const COMPOSE_ANSWER_MAX = 128 * 1024;
 /** What is kept of a root program's output: its result line can be longer. */
 export const ROOT_OUTPUT_MAX = 48 * 1024;
 /** sudo waits a few seconds after a wrong password (PAM's delay). */

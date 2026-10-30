@@ -3,7 +3,7 @@
 
 import { privileged, signalProcess } from '../helper/actions.mts';
 import { BAD_REQUEST, ok, type Answer, type Request } from '../helper/answers.mts';
-import { checkCompose, removeVolumes, startSystemTask } from '../helper/apps.mts';
+import { removeVolumes, startSystemTask } from '../helper/apps.mts';
 import { FAKE_BIN, ROOT_IDLE_MS } from '../helper/config.mts';
 import { serve } from '../helper/main.mts';
 import { removePaths } from '../helper/paths.mts';
@@ -22,8 +22,6 @@ function handle(request: Request): Promise<Answer> | Answer {
       return signalProcess(request);
     case 'paths.remove':
       return removePaths(request);
-    case 'compose.check':
-      return checkCompose(request);
     case 'volumes.remove':
       return removeVolumes(request);
     case 'app.task':
