@@ -64,7 +64,7 @@ describe('laris-root', () => {
       { action: 'paths.size', paths: ['/srv'] },
       { action: 'process.signal', pid: 1234, signal: 'TERM', administrator: false },
       { action: 'paths.remove', paths: ['/srv/x'], administrator: false },
-      { action: 'compose.check', folder: dir, project: 'music', docker: 'direct' },
+      { action: 'compose.check', folder: dir, project: 'music' },
       { action: 'volumes.remove', names: ['x'], docker: 'direct' },
       { action: 'root.run', program: 'compose', command: 'up', input: '' },
     ]);

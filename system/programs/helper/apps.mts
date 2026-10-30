@@ -4,8 +4,7 @@
 // and systemd adds its result at the end (`@@laris-result`, then SERVICE_RESULT, EXIT_CODE,
 // EXIT_STATUS): what happened is in the file, whatever happens to the unit afterwards.
 
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { userInfo } from 'node:os';
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   BAD_REQUEST,
@@ -17,6 +16,8 @@ import {
   type Request,
 } from './answers.mts';
 import {
+  COMPOSE_ANSWER_MAX,
+  COMPOSE_CONFIG_MAX,
   PROGRAMS,
   PROJECT_PATTERN,
   QUICK_TIMEOUT_MS,
@@ -29,24 +30,6 @@ import {
 import { run } from './run.mts';
 import { forward } from './sudo.mts';
 
-/** The groups this account has now (its SSH login) — by number, from /etc/group (no program). */
-function loginGroups(): Set<string> {
-  const own = new Set(process.getgroups?.() ?? []);
-  const names = new Set<string>();
-  try {
-    for (const line of readFileSync('/etc/group', 'utf8').split('\n')) {
-      const [name, , gid, members] = line.split(':');
-      if (!name) continue;
-      if (own.has(Number(gid)) || (members ?? '').split(',').includes(userInfo().username)) {
-        names.add(name);
-      }
-    }
-  } catch {
-    // no /etc/group: no groups known
-  }
-  return names;
-}
-
 /**
  * Whether Docker can be used without sudo: in a user unit (`id -nG` there — a user systemd keeps
  * the groups it started with) and in this session. No user systemd at all: `userUnits` false.
@@ -58,10 +41,13 @@ export async function dockerAccess(): Promise<Answer> {
     { timeoutMs: QUICK_TIMEOUT_MS },
   );
   const unitGroups = result.code === 0 ? result.stdout.trim().split(/\s+/) : [];
+  // This session's groups (its SSH login).
+  const login = await run(PROGRAMS.id, ['-nG'], { timeoutMs: QUICK_TIMEOUT_MS });
+  const loginGroups = login.code === 0 ? login.stdout.trim().split(/\s+/) : [];
   return ok({
     userUnits: result.code === 0,
     unitDocker: unitGroups.includes('docker'),
-    loginDocker: loginGroups().has('docker'),
+    loginDocker: loginGroups.includes('docker'),
   });
 }
 
@@ -212,22 +198,64 @@ function dockerRefusal(result: Awaited<ReturnType<typeof run>>): Answer {
   return { ok: false, error: 'compose_failed', message: said(result) } as Answer;
 }
 
-/** `docker compose config --quiet`: Compose's own check of the folder's files. */
+interface ComposeConfig {
+  services?: Record<
+    string,
+    { volumes?: { type?: unknown; source?: unknown }[]; labels?: Record<string, unknown> } | null
+  >;
+  volumes?: Record<string, { name?: unknown; external?: unknown } | null>;
+}
+
+const text = (value: unknown) => (typeof value === 'string' ? value : null);
+
+/**
+ * Compose's own check of the folder's files (`config --format json`, every profile; no daemon
+ * needed, so never sudo). Of its answer only the mounts and the template label go back: the
+ * filled-in file holds the app's secrets.
+ */
 export async function checkCompose(request: Request): Promise<Answer> {
   const name = project(request);
   const dir = folder(request);
-  const administrator = docker(request);
-  if (!name || !dir || administrator === null) return BAD_REQUEST;
+  if (!name || !dir) return BAD_REQUEST;
   const result = await run(
     PROGRAMS.docker,
-    ['compose', '--project-name', name, 'config', '--quiet'],
-    { timeoutMs: QUICK_TIMEOUT_MS, cwd: dir },
+    ['compose', '--project-name', name, '--profile', '*', 'config', '--format', 'json'],
+    { timeoutMs: QUICK_TIMEOUT_MS, cwd: dir, outputMax: COMPOSE_CONFIG_MAX },
   );
-  if (result.code === 0) return ok();
-  if (!result.timedOut && !result.missing) {
-    return { ok: false, error: 'compose_invalid', message: said(result) } as Answer;
+  if (result.code !== 0) {
+    if (!result.timedOut && !result.missing) {
+      return { ok: false, error: 'compose_invalid', message: said(result) } as Answer;
+    }
+    return dockerRefusal(result);
   }
-  return dockerRefusal(result);
+  let config: ComposeConfig;
+  try {
+    config = JSON.parse(result.stdout) as ComposeConfig;
+  } catch {
+    return refused('failed');
+  }
+  const mounts: { type: string; source: string | null }[] = [];
+  const templates: string[] = [];
+  for (const service of Object.values(config.services ?? {})) {
+    for (const volume of service?.volumes ?? []) {
+      const type = text(volume?.type);
+      if (type) mounts.push({ type, source: text(volume.source) });
+    }
+    const label = text(service?.labels?.['laris.template']);
+    if (label) templates.push(label);
+  }
+  const answer = {
+    mounts,
+    volumes: Object.entries(config.volumes ?? {}).map(([key, volume]) => ({
+      key,
+      name: text(volume?.name),
+      external: volume?.external === true,
+    })),
+    templates,
+  };
+  // Within what the server reads of one answer.
+  if (JSON.stringify(answer).length > COMPOSE_ANSWER_MAX) return refused('too_large');
+  return ok(answer);
 }
 
 /** Deletes an app's named volumes (after its removal; Docker refuses one still in use). */

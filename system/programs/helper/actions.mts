@@ -37,7 +37,6 @@ export function privileged(request: Request): boolean {
     case 'process.signal':
     case 'paths.remove':
       return request['administrator'] === true;
-    case 'compose.check':
     case 'volumes.remove':
       return request['docker'] === 'sudo';
     case 'root.run':

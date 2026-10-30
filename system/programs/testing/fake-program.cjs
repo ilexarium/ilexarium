@@ -26,4 +26,5 @@ const out = read('out.txt');
 if (out) process.stdout.write(out);
 const err = read('err.txt');
 if (err) process.stderr.write(err);
-process.exit(Number(read('exit.txt') ?? 0));
+// Not process.exit(): a long output to a pipe is written out first.
+process.exitCode = Number(read('exit.txt') ?? 0);
