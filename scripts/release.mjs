@@ -36,6 +36,8 @@ const copy = (from, to, filter) => cpSync(join(ROOT, from), to, { recursive: tru
 
 console.log(`Building ${NAME}`);
 run('npm', ['run', 'build:shared']);
+// The templates' rules are checked by their tests, not at startup: a bad template never ships.
+run('npx', ['vitest', 'run', 'src/catalog/catalog.spec.ts'], join(ROOT, 'apps/server'));
 run('npm', ['run', 'build', '-w', '@laris/server']);
 run('npm', ['run', 'build', '-w', '@laris/web']);
 
