@@ -256,37 +256,23 @@ export class AppManager {
   }
 
   /** Update: pull and start again. The way back is the app's backup from before. */
-  async update(
+  update(
     appSessionId: string,
     name: string,
     folder: string,
     actor: LinuxActor,
   ): Promise<AppStarted> {
-    const sftp = this.sftp(appSessionId);
-    await this.notBusy(appSessionId, sftp, folder);
-    await this.sudoFirst(appSessionId);
-    return this.audited('app.update', actor, { name, folder }, async () => {
-      await this.appTasks.check(appSessionId, folder, name);
-      const task = await this.appTasks.start(appSessionId, folder, name, 'update');
-      return { name, folder, task };
-    });
+    return this.runTask(appSessionId, name, folder, actor, 'app.update', 'update');
   }
 
   /** Its files as they are, applied (`up -d`) — after a restore back where it was. */
-  async apply(
+  apply(
     appSessionId: string,
     name: string,
     folder: string,
     actor: LinuxActor,
   ): Promise<AppStarted> {
-    const sftp = this.sftp(appSessionId);
-    await this.notBusy(appSessionId, sftp, folder);
-    await this.sudoFirst(appSessionId);
-    return this.audited('app.change', actor, { name, folder }, async () => {
-      await this.appTasks.check(appSessionId, folder, name);
-      const task = await this.appTasks.start(appSessionId, folder, name, 'up');
-      return { name, folder, task };
-    });
+    return this.runTask(appSessionId, name, folder, actor, 'app.change', 'up');
   }
 
   /** What a removal may delete: the settings, each data folder, each named volume — with sizes. */
@@ -508,6 +494,25 @@ export class AppManager {
   }
 
   /** Without the docker group a task starts through sudo: asked before anything is written. */
+  /** A task on the files as they are: not while another runs, checked by Compose, audited. */
+  private async runTask(
+    appSessionId: string,
+    name: string,
+    folder: string,
+    actor: LinuxActor,
+    audit: AuditAction,
+    action: 'update' | 'up',
+  ): Promise<AppStarted> {
+    const sftp = this.sftp(appSessionId);
+    await this.notBusy(appSessionId, sftp, folder);
+    await this.sudoFirst(appSessionId);
+    return this.audited(audit, actor, { name, folder }, async () => {
+      await this.appTasks.check(appSessionId, folder, name);
+      const task = await this.appTasks.start(appSessionId, folder, name, action);
+      return { name, folder, task };
+    });
+  }
+
   private async sudoFirst(appSessionId: string): Promise<void> {
     const access = await this.appTasks.dockerAccess(appSessionId);
     const account = this.linuxSessions.account(appSessionId);

@@ -68,8 +68,6 @@ interface BackupsPageState {
   passphraseFirst: boolean;
   /** Actions waiting for the server, for pending buttons (`run`, `run:<item>`, `remove:<item>`…). */
   pending: string[];
-  /** Restores whose app was told to apply its restored files. */
-  applied: string[];
 }
 
 const initialState: BackupsPageState = {
@@ -85,7 +83,6 @@ const initialState: BackupsPageState = {
   passphrase: null,
   passphraseFirst: false,
   pending: [],
-  applied: [],
 };
 
 /**
@@ -357,11 +354,11 @@ export const BackupsPageStore = signalStore(
           const folder = app.folder;
           if (
             await act(`apply:${restore.id}`, 'backups.restore.applyFailed', () =>
-              appsApi.apply(app.name, folder),
+              backupsApi.applyRestored(restore.id, folder),
             )
           ) {
-            patchState(store, { applied: [...store.applied(), restore.id] });
             toast.success(translator.t('backups.restore.applyStarted'));
+            reload();
           }
         },
 

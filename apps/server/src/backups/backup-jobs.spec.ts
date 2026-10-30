@@ -213,6 +213,18 @@ describe('BackupJobs', () => {
     );
   });
 
+  it('a file without its start (the program failed before it) counts as never started', async () => {
+    const { jobs, prisma } = setUp({
+      finishedAt: null,
+      startedAt: new Date(Date.now() - START_GRACE_MS - 1000),
+    });
+    write(RUN);
+    await jobs.refresh();
+    expect(prisma.backupRun.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: [RUN] }, finishedAt: null } }),
+    );
+  });
+
   it('leaves a job alone whose result the database has (after a restart)', async () => {
     const { jobs, prisma } = setUp();
     prisma.backupRun.findMany.mockResolvedValueOnce([{ id: RUN }]);

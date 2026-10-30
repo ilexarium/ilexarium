@@ -644,6 +644,14 @@ describe('laris-backup run', () => {
     expect(names).toContain('old-519.jsonl');
   });
 
+  it('keeps a long output line cut, as the app reads it (never losing the result)', async () => {
+    const long = { type: 'log_message', levelname: 'INFO', message: 'x'.repeat(5000), msgid: '' };
+    writeFileSync(join(dir, 'logs-create.jsonl'), JSON.stringify(long));
+    await runNow({ runId: RUN, itemId: FOLDER });
+    const done = job(RUN).find((e) => e.type === 'runDone')!;
+    expect(Math.max(...done.output.map((line: string) => line.length))).toBeLessThanOrEqual(2000);
+  });
+
   it('completes with warnings when Borg warns (files changed while read)', async () => {
     const warning = {
       type: 'log_message',
@@ -951,6 +959,20 @@ describe('laris-backup restore', () => {
     ).toEqual([data.slice(1)]);
     expect(existsSync(join(media, 'restored.txt'))).toBe(false);
     expect(JSON.stringify(events())).toContain(`${extra}: not in this backup, left as it is`);
+  });
+
+  it('a folder of the archive the plan no longer has is never checked or touched', async () => {
+    const data = join(storage, 'demo', 'data');
+    const archives = JSON.parse(readFileSync(join(dir, 'archives.json'), 'utf8'));
+    const line: string[] = archives[archive];
+    const at = line.indexOf('--comment');
+    // The archive also lists a folder that may not be restored now (and isn't in the plan).
+    line[at + 1] = JSON.stringify([...JSON.parse(line[at + 1]), '/etc/old']);
+    writeFileSync(join(dir, 'archives.json'), JSON.stringify(archives));
+    const result = await restore(restoreInput());
+    expect(result.code, result.lines.join('\n')).toBe(0);
+    expect(done()!.setAside).toHaveLength(2);
+    expect(calls('borg').find((c) => c.args[0] === 'extract')!.args).toContain(data.slice(1));
   });
 
   it('an archive that doesn’t list its folders: refused back where it was, fine into a folder', async () => {

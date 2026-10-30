@@ -33,7 +33,6 @@
           backupsPageStore.pending().includes('discard:' + latest.id) ||
           backupsPageStore.pending().includes('apply:' + latest.id)
         "
-        [applied]="backupsPageStore.applied().includes(latest.id)"
         (discard)="backupsPageStore.discardPrevious(latest.id)"
         (apply)="backupsPageStore.applyRestored(latest)"
       />

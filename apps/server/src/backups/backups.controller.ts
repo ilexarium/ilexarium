@@ -16,6 +16,7 @@ import {
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type {
+  AppStarted,
   BackupArchivesResponse,
   BackupDestinationsResponse,
   BackupFoldersResponse,
@@ -45,6 +46,7 @@ import {
   BackupItemIdParamsDto,
   BackupItemUpdateDto,
   BackupPlanUpdateDto,
+  BackupRestoreApplyDto,
   BackupRestoreDto,
   BackupRestoreIdParamsDto,
   BackupRunDto,
@@ -218,6 +220,21 @@ export class BackupsController {
     @Ip() ip: string,
   ): Promise<BackupRestore> {
     return this.backupRestores.discardPrevious(id, { user, ip, appSessionId: session.id });
+  }
+
+  /** "Apply the restored settings": the restored app's `up` task, as the person. */
+  @Post('restores/:id/apply')
+  @HttpCode(202)
+  @UseGuards(ThrottlerGuard)
+  @Throttle(CHANGE_LIMIT)
+  applyRestored(
+    @Param() { id }: BackupRestoreIdParamsDto,
+    @Body() { folder }: BackupRestoreApplyDto,
+    @CurrentSession() session: { id: string },
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<AppStarted> {
+    return this.backupRestores.apply(id, folder, { user, ip, appSessionId: session.id });
   }
 
   /** "Show again": through the person's sudo. */

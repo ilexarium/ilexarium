@@ -16,6 +16,7 @@ import {
   type BackupRestorePhase,
 } from '@laris/shared';
 import {
+  auditTime,
   exhaustMap,
   interval,
   merge,
@@ -35,6 +36,7 @@ import { ProgramConfigService } from '../root-programs/program-config.js';
 import { stateDir } from './backup-paths.js';
 import {
   BACKUP_FILES_POLL_MS,
+  JOB_READ_MS,
   MAX_JOB_FILE_BYTES,
   MAX_RUN_MS,
   RESTORES_KEPT,
@@ -267,6 +269,8 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly saved = new Set<string>();
   /** Jobs still running, as last read (and which version of the file that was). */
   private readonly live = new Map<string, { version: string; job: Job }>();
+  /** Files too large to read (said once). */
+  private readonly tooLarge = new Set<string>();
 
   /** A job moved on, or a result was saved. */
   readonly changes$: Observable<void> = this.changed.asObservable();
@@ -296,6 +300,8 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
     )
       .pipe(
         startWith(undefined),
+        // A running job appends line after line: one read for each short burst.
+        auditTime(JOB_READ_MS),
         exhaustMap(() =>
           safely(
             () => this.refresh(),
@@ -357,7 +363,9 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
     for (const id of ids) {
       if (!this.saved.has(id) && (await this.follow(id))) changed = true;
     }
-    if (await this.neverStarted(present)) changed = true;
+    // A file without a start (or too large to read) counts as never started.
+    const started = new Set(ids.filter((id) => this.saved.has(id) || this.live.has(id)));
+    if (await this.neverStarted(started)) changed = true;
     if (changed) this.changed.next();
   }
 
@@ -381,38 +389,51 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
 
   /** Reads a job's file if it changed; saves its result once it has one. True: something changed. */
   private async follow(id: string): Promise<boolean> {
-    const file = join(this.dir, `${id}.jsonl`);
-    const info = await stat(file).catch(() => null);
-    if (!info) return false;
-    const version = `${info.ino}:${info.size}:${info.mtimeMs}`;
     let entry = this.live.get(id);
-    let changed = false;
-    if (entry?.version !== version) {
-      if (info.size > MAX_JOB_FILE_BYTES) {
-        this.logger.error(`${file} is larger than expected; not read`);
-        this.saved.add(id);
-        return false;
-      }
-      const { values, skipped } = parseLines(await readFile(file, 'utf8'), jobEventSchema);
-      if (skipped > 0) this.logger.warn(`${skipped} lines of ${file} were not understood`);
-      entry = { version, job: readJob(id, values) };
-      changed = true;
-    }
-    const { job } = entry;
+    const read = await this.read(id, entry?.version);
+    if (read === null) return false;
+    const changed = read !== 'unchanged';
+    if (read !== 'unchanged') entry = read;
+    let { job } = entry!;
     // Not started yet (or not a job of the program's): looked at again next time.
     if (!job.start) return false;
-    if (job.done || !running(job.start)) {
+    if (!job.done && !running(job.start)) {
+      // Its end may have been written between the read and the check: read it once more.
+      const last = await this.read(id, undefined);
+      if (last !== null && last !== 'unchanged') job = last.job;
+    }
+    if (job.done || !running(job.start!)) {
       await this.save(job);
       this.saved.add(id);
       this.live.delete(id);
       return true;
     }
-    this.live.set(id, entry);
+    this.live.set(id, entry!);
     return changed;
   }
 
-  /** "Back up now" runs and restores the app started whose file never appeared: interrupted. */
-  private async neverStarted(present: ReadonlySet<string>): Promise<boolean> {
+  /** A job's file, unless it's the version already read; null: gone, or too large to read. */
+  private async read(
+    id: string,
+    known: string | undefined,
+  ): Promise<{ version: string; job: Job } | 'unchanged' | null> {
+    const file = join(this.dir, `${id}.jsonl`);
+    const info = await stat(file).catch(() => null);
+    if (!info) return null;
+    const version = `${info.ino}:${info.size}:${info.mtimeMs}`;
+    if (version === known) return 'unchanged';
+    if (info.size > MAX_JOB_FILE_BYTES) {
+      if (!this.tooLarge.has(id)) this.logger.error(`${file} is larger than expected; not read`);
+      this.tooLarge.add(id);
+      return null;
+    }
+    const { values, skipped } = parseLines(await readFile(file, 'utf8'), jobEventSchema);
+    if (skipped > 0) this.logger.warn(`${skipped} lines of ${file} were not understood`);
+    return { version, job: readJob(id, values) };
+  }
+
+  /** "Back up now" runs and restores the app started that never started: interrupted. */
+  private async neverStarted(started: ReadonlySet<string>): Promise<boolean> {
     const before = new Date(Date.now() - START_GRACE_MS);
     const [runs, restores] = await Promise.all([
       this.prisma.backupRun.findMany({
@@ -425,7 +446,7 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
       }),
     ]);
     const never = (rows: { id: string }[]) =>
-      rows.map((row) => row.id).filter((id) => !present.has(id));
+      rows.map((row) => row.id).filter((id) => !started.has(id));
     const [lostRuns, lostRestores] = [never(runs), never(restores)];
     if (lostRuns.length === 0 && lostRestores.length === 0) return false;
     const finishedAt = new Date();

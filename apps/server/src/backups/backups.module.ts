@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AppsModule } from '../apps/apps.module.js';
 import { AuditModule } from '../audit/audit.module.js';
 import { DockerModule } from '../docker/docker.module.js';
 import { HostModule } from '../host/host.module.js';
@@ -18,7 +19,7 @@ import { BackupsTopic } from './backups-topic.js';
  * backup program's files. The health alerts read the status and follow its changes.
  */
 @Module({
-  imports: [AuditModule, DockerModule, HostModule, RealtimeModule, RootProgramsModule],
+  imports: [AppsModule, AuditModule, DockerModule, HostModule, RealtimeModule, RootProgramsModule],
   controllers: [BackupsController],
   providers: [
     BackupChecks,

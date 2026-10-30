@@ -25,7 +25,6 @@ const restore = (change: Partial<BackupRestore> = {}): BackupRestore => ({
   template: `<laris-restore-status
     [restore]="restore()"
     [note]="note()"
-    [applied]="applied()"
     (discard)="discarded = discarded + 1"
     (apply)="applies = applies + 1"
   />`,
@@ -33,7 +32,6 @@ const restore = (change: Partial<BackupRestore> = {}): BackupRestore => ({
 class Host {
   readonly restore = signal(restore());
   readonly note = signal<string | null>(null);
-  readonly applied = signal(false);
   discarded = 0;
   applies = 0;
 }
@@ -79,7 +77,7 @@ describe('RestoreStatus', () => {
     expect(fixture.componentInstance.discarded).toBe(1);
   });
 
-  it('an app that was running: offers to apply the restored settings, until told to', async () => {
+  it('an app that was running: offers to apply the restored settings', async () => {
     const fixture = await show({
       status: 'succeeded',
       phase: 'done',
@@ -96,7 +94,7 @@ describe('RestoreStatus', () => {
     expect(fixture.nativeElement.querySelector('details')!.textContent).toContain(
       'not in this backup',
     );
-    fixture.componentInstance.applied.set(true);
+    fixture.componentInstance.restore.set(restore({ status: 'succeeded', appWasRunning: false }));
     await fixture.whenStable();
     expect(apply()).toBeUndefined();
   });

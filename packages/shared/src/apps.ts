@@ -236,7 +236,6 @@ export function appPath(name: string): string {
 export const appFilesPath = (name: string) => `${appPath(name)}/files`;
 export const appTaskPath = (name: string) => `${appPath(name)}/task`;
 export const appUpdatePath = (name: string) => `${appPath(name)}/update`;
-export const appApplyPath = (name: string) => `${appPath(name)}/apply`;
 export const appRemovalPath = (name: string) => `${appPath(name)}/removal`;
 export const appRemovePath = (name: string) => `${appPath(name)}/remove`;
 export const appDeletePath = (name: string) => `${appPath(name)}/delete`;

@@ -220,9 +220,7 @@ async function restoreArchive(
 
   // Back where it was: what the archive holds of the item's folders in the plan now.
   const held = archiveFolders(info.stdout);
-  if (!held || held.length === 0 || !held.every((p) => allowedFolder(config, p))) {
-    throw new Refusal('archive_not_found', 'the backup doesn’t list its folders', 5);
-  }
+  if (!held) throw new Refusal('archive_not_found', 'the backup doesn’t list its folders', 5);
   const planned = item.kind === 'app' ? (item.folders ?? []) : [item.path!];
   // The archive lists them as they really were (any symlink above resolved).
   const same = (held: string, folder: string) =>
@@ -231,6 +229,9 @@ async function restoreArchive(
     if (!held.some((p) => same(p, folder))) line(`${folder}: not in this backup, left as it is`);
   }
   const sources = held.filter((p) => planned.some((folder) => same(p, folder)));
+  if (!sources.every((p) => allowedFolder(config, p))) {
+    throw new Refusal('path_not_allowed', 'a folder that may not be restored', 5);
+  }
   if (sources.length === 0) {
     throw new Refusal('archive_not_found', 'none of its folders is in the plan any more', 5);
   }
