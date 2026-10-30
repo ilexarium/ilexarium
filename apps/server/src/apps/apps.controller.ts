@@ -121,6 +121,21 @@ export class AppsController {
     return this.appManager.update(session.id, name, folder, { user, ip });
   }
 
+  /** After a restore back where it was: the restored files applied, as the person. */
+  @Post(':name/apply')
+  @HttpCode(202)
+  @UseGuards(ThrottlerGuard)
+  @Throttle(CHANGE_LIMIT)
+  apply(
+    @CurrentSession() session: Session,
+    @Param() { name }: AppParamsDto,
+    @Body() { folder }: AppUpdateDto,
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<AppStarted> {
+    return this.appManager.apply(session.id, name, folder, { user, ip });
+  }
+
   @Get(':name/removal')
   removal(
     @CurrentSession() session: Session,

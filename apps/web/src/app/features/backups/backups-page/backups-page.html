@@ -29,8 +29,13 @@
         [restore]="latest"
         [label]="labels().get(latest.itemId) ?? { text: '', ltr: false }"
         [note]="restoreNote()"
-        [pending]="backupsPageStore.pending().includes('discard:' + latest.id)"
+        [pending]="
+          backupsPageStore.pending().includes('discard:' + latest.id) ||
+          backupsPageStore.pending().includes('apply:' + latest.id)
+        "
+        [applied]="backupsPageStore.applied().includes(latest.id)"
         (discard)="backupsPageStore.discardPrevious(latest.id)"
+        (apply)="backupsPageStore.applyRestored(latest)"
       />
     }
     <laris-backup-items

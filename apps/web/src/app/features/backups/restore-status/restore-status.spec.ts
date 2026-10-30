@@ -10,6 +10,7 @@ const restore = (change: Partial<BackupRestore> = {}): BackupRestore => ({
   targetPath: null,
   setAside: [],
   setAsideDeleted: false,
+  appWasRunning: false,
   status: 'running',
   phase: 'restoring',
   errorCode: null,
@@ -24,13 +25,17 @@ const restore = (change: Partial<BackupRestore> = {}): BackupRestore => ({
   template: `<laris-restore-status
     [restore]="restore()"
     [note]="note()"
+    [applied]="applied()"
     (discard)="discarded = discarded + 1"
+    (apply)="applies = applies + 1"
   />`,
 })
 class Host {
   readonly restore = signal(restore());
   readonly note = signal<string | null>(null);
+  readonly applied = signal(false);
   discarded = 0;
+  applies = 0;
 }
 
 async function show(change: Partial<BackupRestore>, note: string | null = null) {
@@ -72,6 +77,28 @@ describe('RestoreStatus', () => {
       .find((b) => b.textContent?.trim() === 'Delete previous version')!
       .click();
     expect(fixture.componentInstance.discarded).toBe(1);
+  });
+
+  it('an app that was running: offers to apply the restored settings, until told to', async () => {
+    const fixture = await show({
+      status: 'succeeded',
+      phase: 'done',
+      appWasRunning: true,
+      output: ['/srv/extra: not in this backup, left as it is'],
+    });
+    const apply = () =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === 'Apply the restored settings',
+      );
+    apply()!.click();
+    expect(fixture.componentInstance.applies).toBe(1);
+    // What it said along the way, folded away.
+    expect(fixture.nativeElement.querySelector('details')!.textContent).toContain(
+      'not in this backup',
+    );
+    fixture.componentInstance.applied.set(true);
+    await fixture.whenStable();
+    expect(apply()).toBeUndefined();
   });
 
   it('says it failed, with its output', async () => {

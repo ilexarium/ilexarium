@@ -672,7 +672,9 @@ async function install() {
     JSON.stringify(restored.value).slice(0, 400),
   );
 
-  console.log('\nRestoring back where it was: its settings back and applied at once (`up -d`)');
+  console.log(
+    '\nRestoring back where it was: started as it was, then its settings applied (Apply)',
+  );
   const folder = '/home/anna/apps/navidrome';
   const published = () =>
     sh('docker', [
@@ -710,11 +712,19 @@ async function install() {
     10 * 60_000,
   );
   check(
-    'restored where it was: the setting from the backup runs again',
+    'restored where it was: its files back, the app started as it was',
     backDone.value?.status === 'succeeded' &&
-      published().includes(':4533->') &&
+      backDone.value?.appWasRunning === true &&
+      published().includes(':4599->') &&
       readFileSync(`${folder}/.env`, 'utf8').includes('WEB_PORT=4533'),
     `${JSON.stringify(backDone.value).slice(0, 400)} ${published()}`,
+  );
+  const apply = await api('POST', '/apps/navidrome/apply', { folder });
+  const reapplied = await waitTask('navidrome', folder);
+  check(
+    'the restored settings applied, as her: the setting from the backup runs again',
+    apply.status === 202 && reapplied?.state === 'succeeded' && published().includes(':4533->'),
+    `${apply.status} ${apply.text} ${published()}`,
   );
 
   console.log('\nApps, as bob (in the docker group: user units, no sudo)');

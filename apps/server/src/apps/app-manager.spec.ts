@@ -323,6 +323,15 @@ describe('AppManager: a change that doesn’t start changes nothing', () => {
     });
     expect(readdirSync(join(folder(), '.laris')).sort()).toEqual(['task.json', 'tasks']);
   });
+
+  it('apply (after a restore): its files as they are, brought up', async () => {
+    await install();
+    taskActive = 'inactive';
+    finished();
+    await expect(manager().apply(SESSION, 'music', folder(), ACTOR)).resolves.toMatchObject({
+      task: { action: 'up' },
+    });
+  });
 });
 
 describe('AppManager: removing', () => {

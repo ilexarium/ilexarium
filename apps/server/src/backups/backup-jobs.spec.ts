@@ -219,6 +219,7 @@ describe('BackupJobs', () => {
       status: 'succeeded',
       errorCode: null,
       setAside: ['/srv/docs.before-restore-20261030-120000'],
+      appWasRunning: true,
     });
     await jobs.refresh();
     expect(jobs.restoreProgress(RESTORE)).toBeNull();
@@ -229,6 +230,7 @@ describe('BackupJobs', () => {
           status: 'succeeded',
           phase: 'restoring',
           setAside: ['/srv/docs.before-restore-20261030-120000'],
+          appWasRunning: true,
           output: 'x',
         }),
       }),

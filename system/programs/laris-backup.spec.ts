@@ -496,6 +496,8 @@ describe('laris-backup run', () => {
       '--json',
       '--compression',
       'zstd,3',
+      '--comment',
+      JSON.stringify([join(storage, 'demo', 'data'), join(storage, 'demo', 'media')]),
       '--exclude',
       `pp:${join(storage, 'demo', 'data')}/cache`,
       expect.stringMatching(new RegExp(`::${SERVICE}-`)),
@@ -882,18 +884,7 @@ describe('laris-backup restore', () => {
     expect(calls('borg')).toEqual([]);
   });
 
-  const composeFile = () => join(storage, 'demo', 'data', 'compose.yml');
-  const composeLs = (file: string) =>
-    writeFileSync(
-      join(dir, 'compose-ls.json'),
-      JSON.stringify([
-        { Name: 'demo-2', Status: 'running(1)', ConfigFiles: '/etc/x/compose.yml' },
-        { Name: 'demo', Status: 'running(2)', ConfigFiles: file },
-      ]),
-    );
-
-  it('back where it was: stops the app, sets the current folders aside, extracts, brings it up with its files', async () => {
-    composeLs(composeFile());
+  it('back where it was: stops the app, sets the current folders aside, extracts, starts it again', async () => {
     const result = await restore(restoreInput());
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(
@@ -903,7 +894,8 @@ describe('laris-backup restore', () => {
     ).toEqual(['stopping', 'restoring', 'starting', 'done']);
     const data = join(storage, 'demo', 'data');
     const setAside = done()!.setAside as string[];
-    expect(done()).toMatchObject({ status: 'succeeded', errorCode: null });
+    // It ran before: the app offers to apply the restored settings.
+    expect(done()).toMatchObject({ status: 'succeeded', errorCode: null, appWasRunning: true });
     expect(setAside).toHaveLength(2);
     expect(setAside[0]).toMatch(new RegExp(`^${data}\\.before-restore-\\d{8}-\\d{6}$`));
     // The previous version is kept whole; the folder now holds the restored data.
@@ -919,12 +911,11 @@ describe('laris-backup restore', () => {
       data.slice(1),
       join(storage, 'demo', 'media').slice(1),
     ]);
+    // Started as it was: never `up` with files as root.
     expect(calls('docker').map((c) => c.args)).toEqual([
       ['compose', '-p', 'demo', 'ps', '-q'],
-      ['compose', 'ls', '--all', '--format', 'json', '--filter', 'name=demo'],
       ['compose', '-p', 'demo', 'stop'],
-      // `up`, not `start`: the restored compose.yml, .env and versions apply at once.
-      ['compose', '-p', 'demo', '-f', composeFile(), 'up', '-d'],
+      ['compose', '-p', 'demo', 'start'],
     ]);
     // The request is gone once done.
     expect(existsSync(join(dev, 'state', 'restore-requests', `${RESTORE}.json`))).toBe(false);
@@ -934,49 +925,50 @@ describe('laris-backup restore', () => {
     writeFileSync(join(dir, 'exit-extract.txt'), '2');
     const result = await restore(restoreInput());
     expect(result.code).toBe(5);
-    expect(done()).toMatchObject({ status: 'failed', setAside: [] });
+    expect(done()).toMatchObject({ status: 'failed', setAside: [], appWasRunning: false });
     const data = join(storage, 'demo', 'data');
     expect(readFileSync(join(data, 'db.sqlite'), 'utf8')).toBe('data');
     expect(existsSync(join(data, 'partial.txt'))).toBe(false);
     expect(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8')).toBe('[]\n');
-    expect(calls('docker').map((c) => (c.args[1] === 'ls' ? 'ls' : c.args[3]))).toEqual([
-      'ps',
-      'ls',
-      'stop',
-      'start',
-    ]);
+    expect(calls('docker').map((c) => c.args[3])).toEqual(['ps', 'stop', 'start']);
   });
 
-  it.each([
-    ['in a system place', () => '/etc/demo/compose.yml'],
-    ['outside the restored folders', () => join(storage, 'elsewhere', 'compose.yml')],
-  ])('Compose files %s: started as it was, never applied as root', async (_, file) => {
-    composeLs(file());
+  it('only the folders in the plan now: one taken out is left alone, one the backup lacks is said', async () => {
+    const data = join(storage, 'demo', 'data');
+    const media = join(storage, 'demo', 'media');
+    const extra = join(storage, 'demo', 'extra');
+    const items = plan().items.map((i: any) =>
+      i.id === SERVICE ? { ...i, folders: [data, extra], skip: [] } : i,
+    );
+    expect((await wrapper('configure', plan({ items }))).code).toBe(0);
     const result = await restore(restoreInput());
     expect(result.code, result.lines.join('\n')).toBe(0);
+    expect(done()!.setAside).toEqual([expect.stringMatching(new RegExp(`^${data}\\.before`))]);
     expect(
-      calls('docker')
-        .map((c) => c.args)
-        .at(-1),
-    ).toEqual(['compose', '-p', 'demo', 'start']);
+      calls('borg')
+        .find((c) => c.args[0] === 'extract')!
+        .args.slice(-1),
+    ).toEqual([data.slice(1)]);
+    expect(existsSync(join(media, 'restored.txt'))).toBe(false);
+    expect(JSON.stringify(events())).toContain(`${extra}: not in this backup, left as it is`);
   });
 
-  it('`up` refused every time: started as it was, said so', async () => {
-    composeLs(composeFile());
-    writeFileSync(join(dir, 'exit-up.txt'), '1');
-    const result = await restore(restoreInput());
+  it('an archive that doesn’t list its folders: refused back where it was, fine into a folder', async () => {
+    const archives = JSON.parse(readFileSync(join(dir, 'archives.json'), 'utf8'));
+    for (const name of Object.keys(archives)) {
+      const line: string[] = archives[name];
+      const at = line.indexOf('--comment');
+      if (at >= 0) line.splice(at, 2);
+    }
+    writeFileSync(join(dir, 'archives.json'), JSON.stringify(archives));
+    expect((await restore(restoreInput())).code).toBe(5);
+    expect(done()).toMatchObject({ status: 'failed', errorCode: 'archive_not_found' });
+    expect(calls('docker')).toEqual([]);
+    rmSync(jobFile(RESTORE));
+    const target = join(dir, 'restored');
+    const result = await restore(restoreInput({ target }));
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(done()).toMatchObject({ status: 'succeeded' });
-    expect(calls('docker').map((c) => (c.args[1] === 'ls' ? 'ls' : c.args.at(-1)))).toEqual([
-      '-q',
-      'ls',
-      'stop',
-      '-d',
-      '-d',
-      '-d',
-      'start',
-    ]);
-    expect(JSON.stringify(events())).toContain('demo started as it was');
   });
 
   it('into a chosen folder: everything with its full paths, nothing stopped', async () => {

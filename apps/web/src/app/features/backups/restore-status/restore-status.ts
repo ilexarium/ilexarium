@@ -12,7 +12,8 @@ import type { ItemLabel } from '../backups.model';
  * The latest restore (its own unit): its phase and output while it runs, then where it went — or,
  * back where it was, the folders set aside (the previous version, kept until "Delete previous
  * version") and the template's note
- * (e.g. "restore the database in Immich"). UI only: `discard` reports the click.
+ * (e.g. "restore the database in Immich"); an app that was running is started as it was, and
+ * `apply` offers its restored files (compose file, versions). UI only: the clicks go out.
  */
 @Component({
   selector: 'laris-restore-status',
@@ -26,6 +27,9 @@ export class RestoreStatus {
   /** A translation key: what to do after restoring this app. */
   readonly note = input<string | null>(null);
   readonly pending = input(false);
+  /** Its app was told to apply its restored files already. */
+  readonly applied = input(false);
 
   readonly discard = output<void>();
+  readonly apply = output<void>();
 }

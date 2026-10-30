@@ -844,6 +844,11 @@
       "discard": "Vorherige Version löschen",
       "discarded": "Die vorherige Version wurde gelöscht.",
       "discardFailed": "Die vorherige Version konnte nicht gelöscht werden",
+      "replaces": "Ersetzt diese Ordner (wie sie jetzt im Plan stehen):",
+      "applyText": "Die App läuft mit ihren Einstellungen von vor der Wiederherstellung. Übernimm die wiederhergestellten Einstellungen (Compose-Datei und Versionen), um abzuschließen.",
+      "apply": "Wiederhergestellte Einstellungen übernehmen",
+      "applyStarted": "Die wiederhergestellten Einstellungen werden übernommen. Du kannst es auf der Seite der App verfolgen.",
+      "applyFailed": "Die wiederhergestellten Einstellungen konnten nicht übernommen werden",
       "folderLabel": "Ordner, in den wiederhergestellt wird",
       "phase": {
         "stopping": "App wird gestoppt…",

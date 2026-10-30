@@ -51,6 +51,18 @@
                 <span class="text-muted-foreground">{{
                   'backups.restore.inPlaceText' | translate
                 }}</span>
+                @if (inPlaceFolders().length > 0) {
+                  <span class="text-muted-foreground">{{
+                    'backups.restore.replaces' | translate
+                  }}</span>
+                  <ul class="grid gap-0.5">
+                    @for (path of inPlaceFolders(); track path) {
+                      <li>
+                        <code class="break-all" dir="ltr">{{ path }}</code>
+                      </li>
+                    }
+                  </ul>
+                }
               </span>
             </label>
           }

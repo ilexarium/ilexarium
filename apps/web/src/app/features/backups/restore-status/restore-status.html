@@ -29,11 +29,37 @@
         tabindex="0"
         >{{ restore().output.join('\n') }}</pre>
     }
+    @if (restore().status === 'succeeded' && restore().appWasRunning && !applied()) {
+      <div hlmAlert role="note" class="grid gap-2">
+        <p hlmAlertDescription>{{ 'backups.restore.applyText' | translate }}</p>
+        <button
+          hlmBtn
+          size="sm"
+          class="justify-self-start"
+          [disabled]="pending()"
+          (click)="apply.emit()"
+        >
+          {{ 'backups.restore.apply' | translate }}
+        </button>
+      </div>
+    }
     @if (restore().status === 'succeeded' && restore().targetPath; as path) {
       <p class="text-sm">
         {{ 'backups.restore.wentTo' | translate }}
         <code class="break-all" dir="ltr">{{ path }}</code>
       </p>
+    }
+    @if (restore().status === 'succeeded' && restore().output.length > 0) {
+      <details class="text-sm">
+        <summary class="cursor-pointer select-none">
+          {{ 'backups.running.output' | translate }}
+        </summary>
+        <pre
+          class="mt-2 max-h-48 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap"
+          dir="ltr"
+          tabindex="0"
+          >{{ restore().output.join('\n') }}</pre>
+      </details>
     }
     @if (restore().status === 'succeeded' && note(); as key) {
       <div hlmAlert role="note">

@@ -466,6 +466,8 @@ export const backupRestoreSchema = z.object({
   /** Back where it was: the folders set aside — the way back, until "Delete previous version". */
   setAside: z.array(z.string()),
   setAsideDeleted: z.boolean(),
+  /** Back where it was, an app that was running: its restored files can be applied ("Apply"). */
+  appWasRunning: z.boolean(),
   status: backupRestoreStatusSchema,
   phase: backupRestorePhaseSchema.nullable(),
   errorCode: z.string().nullable(),

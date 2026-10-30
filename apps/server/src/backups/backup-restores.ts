@@ -115,6 +115,7 @@ export class BackupRestores {
       targetPath: row.targetPath,
       setAside: row.setAside,
       setAsideDeleted: row.setAsideDeletedAt !== null,
+      appWasRunning: row.appWasRunning,
       status: row.status,
       phase: (live?.phase ?? row.phase ?? null) as BackupRestorePhase | null,
       errorCode: row.errorCode,
