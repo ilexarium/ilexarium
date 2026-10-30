@@ -163,7 +163,10 @@ export class AppTasks {
       const active = answer.ok ? String(answer['active']) : 'unknown';
       state = ['active', 'activating', 'reloading'].includes(active) ? 'running' : 'interrupted';
     }
-    const output = taskLines(tail);
+    // While it runs, whole lines only (the last may be half written).
+    const output = taskLines(
+      state === 'running' ? tail.slice(0, tail.lastIndexOf('\n') + 1) : tail,
+    );
     if (output.at(-1) === '') output.pop();
     return {
       action: record.action,

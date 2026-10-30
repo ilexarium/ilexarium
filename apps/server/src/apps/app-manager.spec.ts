@@ -37,6 +37,8 @@ let taskActive: string;
 let foreign: string | null;
 let sudoLocked: boolean;
 let containers: Record<string, unknown>[];
+/** More folders Compose would say the file mounts (`~`). */
+let homeMounts: string[];
 
 /** The helper as the person: tasks write their record and log as the real one does. */
 async function helper(request: HelperRequest) {
@@ -65,6 +67,7 @@ async function helper(request: HelperRequest) {
           { type: 'volume', source: 'cache' },
           { type: 'volume', source: null },
           { type: 'bind', source: '/var/run/docker.sock' },
+          ...homeMounts.map((source) => ({ type: 'bind', source })),
         ],
         volumes: [{ key: 'cache', name: `${project}_cache`, external: false }],
         templates: label ? [label[1]] : [],
@@ -172,6 +175,7 @@ beforeEach(() => {
   foreign = null;
   sudoLocked = false;
   containers = [];
+  homeMounts = [];
 });
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -359,8 +363,8 @@ describe('AppManager: removing', () => {
       (a) => a.action === 'paths.remove' || a.action === 'volumes.remove',
     );
     expect(removals).toEqual([
-      { action: 'volumes.remove', names: ['music_cache'], docker: 'direct' },
       { action: 'paths.remove', paths: [join(folder, 'data')], administrator: false },
+      { action: 'volumes.remove', names: ['music_cache'], docker: 'direct' },
       { action: 'paths.remove', paths: [folder], administrator: false },
     ]);
   });
@@ -372,14 +376,22 @@ describe('AppManager: removing', () => {
     await manager().remove(SESSION, 'music', folder, ACTOR);
     foreign = join(folder, 'data');
     sudoLocked = true;
-    const request = { folder, settings: true, folders: [join(folder, 'data')], volumes: [] };
+    const request = {
+      folder,
+      settings: true,
+      folders: [join(folder, 'data')],
+      volumes: ['music_cache'],
+    };
     await expect(manager().delete(SESSION, 'music', request, ACTOR)).rejects.toMatchObject({
       response: { code: 'sudo_required' },
     });
     expect(existsSync(join(folder, 'compose.yml'))).toBe(true);
+    // The volumes come after the folders: none deleted yet, so the retry doesn't find them gone.
+    expect(asked.filter((a) => a.action === 'volumes.remove')).toEqual([]);
     sudoLocked = false;
     await manager().delete(SESSION, 'music', request, ACTOR);
     expect(existsSync(folder)).toBe(false);
+    expect(asked.filter((a) => a.action === 'volumes.remove')).toHaveLength(1);
   });
 
   it('only the settings: the files, never the data', async () => {
@@ -420,6 +432,16 @@ describe('AppManager.details of a template’s app that doesn’t run', () => {
     checkFails = true;
     const details = await manager().details(SESSION, 'music', join(home, 'apps', 'music'));
     expect(details).toMatchObject({ template: null, fields: [] });
+  });
+});
+
+describe('AppManager.removal: never the home', () => {
+  it('a mount of the home itself (Compose’s `~`) or a folder above it is never offered', async () => {
+    await install();
+    homeMounts = [home, join(dir, 'home')];
+    const { items } = await manager().removal(SESSION, 'music', join(home, 'apps', 'music'));
+    expect(items.map((i) => i.path)).not.toContain(home);
+    expect(items.map((i) => i.path)).not.toContain(join(dir, 'home'));
   });
 });
 

@@ -1,9 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AppTask, BackupsStatus } from '@laris/shared';
+import type { AppField, AppTask, BackupsStatus } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { testStarted, testTask } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -102,6 +102,29 @@ describe('NewAppPageStore', () => {
     expect(store.fields()).toBeNull();
     expect(appsApi.fields).not.toHaveBeenCalled();
     expect(store.env()).toBe('PORT=80\n');
+  });
+
+  it('a template’s form answered after Back and a pasted file: not this setup’s', async () => {
+    const { store, appsApi } = await setup();
+    const late = new Subject<{ fields: AppField[] }>();
+    appsApi.fields.mockReturnValueOnce(late as never);
+    await store.chooseTemplate('navidrome');
+    store.back();
+    await store.usePasted(COMPOSE);
+    late.next({
+      fields: [
+        {
+          key: 'PORT',
+          kind: 'port',
+          value: '4533',
+          default: '4533',
+          required: false,
+          advanced: false,
+        },
+      ],
+    });
+    expect(store.fields()).toBeNull();
+    expect(store.env()).toBe('');
   });
 
   it('installs as the person, follows the output, then adds the app to the backups', async () => {

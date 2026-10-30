@@ -45,6 +45,10 @@ export const OUTPUT_MAX = 16 * 1024;
 export const COMPOSE_CONFIG_MAX = 4 * 1024 * 1024;
 /** What a Compose check answers at most (the server reads 256 KB of an answer). */
 export const COMPOSE_ANSWER_MAX = 128 * 1024;
+/** What is passed on of a program's words (the server keeps 4000 characters of a message). */
+export const MESSAGE_MAX = 4000;
+/** The label naming an app's template (`<id>@<version>`). */
+export const TEMPLATE_LABEL = 'laris.template';
 /** What is kept of a root program's output: its result line can be longer. */
 export const ROOT_OUTPUT_MAX = 48 * 1024;
 /** sudo waits a few seconds after a wrong password (PAM's delay). */
@@ -137,4 +141,5 @@ export const MESSAGES = {
     /not in the sudoers|not allowed to (?:run|execute)|may not run sudo|I'm afraid I can't do that/i,
   notFound: /No such process/i,
   notPermitted: /Operation not permitted/i,
+  noSuchVolume: /no such volume/i,
 };

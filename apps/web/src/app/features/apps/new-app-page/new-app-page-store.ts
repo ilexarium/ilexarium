@@ -95,6 +95,8 @@ export const NewAppPageStore = signalStore(
           switchMap((template) =>
             appsApi.fields({ template }).pipe(
               tap(({ fields }) => {
+                // Answered after Back or another choice: not this setup's.
+                if (store.template()?.id !== template) return;
                 const values: Record<string, string> = {};
                 const known = parseEnv(store.env());
                 for (const field of fields) {
