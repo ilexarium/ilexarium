@@ -14,6 +14,7 @@ import { testAppItem, testItem } from '../../../core/backups/testing';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { formatBytes } from '../../../shared/format/format';
 import { BackupsPage } from './backups-page';
+import { BackupsPageStore } from './backups-page-store';
 
 const PLATFORM = '0193a000-0000-7000-8000-000000000001';
 const IMMICH_ITEM = '0193a000-0000-7000-8000-000000000002';
@@ -124,6 +125,8 @@ async function render(start: BackupPlan | null) {
       }),
     ),
     runNow: vi.fn(() => of({ runId: 'r1' })),
+    // 204: no body.
+    removeItem: vi.fn(() => of(null)),
     passphrase: vi.fn(() => of({ passphrase: PASSPHRASE })),
   };
   const apps = {
@@ -324,6 +327,15 @@ describe('BackupsPage with a plan', () => {
     );
     await vi.waitFor(() => expect(api.plan.mock.calls.length).toBeGreaterThan(before));
     expect(api.runs).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows a removed item gone at once (an empty answer is done, not cancelled)', async () => {
+    const { api, fixture } = await render(plan());
+    const before = api.plan.mock.calls.length;
+    const store = fixture.debugElement.injector.get(BackupsPageStore);
+    await store.removeItem({ itemId: FOLDER_ITEM, deleteArchives: false });
+    expect(api.removeItem).toHaveBeenCalledWith(FOLDER_ITEM, false);
+    await vi.waitFor(() => expect(api.plan.mock.calls.length).toBeGreaterThan(before));
   });
 
   it('shows the passphrase again through the person’s sudo', async () => {
