@@ -79,13 +79,12 @@ export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
   readonly changes$: Observable<void> = this.changed.asObservable();
 
   async restore(request: BackupRestoreRequest, actor: RootActor): Promise<{ restoreId: string }> {
-    const plan = await requirePlan(this.prisma);
+    await requirePlan(this.prisma);
     const item = await requireItem(this.prisma, request.itemId);
     if (!item.archives.includes(request.archive)) {
       throw new NotFoundException(apiError('No such backup', BACKUP_ERROR_CODES.archiveNotFound));
     }
-    if (request.target !== null)
-      this.backupChecks.checkRestoreTarget(request.target, plan.destination);
+    if (request.target !== null) this.backupChecks.checkRestoreTarget(request.target);
     const row = await this.prisma.backupRestore.create({
       data: {
         itemId: item.id,

@@ -4,7 +4,6 @@ import { BadRequestException, ConflictException, Injectable } from '@nestjs/comm
 import {
   BACKUP_ERROR_CODES,
   BACKUP_FILESYSTEMS,
-  BACKUP_LIMITS,
   type BackupDestination,
   type BackupFoldersResponse,
   type BackupItemRequest,
@@ -23,9 +22,7 @@ import {
   destinationRoots,
   isAllowedFolder,
   mountInfoFile,
-  overlaps,
   repositoryPath,
-  skipInside,
 } from './backup-paths.js';
 import { DESTINATION_SOURCE, FOLDER_PLACES } from './backups.constants.js';
 
@@ -149,8 +146,11 @@ export class BackupChecks {
     }
   }
 
-  /** New items, checked: apps Docker knows, folders that may be backed up — off the disk. */
-  async checkNewItems(requests: BackupItemRequest[], destination: string): Promise<NewItemRow[]> {
+  /**
+   * New items, checked: apps Docker knows, folders that may be backed up. The rest (off the
+   * backup disk, skips inside the folders, how many) the backup program refuses.
+   */
+  async checkNewItems(requests: BackupItemRequest[]): Promise<NewItemRow[]> {
     const problems: FieldError[] = [];
     const rows: NewItemRow[] = [];
     const items = await this.prisma.backupItem.findMany();
@@ -160,8 +160,8 @@ export class BackupChecks {
       const field = `items.${i}`;
       const problem =
         request.kind === 'app'
-          ? this.appProblem(request, destination, apps)
-          : await this.folderProblem(request.path, destination);
+          ? this.appProblem(request, apps)
+          : await this.folderProblem(request.path);
       if (problem) {
         problems.push({ field, ...problem });
         continue;
@@ -181,7 +181,6 @@ export class BackupChecks {
               kind: 'app',
               project: request.project,
               folders: [...new Set(this.appFoldersOf(request, apps))],
-              excludedFolders: [...new Set(request.excludedFolders ?? [])],
               skip: [...new Set(request.skip)],
               mode: request.mode,
             }
@@ -189,41 +188,13 @@ export class BackupChecks {
       );
     }
     if (problems.length > 0) throw validationFailed(problems);
-    // Counted as the program counts the plan: removed items too (their backups are kept), and
-    // the platform item setup adds (no items yet: this is setup).
-    const total = items.length + rows.length + (items.length === 0 ? 1 : 0);
-    if (total > BACKUP_LIMITS.maxItems) {
-      throw new BadRequestException(apiError('Too many items', BACKUP_ERROR_CODES.tooManyItems));
-    }
     return rows;
   }
 
-  /** An app item's change: its folders allowed and off the disk, its skips inside them. */
-  checkAppChange(
-    current: { folders: string[]; skip: string[] },
-    change: BackupItemUpdate,
-    destination: string,
-  ): void {
-    const folders = change.folders ?? current.folders;
-    const problem = this.appFieldsProblem(folders, change.skip ?? current.skip, destination);
+  /** An app item's change: its folders allowed. */
+  checkAppChange(current: { folders: string[] }, change: BackupItemUpdate): void {
+    const problem = this.appFoldersProblem(change.folders ?? current.folders);
     if (problem) throw validationFailed([{ field: 'folders', ...problem }]);
-  }
-
-  /** A new disk mustn't hold what's backed up onto it (the program refuses that plan). */
-  async checkItemsOffDisk(destination: string): Promise<void> {
-    const items = await this.prisma.backupItem.findMany({ where: { removedAt: null } });
-    const folders = items.flatMap((item) =>
-      item.kind === 'folder' && item.path ? [item.path] : item.folders,
-    );
-    if (folders.some((folder) => overlaps(folder, destination))) {
-      throw validationFailed([
-        {
-          field: 'destination',
-          code: BACKUP_ERROR_CODES.pathNotAllowed,
-          message: 'Something backed up is on this disk',
-        },
-      ]);
-    }
   }
 
   /** An item's backups can't be deleted while a restore's set-aside folders depend on its record. */
@@ -257,65 +228,46 @@ export class BackupChecks {
     );
   }
 
-  /** A restore's own folder: allowed, off the backup disk. */
-  checkRestoreTarget(target: string, destination: string): void {
-    if (
-      !isAllowedFolder(this.programConfigService.config, target) ||
-      overlaps(target, destination)
-    ) {
+  /** A restore's own folder: allowed. */
+  checkRestoreTarget(target: string): void {
+    if (!isAllowedFolder(this.programConfigService.config, target)) {
       throw validationFailed([
         { field: 'target', code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' },
       ]);
     }
   }
 
-  /** The folders asked for; none asked: every folder Docker says the app uses, but those left out. */
+  /** The folders asked for; none asked: every folder Docker says the app uses. */
   private appFoldersOf(
     request: Extract<BackupItemRequest, { kind: 'app' }>,
     apps: ReadonlyMap<string, string[]>,
   ): string[] {
-    if (request.folders.length > 0) return request.folders;
-    const excluded = request.excludedFolders ?? [];
-    return (apps.get(request.project) ?? []).filter((folder) => !excluded.includes(folder));
+    return request.folders.length > 0 ? request.folders : (apps.get(request.project) ?? []);
   }
 
   private appProblem(
     request: Extract<BackupItemRequest, { kind: 'app' }>,
-    destination: string,
     apps: ReadonlyMap<string, string[]>,
   ): Omit<FieldError, 'field'> | null {
     if (!apps.has(request.project)) {
       return { code: BACKUP_ERROR_CODES.itemNotFound, message: 'No such app' };
     }
-    return this.appFieldsProblem(this.appFoldersOf(request, apps), request.skip, destination);
+    return this.appFoldersProblem(this.appFoldersOf(request, apps));
   }
 
-  private appFieldsProblem(
-    folders: string[],
-    skip: string[],
-    destination: string,
-  ): Omit<FieldError, 'field'> | null {
+  private appFoldersProblem(folders: string[]): Omit<FieldError, 'field'> | null {
     const config = this.programConfigService.config;
     if (folders.length === 0)
       return { code: BACKUP_ERROR_CODES.sourceMissing, message: 'No folders' };
     if (!folders.every((folder) => isAllowedFolder(config, folder))) {
       return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' };
     }
-    if (folders.some((folder) => overlaps(folder, destination))) {
-      return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'On the disk' };
-    }
-    if (!skip.every((path) => skipInside(path, folders))) {
-      return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'A skip outside its folders' };
-    }
     return null;
   }
 
   /** Why a folder can't be added, or null. */
-  private async folderProblem(
-    path: string,
-    destination: string,
-  ): Promise<Omit<FieldError, 'field'> | null> {
-    if (!isAllowedFolder(this.programConfigService.config, path) || overlaps(path, destination)) {
+  private async folderProblem(path: string): Promise<Omit<FieldError, 'field'> | null> {
+    if (!isAllowedFolder(this.programConfigService.config, path)) {
       return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' };
     }
     // Another user's home: the app may not look, root can read it.

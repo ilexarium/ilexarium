@@ -97,24 +97,23 @@ model BackupPlan {
 
 /// What is backed up: the platform (always), an app (by its Compose project), or a folder.
 model BackupItem {
-  id              String             @id @default(uuid(7)) @db.Uuid
-  kind            BackupItemKind
-  /// app: its Compose project, its folders (ticked), those left out on purpose, skips and mode.
-  project         String?
-  folders         String[]           @default([])
-  excludedFolders String[]           @default([])
-  skip            String[]           @default([])
+  id         String             @id @default(uuid(7)) @db.Uuid
+  kind       BackupItemKind
+  /// app: its Compose project, its folders (ticked), skips and mode.
+  project    String?
+  folders    String[]           @default([])
+  skip       String[]           @default([])
   /// "stop" | "live"
-  mode            String?
-  path            String?
+  mode       String?
+  path       String?
   /// Removed from the plan: not backed up any more; its archives stay until deleted.
-  removedAt      DateTime?          @db.Timestamptz(3)
+  removedAt  DateTime?          @db.Timestamptz(3)
   /// Its archives after the latest run's pruning (from the wrapper's results — no listing call).
-  archives       String[]           @default([])
-  archivesAt     DateTime?          @db.Timestamptz(3)
-  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
-  results        BackupItemResult[]
-  restores       BackupRestore[]
+  archives   String[]           @default([])
+  archivesAt DateTime?          @db.Timestamptz(3)
+  createdAt  DateTime           @default(now()) @db.Timestamptz(3)
+  results    BackupItemResult[]
+  restores   BackupRestore[]
 
   @@index([project])
 }
@@ -193,23 +192,23 @@ model BackupCheck {
 
 /// A restore of one archive, run as its own unit; its progress and result from the program's files.
 model BackupRestore {
-  id                String              @id @default(uuid(7)) @db.Uuid
-  itemId            String              @db.Uuid
-  item              BackupItem          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  id                String     @id @default(uuid(7)) @db.Uuid
+  itemId            String     @db.Uuid
+  item              BackupItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   archive           String
   /// A new folder it went to; null: back where it was.
   targetPath        String?
   /// Back where it was: the folders set aside (the way back), until "Delete previous version".
-  setAside          String[]            @default([])
-  setAsideDeletedAt DateTime?           @db.Timestamptz(3)
+  setAside          String[]   @default([])
+  setAsideDeletedAt DateTime?  @db.Timestamptz(3)
   status            JobStatus
   phase             String?
   errorCode         String?
-  output            String              @default("")
-  startedById       String?             @db.Uuid
-  startedBy         User?               @relation(fields: [startedById], references: [id], onDelete: SetNull)
-  startedAt         DateTime            @default(now()) @db.Timestamptz(3)
-  finishedAt        DateTime?           @db.Timestamptz(3)
+  output            String     @default("")
+  startedById       String?    @db.Uuid
+  startedBy         User?      @relation(fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt         DateTime   @default(now()) @db.Timestamptz(3)
+  finishedAt        DateTime?  @db.Timestamptz(3)
 
   @@index([startedAt])
 }

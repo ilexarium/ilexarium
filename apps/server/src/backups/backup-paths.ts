@@ -1,5 +1,5 @@
 import { BACKUP_REPOSITORY_FOLDER, isBackupFolder } from '@laris/shared';
-import { inside, notSystem } from '../host/folders.js';
+import { notSystem } from '../host/folders.js';
 import type { ProgramConfig } from '../root-programs/root-programs.model.js';
 import { ARCHIVE_TIME_LENGTH, MOUNT_INFO, STATE_DIR } from './backups.constants.js';
 
@@ -12,12 +12,6 @@ import { ARCHIVE_TIME_LENGTH, MOUNT_INFO, STATE_DIR } from './backups.constants.
 export function isAllowedFolder(config: ProgramConfig, path: string): boolean {
   return isBackupFolder(path) && notSystem(config, path);
 }
-
-/** A skip: inside one of the folders. */
-export const skipInside = (skip: string, folders: readonly string[]) =>
-  folders.some((folder) => skip.startsWith(`${folder}/`));
-
-export const overlaps = (a: string, b: string) => inside(a, b) || inside(b, a);
 
 /** Development: the pretend disks' folder; production: none (every disk that isn't a system disk). */
 export function destinationRoots(config: ProgramConfig): string[] | null {

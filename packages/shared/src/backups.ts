@@ -172,7 +172,6 @@ export const BACKUP_ERROR_CODES = {
   alreadyConfigured: 'backups_already_configured',
   itemNotFound: 'backup_item_not_found',
   itemExists: 'backup_item_exists',
-  tooManyItems: 'backup_too_many_items',
   /** The platform item is always backed up. */
   itemFixed: 'backup_item_fixed',
   archiveNotFound: 'backup_archive_not_found',
@@ -220,10 +219,8 @@ export const backupItemSchema = z.object({
   project: z.string().nullable(),
   /** `app`: the folders backed up (its own folder and its mounts, those ticked). */
   folders: z.array(z.string()),
-  /** `app`: its folders left out on purpose (not shown as new). */
-  excludedFolders: z.array(z.string()),
-  /** `app`: folders it uses that aren't in the plan yet ("not backed up yet"). */
-  newFolders: z.array(z.string()),
+  /** `app`: folders it uses (as Docker sees them now) that aren't backed up. */
+  otherFolders: z.array(z.string()),
   /** `app`: what's skipped inside its folders (absolute; `*` within a name). */
   skip: z.array(z.string()),
   /** `app`: stopped while it's copied, or copied while it runs. */
@@ -289,7 +286,6 @@ export const backupItemSkipSchema = z
 
 const appItemFields = {
   folders: z.array(folderPathSchema).max(CATALOG_LIMITS.maxFields),
-  excludedFolders: z.array(folderPathSchema).max(CATALOG_LIMITS.maxFields).optional(),
   skip: z.array(backupItemSkipSchema).max(CATALOG_LIMITS.maxBackupSkips),
   mode: backupModeSchema,
 };
@@ -346,7 +342,6 @@ export type BackupPlanUpdate = z.infer<typeof backupPlanUpdateSchema>;
 /** `PATCH /api/backups/items/:id`: an app item's folders, skips and mode. */
 export const backupItemUpdateSchema = z.strictObject({
   folders: appItemFields.folders.optional(),
-  excludedFolders: appItemFields.excludedFolders,
   skip: appItemFields.skip.optional(),
   mode: backupModeSchema.optional(),
 });

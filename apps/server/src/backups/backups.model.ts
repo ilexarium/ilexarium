@@ -27,7 +27,6 @@ export type NewItemRow =
       kind: 'app';
       project: string;
       folders: string[];
-      excludedFolders: string[];
       skip: string[];
       mode: BackupMode;
     }
