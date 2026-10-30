@@ -94,13 +94,14 @@ describe('laris-root', () => {
     expect(ms).toBeGreaterThanOrEqual(300);
   });
 
-  it('refuses to start when a module could be changed by others — the helper’s too', async () => {
-    for (const module of ['root/main.mts', 'helper/run.mts']) {
+  it('refuses to start when a module could be changed by others — the helper’s and lib’s too', async () => {
+    for (const module of ['root/main.mts', 'helper/run.mts', 'lib/lines.mts']) {
       const copy = mkdtempSync(join(dir, 'copy-'));
       chmodSync(copy, 0o755);
       cpSync(join(HERE, 'laris-root.mts'), join(copy, 'laris-root.mts'));
       cpSync(join(HERE, 'root'), join(copy, 'root'), { recursive: true });
       cpSync(join(HERE, 'helper'), join(copy, 'helper'), { recursive: true });
+      cpSync(join(HERE, 'lib'), join(copy, 'lib'), { recursive: true });
       chmodSync(join(copy, module), 0o666);
       const { lines, code } = await run([{ action: 'touch' }], {
         entry: join(copy, 'laris-root.mts'),

@@ -3,6 +3,7 @@
 // Running systemctl — one fixed way, a clean environment, its output relayed with "> ".
 
 import { spawn } from 'node:child_process';
+import { readLines } from '../lib/lines.mts';
 import { emit } from '../lib/output.mts';
 import { SAFE_PATH } from '../lib/paths.mts';
 
@@ -21,17 +22,11 @@ export function systemctl(file: string, args: string[]): Promise<Ran> {
       shell: false,
     });
     let text = '';
-    const relay = (stream: NodeJS.ReadableStream) => {
-      let rest = '';
-      stream.setEncoding('utf8');
-      stream.on('data', (chunk: string) => {
-        if (text.length < 64 * 1024) text += chunk;
-        const lines = (rest + chunk).split(/\r?\n/);
-        rest = lines.pop() ?? '';
-        for (const line of lines) emit(`> ${line}`);
+    const relay = (stream: NodeJS.ReadableStream) =>
+      readLines(stream, 64 * 1024, (line) => {
+        if (text.length < 64 * 1024) text += `${line}\n`;
+        emit(`> ${line}`);
       });
-      stream.on('end', () => rest && emit(`> ${rest}`));
-    };
     relay(child.stdout!);
     relay(child.stderr!);
     child.on('error', reject);

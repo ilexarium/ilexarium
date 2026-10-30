@@ -1,6 +1,7 @@
 import { handle, type Answer, type Request } from './actions.mts';
 import { LINE_MAX } from './config.mts';
 import { endRoot } from './sudo.mts';
+import { readLines } from '../lib/lines.mts';
 
 function answer(id: number | null, result: Answer): void {
   process.stdout.write(`${JSON.stringify({ id, ...result })}\n`);
@@ -62,28 +63,15 @@ export function serve(
       settle();
     });
   };
-  let buffer = '';
   // A line too long is refused, and its rest skipped up to the next line break.
-  let skipping = false;
-  process.stdin.setEncoding('utf8');
-  process.stdin.on('data', (chunk: string) => {
-    buffer += chunk;
-    for (let end = buffer.indexOf('\n'); end >= 0; end = buffer.indexOf('\n')) {
-      const line = buffer.slice(0, end).replace(/\r$/, '');
-      buffer = buffer.slice(end + 1);
-      if (skipping) {
-        skipping = false;
-        continue;
-      }
-      if (line.length > LINE_MAX) answer(null, { ok: false, error: 'bad_request' });
-      else if (line.trim()) take(line);
-    }
-    if (buffer.length > LINE_MAX) {
-      if (!skipping) answer(null, { ok: false, error: 'bad_request' });
-      skipping = true;
-      buffer = '';
-    }
-  });
+  readLines(
+    process.stdin,
+    LINE_MAX,
+    (line) => {
+      if (line.trim()) take(line);
+    },
+    () => answer(null, { ok: false, error: 'bad_request' }),
+  );
   process.stdin.on('end', () => {
     ended = true;
     onEnd?.();

@@ -37,20 +37,6 @@ export function emit(line: string): void {
 
 export const oneLine = (text: string) => text.replace(/[\r\n]+/g, ' ');
 
-/** A program's output, line by line, each prefixed with "> " (never mistaken for a marker). */
-export function relay(stream: NodeJS.ReadableStream): void {
-  let rest = '';
-  stream.setEncoding('utf8');
-  stream.on('data', (chunk: string) => {
-    const lines = (rest + chunk).split(/\r?\n/);
-    rest = lines.pop() ?? '';
-    for (const line of lines) emit(`> ${line}`);
-  });
-  stream.on('end', () => {
-    if (rest) emit(`> ${rest}`);
-  });
-}
-
 /**
  * Runs a wrapper's main and ends the process: with its exit code (143 once a signal stopped
  * it), or with its refusal as `@@info` and `@@error` (the code, and the field it's about), or as

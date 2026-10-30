@@ -219,6 +219,7 @@ describe('laris-helper', () => {
     cpSync(join(HERE, 'laris-root.mts'), join(copy, 'laris-root.mts'));
     cpSync(join(HERE, 'root'), join(copy, 'root'), { recursive: true });
     cpSync(join(HERE, 'helper'), join(copy, 'helper'), { recursive: true });
+    cpSync(join(HERE, 'lib'), join(copy, 'lib'), { recursive: true });
     chmodSync(join(copy, 'root', 'main.mts'), 0o666);
     rmSync(join(dir, 'bin', 'laris-root.mts'));
     symlinkSync(join(copy, 'laris-root.mts'), join(dir, 'bin', 'laris-root.mts'));
@@ -704,18 +705,22 @@ describe('laris-helper', () => {
     }
   });
 
-  it('refuses to start when a module could be changed by others', async () => {
+  it.each([
+    ['helper', 'actions.mts'],
+    ['lib', 'lines.mts'],
+  ])('refuses to start when a module could be changed by others (%s/%s)', async (folder, file) => {
     helper.kill();
-    const copy = join(dir, 'copy');
+    const copy = join(dir, `copy-${folder}`);
     mkdirSync(copy);
     cpSync(join(HERE, 'laris-helper.mts'), join(copy, 'laris-helper.mts'));
     cpSync(join(HERE, 'helper'), join(copy, 'helper'), { recursive: true });
-    chmodSync(join(copy, 'helper', 'actions.mts'), 0o666);
+    cpSync(join(HERE, 'lib'), join(copy, 'lib'), { recursive: true });
+    chmodSync(join(copy, folder, file), 0o666);
     start(join(copy, 'laris-helper.mts'));
     expect(await nextLine()).toEqual({
       'laris-helper': 1,
       error: 'setup',
-      path: join(copy, 'helper', 'actions.mts'),
+      path: join(copy, folder, file),
     });
   });
 });
