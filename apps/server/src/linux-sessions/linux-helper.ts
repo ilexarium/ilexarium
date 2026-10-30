@@ -1,5 +1,5 @@
-import { StringDecoder } from 'node:string_decoder';
 import type { Client, ClientChannel } from 'ssh2';
+import { readLines } from '../common/read-lines.js';
 import {
   HELPER_ANSWER_MAX,
   HELPER_MESSAGE_MAX,
@@ -17,9 +17,6 @@ import type { HelperAnswer, HelperRequest } from './linux-sessions.model.js';
 export class LinuxHelper {
   private readonly waiting = new Map<number, (answer: HelperAnswer) => void>();
   private nextId = 0;
-  private buffer = '';
-  /** Keeps a character split between two chunks whole (a home like /home/jürgen). */
-  private readonly decoder = new StringDecoder('utf8');
   private closed = false;
 
   private constructor(private readonly channel: ClientChannel) {}
@@ -60,7 +57,13 @@ export class LinuxHelper {
           started = true;
           resolve(helper);
         };
-        channel.on('data', (chunk: Buffer) => helper.receive(chunk));
+        // Answers are short: something this long isn't the helper speaking.
+        readLines(
+          channel,
+          HELPER_ANSWER_MAX,
+          (line) => helper.onLine(line),
+          () => helper.close(),
+        );
         channel.on('close', () => {
           clearTimeout(timeout);
           helper.end();
@@ -100,17 +103,6 @@ export class LinuxHelper {
   onEvent: (event: string) => void = () => {};
 
   private onLine: (line: string) => void = () => {};
-
-  private receive(chunk: Buffer): void {
-    this.buffer += this.decoder.write(chunk);
-    for (let end = this.buffer.indexOf('\n'); end >= 0; end = this.buffer.indexOf('\n')) {
-      const line = this.buffer.slice(0, end);
-      this.buffer = this.buffer.slice(end + 1);
-      this.onLine(line);
-    }
-    // Answers are short: something this long isn't the helper speaking.
-    if (this.buffer.length > HELPER_ANSWER_MAX) this.close();
-  }
 
   private answer(line: string): void {
     let parsed: { id?: unknown } & Record<string, unknown>;

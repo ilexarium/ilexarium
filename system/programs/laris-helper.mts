@@ -21,7 +21,7 @@
 // No shell: every program runs from a fixed path with an argument list.
 //
 // Zero dependencies on purpose (like the root programs): only node: built-ins. This file is the
-// entry: it checks that the modules it loads (helper/) belong to root — or, in development, to
+// entry: it checks that the modules it loads (helper/, lib/) belong to root — or, in development, to
 // the account this file belongs to — and that nobody else can change them, before loading them.
 
 import { lstatSync, readdirSync, writeSync } from 'node:fs';
@@ -29,7 +29,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MODULES = ['helper'];
+const MODULES = ['helper', 'lib'];
 
 function untrustedModule(): string | null {
   const entryOwner = lstatSync(fileURLToPath(import.meta.url)).uid;

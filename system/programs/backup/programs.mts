@@ -6,12 +6,16 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { LOCK_POLL_MS } from './config.mts';
 import type { BorgLog, Config, Paths, Ran } from './model.mts';
+import { readLines } from '../lib/lines.mts';
 import { tryLock } from '../lib/lock.mts';
 import { Refusal, emit } from '../lib/output.mts';
 import { SAFE_PATH } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
 export const CAT = '/usr/bin/cat';
+
+/** A program's output line longer than this is left out (Borg's and Docker's are short). */
+export const OUTPUT_LINE_MAX = 1024 * 1024;
 
 export let current: ChildProcess | null = null;
 
@@ -76,16 +80,8 @@ export function runProgram(
       emit(`> ${text}`);
       options.onLine?.(text);
     };
-    const lines = (stream: NodeJS.ReadableStream, each: (l: string) => void) => {
-      let rest = '';
-      stream.setEncoding('utf8');
-      stream.on('data', (chunk: string) => {
-        const parts = (rest + chunk).split(/\r?\n/);
-        rest = parts.pop() ?? '';
-        parts.forEach(each);
-      });
-      stream.on('end', () => rest && each(rest));
-    };
+    const lines = (stream: NodeJS.ReadableStream, each: (l: string) => void) =>
+      readLines(stream, OUTPUT_LINE_MAX, each, () => line('(a line too long was left out)'));
     if (child.stdout) {
       if (options.capture) {
         child.stdout.setEncoding('utf8');

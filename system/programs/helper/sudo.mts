@@ -4,7 +4,6 @@
 // Every privileged action is forwarded to it; while it isn't running, they answer sudo_required.
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { StringDecoder } from 'node:string_decoder';
 import { BAD_REQUEST, ok, refused, type Answer, type Request } from './answers.mts';
 import {
   FAKE_BIN,
@@ -15,6 +14,7 @@ import {
   SUDO_TIMEOUT_MS,
 } from './config.mts';
 import { ENVIRONMENT } from './run.mts';
+import { readLines } from '../lib/lines.mts';
 
 interface Root {
   child: ChildProcessWithoutNullStreams;
@@ -44,24 +44,6 @@ export function acceptablePassword(password: unknown): password is string {
 /** Tells the server that root ended on its own (idle, or it failed). */
 function locked(): void {
   process.stdout.write(`${JSON.stringify({ event: 'sudo.locked' })}\n`);
-}
-
-/** Reads its lines: the ready line first, then answers by id. */
-function lines(child: ChildProcessWithoutNullStreams, onLine: (line: string) => void): void {
-  const decoder = new StringDecoder('utf8');
-  let buffer = '';
-  child.stdout.on('data', (chunk: Buffer) => {
-    buffer += decoder.write(chunk);
-    for (let end = buffer.indexOf('\n'); end >= 0; end = buffer.indexOf('\n')) {
-      const line = buffer.slice(0, end);
-      buffer = buffer.slice(end + 1);
-      onLine(line);
-    }
-    if (buffer.length > ROOT_ANSWER_MAX) {
-      buffer = '';
-      child.stdin.end();
-    }
-  });
 }
 
 function answered(started: Root, line: string): void {
@@ -109,20 +91,26 @@ function ready(started: Root, password: string): Promise<Answer> {
     });
     child.on('close', () => settle(refused(said() ?? 'failed')));
     let first = true;
-    lines(child, (line) => {
-      if (!first) {
-        answered(started, line);
-        return;
-      }
-      first = false;
-      let hello: Record<string, unknown> | null = null;
-      try {
-        hello = JSON.parse(line) as Record<string, unknown>;
-      } catch {
-        // not laris-root speaking
-      }
-      settle(hello?.['laris-root'] === 1 && !hello['error'] ? ok() : refused('failed'));
-    });
+    // An answer this long isn't laris-root speaking: its stdin closes, and it ends.
+    readLines(
+      child.stdout,
+      ROOT_ANSWER_MAX,
+      (line) => {
+        if (!first) {
+          answered(started, line);
+          return;
+        }
+        first = false;
+        let hello: Record<string, unknown> | null = null;
+        try {
+          hello = JSON.parse(line) as Record<string, unknown>;
+        } catch {
+          // not laris-root speaking
+        }
+        settle(hello?.['laris-root'] === 1 && !hello['error'] ? ok() : refused('failed'));
+      },
+      () => child.stdin.end(),
+    );
     child.stdin.write(`${password}\n`);
   });
 }
