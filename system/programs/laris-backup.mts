@@ -28,8 +28,9 @@
 // result): Borg reads it with BORG_PASSCOMMAND from the root-only file.
 //
 // Output (stdout): `@@phase <phase>`, `@@error code=<code>`, `@@info <text>`, `@@result <json>`,
-// and the programs' output, every line prefixed with "> ". Runs also write their live progress to
-// <state>/current.jsonl and their results to <state>/runs.jsonl (readable by the app's group).
+// and the programs' output, every line prefixed with "> ". Runs, checks and restores also write
+// their progress and result to their job file, <state>/jobs/<id>.jsonl (readable by the app's
+// group).
 //
 // Exit codes: 0 done (a run: every item ok, some maybe with warnings) · 2 refused input · 3 busy ·
 // 5 failed (a run: some item failed) · 6 setup problem · 143 stopped by SIGTERM.

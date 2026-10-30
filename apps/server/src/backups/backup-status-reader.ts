@@ -3,7 +3,7 @@ import type { BackupSchedule, BackupsStatus } from '@laris/shared';
 import { SystemReader } from '../host/system-reader.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BackupChecks } from './backup-checks.js';
-import { BackupProgressFollower } from './backup-progress.js';
+import { BackupJobs } from './backup-jobs.js';
 import { itemInclude, lastSuccess, runView } from './backup-records.js';
 import { BackupRestores } from './backup-restores.js';
 import { backupWarnings, nextRunAt } from './backup-status.js';
@@ -20,7 +20,7 @@ export class BackupStatusReader {
     private readonly prisma: PrismaService,
     private readonly systemReader: SystemReader,
     private readonly backupChecks: BackupChecks,
-    private readonly backupProgressFollower: BackupProgressFollower,
+    private readonly backupJobs: BackupJobs,
     private readonly backupRestores: BackupRestores,
   ) {}
 
@@ -34,7 +34,7 @@ export class BackupStatusReader {
         warnings: [],
         lastSuccessAt: null,
         nextRunAt: null,
-        running: this.backupProgressFollower.running(),
+        running: this.backupJobs.runningRun(),
         lastRun: null,
         items: [],
         restore: restoreView,
@@ -82,7 +82,7 @@ export class BackupStatusReader {
           ? new Date(Math.min(...successes.map((s) => s!.getTime()))).toISOString()
           : null,
       nextRunAt: nextRunAt(plan.schedule as BackupSchedule, now).toISOString(),
-      running: this.backupProgressFollower.running(),
+      running: this.backupJobs.runningRun(),
       lastRun: lastRun ? runView(lastRun) : null,
       items: itemStates.map(({ item, lastSuccess: success, last }) => ({
         id: item.id,

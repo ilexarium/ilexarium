@@ -8,6 +8,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -169,8 +170,23 @@ function jsonLines(file: string): Record<string, any>[] {
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 }
-const results = () => jsonLines(join(dev, 'state', 'runs.jsonl'));
-const progress = () => jsonLines(join(dev, 'state', 'current.jsonl'));
+const jobFile = (id: string) => join(dev, 'state', 'jobs', `${id}.jsonl`);
+const job = (id: string) => jsonLines(jobFile(id));
+/** Every job file's events. */
+function jobs(): Record<string, any>[][] {
+  const folder = join(dev, 'state', 'jobs');
+  if (!existsSync(folder)) return [];
+  return readdirSync(folder)
+    .filter((name) => name.endsWith('.jsonl'))
+    .map((name) => jsonLines(join(folder, name)));
+}
+/** Each finished run's and check's result, oldest first (`type`: `run` or `check`). */
+const results = (): Record<string, any>[] =>
+  jobs()
+    .map((events) => events.find((e) => e.type === 'runDone' || e.type === 'checkDone'))
+    .filter((done) => done !== undefined)
+    .sort((a, b) => a.finishedAt.localeCompare(b.finishedAt))
+    .map(({ type, ...result }) => ({ type: type.slice(0, -'Done'.length), ...result }));
 
 async function setUp(change: Record<string, unknown> = {}) {
   const configured = await wrapper('configure', plan(change));
@@ -555,7 +571,7 @@ describe('laris-backup run', () => {
       warnings: [],
       archives: [run.items[3].archive],
     });
-    expect(statSync(join(dev, 'state', 'runs.jsonl')).mode & 0o777).toBe(0o640);
+    expect(statSync(jobFile(run.runId)).mode & 0o777).toBe(0o640);
   });
 
   it('prunes each item by its own archives, with the plan’s retention', async () => {
@@ -591,7 +607,7 @@ describe('laris-backup run', () => {
 
   it('writes live progress: the run, each item’s phases and result, the end', async () => {
     await runNow({ runId: RUN, itemId: SERVICE });
-    const events = progress();
+    const events = job(RUN);
     expect(events[0]).toMatchObject({
       type: 'run',
       runId: RUN,
@@ -605,8 +621,25 @@ describe('laris-backup run', () => {
       itemId: SERVICE,
       status: 'ok',
     });
-    expect(events.at(-1)).toMatchObject({ type: 'done', runId: RUN, status: 'ok' });
-    expect(statSync(join(dev, 'state', 'current.jsonl')).mode & 0o777).toBe(0o640);
+    expect(events.at(-1)).toMatchObject({ type: 'runDone', runId: RUN, status: 'ok' });
+    expect(statSync(jobFile(RUN)).mode & 0o777).toBe(0o640);
+    expect(statSync(join(dev, 'state', 'jobs')).mode & 0o777).toBe(0o750);
+  });
+
+  it('keeps the newest job files, so the folder never grows without end', async () => {
+    const folder = join(dev, 'state', 'jobs');
+    mkdirSync(folder, { recursive: true });
+    for (let i = 0; i < 520; i++) {
+      const old = join(folder, `old-${i}.jsonl`);
+      writeFileSync(old, '');
+      utimesSync(old, 1_000 + i, 1_000 + i);
+    }
+    await runNow({ runId: RUN, itemId: FOLDER });
+    const names = readdirSync(folder);
+    expect(names).toHaveLength(500);
+    expect(names).toContain(`${RUN}.jsonl`);
+    expect(names).not.toContain('old-0.jsonl');
+    expect(names).toContain('old-519.jsonl');
   });
 
   it('completes with warnings when Borg warns (files changed while read)', async () => {
@@ -673,7 +706,7 @@ describe('laris-backup run', () => {
       errorCode: 'destination_unavailable',
       items: [],
     });
-    expect(progress().at(-1)).toMatchObject({ type: 'done', status: 'failed' });
+    expect(job(RUN).at(-1)).toMatchObject({ type: 'runDone', status: 'failed' });
   });
 
   it('writes nothing to a repository that is not ours (and never creates one)', async () => {
@@ -700,8 +733,7 @@ describe('laris-backup run', () => {
     expect(result.lines.join('\n')).not.toContain(secret);
     expect(JSON.stringify(calls('borg'))).not.toContain(secret);
     expect(JSON.stringify(calls('docker'))).not.toContain(secret);
-    expect(readFileSync(join(dev, 'state', 'runs.jsonl'), 'utf8')).not.toContain(secret);
-    expect(readFileSync(join(dev, 'state', 'current.jsonl'), 'utf8')).not.toContain(secret);
+    expect(readFileSync(jobFile(RUN), 'utf8')).not.toContain(secret);
   });
 
   it('gives Borg a clean environment', async () => {
@@ -829,8 +861,8 @@ describe('laris-backup restore', () => {
     target: null,
     ...change,
   });
-  const events = () => jsonLines(join(dev, 'state', 'restores', `${RESTORE}.jsonl`));
-  const done = () => events().find((e) => e.type === 'done');
+  const events = () => job(RESTORE);
+  const done = () => events().find((e) => e.type === 'restoreDone');
   /** As the person's sudo starts it, then as its unit runs it. */
   async function restore(input: Record<string, unknown>): Promise<Run> {
     const started = await wrapper('restore-start', input);
@@ -1018,9 +1050,7 @@ describe('laris-backup discard, forget and passphrase', () => {
     useSystemctl();
     await wrapper('restore-start', { restoreId: RESTORE, itemId: SERVICE, archive, target: null });
     await wrapper(['restore-run', RESTORE]);
-    const done = jsonLines(join(dev, 'state', 'restores', `${RESTORE}.jsonl`)).find(
-      (e) => e.type === 'done',
-    );
+    const done = job(RESTORE).find((e) => e.type === 'restoreDone');
     const [first] = done!.setAside as string[];
     expect((await wrapper('discard', { path: first })).code).toBe(0);
     expect(existsSync(first)).toBe(false);

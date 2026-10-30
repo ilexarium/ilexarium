@@ -1,7 +1,7 @@
 // Restores and `discard`. `restore-start` checks the request, keeps it in a root-only file and has
 // systemd run `restore-run <id>` as its own unit (laris-restore@<id>.service), so a restore goes
-// on if the app stops. Its phases, output and result go to <state>/restores/<id>.jsonl, which the
-// app reads.
+// on if the app stops. Its phases, output and result go to its job file (<state>/jobs/<id>.jsonl),
+// which the app reads.
 //
 // Back where it was (no target): each folder the archive holds is set aside as
 // `<folder>.before-restore-<date>` first (the way back); an app using them is stopped first and
@@ -9,7 +9,6 @@
 // To a target folder (missing or empty): everything, with its full paths below it.
 
 import {
-  appendFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -21,7 +20,7 @@ import {
 import { dirname, join } from 'node:path';
 import { absolute } from './config.mts';
 import { openRepository } from './destination.mts';
-import { folderStamp, prepareState, shareWithApp, writeAtomic } from './files.mts';
+import { folderStamp, JobFile, prepareState, writeAtomic } from './files.mts';
 import { parseInput } from './input.mts';
 import type { Config, ItemResult, Paths, SetAside } from './model.mts';
 import { allowedFolder, assertParentsSafe, below, overlaps } from './places.mts';
@@ -33,9 +32,6 @@ import { Refusal, emit, oneLine } from '../lib/output.mts';
 import { isPlainAbsolutePath } from '../lib/paths.mts';
 
 export const SET_ASIDE_PATTERN = /\.before-restore-\d{8}-\d{6}$/;
-
-/** Output lines kept in a restore's events file. */
-export const RESTORE_OUTPUT_LINES = 2000;
 
 export function readSetAside(paths: Paths): SetAside[] {
   const file = join(paths.state, 'set-aside.json');
@@ -110,36 +106,24 @@ export async function restoreStart(config: Config, paths: Paths, input: string):
   );
 }
 
-/** The events file the app follows: one JSON object per line. */
-class RestoreEvents {
-  private lines = 0;
-  private readonly file: string;
-  constructor(config: Config, file: string) {
-    this.file = file;
-    mkdirSync(dirname(file), { recursive: true, mode: 0o750 });
-    shareWithApp(config, dirname(file), 0o750);
-    writeAtomic(file, '', 0o640, config.backup.appGid);
-  }
-
-  event(event: Record<string, unknown>): void {
-    if (event['type'] === 'line' && ++this.lines > RESTORE_OUTPUT_LINES) return;
-    appendFileSync(this.file, `${JSON.stringify(event)}\n`);
-  }
-}
-
 /** `restore-run <id>` (laris-restore@<id>.service): the restore itself. */
 export async function restoreRun(config: Config, paths: Paths, restoreId: string): Promise<number> {
   if (!UUID.test(restoreId)) throw new Refusal('invalid_request', 'not a restore id');
   prepareState(config, paths);
-  const events = new RestoreEvents(config, join(paths.state, 'restores', `${restoreId}.jsonl`));
-  events.event({ type: 'start', pid: process.pid });
+  const events = new JobFile(config, paths, restoreId);
+  events.event({
+    type: 'restore',
+    restoreId,
+    pid: process.pid,
+    startedAt: new Date().toISOString(),
+  });
   const phase = (name: string) => {
     emit(`@@phase ${name}`);
     events.event({ type: 'phase', phase: name });
   };
   const line = (text: string) => events.event({ type: 'line', text: text.slice(0, 2000) });
   const done = (status: 'succeeded' | 'failed', errorCode: string | null, setAside: string[]) =>
-    events.event({ type: 'done', status, errorCode, setAside });
+    events.event({ type: 'restoreDone', status, errorCode, setAside });
   let release: (() => void) | null = null;
   try {
     const file = requestFile(paths, restoreId);

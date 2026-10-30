@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import {
-  appendFileSync,
   chmodSync,
   existsSync,
   mkdirSync,
@@ -324,31 +323,36 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     const folder = (await plan()).items.find((i) => i.kind === 'folder')!;
     const runId = randomUUID();
     const now = new Date().toISOString();
-    appendFileSync(
-      join(dir, 'backup', 'state', 'runs.jsonl'),
-      `${JSON.stringify({
-        type: 'run',
-        runId,
-        trigger: 'scheduled',
-        itemId: null,
-        status: 'failed',
-        errorCode: null,
-        startedAt: now,
-        finishedAt: now,
-        items: [
-          {
-            itemId: folder.id,
-            status: 'failed',
-            errorCode: 'source_missing',
-            archive: null,
-            originalBytes: null,
-            addedBytes: null,
-            warnings: [],
-            archives: null,
-          },
-        ],
-        output: [],
-      })}\n`,
+    const jobs = join(dir, 'backup', 'state', 'jobs');
+    mkdirSync(jobs, { recursive: true });
+    const start = { runId, trigger: 'scheduled', itemId: null, startedAt: now };
+    writeFileSync(
+      join(jobs, `${runId}.jsonl`),
+      [
+        { type: 'run', ...start, pid: process.pid, items: [folder.id] },
+        {
+          type: 'runDone',
+          ...start,
+          status: 'failed',
+          errorCode: null,
+          finishedAt: now,
+          items: [
+            {
+              itemId: folder.id,
+              status: 'failed',
+              errorCode: 'source_missing',
+              archive: null,
+              originalBytes: null,
+              addedBytes: null,
+              warnings: [],
+              archives: null,
+            },
+          ],
+          output: [],
+        },
+      ]
+        .map((event) => `${JSON.stringify(event)}\n`)
+        .join(''),
     );
     const run = await finishedRun(runId);
     expect(run).toMatchObject({ trigger: 'scheduled', status: 'failed' });

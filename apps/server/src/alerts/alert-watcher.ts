@@ -20,7 +20,7 @@ import {
   timer,
 } from 'rxjs';
 import { BackupPlanManager } from '../backups/backup-plan-manager.js';
-import { BackupResults } from '../backups/backup-results.js';
+import { BackupJobs } from '../backups/backup-jobs.js';
 import { BackupRuns } from '../backups/backup-runs.js';
 import { BackupStatusReader } from '../backups/backup-status-reader.js';
 import { fromAbortable } from '../common/from-abortable.js';
@@ -75,7 +75,7 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly systemReader: SystemReader,
     private readonly diskManager: DiskManager,
     private readonly backupStatusReader: BackupStatusReader,
-    private readonly backupResults: BackupResults,
+    private readonly backupJobs: BackupJobs,
     private readonly backupRuns: BackupRuns,
     private readonly backupPlanManager: BackupPlanManager,
   ) {
@@ -133,7 +133,7 @@ export class AlertWatcher implements OnApplicationBootstrap, OnModuleDestroy {
     );
 
     const backups$ = merge(
-      this.backupResults.changes$,
+      this.backupJobs.changes$,
       this.backupRuns.changes$,
       this.backupPlanManager.changes$,
       interval(SLOW_POLL_MS),

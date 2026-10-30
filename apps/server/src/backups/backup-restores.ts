@@ -1,81 +1,39 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  type OnApplicationBootstrap,
-  type OnModuleDestroy,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   BACKUP_ERROR_CODES,
-  BACKUP_LIMITS,
   type BackupRestore,
   type BackupRestorePhase,
   type BackupRestoreRequest,
 } from '@laris/shared';
 import { Observable, Subject } from 'rxjs';
 import type { BackupRestore as BackupRestoreRow } from '../generated/prisma/client.js';
-import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { RootActor } from '../root-programs/root-programs.model.js';
 import { RootPrograms } from '../root-programs/root-programs.js';
 import { BackupChecks } from './backup-checks.js';
 import { apiError, backupError } from './backup-errors.js';
-import { BackupFiles, type RestoreEvent } from './backup-files.js';
-import { processAlive } from './backup-progress.js';
+import { BackupJobs } from './backup-jobs.js';
 import { requireItem, requirePlan } from './backup-records.js';
-import {
-  MAX_RUN_MS,
-  RESTORE_POLL_MS,
-  RESTORE_START_GRACE_MS,
-  RESTORES_KEPT,
-  RESTORES_SHOWN,
-} from './backups.constants.js';
-
-/** What a running restore's events file said so far. */
-interface Following {
-  phase: BackupRestorePhase | null;
-  output: string[];
-}
+import { RESTORES_SHOWN } from './backups.constants.js';
 
 /**
  * Restores: started through the person's sudo, run by systemd as their own unit
  * (`laris-restore@<id>`) — they go on if the app stops. Their phases, output and result come back
- * through the program's events file (`restores/<id>.jsonl`), read while they run; the result is
- * saved (the folders set aside: the way back). The history, and "Delete previous version".
+ * through the program's job file (`BackupJobs`, which saves the result: the folders set aside are
+ * the way back). The history, and "Delete previous version".
  */
 @Injectable()
-export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
-  private readonly logger = new Logger(BackupRestores.name);
-  private readonly following = new Map<string, Following>();
-  private timer: NodeJS.Timeout | null = null;
-  private reading = false;
+export class BackupRestores {
   private readonly changed = new Subject<void>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly rootPrograms: RootPrograms,
     private readonly backupChecks: BackupChecks,
-    private readonly backupFiles: BackupFiles,
-    changesUnderway: ChangesUnderway,
-  ) {
-    changesUnderway.follow(() => this.following.size > 0);
-  }
+    private readonly backupJobs: BackupJobs,
+  ) {}
 
-  /** Restores that ran while the app was down are followed again (or finished from their file). */
-  async onApplicationBootstrap(): Promise<void> {
-    const running = await this.prisma.backupRestore.findMany({
-      where: { status: 'running' },
-      select: { id: true },
-    });
-    for (const { id } of running) this.follow(id);
-  }
-
-  onModuleDestroy(): void {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
-  }
-
-  /** A restore started, moved on or ended; a set-aside folder was deleted. */
+  /** A restore started; a set-aside folder was deleted. */
   readonly changes$: Observable<void> = this.changed.asObservable();
 
   async restore(request: BackupRestoreRequest, actor: RootActor): Promise<{ restoreId: string }> {
@@ -104,7 +62,6 @@ export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
       await this.prisma.backupRestore.delete({ where: { id: row.id } });
       throw failure;
     }
-    this.follow(row.id);
     this.notify();
     return { restoreId: row.id };
   }
@@ -149,7 +106,7 @@ export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   view(row: BackupRestoreRow, lastLines?: number): BackupRestore {
-    const live = this.following.get(row.id);
+    const live = this.backupJobs.restoreProgress(row.id);
     const output = live ? live.output : row.output ? row.output.split('\n') : [];
     return {
       id: row.id,
@@ -167,114 +124,7 @@ export class BackupRestores implements OnApplicationBootstrap, OnModuleDestroy {
     };
   }
 
-  // Inside.
-
-  private follow(id: string): void {
-    this.following.set(id, { phase: null, output: [] });
-    this.timer ??= setInterval(() => void this.readAll(), RESTORE_POLL_MS);
-  }
-
-  private async readAll(): Promise<void> {
-    if (this.reading) return;
-    this.reading = true;
-    try {
-      for (const id of this.following.keys()) await this.read(id);
-    } catch (error) {
-      this.logger.error('Could not follow a restore', error);
-    } finally {
-      this.reading = false;
-      if (this.following.size === 0 && this.timer) {
-        clearInterval(this.timer);
-        this.timer = null;
-      }
-    }
-  }
-
-  private async read(id: string): Promise<void> {
-    const row = await this.prisma.backupRestore.findUnique({ where: { id } });
-    if (!row || row.status !== 'running') {
-      this.following.delete(id);
-      return;
-    }
-    const events = await this.backupFiles.restoreEvents(id);
-    const age = Date.now() - row.startedAt.getTime();
-    if (events === null) {
-      // Its unit never started.
-      if (age > RESTORE_START_GRACE_MS) await this.finish(row, { phase: null, output: [] }, null);
-      return;
-    }
-    const state = summarize(events);
-    const previous = this.following.get(id);
-    const done = events.findLast((e) => e.type === 'done');
-    if (done?.type === 'done') {
-      await this.finish(row, state, done);
-      return;
-    }
-    const pid = events.find((e) => e.type === 'start');
-    const alive = pid?.type === 'start' && processAlive(pid.pid);
-    if ((!alive && age > RESTORE_START_GRACE_MS) || age > MAX_RUN_MS) {
-      await this.finish(row, state, null);
-      return;
-    }
-    this.following.set(id, state);
-    if (previous?.phase !== state.phase || previous?.output.length !== state.output.length) {
-      this.notify();
-    }
-  }
-
-  /** Saves its result (`done` null: it ended without one — interrupted). */
-  private async finish(
-    row: BackupRestoreRow,
-    state: Following,
-    done: Extract<RestoreEvent, { type: 'done' }> | null,
-  ): Promise<void> {
-    this.following.delete(row.id);
-    try {
-      await this.prisma.backupRestore.update({
-        where: { id: row.id },
-        data: {
-          status: done ? done.status : 'interrupted',
-          phase: state.phase,
-          errorCode: done ? done.errorCode : BACKUP_ERROR_CODES.interrupted,
-          // Folders set aside are kept even when starting the app afterwards failed: they're the way back.
-          setAside: done?.setAside ?? [],
-          output: state.output.join('\n'),
-          finishedAt: new Date(),
-        },
-      });
-      await this.prune();
-    } catch (failure) {
-      this.logger.error(`Could not save the result of restore ${row.id}`, failure);
-    }
-    this.notify();
-  }
-
   private notify(): void {
     this.changed.next();
   }
-
-  /** Old restores go — but never one whose set-aside folders are still there (the list of them). */
-  private async prune(): Promise<void> {
-    const old = await this.prisma.backupRestore.findMany({
-      orderBy: { startedAt: 'desc' },
-      skip: RESTORES_KEPT,
-      select: { id: true, setAside: true, setAsideDeletedAt: true },
-    });
-    const removable = old.filter((r) => r.setAside.length === 0 || r.setAsideDeletedAt !== null);
-    if (removable.length > 0) {
-      await this.prisma.backupRestore.deleteMany({
-        where: { id: { in: removable.map((r) => r.id) } },
-      });
-    }
-  }
-}
-
-function summarize(events: RestoreEvent[]): Following {
-  let phase: BackupRestorePhase | null = null;
-  const output: string[] = [];
-  for (const event of events) {
-    if (event.type === 'phase') phase = event.phase;
-    else if (event.type === 'line') output.push(event.text);
-  }
-  return { phase, output: output.slice(-BACKUP_LIMITS.progressLines * 20) };
 }

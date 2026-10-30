@@ -3,9 +3,8 @@ import { Subject } from 'rxjs';
 import { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { BackupPlanManager } from './backup-plan-manager.js';
-import type { BackupProgressFollower } from './backup-progress.js';
+import type { BackupJobs } from './backup-jobs.js';
 import type { BackupRestores } from './backup-restores.js';
-import type { BackupResults } from './backup-results.js';
 import type { BackupRuns } from './backup-runs.js';
 import type { BackupStatusReader } from './backup-status-reader.js';
 import { BackupsTopic } from './backups-topic.js';
@@ -17,8 +16,7 @@ function setUp() {
   const changes = {
     plans: new Subject<void>(),
     runs: new Subject<void>(),
-    progress: new Subject<void>(),
-    results: new Subject<void>(),
+    jobs: new Subject<void>(),
     restores: new Subject<void>(),
   };
   const status = vi.fn(async () => STATUS);
@@ -27,8 +25,7 @@ function setUp() {
     { status } as unknown as BackupStatusReader,
     { changes$: changes.plans } as unknown as BackupPlanManager,
     { changes$: changes.runs } as unknown as BackupRuns,
-    { changes$: changes.progress } as unknown as BackupProgressFollower,
-    { changes$: changes.results } as unknown as BackupResults,
+    { changes$: changes.jobs } as unknown as BackupJobs,
     { changes$: changes.restores } as unknown as BackupRestores,
     slot,
     { registerSource: () => undefined } as unknown as RealtimeSubscriptions,
@@ -44,9 +41,9 @@ afterEach(() => vi.useRealTimers());
 describe('BackupsTopic', () => {
   it('publishes one snapshot for a burst of changes, from any source', async () => {
     const { stop, changes, slot, publish } = setUp();
-    changes.progress.next();
-    changes.progress.next();
-    changes.results.next();
+    changes.jobs.next();
+    changes.jobs.next();
+    changes.jobs.next();
     slot.notify();
     await vi.advanceTimersByTimeAsync(BACKUPS_PUBLISH_MS - 1);
     expect(publish).not.toHaveBeenCalled();

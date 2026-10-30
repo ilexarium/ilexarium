@@ -12,7 +12,7 @@ import { RUNS_SHOWN } from './backups.constants.js';
 /**
  * Backup runs: "Back up now" (started through the person's sudo; systemd runs it as its own
  * unit) and the history. Every run's progress and result come back through the program's files
- * (`BackupProgressFollower`, `BackupResults`), whoever started it.
+ * (`BackupJobs`), whoever started it.
  */
 @Injectable()
 export class BackupRuns {

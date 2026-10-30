@@ -5,7 +5,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { openRepository } from './destination.mts';
-import { appendResult, prepareState } from './files.mts';
+import { JobFile, prepareState } from './files.mts';
 import type { Config, Paths, Plan } from './model.mts';
 import { loadPlan } from './plan.mts';
 import { borg, borgFailure, takeLock } from './programs.mts';
@@ -22,10 +22,13 @@ export async function check(config: Config, paths: Paths): Promise<number> {
   }
   const startedAt = new Date().toISOString();
   const full = new Date().getDate() <= 7;
+  const checkId = randomUUID();
   let status = 'ok';
   let errorCode: string | null = null;
   try {
     prepareState(config, paths);
+    const job = new JobFile(config, paths, checkId);
+    job.event({ type: 'check', checkId, full, pid: process.pid, startedAt });
     try {
       const repo = openRepository(config, paths, plan);
       const result = await borg(config, paths, 'check', [
@@ -42,9 +45,9 @@ export async function check(config: Config, paths: Paths): Promise<number> {
       errorCode = error.code;
       emit(`@@info ${oneLine(error.message)}`);
     }
-    appendResult(config, paths, {
-      type: 'check',
-      checkId: randomUUID(),
+    job.event({
+      type: 'checkDone',
+      checkId,
       full,
       status,
       errorCode,
