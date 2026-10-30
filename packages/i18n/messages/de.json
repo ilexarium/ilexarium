@@ -1472,22 +1472,11 @@
     },
     "fields": {
       "required": "(erforderlich)",
-      "kindLabel": "Wie {{key}} angezeigt wird",
-      "kind": {
-        "text": "Text",
-        "port": "Port",
-        "folder": "Ordner",
-        "secret": "Geheim",
-        "generated": "Erzeugt",
-        "version": "Version"
-      },
-      "folderHelp": "Ein Pfad mit ./ am Anfang liegt im Ordner der App. Fehlende Ordner werden in deinem Namen angelegt.",
-      "generatedHelp": "Wird beim Einrichten für dich erzeugt.",
       "advanced": "Erweitert"
     },
     "editor": {
       "title": "Dateien (compose.yml, .env)",
-      "text": "Hier geändert, folgt das Formular der Datei. Docker prüft sie, bevor etwas startet."
+      "text": "Die Dateien, wie sie geschrieben werden. Docker prüft sie, bevor etwas startet."
     },
     "backup": {
       "title": "Sicherung",
@@ -1514,7 +1503,7 @@
       "use": "Verwenden",
       "useLabel": "Vorlage {{name}} verwenden",
       "paste": "Compose-Datei einfügen",
-      "pasteText": "Jede compose.yml: Laris findet ihre Einstellungen und zeigt sie als Formular.",
+      "pasteText": "Jede compose.yml: Sie richten sie in ihren eigenen zwei Dateien ein, compose.yml und .env.",
       "pasteLabel": "compose.yml",
       "continue": "Weiter",
       "back": "Zurück",

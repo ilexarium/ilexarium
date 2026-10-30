@@ -9,11 +9,10 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import {
-  type AppFields,
+  type AppField,
   type AppNameCheck,
   type AppTask,
   type BackupMode,
-  type FieldKind,
   parseEnv,
   setEnvValues,
   type Template,
@@ -35,9 +34,8 @@ interface NewAppState {
   template: Template | null;
   compose: string;
   env: string;
-  fields: AppFields | null;
-  /** Kinds the person changed, by key. */
-  kinds: Record<string, FieldKind>;
+  /** A template's form (a pasted file has none). */
+  fields: AppField[] | null;
   name: string;
   nameCheck: AppNameCheck | null;
   /** Null: `~/apps/<name>`. */
@@ -46,7 +44,6 @@ interface NewAppState {
   /** What Compose said when it refused the files. */
   problem: string | null;
   task: AppTask | null;
-  lines: string[];
   installed: { name: string; folder: string } | null;
 }
 
@@ -56,14 +53,12 @@ const initialState: NewAppState = {
   compose: '',
   env: '',
   fields: null,
-  kinds: {},
   name: '',
   nameCheck: null,
   folder: null,
   backup: { include: true, mode: 'stop', skip: [] },
   problem: null,
   task: null,
-  lines: [],
   installed: null,
 };
 
@@ -71,8 +66,8 @@ const initialState: NewAppState = {
 const composeName = (text: string) => /^name:\s*['"]?([a-z0-9][a-z0-9_-]*)/m.exec(text)?.[1];
 
 /**
- * Adding an app: a template or a pasted Compose file, then one form for both — the name (checked
- * while typing), the variables, the files themselves, the backup — then the install as the
+ * Adding an app: a template or a pasted Compose file, then the name (checked while typing), the
+ * template's form (a pasted file: its two files as they are), the backup — then the install as the
  * person, its output live. Docker checks the file (`docker compose config`), nothing else.
  */
 export const NewAppPageStore = signalStore(
@@ -80,12 +75,6 @@ export const NewAppPageStore = signalStore(
   withComputed((store, appsStore = inject(AppsStore), backupsStore = inject(BackupsStore)) => ({
     templates: appsStore.templates,
     values: computed(() => parseEnv(store.env())),
-    shownFields: computed(() =>
-      (store.fields()?.fields ?? []).map((field) => ({
-        ...field,
-        kind: store.kinds()[field.key] ?? field.kind,
-      })),
-    ),
     backupsConfigured: backupsStore.configured,
     nameValid: computed(() => /^[a-z0-9][a-z0-9_-]{0,62}$/.test(store.name())),
   })),
@@ -100,31 +89,24 @@ export const NewAppPageStore = signalStore(
       const failed = (key: string, error: unknown) =>
         toast.error(translator.t(key), { description: translator.t(...apiErrorText(error)) });
 
-      /** The form for the files now; every field's value written to `.env` (defaults, new secrets). */
-      const loadFields = rxMethod<void>(
+      /** The template's form; every field's value written to `.env` (defaults, new secrets). */
+      const loadFields = rxMethod<string>(
         pipe(
-          debounceTime(0),
-          switchMap(() =>
-            appsApi
-              .fields({
-                compose: store.compose(),
-                env: store.env(),
-                template: store.template()?.id ?? null,
-              })
-              .pipe(
-                tap((fields) => {
-                  const values: Record<string, string> = {};
-                  const known = parseEnv(store.env());
-                  for (const field of fields.fields) {
-                    if (!known.has(field.key)) values[field.key] = field.value;
-                  }
-                  patchState(store, { fields, env: setEnvValues(store.env(), values) });
-                }),
-                catchError((error: unknown) => {
-                  failed('apps.new.fieldsFailed', error);
-                  return EMPTY;
-                }),
-              ),
+          switchMap((template) =>
+            appsApi.fields({ template }).pipe(
+              tap(({ fields }) => {
+                const values: Record<string, string> = {};
+                const known = parseEnv(store.env());
+                for (const field of fields) {
+                  if (!known.has(field.key)) values[field.key] = field.value;
+                }
+                patchState(store, { fields, env: setEnvValues(store.env(), values) });
+              }),
+              catchError((error: unknown) => {
+                failed('apps.new.fieldsFailed', error);
+                return EMPTY;
+              }),
+            ),
           ),
         ),
       );
@@ -155,7 +137,7 @@ export const NewAppPageStore = signalStore(
             followTask(appsApi, name, folder).pipe(map((task) => ({ task, name, folder }))),
           ),
           tap(({ task, name, folder }) => {
-            patchState(store, { task, lines: [...store.lines(), ...task.output] });
+            patchState(store, { task });
             if (task.state === 'succeeded') void finished(name, folder);
           }),
         ),
@@ -200,7 +182,7 @@ export const NewAppPageStore = signalStore(
                 skip: template.backup?.skip ?? [],
               },
             });
-            loadFields();
+            loadFields(id);
             await suggestName(id);
           } catch (error) {
             failed('apps.new.templateFailed', error);
@@ -209,7 +191,6 @@ export const NewAppPageStore = signalStore(
 
         async usePasted(compose: string): Promise<void> {
           patchState(store, { ...initialState, step: 'setup', compose });
-          loadFields();
           await suggestName(composeName(compose) ?? 'app');
         },
 
@@ -230,14 +211,8 @@ export const NewAppPageStore = signalStore(
           patchState(store, { env: setEnvValues(store.env(), { [key]: value }) });
         },
 
-        setKind(key: string, kind: FieldKind): void {
-          patchState(store, { kinds: { ...store.kinds(), [key]: kind } });
-        },
-
-        /** The file itself changed (the editor): its form again. */
         setCompose(compose: string): void {
           patchState(store, { compose, problem: null });
-          loadFields();
         },
 
         setEnv(env: string): void {
@@ -264,7 +239,7 @@ export const NewAppPageStore = signalStore(
               ),
             );
             if (!started) return;
-            patchState(store, { step: 'installing', task: started.task, lines: [] });
+            patchState(store, { step: 'installing', task: started.task });
             follow({ name: started.name, folder: started.folder });
           } catch (error) {
             const detail = (error as { error?: { detail?: unknown } }).error?.detail;

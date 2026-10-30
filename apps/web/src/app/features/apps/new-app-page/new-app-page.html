@@ -144,22 +144,21 @@
             <p class="text-sm text-muted-foreground">{{ 'apps.new.folderHelp' | translate }}</p>
           </div>
 
-          @if (newAppPageStore.fields(); as fields) {
-            @if (fields.problem) {
-              <p role="alert" class="text-sm text-destructive" dir="ltr">{{ fields.problem }}</p>
+          <!-- A template's form; a pasted file: its two files as they are. -->
+          @if (newAppPageStore.template(); as template) {
+            @if (newAppPageStore.fields(); as fields) {
+              <laris-app-fields
+                [fields]="fields"
+                [values]="newAppPageStore.values()"
+                [templateId]="template.id"
+                (changed)="change($event)"
+              />
+            } @else {
+              <hlm-skeleton class="h-24 w-full" />
             }
-            <laris-app-fields
-              [fields]="newAppPageStore.shownFields()"
-              [values]="newAppPageStore.values()"
-              [templateId]="newAppPageStore.template()?.id ?? null"
-              (changed)="change($event)"
-              (kindChanged)="kind($event)"
-            />
-          } @else {
-            <hlm-skeleton class="h-24 w-full" />
           }
 
-          <details class="rounded-md border p-3">
+          <details class="rounded-md border p-3" [open]="!newAppPageStore.template()">
             <summary class="cursor-pointer text-sm font-medium select-none">
               {{ 'apps.editor.title' | translate }}
             </summary>
@@ -292,7 +291,7 @@
       </div>
       <div hlmCardContent class="grid gap-3">
         @if (newAppPageStore.task(); as task) {
-          <laris-task-output [task]="task" [lines]="newAppPageStore.lines()" />
+          <laris-task-output [task]="task" />
           @if (task.state === 'failed' || task.state === 'interrupted') {
             <div>
               <a hlmBtn variant="outline" [routerLink]="['/apps', newAppPageStore.name()]">

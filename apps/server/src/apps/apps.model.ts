@@ -19,8 +19,24 @@ export interface TaskRecord {
 export interface DockerAccess {
   /** Long tasks as system units through sudo. */
   system: boolean;
-  /** Quick commands (a Compose check) directly, or through sudo. */
+  /** Quick commands (deleting volumes) directly, or through sudo. */
   quick: 'direct' | 'sudo';
   /** In the docker group, but its user systemd started before: a restart (or logging out) makes it take effect. */
   restartNeeded: boolean;
+}
+
+/** What Compose says a folder's files mount, and the template label they carry. */
+export interface ComposeFacts {
+  /** Bind-mounted host paths. */
+  folders: string[];
+  /** Named volumes, by Docker's name (external ones left out). */
+  volumes: string[];
+  template: { id: string; version: string } | null;
+}
+
+/** The helper's `compose.check` answer: Compose's mounts, volumes and labels, never values. */
+export interface ComposeCheckAnswer {
+  mounts: { type: string; source: string | null }[];
+  volumes: { key: string; name: string | null; external: boolean }[];
+  templates: string[];
 }

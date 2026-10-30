@@ -29,6 +29,8 @@ export default defineConfig({
       // .env may point development at this machine's own sshd.
       SSH_PORT: '2222',
       SSH_HOST_KEYS: '.dev/sshd',
+      // Where the dev SSH container has the helper (system/programs, mounted like the installer's).
+      LINUX_HELPER: '/opt/laris/libexec/laris-helper.mts',
     },
     // One shared test database: run files one after another.
     fileParallelism: false,

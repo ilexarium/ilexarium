@@ -17,7 +17,6 @@ export const testTask = (change: Partial<AppTask> = {}): AppTask => ({
   startedAt: '2026-10-28T12:00:00.000Z',
   system: false,
   output: [],
-  next: 0,
   ...change,
 });
 
@@ -33,18 +32,7 @@ export const testDetails = (name: string, change: Partial<AppDetails> = {}): App
   compose: 'services:\n  web:\n    image: nginx:${VERSION:-1.27}\n',
   env: 'VERSION=1.27\n',
   hash: 'h1',
-  fields: [
-    {
-      key: 'VERSION',
-      kind: 'version',
-      value: '1.27',
-      default: '1.27',
-      required: false,
-      advanced: false,
-      fromTemplate: false,
-    },
-  ],
-  problem: null,
+  fields: [],
   template: null,
   task: null,
   ...change,

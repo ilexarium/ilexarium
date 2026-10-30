@@ -35,6 +35,7 @@ import type {
   LinuxShell,
   OpenLinuxSession,
 } from './linux-sessions.model.js';
+import { Sftp } from './sftp.js';
 
 /**
  * The Linux sign-in (docs/plans/files_and_terminal.md): an SSH connection to this machine's own
@@ -97,11 +98,11 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   }
 
   /** The open SFTP channel (counts as use: the idle time starts again), or a 403 `linux_session_required`. */
-  sftp(appSessionId: string): { sftp: SFTPWrapper; username: string } {
+  sftp(appSessionId: string): { sftp: Sftp; username: string } {
     const session = this.sessions.get(appSessionId);
     if (!session) throw linuxSessionRequired();
     session.idle.refresh();
-    return { sftp: session.sftp, username: session.username };
+    return { sftp: new Sftp(session.sftp), username: session.username };
   }
 
   /** Who the session is signed in as (counts as use), or a 403 `linux_session_required`. */

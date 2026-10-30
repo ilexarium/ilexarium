@@ -1,7 +1,7 @@
 import { Component, DOCUMENT, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { type AppRemovalItem, FILES_ERROR_CODES, type FieldKind } from '@laris/shared';
+import { type AppRemovalItem, FILES_ERROR_CODES } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowLeft,
@@ -91,10 +91,6 @@ export class AppPage {
 
   protected change(change: FieldChange): void {
     this.appPageStore.setValue(change.key, change.value);
-  }
-
-  protected kind(change: { key: string; kind: FieldKind }): void {
-    this.appPageStore.setKind(change.key, change.kind);
   }
 
   protected askRemove(): void {

@@ -7,7 +7,6 @@ import {
   type AppDeleteRequest,
   type AppDetails,
   type AppFields,
-  type AppFieldsRequest,
   type AppInstallRequest,
   type AppNameCheck,
   type AppRemoval,
@@ -21,11 +20,9 @@ import {
   isBackupFolder,
   parseEnv,
   setEnvValues,
-  TEMPLATE_LABEL_PATTERN,
 } from '@laris/shared';
 import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
-import { parse } from 'yaml';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditAction } from '../audit/audit-actions.js';
 import { CatalogService } from '../catalog/catalog.service.js';
@@ -34,8 +31,8 @@ import { filesCode } from '../files/files-errors.js';
 import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { LinuxActor } from '../linux-sessions/linux-sessions.model.js';
+import type { Sftp } from '../linux-sessions/sftp.js';
 import { appError, helperError } from './app-errors.js';
-import { AppSftp } from './app-sftp.js';
 import { AppTasks } from './app-tasks.js';
 import {
   COMPOSE_FILE,
@@ -44,93 +41,21 @@ import {
   LARIS_DIR,
   LONG_MS,
   QUICK_MS,
+  TASKS_DIR,
 } from './apps.constants.js';
-import type { FieldContext } from './apps.model.js';
-import { composeFields, variablesIn } from './compose-fields.js';
+import type { ComposeFacts, FieldContext } from './apps.model.js';
+import { templateFields } from './template-fields.js';
 
 const hashOf = (compose: string, env: string) =>
   createHash('sha256').update(compose).update('\0').update(env).digest('hex');
 
-interface ComposeMounts {
-  folders: string[];
-  volumes: string[];
-}
-
 /** Never offered for deletion: a system path an app mounts (`/etc/localtime`, the Docker socket). */
-const deletable = (mounts: ComposeMounts): ComposeMounts => ({
-  ...mounts,
-  folders: mounts.folders.filter(isBackupFolder),
+const deletable = (facts: ComposeFacts): ComposeFacts => ({
+  ...facts,
+  folders: facts.folders.filter(isBackupFolder),
 });
 
 const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
-
-/** A value with its `${VARIABLES}` filled from `.env` (or their defaults), as Compose does. */
-export function interpolate(text: string, values: ReadonlyMap<string, string>): string {
-  let out = '';
-  let last = 0;
-  for (const use of variablesIn(text)) {
-    out += text.slice(last, use.at).replace(/\$\$/g, '$');
-    const value = values.get(use.key);
-    out += value !== undefined && value !== '' ? value : (use.default ?? '');
-    last = use.end;
-  }
-  return out + text.slice(last).replace(/\$\$/g, '$');
-}
-
-/** The bind-mounted folders and named volumes a Compose file uses, its variables filled in. */
-export function composeMounts(
-  compose: string,
-  env: string,
-  folder: string,
-  project: string,
-): ComposeMounts {
-  let file: {
-    services?: Record<string, { volumes?: unknown[] }>;
-    volumes?: Record<string, { name?: unknown; external?: unknown } | null>;
-  } | null;
-  try {
-    file = parse(compose, { maxAliasCount: 100, uniqueKeys: false }) as typeof file;
-  } catch {
-    return { folders: [], volumes: [] };
-  }
-  const values = parseEnv(env);
-  const folders = new Set<string>();
-  const named = new Set<string>();
-  for (const service of Object.values(file?.services ?? {})) {
-    for (const entry of service?.volumes ?? []) {
-      let source: string | null = null;
-      let bind = false;
-      if (typeof entry === 'string') {
-        const filled = interpolate(entry, values);
-        // `- /var/lib/mysql` alone is an anonymous volume inside the container, not a host folder.
-        if (!filled.includes(':')) continue;
-        source = filled.split(':')[0] ?? null;
-        bind = /^[/.~]/.test(source ?? '');
-      } else if (entry && typeof entry === 'object') {
-        const long = entry as { type?: unknown; source?: unknown };
-        if (typeof long.source === 'string') {
-          source = interpolate(long.source, values);
-          bind = long.type === 'bind' || /^[/.~]/.test(source);
-        }
-      }
-      if (!source) continue;
-      if (bind) {
-        if (source.startsWith('~')) continue; // Compose's own home: not one to guess
-        folders.add(posix.resolve(folder, source));
-      } else {
-        named.add(source);
-      }
-    }
-  }
-  const volumes: string[] = [];
-  for (const key of named) {
-    const definition = file?.volumes?.[key];
-    if (definition && definition.external) continue;
-    const name = typeof definition?.name === 'string' ? interpolate(definition.name, values) : null;
-    volumes.push(name ?? `${project}_${key}`);
-  }
-  return { folders: [...folders].sort(), volumes: volumes.sort() };
-}
 
 /**
  * Apps (docs/plans/acting_as_you.md): Compose folders run as the signed-in Linux account. The list
@@ -201,12 +126,10 @@ export class AppManager {
     return { free: APP_NAME_PATTERN.test(name) && !taken.has(name), suggestion };
   }
 
-  /** The setup form of a file (a template's or a pasted one). */
-  fields(appSessionId: string, request: AppFieldsRequest): AppFields {
-    const template = request.template
-      ? this.catalogService.require(request.template).template
-      : null;
-    return composeFields(request.compose, request.env, template, this.context(appSessionId));
+  /** A template's setup form. */
+  fields(appSessionId: string, templateId: string): AppFields {
+    const { template } = this.catalogService.require(templateId);
+    return { fields: templateFields(template, '', this.context(appSessionId)) };
   }
 
   async install(
@@ -241,14 +164,18 @@ export class AppManager {
           0o600,
         );
         written.push(posix.join(folder, ENV_FILE));
-        created.push(...(await this.makeDataFolders(sftp, request.compose, request.env, folder)));
-        await this.appTasks.check(appSessionId, folder, request.name);
+        const facts = await this.appTasks.check(appSessionId, folder, request.name);
+        created.push(...(await this.makeDataFolders(sftp, facts.folders)));
         const task = await this.appTasks.start(appSessionId, folder, request.name, 'up');
         return { name: request.name, folder, task };
       } catch (error) {
         // Nothing left behind of a setup that didn't start: the person fixes the form and tries again.
         for (const file of written) await sftp.remove(file).catch(() => undefined);
         await sftp.remove(posix.join(folder, LARIS_DIR, 'task.json')).catch(() => undefined);
+        // The helper's folders for a task that didn't start (empty: only those go).
+        for (const dir of [TASKS_DIR, LARIS_DIR]) {
+          await sftp.removeFolder(posix.join(folder, dir)).catch(() => undefined);
+        }
         for (const dir of [...created].reverse()) {
           await sftp.removeFolder(dir).catch(() => undefined);
         }
@@ -261,21 +188,19 @@ export class AppManager {
     const sftp = this.sftp(appSessionId);
     const { folder, summary } = await this.locate(appSessionId, name, folderHint);
     const files = await this.readFiles(sftp, folder);
-    const label = summary.template ?? this.labelIn(files.compose);
+    // Not running: the label from the files, as Compose reads them (none while they're invalid).
+    const label =
+      summary.template ??
+      (await this.appTasks.check(appSessionId, folder, name).catch(() => null))?.template ??
+      null;
     const entry = label ? this.catalogService.get(label.id) : undefined;
-    const fields = composeFields(
-      files.compose,
-      files.env,
-      entry?.template ?? null,
-      this.context(appSessionId),
-    );
     return {
       app: { ...summary, template: label },
       folder,
       compose: files.compose,
       env: files.env,
       hash: hashOf(files.compose, files.env),
-      ...fields,
+      fields: entry ? templateFields(entry.template, files.env, this.context(appSessionId)) : [],
       template: label,
       task: await this.appTasks.read(appSessionId, sftp, folder),
     };
@@ -285,10 +210,9 @@ export class AppManager {
     appSessionId: string,
     name: string,
     folderHint: string | undefined,
-    from: number,
   ): Promise<AppTask | null> {
     const { folder } = await this.locate(appSessionId, name, folderHint);
-    return this.appTasks.read(appSessionId, this.sftp(appSessionId), folder, from);
+    return this.appTasks.read(appSessionId, this.sftp(appSessionId), folder);
   }
 
   /** Saves both files and applies them (`up`); refused when they changed on disk meanwhile. */
@@ -312,8 +236,8 @@ export class AppManager {
       try {
         await sftp.writeText(composePath, request.compose, 0o644);
         await sftp.writeText(envPath, request.env, 0o600);
-        await this.makeDataFolders(sftp, request.compose, request.env, folder);
-        await this.appTasks.check(appSessionId, folder, name);
+        const facts = await this.appTasks.check(appSessionId, folder, name);
+        await this.makeDataFolders(sftp, facts.folders);
         const task = await this.appTasks.start(appSessionId, folder, name, 'up');
         return { name, folder, task };
       } catch (error) {
@@ -344,9 +268,8 @@ export class AppManager {
 
   /** What a removal may delete: the settings, each data folder, each named volume — with sizes. */
   async removal(appSessionId: string, name: string, folder: string): Promise<AppRemoval> {
-    const sftp = this.sftp(appSessionId);
-    const files = await this.readFiles(sftp, folder);
-    const mounts = deletable(composeMounts(files.compose, files.env, folder, name));
+    await this.readFiles(this.sftp(appSessionId), folder);
+    const mounts = deletable(await this.appTasks.check(appSessionId, folder, name));
     const paths = [folder, ...mounts.folders.filter((path) => path !== folder)];
     const answer = await this.linuxSessions.ask(
       appSessionId,
@@ -409,7 +332,7 @@ export class AppManager {
       throw appError(APP_ERROR_CODES.taskRunning, 'Remove the app first');
     }
     const files = await this.readFiles(sftp, folder);
-    const mounts = deletable(composeMounts(files.compose, files.env, folder, name));
+    const mounts = deletable(await this.appTasks.check(appSessionId, folder, name));
     // Only what the removal listed: never another path.
     const folders = request.folders.filter(
       (path) => mounts.folders.includes(path) && path !== folder,
@@ -473,8 +396,8 @@ export class AppManager {
 
   // Helpers.
 
-  private sftp(appSessionId: string): AppSftp {
-    return new AppSftp(this.linuxSessions.sftp(appSessionId).sftp);
+  private sftp(appSessionId: string): Sftp {
+    return this.linuxSessions.sftp(appSessionId).sftp;
   }
 
   /** A template's `@account` fields left empty (the form came before the sign-in): this account. */
@@ -524,13 +447,13 @@ export class AppManager {
     return { folder, summary };
   }
 
-  private async composeFileIn(sftp: AppSftp, folder: string): Promise<string | null> {
+  private async composeFileIn(sftp: Sftp, folder: string): Promise<string | null> {
     const names = await sftp.list(folder);
     return COMPOSE_FILES.find((name) => names.includes(name)) ?? null;
   }
 
   private async readFiles(
-    sftp: AppSftp,
+    sftp: Sftp,
     folder: string,
   ): Promise<{ compose: string; env: string; composeName: string }> {
     const composeName = await this.composeFileIn(sftp, folder).catch((error: unknown) => {
@@ -543,23 +466,10 @@ export class AppManager {
     return { compose, env, composeName };
   }
 
-  private labelIn(compose: string): { id: string; version: string } | null {
-    const match = /laris\.template['"]?\s*[:=]\s*['"]?([a-z0-9][a-z0-9-]{0,39}@[0-9]{1,6})/.exec(
-      compose,
-    );
-    const parts = match ? TEMPLATE_LABEL_PATTERN.exec(match[1]) : null;
-    return parts ? { id: parts[1], version: parts[2] } : null;
-  }
-
   /** Folders a Compose file mounts that don't exist yet: made as the person (Docker would make them as root). */
-  private async makeDataFolders(
-    sftp: AppSftp,
-    compose: string,
-    env: string,
-    folder: string,
-  ): Promise<string[]> {
+  private async makeDataFolders(sftp: Sftp, folders: string[]): Promise<string[]> {
     const created: string[] = [];
-    for (const path of composeMounts(compose, env, folder, 'app').folders) {
+    for (const path of folders) {
       // A file mounted (a config file) is the person's to create; only folders without a dot-name are made.
       if (/\.[a-z0-9]{1,5}$/i.test(path)) continue;
       created.push(...(await sftp.makeFolders(path).catch(() => [])));
@@ -576,8 +486,8 @@ export class AppManager {
     }
   }
 
-  private async notBusy(appSessionId: string, sftp: AppSftp, folder: string): Promise<void> {
-    const task = await this.appTasks.read(appSessionId, sftp, folder, Number.MAX_SAFE_INTEGER);
+  private async notBusy(appSessionId: string, sftp: Sftp, folder: string): Promise<void> {
+    const task = await this.appTasks.read(appSessionId, sftp, folder);
     if (task?.state === 'running') throw appError(APP_ERROR_CODES.taskRunning, 'A task is running');
   }
 

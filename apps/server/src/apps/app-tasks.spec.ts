@@ -1,8 +1,8 @@
 import { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { LinuxSessions } from '../linux-sessions/linux-sessions.js';
-import type { AppSftp } from './app-sftp.js';
-import { AppTasks, taskLines, taskResult } from './app-tasks.js';
-import { TASK_READ_BYTES } from './apps.constants.js';
+import type { Sftp } from '../linux-sessions/sftp.js';
+import { AppTasks, composeFacts, taskLines, taskResult } from './app-tasks.js';
+import { TASK_TAIL_BYTES } from './apps.constants.js';
 
 describe('a task’s log', () => {
   it('its result: the marker, then SERVICE_RESULT', () => {
@@ -21,6 +21,37 @@ describe('a task’s log', () => {
   });
 });
 
+describe('composeFacts', () => {
+  it('bind mounts as folders; named volumes by Docker’s name, external and anonymous ones left out; the label', () => {
+    expect(
+      composeFacts(
+        {
+          mounts: [
+            { type: 'bind', source: '/home/anna/apps/a/data' },
+            { type: 'bind', source: '/home/anna/apps/a/data/' },
+            { type: 'volume', source: null },
+            { type: 'volume', source: 'db' },
+            { type: 'volume', source: 'ext' },
+            { type: 'volume', source: 'named' },
+            { type: 'tmpfs', source: null },
+          ],
+          volumes: [
+            { key: 'db', name: 'a_db', external: false },
+            { key: 'ext', name: 'ext', external: true },
+            { key: 'named', name: 'my-named', external: false },
+          ],
+          templates: ['not a label', 'immich@4'],
+        },
+        'a',
+      ),
+    ).toEqual({
+      folders: ['/home/anna/apps/a/data'],
+      volumes: ['a_db', 'my-named'],
+      template: { id: 'immich', version: '4' },
+    });
+  });
+});
+
 describe('AppTasks.read', () => {
   const FOLDER = '/home/anna/apps/music';
   const record = {
@@ -35,25 +66,24 @@ describe('AppTasks.read', () => {
     const bytes = Buffer.from(log);
     const sftp = {
       readText: async () => JSON.stringify(record),
-      stat: async () => ({ size: bytes.length }),
+      statOrNull: async () => ({ size: bytes.length }),
       read: async (_path: string, length: number, position: number) =>
         bytes.subarray(position, position + length),
-    } as unknown as AppSftp;
+    } as unknown as Sftp;
     const linuxSessions = {
       account: () => ({ username: 'anna' }),
       ask: async () => ({ ok: true, active }),
     } as unknown as LinuxSessions;
     const tasks = new AppTasks(linuxSessions, new ChangesUnderway());
-    return (from = 0) => tasks.read('s1', sftp, FOLDER, from);
+    return () => tasks.read('s1', sftp, FOLDER);
   }
 
-  it('while it runs: whole lines only, the next read from the line cut off', async () => {
+  it('while it runs: what is there so far, the line being written too', async () => {
     const read = reading('pulling a\nPulling fo', 'active');
-    const task = await read();
-    expect(task).toMatchObject({ state: 'running', output: ['pulling a'], next: 10 });
+    expect(await read()).toMatchObject({ state: 'running', output: ['pulling a', 'Pulling fo'] });
   });
 
-  it('finished: its last line too, even without a line break', async () => {
+  it('ended without a result: interrupted', async () => {
     const read = reading('pulling a\nfailed: no such image', 'failed');
     expect(await read()).toMatchObject({
       state: 'interrupted',
@@ -61,8 +91,8 @@ describe('AppTasks.read', () => {
     });
   });
 
-  it('a long finished log: its end (the reason it failed), from a line start', async () => {
-    const long = `${'x'.repeat(99)}\n`.repeat(TASK_READ_BYTES / 50);
+  it('a long log: its end (the reason it failed), from a line start, up to the result', async () => {
+    const long = `${'x'.repeat(99)}\n`.repeat(TASK_TAIL_BYTES / 50);
     const read = reading(
       `${long}Error: pull access denied\n@@laris-result\nexit-code\nexited\n1\n`,
       '',
@@ -71,6 +101,7 @@ describe('AppTasks.read', () => {
     expect(task.state).toBe('failed');
     expect(task.output.at(-1)).toBe('Error: pull access denied');
     expect(task.output[0]).toBe('x'.repeat(99));
+    expect(task.output.length).toBeLessThan(TASK_TAIL_BYTES / 100);
   });
 });
 

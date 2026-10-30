@@ -1,6 +1,6 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { catalogIconPath, type FieldKind } from '@laris/shared';
+import { catalogIconPath } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowLeft, lucideClipboardPaste, lucideX } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -59,10 +59,6 @@ export class NewAppPage {
 
   protected change(change: FieldChange): void {
     this.newAppPageStore.setValue(change.key, change.value);
-  }
-
-  protected kind(change: { key: string; kind: FieldKind }): void {
-    this.newAppPageStore.setKind(change.key, change.kind);
   }
 
   protected addSkip(): void {

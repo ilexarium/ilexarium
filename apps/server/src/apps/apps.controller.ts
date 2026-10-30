@@ -31,7 +31,6 @@ import {
   AppNameQueryDto,
   AppParamsDto,
   AppSaveDto,
-  AppTaskQueryDto,
   AppUpdateDto,
 } from './apps.dto.js';
 import { CHANGE_LIMIT } from './apps.constants.js';
@@ -58,8 +57,8 @@ export class AppsController {
 
   @Post('fields')
   @HttpCode(200)
-  fields(@CurrentSession() session: Session, @Body() body: AppFieldsDto): AppFields {
-    return this.appManager.fields(session.id, body);
+  fields(@CurrentSession() session: Session, @Body() { template }: AppFieldsDto): AppFields {
+    return this.appManager.fields(session.id, template);
   }
 
   /** 202: the task runs on as a unit; its output from `GET :name/task`. */
@@ -89,9 +88,9 @@ export class AppsController {
   async task(
     @CurrentSession() session: Session,
     @Param() { name }: AppParamsDto,
-    @Query() { folder, from }: AppTaskQueryDto,
+    @Query() { folder }: AppFolderQueryDto,
   ): Promise<{ task: AppTask | null }> {
-    return { task: await this.appManager.task(session.id, name, folder, from ?? 0) };
+    return { task: await this.appManager.task(session.id, name, folder) };
   }
 
   @Put(':name/files')

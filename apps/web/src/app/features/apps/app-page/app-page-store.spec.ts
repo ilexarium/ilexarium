@@ -90,8 +90,8 @@ describe('AppPageStore', () => {
   it('saves as the person with the hash read, follows the task to its end, then reads again', async () => {
     const { store, appsApi, asPerson, answers } = await setup();
     store.setValue('VERSION', '1.28');
-    answers.push(testTask({ output: ['pulling'], next: 8 }));
-    answers.push(testTask({ state: 'succeeded', output: ['started'], next: 16 }));
+    answers.push(testTask({ output: ['pulling'] }));
+    answers.push(testTask({ state: 'succeeded', output: ['pulling', 'started'] }));
     await store.save();
     expect(asPerson).toHaveBeenCalled();
     expect(appsApi.save).toHaveBeenCalledWith('music', {
@@ -102,8 +102,9 @@ describe('AppPageStore', () => {
       overwrite: false,
     });
     await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
-    expect(store.lines()).toEqual(['pulling', 'started']);
-    expect(appsApi.task).toHaveBeenLastCalledWith('music', FOLDER, 8);
+    // Each answer is the end of the output, all of it: shown as it is.
+    expect(store.task()?.output).toEqual(['pulling', 'started']);
+    expect(appsApi.task).toHaveBeenLastCalledWith('music', FOLDER);
     await vi.waitFor(() => expect(appsApi.details).toHaveBeenCalledTimes(2));
   });
 
@@ -169,7 +170,7 @@ describe('AppPageStore', () => {
     await store.update(false);
     expect(appsApi.update).toHaveBeenCalledWith('music', FOLDER);
     await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
-    expect(store.lines()).toContain('pulled');
+    expect(store.task()?.output).toContain('pulled');
   });
 
   it('adds the app to the backups as the person', async () => {
