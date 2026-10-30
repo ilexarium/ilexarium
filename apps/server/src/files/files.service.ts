@@ -9,15 +9,14 @@ import {
 } from '@laris/shared';
 import { randomBytes } from 'node:crypto';
 import { posix } from 'node:path';
-import { Transform, type Readable, type Writable } from 'node:stream';
+import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import type { SFTPWrapper, Stats } from 'ssh2';
 import { AuditService } from '../audit/audit.service.js';
 import { SystemReader } from '../host/system-reader.js';
 import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { LinuxActor } from '../linux-sessions/linux-sessions.model.js';
-import { filesCode, toFilesError } from './files-errors.js';
+import { toFilesError } from './files-errors.js';
 import { S_IFDIR, S_IFLNK, S_IFMT, S_IFREG } from './files.constants.js';
 import type { Download } from './files.model.js';
 
@@ -52,28 +51,6 @@ export function permissions(mode: number): string {
   );
 }
 
-/** One SFTP call as a promise; its errors as our error codes. */
-function call<T>(
-  run: (done: (error: Error | null | undefined, value?: T) => void) => void,
-): Promise<T> {
-  return new Promise((ok, fail) =>
-    run((error, value) => (error ? fail(toFilesError(error)) : ok(value as T))),
-  );
-}
-
-const lstat = (sftp: SFTPWrapper, path: string) => call<Stats>((done) => sftp.lstat(path, done));
-const stat = (sftp: SFTPWrapper, path: string) => call<Stats>((done) => sftp.stat(path, done));
-const readdir = (sftp: SFTPWrapper, path: string) =>
-  call<{ filename: string; attrs: Stats }[]>((done) => sftp.readdir(path, done));
-const exists = (sftp: SFTPWrapper, path: string) =>
-  lstat(sftp, path).then(
-    () => true,
-    (error: unknown) => {
-      if (filesCode(error) === FILES_ERROR_CODES.notFound) return false;
-      throw error;
-    },
-  );
-
 /**
  * The file explorer (docs/plans/files_and_terminal.md) over the Linux session's SFTP channel:
  * whatever the signed-in Linux account may do, nothing more — Linux decides, the app adds no
@@ -93,17 +70,17 @@ export class FilesService {
   async list(appSessionId: string, path: string): Promise<FileList> {
     const { sftp } = this.linuxSessions.sftp(appSessionId);
     const folder = posix.normalize(path);
-    const target = await stat(sftp, folder);
+    const target = await sftp.stat(folder);
     if (typeOf(target.mode) !== 'folder') {
       throw linuxError(FILES_ERROR_CODES.wrongType, 'Not a folder');
     }
-    const [raw, users] = await Promise.all([readdir(sftp, folder), this.systemReader.users()]);
+    const [raw, users] = await Promise.all([sftp.entries(folder), this.systemReader.users()]);
     const entries = await Promise.all(
       raw.map(async ({ filename, attrs }): Promise<FileEntry> => {
         const type = typeOf(attrs.mode);
         let linkTarget: FileEntry['linkTarget'] = null;
         if (type === 'link') {
-          const followed = await stat(sftp, posix.join(folder, filename)).catch(() => null);
+          const followed = await sftp.stat(posix.join(folder, filename)).catch(() => null);
           const followedType = followed ? typeOf(followed.mode) : null;
           linkTarget = followedType === 'folder' || followedType === 'file' ? followedType : null;
         }
@@ -129,7 +106,7 @@ export class FilesService {
   async summary(appSessionId: string, path: string): Promise<FileSummary> {
     const { sftp } = this.linuxSessions.sftp(appSessionId);
     const target = posix.normalize(path);
-    const own = await lstat(sftp, target);
+    const own = await sftp.lstat(target);
     const type = typeOf(own.mode);
     const result: FileSummary = { type, files: 0, folders: 0, bytes: 0, truncated: false };
     if (type !== 'folder') {
@@ -138,7 +115,7 @@ export class FilesService {
       return result;
     }
     const walk = async (folder: string): Promise<void> => {
-      for (const { filename, attrs } of await readdir(sftp, folder)) {
+      for (const { filename, attrs } of await sftp.entries(folder)) {
         if (result.files + result.folders >= FILES_LIMITS.summaryMaxEntries) {
           result.truncated = true;
           return;
@@ -163,15 +140,14 @@ export class FilesService {
   async download(appSessionId: string, path: string): Promise<Download> {
     const { sftp } = this.linuxSessions.sftp(appSessionId);
     const target = posix.normalize(path);
-    const info = await stat(sftp, target);
+    const info = await sftp.stat(target);
     if (typeOf(info.mode) !== 'file') {
       throw linuxError(FILES_ERROR_CODES.wrongType, 'Only files can be downloaded');
     }
-    const handle = await call<Buffer>((done) => sftp.open(target, 'r', done));
     return {
       name: posix.basename(target),
       size: info.size,
-      stream: sftp.createReadStream(target, { handle, autoClose: true }),
+      stream: await sftp.readStream(target),
     };
   }
 
@@ -192,11 +168,11 @@ export class FilesService {
       throw linuxError(FILES_ERROR_CODES.tooLarge, 'Larger than 10 GB');
     }
     const folder = posix.normalize(target.folder);
-    if (typeOf((await stat(sftp, folder)).mode) !== 'folder') {
+    if (typeOf((await sftp.stat(folder)).mode) !== 'folder') {
       throw linuxError(FILES_ERROR_CODES.wrongType, 'Not a folder');
     }
     const path = posix.join(folder, target.name);
-    const existing = await exists(sftp, path);
+    const existing = await sftp.exists(path);
     if (existing && !target.replace) {
       throw linuxError(FILES_ERROR_CODES.exists, 'A file of that name is there');
     }
@@ -214,19 +190,15 @@ export class FilesService {
       },
     });
     try {
-      await pipeline(body, counter, sftp.createWriteStream(temporary) as unknown as Writable);
+      await pipeline(body, counter, sftp.writeStream(temporary));
       if (size !== null && written !== size) {
         throw linuxError(FILES_ERROR_CODES.failed, 'The upload ended early');
       }
       // Replacing: one atomic step (OpenSSH's posix-rename) — the old file stays until the new
       // one takes its place, so a failure here loses neither.
-      await call<void>((done) =>
-        existing
-          ? sftp.ext_openssh_rename(temporary, path, done)
-          : sftp.rename(temporary, path, done),
-      );
+      await sftp.rename(temporary, path, existing);
     } catch (error) {
-      await call<void>((done) => sftp.unlink(temporary, done)).catch(() => undefined);
+      await sftp.remove(temporary).catch(() => undefined);
       throw toFilesError(error);
     }
     await this.record('files.upload', actor, username, {
@@ -239,10 +211,10 @@ export class FilesService {
   async newFolder(appSessionId: string, parent: string, name: string): Promise<void> {
     const { sftp } = this.linuxSessions.sftp(appSessionId);
     const path = posix.join(posix.normalize(parent), name);
-    if (await exists(sftp, path)) {
+    if (await sftp.exists(path)) {
       throw linuxError(FILES_ERROR_CODES.exists, 'Something of that name is there');
     }
-    await call<void>((done) => sftp.mkdir(path, done));
+    await sftp.makeFolder(path);
   }
 
   /** Renames or moves — never onto something that exists. */
@@ -250,10 +222,10 @@ export class FilesService {
     const { sftp, username } = this.linuxSessions.sftp(appSessionId);
     const source = posix.normalize(from);
     const destination = posix.normalize(to);
-    if (await exists(sftp, destination)) {
+    if (await sftp.exists(destination)) {
       throw linuxError(FILES_ERROR_CODES.exists, 'Something of that name is there');
     }
-    await call<void>((done) => sftp.rename(source, destination, done));
+    await sftp.rename(source, destination, false);
     await this.record('files.rename', actor, username, { from: source, to: destination });
   }
 
@@ -267,15 +239,15 @@ export class FilesService {
     if (target === '/') throw linuxError(FILES_ERROR_CODES.permissionDenied, 'Not /');
     const remove = async (item: string, mode: number): Promise<void> => {
       if (typeOf(mode) !== 'folder') {
-        await call<void>((done) => sftp.unlink(item, done));
+        await sftp.unlink(item);
         return;
       }
-      for (const { filename, attrs } of await readdir(sftp, item)) {
+      for (const { filename, attrs } of await sftp.entries(item)) {
         await remove(posix.join(item, filename), attrs.mode);
       }
-      await call<void>((done) => sftp.rmdir(item, done));
+      await sftp.removeFolder(item);
     };
-    await remove(target, (await lstat(sftp, target)).mode);
+    await remove(target, (await sftp.lstat(target)).mode);
     await this.record('files.delete', actor, username, { path: target });
   }
 

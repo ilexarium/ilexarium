@@ -14,7 +14,6 @@ import {
   type AppRemovalItem,
   type AppStarted,
   type AppTask,
-  type FieldKind,
   parseEnv,
   setEnvValues,
 } from '@laris/shared';
@@ -41,12 +40,10 @@ interface AppPageState {
   /** Being edited (the files as read, until saved). */
   compose: string;
   env: string;
-  kinds: Record<string, FieldKind>;
   /** Saved with other files on disk meanwhile: reload, or overwrite. */
   conflict: boolean;
   busy: boolean;
   task: AppTask | null;
-  lines: string[];
   removal: AppRemovalItem[] | null;
   /** Removed: back to the list. */
   removed: boolean;
@@ -59,11 +56,9 @@ const initialState: AppPageState = {
   loadError: null,
   compose: '',
   env: '',
-  kinds: {},
   conflict: false,
   busy: false,
   task: null,
-  lines: [],
   removal: null,
   removed: false,
 };
@@ -90,12 +85,6 @@ export const AppPageStore = signalStore(
           null,
       ),
       values: computed(() => parseEnv(store.env())),
-      shownFields: computed(() =>
-        (store.details()?.fields ?? []).map((field) => ({
-          ...field,
-          kind: store.kinds()[field.key] ?? field.kind,
-        })),
-      ),
       changed: computed(() => {
         const details = store.details();
         return !!details && (details.compose !== store.compose() || details.env !== store.env());
@@ -137,7 +126,6 @@ export const AppPageStore = signalStore(
                   env: details.env,
                   conflict: false,
                   task: store.task() ?? details.task,
-                  lines: store.task() ? store.lines() : (details.task?.output ?? []),
                 }),
               ),
               catchError((error: unknown) => {
@@ -155,7 +143,7 @@ export const AppPageStore = signalStore(
             followTask(appsApi, started.name, started.folder).pipe(map((task) => ({ task, then }))),
           ),
           tap(({ task, then }) => {
-            patchState(store, { task, lines: [...store.lines(), ...task.output] });
+            patchState(store, { task });
             if (task.state === 'running') return;
             if (task.state === 'succeeded') void then?.();
             if (!store.removed()) load();
@@ -165,7 +153,7 @@ export const AppPageStore = signalStore(
 
       const started = (result: AppStarted | null, then?: () => Promise<void> | void) => {
         if (!result) return;
-        patchState(store, { task: result.task, lines: [] });
+        patchState(store, { task: result.task });
         follow({ started: result, then });
       };
 
@@ -218,10 +206,6 @@ export const AppPageStore = signalStore(
 
         setValue(key: string, value: string): void {
           patchState(store, { env: setEnvValues(store.env(), { [key]: value }) });
-        },
-
-        setKind(key: string, kind: FieldKind): void {
-          patchState(store, { kinds: { ...store.kinds(), [key]: kind } });
         },
 
         setCompose(compose: string): void {

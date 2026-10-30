@@ -1,20 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import type { AppTask, AppTaskAction } from '@laris/shared';
+import { type AppTask, type AppTaskAction, TEMPLATE_LABEL_PATTERN } from '@laris/shared';
 import { posix } from 'node:path';
 import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
-import { AppSftp } from './app-sftp.js';
+import type { Sftp } from '../linux-sessions/sftp.js';
 import { helperError } from './app-errors.js';
 import {
   DOCKER_ACCESS_CACHE_MS,
   LOG_CONTROL,
   QUICK_MS,
   TASK_FILE,
-  TASK_READ_BYTES,
   TASK_RESULT_MARKER,
+  TASK_TAIL_BYTES,
   TASKS_DIR,
 } from './apps.constants.js';
-import type { DockerAccess, TaskRecord } from './apps.model.js';
+import type { ComposeCheckAnswer, ComposeFacts, DockerAccess, TaskRecord } from './apps.model.js';
 
 /** The end of a task's log: the marker systemd adds, then SERVICE_RESULT, EXIT_CODE, EXIT_STATUS. */
 export function taskResult(tail: string): { succeeded: boolean } | null {
@@ -29,6 +29,31 @@ export function taskLines(text: string): string[] {
   const lines = text.split('\n').map((line) => line.replace(LOG_CONTROL, ''));
   const at = lines.indexOf(TASK_RESULT_MARKER);
   return at >= 0 ? lines.slice(0, at) : lines;
+}
+
+/** The bind mounts and the named volumes (by Docker's name), from Compose's answer. */
+export function composeFacts(answer: ComposeCheckAnswer, project: string): ComposeFacts {
+  const folders = new Set<string>();
+  const named = new Set<string>();
+  for (const mount of answer.mounts) {
+    if (mount.source === null) continue; // an anonymous volume
+    // Compose gives absolute paths; anything else isn't a folder to touch.
+    if (mount.type === 'bind' && mount.source.startsWith('/'))
+      folders.add(posix.resolve(mount.source));
+    else if (mount.type === 'volume') named.add(mount.source);
+  }
+  const volumes: string[] = [];
+  for (const key of named) {
+    const volume = answer.volumes.find((v) => v.key === key);
+    if (volume?.external) continue;
+    volumes.push(volume?.name ?? `${project}_${key}`);
+  }
+  const label = answer.templates.map((t) => TEMPLATE_LABEL_PATTERN.exec(t)).find(Boolean);
+  return {
+    folders: [...folders].sort(),
+    volumes: volumes.sort(),
+    template: label ? { id: label[1], version: label[2] } : null,
+  };
 }
 
 /**
@@ -92,28 +117,25 @@ export class AppTasks {
       startedAt: String(answer['startedAt']),
       system: access.system,
       output: [],
-      next: 0,
     };
   }
 
-  /** Compose's own check of the folder's files: a 400 `compose_invalid` with what it said. */
-  async check(appSessionId: string, folder: string, project: string): Promise<void> {
-    const access = await this.dockerAccess(appSessionId);
+  /**
+   * Compose's own check of the folder's files (as the person: it needs no Docker daemon), and
+   * what they mount: a 400 `compose_invalid` with what Compose said.
+   */
+  async check(appSessionId: string, folder: string, project: string): Promise<ComposeFacts> {
     const answer = await this.linuxSessions.ask(
       appSessionId,
-      { action: 'compose.check', folder, project, docker: access.quick },
-      { sudo: access.quick === 'sudo', timeoutMs: QUICK_MS },
+      { action: 'compose.check', folder, project },
+      { timeoutMs: QUICK_MS },
     );
     if (!answer.ok) throw helperError(answer);
+    return composeFacts(answer as unknown as ComposeCheckAnswer, project);
   }
 
-  /** The app's latest task, its output from byte `from` on; null when it never had one. */
-  async read(
-    appSessionId: string,
-    sftp: AppSftp,
-    folder: string,
-    from = 0,
-  ): Promise<AppTask | null> {
+  /** The app's latest task, the end of its output; null when it never had one. */
+  async read(appSessionId: string, sftp: Sftp, folder: string): Promise<AppTask | null> {
     const recordText = await sftp.readText(posix.join(folder, TASK_FILE), 4096).catch(() => null);
     if (!recordText) return null;
     let record: TaskRecord;
@@ -124,8 +146,11 @@ export class AppTasks {
     }
     if (!/^[\w.-]+\.log$/.test(record.log)) return null;
     const log = posix.join(folder, TASKS_DIR, record.log);
-    const size = (await sftp.stat(log))?.size ?? 0;
-    const tail = (await sftp.read(log, 512, Math.max(0, size - 512)))?.toString('utf8') ?? '';
+    const size = (await sftp.statOrNull(log))?.size ?? 0;
+    const start = Math.max(0, size - TASK_TAIL_BYTES);
+    let tail = ((await sftp.read(log, TASK_TAIL_BYTES, start)) ?? Buffer.alloc(0)).toString('utf8');
+    // Cut into a line: from the next one.
+    if (start > 0) tail = tail.slice(tail.indexOf('\n') + 1);
     const result = taskResult(tail);
     let state: AppTask['state'];
     if (result) state = result.succeeded ? 'succeeded' : 'failed';
@@ -138,35 +163,14 @@ export class AppTasks {
       const active = answer.ok ? String(answer['active']) : 'unknown';
       state = ['active', 'activating', 'reloading'].includes(active) ? 'running' : 'interrupted';
     }
-    const running = state === 'running';
-    let start = Math.min(from, size);
-    // Finished with more left than one read: its end (where a failure says why), from a line start.
-    const skipped = !running && size - start > TASK_READ_BYTES;
-    if (skipped) start = size - TASK_READ_BYTES;
-    let chunk = (await sftp.read(log, TASK_READ_BYTES, start)) ?? Buffer.alloc(0);
-    if (skipped) {
-      const firstBreak = chunk.indexOf(0x0a);
-      start += firstBreak + 1;
-      chunk = chunk.subarray(firstBreak + 1);
-    }
-    // While it runs, whole lines only (the rest comes with the next read).
-    const whole = running ? chunk.subarray(0, chunk.lastIndexOf(0x0a) + 1) : chunk;
-    const text = whole.toString('utf8');
-    // Past the result: nothing more to show.
-    const markerAt = result
-      ? size -
-        Buffer.byteLength(tail) +
-        Buffer.byteLength(tail.slice(0, tail.lastIndexOf(TASK_RESULT_MARKER)))
-      : size;
-    const lines = start >= markerAt ? [] : taskLines(text);
-    if (lines.at(-1) === '') lines.pop();
+    const output = taskLines(tail);
+    if (output.at(-1) === '') output.pop();
     return {
       action: record.action,
       state,
       startedAt: record.startedAt,
       system: record.system,
-      output: lines,
-      next: running ? start + whole.length : size,
+      output,
     };
   }
 }

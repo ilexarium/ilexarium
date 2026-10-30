@@ -8,64 +8,22 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import * as fs from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import type { SFTPWrapper } from 'ssh2';
+import { join, resolve } from 'node:path';
+import { parseEnv } from '@laris/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { CatalogService } from '../catalog/catalog.service.js';
 import type { DockerService } from '../docker/docker.service.js';
 import { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { HelperRequest } from '../linux-sessions/linux-sessions.model.js';
-import { AppManager, composeMounts, interpolate } from './app-manager.js';
+import { Sftp } from '../linux-sessions/sftp.js';
+import { fakeSftp } from '../linux-sessions/testing.js';
+import { AppManager } from './app-manager.js';
 import { AppTasks } from './app-tasks.js';
 
 const SESSION = 's1';
 const ACTOR = { user: { id: 'u1', username: 'owner' }, ip: '127.0.0.1' } as never;
-
-/** ssh2's SFTP calls, done on this machine's files (errors as SFTP's status codes). */
-function fakeSftp(): SFTPWrapper {
-  const done =
-    <T>(cb: (error: Error | null, value?: T) => void) =>
-    (error: NodeJS.ErrnoException | null, value?: T) =>
-      cb(error ? Object.assign(error, { code: error.code === 'ENOENT' ? 2 : 3 }) : null, value);
-  const handles = new Map<string, number>();
-  return {
-    stat: (path: string, cb: never) => fs.stat(path, done(cb)),
-    readdir: (path: string, cb: (e: Error | null, list?: unknown) => void) =>
-      fs.readdir(path, (error, names) =>
-        done(cb)(
-          error,
-          names?.map((filename) => ({ filename, attrs: {} })),
-        ),
-      ),
-    open: (path: string, _flags: string, cb: (e: Error | null, h?: Buffer) => void) =>
-      fs.open(path, 'r', (error, fd) => {
-        const handle = Buffer.from(String(fd));
-        if (!error) handles.set(handle.toString(), fd);
-        done(cb)(error, handle);
-      }),
-    read: (
-      handle: Buffer,
-      buffer: Buffer,
-      offset: number,
-      length: number,
-      position: number,
-      cb: never,
-    ) => fs.read(handles.get(handle.toString())!, buffer, offset, length, position, done(cb)),
-    close: (handle: Buffer, cb: () => void) => fs.close(handles.get(handle.toString())!, cb),
-    writeFile: (path: string, data: string, options: { mode: number }, cb: never) =>
-      fs.writeFile(path, data, { mode: options.mode }, done(cb)),
-    chmod: (path: string, mode: number, cb: never) => fs.chmod(path, mode, done(cb)),
-    ext_openssh_rename: (from: string, to: string, cb: never) => fs.rename(from, to, done(cb)),
-    rename: (from: string, to: string, cb: never) => fs.rename(from, to, done(cb)),
-    unlink: (path: string, cb: never) => fs.unlink(path, done(cb)),
-    rmdir: (path: string, cb: never) => fs.rmdir(path, done(cb)),
-    mkdir: (path: string, options: { mode: number }, cb: never) =>
-      fs.mkdir(path, options, done(cb)),
-  } as unknown as SFTPWrapper;
-}
 
 let dir: string;
 let home: string;
@@ -91,10 +49,27 @@ async function helper(request: HelperRequest) {
         unitDocker: !withoutDocker,
         loginDocker: !withoutDocker,
       } as const;
-    case 'compose.check':
-      return checkFails
-        ? ({ ok: false, error: 'compose_invalid', message: 'bad file' } as const)
-        : ({ ok: true } as const);
+    case 'compose.check': {
+      if (checkFails) return { ok: false, error: 'compose_invalid', message: 'bad file' } as const;
+      // What Compose says of the file below: its folders resolved, its volume by Docker's name.
+      const { folder, project } = request;
+      const env = parseEnv(readFileSync(join(folder, '.env'), 'utf8'));
+      const label = /laris\.template: (\S+)/.exec(
+        readFileSync(join(folder, 'compose.yml'), 'utf8'),
+      );
+      return {
+        ok: true,
+        mounts: [
+          { type: 'bind', source: join(folder, 'data') },
+          { type: 'bind', source: resolve(folder, env.get('MEDIA') ?? '') },
+          { type: 'volume', source: 'cache' },
+          { type: 'volume', source: null },
+          { type: 'bind', source: '/var/run/docker.sock' },
+        ],
+        volumes: [{ key: 'cache', name: `${project}_cache`, external: false }],
+        templates: label ? [label[1]] : [],
+      } as const;
+    }
     case 'app.task': {
       const tasks = join(request.folder, '.laris', 'tasks');
       mkdirSync(tasks, { recursive: true });
@@ -138,7 +113,7 @@ async function helper(request: HelperRequest) {
 
 function manager(): AppManager {
   const linuxSessions = {
-    sftp: () => ({ sftp: fakeSftp(), username: 'anna' }),
+    sftp: () => ({ sftp: new Sftp(fakeSftp()), username: 'anna' }),
     current: () => ({ username: 'anna', home, uid: 1500, sudoUntil: null }),
     account: () => ({ username: 'anna', home, uid: 1500, gid: 1500, sudoUnlocked: false }),
     ask: (_id: string, request: HelperRequest) => helper(request),
@@ -165,6 +140,7 @@ const compose = `services:
       - ./data:/data
       - \${MEDIA}:/media:ro
       - cache:/cache
+      - /var/lib/cache
       - /var/run/docker.sock:/var/run/docker.sock
 volumes:
   cache:
@@ -200,8 +176,8 @@ beforeEach(() => {
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-const install = (env = 'PORT=8080\nMEDIA=/srv/music\n', name = 'music') =>
-  manager().install(SESSION, { name, folder: null, template: null, compose, env }, ACTOR);
+const install = (env = 'PORT=8080\nMEDIA=/srv/music\n', name = 'music', file = compose) =>
+  manager().install(SESSION, { name, folder: null, template: null, compose: file, env }, ACTOR);
 
 describe('AppManager.install', () => {
   it('writes the files as the person (.env private), makes the data folders, checks, then starts', async () => {
@@ -260,11 +236,8 @@ describe('AppManager: reading and saving', () => {
     const folder = join(home, 'apps', 'music');
     const details = await manager().details(SESSION, 'music', folder);
     expect(details.compose).toBe(compose);
-    expect(details.fields.map((f) => [f.key, f.value])).toEqual([
-      ['WEB_VERSION', '1.0'],
-      ['PORT', '8080'],
-      ['MEDIA', '/srv/music'],
-    ]);
+    // No template: the files alone.
+    expect(details).toMatchObject({ fields: [], template: null });
     writeFileSync(join(folder, '.env'), 'PORT=9000\n');
     const save = (overwrite: boolean) =>
       manager().save(
@@ -425,42 +398,37 @@ describe('AppManager: removing', () => {
   });
 });
 
-describe('composeMounts and interpolate', () => {
-  it('fills variables as Compose does ($$ a plain $)', () => {
-    const values = new Map([['A', 'x']]);
-    expect(interpolate('${A}/${B:-d}/$$C/${E}', values)).toBe('x/d/$C/');
+describe('AppManager.details of a template’s app that doesn’t run', () => {
+  it('its label from Compose’s answer; its form from the template, values from .env', async () => {
+    await install(
+      'PORT=9000\nMEDIA=./media\n',
+      'music',
+      compose.replace('    ports:', '    labels: { laris.template: demo@3 }\n    ports:'),
+    );
+    const details = await manager().details(SESSION, 'music', join(home, 'apps', 'music'));
+    expect(details.template).toEqual({ id: 'demo', version: '3' });
+    expect(details.fields.map((f) => [f.key, f.value])).toEqual([
+      ['PORT', '9000'],
+      ['MEDIA', './media'],
+      ['NEW_SECRET', expect.stringMatching(/^[\w-]{32}$/)],
+      ['USER_ID', '1500:1500'],
+    ]);
   });
 
-  it('bind mounts resolved against the folder; named volumes by their real name, external ones left out', () => {
-    expect(
-      composeMounts(
-        `services:
-  a:
-    image: x:1
-    volumes:
-      - ./data:/data
-      - \${OUT}:/out
-      - type: bind
-        source: ../shared
-        target: /shared
-      - db:/db
-      - /var/lib/postgresql/data
-      - ext:/ext
-      - named:/named
-volumes:
-  db:
-  ext:
-    external: true
-  named:
-    name: \${PREFIX}-named
-`,
-        'OUT=/mnt/media\nPREFIX=my\n',
-        '/home/anna/apps/a',
-        'a',
-      ),
-    ).toEqual({
-      folders: ['/home/anna/apps/a/data', '/home/anna/apps/shared', '/mnt/media'],
-      volumes: ['a_db', 'my-named'],
-    });
+  it('files Compose refuses: no label, no form — the editors still open', async () => {
+    await install();
+    checkFails = true;
+    const details = await manager().details(SESSION, 'music', join(home, 'apps', 'music'));
+    expect(details).toMatchObject({ template: null, fields: [] });
+  });
+});
+
+describe('AppManager.removal', () => {
+  it('a file Compose refuses (a required variable missing): Compose’s error, not an empty list', async () => {
+    await install();
+    checkFails = true;
+    await expect(
+      manager().removal(SESSION, 'music', join(home, 'apps', 'music')),
+    ).rejects.toMatchObject({ response: { code: 'compose_invalid', detail: 'bad file' } });
   });
 });

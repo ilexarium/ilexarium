@@ -3,18 +3,13 @@ import { catchError, EMPTY, exhaustMap, Observable, takeWhile, timer } from 'rxj
 import type { AppsApi } from '../../core/apps/apps-api';
 
 /**
- * A task's output as it grows: asked once a second (it runs as a unit on the machine — nothing
- * pushes it), each answer the lines since the last; ends with the task. Every line arrives once.
+ * A task as it goes: asked once a second (it runs as a unit on the machine — nothing pushes it),
+ * each answer the end of its output; ends with the task.
  */
 export function followTask(appsApi: AppsApi, name: string, folder: string): Observable<AppTask> {
-  let from = 0;
   return timer(0, APP_LIMITS.taskPollMs).pipe(
-    exhaustMap(() => appsApi.task(name, folder, from).pipe(catchError(() => EMPTY))),
-    exhaustMap(({ task }) => {
-      if (!task) return EMPTY;
-      from = task.next;
-      return [task];
-    }),
+    exhaustMap(() => appsApi.task(name, folder).pipe(catchError(() => EMPTY))),
+    exhaustMap(({ task }) => (task ? [task] : EMPTY)),
     takeWhile((task) => task.state === 'running', true),
   );
 }

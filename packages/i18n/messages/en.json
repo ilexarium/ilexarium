@@ -1472,22 +1472,11 @@
     },
     "fields": {
       "required": "(required)",
-      "kindLabel": "How {{key}} is shown",
-      "kind": {
-        "text": "Text",
-        "port": "Port",
-        "folder": "Folder",
-        "secret": "Secret",
-        "generated": "Generated",
-        "version": "Version"
-      },
-      "folderHelp": "A path starting with ./ is inside the app's folder. Missing folders are created as you.",
-      "generatedHelp": "Made for you when the app is set up.",
       "advanced": "Advanced"
     },
     "editor": {
       "title": "Files (compose.yml, .env)",
-      "text": "Changed here, the form follows the file. Docker checks it before anything starts."
+      "text": "The files as they will be written. Docker checks them before anything starts."
     },
     "backup": {
       "title": "Backup",
@@ -1514,7 +1503,7 @@
       "use": "Use",
       "useLabel": "Use the {{name}} template",
       "paste": "Paste a Compose file",
-      "pasteText": "Any compose.yml: Laris finds its settings and shows them as a form.",
+      "pasteText": "Any compose.yml: you set it up in its own two files, compose.yml and .env.",
       "pasteLabel": "compose.yml",
       "continue": "Continue",
       "back": "Back",

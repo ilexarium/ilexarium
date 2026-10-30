@@ -1,4 +1,4 @@
-import type { AppState, AppTaskState, FieldKind } from '@laris/shared';
+import type { AppState, AppTaskState } from '@laris/shared';
 import type { StatusTone } from '../../shared/status-badge/status-badge.model';
 
 /** How an app's containers are doing, as a status badge. */
@@ -16,9 +16,6 @@ export const TASK_STATE_TONES: Record<AppTaskState, StatusTone> = {
   failed: 'failed',
   interrupted: 'warning',
 };
-
-/** The kinds a field can be shown as (the person may change a guess). */
-export const SHOWN_KINDS: readonly FieldKind[] = ['text', 'port', 'folder', 'secret', 'version'];
 
 /** The name typed is checked this long after the last key. */
 export const NAME_CHECK_MS = 300;

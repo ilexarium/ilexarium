@@ -1556,22 +1556,11 @@
     },
     "fields": {
       "required": "(مطلوب)",
-      "kindLabel": "طريقة عرض {{key}}",
-      "kind": {
-        "text": "نص",
-        "port": "منفذ",
-        "folder": "مجلد",
-        "secret": "سرّي",
-        "generated": "مُنشأ تلقائيًا",
-        "version": "إصدار"
-      },
-      "folderHelp": "المسار الذي يبدأ بـ ./ يكون داخل مجلد التطبيق. تُنشأ المجلدات الناقصة باسمك.",
-      "generatedHelp": "يُنشأ لك عند إعداد التطبيق.",
       "advanced": "خيارات متقدمة"
     },
     "editor": {
       "title": "الملفات (compose.yml و ‎.env)",
-      "text": "عند التغيير هنا يتبع النموذج الملف. يتحقق Docker منه قبل تشغيل أي شيء."
+      "text": "الملفات كما ستُكتب. يتحقق Docker منها قبل تشغيل أي شيء."
     },
     "backup": {
       "title": "النسخ الاحتياطي",
@@ -1598,7 +1587,7 @@
       "use": "استخدام",
       "useLabel": "استخدام قالب {{name}}",
       "paste": "لصق ملف Compose",
-      "pasteText": "أي ملف compose.yml: يجد Laris إعداداته ويعرضها كنموذج.",
+      "pasteText": "أي ملف compose.yml: تُعِدّه في ملفيه، compose.yml و‎.env.",
       "pasteLabel": "compose.yml",
       "continue": "متابعة",
       "back": "رجوع",

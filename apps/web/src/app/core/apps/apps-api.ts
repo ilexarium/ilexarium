@@ -62,10 +62,8 @@ export class AppsApi {
     return this.http.get<AppDetails>(appPath(name), { params: folder ? { folder } : {} });
   }
 
-  task(name: string, folder: string, from: number): Observable<{ task: AppTask | null }> {
-    return this.http.get<{ task: AppTask | null }>(appTaskPath(name), {
-      params: { folder, from },
-    });
+  task(name: string, folder: string): Observable<{ task: AppTask | null }> {
+    return this.http.get<{ task: AppTask | null }>(appTaskPath(name), { params: { folder } });
   }
 
   save(name: string, request: AppSaveRequest): Observable<AppStarted> {

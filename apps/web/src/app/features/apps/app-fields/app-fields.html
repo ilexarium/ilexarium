@@ -1,32 +1,11 @@
 <ng-template #row let-field>
   <div class="grid gap-1.5">
-    <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <label hlmLabel [for]="'field-' + field.key">
-        @if (label(field); as key) {
-          {{ key | translate }}
-        } @else {
-          <span dir="ltr">{{ field.key }}</span>
-        }
-        @if (field.required) {
-          <span class="text-muted-foreground">{{ 'apps.fields.required' | translate }}</span>
-        }
-      </label>
-      @if (!field.fromTemplate) {
-        <select
-          class="h-8 rounded-md border bg-background px-2 text-xs"
-          [attr.aria-label]="'apps.fields.kindLabel' | translate: { key: field.key }"
-          [disabled]="disabled()"
-          (change)="setKind(field, $event)"
-        >
-          <!-- On each option: a select's own value is set before its options exist. -->
-          @for (kind of kinds; track kind) {
-            <option [value]="kind" [selected]="kind === field.kind">
-              {{ 'apps.fields.kind.' + kind | translate }}
-            </option>
-          }
-        </select>
+    <label hlmLabel [for]="'field-' + field.key">
+      {{ text(field, 'label') | translate }}
+      @if (field.required) {
+        <span class="text-muted-foreground">{{ 'apps.fields.required' | translate }}</span>
       }
-    </div>
+    </label>
     <input
       hlmInput
       dir="ltr"
@@ -39,13 +18,7 @@
       [disabled]="disabled()"
       (change)="edit(field, $event)"
     />
-    @if (help(field); as key) {
-      <p class="text-sm text-muted-foreground">{{ key | translate }}</p>
-    } @else if (field.kind === 'folder') {
-      <p class="text-sm text-muted-foreground">{{ 'apps.fields.folderHelp' | translate }}</p>
-    } @else if (field.kind === 'generated') {
-      <p class="text-sm text-muted-foreground">{{ 'apps.fields.generatedHelp' | translate }}</p>
-    }
+    <p class="text-sm text-muted-foreground">{{ text(field, 'help') | translate }}</p>
   </div>
 </ng-template>
 

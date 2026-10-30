@@ -15,9 +15,8 @@ import { TASK_STATE_TONES } from '../apps.constants';
   templateUrl: './task-output.html',
 })
 export class TaskOutput {
+  /** Its output is the end of its log, all of it each time. */
   readonly task = input.required<AppTask>();
-  /** The whole output so far (the task's own lines are only the newest). */
-  readonly lines = input.required<readonly string[]>();
   protected readonly tones = TASK_STATE_TONES;
   protected readonly running = computed(() => this.task().state === 'running');
   private readonly log = viewChild<ElementRef<HTMLElement>>('log');
@@ -25,7 +24,7 @@ export class TaskOutput {
   constructor() {
     // Follows the newest line while it runs.
     effect(() => {
-      this.lines();
+      this.task().output;
       const element = this.log()?.nativeElement;
       if (element) element.scrollTop = element.scrollHeight;
     });

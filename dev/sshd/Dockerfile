@@ -7,10 +7,15 @@
 # Its host keys are made at the first start into /keys, a folder shared with the app
 # (apps/server/.dev/sshd), which pins them like production pins /etc/ssh/ssh_host_*_key.pub.
 # Node 24 runs the helper and laris-root (system/programs/, mounted where the installer puts it).
+# Docker's CLI with Compose, no daemon: the helper's Compose check (`config`) needs none; tasks
+# themselves are the install test's.
 FROM node:24-slim AS node
+FROM docker:29-cli AS docker
 
 FROM debian:13-slim
 COPY --from=node /usr/local/bin/node /usr/bin/node
+COPY --from=docker /usr/local/bin/docker /usr/bin/docker
+COPY --from=docker /usr/local/libexec/docker/cli-plugins/docker-compose /usr/libexec/docker/cli-plugins/docker-compose
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server sudo procps \
  && rm -rf /var/lib/apt/lists/* \

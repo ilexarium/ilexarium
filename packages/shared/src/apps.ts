@@ -65,34 +65,26 @@ export type AppsList = z.infer<typeof appsListSchema>;
 
 // The form.
 
-/** One variable of the setup form, for a template or a pasted file alike. */
+/** One variable of a template's setup form. */
 export const appFieldSchema = z.object({
   key: z.string(),
   kind: fieldKindSchema,
   /** From `.env`, else the default, else empty (a `generated` one: made now). */
   value: z.string(),
-  /** Compose's own default (`${KEY:-default}`) or the template's. */
+  /** The template's default, its tokens filled in. */
   default: z.string().nullable(),
-  /** `${KEY:?…}` or a template field without a default: Compose refuses to start without it. */
+  /** No default: it needs a value. */
   required: z.boolean(),
   advanced: z.boolean(),
-  /** In the template (its texts are `catalog.<id>.fields.<KEY>.*`). */
-  fromTemplate: z.boolean(),
 });
 export type AppField = z.infer<typeof appFieldSchema>;
 
 export const appFieldsRequestSchema = z.strictObject({
-  compose: fileText,
-  env: fileText,
-  template: z.string().regex(CATALOG_ID_PATTERN).nullable(),
+  template: z.string().regex(CATALOG_ID_PATTERN),
 });
 export type AppFieldsRequest = z.infer<typeof appFieldsRequestSchema>;
 
-export const appFieldsSchema = z.object({
-  fields: z.array(appFieldSchema),
-  /** Why the file couldn't be read (YAML), or null. */
-  problem: z.string().nullable(),
-});
+export const appFieldsSchema = z.object({ fields: z.array(appFieldSchema) });
 export type AppFields = z.infer<typeof appFieldsSchema>;
 
 // The name.
@@ -118,24 +110,17 @@ export const APP_TASK_STATES = ['running', 'succeeded', 'failed', 'interrupted']
 export const appTaskStateSchema = z.enum(APP_TASK_STATES);
 export type AppTaskState = z.infer<typeof appTaskStateSchema>;
 
-/** A long task (a unit): its output from `from` on. */
+/** A long task (a unit): the end of its output. */
 export const appTaskSchema = z.object({
   action: appTaskActionSchema,
   state: appTaskStateSchema,
   startedAt: z.iso.datetime(),
   /** Ran through the account's sudo (a system unit). */
   system: z.boolean(),
+  /** Its last lines (a long output: its end, where a failure says why). */
   output: z.array(z.string()),
-  /** Where the next request starts (bytes into its log). */
-  next: z.number().int().nonnegative(),
 });
 export type AppTask = z.infer<typeof appTaskSchema>;
-
-export const appTaskQuerySchema = z.strictObject({
-  from: z.coerce.number().int().nonnegative().optional(),
-  folder: absolutePath.optional(),
-});
-export type AppTaskQuery = z.infer<typeof appTaskQuerySchema>;
 
 // Installing.
 
@@ -173,8 +158,8 @@ export const appDetailsSchema = z.object({
   env: z.string(),
   /** Of both files as read: a save with another one was changed on disk meanwhile. */
   hash: z.string(),
+  /** Its template's form; none without a template (the files alone). */
   fields: z.array(appFieldSchema),
-  problem: z.string().nullable(),
   /** The template it came from (its texts), or null. */
   template: z.object({ id: z.string(), version: z.string() }).nullable(),
   /** Its latest task. */

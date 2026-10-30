@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { AppDetails, AppFields, TemplateSummary } from '@laris/shared';
+import type { AppDetails, AppFields, AppRemoval, TemplateSummary } from '@laris/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -83,24 +83,18 @@ describe('apps and templates (e2e)', () => {
     await api().get('/catalog/Bad_Id').expect(400);
   });
 
-  it('guesses a pasted file’s form; never checks values against the kinds', async () => {
-    const fields = (
-      await api()
-        .post('/apps/fields', {
-          compose:
-            "services:\n  a:\n    image: x/y:${V:-1}\n    ports: ['${P}:80']\n    volumes: ['./d:/d', '${D}:/data']\n    environment:\n      ADMIN_PASSWORD: ${ADMIN_PASSWORD}\n",
-          env: 'P=not-a-port\n',
-          template: null,
-        })
-        .expect(200)
-    ).body as AppFields;
-    expect(fields.fields.map((f) => [f.key, f.kind, f.value])).toEqual([
-      ['V', 'version', '1'],
-      ['P', 'port', 'not-a-port'],
-      ['D', 'folder', ''],
-      ['ADMIN_PASSWORD', 'secret', ''],
+  it('a template’s form from its template.json alone', async () => {
+    const fields = (await api().post('/apps/fields', { template: 'immich' }).expect(200))
+      .body as AppFields;
+    expect(fields.fields.slice(0, 3).map((f) => [f.key, f.kind, f.value])).toEqual([
+      ['WEB_PORT', 'port', '2283'],
+      ['UPLOAD_DIR', 'folder', './library'],
+      ['IMMICH_VERSION', 'version', 'v3'],
     ]);
-    await api().post('/apps/fields', { compose: 'x', env: '', template: '../x' }).expect(400);
+    await api().post('/apps/fields', { template: '../x' }).expect(400);
+    await api().post('/apps/fields', { template: 'nope' }).expect(404);
+    // A pasted file has no form: its two files are edited as they are.
+    await api().post('/apps/fields', { template: null, compose: 'x', env: '' }).expect(400);
   });
 
   it('checks a name against every Compose project, suggesting a free one', async () => {
@@ -150,51 +144,220 @@ describe('apps and templates (e2e)', () => {
     expect(installing.body.code).toBe('linux_session_required');
   });
 
-  it.skipIf(!sshdUp)(
-    'as anna: an app folder of hers is read fresh; another’s is hers to read',
-    async () => {
-      await api().post('/files/session', ANNA).expect(200);
-      const folder = `/home/anna/apps/e2e-${Date.now()}`;
-      await api().post('/files/folder', { parent: '/home/anna', name: 'apps' });
-      await api().post('/files/folder', {
-        parent: '/home/anna/apps',
-        name: folder.split('/').pop(),
+  describe.skipIf(!sshdUp)(
+    'as anna (the dev SSH server: Compose, no Docker daemon or systemd)',
+    // Many SSH round trips, a Compose check each, and a real sudo unlock.
+    { timeout: 30_000 },
+    () => {
+      const upload = (folder: string, name: string, content: string) =>
+        request(origin)
+          .put(
+            `/api/files/upload?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(name)}&replace=true`,
+          )
+          .set('Origin', origin)
+          .set('Cookie', cookie)
+          .set('Content-Type', 'application/octet-stream')
+          .send(content)
+          .expect(204);
+      const folderOf = (name: string) => `/home/anna/apps/${name}`;
+      const makeFolder = (parent: string, name: string) =>
+        api().post('/files/folder', { parent, name });
+      /** An app folder of hers, made through Files (as if made outside Laris). */
+      async function appFolder(name: string, compose: string, env = '') {
+        await makeFolder('/home/anna', 'apps');
+        await makeFolder('/home/anna/apps', name);
+        await upload(folderOf(name), 'compose.yml', compose);
+        if (env) await upload(folderOf(name), '.env', env);
+        return folderOf(name);
+      }
+      const exists = async (path: string) =>
+        (await api().get(`/files/summary?path=${encodeURIComponent(path)}`)).status === 200;
+
+      beforeAll(async () => {
+        await api().post('/files/session', ANNA).expect(200);
       });
-      const compose = "services:\n  web:\n    image: nginx:1.27\n    ports: ['${PORT:-8080}:80']\n";
-      await request(origin)
-        .put(`/api/files/upload?folder=${encodeURIComponent(folder)}&name=compose.yml`)
-        .set('Origin', origin)
-        .set('Cookie', cookie)
-        .set('Content-Type', 'application/octet-stream')
-        .send(compose)
-        .expect(204);
-      const name = folder.split('/').pop()!;
-      const details = (
-        await api()
-          .get(`/apps/${name}?folder=${encodeURIComponent(folder)}`)
-          .expect(200)
-      ).body as AppDetails;
-      expect(details).toMatchObject({ folder, compose, env: '', task: null, template: null });
-      expect(details.fields.map((f) => [f.key, f.kind, f.value])).toEqual([
-        ['PORT', 'port', '8080'],
-      ]);
-      expect(details.app).toMatchObject({ name, state: 'none', owner: 'anna' });
 
-      // Saved with a hash from before a change on disk: refused, nothing written.
-      const changed = await api()
-        .put(`/apps/${name}/files`, {
+      it('a folder of hers is read fresh; a pasted file has no form; another’s is not hers to read', async () => {
+        const name = `e2e-${Date.now()}`;
+        const compose =
+          "services:\n  web:\n    image: nginx:1.27\n    ports: ['${PORT:-8080}:80']\n";
+        const folder = await appFolder(name, compose);
+        const details = (
+          await api()
+            .get(`/apps/${name}?folder=${encodeURIComponent(folder)}`)
+            .expect(200)
+        ).body as AppDetails;
+        expect(details).toMatchObject({ folder, compose, env: '', task: null, template: null });
+        expect(details.fields).toEqual([]);
+        expect(details.app).toMatchObject({ name, state: 'none', owner: 'anna' });
+
+        // Saved with a hash from before a change on disk: refused, nothing written.
+        const changed = await api()
+          .put(`/apps/${name}/files`, {
+            folder,
+            compose: 'services: {}\n',
+            env: '',
+            hash: 'old',
+            overwrite: false,
+          })
+          .expect(409);
+        expect(changed.body.code).toBe('changed_on_disk');
+
+        const other = await api().get('/apps/x?folder=%2Froot%2Fapps%2Fx').expect(403);
+        expect(other.body.code).toBe('permission_denied');
+        await api().post('/files/session/sudo').expect(400);
+      });
+
+      it('a template’s app that doesn’t run: its label as Compose reads it, its form from the template', async () => {
+        const name = `e2e-label-${Date.now()}`;
+        const immich = (await api().get('/catalog/immich').expect(200)).body.compose as string;
+        const { fields } = (await api().post('/apps/fields', { template: 'immich' }).expect(200))
+          .body as AppFields;
+        const env = fields
+          .map((f) => `${f.key}=${f.key === 'WEB_PORT' ? '9999' : f.value || 'x'}\n`)
+          .join('');
+        const folder = await appFolder(name, immich, env);
+        const details = (
+          await api()
+            .get(`/apps/${name}?folder=${encodeURIComponent(folder)}`)
+            .expect(200)
+        ).body as AppDetails;
+        expect(details.template).toEqual({ id: 'immich', version: '2' });
+        expect(details.fields.find((f) => f.key === 'WEB_PORT')?.value).toBe('9999');
+      });
+
+      it('removal lists what Compose says it mounts; delete only after its down, only that', async () => {
+        const name = `e2e-rm-${Date.now()}`;
+        const compose = [
+          'services:',
+          '  web:',
+          '    image: nginx:1.27',
+          '    volumes:',
+          '      - ./data:/data',
+          '      - ${MEDIA:?set MEDIA}:/media',
+          '      - /var/cache/nginx',
+          '      - db:/db',
+          '      - /etc/localtime:/etc/localtime:ro',
+          '  extra:',
+          '    image: redis:7',
+          '    profiles: [extra]',
+          '    volumes: [./extra:/data]',
+          'volumes:',
+          '  db:',
+          '',
+        ].join('\n');
+        const folder = await appFolder(name, compose);
+        // A required variable missing: what Compose said, not an empty list.
+        const refused = await api()
+          .get(`/apps/${name}/removal?folder=${encodeURIComponent(folder)}`)
+          .expect(400);
+        expect(refused.body).toMatchObject({ code: 'compose_invalid' });
+        expect(refused.body.detail).toContain('set MEDIA');
+
+        await upload(folder, '.env', 'MEDIA=/home/anna/media\n');
+        const { items } = (
+          await api()
+            .get(`/apps/${name}/removal?folder=${encodeURIComponent(folder)}`)
+            .expect(200)
+        ).body as AppRemoval;
+        expect(items.map((i) => [i.kind, i.path, i.outside])).toEqual([
+          ['settings', folder, false],
+          ['folder', `${folder}/data`, false],
+          ['folder', `${folder}/extra`, false],
+          ['folder', '/home/anna/media', true],
+          ['volume', `${name}_db`, false],
+        ]);
+
+        const request = {
           folder,
-          compose: 'services: {}\n',
-          env: '',
-          hash: 'old',
-          overwrite: false,
-        })
-        .expect(409);
-      expect(changed.body.code).toBe('changed_on_disk');
+          settings: true,
+          folders: [`${folder}/data`, `${folder}/extra`],
+          volumes: [],
+        };
+        const early = await api().post(`/apps/${name}/delete`, request).expect(409);
+        expect(early.body.code).toBe('app_task_running');
+        // Its `down` finished (what the helper and systemd would have left).
+        await makeFolder(folder, '.laris');
+        await makeFolder(`${folder}/.laris`, 'tasks');
+        await makeFolder(folder, 'data');
+        await makeFolder(folder, 'extra');
+        await upload(
+          `${folder}/.laris`,
+          'task.json',
+          JSON.stringify({
+            unit: `laris-app-${name}-down-20261030T120000`,
+            system: false,
+            action: 'down',
+            log: '20261030T120000-down.log',
+            startedAt: '2026-10-30T12:00:00.000Z',
+          }),
+        );
+        await upload(
+          `${folder}/.laris/tasks`,
+          '20261030T120000-down.log',
+          'Removed\n@@laris-result\nsuccess\nexited\n0\n',
+        );
+        await api()
+          .post(`/apps/${name}/delete`, { ...request, folders: [...request.folders, '/home/anna'] })
+          .expect(204);
+        // Every inside folder ticked (the profiled service's too) and the settings: the whole
+        // folder went; never her home.
+        expect(await exists(folder)).toBe(false);
+        expect(await exists('/home/anna')).toBe(true);
+      });
 
-      const other = await api().get('/apps/x?folder=%2Froot%2Fapps%2Fx').expect(403);
-      expect(other.body.code).toBe('permission_denied');
-      await api().post('/files/session/sudo').expect(400);
+      it('install and save: Compose checks the files first; a task that can’t start leaves nothing changed', async () => {
+        // No systemd here: the task would run through her sudo (a system unit).
+        const name = `e2e-in-${Date.now()}`;
+        const body = {
+          name,
+          folder: null,
+          template: null,
+          compose: "services:\n  web:\n    image: nginx:1.27\n    volumes: ['./data:/data']\n",
+          env: '',
+        };
+        const locked = await api().post('/apps', body).expect(403);
+        expect(locked.body.code).toBe('sudo_required');
+        await api().post('/files/session/sudo', { password: ANNA.password }).expect(200);
+
+        const invalid = await api()
+          .post('/apps', { ...body, compose: 'services:\n  web:\n    bad: 1\n' })
+          .expect(400);
+        expect(invalid.body.code).toBe('compose_invalid');
+        expect(await exists(folderOf(name))).toBe(false);
+
+        const notStarted = await api().post('/apps', body).expect(502);
+        expect(notStarted.body.code).toBe('app_task_not_started');
+        expect(await exists(folderOf(name))).toBe(false);
+
+        const compose = 'services:\n  web:\n    image: nginx:1.27\n';
+        const folder = await appFolder(name, compose);
+        const { hash } = (
+          await api()
+            .get(`/apps/${name}?folder=${encodeURIComponent(folder)}`)
+            .expect(200)
+        ).body as AppDetails;
+        await api()
+          .put(`/apps/${name}/files`, {
+            folder,
+            compose: "services:\n  web:\n    image: nginx:1.28\n    volumes: ['./data:/data']\n",
+            env: 'A=1\n',
+            hash,
+            overwrite: false,
+          })
+          .expect(502);
+        const after = (
+          await api()
+            .get(`/apps/${name}?folder=${encodeURIComponent(folder)}`)
+            .expect(200)
+        ).body as AppDetails;
+        expect(after).toMatchObject({ compose, env: '', hash });
+        await request(origin)
+          .delete('/api/files/session/sudo')
+          .set('Origin', origin)
+          .set('Cookie', cookie)
+          .expect(200);
+      });
     },
   );
 });

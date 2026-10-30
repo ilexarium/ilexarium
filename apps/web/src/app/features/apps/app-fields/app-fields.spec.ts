@@ -3,14 +3,13 @@ import { TestBed } from '@angular/core/testing';
 import type { AppField } from '@laris/shared';
 import { AppFields } from './app-fields';
 
-const field = (key: string, kind: AppField['kind'], value = ''): AppField => ({
+const field = (key: string, kind: AppField['kind'], value = '', advanced = false): AppField => ({
   key,
   kind,
   value,
   default: null,
   required: false,
-  advanced: false,
-  fromTemplate: false,
+  advanced,
 });
 
 @Component({
@@ -18,20 +17,20 @@ const field = (key: string, kind: AppField['kind'], value = ''): AppField => ({
   template: `<laris-app-fields
     [fields]="fields()"
     [values]="values"
+    templateId="immich"
     (changed)="changes.push($event)"
-    (kindChanged)="kinds.push($event)"
   />`,
 })
 class Host {
   readonly fields = signal([
-    field('VERSION', 'version', '1.27'),
-    field('PORT', 'port', '8088'),
-    field('DATA', 'folder', './data'),
-    field('ADMIN_PASSWORD', 'secret'),
+    field('IMMICH_VERSION', 'version', 'v3'),
+    field('WEB_PORT', 'port', '2283'),
+    field('UPLOAD_DIR', 'folder', './library'),
+    field('DB_PASSWORD', 'generated', 'made'),
+    field('TZ', 'text', 'UTC', true),
   ]);
-  readonly values = new Map([['PORT', '9000']]);
+  readonly values = new Map([['WEB_PORT', '9000']]);
   readonly changes: unknown[] = [];
-  readonly kinds: unknown[] = [];
 }
 
 async function render() {
@@ -41,24 +40,30 @@ async function render() {
 }
 
 describe('AppFields', () => {
-  it('shows each field’s guessed kind in its selector, and its value from .env first', async () => {
+  it('a template’s fields, its texts; the value from .env first; secrets masked', async () => {
     const { el } = await render();
-    const kinds = [...el.querySelectorAll('select')].map((s) => s.value);
-    expect(kinds).toEqual(['version', 'port', 'folder', 'secret']);
-    expect(el.querySelector<HTMLInputElement>('#field-PORT')!.value).toBe('9000');
-    expect(el.querySelector<HTMLInputElement>('#field-ADMIN_PASSWORD')!.type).toBe('password');
+    expect(el.querySelector('label[for="field-WEB_PORT"]')!.textContent).toContain('Web port');
+    expect(el.textContent).toContain("The port Immich's web page");
+    expect(el.querySelector('select')).toBeNull();
+    expect(el.querySelector<HTMLInputElement>('#field-WEB_PORT')!.value).toBe('9000');
+    expect(el.querySelector<HTMLInputElement>('#field-WEB_PORT')!.inputMode).toBe('numeric');
+    expect(el.querySelector<HTMLInputElement>('#field-DB_PASSWORD')!.type).toBe('password');
   });
 
-  it('reports a kind changed and a value edited', async () => {
+  it('generated and advanced fields folded under “Advanced”', async () => {
+    const { el } = await render();
+    const advanced = el.querySelector('details')!;
+    expect(advanced.querySelector('#field-DB_PASSWORD')).not.toBeNull();
+    expect(advanced.querySelector('#field-TZ')).not.toBeNull();
+    expect(advanced.querySelector('#field-WEB_PORT')).toBeNull();
+  });
+
+  it('reports a value edited', async () => {
     const { el, fixture } = await render();
-    const select = el.querySelectorAll('select')[1];
-    select.value = 'text';
-    select.dispatchEvent(new Event('change'));
-    const input = el.querySelector<HTMLInputElement>('#field-DATA')!;
+    const input = el.querySelector<HTMLInputElement>('#field-UPLOAD_DIR')!;
     input.value = '/srv/data';
     input.dispatchEvent(new Event('change'));
     await fixture.whenStable();
-    expect(fixture.componentInstance.kinds).toEqual([{ key: 'PORT', kind: 'text' }]);
-    expect(fixture.componentInstance.changes).toEqual([{ key: 'DATA', value: '/srv/data' }]);
+    expect(fixture.componentInstance.changes).toEqual([{ key: 'UPLOAD_DIR', value: '/srv/data' }]);
   });
 });

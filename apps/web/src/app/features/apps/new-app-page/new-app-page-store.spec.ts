@@ -42,15 +42,13 @@ async function setup() {
         compose: COMPOSE,
       }),
     ),
-    // The server's guess: PORT and a new secret are filled in, VERSION from the file's default.
+    // The template's form, its defaults filled in.
     fields: vi.fn(() =>
       of({
         fields: [
           { key: 'VERSION', kind: 'version', value: '0.53', default: '0.53', required: false },
-          { key: 'PORT', kind: 'port', value: '4533', default: null, required: true },
+          { key: 'PORT', kind: 'port', value: '4533', default: '4533', required: false },
         ],
-        images: [],
-        problem: null,
       }),
     ),
     checkName: vi.fn((name: string) => of({ free: false, suggestion: `${name}-2` })),
@@ -88,27 +86,22 @@ describe('NewAppPageStore', () => {
     await vi.waitFor(() => expect(store.fields()).not.toBeNull());
     expect(store.step()).toBe('setup');
     expect(store.compose()).toBe(COMPOSE);
-    expect(appsApi.fields).toHaveBeenCalledWith({
-      compose: COMPOSE,
-      env: '',
-      template: 'navidrome',
-    });
+    expect(appsApi.fields).toHaveBeenCalledWith({ template: 'navidrome' });
     expect(store.env()).toBe('VERSION=0.53\nPORT=4533\n');
     expect(store.name()).toBe('navidrome-2');
     expect(store.backup()).toEqual({ include: true, mode: 'live', skip: ['cache'] });
   });
 
-  it('a pasted file: its own name suggested, a field’s kind changed by the person', async () => {
+  it('a pasted file: its own name suggested, no form — its files as they are, never sent for one', async () => {
     const { store, appsApi } = await setup();
     await store.usePasted(`name: music\n${COMPOSE}`);
-    await vi.waitFor(() => expect(store.fields()).not.toBeNull());
     expect(appsApi.checkName).toHaveBeenCalledWith('music');
     expect(store.template()).toBeNull();
-    store.setKind('PORT', 'text');
-    expect(store.shownFields().map((f) => [f.key, f.kind])).toEqual([
-      ['VERSION', 'version'],
-      ['PORT', 'text'],
-    ]);
+    store.setCompose(COMPOSE);
+    store.setEnv('PORT=80\n');
+    expect(store.fields()).toBeNull();
+    expect(appsApi.fields).not.toHaveBeenCalled();
+    expect(store.env()).toBe('PORT=80\n');
   });
 
   it('installs as the person, follows the output, then adds the app to the backups', async () => {
@@ -117,8 +110,8 @@ describe('NewAppPageStore', () => {
     expect(store.backupsConfigured()).toBe(true);
     await store.chooseTemplate('navidrome');
     await vi.waitFor(() => expect(store.fields()).not.toBeNull());
-    answers.push(testTask({ output: ['pulling'], next: 8 }));
-    answers.push(testTask({ state: 'succeeded', output: ['started'], next: 16 }));
+    answers.push(testTask({ output: ['pulling'] }));
+    answers.push(testTask({ state: 'succeeded', output: ['pulling', 'started'] }));
     await store.install();
     expect(appsApi.install).toHaveBeenCalledWith({
       name: 'navidrome-2',
@@ -129,7 +122,7 @@ describe('NewAppPageStore', () => {
     });
     expect(store.step()).toBe('installing');
     await vi.waitFor(() => expect(store.installed()).not.toBeNull(), { timeout: 4000 });
-    expect(store.lines()).toEqual(['pulling', 'started']);
+    expect(store.task()?.output).toEqual(['pulling', 'started']);
     expect(backupsApi.addItem).toHaveBeenCalledWith({
       kind: 'app',
       project: 'navidrome-2',
