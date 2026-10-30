@@ -1,7 +1,7 @@
 # A restore: started by `laris-backup restore-start` (through the person's sudo) with the instance
 # <restoreId> — a uuid, checked again by the program, which reads the request from its own
 # root-only file. Its own unit, not a child of the app: it goes on if the app stops or restarts.
-# Its phases, output and result go to /var/lib/laris/backups/restores/<id>.jsonl.
+# Its phases, output and result go to its job file, /var/lib/laris/backups/jobs/<id>.jsonl.
 # Design: docs/plans/acting_as_you.md ("Backups").
 
 [Unit]

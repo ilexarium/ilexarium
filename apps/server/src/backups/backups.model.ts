@@ -1,13 +1,4 @@
-import type { BackupMode, BackupProgress, BackupStatus } from '@laris/shared';
-
-/** The run the progress file describes, as followed: its live view, its process and its end. */
-export interface FollowedRun {
-  progress: BackupProgress;
-  itemId: string | null;
-  pid: number;
-  /** Null until its `done` event. */
-  finished: { status: BackupStatus; errorCode: string | null; at: string } | null;
-}
+import type { BackupMode, BackupStatus } from '@laris/shared';
 
 /** What the warnings shown across the app are worked out from (`backupWarnings`). */
 export interface WarningInput {

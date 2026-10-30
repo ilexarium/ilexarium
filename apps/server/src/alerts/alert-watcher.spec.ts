@@ -2,7 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import type { BackupWarning, DiskUsage, ContainerActionParams } from '@laris/shared';
 import { Subject } from 'rxjs';
 import type { BackupPlanManager } from '../backups/backup-plan-manager.js';
-import type { BackupResults } from '../backups/backup-results.js';
+import type { BackupJobs } from '../backups/backup-jobs.js';
 import type { BackupRuns } from '../backups/backup-runs.js';
 import type { BackupStatusReader } from '../backups/backup-status-reader.js';
 import type { Env } from '../config/env.schema.js';
@@ -122,7 +122,7 @@ describe('AlertWatcher', () => {
         status: async () => ({ disks: [], disconnected }),
       } as unknown as DiskManager,
       { status: async () => ({ warnings }) } as unknown as BackupStatusReader,
-      { changes$: backupChanges.asObservable() } as unknown as BackupResults,
+      { changes$: backupChanges.asObservable() } as unknown as BackupJobs,
       { changes$: new Subject<void>() } as unknown as BackupRuns,
       { changes$: new Subject<void>() } as unknown as BackupPlanManager,
     );

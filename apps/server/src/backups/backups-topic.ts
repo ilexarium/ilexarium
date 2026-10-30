@@ -14,16 +14,15 @@ import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';
 import type { TopicSource } from '../realtime/realtime.model.js';
 import { BackupPlanManager } from './backup-plan-manager.js';
-import { BackupProgressFollower } from './backup-progress.js';
+import { BackupJobs } from './backup-jobs.js';
 import { BackupRestores } from './backup-restores.js';
-import { BackupResults } from './backup-results.js';
 import { BackupRuns } from './backup-runs.js';
 import { BackupStatusReader } from './backup-status-reader.js';
 import { BACKUPS_PUBLISH_MS, BACKUPS_REFRESH_MS } from './backups.constants.js';
 
 /**
  * The `backups` topic: the plan's status and warnings, the running run's live progress (scheduled
- * or manual, from the wrapper's progress file), the last results, the latest restore.
+ * or manual, from its job file), the last results, the latest restore.
  */
 @Injectable()
 export class BackupsTopic implements TopicSource<'backups'> {
@@ -36,8 +35,7 @@ export class BackupsTopic implements TopicSource<'backups'> {
     private readonly backupStatusReader: BackupStatusReader,
     backupPlanManager: BackupPlanManager,
     backupRuns: BackupRuns,
-    backupProgressFollower: BackupProgressFollower,
-    backupResults: BackupResults,
+    backupJobs: BackupJobs,
     backupRestores: BackupRestores,
     changesUnderway: ChangesUnderway,
     realtimeSubscriptions: RealtimeSubscriptions,
@@ -45,8 +43,7 @@ export class BackupsTopic implements TopicSource<'backups'> {
     this.updates$ = merge(
       backupPlanManager.changes$,
       backupRuns.changes$,
-      backupProgressFollower.changes$,
-      backupResults.changes$,
+      backupJobs.changes$,
       backupRestores.changes$,
       changesUnderway.changes$,
       interval(BACKUPS_REFRESH_MS),

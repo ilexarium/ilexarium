@@ -4,12 +4,10 @@ import { DockerModule } from '../docker/docker.module.js';
 import { HostModule } from '../host/host.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
 import { RootProgramsModule } from '../root-programs/root-programs.module.js';
-import { BackupFiles } from './backup-files.js';
 import { BackupChecks } from './backup-checks.js';
 import { BackupPlanManager } from './backup-plan-manager.js';
-import { BackupProgressFollower } from './backup-progress.js';
+import { BackupJobs } from './backup-jobs.js';
 import { BackupRestores } from './backup-restores.js';
-import { BackupResults } from './backup-results.js';
 import { BackupRuns } from './backup-runs.js';
 import { BackupStatusReader } from './backup-status-reader.js';
 import { BackupsController } from './backups.controller.js';
@@ -24,15 +22,13 @@ import { BackupsTopic } from './backups-topic.js';
   controllers: [BackupsController],
   providers: [
     BackupChecks,
-    BackupFiles,
+    BackupJobs,
     BackupPlanManager,
-    BackupProgressFollower,
     BackupRestores,
-    BackupResults,
     BackupRuns,
     BackupStatusReader,
     BackupsTopic,
   ],
-  exports: [BackupPlanManager, BackupResults, BackupRuns, BackupStatusReader],
+  exports: [BackupJobs, BackupPlanManager, BackupRuns, BackupStatusReader],
 })
 export class BackupsModule {}

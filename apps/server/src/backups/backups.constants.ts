@@ -8,10 +8,6 @@ export const PASSPHRASE_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 export const DESTINATION_SOURCE = /^\/dev\//;
 /** Where the folder picker starts, besides the home folders and the disks. */
 export const FOLDER_PLACES = ['/srv', '/opt', '/data'];
-/** A restore's events file that hasn't appeared by then: its unit never started. */
-export const RESTORE_START_GRACE_MS = 2 * 60_000;
-/** How often a running restore's events are read. */
-export const RESTORE_POLL_MS = 1_000;
 /** The production places of the wrapper's files (development: under the config's dev folder). */
 export const STATE_DIR = '/var/lib/laris/backups';
 export const MOUNT_INFO = '/proc/self/mountinfo';
@@ -31,8 +27,8 @@ export const RUNS_SHOWN = 50;
 export const RUNS_KEPT = 500;
 
 /**
- * A "Back up now" run that hasn't shown up by then never started (systemd couldn't run the
- * wrapper): recorded as failed. A run that started shows within seconds — it doesn't wait.
+ * A "Back up now" run or a restore whose job file hasn't appeared by then never started (systemd
+ * couldn't run the program): interrupted. One that started shows within seconds.
  */
 export const START_GRACE_MS = 2 * 60_000;
 
@@ -47,9 +43,8 @@ export const MAX_RUN_MS = 25 * 60 * 60_000;
 
 /** How often the files are looked at when no change notice arrives (fs.watch can miss some). */
 export const BACKUP_FILES_POLL_MS = 5_000;
-export const MAX_RESULTS_BYTES = 16 * 1024 * 1024;
-/** current.jsonl read at most this much at a time; the rest next time. */
-export const MAX_PROGRESS_READ_BYTES = 2 * 1024 * 1024;
+/** A job file is far smaller (its output lines stop at 1 MB): anything larger isn't read. */
+export const MAX_JOB_FILE_BYTES = 8 * 1024 * 1024;
 
 /** Changes come in bursts (progress lines, restore output): at most one update this often. */
 export const BACKUPS_PUBLISH_MS = 500;

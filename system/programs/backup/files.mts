@@ -1,15 +1,15 @@
 // backup/files.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
 //
-// Files this program writes: the live progress, the results, and its state.
+// Files this program writes: the jobs' files, and its state.
 
 import {
   appendFileSync,
   chmodSync,
   chownSync,
-  existsSync,
   mkdirSync,
-  readFileSync,
+  readdirSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
@@ -17,13 +17,11 @@ import { dirname, join } from 'node:path';
 import type { Config, Paths } from './model.mts';
 import { isRoot } from '../lib/startup.mts';
 
-/** Live progress: output lines stop being written past this size (the events still are). */
-export const PROGRESS_MAX_BYTES = 1024 * 1024;
+/** A job's output lines stop being written past this size (its events still are). */
+export const JOB_LINES_MAX_BYTES = 1024 * 1024;
 
-/** runs.jsonl is cut back to its last lines when it grows past this. */
-export const RESULTS_MAX_BYTES = 8 * 1024 * 1024;
-
-export const RESULTS_KEPT_LINES = 2000;
+/** Job files kept; older ones go when a new job starts (months of them: the app may be down a while). */
+export const JOBS_KEPT = 500;
 
 /** Writes a file whole (a crash never leaves half of it), owned by root (and the app's group). */
 export function writeAtomic(path: string, content: string, mode: number, gid?: number): void {
@@ -50,37 +48,40 @@ export function shareWithApp(config: Config, file: string, mode = 0o640): void {
 }
 
 /**
- * The live progress of the run: one JSON event per line, started fresh each run. The app follows
- * it (scheduled and manual runs alike); it holds no secrets. Output lines stop past a size cap.
+ * A job's file (a run, a check, a restore): `<state>/jobs/<id>.jsonl`, one JSON event per line —
+ * its start, its progress and output, and its result at the end. The only way anything reaches
+ * the app, which follows the folder; it holds no secrets. Output lines stop past a size cap.
  */
-export class Progress {
+export class JobFile {
   private bytes = 0;
   private readonly file: string;
 
-  constructor(config: Config, paths: Paths) {
-    this.file = join(paths.state, 'current.jsonl');
-    // A new file each run (not emptied in place): the app tells runs apart by the file itself.
+  constructor(config: Config, paths: Paths, id: string) {
+    const dir = join(paths.state, 'jobs');
+    mkdirSync(dir, { recursive: true, mode: 0o750 });
+    shareWithApp(config, dir, 0o750);
+    pruneJobs(dir);
+    this.file = join(dir, `${id}.jsonl`);
     writeAtomic(this.file, '', 0o640, config.backup.appGid);
   }
 
   event(event: Record<string, unknown>): void {
     const line = `${JSON.stringify(event)}\n`;
-    if (event['type'] === 'line' && this.bytes + line.length > PROGRESS_MAX_BYTES) return;
-    this.bytes += line.length;
+    if (event['type'] === 'line') {
+      if (this.bytes + line.length > JOB_LINES_MAX_BYTES) return;
+      this.bytes += line.length;
+    }
     appendFileSync(this.file, line);
   }
 }
 
-/** Appends one result (a run, a check) to runs.jsonl, keeping it from growing without end. */
-export function appendResult(config: Config, paths: Paths, result: Record<string, unknown>): void {
-  const file = join(paths.state, 'runs.jsonl');
-  const line = `${JSON.stringify(result)}\n`;
-  if (existsSync(file) && statSync(file).size + line.length > RESULTS_MAX_BYTES) {
-    const kept = readFileSync(file, 'utf8').split('\n').filter(Boolean).slice(-RESULTS_KEPT_LINES);
-    writeAtomic(file, `${kept.join('\n')}\n`, 0o640, config.backup.appGid);
-  }
-  appendFileSync(file, line, { mode: 0o640 });
-  shareWithApp(config, file);
+/** The oldest job files go, so the folder never grows without end. */
+function pruneJobs(dir: string): void {
+  const files = readdirSync(dir)
+    .filter((name) => name.endsWith('.jsonl'))
+    .map((name) => ({ path: join(dir, name), at: statSync(join(dir, name)).mtimeMs }))
+    .sort((a, b) => b.at - a.at);
+  for (const old of files.slice(JOBS_KEPT - 1)) rmSync(old.path, { force: true });
 }
 
 export const stamp = (date = new Date()) => date.toISOString().slice(0, 19);

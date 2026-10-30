@@ -6,7 +6,7 @@
 import { closeSync, existsSync, mkdirSync, openSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { openRepository } from './destination.mts';
-import { appendResult, prepareState, Progress, stamp } from './files.mts';
+import { JobFile, prepareState, stamp } from './files.mts';
 import type {
   Config,
   ItemKind,
@@ -41,13 +41,25 @@ export async function run(
   onlyItem: string | null,
 ): Promise<number> {
   const startedAt = new Date().toISOString();
+  const start = (job: JobFile, items: string[]) =>
+    job.event({
+      type: 'run',
+      runId,
+      trigger,
+      itemId: onlyItem,
+      pid: process.pid,
+      startedAt,
+      items,
+    });
   // A run refused before it starts is recorded all the same: nobody waits on this program's
-  // output (a timer or "Back up now" started it), so the app learns it only from runs.jsonl.
+  // output (a timer or "Back up now" started it), so the app learns it only from its job file.
   const refused = (error: unknown): unknown => {
     if (!(error instanceof Refusal)) return error;
     prepareState(config, paths);
-    appendResult(config, paths, {
-      type: 'run',
+    const job = new JobFile(config, paths, runId);
+    start(job, []);
+    job.event({
+      type: 'runDone',
       runId,
       trigger,
       itemId: onlyItem,
@@ -92,19 +104,14 @@ export async function run(
   const output: string[] = [];
   const results: ItemResult[] = [];
   let runError: string | null = null;
-  let progress: Progress | null = null;
+  let job: JobFile | null = null;
   try {
     prepareState(config, paths);
-    progress = new Progress(config, paths);
-    progress.event({
-      type: 'run',
-      runId,
-      trigger,
-      itemId: onlyItem,
-      pid: process.pid,
-      startedAt,
-      items: items.map((item) => item.id),
-    });
+    job = new JobFile(config, paths, runId);
+    start(
+      job,
+      items.map((item) => item.id),
+    );
     let repo: Repository | null = null;
     try {
       repo = openRepository(config, paths, plan);
@@ -120,7 +127,7 @@ export async function run(
         const keep = (line: string) => {
           output.push(line);
           if (output.length > RESULT_OUTPUT_LINES) output.shift();
-          progress!.event({ type: 'line', itemId: item.id, text: line.slice(0, 2000) });
+          job!.event({ type: 'line', itemId: item.id, text: line.slice(0, 2000) });
         };
         const result = await backupItem(
           config,
@@ -129,12 +136,12 @@ export async function run(
           repo,
           item,
           (phase) => {
-            progress!.event({ type: 'item', itemId: item.id, phase });
+            job!.event({ type: 'item', itemId: item.id, phase });
           },
           keep,
         );
         results.push(result);
-        progress.event({ type: 'itemDone', result: { ...result, archives: undefined } });
+        job.event({ type: 'itemDone', result: { ...result, archives: undefined } });
         if (
           result.errorCode &&
           ['passphrase_invalid', 'repository_mismatch'].includes(result.errorCode)
@@ -158,9 +165,8 @@ export async function run(
   const status = failed ? 'failed' : results.some((r) => r.status === 'warning') ? 'warning' : 'ok';
   const finishedAt = new Date().toISOString();
   try {
-    progress?.event({ type: 'done', runId, status, errorCode: runError, finishedAt });
-    appendResult(config, paths, {
-      type: 'run',
+    job?.event({
+      type: 'runDone',
       runId,
       trigger,
       itemId: onlyItem,

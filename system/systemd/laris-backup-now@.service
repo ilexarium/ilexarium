@@ -2,7 +2,7 @@
 # "Back up now": started by `laris-backup start` (through the app) with the instance
 # <runId> or <runId>_<itemId> — two uuids, checked again by the wrapper. Its own unit, not a
 # child of the app: it goes on if the app stops or restarts. Its progress and results go to
-# /var/lib/laris/backups/{current,runs}.jsonl, like a scheduled run's (laris-backup.service,
+# its job file, /var/lib/laris/backups/jobs/<runId>.jsonl, like a scheduled run's (laris-backup.service,
 # whose settings this mirrors). Design: docs/plans/backups.md.
 
 [Unit]

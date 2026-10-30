@@ -1,7 +1,7 @@
 # /etc/systemd/system/laris-backup.service — REVIEW-REQUIRED (system/CLAUDE.md).
 # A scheduled backup run, started by laris-backup.timer: the root wrapper directly, never
 # through the app — backups work even when the app is down. Its progress and results go to
-# /var/lib/laris/backups/{current,runs}.jsonl, which the app reads. Design: docs/plans/backups.md.
+# its job file in /var/lib/laris/backups/jobs/, which the app reads. Design: docs/plans/backups.md.
 
 [Unit]
 Description=Laris backup run

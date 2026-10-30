@@ -49,11 +49,20 @@ function wrapper(
   });
 }
 
-const runs = () =>
-  readFileSync(join(dev, 'state', 'runs.jsonl'), 'utf8')
+const jobEvents = (name: string) =>
+  readFileSync(join(dev, 'state', 'jobs', name), 'utf8')
     .split('\n')
     .filter(Boolean)
     .map((line) => JSON.parse(line));
+
+/** Each finished run's and check's result, oldest first (`type`: `run` or `check`). */
+const runs = (): Record<string, any>[] =>
+  readdirSync(join(dev, 'state', 'jobs'))
+    .filter((name) => name.endsWith('.jsonl'))
+    .map((name) => jobEvents(name).find((e) => e.type === 'runDone' || e.type === 'checkDone'))
+    .filter((done) => done !== undefined)
+    .sort((a, b) => a.finishedAt.localeCompare(b.finishedAt))
+    .map(({ type, ...result }) => ({ type: type.slice(0, -'Done'.length), ...result }));
 
 /** As the person's sudo starts it (a systemctl that starts nothing), then as its unit runs it. */
 async function restore(input: Record<string, unknown>) {
@@ -62,12 +71,7 @@ async function restore(input: Record<string, unknown>) {
   return wrapper(['restore-run', String(input['restoreId'])]);
 }
 
-const restoreDone = (id: string) =>
-  readFileSync(join(dev, 'state', 'restores', `${id}.jsonl`), 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => JSON.parse(line))
-    .find((e) => e.type === 'done');
+const restoreDone = (id: string) => jobEvents(`${id}.jsonl`).find((e) => e.type === 'restoreDone');
 
 describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
   beforeAll(async () => {
