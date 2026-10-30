@@ -145,6 +145,20 @@ describe('BackupJobs', () => {
     );
   });
 
+  it('a repository check running is no change underway (alerts go on)', async () => {
+    const { jobs, slot } = setUp();
+    const CHECK = '77777777-7777-4777-8777-777777777777';
+    write(CHECK, {
+      type: 'check',
+      checkId: CHECK,
+      full: true,
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    });
+    await jobs.refresh();
+    expect(slot.anything()).toBe(false);
+  });
+
   it('saves a run whose process died as interrupted — never shown as running', async () => {
     const { jobs, prisma } = setUp();
     write(RUN, runStart(DEAD_PID), { type: 'itemDone', result: itemResult(A) });
