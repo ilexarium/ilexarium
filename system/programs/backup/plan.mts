@@ -129,22 +129,12 @@ export function exactKeys(
   }
 }
 
-/**
- * The stored plan, checked again. A plan written before apps may still list `service` items: they
- * went with the services (the app's database dropped them) and are left out until the next
- * `configure` writes the plan anew.
- */
+/** The stored plan, checked again. */
 export function loadPlan(config: Config, paths: Paths): Plan {
   if (!existsSync(paths.plan)) throw new Refusal('not_configured', 'no backup plan', 6);
   if (isRoot) assertRootOwned(paths.plan);
   try {
-    const stored = JSON.parse(readFileSync(paths.plan, 'utf8')) as unknown;
-    if (isObject(stored) && Array.isArray(stored['items'])) {
-      stored['items'] = stored['items'].filter(
-        (item) => !isObject(item) || item['kind'] !== 'service',
-      );
-    }
-    return checkPlan(stored, config, paths);
+    return checkPlan(JSON.parse(readFileSync(paths.plan, 'utf8')), config, paths);
   } catch (error) {
     if (error instanceof Refusal) throw new Refusal('setup', `stored plan: ${error.message}`, 6);
     throw error;

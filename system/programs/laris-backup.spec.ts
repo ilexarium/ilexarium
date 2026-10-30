@@ -323,7 +323,7 @@ describe('laris-backup configure', () => {
     ],
     ['an app without a mode', () => withItem({ ...plan().items[1], id: RUN, mode: 'pause' })],
     [
-      'a service item (before apps)',
+      'a service item',
       () => withItem({ id: RUN, kind: 'service', catalogId: 'demo', folders: {} }),
     ],
     [
@@ -333,15 +333,6 @@ describe('laris-backup configure', () => {
   ])('refuses %s', async (_, value) => {
     expectRefused(await wrapper('configure', value()), 'invalid_plan');
     expect(existsSync(join(dev, 'backup.json'))).toBe(false);
-  });
-
-  it('reads a plan written before apps, its service items left out', async () => {
-    expect((await wrapper('configure', plan())).code).toBe(0);
-    const stored = JSON.parse(readFileSync(join(dev, 'backup.json'), 'utf8'));
-    stored.items.push({ id: RUN, kind: 'service', catalogId: 'demo', folders: {} });
-    writeFileSync(join(dev, 'backup.json'), JSON.stringify(stored), { mode: 0o600 });
-    const run = await wrapper(['run-requested', `${RUN}_${FOLDER}`]);
-    expect(run.markers.join('\n')).not.toContain('stored plan');
   });
 });
 
@@ -385,16 +376,6 @@ describe('laris-backup init', () => {
       join(other, 'laris-backups'),
     ]);
     // The plan still names the first disk (its change never happened): runs still work there.
-    expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
-  });
-
-  it('reads the first version’s repository file', async () => {
-    await wrapper('init', { destination });
-    const repo = join(destination, 'laris-backups');
-    writeFileSync(
-      join(dev, 'backup-repository.json'),
-      JSON.stringify({ path: repo, id: 'a'.repeat(64) }),
-    );
     expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
   });
 
