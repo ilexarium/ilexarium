@@ -84,14 +84,12 @@ export function repositoryId(path: string): string | null {
 /**
  * The repositories this program set up, by path (one per disk used): switching disks adds one,
  * so a plan change refused after `init` never leaves the plan's disk without its record.
- * Reads the first version's single `{ path, id }` too.
  */
 export function loadRepositories(paths: Paths): Repository[] {
   if (!existsSync(paths.repository)) return [];
   if (isRoot) assertRootOwned(paths.repository);
-  const raw = JSON.parse(readFileSync(paths.repository, 'utf8')) as
-    { repositories?: unknown } | Repository;
-  const list = 'repositories' in raw ? raw.repositories : [raw];
+  const list = (JSON.parse(readFileSync(paths.repository, 'utf8')) as { repositories?: unknown })
+    .repositories;
   const valid = (r: unknown): r is Repository =>
     isObject(r) && absolute(r.path) && typeof r.id === 'string' && /^[0-9a-f]{64}$/.test(r.id);
   if (!Array.isArray(list) || !list.every(valid)) {
