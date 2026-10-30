@@ -18,12 +18,15 @@ import {
 import {
   COMPOSE_ANSWER_MAX,
   COMPOSE_CONFIG_MAX,
+  MESSAGE_MAX,
+  TEMPLATE_LABEL,
   PROGRAMS,
   PROJECT_PATTERN,
   QUICK_TIMEOUT_MS,
   TASK_ACTIONS,
   TASK_END,
   UNIT_PATTERN,
+  MESSAGES,
   VOLUME_PATTERN,
   type TaskAction,
 } from './config.mts';
@@ -224,7 +227,9 @@ export async function checkCompose(request: Request): Promise<Answer> {
   );
   if (result.code !== 0) {
     if (!result.timedOut && !result.missing) {
-      return { ok: false, error: 'compose_invalid', message: said(result) } as Answer;
+      // Its own words, within what the server reads of an answer.
+      const message = said(result).slice(-MESSAGE_MAX);
+      return { ok: false, error: 'compose_invalid', message } as Answer;
     }
     return dockerRefusal(result);
   }
@@ -241,7 +246,7 @@ export async function checkCompose(request: Request): Promise<Answer> {
       const type = text(volume?.type);
       if (type) mounts.push({ type, source: text(volume.source) });
     }
-    const label = text(service?.labels?.['laris.template']);
+    const label = text(service?.labels?.[TEMPLATE_LABEL]);
     if (label) templates.push(label);
   }
   const answer = {
@@ -269,5 +274,15 @@ export async function removeVolumes(request: Request): Promise<Answer> {
   const result = await run(PROGRAMS.docker, ['volume', 'rm', '--', ...names], {
     timeoutMs: QUICK_TIMEOUT_MS,
   });
-  return result.code === 0 ? ok() : dockerRefusal(result);
+  if (result.code === 0) return ok();
+  // Already gone (deleted by a try before, or never made — a service not started): fine.
+  const errors = result.stderr.trim().split('\n').filter(Boolean);
+  if (
+    result.code !== null &&
+    errors.length > 0 &&
+    errors.every((l) => MESSAGES.noSuchVolume.test(l))
+  ) {
+    return ok();
+  }
+  return dockerRefusal(result);
 }

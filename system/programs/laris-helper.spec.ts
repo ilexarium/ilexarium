@@ -498,6 +498,31 @@ describe('laris-helper', () => {
     });
   });
 
+  it('passes on at most 4000 characters of what Compose said', async () => {
+    const app = join(dir, 'apps', 'music');
+    mkdirSync(app, { recursive: true });
+    writeFileSync(join(dir, 'docker-exit.txt'), '15');
+    writeFileSync(join(dir, 'docker-err.txt'), `invalid: ${'x'.repeat(300_000)}\n`);
+    const answer = await ask({ action: 'compose.check', folder: app, project: 'music' });
+    expect(answer).toMatchObject({ ok: false, error: 'compose_invalid' });
+    expect(String(answer['message']).length).toBe(4000);
+  });
+
+  it('a volume already gone is no error; another refusal is', async () => {
+    writeFileSync(join(dir, 'docker-exit.txt'), '1');
+    writeFileSync(
+      join(dir, 'docker-err.txt'),
+      'Error response from daemon: get x_cache: no such volume\n',
+    );
+    expect(await ask({ action: 'volumes.remove', names: ['x_cache'], docker: 'direct' })).toEqual({
+      ok: true,
+    });
+    writeFileSync(join(dir, 'docker-err.txt'), 'Error response from daemon: volume is in use\n');
+    expect(
+      await ask({ action: 'volumes.remove', names: ['x_cache'], docker: 'direct' }),
+    ).toMatchObject({ ok: false, error: 'compose_failed' });
+  });
+
   it('says Docker is missing', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(app, { recursive: true });

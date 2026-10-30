@@ -78,9 +78,9 @@ describe('AppTasks.read', () => {
     return () => tasks.read('s1', sftp, FOLDER);
   }
 
-  it('while it runs: what is there so far, the line being written too', async () => {
+  it('while it runs: whole lines only (the last may be half written)', async () => {
     const read = reading('pulling a\nPulling fo', 'active');
-    expect(await read()).toMatchObject({ state: 'running', output: ['pulling a', 'Pulling fo'] });
+    expect(await read()).toMatchObject({ state: 'running', output: ['pulling a'] });
   });
 
   it('ended without a result: interrupted', async () => {

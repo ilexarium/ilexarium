@@ -18,8 +18,13 @@ import {
   PROCESS_LIMITS,
   PROCESS_SIGNALS,
   RELATIVE_PATH_PATTERN,
+  TEMPLATE_LABEL,
   VOLUME_NAME_PATTERN,
 } from '@laris/shared';
+import {
+  HELPER_ANSWER_MAX,
+  HELPER_MESSAGE_MAX,
+} from '../../apps/server/src/linux-sessions/linux-sessions.constants.ts';
 import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
 import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
@@ -107,6 +112,9 @@ describe('the app and the root programs check the same rules', () => {
     expect(helperConfig.PASSWORD_MAX).toBe(FILES_LIMITS.passwordMax);
     expect(helperConfig.ROOT_IDLE_MS).toBe(FILES_LIMITS.sudoIdleMinutes * 60_000);
     expect(String(helperConfig.PROJECT_PATTERN)).toBe(String(APP_NAME_PATTERN));
+    expect(helperConfig.TEMPLATE_LABEL).toBe(TEMPLATE_LABEL);
+    expect(helperConfig.MESSAGE_MAX).toBe(HELPER_MESSAGE_MAX);
+    expect(helperConfig.COMPOSE_ANSWER_MAX).toBeLessThan(HELPER_ANSWER_MAX);
     expect(String(helperConfig.VOLUME_PATTERN)).toBe(String(VOLUME_NAME_PATTERN));
     for (const password of [
       'right',

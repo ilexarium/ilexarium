@@ -153,17 +153,17 @@
         <p hlmCardDescription>{{ 'apps.settings.text' | translate }}</p>
       </div>
       <div hlmCardContent class="grid gap-5">
-        <!-- A template's form; an app without one: its two files as they are. -->
-        @if (details.template; as template) {
+        <!-- A template's form; an app without one (or one no longer in the catalog): its two files. -->
+        @if (details.template && details.fields.length > 0) {
           <laris-app-fields
             [fields]="details.fields"
             [values]="appPageStore.values()"
-            [templateId]="template.id"
+            [templateId]="details.template.id"
             [disabled]="appPageStore.busy()"
             (changed)="change($event)"
           />
         }
-        <details class="rounded-md border p-3" [open]="!details.template">
+        <details class="rounded-md border p-3" [open]="details.fields.length === 0">
           <summary class="cursor-pointer text-sm font-medium select-none">
             {{ 'apps.editor.title' | translate }}
           </summary>

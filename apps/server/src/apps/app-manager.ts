@@ -49,10 +49,15 @@ import { templateFields } from './template-fields.js';
 const hashOf = (compose: string, env: string) =>
   createHash('sha256').update(compose).update('\0').update(env).digest('hex');
 
-/** Never offered for deletion: a system path an app mounts (`/etc/localtime`, the Docker socket). */
-const deletable = (facts: ComposeFacts): ComposeFacts => ({
+/**
+ * Never offered for deletion: a system path an app mounts (`/etc/localtime`, the Docker socket),
+ * nor the account's home or a folder above it (Compose turns `~` into the home).
+ */
+const deletable = (facts: ComposeFacts, home: string): ComposeFacts => ({
   ...facts,
-  folders: facts.folders.filter(isBackupFolder),
+  folders: facts.folders.filter(
+    (path) => isBackupFolder(path) && path !== home && !inside(home, path),
+  ),
 });
 
 const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
@@ -189,10 +194,11 @@ export class AppManager {
     const { folder, summary } = await this.locate(appSessionId, name, folderHint);
     const files = await this.readFiles(sftp, folder);
     // Not running: the label from the files, as Compose reads them (none while they're invalid).
-    const label =
-      summary.template ??
-      (await this.appTasks.check(appSessionId, folder, name).catch(() => null))?.template ??
-      null;
+    const [facts, task] = await Promise.all([
+      summary.template ? null : this.appTasks.check(appSessionId, folder, name).catch(() => null),
+      this.appTasks.read(appSessionId, sftp, folder),
+    ]);
+    const label = summary.template ?? facts?.template ?? null;
     const entry = label ? this.catalogService.get(label.id) : undefined;
     return {
       app: { ...summary, template: label },
@@ -202,7 +208,7 @@ export class AppManager {
       hash: hashOf(files.compose, files.env),
       fields: entry ? templateFields(entry.template, files.env, this.context(appSessionId)) : [],
       template: label,
-      task: await this.appTasks.read(appSessionId, sftp, folder),
+      task,
     };
   }
 
@@ -269,7 +275,10 @@ export class AppManager {
   /** What a removal may delete: the settings, each data folder, each named volume — with sizes. */
   async removal(appSessionId: string, name: string, folder: string): Promise<AppRemoval> {
     await this.readFiles(this.sftp(appSessionId), folder);
-    const mounts = deletable(await this.appTasks.check(appSessionId, folder, name));
+    const mounts = deletable(
+      await this.appTasks.check(appSessionId, folder, name),
+      this.linuxSessions.account(appSessionId).home,
+    );
     const paths = [folder, ...mounts.folders.filter((path) => path !== folder)];
     const answer = await this.linuxSessions.ask(
       appSessionId,
@@ -332,7 +341,10 @@ export class AppManager {
       throw appError(APP_ERROR_CODES.taskRunning, 'Remove the app first');
     }
     const files = await this.readFiles(sftp, folder);
-    const mounts = deletable(await this.appTasks.check(appSessionId, folder, name));
+    const mounts = deletable(
+      await this.appTasks.check(appSessionId, folder, name),
+      this.linuxSessions.account(appSessionId).home,
+    );
     // Only what the removal listed: never another path.
     const folders = request.folders.filter(
       (path) => mounts.folders.includes(path) && path !== folder,
@@ -349,6 +361,10 @@ export class AppManager {
       settings: request.settings,
     };
     await this.audited('app.delete', actor, details, async () => {
+      // The data first, the app's own files last: when a container's files need sudo, the files
+      // this request is checked against stay, and the retry after the sudo prompt can go on (the
+      // folders already gone are no error, so they go before the volumes).
+      if (folders.length > 0) await this.removePaths(appSessionId, folders);
       if (volumes.length > 0) {
         const access = await this.appTasks.dockerAccess(appSessionId);
         const answer = await this.linuxSessions.ask(
@@ -358,9 +374,6 @@ export class AppManager {
         );
         if (!answer.ok) throw helperError(answer);
       }
-      // The data first, the app's own files last: when a container's files need sudo, the files
-      // this request is checked against stay, and the retry after the sudo prompt can go on.
-      if (folders.length > 0) await this.removePaths(appSessionId, folders);
       if (request.settings) {
         await this.removePaths(
           appSessionId,
