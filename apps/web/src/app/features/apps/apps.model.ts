@@ -1,4 +1,4 @@
-import type { AppTask, BackupMode } from '@laris/shared';
+import type { AppTask, BackupMode, Container } from '@laris/shared';
 import type { SparklineSeries } from '../../shared/charts/sparkline/sparkline.model';
 
 /** A field's change in the form. */
@@ -22,17 +22,16 @@ export interface AppStats {
   memoryHistory: number[];
 }
 
+/** One of an app's containers with its own CPU and memory (null while it doesn't run). */
+export interface ContainerWithStats {
+  container: Container;
+  stats: AppStats | null;
+}
+
 /** An app's CPU and memory as small lines; null without enough points. */
 export interface AppTrends {
   cpu: { series: SparklineSeries[]; max: number } | null;
   memory: SparklineSeries[] | null;
-}
-
-/** The Apps page's sentence: a plural key, its count and the total. */
-export interface AppsHeadline {
-  key: string;
-  count: number;
-  total: number;
 }
 
 /** What a new app's backup will be. */

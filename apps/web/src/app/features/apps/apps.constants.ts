@@ -35,3 +35,6 @@ export const BACKUP_WAIT_MS = 6 * 60 * 60_000;
 
 /** From this many templates on, a search box. */
 export const TEMPLATE_SEARCH_FROM = 10;
+
+/** The containers' stats come every 2 s (the server's `PUBLISH_INTERVAL_MS`): one step of a line. */
+export const STATS_STEP_MS = 2_000;

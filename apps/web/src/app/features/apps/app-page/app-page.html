@@ -17,6 +17,7 @@
     [openUrl]="openUrl()"
     [pending]="appPageStore.pending()"
     [busy]="appPageStore.busy() || appPageStore.running()"
+    [removable]="!!appPageStore.folder()"
     (start)="appPageStore.act('start')"
     (stop)="appPageStore.act('stop')"
     (remove)="askRemove()"
@@ -42,8 +43,7 @@
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <laris-app-overview
           [stats]="appPageStore.stats()"
-          [containers]="appPageStore.containers()"
-          [history]="appPageStore.history()"
+          [containers]="appPageStore.containerStats()"
         />
         <div class="grid content-start gap-4">
           @if (appPageStore.backupsConfigured()) {

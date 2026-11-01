@@ -63,7 +63,7 @@
             <button
               hlmDropdownMenuItem
               variant="destructive"
-              [disabled]="busy()"
+              [disabled]="busy() || !removable()"
               (triggered)="remove.emit()"
             >
               <ng-icon name="lucideTrash2" aria-hidden="true" />

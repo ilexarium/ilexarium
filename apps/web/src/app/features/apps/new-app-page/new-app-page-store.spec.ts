@@ -97,9 +97,14 @@ describe('NewAppPageStore', () => {
     await store.useOwnFile();
     expect(store.step()).toBe('setup');
     expect(appsApi.checkName).toHaveBeenCalledWith('app');
-    await store.setCompose(`name: music\n${COMPOSE}`);
+    store.setCompose(`name: music\n${COMPOSE}`);
+    await vi.waitFor(() => expect(store.name()).toBe('music-2'));
     expect(appsApi.checkName).toHaveBeenCalledWith('music');
-    expect(store.name()).toBe('music-2');
+    // Taken (music-2 now): an edit to the file doesn't ask for it again.
+    appsApi.checkName.mockClear();
+    store.setCompose(`name: music\n${COMPOSE}# more\n`);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(appsApi.checkName).not.toHaveBeenCalled();
     expect(store.template()).toBeNull();
     store.setEnv('PORT=80\n');
     expect(store.fields()).toBeNull();
@@ -114,9 +119,24 @@ describe('NewAppPageStore', () => {
     expect(store.canInstall()).toBe(false);
     store.setName('songs');
     appsApi.checkName.mockClear();
-    await store.setCompose(`name: music\n${COMPOSE}`);
+    store.setCompose(`name: music\n${COMPOSE}`);
+    await new Promise((resolve) => setTimeout(resolve, 400));
     expect(appsApi.checkName).not.toHaveBeenCalledWith('music');
     expect(store.name()).toBe('songs');
+  });
+
+  it('a suggestion answered after a name was typed: the typed name stays', async () => {
+    const { store, appsApi } = await setup();
+    await store.useOwnFile();
+    const late = new Subject<{ free: boolean; suggestion: string }>();
+    appsApi.checkName.mockReturnValueOnce(late as never);
+    store.setCompose(`name: notes\n${COMPOSE}`);
+    await vi.waitFor(() => expect(appsApi.checkName).toHaveBeenCalledWith('notes'));
+    store.setName('blog');
+    late.next({ free: true, suggestion: 'notes' });
+    late.complete();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(store.name()).toBe('blog');
   });
 
   it('searches the templates by name and description, every word typed; Back keeps the search', async () => {
@@ -194,7 +214,7 @@ describe('NewAppPageStore', () => {
     const { store, appsApi } = await setup();
     const error = vi.spyOn(toast, 'error');
     await store.useOwnFile();
-    await store.setCompose(COMPOSE);
+    store.setCompose(COMPOSE);
     appsApi.install.mockReturnValueOnce(
       throwError(
         () =>

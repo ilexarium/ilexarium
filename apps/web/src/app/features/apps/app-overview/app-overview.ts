@@ -1,6 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Container, ContainerHistoryPoint } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCpu, lucideMemoryStick, lucideScrollText } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -11,10 +10,10 @@ import {
   STATE_DOTS,
   UNHEALTHY_DOT,
 } from '../../containers/containers-table/containers-table.constants';
-import { appStats, appTrends } from '../app-stats';
-import type { AppStats } from '../apps.model';
+import { appTrends } from '../app-stats';
+import type { AppStats, ContainerWithStats } from '../apps.model';
 
-/** The app's CPU and memory (summed), then each of its containers with its own lines and logs. */
+/** The app's CPU and memory, then each of its containers with its own lines and its logs. */
 @Component({
   selector: 'laris-app-overview',
   imports: [NgIcon, RouterLink, Sparkline, StatusDot, TranslatePipe],
@@ -24,25 +23,21 @@ import type { AppStats } from '../apps.model';
 })
 export class AppOverview {
   readonly stats = input<AppStats | null>(null);
-  readonly containers = input.required<Container[]>();
-  readonly history = input.required<Readonly<Record<string, ContainerHistoryPoint[]>>>();
+  readonly containers = input.required<ContainerWithStats[]>();
 
   protected readonly formatter = inject(Formatter);
   protected readonly trends = computed(() => appTrends(this.stats()));
   protected readonly rows = computed(() =>
-    this.containers().map((container) => {
-      const stats = appStats([container], this.history());
-      return {
-        name: container.name,
-        state: container.state,
-        dot:
-          container.health === 'unhealthy' && container.state === 'running'
-            ? UNHEALTHY_DOT
-            : STATE_DOTS[container.state],
-        cpu: stats ? this.formatter.percent(stats.cpuPercent) : null,
-        memory: stats ? this.formatter.bytes(stats.memoryUsedBytes) : null,
-        trends: appTrends(stats),
-      };
-    }),
+    this.containers().map(({ container, stats }) => ({
+      name: container.name,
+      state: container.state,
+      dot:
+        container.health === 'unhealthy' && container.state === 'running'
+          ? UNHEALTHY_DOT
+          : STATE_DOTS[container.state],
+      cpu: stats ? this.formatter.percent(stats.cpuPercent) : null,
+      memory: stats ? this.formatter.bytes(stats.memoryUsedBytes) : null,
+      trends: appTrends(stats),
+    })),
   );
 }

@@ -7,10 +7,7 @@ import { HlmTextarea } from '@ui/textarea';
 import { AppFields } from '../app-fields/app-fields';
 import type { FieldChange } from '../apps.model';
 
-/**
- * An app's settings as two sections: the template's form, and its two files (folded when there's
- * a form; an app without a template, or one no longer in the catalog, has only the files).
- */
+/** The files are folded when there's a form: an app without a template has only its files. */
 @Component({
   selector: 'laris-app-settings',
   imports: [AppFields, HlmLabel, HlmSkeleton, HlmTextarea, TranslatePipe],

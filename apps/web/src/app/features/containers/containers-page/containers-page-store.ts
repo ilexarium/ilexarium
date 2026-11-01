@@ -4,7 +4,9 @@ import type { ContainerActionParams } from '@laris/shared';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { groupByApp, needsAttention } from '../container-groups';
-import type { ContainerGroup, ContainersHeadline } from '../containers.model';
+import { headline } from '../../../shared/headline/headline';
+import type { Headline } from '../../../shared/headline/headline.model';
+import type { ContainerGroup } from '../containers.model';
 
 export const ContainersPageStore = signalStore(
   withComputed(
@@ -20,17 +22,16 @@ export const ContainersPageStore = signalStore(
         return snapshot?.dockerAvailable ? groupByApp(snapshot.containers) : [];
       }),
       /** None before the first snapshot, without Docker or without containers: the table says so. */
-      headline: computed<ContainersHeadline | null>(() => {
+      headline: computed<Headline | null>(() => {
         const snapshot = monitoringStore.containers();
         if (!snapshot?.dockerAvailable || snapshot.containers.length === 0) return null;
         const { containers } = snapshot;
-        const total = containers.length;
-        const attention = containers.filter(needsAttention).length;
-        if (attention > 0) return { key: 'containers.headline.attention', count: attention, total };
-        const running = containers.filter((c) => c.state === 'running').length;
-        return running === total
-          ? { key: 'containers.headline.allRunning', count: total, total }
-          : { key: 'containers.headline.someRunning', count: running, total };
+        return headline(
+          'containers.headline',
+          containers.length,
+          containers.filter(needsAttention).length,
+          containers.filter((c) => c.state === 'running').length,
+        );
       }),
     }),
   ),
