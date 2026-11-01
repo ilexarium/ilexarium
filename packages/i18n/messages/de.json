@@ -449,10 +449,17 @@
   },
   "containers": {
     "title": "Container",
-    "loading": "Wird geladen …",
     "loadingLabel": "Container werden geladen",
-    "dockerUnavailable": "Docker nicht erreichbar",
     "running": "{{running}} von {{total}} laufen",
+    "headline": {
+      "attention_one": "Ein Container braucht deine Aufmerksamkeit",
+      "attention_other": "{{count}} Container brauchen deine Aufmerksamkeit",
+      "allRunning_one": "Dein Container läuft",
+      "allRunning_other": "Alle {{count}} Container laufen",
+      "someRunning_one": "1 von {{total}} Containern läuft",
+      "someRunning_other": "{{count}} von {{total}} Containern laufen"
+    },
+    "otherGroup": "Weitere Container",
     "unreachable": {
       "title": "Docker ist nicht erreichbar",
       "text": "Container-Informationen sind gerade nicht verfügbar. Prüfe, ob Docker läuft; diese Seite aktualisiert sich dann von selbst."

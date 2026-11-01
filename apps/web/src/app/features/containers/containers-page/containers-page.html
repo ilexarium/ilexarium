@@ -1,9 +1,16 @@
-<laris-containers-table
-  [containers]="store.containers()"
-  [pending]="store.pending()"
-  (action)="store.act($event)"
->
-  <a emptyAction hlmBtn variant="outline" size="sm" routerLink="/apps/new">{{
-    'containers.noneAction' | translate
-  }}</a>
-</laris-containers-table>
+<div class="grid grid-cols-1 gap-5">
+  @if (store.headline(); as headline) {
+    <p class="text-xl font-semibold md:text-[1.625rem]" role="status">
+      {{ headline.key | plural: headline.count : { total: headline.total } }}
+    </p>
+  }
+  <laris-containers-table
+    [containers]="store.containers()"
+    [pending]="store.pending()"
+    (action)="store.act($event)"
+  >
+    <a emptyAction hlmBtn variant="outline" size="sm" routerLink="/apps/new">{{
+      'containers.noneAction' | translate
+    }}</a>
+  </laris-containers-table>
+</div>
