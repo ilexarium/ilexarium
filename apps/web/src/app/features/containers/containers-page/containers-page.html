@@ -6,6 +6,7 @@
   }
   <laris-containers-table
     [containers]="store.containers()"
+    [groups]="store.groups()"
     [pending]="store.pending()"
     (action)="store.act($event)"
   >

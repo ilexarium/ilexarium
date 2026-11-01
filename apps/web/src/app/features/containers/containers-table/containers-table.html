@@ -18,7 +18,7 @@
         <p class="font-medium">{{ 'containers.unreachable.title' | translate }}</p>
         <p class="mt-1 text-muted-foreground">{{ 'containers.unreachable.text' | translate }}</p>
       </div>
-    } @else if (groups().length === 0) {
+    } @else if (shownGroups().length === 0) {
       <!-- The next action is the page's: it projects it (emptyAction). -->
       <laris-empty-state icon="lucideBox" [text]="'containers.none' | translate">
         <ng-content select="[emptyAction]" />
@@ -54,10 +54,10 @@
               </th>
             </tr>
           </thead>
-          @for (group of groups(); track group.key) {
+          @for (group of shownGroups(); track group.key) {
             <tbody hlmTBody>
               <tr hlmTr class="hover:bg-transparent">
-                <th hlmTh scope="colgroup" colspan="9" class="h-auto pt-4 pb-2">
+                <th hlmTh scope="rowgroup" colspan="9" class="h-auto pt-4 pb-2">
                   <ng-container *ngTemplateOutlet="heading; context: { $implicit: group }" />
                 </th>
               </tr>
@@ -126,7 +126,7 @@
       </div>
       <!-- Phones, tablets and laptops: one card per container. -->
       <div class="grid gap-5 xl:hidden">
-        @for (group of groups(); track group.key) {
+        @for (group of shownGroups(); track group.key) {
           <section class="grid gap-2.5">
             <h3 class="text-sm">
               <ng-container *ngTemplateOutlet="heading; context: { $implicit: group }" />

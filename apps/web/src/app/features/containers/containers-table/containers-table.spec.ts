@@ -6,6 +6,7 @@ import type {
   ContainersSnapshot,
   ContainerActionParams,
 } from '@laris/shared';
+import { groupByApp } from '../container-groups';
 import { ContainersTable } from './containers-table';
 
 const NOW = Date.parse('2026-10-11T15:00:00Z');
@@ -48,10 +49,14 @@ const stopped: Container = {
 };
 const sick: Container = { ...web, id: 'c3', name: 'db', health: 'unhealthy' };
 
-async function render(containers: ContainersSnapshot | null, now: number | null = NOW) {
+async function render(containers: ContainersSnapshot | null) {
   const fixture = TestBed.createComponent(ContainersTable);
   fixture.componentRef.setInput('containers', containers);
-  if (now !== null) fixture.componentRef.setInput('now', NOW);
+  // As the page's store groups them.
+  fixture.componentRef.setInput(
+    'groups',
+    containers?.dockerAvailable ? groupByApp(containers.containers) : [],
+  );
   // What the table reports: the page's store runs it.
   const emitted: ContainerActionParams[] = [];
   fixture.componentInstance.action.subscribe((request) => emitted.push(request));
@@ -68,7 +73,7 @@ async function render(containers: ContainersSnapshot | null, now: number | null 
     },
     /** Per row, the text of each cell (screen readers announce cells one by one). */
     tableRows: () =>
-      [...el.querySelectorAll('tbody tr:not(:has([scope="colgroup"]))')].map((tr) =>
+      [...el.querySelectorAll('tbody tr:not(:has([scope="rowgroup"]))')].map((tr) =>
         [...tr.querySelectorAll('th, td')].map((cell) =>
           cell.textContent!.replace(/\s+/g, ' ').trim(),
         ),
@@ -138,8 +143,8 @@ describe('ContainersTable', () => {
     ]);
   });
 
-  it('times uptimes by the newest stats frame when not given a "now"', async () => {
-    const { tableRows } = await render(snapshot(web, stopped), null);
+  it('times uptimes by the newest stats frame', async () => {
+    const { tableRows } = await render(snapshot(web, stopped));
     expect(tableRows()[0][6]).toBe('3 hours');
   });
 
@@ -318,7 +323,7 @@ describe('ContainersTable', () => {
     const wiki: Container = { ...web, id: 'w1', name: 'wiki', composeProject: 'wiki' };
 
     const headings = (root: Element) =>
-      [...root.querySelectorAll('[scope="colgroup"], h3')].map((h) =>
+      [...root.querySelectorAll('[scope="rowgroup"], h3')].map((h) =>
         h.textContent!.replace(/\s+/g, ' ').trim(),
       );
 
@@ -332,9 +337,9 @@ describe('ContainersTable', () => {
       expect(headings(el.querySelector('.xl\\:hidden')!)).toEqual(
         headings(el.querySelector('table')!),
       );
-      const links = [...el.querySelectorAll('table [scope="colgroup"] a')];
+      const links = [...el.querySelectorAll('table [scope="rowgroup"] a')];
       expect(links.map((a) => a.getAttribute('href'))).toEqual(['/apps/photos', '/apps/wiki']);
-      expect(el.querySelector('table [scope="colgroup"] img')!.getAttribute('src')).toBe(
+      expect(el.querySelector('table [scope="rowgroup"] img')!.getAttribute('src')).toBe(
         '/api/catalog/immich/icon',
       );
       // An app's containers by name, under its heading.
@@ -348,7 +353,7 @@ describe('ContainersTable', () => {
 
   it('draws recent CPU and memory beside the values of running containers only', async () => {
     const { el, cards } = await render(withHistory(web, stopped));
-    const [running, idle] = el.querySelectorAll('tbody tr:not(:has([scope="colgroup"]))');
+    const [running, idle] = el.querySelectorAll('tbody tr:not(:has([scope="rowgroup"]))');
     expect(running.querySelectorAll('laris-sparkline')).toHaveLength(2);
     expect(idle.querySelectorAll('laris-sparkline')).toHaveLength(0);
     expect(cards()[0].querySelectorAll('laris-sparkline')).toHaveLength(2);
