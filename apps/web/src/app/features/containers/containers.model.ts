@@ -15,7 +15,6 @@ export interface ContainerGroup {
   app: { name: string; templateId: string | null } | null;
   containers: Container[];
   running: number;
-  attention: boolean;
 }
 
 /** The page's sentence: a plural key, its count and the total. */

@@ -32,7 +32,7 @@ import type { StatusTone } from '../../../shared/status-badge/status-badge.model
 import { EmptyState } from '../../../shared/empty-state/empty-state';
 import { Sparkline } from '../../../shared/charts/sparkline/sparkline';
 import type { SparklineSeries } from '../../../shared/charts/sparkline/sparkline.model';
-import { groupByApp } from '../container-groups';
+import type { ContainerGroup } from '../containers.model';
 
 interface Row {
   id: string;
@@ -94,11 +94,8 @@ interface Group {
 export class ContainersTable {
   /** Null until the first snapshot. */
   readonly containers = input.required<ContainersSnapshot | null>();
-  /**
-   * "Now" for uptimes (the dashboard passes the latest system sample's time), so they move with
-   * the live data. Without it: the newest stats frame's time, else this device's clock.
-   */
-  readonly now = input<number | null>(null);
+  /** The containers by app (from the page's store); the rows' data comes from `containers`. */
+  readonly groups = input.required<ContainerGroup[]>();
   /** The action in progress for each container name (from the page's store). */
   readonly pending = input<ReadonlyMap<string, ContainerAction>>(new Map());
   /** A chosen container action — the page's store runs it. */
@@ -107,9 +104,8 @@ export class ContainersTable {
   private readonly translator = inject(Translator);
   private readonly formatter = inject(Formatter);
 
+  /** "Now" for uptimes: the newest stats frame's time, so they move with the live data. */
   private readonly clock = computed(() => {
-    const given = this.now();
-    if (given !== null) return given;
     const snapshot = this.containers();
     const times = snapshot?.dockerAvailable
       ? snapshot.containers.flatMap((c) => (c.stats ? [c.stats.at] : []))
@@ -119,10 +115,10 @@ export class ContainersTable {
 
   protected readonly dockerAvailable = computed(() => this.containers()?.dockerAvailable ?? false);
 
-  protected readonly groups = computed<Group[]>(() => {
+  protected readonly shownGroups = computed<Group[]>(() => {
     const snapshot = this.containers();
     if (!snapshot?.dockerAvailable) return [];
-    return groupByApp(snapshot.containers).map((group) => ({
+    return this.groups().map((group) => ({
       key: group.app?.name ?? '',
       app: group.app?.name ?? null,
       iconUrl: group.app?.templateId ? catalogIconPath(group.app.templateId) : null,

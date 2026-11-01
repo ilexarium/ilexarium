@@ -3,8 +3,8 @@ import { signalStore, withComputed, withHooks, withMethods } from '@ngrx/signals
 import type { ContainerActionParams } from '@laris/shared';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
-import { needsAttention } from '../container-groups';
-import type { ContainersHeadline } from '../containers.model';
+import { groupByApp, needsAttention } from '../container-groups';
+import type { ContainerGroup, ContainersHeadline } from '../containers.model';
 
 export const ContainersPageStore = signalStore(
   withComputed(
@@ -15,6 +15,10 @@ export const ContainersPageStore = signalStore(
     ) => ({
       containers: computed(() => monitoringStore.containers()),
       pending: computed(() => containerActionsStore.pending()),
+      groups: computed<ContainerGroup[]>(() => {
+        const snapshot = monitoringStore.containers();
+        return snapshot?.dockerAvailable ? groupByApp(snapshot.containers) : [];
+      }),
       /** None before the first snapshot, without Docker or without containers: the table says so. */
       headline: computed<ContainersHeadline | null>(() => {
         const snapshot = monitoringStore.containers();

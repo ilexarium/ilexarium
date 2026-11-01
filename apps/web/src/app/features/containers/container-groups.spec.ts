@@ -50,12 +50,12 @@ describe('groupByApp', () => {
     ]);
   });
 
-  it('puts apps needing attention first', () => {
+  it('keeps apps in name order whatever their state (rows never move under the pointer)', () => {
     const result = groups([
       container('a', { composeProject: 'alpha' }),
       container('z', { composeProject: 'zulu', health: 'unhealthy' }),
     ]);
-    expect(result.map((g) => g.app)).toEqual(['zulu', 'alpha']);
+    expect(result.map((g) => g.app)).toEqual(['alpha', 'zulu']);
   });
 
   it("counts the platform's own Compose project as no app, like the Apps page", () => {
