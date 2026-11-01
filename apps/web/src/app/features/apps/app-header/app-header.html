@@ -1,0 +1,96 @@
+<div class="grid gap-3 border-b pb-5">
+  <div class="flex flex-wrap items-start gap-x-4 gap-y-3">
+    <div class="flex min-w-0 flex-1 basis-64 items-center gap-4">
+      @if (iconUrl(); as url) {
+        <img [src]="url" alt="" width="56" height="56" class="size-14 shrink-0 rounded-xl" />
+      } @else {
+        <span
+          class="flex size-14 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground"
+        >
+          <ng-icon name="lucideBox" class="size-7" aria-hidden="true" />
+        </span>
+      }
+      <div class="grid min-w-0 gap-1">
+        <h2 class="truncate text-xl font-semibold md:text-2xl" dir="ltr">{{ name() }}</h2>
+        <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          @if (templateName(); as template) {
+            <span>{{ template }}</span>
+          }
+          @if (installing()) {
+            <laris-status-dot class="text-foreground" tone="busy">{{
+              'apps.installing' | translate
+            }}</laris-status-dot>
+          } @else if (state(); as state) {
+            <laris-status-dot class="text-foreground" [tone]="dots[state]">{{
+              'apps.state.' + state | translate
+            }}</laris-status-dot>
+          }
+        </p>
+      </div>
+    </div>
+    @if (actions() && !installing()) {
+      <div class="flex flex-wrap items-center gap-2">
+        @if (openUrl(); as url) {
+          <a hlmBtn [href]="url" target="_blank" rel="noopener noreferrer">
+            <ng-icon name="lucideExternalLink" aria-hidden="true" />
+            {{ 'apps.open' | translate }}
+          </a>
+        }
+        @if (canStart()) {
+          <button hlmBtn variant="outline" [disabled]="pending()" (click)="start.emit()">
+            <ng-icon name="lucidePlay" aria-hidden="true" />
+            {{ 'apps.start' | translate }}
+          </button>
+        }
+        @if (canStop()) {
+          <button hlmBtn variant="outline" [disabled]="pending()" (click)="stop.emit()">
+            <ng-icon name="lucideSquare" aria-hidden="true" />
+            {{ 'apps.stop' | translate }}
+          </button>
+        }
+        <button
+          hlmBtn
+          variant="ghost"
+          size="icon"
+          [hlmDropdownMenuTrigger]="menu"
+          align="end"
+          [attr.aria-label]="'apps.moreFor' | translate: { name: name() }"
+        >
+          <ng-icon name="lucideEllipsis" aria-hidden="true" />
+        </button>
+        <ng-template #menu>
+          <hlm-dropdown-menu class="w-44">
+            <button
+              hlmDropdownMenuItem
+              variant="destructive"
+              [disabled]="busy()"
+              (triggered)="remove.emit()"
+            >
+              <ng-icon name="lucideTrash2" aria-hidden="true" />
+              {{ 'apps.remove.action' | translate }}
+            </button>
+          </hlm-dropdown-menu>
+        </ng-template>
+      </div>
+    }
+  </div>
+  @if (owner() || shownFolder() || containers() > 0) {
+    <p class="flex flex-wrap gap-x-2 text-sm text-muted-foreground">
+      @if (owner(); as owner) {
+        <span>{{ 'apps.owner' | translate: { account: owner } }}</span>
+      }
+      @if (shownFolder(); as shown) {
+        @if (owner()) {
+          <span aria-hidden="true">·</span>
+        }
+        <span class="break-all" dir="ltr" [title]="folder() ?? ''">{{ shown }}</span>
+      }
+      @if (containers() > 0) {
+        @if (owner() || shownFolder()) {
+          <span aria-hidden="true">·</span>
+        }
+        <span>{{ 'apps.containers' | plural: containers() }}</span>
+      }
+    </p>
+  }
+</div>

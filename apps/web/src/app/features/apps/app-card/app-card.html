@@ -1,5 +1,7 @@
-<article hlmCard class="h-full gap-4">
-  <div hlmCardHeader class="flex flex-row items-start gap-3">
+<article
+  class="flex h-full flex-col gap-4 rounded-xl border bg-card p-4 text-card-foreground shadow-xs"
+>
+  <div class="flex items-start gap-3">
     @if (iconUrl(); as url) {
       <img [src]="url" alt="" width="40" height="40" class="size-10 shrink-0 rounded-lg" />
     } @else {
@@ -9,8 +11,8 @@
         <ng-icon name="lucideBox" class="size-5" aria-hidden="true" />
       </span>
     }
-    <div class="grid min-w-0 flex-1 gap-1">
-      <h3 hlmCardTitle>
+    <div class="grid min-w-0 flex-1 gap-0.5">
+      <h3 class="leading-tight font-semibold">
         <a
           [routerLink]="['/apps', app().name]"
           [queryParams]="query()"
@@ -19,30 +21,66 @@
           >{{ app().name }}</a
         >
       </h3>
-      <div class="flex flex-wrap items-center gap-2 text-sm">
-        <laris-status-badge [tone]="tones[app().state]">{{
-          'apps.state.' + app().state | translate
-        }}</laris-status-badge>
-        @if (template(); as template) {
-          <span class="text-muted-foreground">{{ template.name }}</span>
-        }
-      </div>
-      @if (app().folder; as folder) {
-        <p class="truncate text-xs text-muted-foreground" dir="ltr" [title]="folder">
-          {{ folder }}
-        </p>
-      }
-      @if (app().owner; as owner) {
-        <p class="text-xs text-muted-foreground">
-          {{ 'apps.owner' | translate: { account: owner } }}
-        </p>
+      @if (template(); as template) {
+        <p class="truncate text-sm text-muted-foreground">{{ template.name }}</p>
       }
     </div>
+    <laris-status-dot class="shrink-0 text-sm" [tone]="dots[app().state]">{{
+      'apps.state.' + app().state | translate
+    }}</laris-status-dot>
   </div>
-  <div hlmCardFooter class="mt-auto flex min-h-9 flex-wrap gap-2">
+
+  <dl class="grid grid-cols-2 gap-3 text-sm">
+    <div class="grid gap-1">
+      <dt class="text-xs text-muted-foreground">{{ 'apps.stats.cpu' | translate }}</dt>
+      <dd class="flex items-center gap-2 tabular-nums">
+        <span class="min-w-12">{{ stats() ? formatter.percent(stats()!.cpuPercent) : '—' }}</span>
+        @if (trends().cpu; as trend) {
+          <laris-sparkline class="h-6 w-16" [series]="trend.series" [max]="trend.max" />
+        }
+      </dd>
+    </div>
+    <div class="grid gap-1">
+      <dt class="text-xs text-muted-foreground">{{ 'apps.stats.memory' | translate }}</dt>
+      <dd class="flex items-center gap-2 tabular-nums">
+        <span class="min-w-12">{{
+          stats() ? formatter.bytes(stats()!.memoryUsedBytes) : '—'
+        }}</span>
+        @if (trends().memory; as series) {
+          <laris-sparkline class="h-6 w-16" [series]="series" />
+        }
+      </dd>
+    </div>
+  </dl>
+
+  <div class="grid gap-1 text-xs text-muted-foreground">
+    <p>
+      @if (backedUp(); as time) {
+        {{ 'apps.backup.last' | translate: { time } }}
+      } @else {
+        {{ 'apps.backup.notBackedUp' | translate }}
+      }
+    </p>
+    @if (app().owner || folder()) {
+      <p class="truncate" [title]="app().folder ?? ''">
+        @if (app().owner; as owner) {
+          <span dir="ltr">{{ owner }}</span>
+        }
+        @if (app().owner && folder()) {
+          <span aria-hidden="true"> · </span>
+        }
+        @if (folder(); as folder) {
+          <span dir="ltr">{{ folder }}</span>
+        }
+      </p>
+    }
+  </div>
+
+  <div class="mt-auto flex min-h-9 flex-wrap gap-2">
     @if (openUrl(); as url) {
       <a
         hlmBtn
+        size="sm"
         [href]="url"
         target="_blank"
         rel="noopener noreferrer"
@@ -55,6 +93,7 @@
     @if (app().state === 'stopped' || app().state === 'partial') {
       <button
         hlmBtn
+        size="sm"
         variant="outline"
         [disabled]="pending()"
         (click)="start.emit()"
@@ -67,6 +106,7 @@
     @if (app().state === 'running' || app().state === 'partial' || app().state === 'unhealthy') {
       <button
         hlmBtn
+        size="sm"
         variant="ghost"
         [disabled]="pending()"
         (click)="stop.emit()"

@@ -1,106 +1,122 @@
 @switch (newAppPageStore.step()) {
   @case ('choose') {
-    <div class="grid gap-6">
-      <section aria-labelledby="templates-title" class="grid gap-4">
+    <section aria-labelledby="templates-title" class="grid grid-cols-1 gap-5">
+      <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="grid gap-1">
-          <h2 id="templates-title" class="text-lg font-semibold">
-            {{ 'apps.new.templates' | translate }}
+          <h2 id="templates-title" class="text-xl font-semibold">
+            {{ 'apps.new.choose' | translate }}
           </h2>
           <p class="text-sm text-muted-foreground">{{ 'apps.new.templatesText' | translate }}</p>
         </div>
-        @if (newAppPageStore.templates(); as templates) {
-          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            @for (template of templates; track template.id) {
-              <article hlmCard class="h-full gap-4">
-                <div hlmCardHeader class="flex flex-row items-start gap-3">
-                  <img
-                    [src]="iconPath(template.id)"
-                    alt=""
-                    width="40"
-                    height="40"
-                    class="size-10 shrink-0 rounded-lg"
-                  />
-                  <div class="grid min-w-0 gap-1">
-                    <h3 hlmCardTitle>{{ template.name }}</h3>
-                    <p hlmCardDescription>
-                      {{ 'catalog.' + template.id + '.description' | translate }}
-                    </p>
-                  </div>
-                </div>
-                <div hlmCardFooter class="mt-auto">
-                  <button
-                    hlmBtn
-                    (click)="newAppPageStore.chooseTemplate(template.id)"
-                    [attr.aria-label]="'apps.new.useLabel' | translate: { name: template.name }"
-                  >
-                    {{ 'apps.new.use' | translate }}
-                  </button>
-                </div>
-              </article>
-            }
-          </div>
-        } @else {
-          <div role="status" [attr.aria-label]="'apps.loading' | translate">
-            <hlm-skeleton class="h-40 w-full max-w-md" />
+        @if (newAppPageStore.searchable()) {
+          <div class="relative w-full sm:w-64">
+            <ng-icon
+              name="lucideSearch"
+              class="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <input
+              hlmInput
+              type="search"
+              class="w-full ps-8"
+              [attr.aria-label]="'apps.new.search' | translate"
+              [placeholder]="'apps.new.search' | translate"
+              [value]="newAppPageStore.search()"
+              (input)="newAppPageStore.setSearch(text($event))"
+            />
           </div>
         }
-      </section>
-
-      <section aria-labelledby="paste-title" hlmCard>
-        <div hlmCardHeader>
-          <h2 id="paste-title" hlmCardTitle>{{ 'apps.new.paste' | translate }}</h2>
-          <p hlmCardDescription>{{ 'apps.new.pasteText' | translate }}</p>
-        </div>
-        <div hlmCardContent class="grid gap-3">
-          <label hlmLabel for="pasted">{{ 'apps.new.pasteLabel' | translate }}</label>
-          <textarea
-            hlmTextarea
-            id="pasted"
-            rows="10"
-            dir="ltr"
-            spellcheck="false"
-            class="font-mono text-xs"
-            [value]="pasted()"
-            (input)="pasted.set(text($event))"
-          ></textarea>
-          <div>
+      </div>
+      @if (newAppPageStore.shownTemplates(); as templates) {
+        <ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          @for (template of templates; track template.id) {
+            <li>
+              <button
+                type="button"
+                data-template
+                class="flex h-full w-full items-start gap-3 rounded-xl border bg-card p-4 text-start text-card-foreground shadow-xs transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-ring"
+                (click)="newAppPageStore.chooseTemplate(template.id)"
+                [attr.aria-label]="'apps.new.useLabel' | translate: { name: template.name }"
+              >
+                <img
+                  [src]="iconPath(template.id)"
+                  alt=""
+                  width="40"
+                  height="40"
+                  class="size-10 shrink-0 rounded-lg"
+                />
+                <span class="grid min-w-0 gap-1">
+                  <span class="font-semibold">{{ template.name }}</span>
+                  <span class="text-sm text-muted-foreground">{{
+                    'catalog.' + template.id + '.description' | translate
+                  }}</span>
+                </span>
+              </button>
+            </li>
+          }
+          <li>
             <button
-              hlmBtn
-              [disabled]="!pasted().trim()"
-              (click)="newAppPageStore.usePasted(pasted())"
+              type="button"
+              data-own-file
+              class="flex h-full min-h-24 w-full items-start gap-3 rounded-xl border-2 border-dashed p-4 text-start transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-ring"
+              (click)="newAppPageStore.useOwnFile()"
             >
-              <ng-icon name="lucideClipboardPaste" aria-hidden="true" />
-              {{ 'apps.new.continue' | translate }}
+              <span
+                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+              >
+                <ng-icon name="lucideFileCode" class="size-5" aria-hidden="true" />
+              </span>
+              <span class="grid min-w-0 gap-1">
+                <span class="font-semibold">{{ 'apps.new.own' | translate }}</span>
+                <span class="text-sm text-muted-foreground">{{
+                  'apps.new.ownText' | translate
+                }}</span>
+              </span>
             </button>
-          </div>
+          </li>
+        </ul>
+        @if (templates.length === 0) {
+          <p class="text-sm text-muted-foreground" role="status">
+            {{ 'apps.new.noMatch' | translate }}
+          </p>
+        }
+      } @else {
+        <div role="status" [attr.aria-label]="'apps.loading' | translate">
+          <hlm-skeleton class="h-40 w-full max-w-md" />
         </div>
-      </section>
-    </div>
+      }
+    </section>
   }
 
   @case ('setup') {
-    <div class="grid max-w-3xl gap-4">
-      <div>
-        <button hlmBtn variant="ghost" (click)="newAppPageStore.back()">
-          <ng-icon name="lucideArrowLeft" class="rtl:rotate-180" aria-hidden="true" />
-          {{ 'apps.new.back' | translate }}
-        </button>
-      </div>
-      <section hlmCard>
-        <div hlmCardHeader>
-          <h2 hlmCardTitle>
+    <div class="grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div class="grid content-start gap-6">
+        <div>
+          <button hlmBtn variant="ghost" size="sm" (click)="newAppPageStore.back()">
+            <ng-icon name="lucideArrowLeft" class="rtl:rotate-180" aria-hidden="true" />
+            {{ 'apps.new.back' | translate }}
+          </button>
+        </div>
+        <div class="grid gap-1">
+          <h2 class="text-xl font-semibold">
             {{ newAppPageStore.template()?.name ?? ('apps.new.pastedTitle' | translate) }}
           </h2>
           @if (newAppPageStore.template(); as template) {
-            <p hlmCardDescription>{{ 'catalog.' + template.id + '.description' | translate }}</p>
+            <p class="text-sm text-muted-foreground">
+              {{ 'catalog.' + template.id + '.description' | translate }}
+            </p>
+          } @else {
+            <p class="text-sm text-muted-foreground">{{ 'apps.new.pasteText' | translate }}</p>
           }
         </div>
-        <div hlmCardContent class="grid gap-5">
-          @if (newAppPageStore.template()?.note) {
-            <p class="rounded-md bg-muted p-3 text-sm">
-              {{ 'catalog.' + newAppPageStore.template()!.id + '.note' | translate }}
-            </p>
-          }
+        @if (newAppPageStore.template()?.note) {
+          <p class="rounded-md bg-muted p-3 text-sm">
+            {{ 'catalog.' + newAppPageStore.template()!.id + '.note' | translate }}
+          </p>
+        }
+
+        <section class="grid gap-4" aria-labelledby="name-title">
+          <h3 id="name-title" class="font-semibold">{{ 'apps.new.nameAndFolder' | translate }}</h3>
           <div class="grid gap-1.5">
             <label hlmLabel for="app-name">{{ 'apps.new.name' | translate }}</label>
             <input
@@ -137,170 +153,141 @@
               dir="ltr"
               autocomplete="off"
               spellcheck="false"
-              [placeholder]="'~/apps/' + newAppPageStore.name()"
+              [placeholder]="defaultFolder()"
               [value]="newAppPageStore.folder() ?? ''"
               (change)="newAppPageStore.setFolder(text($event))"
             />
             <p class="text-sm text-muted-foreground">{{ 'apps.new.folderHelp' | translate }}</p>
           </div>
+        </section>
 
-          <!-- A template's form; a pasted file: its two files as they are. -->
-          @if (newAppPageStore.template(); as template) {
-            @if (newAppPageStore.fields(); as fields) {
-              <laris-app-fields
-                [fields]="fields"
-                [values]="newAppPageStore.values()"
-                [templateId]="template.id"
-                (changed)="change($event)"
-              />
-            } @else {
-              <hlm-skeleton class="h-24 w-full" />
-            }
-          }
+        <laris-app-settings
+          [templateId]="newAppPageStore.template()?.id ?? null"
+          [fields]="newAppPageStore.template() ? newAppPageStore.fields() : []"
+          [values]="newAppPageStore.values()"
+          [compose]="newAppPageStore.compose()"
+          [env]="newAppPageStore.env()"
+          (fieldChanged)="change($event)"
+          (composeChanged)="newAppPageStore.setCompose($event)"
+          (envChanged)="newAppPageStore.setEnv($event)"
+        />
 
-          <details class="rounded-md border p-3" [open]="!newAppPageStore.template()">
-            <summary class="cursor-pointer text-sm font-medium select-none">
-              {{ 'apps.editor.title' | translate }}
-            </summary>
-            <div class="mt-4 grid gap-3">
-              <label hlmLabel for="compose-file" dir="ltr">compose.yml</label>
-              <textarea
-                hlmTextarea
-                id="compose-file"
-                rows="14"
-                dir="ltr"
-                spellcheck="false"
-                class="font-mono text-xs"
-                [value]="newAppPageStore.compose()"
-                (change)="newAppPageStore.setCompose(text($event))"
-              ></textarea>
-              <label hlmLabel for="env-file" dir="ltr">.env</label>
-              <textarea
-                hlmTextarea
-                id="env-file"
-                rows="6"
-                dir="ltr"
-                spellcheck="false"
-                class="font-mono text-xs"
-                [value]="newAppPageStore.env()"
-                (change)="newAppPageStore.setEnv(text($event))"
-              ></textarea>
-              <p class="text-sm text-muted-foreground">{{ 'apps.editor.text' | translate }}</p>
-            </div>
-          </details>
+        @if (newAppPageStore.backupsConfigured()) {
+          <section class="grid gap-3" aria-labelledby="backup-options-title">
+            <h3 id="backup-options-title" class="font-semibold">
+              {{ 'apps.backup.title' | translate }}
+            </h3>
+            <laris-backup-options
+              [value]="newAppPageStore.backup()"
+              (changed)="newAppPageStore.setBackup($event)"
+            />
+          </section>
+        }
 
-          @if (newAppPageStore.backupsConfigured()) {
-            <fieldset class="grid gap-3 rounded-md border p-3">
-              <legend class="px-1 text-sm font-medium">
-                {{ 'apps.backup.title' | translate }}
-              </legend>
-              <label class="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  class="mt-0.5 size-4"
-                  [checked]="newAppPageStore.backup().include"
-                  (change)="newAppPageStore.setBackup({ include: $any($event.target).checked })"
-                />
-                {{ 'apps.backup.include' | translate }}
-              </label>
-              @if (newAppPageStore.backup().include) {
-                <div class="grid gap-1.5">
-                  <label hlmLabel for="backup-mode">{{ 'apps.backup.mode' | translate }}</label>
-                  <select
-                    id="backup-mode"
-                    class="h-9 rounded-md border bg-background px-2 text-sm"
-                    [value]="newAppPageStore.backup().mode"
-                    (change)="newAppPageStore.setBackup({ mode: $any($event.target).value })"
-                  >
-                    <option value="stop">{{ 'apps.backup.stop' | translate }}</option>
-                    <option value="live">{{ 'apps.backup.live' | translate }}</option>
-                  </select>
-                </div>
-                <div class="grid gap-1.5">
-                  <span class="text-sm font-medium">{{ 'apps.backup.skip' | translate }}</span>
-                  <ul class="grid gap-1">
-                    @for (skip of newAppPageStore.backup().skip; track skip) {
-                      <li class="flex items-center gap-2 text-sm">
-                        <code dir="ltr" class="break-all">{{ skip }}</code>
-                        <button
-                          hlmBtn
-                          variant="ghost"
-                          size="icon"
-                          type="button"
-                          [attr.aria-label]="'apps.backup.removeSkip' | translate: { path: skip }"
-                          (click)="removeSkip(skip)"
-                        >
-                          <ng-icon name="lucideX" aria-hidden="true" />
-                        </button>
-                      </li>
-                    }
-                  </ul>
-                  <div class="flex flex-wrap gap-2">
-                    <input
-                      hlmInput
-                      class="min-w-0 flex-1"
-                      dir="ltr"
-                      [attr.aria-label]="'apps.backup.newSkip' | translate"
-                      [placeholder]="'apps.backup.newSkipPlaceholder' | translate"
-                      [value]="newSkip()"
-                      (input)="newSkip.set(text($event))"
-                    />
-                    <button hlmBtn variant="outline" type="button" (click)="addSkip()">
-                      {{ 'apps.backup.addSkip' | translate }}
-                    </button>
-                  </div>
-                </div>
-              }
-            </fieldset>
-          }
-
-          @if (newAppPageStore.problem(); as problem) {
-            <div role="alert" class="grid gap-1">
-              <p class="text-sm font-medium text-destructive">
-                {{ 'apps.new.composeRefused' | translate }}
-              </p>
-              <pre
-                class="overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap"
-                dir="ltr"
-                >{{ problem }}</pre>
-            </div>
-          }
-
-          <div class="flex flex-wrap items-center gap-3">
-            <button
-              hlmBtn
-              [disabled]="
-                !newAppPageStore.nameValid() || newAppPageStore.nameCheck()?.free === false
-              "
-              (click)="newAppPageStore.install()"
-            >
-              {{ 'apps.new.install' | translate }}
-            </button>
-            <p class="text-sm text-muted-foreground">{{ 'apps.new.asYou' | translate }}</p>
+        @if (newAppPageStore.problem(); as problem) {
+          <div role="alert" class="grid gap-1">
+            <p class="text-sm font-medium text-destructive">
+              {{ 'apps.new.composeRefused' | translate }}
+            </p>
+            <pre
+              class="overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap"
+              dir="ltr"
+              >{{ problem }}</pre>
           </div>
+        }
+      </div>
+
+      <!-- Desktop: a summary beside the form, Install in it. -->
+      <aside class="hidden lg:block" [attr.aria-label]="'apps.new.summary' | translate">
+        <div class="sticky top-4 grid gap-4 rounded-xl border bg-card p-4 text-sm">
+          <div class="flex items-center gap-3">
+            <ng-container *ngTemplateOutlet="icon" />
+            <span class="min-w-0 truncate font-semibold" dir="ltr">{{
+              newAppPageStore.name() || '—'
+            }}</span>
+          </div>
+          <dl class="grid gap-2">
+            <div class="grid gap-0.5">
+              <dt class="text-xs text-muted-foreground">{{ 'apps.new.folder' | translate }}</dt>
+              <dd class="break-all" dir="ltr">{{ newAppPageStore.folder() ?? defaultFolder() }}</dd>
+            </div>
+            <div class="grid gap-0.5">
+              <dt class="text-xs text-muted-foreground">{{ 'apps.new.runsAs' | translate }}</dt>
+              <dd>
+                @if (newAppPageStore.account(); as account) {
+                  <span dir="ltr">{{ account }}</span>
+                } @else {
+                  {{ 'apps.new.yourAccount' | translate }}
+                }
+              </dd>
+            </div>
+          </dl>
+          <ng-container *ngTemplateOutlet="install" />
+          <p class="text-xs text-muted-foreground">{{ 'apps.new.asYou' | translate }}</p>
         </div>
-      </section>
+      </aside>
+
+      <!-- Phones and tablets: Install in a bar at the bottom. -->
+      <div
+        class="sticky bottom-0 z-10 -mx-1 flex items-center gap-3 rounded-t-xl border bg-background/95 p-3 shadow-lg backdrop-blur lg:hidden"
+        data-install-bar
+      >
+        <p class="me-auto min-w-0 truncate text-sm" dir="ltr">
+          {{ newAppPageStore.folder() ?? defaultFolder() }}
+        </p>
+        <ng-container *ngTemplateOutlet="install" />
+      </div>
     </div>
   }
 
   @case ('installing') {
-    <section hlmCard class="max-w-3xl">
-      <div hlmCardHeader>
-        <h2 hlmCardTitle dir="ltr">{{ newAppPageStore.name() }}</h2>
-        <p hlmCardDescription>{{ 'apps.new.installingText' | translate }}</p>
-      </div>
-      <div hlmCardContent class="grid gap-3">
-        @if (newAppPageStore.task(); as task) {
+    <div class="grid max-w-5xl grid-cols-1 gap-5">
+      <laris-app-header
+        [name]="newAppPageStore.name()"
+        [iconUrl]="newAppPageStore.template() ? iconPath(newAppPageStore.template()!.id) : null"
+        [templateName]="newAppPageStore.template()?.name ?? null"
+        [installing]="newAppPageStore.task()?.state === 'running'"
+        [actions]="false"
+        [owner]="newAppPageStore.account()"
+        [folder]="newAppPageStore.folder() ?? defaultFolder()"
+      />
+      <p class="text-sm text-muted-foreground">{{ 'apps.new.installingText' | translate }}</p>
+      @if (newAppPageStore.task(); as task) {
+        <section class="rounded-xl border bg-muted/40 p-4" data-task-banner>
           <laris-task-output [task]="task" />
-          @if (task.state === 'failed' || task.state === 'interrupted') {
-            <div>
-              <a hlmBtn variant="outline" [routerLink]="['/apps', newAppPageStore.name()]">
-                {{ 'apps.new.toApp' | translate }}
-              </a>
-            </div>
-          }
+        </section>
+        @if (task.state === 'failed' || task.state === 'interrupted') {
+          <div>
+            <a hlmBtn variant="outline" [routerLink]="['/apps', newAppPageStore.name()]">
+              {{ 'apps.new.toApp' | translate }}
+            </a>
+          </div>
         }
-      </div>
-    </section>
+      }
+    </div>
   }
 }
+
+<ng-template #install>
+  <button hlmBtn [disabled]="!newAppPageStore.canInstall()" (click)="newAppPageStore.install()">
+    {{ 'apps.new.install' | translate }}
+  </button>
+</ng-template>
+
+<ng-template #icon>
+  @if (newAppPageStore.template(); as template) {
+    <img
+      [src]="iconPath(template.id)"
+      alt=""
+      width="40"
+      height="40"
+      class="size-10 shrink-0 rounded-lg"
+    />
+  } @else {
+    <span
+      class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+    >
+      <ng-icon name="lucideFileCode" class="size-5" aria-hidden="true" />
+    </span>
+  }
+</ng-template>

@@ -1,11 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AppField, AppTask, BackupsStatus } from '@laris/shared';
+import type { AppField, AppTask, BackupsStatus, TemplateSummary } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, Subject, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import { testStarted, testTask } from '../../../core/apps/testing';
+import { testStarted, testTask, testTemplate } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -30,12 +30,12 @@ const backupsStatus: BackupsStatus = {
   lastCheck: null,
 };
 
-async function setup() {
+async function setup(templates: TemplateSummary[] = []) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   const answers: (AppTask | null)[] = [];
   const appsApi = {
-    templates: vi.fn(() => of([])),
+    templates: vi.fn(() => of(templates)),
     template: vi.fn(() =>
       of({
         template: { id: 'navidrome', version: '2', backup: { mode: 'live', skip: ['cache'] } },
@@ -92,16 +92,51 @@ describe('NewAppPageStore', () => {
     expect(store.backup()).toEqual({ include: true, mode: 'live', skip: ['cache'] });
   });
 
-  it('a pasted file: its own name suggested, no form — its files as they are, never sent for one', async () => {
+  it('your own file: its own name suggested once pasted, no form — its files as they are', async () => {
     const { store, appsApi } = await setup();
-    await store.usePasted(`name: music\n${COMPOSE}`);
+    await store.useOwnFile();
+    expect(store.step()).toBe('setup');
+    expect(appsApi.checkName).toHaveBeenCalledWith('app');
+    await store.setCompose(`name: music\n${COMPOSE}`);
     expect(appsApi.checkName).toHaveBeenCalledWith('music');
+    expect(store.name()).toBe('music-2');
     expect(store.template()).toBeNull();
-    store.setCompose(COMPOSE);
     store.setEnv('PORT=80\n');
     expect(store.fields()).toBeNull();
     expect(appsApi.fields).not.toHaveBeenCalled();
     expect(store.env()).toBe('PORT=80\n');
+    expect(store.canInstall()).toBe(true);
+  });
+
+  it('your own file: a name typed by hand stays; nothing to install without a file', async () => {
+    const { store, appsApi } = await setup();
+    await store.useOwnFile();
+    expect(store.canInstall()).toBe(false);
+    store.setName('songs');
+    appsApi.checkName.mockClear();
+    await store.setCompose(`name: music\n${COMPOSE}`);
+    expect(appsApi.checkName).not.toHaveBeenCalledWith('music');
+    expect(store.name()).toBe('songs');
+  });
+
+  it('searches the templates by name and description, every word typed; Back keeps the search', async () => {
+    const { store } = await setup([
+      testTemplate('immich', { name: 'Immich' }),
+      testTemplate('navidrome', { name: 'Navidrome' }),
+      testTemplate('ollama', { name: 'Ollama' }),
+    ]);
+    await vi.waitFor(() => expect(store.templates()).toHaveLength(3));
+    // A search box only from ten on; the search itself works either way.
+    expect(store.searchable()).toBe(false);
+    store.setSearch('navi');
+    expect(store.shownTemplates()!.map((t) => t.id)).toEqual(['navidrome']);
+    store.setSearch('PHOTOS phone');
+    expect(store.shownTemplates()!.map((t) => t.id)).toEqual(['immich']);
+    store.setSearch('phone music');
+    expect(store.shownTemplates()!.map((t) => t.id)).toEqual(['navidrome']);
+    await store.useOwnFile();
+    store.back();
+    expect(store.search()).toBe('phone music');
   });
 
   it('a template’s form answered after Back and a pasted file: not this setup’s', async () => {
@@ -110,7 +145,7 @@ describe('NewAppPageStore', () => {
     appsApi.fields.mockReturnValueOnce(late as never);
     await store.chooseTemplate('navidrome');
     store.back();
-    await store.usePasted(COMPOSE);
+    await store.useOwnFile();
     late.next({
       fields: [
         {
@@ -158,7 +193,8 @@ describe('NewAppPageStore', () => {
   it('shows what Compose said when it refused the files, staying on the form', async () => {
     const { store, appsApi } = await setup();
     const error = vi.spyOn(toast, 'error');
-    await store.usePasted(COMPOSE);
+    await store.useOwnFile();
+    await store.setCompose(COMPOSE);
     appsApi.install.mockReturnValueOnce(
       throwError(
         () =>

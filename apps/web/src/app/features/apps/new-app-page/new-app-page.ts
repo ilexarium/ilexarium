@@ -1,45 +1,46 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, computed, effect, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { catalogIconPath } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideArrowLeft, lucideClipboardPaste, lucideX } from '@ng-icons/lucide';
+import { lucideArrowLeft, lucideFileCode, lucideSearch } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
-import { HlmCardImports } from '@ui/card';
 import { HlmInput } from '@ui/input';
 import { HlmLabel } from '@ui/label';
 import { HlmSkeleton } from '@ui/skeleton';
-import { HlmTextarea } from '@ui/textarea';
-import { AppFields } from '../app-fields/app-fields';
+import { AppHeader } from '../app-header/app-header';
+import { AppSettings } from '../app-settings/app-settings';
 import type { FieldChange } from '../apps.model';
+import { BackupOptions } from '../backup-options/backup-options';
 import { TaskOutput } from '../task-output/task-output';
 import { NewAppPageStore } from './new-app-page-store';
 
-/** Add app: a template or a pasted Compose file, the setup form, the install. */
+/** Add app: choose a template or your own Compose file, set it up, install. */
 @Component({
   selector: 'laris-new-app-page',
   imports: [
-    AppFields,
+    AppHeader,
+    AppSettings,
+    BackupOptions,
     HlmButton,
-    HlmCardImports,
     HlmInput,
     HlmLabel,
     HlmSkeleton,
-    HlmTextarea,
     NgIcon,
+    NgTemplateOutlet,
     RouterLink,
     TaskOutput,
     TranslatePipe,
   ],
-  providers: [NewAppPageStore, provideIcons({ lucideArrowLeft, lucideClipboardPaste, lucideX })],
+  providers: [NewAppPageStore, provideIcons({ lucideArrowLeft, lucideFileCode, lucideSearch })],
   templateUrl: './new-app-page.html',
 })
 export class NewAppPage {
   protected readonly newAppPageStore = inject(NewAppPageStore);
   private readonly router = inject(Router);
   protected readonly iconPath = catalogIconPath;
-  protected readonly pasted = signal('');
-  protected readonly newSkip = signal('');
+  protected readonly defaultFolder = computed(() => `~/apps/${this.newAppPageStore.name()}`);
 
   constructor() {
     // Installed: on to its page.
@@ -54,26 +55,10 @@ export class NewAppPage {
   }
 
   protected text(event: Event): string {
-    return (event.target as HTMLInputElement | HTMLTextAreaElement).value;
+    return (event.target as HTMLInputElement).value;
   }
 
   protected change(change: FieldChange): void {
     this.newAppPageStore.setValue(change.key, change.value);
-  }
-
-  protected addSkip(): void {
-    const skip = this.newSkip()
-      .trim()
-      .replace(/^\.?\/+/, '');
-    if (!skip) return;
-    const { skip: list } = this.newAppPageStore.backup();
-    if (!list.includes(skip)) this.newAppPageStore.setBackup({ skip: [...list, skip] });
-    this.newSkip.set('');
-  }
-
-  protected removeSkip(skip: string): void {
-    this.newAppPageStore.setBackup({
-      skip: this.newAppPageStore.backup().skip.filter((s) => s !== skip),
-    });
   }
 }

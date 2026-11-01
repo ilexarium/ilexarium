@@ -1506,17 +1506,14 @@
       "never": "Not backed up yet",
       "manage": "Backups",
       "notIncluded": "Not in the backups.",
-      "add": "Back it up"
+      "add": "Back it up",
+      "notBackedUp": "Not backed up"
     },
     "new": {
-      "templates": "From a template",
       "templatesText": "A starting point: after setup, the app's folder is yours to change.",
       "use": "Use",
       "useLabel": "Use the {{name}} template",
-      "paste": "Paste a Compose file",
       "pasteText": "Any compose.yml: you set it up in its own two files, compose.yml and .env.",
-      "pasteLabel": "compose.yml",
-      "continue": "Continue",
       "back": "Back",
       "pastedTitle": "Your Compose file",
       "name": "Name",
@@ -1534,7 +1531,16 @@
       "installFailed": "Couldn't install",
       "templateFailed": "Couldn't load the template",
       "fieldsFailed": "Couldn't read the Compose file",
-      "backupFailed": "Installed, but not added to the backups"
+      "backupFailed": "Installed, but not added to the backups",
+      "choose": "Choose an app",
+      "search": "Search apps",
+      "own": "Your own Compose file",
+      "ownText": "Any compose.yml: paste it on the next step.",
+      "noMatch": "No template matches. Your own Compose file always works.",
+      "nameAndFolder": "Name and folder",
+      "summary": "Summary",
+      "runsAs": "Runs as",
+      "yourAccount": "Your Linux account"
     },
     "page": {
       "signIn": "Sign in as a Linux user to see this app's files.",
@@ -1574,7 +1580,8 @@
     },
     "settings": {
       "title": "Settings",
-      "text": "Read from the app's folder just now."
+      "text": "Read from the app's folder just now.",
+      "formText": "The template's settings, written to .env."
     },
     "save": {
       "action": "Save and apply",
@@ -1582,11 +1589,10 @@
       "conflict": "The files changed on disk since they were read.",
       "reload": "Reload",
       "overwrite": "Overwrite",
-      "failed": "Couldn't save {{name}}"
+      "failed": "Couldn't save {{name}}",
+      "unsaved": "Unsaved changes"
     },
     "remove": {
-      "section": "Remove",
-      "sectionText": "Its containers go; you choose what of its files goes too.",
       "action": "Remove…",
       "title": "Remove",
       "text": "Its containers are removed. Nothing below is deleted unless you tick it.",
@@ -1606,6 +1612,33 @@
       "done": "{{name}} was removed.",
       "failed": "Couldn't remove {{name}}",
       "deleteFailed": "{{name}} was removed, but not everything ticked was deleted"
+    },
+    "headline": {
+      "attention_one": "One app needs your attention",
+      "attention_other": "{{count}} apps need your attention",
+      "allRunning_one": "Your app is running",
+      "allRunning_other": "All {{count}} apps are running",
+      "someRunning_one": "1 of {{total}} apps is running",
+      "someRunning_other": "{{count}} of {{total}} apps are running"
+    },
+    "stats": {
+      "cpu": "CPU",
+      "memory": "Memory"
+    },
+    "installing": "Installing…",
+    "moreFor": "More for {{name}}",
+    "containers_one": "{{count}} container",
+    "containers_other": "{{count}} containers",
+    "tabs": {
+      "label": "App",
+      "overview": "Overview",
+      "settings": "Settings"
+    },
+    "overview": {
+      "containers": "Containers",
+      "noContainers": "No containers: the app isn't running.",
+      "logs": "Logs",
+      "logsFor": "Logs of {{name}}"
     }
   }
 }

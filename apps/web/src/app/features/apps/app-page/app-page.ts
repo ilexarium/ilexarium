@@ -1,59 +1,50 @@
-import { Component, DOCUMENT, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import {
+  Component,
+  DOCUMENT,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { type AppRemovalItem, FILES_ERROR_CODES } from '@laris/shared';
+import { type AppRemovalItem, catalogIconPath, FILES_ERROR_CODES } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import {
-  lucideArrowLeft,
-  lucideExternalLink,
-  lucidePlay,
-  lucideRefreshCw,
-  lucideSquare,
-  lucideTrash2,
-} from '@ng-icons/lucide';
+import { lucideArrowLeft, lucideRefreshCw } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
-import { HlmCardImports } from '@ui/card';
-import { HlmLabel } from '@ui/label';
 import { HlmSkeleton } from '@ui/skeleton';
-import { HlmTextarea } from '@ui/textarea';
+import { HlmTabsImports } from '@ui/tabs';
 import { Formatter } from '../../../shared/format/formatter';
-import { StatusBadge } from '../../../shared/status-badge/status-badge';
-import { AppFields } from '../app-fields/app-fields';
-import { APP_STATE_TONES } from '../apps.constants';
-import type { FieldChange } from '../apps.model';
+import { AppHeader } from '../app-header/app-header';
+import { AppOverview } from '../app-overview/app-overview';
+import { AppSettings } from '../app-settings/app-settings';
+import type { AppTab, FieldChange } from '../apps.model';
 import { RemoveDialog } from '../remove-dialog/remove-dialog';
 import { TaskOutput } from '../task-output/task-output';
 import { AppPageStore } from './app-page-store';
 
-/** One app: state, Open, Start/Stop, settings (form and files), update, backup, removal. */
+/** One app: its band, a running task, then Overview (stats, containers, backup, update) | Settings. */
 @Component({
   selector: 'laris-app-page',
   imports: [
-    AppFields,
+    AppHeader,
+    AppOverview,
+    AppSettings,
     HlmButton,
-    HlmCardImports,
-    HlmLabel,
     HlmSkeleton,
-    HlmTextarea,
+    HlmTabsImports,
     NgIcon,
+    NgTemplateOutlet,
     RemoveDialog,
     RouterLink,
-    StatusBadge,
     TaskOutput,
     TranslatePipe,
   ],
-  providers: [
-    AppPageStore,
-    provideIcons({
-      lucideArrowLeft,
-      lucideExternalLink,
-      lucidePlay,
-      lucideRefreshCw,
-      lucideSquare,
-      lucideTrash2,
-    }),
-  ],
+  providers: [AppPageStore, provideIcons({ lucideArrowLeft, lucideRefreshCw })],
   templateUrl: './app-page.html',
 })
 export class AppPage {
@@ -63,11 +54,16 @@ export class AppPage {
   private readonly router = inject(Router);
   private readonly location = inject(DOCUMENT).location;
   private readonly removeDialog = viewChild.required(RemoveDialog);
-  protected readonly tones = APP_STATE_TONES;
   protected readonly codes = FILES_ERROR_CODES;
   protected readonly backupFirst = signal(true);
   private readonly params = toSignal(this.route.paramMap, { requireSync: true });
   private readonly query = toSignal(this.route.queryParamMap, { requireSync: true });
+  // Separate, so switching tabs (a query change) doesn't read the app again.
+  private readonly name = computed(() => this.params().get('name') ?? '');
+  private readonly folder = computed(() => this.query().get('folder'));
+  private readonly tab = computed<AppTab>(() =>
+    this.query().get('tab') === 'settings' ? 'settings' : 'overview',
+  );
 
   protected readonly openUrl = computed(() => {
     const summary = this.appPageStore.summary();
@@ -75,18 +71,32 @@ export class AppPage {
       ? `http://${this.location.hostname}:${summary.webPort}/`
       : null;
   });
+  protected readonly iconUrl = computed(() => {
+    const template = this.appPageStore.template();
+    return template ? catalogIconPath(template.id) : null;
+  });
 
   constructor() {
     effect(() => {
-      this.appPageStore.open(this.params().get('name') ?? '', this.query().get('folder'));
+      const [name, folder] = [this.name(), this.folder()];
+      untracked(() => this.appPageStore.open(name, folder));
+    });
+    effect(() => {
+      this.appPageStore.setTab(this.tab());
     });
     effect(() => {
       if (this.appPageStore.removed()) void this.router.navigate(['/apps']);
     });
   }
 
-  protected text(event: Event): string {
-    return (event.target as HTMLTextAreaElement).value;
+  protected chooseTab(tab: string): void {
+    if (tab === this.tab()) return;
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: tab === 'settings' ? 'settings' : null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   protected change(change: FieldChange): void {

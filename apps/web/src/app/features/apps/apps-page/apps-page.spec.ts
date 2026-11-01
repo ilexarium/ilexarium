@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import type { Container } from '@laris/shared';
 import { of } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import { testApp } from '../../../core/apps/testing';
+import { testApp, testContainer } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
@@ -27,13 +27,13 @@ const container = (name: string, change: Partial<Container> = {}): Container => 
   ...change,
 });
 
-async function render() {
+async function render(resting = [testApp('notes', { state: 'none', containers: [] })]) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   const appsApi = {
     templates: vi.fn(() => of([])),
     // Signed in to Linux: an app in ~/apps that doesn't run.
-    list: vi.fn(() => of({ apps: [testApp('notes', { state: 'none', containers: [] })] })),
+    list: vi.fn(() => of({ apps: resting })),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -82,6 +82,60 @@ describe('AppsPage', () => {
     expect(cards).toHaveLength(2);
     expect(cards[0]).toContain('music');
     expect(cards[1]).toContain('notes');
+  });
+
+  it('says how the apps are doing: all running, some, or which need attention', async () => {
+    const { el, receive } = await render();
+    const headline = () => el.querySelector('p[role="status"]')!.textContent!.trim();
+    const music = (change: Partial<Container> = {}) =>
+      testContainer('music-web-1', 'music', change);
+    const send = (...containers: Container[]) =>
+      receive({
+        event: 'containers:snapshot',
+        data: { dockerAvailable: true, containers, history: {} },
+      });
+    // `notes` rests in ~/apps (no containers): not running.
+    await send(music());
+    expect(headline()).toBe('1 of 2 apps is running');
+    await send(music({ state: 'restarting' }));
+    expect(headline()).toBe('One app needs your attention');
+    await send(music({ health: 'unhealthy' }));
+    expect(headline()).toBe('One app needs your attention');
+  });
+
+  it('says so when every app runs', async () => {
+    const { el, receive } = await render([]);
+    await receive({
+      event: 'containers:snapshot',
+      data: {
+        dockerAvailable: true,
+        containers: [testContainer('music-web-1', 'music'), testContainer('notes-web-1', 'notes')],
+        history: {},
+      },
+    });
+    expect(el.querySelector('p[role="status"]')!.textContent!.trim()).toBe(
+      'All 2 apps are running',
+    );
+  });
+
+  it('cards: live CPU and memory, the last backup, whose and where; a dashed tile to add one', async () => {
+    const { el, receive } = await render();
+    await receive({
+      event: 'containers:snapshot',
+      data: {
+        dockerAvailable: true,
+        containers: [testContainer('music-web-1', 'music'), testContainer('music-db-1', 'music')],
+        history: {},
+      },
+    });
+    const card = el.querySelector('laris-app-card')!;
+    expect(card.textContent).toContain('4%');
+    expect(card.textContent).toContain('100 MB');
+    expect(card.textContent).toContain('Not backed up');
+    expect(card.textContent).toContain('~/apps/music');
+    const tile = el.querySelector<HTMLAnchorElement>('a[data-add-tile]')!;
+    expect(tile.getAttribute('href')).toBe('/apps/new');
+    expect(tile.className).toContain('border-dashed');
   });
 
   it('Docker down: said so; adding an app still offered', async () => {

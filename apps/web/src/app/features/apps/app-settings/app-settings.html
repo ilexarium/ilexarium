@@ -1,0 +1,58 @@
+@if (hasForm()) {
+  <section class="grid gap-4" aria-labelledby="settings-form-title">
+    <div class="grid gap-1">
+      <h3 id="settings-form-title" class="font-semibold">
+        {{ 'apps.settings.title' | translate }}
+      </h3>
+      <p class="text-sm text-muted-foreground">{{ 'apps.settings.formText' | translate }}</p>
+    </div>
+    @if (fields(); as fields) {
+      <laris-app-fields
+        [fields]="fields"
+        [values]="values()"
+        [templateId]="templateId()!"
+        [disabled]="disabled()"
+        (changed)="fieldChanged.emit($event)"
+      />
+    } @else {
+      <hlm-skeleton class="h-24 w-full" />
+    }
+  </section>
+}
+
+<section aria-labelledby="settings-files-title">
+  <details class="group rounded-lg border p-4" [open]="!hasForm()">
+    <summary class="cursor-pointer select-none">
+      <h3 id="settings-files-title" class="inline font-semibold">
+        {{ 'apps.editor.title' | translate }}
+      </h3>
+    </summary>
+    <div class="mt-4 grid gap-3">
+      <p class="text-sm text-muted-foreground">{{ 'apps.editor.text' | translate }}</p>
+      <label hlmLabel for="compose-file" dir="ltr">compose.yml</label>
+      <textarea
+        hlmTextarea
+        id="compose-file"
+        rows="16"
+        dir="ltr"
+        spellcheck="false"
+        class="font-mono text-xs"
+        [value]="compose()"
+        [disabled]="disabled()"
+        (change)="composeChanged.emit(text($event))"
+      ></textarea>
+      <label hlmLabel for="env-file" dir="ltr">.env</label>
+      <textarea
+        hlmTextarea
+        id="env-file"
+        rows="8"
+        dir="ltr"
+        spellcheck="false"
+        class="font-mono text-xs"
+        [value]="env()"
+        [disabled]="disabled()"
+        (change)="envChanged.emit(text($event))"
+      ></textarea>
+    </div>
+  </details>
+</section>
