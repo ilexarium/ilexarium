@@ -28,7 +28,9 @@ import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
+import { appStats } from '../app-stats';
 import { BACKUP_WAIT_MS } from '../apps.constants';
+import type { AppTab } from '../apps.model';
 import { followTask } from '../task-follower';
 
 interface AppPageState {
@@ -47,6 +49,8 @@ interface AppPageState {
   removal: AppRemovalItem[] | null;
   /** Removed: back to the list. */
   removed: boolean;
+  /** The open tab (the page keeps it in the URL). */
+  tab: AppTab;
 }
 
 const initialState: AppPageState = {
@@ -61,6 +65,7 @@ const initialState: AppPageState = {
   task: null,
   removal: null,
   removed: false,
+  tab: 'overview',
 };
 
 /**
@@ -76,28 +81,53 @@ export const AppPageStore = signalStore(
       appsStore = inject(AppsStore),
       backupsStore = inject(BackupsStore),
       containerActionsStore = inject(ContainerActionsStore),
-    ) => ({
+      monitoringStore = inject(MonitoringStore),
+    ) => {
       /** Live from the containers topic, else as read with the files. */
-      summary: computed(
+      const summary = computed(
         () =>
           appsStore.apps()?.find((app) => app.name === store.name()) ??
           store.details()?.app ??
           null,
-      ),
-      values: computed(() => parseEnv(store.env())),
-      changed: computed(() => {
-        const details = store.details();
-        return !!details && (details.compose !== store.compose() || details.env !== store.env());
-      }),
-      backup: computed(() => backupsStore.apps().get(store.name()) ?? null),
-      backupsConfigured: backupsStore.configured,
-      running: computed(() => store.task()?.state === 'running'),
-      pending: computed(() => {
-        const pending = containerActionsStore.pending();
-        return (store.details()?.app.containers ?? []).some((name) => pending.has(name));
-      }),
-      folder: computed(() => store.details()?.folder ?? store.folderHint() ?? ''),
-    }),
+      );
+      /** Its containers, live (from Docker: no Linux sign-in needed). */
+      const containers = computed(() => {
+        const snapshot = monitoringStore.containers();
+        return (snapshot?.dockerAvailable ? snapshot.containers : [])
+          .filter((c) => c.composeProject === store.name() && !c.protected)
+          .sort((a, b) => a.name.localeCompare(b.name));
+      });
+      const history = computed(() => {
+        const snapshot = monitoringStore.containers();
+        return snapshot?.dockerAvailable ? snapshot.history : {};
+      });
+      return {
+        summary,
+        containers,
+        history,
+        stats: computed(() => appStats(containers(), history())),
+        /** Its template as the catalog has it; null without one, or one no longer there. */
+        template: computed(() => {
+          const id = summary()?.template?.id;
+          return id ? (appsStore.templatesById().get(id) ?? null) : null;
+        }),
+        values: computed(() => parseEnv(store.env())),
+        changed: computed(() => {
+          const details = store.details();
+          return !!details && (details.compose !== store.compose() || details.env !== store.env());
+        }),
+        backup: computed(() => backupsStore.apps().get(store.name()) ?? null),
+        backupsConfigured: backupsStore.configured,
+        running: computed(() => store.task()?.state === 'running'),
+        pending: computed(() => {
+          const pending = containerActionsStore.pending();
+          return (summary()?.containers ?? []).some((name) => pending.has(name));
+        }),
+        folder: computed(
+          () => store.details()?.folder ?? store.folderHint() ?? summary()?.folder ?? '',
+        ),
+      };
+    },
   ),
   withMethods(
     (
@@ -191,8 +221,12 @@ export const AppPageStore = signalStore(
 
       return {
         open(name: string, folder: string | null): void {
-          patchState(store, { ...initialState, name, folderHint: folder });
+          patchState(store, { ...initialState, name, folderHint: folder, tab: store.tab() });
           load();
+        },
+
+        setTab(tab: AppTab): void {
+          patchState(store, { tab });
         },
 
         reload(): void {
@@ -276,7 +310,7 @@ export const AppPageStore = signalStore(
         },
 
         async act(action: 'start' | 'stop'): Promise<void> {
-          const summary = store.details()?.app;
+          const summary = store.summary();
           if (summary) await containerActionsStore.runAll(summary.containers, action, store.name());
         },
 

@@ -1602,17 +1602,14 @@
       "never": "لم يُنسخ احتياطيًا بعد",
       "manage": "النسخ الاحتياطية",
       "notIncluded": "ليس ضمن النسخ الاحتياطية.",
-      "add": "انسخه احتياطيًا"
+      "add": "انسخه احتياطيًا",
+      "notBackedUp": "لا نسخة احتياطية"
     },
     "new": {
-      "templates": "من قالب",
       "templatesText": "نقطة بداية: بعد الإعداد يصبح مجلد التطبيق لك تغيّره كما تشاء.",
       "use": "استخدام",
       "useLabel": "استخدام قالب {{name}}",
-      "paste": "لصق ملف Compose",
       "pasteText": "أي ملف compose.yml: تُعِدّه في ملفيه، compose.yml و‎.env.",
-      "pasteLabel": "compose.yml",
-      "continue": "متابعة",
       "back": "رجوع",
       "pastedTitle": "ملف Compose الخاص بك",
       "name": "الاسم",
@@ -1630,7 +1627,16 @@
       "installFailed": "تعذّر التثبيت",
       "templateFailed": "تعذّر تحميل القالب",
       "fieldsFailed": "تعذّرت قراءة ملف Compose",
-      "backupFailed": "تم التثبيت، لكن لم يُضف إلى النسخ الاحتياطية"
+      "backupFailed": "تم التثبيت، لكن لم يُضف إلى النسخ الاحتياطية",
+      "choose": "اختر تطبيقًا",
+      "search": "ابحث في التطبيقات",
+      "own": "ملف Compose خاص بك",
+      "ownText": "أي ملف compose.yml: الصقه في الخطوة التالية.",
+      "noMatch": "لا يطابق أي قالب. ملف Compose خاص بك يعمل دائمًا.",
+      "nameAndFolder": "الاسم والمجلد",
+      "summary": "ملخص",
+      "runsAs": "يعمل باسم",
+      "yourAccount": "حسابك في لينكس"
     },
     "page": {
       "signIn": "سجّل الدخول كمستخدم لينكس لرؤية ملفات هذا التطبيق.",
@@ -1670,7 +1676,8 @@
     },
     "settings": {
       "title": "الإعدادات",
-      "text": "قُرئت للتو من مجلد التطبيق."
+      "text": "قُرئت للتو من مجلد التطبيق.",
+      "formText": "إعدادات القالب، تُكتب في .env."
     },
     "save": {
       "action": "حفظ وتطبيق",
@@ -1678,11 +1685,10 @@
       "conflict": "تغيّرت الملفات على القرص منذ قراءتها.",
       "reload": "إعادة التحميل",
       "overwrite": "الكتابة فوقها",
-      "failed": "تعذّر حفظ {{name}}"
+      "failed": "تعذّر حفظ {{name}}",
+      "unsaved": "تغييرات غير محفوظة"
     },
     "remove": {
-      "section": "الإزالة",
-      "sectionText": "تُزال حاوياته؛ وتختار أنت ما يُحذف من ملفاته.",
       "action": "إزالة…",
       "title": "إزالة",
       "text": "تُزال حاوياته. لا يُحذف شيء مما يلي إلا إذا حدّدته.",
@@ -1706,6 +1712,49 @@
       "done": "تمت إزالة {{name}}.",
       "failed": "تعذّرت إزالة {{name}}",
       "deleteFailed": "تمت إزالة {{name}}، لكن لم يُحذف كل ما حُدّد"
+    },
+    "headline": {
+      "attention_zero": "لا تطبيق يحتاج إلى انتباهك",
+      "attention_one": "تطبيق واحد يحتاج إلى انتباهك",
+      "attention_two": "تطبيقان يحتاجان إلى انتباهك",
+      "attention_few": "{{count}} تطبيقات تحتاج إلى انتباهك",
+      "attention_many": "{{count}} تطبيقًا يحتاج إلى انتباهك",
+      "attention_other": "{{count}} تطبيق يحتاج إلى انتباهك",
+      "allRunning_zero": "لا توجد تطبيقات قيد التشغيل",
+      "allRunning_one": "تطبيقك قيد التشغيل",
+      "allRunning_two": "التطبيقان قيد التشغيل",
+      "allRunning_few": "جميع التطبيقات الـ{{count}} قيد التشغيل",
+      "allRunning_many": "جميع التطبيقات الـ{{count}} قيد التشغيل",
+      "allRunning_other": "جميع التطبيقات الـ{{count}} قيد التشغيل",
+      "someRunning_zero": "لا تطبيق قيد التشغيل من {{total}}",
+      "someRunning_one": "تطبيق واحد من {{total}} قيد التشغيل",
+      "someRunning_two": "تطبيقان من {{total}} قيد التشغيل",
+      "someRunning_few": "{{count}} تطبيقات من {{total}} قيد التشغيل",
+      "someRunning_many": "{{count}} تطبيقًا من {{total}} قيد التشغيل",
+      "someRunning_other": "{{count}} تطبيق من {{total}} قيد التشغيل"
+    },
+    "stats": {
+      "cpu": "المعالج",
+      "memory": "الذاكرة"
+    },
+    "installing": "جارٍ التثبيت…",
+    "moreFor": "المزيد عن {{name}}",
+    "containers_zero": "لا حاويات",
+    "containers_one": "حاوية واحدة",
+    "containers_two": "حاويتان",
+    "containers_few": "{{count}} حاويات",
+    "containers_many": "{{count}} حاوية",
+    "containers_other": "{{count}} حاوية",
+    "tabs": {
+      "label": "التطبيق",
+      "overview": "نظرة عامة",
+      "settings": "الإعدادات"
+    },
+    "overview": {
+      "containers": "الحاويات",
+      "noContainers": "لا حاويات: التطبيق لا يعمل.",
+      "logs": "السجلات",
+      "logsFor": "سجلات {{name}}"
     }
   }
 }

@@ -1,0 +1,89 @@
+<div class="grid grid-cols-2 gap-3">
+  <section
+    class="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+    aria-labelledby="app-cpu"
+  >
+    <div class="grid gap-1 px-4 pt-3.5">
+      <h3 id="app-cpu" class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+        <ng-icon name="lucideCpu" aria-hidden="true" />{{ 'apps.stats.cpu' | translate }}
+      </h3>
+      <p class="text-2xl font-semibold tabular-nums">
+        {{ stats() ? formatter.percent(stats()!.cpuPercent) : '—' }}
+      </p>
+    </div>
+    @if (trends().cpu; as trend) {
+      <laris-sparkline class="mt-auto h-12" [series]="trend.series" [max]="trend.max" />
+    } @else {
+      <div class="h-12"></div>
+    }
+  </section>
+  <section
+    class="flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+    aria-labelledby="app-memory"
+  >
+    <div class="grid gap-1 px-4 pt-3.5">
+      <h3
+        id="app-memory"
+        class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
+      >
+        <ng-icon name="lucideMemoryStick" aria-hidden="true" />{{ 'apps.stats.memory' | translate }}
+      </h3>
+      <p class="text-2xl font-semibold tabular-nums">
+        {{ stats() ? formatter.bytes(stats()!.memoryUsedBytes) : '—' }}
+      </p>
+    </div>
+    @if (trends().memory; as series) {
+      <laris-sparkline class="mt-auto h-12" [series]="series" />
+    } @else {
+      <div class="h-12"></div>
+    }
+  </section>
+</div>
+
+<section class="grid gap-2 rounded-xl border bg-card p-4" aria-labelledby="app-containers">
+  <h3 id="app-containers" class="text-sm font-medium text-muted-foreground">
+    {{ 'apps.overview.containers' | translate }}
+  </h3>
+  @if (rows().length === 0) {
+    <p class="text-sm text-muted-foreground">{{ 'apps.overview.noContainers' | translate }}</p>
+  } @else {
+    <ul class="grid divide-y">
+      @for (row of rows(); track row.name) {
+        <li class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5">
+          <span class="flex min-w-0 flex-1 basis-48 items-center gap-2">
+            <span class="truncate font-medium" dir="ltr"
+              >{{ row.name }}<span class="sr-only">, </span></span
+            >
+            <laris-status-dot class="shrink-0 text-xs text-muted-foreground" [tone]="row.dot">{{
+              'containers.state.' + row.state | translate
+            }}</laris-status-dot>
+          </span>
+          <span class="flex items-center gap-4 text-xs tabular-nums">
+            <span class="flex items-center gap-1.5">
+              <span class="sr-only">{{ 'apps.stats.cpu' | translate }}</span>
+              @if (row.trends.cpu; as trend) {
+                <laris-sparkline class="h-5 w-10" [series]="trend.series" [max]="trend.max" />
+              }
+              <span class="min-w-10">{{ row.cpu ?? '—' }}</span>
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="sr-only">{{ 'apps.stats.memory' | translate }}</span>
+              @if (row.trends.memory; as series) {
+                <laris-sparkline class="h-5 w-10" [series]="series" />
+              }
+              <span class="min-w-14">{{ row.memory ?? '—' }}</span>
+            </span>
+            <a
+              [routerLink]="['/containers', row.name, 'logs']"
+              class="inline-flex min-h-6 items-center gap-1 rounded-sm text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+              [attr.aria-label]="'apps.overview.logsFor' | translate: { name: row.name }"
+            >
+              <ng-icon name="lucideScrollText" aria-hidden="true" />
+              {{ 'apps.overview.logs' | translate }}
+            </a>
+          </span>
+        </li>
+      }
+    </ul>
+  }
+</section>

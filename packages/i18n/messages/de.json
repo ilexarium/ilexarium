@@ -1506,17 +1506,14 @@
       "never": "Noch nicht gesichert",
       "manage": "Sicherungen",
       "notIncluded": "Nicht in den Sicherungen.",
-      "add": "Sichern"
+      "add": "Sichern",
+      "notBackedUp": "Nicht gesichert"
     },
     "new": {
-      "templates": "Aus einer Vorlage",
       "templatesText": "Ein Ausgangspunkt: Nach dem Einrichten gehört der Ordner der App dir.",
       "use": "Verwenden",
       "useLabel": "Vorlage {{name}} verwenden",
-      "paste": "Compose-Datei einfügen",
       "pasteText": "Jede compose.yml: Sie richten sie in ihren eigenen zwei Dateien ein, compose.yml und .env.",
-      "pasteLabel": "compose.yml",
-      "continue": "Weiter",
       "back": "Zurück",
       "pastedTitle": "Deine Compose-Datei",
       "name": "Name",
@@ -1534,7 +1531,16 @@
       "installFailed": "Installation nicht möglich",
       "templateFailed": "Die Vorlage konnte nicht geladen werden",
       "fieldsFailed": "Die Compose-Datei konnte nicht gelesen werden",
-      "backupFailed": "Installiert, aber nicht zu den Sicherungen hinzugefügt"
+      "backupFailed": "Installiert, aber nicht zu den Sicherungen hinzugefügt",
+      "choose": "App auswählen",
+      "search": "Apps suchen",
+      "own": "Eigene Compose-Datei",
+      "ownText": "Jede compose.yml: im nächsten Schritt einfügen.",
+      "noMatch": "Keine Vorlage passt. Eine eigene Compose-Datei geht immer.",
+      "nameAndFolder": "Name und Ordner",
+      "summary": "Zusammenfassung",
+      "runsAs": "Läuft als",
+      "yourAccount": "Dein Linux-Konto"
     },
     "page": {
       "signIn": "Melde dich als Linux-Benutzer an, um die Dateien dieser App zu sehen.",
@@ -1574,7 +1580,8 @@
     },
     "settings": {
       "title": "Einstellungen",
-      "text": "Eben aus dem Ordner der App gelesen."
+      "text": "Eben aus dem Ordner der App gelesen.",
+      "formText": "Die Einstellungen der Vorlage, in .env geschrieben."
     },
     "save": {
       "action": "Speichern und anwenden",
@@ -1582,11 +1589,10 @@
       "conflict": "Die Dateien wurden seit dem Lesen auf der Festplatte geändert.",
       "reload": "Neu laden",
       "overwrite": "Überschreiben",
-      "failed": "{{name}} konnte nicht gespeichert werden"
+      "failed": "{{name}} konnte nicht gespeichert werden",
+      "unsaved": "Ungespeicherte Änderungen"
     },
     "remove": {
-      "section": "Entfernen",
-      "sectionText": "Ihre Container werden entfernt; du wählst, was von ihren Dateien mitgeht.",
       "action": "Entfernen…",
       "title": "Entfernen",
       "text": "Ihre Container werden entfernt. Unten wird nichts gelöscht, was du nicht ankreuzt.",
@@ -1606,6 +1612,33 @@
       "done": "{{name}} wurde entfernt.",
       "failed": "{{name}} konnte nicht entfernt werden",
       "deleteFailed": "{{name}} wurde entfernt, aber nicht alles Angekreuzte wurde gelöscht"
+    },
+    "headline": {
+      "attention_one": "Eine App braucht deine Aufmerksamkeit",
+      "attention_other": "{{count}} Apps brauchen deine Aufmerksamkeit",
+      "allRunning_one": "Deine App läuft",
+      "allRunning_other": "Alle {{count}} Apps laufen",
+      "someRunning_one": "1 von {{total}} Apps läuft",
+      "someRunning_other": "{{count}} von {{total}} Apps laufen"
+    },
+    "stats": {
+      "cpu": "CPU",
+      "memory": "Arbeitsspeicher"
+    },
+    "installing": "Wird installiert…",
+    "moreFor": "Mehr zu {{name}}",
+    "containers_one": "{{count}} Container",
+    "containers_other": "{{count}} Container",
+    "tabs": {
+      "label": "App",
+      "overview": "Übersicht",
+      "settings": "Einstellungen"
+    },
+    "overview": {
+      "containers": "Container",
+      "noContainers": "Keine Container: die App läuft nicht.",
+      "logs": "Logs",
+      "logsFor": "Logs von {{name}}"
     }
   }
 }

@@ -8,13 +8,17 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import type { AppSummary } from '@laris/shared';
+import type { AppSummary, Container } from '@laris/shared';
 import { catchError, EMPTY, exhaustMap, pipe, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
+import { BackupsStore } from '../../../core/backups/backups-store';
+import { needsAttention } from '../../containers/container-groups';
+import { appStats } from '../app-stats';
+import type { AppStats, AppsHeadline } from '../apps.model';
 
 interface AppsPageState {
   /** With a Linux session: the apps in `~/apps` that don't run (no containers). */
@@ -32,19 +36,60 @@ export const AppsPageStore = signalStore(
       store,
       appsStore = inject(AppsStore),
       containerActionsStore = inject(ContainerActionsStore),
-    ) => ({
-      apps: computed(() => {
+      monitoringStore = inject(MonitoringStore),
+      backupsStore = inject(BackupsStore),
+    ) => {
+      const apps = computed(() => {
         const live = appsStore.apps();
         if (live === null) return null;
         const names = new Set(live.map((app) => app.name));
         return [...live, ...store.resting().filter((app) => !names.has(app.name))].sort((a, b) =>
           a.name.localeCompare(b.name),
         );
-      }),
-      dockerAvailable: appsStore.dockerAvailable,
-      templates: appsStore.templatesById,
-      pending: computed(() => new Set(containerActionsStore.pending().keys())),
-    }),
+      });
+      /** Each app's containers, by its name. */
+      const containers = computed(() => {
+        const byApp = new Map<string, Container[]>();
+        const snapshot = monitoringStore.containers();
+        for (const container of snapshot?.dockerAvailable ? snapshot.containers : []) {
+          const project = container.composeProject;
+          if (project) byApp.set(project, [...(byApp.get(project) ?? []), container]);
+        }
+        return byApp;
+      });
+      return {
+        apps,
+        dockerAvailable: appsStore.dockerAvailable,
+        templates: appsStore.templatesById,
+        pending: computed(() => new Set(containerActionsStore.pending().keys())),
+        stats: computed(() => {
+          const snapshot = monitoringStore.containers();
+          const history = snapshot?.dockerAvailable ? snapshot.history : {};
+          const stats = new Map<string, AppStats>();
+          for (const [name, own] of containers()) {
+            const summed = appStats(own, history);
+            if (summed) stats.set(name, summed);
+          }
+          return stats;
+        }),
+        backups: backupsStore.apps,
+        /** None before the first snapshot or without apps: the list says so. */
+        headline: computed<AppsHeadline | null>(() => {
+          const list = apps();
+          if (!list || list.length === 0) return null;
+          const total = list.length;
+          const attention = list.filter(
+            (app) =>
+              app.state === 'unhealthy' || (containers().get(app.name) ?? []).some(needsAttention),
+          ).length;
+          if (attention > 0) return { key: 'apps.headline.attention', count: attention, total };
+          const running = list.filter((app) => app.state === 'running').length;
+          return running === total
+            ? { key: 'apps.headline.allRunning', count: total, total }
+            : { key: 'apps.headline.someRunning', count: running, total };
+        }),
+      };
+    },
   ),
   withMethods(
     (store, appsApi = inject(AppsApi), containerActionsStore = inject(ContainerActionsStore)) => ({

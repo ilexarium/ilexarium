@@ -1,6 +1,13 @@
-<div class="grid gap-4">
+<div class="grid grid-cols-1 gap-5">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <p class="text-sm text-muted-foreground">{{ 'apps.description' | translate }}</p>
+    <div class="grid gap-1">
+      @if (appsPageStore.headline(); as headline) {
+        <p class="text-xl font-semibold md:text-[1.625rem]" role="status">
+          {{ headline.key | plural: headline.count : { total: headline.total } }}
+        </p>
+      }
+      <p class="text-sm text-muted-foreground">{{ 'apps.description' | translate }}</p>
+    </div>
     <a hlmBtn routerLink="/apps/new">
       <ng-icon name="lucidePlus" aria-hidden="true" />
       {{ 'apps.add' | translate }}
@@ -15,19 +22,34 @@
         <a hlmBtn variant="outline" routerLink="/apps/new">{{ 'apps.add' | translate }}</a>
       </laris-empty-state>
     } @else {
-      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <ul class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @for (app of apps; track app.name) {
-          <laris-app-card
-            [app]="app"
-            [template]="
-              app.template ? (appsPageStore.templates().get(app.template.id) ?? null) : null
-            "
-            [pending]="app.containers.some((c) => appsPageStore.pending().has(c))"
-            (start)="appsPageStore.act(app, 'start')"
-            (stop)="appsPageStore.act(app, 'stop')"
-          />
+          <li>
+            <laris-app-card
+              class="h-full"
+              [app]="app"
+              [template]="
+                app.template ? (appsPageStore.templates().get(app.template.id) ?? null) : null
+              "
+              [stats]="appsPageStore.stats().get(app.name) ?? null"
+              [backup]="appsPageStore.backups().get(app.name) ?? null"
+              [pending]="app.containers.some((c) => appsPageStore.pending().has(c))"
+              (start)="appsPageStore.act(app, 'start')"
+              (stop)="appsPageStore.act(app, 'stop')"
+            />
+          </li>
         }
-      </div>
+        <li>
+          <a
+            routerLink="/apps/new"
+            data-add-tile
+            class="flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <ng-icon name="lucidePlus" class="size-6" aria-hidden="true" />
+            {{ 'apps.add' | translate }}
+          </a>
+        </li>
+      </ul>
     }
   } @else {
     <div role="status" [attr.aria-label]="'apps.loading' | translate">

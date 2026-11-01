@@ -1,5 +1,6 @@
 import type { AppState, AppTaskState } from '@laris/shared';
 import type { StatusTone } from '../../shared/status-badge/status-badge.model';
+import type { DotTone } from '../../shared/status-dot/status-dot.model';
 
 /** How an app's containers are doing, as a status badge. */
 export const APP_STATE_TONES: Record<AppState, StatusTone> = {
@@ -8,6 +9,15 @@ export const APP_STATE_TONES: Record<AppState, StatusTone> = {
   unhealthy: 'failed',
   stopped: 'neutral',
   none: 'neutral',
+};
+
+/** An app's state as a dot: pulsing while (some of) it runs. */
+export const APP_STATE_DOTS: Record<AppState, DotTone> = {
+  running: 'live',
+  partial: 'busy',
+  unhealthy: 'fail',
+  stopped: 'idle',
+  none: 'idle',
 };
 
 export const TASK_STATE_TONES: Record<AppTaskState, StatusTone> = {
@@ -22,3 +32,6 @@ export const NAME_CHECK_MS = 300;
 
 /** "Back up this app first" waits this long for its backup at most. */
 export const BACKUP_WAIT_MS = 6 * 60 * 60_000;
+
+/** From this many templates on, a search box. */
+export const TEMPLATE_SEARCH_FROM = 10;

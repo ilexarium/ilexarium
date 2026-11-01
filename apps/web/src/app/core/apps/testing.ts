@@ -1,4 +1,11 @@
-import type { AppDetails, AppStarted, AppSummary, AppTask } from '@laris/shared';
+import type {
+  AppDetails,
+  AppStarted,
+  AppSummary,
+  AppTask,
+  Container,
+  TemplateSummary,
+} from '@laris/shared';
 
 export const testApp = (name: string, change: Partial<AppSummary> = {}): AppSummary => ({
   name,
@@ -35,5 +42,49 @@ export const testDetails = (name: string, change: Partial<AppDetails> = {}): App
   fields: [],
   template: null,
   task: null,
+  ...change,
+});
+
+export const testTemplate = (
+  id: string,
+  change: Partial<TemplateSummary> = {},
+): TemplateSummary => ({
+  id,
+  version: '1',
+  name: id,
+  category: 'media',
+  website: `https://example.com/${id}`,
+  webPort: null,
+  backupRestoreNote: false,
+  ...change,
+});
+
+/** A running container of the Compose project `app` (none: a loose one), with stats. */
+export const testContainer = (
+  name: string,
+  app: string | null,
+  change: Partial<Container> = {},
+): Container => ({
+  id: name,
+  name,
+  image: 'example/x:1',
+  state: 'running',
+  health: 'none',
+  startedAt: null,
+  ports: [],
+  protected: false,
+  composeProject: app,
+  composeWorkingDir: app ? `/home/anna/apps/${app}` : null,
+  template: null,
+  stats: {
+    at: 1,
+    cpuPercent: 2,
+    memoryUsedBytes: 50_000_000,
+    memoryLimitBytes: 1_000_000_000,
+    netRxBytes: 0,
+    netTxBytes: 0,
+    blockReadBytes: 0,
+    blockWriteBytes: 0,
+  },
   ...change,
 });

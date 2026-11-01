@@ -9,10 +9,10 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import {
+  APP_NAME_PATTERN,
   type AppField,
   type AppNameCheck,
   type AppTask,
-  type BackupMode,
   parseEnv,
   setEnvValues,
   type Template,
@@ -26,7 +26,8 @@ import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
-import { NAME_CHECK_MS } from '../apps.constants';
+import { NAME_CHECK_MS, TEMPLATE_SEARCH_FROM } from '../apps.constants';
+import type { BackupChoice } from '../apps.model';
 import { followTask } from '../task-follower';
 
 interface NewAppState {
@@ -37,14 +38,18 @@ interface NewAppState {
   /** A template's form (a pasted file has none). */
   fields: AppField[] | null;
   name: string;
+  /** Typed by hand: no longer suggested from the file. */
+  nameTyped: boolean;
   nameCheck: AppNameCheck | null;
   /** Null: `~/apps/<name>`. */
   folder: string | null;
-  backup: { include: boolean; mode: BackupMode; skip: string[] };
+  backup: BackupChoice;
   /** What Compose said when it refused the files. */
   problem: string | null;
   task: AppTask | null;
   installed: { name: string; folder: string } | null;
+  /** The template search, as typed. */
+  search: string;
 }
 
 const initialState: NewAppState = {
@@ -54,12 +59,14 @@ const initialState: NewAppState = {
   env: '',
   fields: null,
   name: '',
+  nameTyped: false,
   nameCheck: null,
   folder: null,
   backup: { include: true, mode: 'stop', skip: [] },
   problem: null,
   task: null,
   installed: null,
+  search: '',
 };
 
 /** A Compose file's own `name:` (a pasted file may have one). */
@@ -72,12 +79,40 @@ const composeName = (text: string) => /^name:\s*['"]?([a-z0-9][a-z0-9_-]*)/m.exe
  */
 export const NewAppPageStore = signalStore(
   withState<NewAppState>(initialState),
-  withComputed((store, appsStore = inject(AppsStore), backupsStore = inject(BackupsStore)) => ({
-    templates: appsStore.templates,
-    values: computed(() => parseEnv(store.env())),
-    backupsConfigured: backupsStore.configured,
-    nameValid: computed(() => /^[a-z0-9][a-z0-9_-]{0,62}$/.test(store.name())),
-  })),
+  withComputed(
+    (
+      store,
+      appsStore = inject(AppsStore),
+      backupsStore = inject(BackupsStore),
+      linuxSessionStore = inject(LinuxSessionStore),
+      translator = inject(Translator),
+    ) => ({
+      templates: appsStore.templates,
+      searchable: computed(() => (appsStore.templates()?.length ?? 0) >= TEMPLATE_SEARCH_FROM),
+      /** Those whose name or description has every word typed. */
+      shownTemplates: computed(() => {
+        const templates = appsStore.templates();
+        const words = store.search().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+        if (!templates || words.length === 0) return templates;
+        return templates.filter((template) => {
+          const text =
+            `${template.name} ${translator.t(`catalog.${template.id}.description`)}`.toLocaleLowerCase();
+          return words.every((word) => text.includes(word));
+        });
+      }),
+      values: computed(() => parseEnv(store.env())),
+      backupsConfigured: backupsStore.configured,
+      nameValid: computed(() => APP_NAME_PATTERN.test(store.name())),
+      /** Whose the app will be: the Linux account signed in, if one is. */
+      account: computed(() => linuxSessionStore.session()?.username ?? null),
+      canInstall: computed(
+        () =>
+          APP_NAME_PATTERN.test(store.name()) &&
+          store.nameCheck()?.free !== false &&
+          store.compose().trim() !== '',
+      ),
+    }),
+  ),
   withMethods(
     (
       store,
@@ -175,6 +210,7 @@ export const NewAppPageStore = signalStore(
             const { template, compose } = await firstValueFrom(appsApi.template(id));
             patchState(store, {
               ...initialState,
+              search: store.search(),
               step: 'setup',
               template,
               compose,
@@ -191,17 +227,22 @@ export const NewAppPageStore = signalStore(
           }
         },
 
-        async usePasted(compose: string): Promise<void> {
-          patchState(store, { ...initialState, step: 'setup', compose });
-          await suggestName(composeName(compose) ?? 'app');
+        /** Your own Compose file: pasted in its Files section (its `name:` then suggested). */
+        async useOwnFile(): Promise<void> {
+          patchState(store, { ...initialState, step: 'setup', search: store.search() });
+          await suggestName('app');
         },
 
         back(): void {
-          patchState(store, initialState);
+          patchState(store, { ...initialState, search: store.search() });
+        },
+
+        setSearch(search: string): void {
+          patchState(store, { search });
         },
 
         setName(name: string): void {
-          patchState(store, { name, nameCheck: null });
+          patchState(store, { name, nameTyped: true, nameCheck: null });
           checkName(name);
         },
 
@@ -213,15 +254,17 @@ export const NewAppPageStore = signalStore(
           patchState(store, { env: setEnvValues(store.env(), { [key]: value }) });
         },
 
-        setCompose(compose: string): void {
+        async setCompose(compose: string): Promise<void> {
           patchState(store, { compose, problem: null });
+          const own = !store.template() && !store.nameTyped() && composeName(compose);
+          if (own && own !== store.name()) await suggestName(own);
         },
 
         setEnv(env: string): void {
           patchState(store, { env, problem: null });
         },
 
-        setBackup(change: Partial<NewAppState['backup']>): void {
+        setBackup(change: Partial<BackupChoice>): void {
           patchState(store, { backup: { ...store.backup(), ...change } });
         },
 
