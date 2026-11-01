@@ -485,10 +485,29 @@
   },
   "containers": {
     "title": "الحاويات",
-    "loading": "جارٍ التحميل…",
     "loadingLabel": "جارٍ تحميل الحاويات",
-    "dockerUnavailable": "تعذّر الوصول إلى Docker",
     "running": "{{running}} من {{total}} قيد التشغيل",
+    "headline": {
+      "attention_zero": "لا حاوية تحتاج إلى انتباهك",
+      "attention_one": "حاوية واحدة تحتاج إلى انتباهك",
+      "attention_two": "حاويتان تحتاجان إلى انتباهك",
+      "attention_few": "{{count}} حاويات تحتاج إلى انتباهك",
+      "attention_many": "{{count}} حاوية تحتاج إلى انتباهك",
+      "attention_other": "{{count}} حاوية تحتاج إلى انتباهك",
+      "allRunning_zero": "لا توجد حاويات قيد التشغيل",
+      "allRunning_one": "حاويتك قيد التشغيل",
+      "allRunning_two": "الحاويتان قيد التشغيل",
+      "allRunning_few": "جميع الحاويات الـ{{count}} قيد التشغيل",
+      "allRunning_many": "جميع الحاويات الـ{{count}} قيد التشغيل",
+      "allRunning_other": "جميع الحاويات الـ{{count}} قيد التشغيل",
+      "someRunning_zero": "لا حاوية قيد التشغيل من {{total}}",
+      "someRunning_one": "حاوية واحدة من {{total}} قيد التشغيل",
+      "someRunning_two": "حاويتان من {{total}} قيد التشغيل",
+      "someRunning_few": "{{count}} حاويات من {{total}} قيد التشغيل",
+      "someRunning_many": "{{count}} حاوية من {{total}} قيد التشغيل",
+      "someRunning_other": "{{count}} حاوية من {{total}} قيد التشغيل"
+    },
+    "otherGroup": "حاويات أخرى",
     "unreachable": {
       "title": "تعذّر الوصول إلى Docker",
       "text": "معلومات الحاويات غير متاحة الآن. تأكّد من أن Docker يعمل؛ ستتحدّث هذه الصفحة تلقائيًا عندها."

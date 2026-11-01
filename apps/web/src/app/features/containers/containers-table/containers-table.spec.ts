@@ -68,7 +68,7 @@ async function render(containers: ContainersSnapshot | null, now: number | null 
     },
     /** Per row, the text of each cell (screen readers announce cells one by one). */
     tableRows: () =>
-      [...el.querySelectorAll('tbody tr')].map((tr) =>
+      [...el.querySelectorAll('tbody tr:not(:has([scope="colgroup"]))')].map((tr) =>
         [...tr.querySelectorAll('th, td')].map((cell) =>
           cell.textContent!.replace(/\s+/g, ' ').trim(),
         ),
@@ -77,10 +77,26 @@ async function render(containers: ContainersSnapshot | null, now: number | null 
   };
 }
 
-const snapshot = (...containers: Container[]): ContainersSnapshot => ({
+type Listed = Extract<ContainersSnapshot, { dockerAvailable: true }>;
+
+const snapshot = (...containers: Container[]): Listed => ({
   dockerAvailable: true,
   containers,
   history: {},
+});
+
+/** Two chart points for each container. */
+const withHistory = (...containers: Container[]): Listed => ({
+  ...snapshot(...containers),
+  history: Object.fromEntries(
+    containers.map((c) => [
+      c.id,
+      [
+        { at: NOW - 2000, cpuPercent: 1, memoryUsedBytes: 100 },
+        { at: NOW, cpuPercent: 2, memoryUsedBytes: 120 },
+      ],
+    ]),
+  ),
 });
 
 const ENTER = { key: 'Enter', keyCode: 13, bubbles: true } as KeyboardEventInit;
@@ -285,15 +301,83 @@ describe('ContainersTable', () => {
     expect(badge.getAttribute('data-tone')).toBe('failed');
   });
 
-  it('summarises how many are running', async () => {
+  describe('groups', () => {
+    const photos: Container = {
+      ...web,
+      id: 'p1',
+      name: 'immich',
+      composeProject: 'photos',
+      template: 'immich@2',
+    };
+    const photosDb: Container = {
+      ...stopped,
+      id: 'p2',
+      name: 'immich-db',
+      composeProject: 'photos',
+    };
+    const wiki: Container = { ...web, id: 'w1', name: 'wiki', composeProject: 'wiki' };
+
+    const headings = (root: Element) =>
+      [...root.querySelectorAll('[scope="colgroup"], h3')].map((h) =>
+        h.textContent!.replace(/\s+/g, ' ').trim(),
+      );
+
+    it('puts each app under a heading with its icon, a link to it and how many run; the rest last', async () => {
+      const { el } = await render(snapshot(web, wiki, photosDb, photos));
+      expect(headings(el.querySelector('table')!)).toEqual([
+        'photos, 1 of 2 running',
+        'wiki, 1 of 1 running',
+        'Other containers, 1 of 1 running',
+      ]);
+      expect(headings(el.querySelector('.xl\\:hidden')!)).toEqual(
+        headings(el.querySelector('table')!),
+      );
+      const links = [...el.querySelectorAll('table [scope="colgroup"] a')];
+      expect(links.map((a) => a.getAttribute('href'))).toEqual(['/apps/photos', '/apps/wiki']);
+      expect(el.querySelector('table [scope="colgroup"] img')!.getAttribute('src')).toBe(
+        '/api/catalog/immich/icon',
+      );
+      // An app's containers by name, under its heading.
+      expect(
+        [...el.querySelectorAll('table tbody')[0].querySelectorAll('tr th[scope="row"]')].map(
+          (th) => th.textContent!.split(',')[0].trim(),
+        ),
+      ).toEqual(['immich', 'immich-db']);
+    });
+  });
+
+  it('draws recent CPU and memory beside the values of running containers only', async () => {
+    const { el, cards } = await render(withHistory(web, stopped));
+    const [running, idle] = el.querySelectorAll('tbody tr:not(:has([scope="colgroup"]))');
+    expect(running.querySelectorAll('laris-sparkline')).toHaveLength(2);
+    expect(idle.querySelectorAll('laris-sparkline')).toHaveLength(0);
+    expect(cards()[0].querySelectorAll('laris-sparkline')).toHaveLength(2);
+    expect(running.querySelector('laris-sparkline')!.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('draws no line from a single point', async () => {
+    const one = withHistory(web);
+    const { el } = await render({ ...one, history: { a1: one.history['a1'].slice(1) } });
+    expect(el.querySelector('laris-sparkline')).toBeNull();
+  });
+
+  it('pulses the dot of a running container (with motion allowed), not a stopped or unhealthy one', async () => {
     const { el } = await render(snapshot(web, stopped, sick));
-    expect(el.querySelector('[hlmCardDescription]')!.textContent).toContain('2 of 3 running');
+    const dots = [...el.querySelectorAll('tbody tr [aria-hidden="true"].rounded-full')].map(
+      (dot) => dot.className,
+    );
+    // By name: db (unhealthy), jellyfin, old-app.
+    expect(dots[0]).toContain('text-light-fail');
+    expect(dots[0]).not.toContain('animate-light-pulse');
+    expect(dots[1]).toContain('text-light-ok');
+    expect(dots[1]).toContain('motion-safe:animate-light-pulse');
+    expect(dots[2]).not.toContain('animate-light-pulse');
   });
 
   it('has a card per container below extra-large screens, and a table from there up', async () => {
     const { el, cards } = await render(snapshot(web, stopped));
     expect(el.querySelector('[hlmTableContainer]')!.className).toContain('hidden xl:block');
-    expect(el.querySelector('ul')!.className).toContain('xl:hidden');
+    expect(el.querySelector('.xl\\:hidden ul')).not.toBeNull();
     expect(cards()).toHaveLength(2);
     const card = cards()[0];
     expect(card.textContent).toContain('jellyfin');
@@ -307,7 +391,6 @@ describe('ContainersTable', () => {
     expect(alert.textContent).toContain("Docker isn't reachable");
     expect(alert.textContent).toContain('Make sure Docker is running');
     expect(el.querySelector('table')).toBeNull();
-    expect(el.querySelector('[hlmCardDescription]')!.textContent).toContain('Docker not reachable');
   });
 
   it('says so when there are no containers, and shows a loading state before data', async () => {

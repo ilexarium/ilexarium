@@ -85,6 +85,47 @@ describe('ContainersPage', () => {
     expect(el.querySelector('button[aria-label="Actions for old-app"]')).not.toBeNull();
   });
 
+  describe('headline', () => {
+    const running: Container = { ...stopped, id: 'r1', name: 'web', state: 'running' };
+    const headline = async (...containers: Container[]) => {
+      const { fixture, el, socket } = await render();
+      socket.receive({
+        event: 'containers:snapshot',
+        data: { dockerAvailable: true, containers, history: {} },
+      });
+      await fixture.whenStable();
+      return el.querySelector('p[role="status"]')?.textContent!.trim() ?? null;
+    };
+
+    it('says when the one container runs', async () => {
+      expect(await headline(running)).toBe('Your container is running');
+    });
+
+    it('says when all run', async () => {
+      expect(await headline(running, { ...running, id: 'r2', name: 'api' })).toBe(
+        'All 2 containers are running',
+      );
+    });
+
+    it('says how many of them run', async () => {
+      expect(await headline(running, stopped)).toBe('1 of 2 containers is running');
+    });
+
+    it('leads with what needs attention: unhealthy, restarting or dead — not a plain stop', async () => {
+      expect(
+        await headline(
+          { ...running, health: 'unhealthy' },
+          { ...stopped, id: 'd', name: 'dead', state: 'dead' },
+          stopped,
+        ),
+      ).toBe('2 containers need your attention');
+    });
+
+    it('says nothing without containers (the table says so)', async () => {
+      expect(await headline()).toBeNull();
+    });
+  });
+
   it('has no heading of its own (the top bar shows the title) and no sideways scrolling on phones', async () => {
     const restore = stubScreenWidth(375);
     try {
@@ -96,7 +137,7 @@ describe('ContainersPage', () => {
       await fixture.whenStable();
       expect(el.querySelector('h1')).toBeNull();
       // Phones get cards (the table is hidden below xl), each with the actions button.
-      const card = el.querySelector('ul.xl\\:hidden > li')!;
+      const card = el.querySelector('.xl\\:hidden li')!;
       expect(card.querySelector('button[aria-label="Actions for old-app"]')).not.toBeNull();
     } finally {
       restore();

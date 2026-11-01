@@ -449,10 +449,17 @@
   },
   "containers": {
     "title": "Containers",
-    "loading": "Loading…",
     "loadingLabel": "Loading containers",
-    "dockerUnavailable": "Docker not reachable",
     "running": "{{running}} of {{total}} running",
+    "headline": {
+      "attention_one": "One container needs your attention",
+      "attention_other": "{{count}} containers need your attention",
+      "allRunning_one": "Your container is running",
+      "allRunning_other": "All {{count}} containers are running",
+      "someRunning_one": "1 of {{total}} containers is running",
+      "someRunning_other": "{{count}} of {{total}} containers are running"
+    },
+    "otherGroup": "Other containers",
     "unreachable": {
       "title": "Docker isn't reachable",
       "text": "Container information is unavailable right now. Make sure Docker is running; this page updates by itself once it is."

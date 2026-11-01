@@ -1,25 +1,38 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, output } from '@angular/core';
-import type {
-  Container,
-  ContainerAction,
-  ContainersSnapshot,
-  ContainerState,
-  ContainerActionParams,
+import { RouterLink } from '@angular/router';
+import {
+  catalogIconPath,
+  type Container,
+  type ContainerAction,
+  type ContainerHistoryPoint,
+  type ContainersSnapshot,
+  type ContainerState,
+  type ContainerActionParams,
 } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideLoaderCircle } from '@ng-icons/lucide';
+import { lucideBox, lucideBoxes, lucideLoaderCircle } from '@ng-icons/lucide';
 import { HlmCardImports } from '@ui/card';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTableImports } from '@ui/table';
 import { ContainerActions } from './container-actions';
 import { TranslatePipe } from '@ngx-translate/core';
-import { Translator } from '../../core/i18n/translator';
-import { Formatter } from '../format/formatter';
-import { StatusBadge } from '../status-badge/status-badge';
-import { HEALTH_TONES, STATE_DOTS } from './containers-table.constants';
-import type { StatusTone } from '../status-badge/status-badge.model';
-import { EmptyState } from '../empty-state/empty-state';
+import { Translator } from '../../../core/i18n/translator';
+import { Formatter } from '../../../shared/format/formatter';
+import { StatusBadge } from '../../../shared/status-badge/status-badge';
+import {
+  CPU_TREND_MIN_TOP,
+  HEALTH_TONES,
+  STATE_DOTS,
+  TREND_COLORS,
+  TREND_MIN_POINTS,
+  UNHEALTHY_DOT,
+} from './containers-table.constants';
+import type { StatusTone } from '../../../shared/status-badge/status-badge.model';
+import { EmptyState } from '../../../shared/empty-state/empty-state';
+import { Sparkline } from '../../../shared/charts/sparkline/sparkline';
+import type { SparklineSeries } from '../../../shared/charts/sparkline/sparkline.model';
+import { groupByApp } from '../container-groups';
 
 interface Row {
   id: string;
@@ -36,6 +49,9 @@ interface Row {
   /** Used memory; the limit goes on a second, quieter line. */
   memory: string;
   memoryLimit: string | null;
+  /** Recent CPU and memory, as small lines; null without enough points (stopped, just started). */
+  cpuTrend: { series: SparklineSeries[]; max: number } | null;
+  memoryTrend: SparklineSeries[] | null;
   /** One line per value (in/out, read/written, each port), so the columns stay narrow. */
   network: string[];
   disk: string[];
@@ -43,9 +59,19 @@ interface Row {
   ports: string[];
 }
 
+interface Group {
+  key: string;
+  /** The app's name, for its heading's link; null: the containers of no app. */
+  app: string | null;
+  iconUrl: string | null;
+  /** "2 of 3 running". */
+  summary: string;
+  rows: Row[];
+}
+
 /**
- * Shared by the dashboard and the Containers page. A table from extra-large screens up (beside the sidebar it needs about 930 px); a list of cards
- * below, so nothing scrolls sideways on phones and tablets.
+ * Grouped by app. A table from extra-large screens up (beside the sidebar it needs about 1000 px);
+ * a list of cards below, so nothing scrolls sideways on phones and tablets.
  */
 @Component({
   selector: 'laris-containers-table',
@@ -58,9 +84,11 @@ interface Row {
     HlmTableImports,
     NgIcon,
     NgTemplateOutlet,
+    RouterLink,
+    Sparkline,
     TranslatePipe,
   ],
-  providers: [provideIcons({ lucideLoaderCircle })],
+  providers: [provideIcons({ lucideBox, lucideBoxes, lucideLoaderCircle })],
   templateUrl: './containers-table.html',
 })
 export class ContainersTable {
@@ -91,21 +119,24 @@ export class ContainersTable {
 
   protected readonly dockerAvailable = computed(() => this.containers()?.dockerAvailable ?? false);
 
-  protected readonly rows = computed<Row[]>(() => {
+  protected readonly groups = computed<Group[]>(() => {
     const snapshot = this.containers();
     if (!snapshot?.dockerAvailable) return [];
-    return snapshot.containers.map((container) => this.toRow(container));
+    return groupByApp(snapshot.containers).map((group) => ({
+      key: group.app?.name ?? '',
+      app: group.app?.name ?? null,
+      iconUrl: group.app?.templateId ? catalogIconPath(group.app.templateId) : null,
+      summary: this.translator.t('containers.running', {
+        running: group.running,
+        total: group.containers.length,
+      }),
+      rows: group.containers.map((container) =>
+        this.toRow(container, snapshot.history[container.id] ?? []),
+      ),
+    }));
   });
 
-  protected readonly summary = computed(() => {
-    const snapshot = this.containers();
-    if (!snapshot) return this.translator.t('containers.loading');
-    if (!snapshot.dockerAvailable) return this.translator.t('containers.dockerUnavailable');
-    const running = snapshot.containers.filter((c) => c.state === 'running').length;
-    return this.translator.t('containers.running', { running, total: snapshot.containers.length });
-  });
-
-  private toRow(container: Container): Row {
+  private toRow(container: Container, history: ContainerHistoryPoint[]): Row {
     const { stats } = container;
     const t = this.translator.t.bind(this.translator);
     const format = this.formatter;
@@ -119,7 +150,10 @@ export class ContainersTable {
       protected: container.protected,
       stateLabel: t(`containers.state.${container.state}`),
       pendingLabel: pending ? t(`containers.pending.${pending}`) : null,
-      stateDot: STATE_DOTS[container.state],
+      stateDot:
+        container.health === 'unhealthy' && container.state === 'running'
+          ? UNHEALTHY_DOT
+          : STATE_DOTS[container.state],
       health:
         container.health === 'none'
           ? null
@@ -132,6 +166,7 @@ export class ContainersTable {
       memoryLimit: stats
         ? t('containers.memoryOf', { limit: format.bytes(stats.memoryLimitBytes) })
         : null,
+      ...trends(container.state === 'running' ? history : []),
       network: stats
         ? [
             t('containers.networkIn', { rx: format.bytes(stats.netRxBytes) }),
@@ -157,4 +192,17 @@ export class ContainersTable {
         : ['—'],
     };
   }
+}
+
+function trends(history: ContainerHistoryPoint[]): Pick<Row, 'cpuTrend' | 'memoryTrend'> {
+  if (history.length < TREND_MIN_POINTS) return { cpuTrend: null, memoryTrend: null };
+  const cpu = history.map((p) => p.cpuPercent);
+  return {
+    // A floor for the top, so an idle container's few tenths of a percent stay a flat line.
+    cpuTrend: {
+      series: [{ values: cpu, color: TREND_COLORS.cpu }],
+      max: Math.max(CPU_TREND_MIN_TOP, ...cpu),
+    },
+    memoryTrend: [{ values: history.map((p) => p.memoryUsedBytes), color: TREND_COLORS.memory }],
+  };
 }

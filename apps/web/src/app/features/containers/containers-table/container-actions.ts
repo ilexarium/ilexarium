@@ -13,7 +13,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
-import { Translator } from '../../core/i18n/translator';
+import { Translator } from '../../../core/i18n/translator';
 import { ICONS } from './container-actions.constants';
 
 /** Actions that interrupt the container: they ask first. Starting interrupts nothing. */
