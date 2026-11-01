@@ -18,7 +18,9 @@ import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { needsAttention } from '../../containers/container-groups';
 import { appStats } from '../app-stats';
-import type { AppStats, AppsHeadline } from '../apps.model';
+import { headline } from '../../../shared/headline/headline';
+import type { Headline } from '../../../shared/headline/headline.model';
+import type { AppStats } from '../apps.model';
 
 interface AppsPageState {
   /** With a Linux session: the apps in `~/apps` that don't run (no containers). */
@@ -53,7 +55,10 @@ export const AppsPageStore = signalStore(
         const snapshot = monitoringStore.containers();
         for (const container of snapshot?.dockerAvailable ? snapshot.containers : []) {
           const project = container.composeProject;
-          if (project) byApp.set(project, [...(byApp.get(project) ?? []), container]);
+          if (!project || container.protected) continue;
+          const own = byApp.get(project);
+          if (own) own.push(container);
+          else byApp.set(project, [container]);
         }
         return byApp;
       });
@@ -74,19 +79,19 @@ export const AppsPageStore = signalStore(
         }),
         backups: backupsStore.apps,
         /** None before the first snapshot or without apps: the list says so. */
-        headline: computed<AppsHeadline | null>(() => {
+        headline: computed<Headline | null>(() => {
           const list = apps();
           if (!list || list.length === 0) return null;
-          const total = list.length;
-          const attention = list.filter(
-            (app) =>
-              app.state === 'unhealthy' || (containers().get(app.name) ?? []).some(needsAttention),
-          ).length;
-          if (attention > 0) return { key: 'apps.headline.attention', count: attention, total };
-          const running = list.filter((app) => app.state === 'running').length;
-          return running === total
-            ? { key: 'apps.headline.allRunning', count: total, total }
-            : { key: 'apps.headline.someRunning', count: running, total };
+          return headline(
+            'apps.headline',
+            list.length,
+            list.filter(
+              (app) =>
+                app.state === 'unhealthy' ||
+                (containers().get(app.name) ?? []).some(needsAttention),
+            ).length,
+            list.filter((app) => app.state === 'running').length,
+          );
         }),
       };
     },

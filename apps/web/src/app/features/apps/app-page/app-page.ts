@@ -19,6 +19,7 @@ import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTabsImports } from '@ui/tabs';
 import { Formatter } from '../../../shared/format/formatter';
+import { openUrl } from '../app-actions';
 import { AppHeader } from '../app-header/app-header';
 import { AppOverview } from '../app-overview/app-overview';
 import { AppSettings } from '../app-settings/app-settings';
@@ -65,12 +66,9 @@ export class AppPage {
     this.query().get('tab') === 'settings' ? 'settings' : 'overview',
   );
 
-  protected readonly openUrl = computed(() => {
-    const summary = this.appPageStore.summary();
-    return summary?.webPort && summary.state !== 'none'
-      ? `http://${this.location.hostname}:${summary.webPort}/`
-      : null;
-  });
+  protected readonly openUrl = computed(() =>
+    openUrl(this.appPageStore.summary(), this.location.hostname),
+  );
   protected readonly iconUrl = computed(() => {
     const template = this.appPageStore.template();
     return template ? catalogIconPath(template.id) : null;

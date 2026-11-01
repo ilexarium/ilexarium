@@ -13,11 +13,12 @@ import { HlmButton } from '@ui/button';
 import { Sparkline } from '../../../shared/charts/sparkline/sparkline';
 import { Formatter } from '../../../shared/format/formatter';
 import { StatusDot } from '../../../shared/status-dot/status-dot';
+import { canStart, canStop, openUrl } from '../app-actions';
 import { appTrends, shortFolder } from '../app-stats';
 import { APP_STATE_DOTS } from '../apps.constants';
 import type { AppStats } from '../apps.model';
 
-/** One app: its state, CPU and memory, its last backup, whose and where, Open, Start or Stop. */
+/** One app on the Apps page. */
 @Component({
   selector: 'laris-app-card',
   imports: [HlmButton, NgIcon, RouterLink, Sparkline, StatusDot, TranslatePipe],
@@ -28,7 +29,6 @@ import type { AppStats } from '../apps.model';
 export class AppCard {
   readonly app = input.required<AppSummary>();
   readonly template = input<TemplateSummary | null>(null);
-  /** A start or stop is under way. */
   readonly pending = input(false);
   /** Summed over its containers; null while none runs. */
   readonly stats = input<AppStats | null>(null);
@@ -44,13 +44,9 @@ export class AppCard {
     const id = this.app().template?.id;
     return id && this.template() ? catalogIconPath(id) : null;
   });
-  /** Its web page: this machine's name, its port. Plain HTTP (inside your network). */
-  protected readonly openUrl = computed(() => {
-    const port = this.app().webPort;
-    return port !== null && this.app().state !== 'none'
-      ? `http://${this.location.hostname}:${port}/`
-      : null;
-  });
+  protected readonly openUrl = computed(() => openUrl(this.app(), this.location.hostname));
+  protected readonly canStart = computed(() => canStart(this.app().state));
+  protected readonly canStop = computed(() => canStop(this.app().state));
   protected readonly query = computed(() =>
     this.app().folder ? { folder: this.app().folder } : {},
   );

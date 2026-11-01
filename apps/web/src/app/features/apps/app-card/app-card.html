@@ -90,7 +90,7 @@
         {{ 'apps.open' | translate }}
       </a>
     }
-    @if (app().state === 'stopped' || app().state === 'partial') {
+    @if (canStart()) {
       <button
         hlmBtn
         size="sm"
@@ -103,7 +103,7 @@
         {{ 'apps.start' | translate }}
       </button>
     }
-    @if (app().state === 'running' || app().state === 'partial' || app().state === 'unhealthy') {
+    @if (canStop()) {
       <button
         hlmBtn
         size="sm"

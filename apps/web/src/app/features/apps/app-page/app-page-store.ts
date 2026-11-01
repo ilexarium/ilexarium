@@ -30,7 +30,7 @@ import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 import { appStats } from '../app-stats';
 import { BACKUP_WAIT_MS } from '../apps.constants';
-import type { AppTab } from '../apps.model';
+import type { AppTab, ContainerWithStats } from '../apps.model';
 import { followTask } from '../task-follower';
 
 interface AppPageState {
@@ -106,6 +106,12 @@ export const AppPageStore = signalStore(
         containers,
         history,
         stats: computed(() => appStats(containers(), history())),
+        containerStats: computed<ContainerWithStats[]>(() =>
+          containers().map((container) => ({
+            container,
+            stats: appStats([container], history()),
+          })),
+        ),
         /** Its template as the catalog has it; null without one, or one no longer there. */
         template: computed(() => {
           const id = summary()?.template?.id;

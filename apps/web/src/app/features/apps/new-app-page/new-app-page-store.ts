@@ -70,7 +70,8 @@ const initialState: NewAppState = {
 };
 
 /** A Compose file's own `name:` (a pasted file may have one). */
-const composeName = (text: string) => /^name:\s*['"]?([a-z0-9][a-z0-9_-]*)/m.exec(text)?.[1];
+const composeName = (text: string): string | undefined =>
+  /^name:\s*['"]?([a-z0-9][a-z0-9_-]*)/m.exec(text)?.[1];
 
 /**
  * Adding an app: a template or a pasted Compose file, then the name (checked while typing), the
@@ -160,13 +161,38 @@ export const NewAppPageStore = signalStore(
         ),
       );
 
-      /** Starts with the name the file or template suggests, made free. */
-      const suggestName = (wanted: string) =>
-        firstValueFrom(appsApi.checkName(wanted)).then(
-          (check) =>
-            patchState(store, { name: check.suggestion, nameCheck: { ...check, free: true } }),
-          () => patchState(store, { name: wanted }),
+      /**
+       * Starts with the name the file or template suggests, made free. Only the latest suggestion
+       * lands, and none once a name was typed or the setup left.
+       */
+      let suggestion = 0;
+      const suggestName = (wanted: string) => {
+        const asked = ++suggestion;
+        const stale = () => asked !== suggestion || store.nameTyped() || store.step() !== 'setup';
+        return firstValueFrom(appsApi.checkName(wanted)).then(
+          (check) => {
+            if (!stale())
+              patchState(store, { name: check.suggestion, nameCheck: { ...check, free: true } });
+          },
+          () => {
+            if (!stale()) patchState(store, { name: wanted });
+          },
         );
+      };
+
+      /** Your own file's `name:`, once typing stops, each name suggested once. */
+      let fromFile: string | null = null;
+      const suggestFromFile = rxMethod<string>(
+        pipe(
+          debounceTime(NAME_CHECK_MS),
+          map(composeName),
+          tap((wanted) => {
+            if (!wanted || wanted === fromFile || store.template() || store.nameTyped()) return;
+            fromFile = wanted;
+            void suggestName(wanted);
+          }),
+        ),
+      );
 
       const follow = rxMethod<{ name: string; folder: string }>(
         pipe(
@@ -230,6 +256,7 @@ export const NewAppPageStore = signalStore(
         /** Your own Compose file: pasted in its Files section (its `name:` then suggested). */
         async useOwnFile(): Promise<void> {
           patchState(store, { ...initialState, step: 'setup', search: store.search() });
+          fromFile = null;
           await suggestName('app');
         },
 
@@ -242,6 +269,7 @@ export const NewAppPageStore = signalStore(
         },
 
         setName(name: string): void {
+          suggestion++;
           patchState(store, { name, nameTyped: true, nameCheck: null });
           checkName(name);
         },
@@ -254,10 +282,9 @@ export const NewAppPageStore = signalStore(
           patchState(store, { env: setEnvValues(store.env(), { [key]: value }) });
         },
 
-        async setCompose(compose: string): Promise<void> {
+        setCompose(compose: string): void {
           patchState(store, { compose, problem: null });
-          const own = !store.template() && !store.nameTyped() && composeName(compose);
-          if (own && own !== store.name()) await suggestName(own);
+          suggestFromFile(compose);
         },
 
         setEnv(env: string): void {

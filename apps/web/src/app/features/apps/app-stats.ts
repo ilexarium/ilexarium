@@ -4,13 +4,15 @@ import {
   TREND_COLORS,
   TREND_MIN_POINTS,
 } from '../containers/containers-table/containers-table.constants';
+import { STATS_STEP_MS } from './apps.constants';
 import type { AppStats, AppTrends } from './apps.model';
 
 /**
- * An app's CPU and memory now, summed over its containers, and their recent lines. The histories
- * are summed from their newest point back (each sample adds one point per running container); a
- * container that started later counts as nothing before its first point. Null when none of them
- * has stats (all stopped, or the first frame not there yet).
+ * An app's CPU and memory now, summed over its containers, and their recent lines. Each
+ * container's history is its own (its own sample times; a stopped one keeps its old points), so
+ * the lines are summed by time: one step per sample, a container counting as nothing where it
+ * has no point — but carried over one step, so a sample that lands just past a step's edge leaves
+ * no dip. Null when none of them runs with stats (all stopped, or the first frame not there yet).
  */
 export function appStats(
   containers: readonly Container[],
@@ -18,18 +20,21 @@ export function appStats(
 ): AppStats | null {
   const running = containers.filter((c) => c.state === 'running' && c.stats);
   if (running.length === 0) return null;
-  const histories = running.map((c) => history[c.id] ?? []);
-  const length = Math.max(...histories.map((h) => h.length));
+  const byStep = running.map((c) => {
+    const steps = new Map<number, ContainerHistoryPoint>();
+    for (const point of history[c.id] ?? []) steps.set(Math.floor(point.at / STATS_STEP_MS), point);
+    return steps;
+  });
+  const steps = [...new Set(byStep.flatMap((s) => [...s.keys()]))].sort((a, b) => a - b);
   const cpuHistory: number[] = [];
   const memoryHistory: number[] = [];
-  for (let back = length; back > 0; back--) {
+  for (const step of steps) {
     let cpu = 0;
     let memory = 0;
-    for (const points of histories) {
-      const point = points[points.length - back];
-      if (!point) continue;
-      cpu += point.cpuPercent;
-      memory += point.memoryUsedBytes;
+    for (const points of byStep) {
+      const point = points.get(step) ?? points.get(step - 1);
+      cpu += point?.cpuPercent ?? 0;
+      memory += point?.memoryUsedBytes ?? 0;
     }
     cpuHistory.push(cpu);
     memoryHistory.push(memory);

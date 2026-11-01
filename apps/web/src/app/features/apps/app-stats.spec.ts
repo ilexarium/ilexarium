@@ -26,15 +26,20 @@ const container = (id: string, change: Partial<Container> = {}): Container => ({
   ...change,
 });
 
-const points = (...values: [number, number][]): ContainerHistoryPoint[] =>
-  values.map(([cpuPercent, memoryUsedBytes], at) => ({ at, cpuPercent, memoryUsedBytes }));
+/** Points at these seconds: [second, cpu, memory]. */
+const points = (...values: [number, number, number][]): ContainerHistoryPoint[] =>
+  values.map(([second, cpuPercent, memoryUsedBytes]) => ({
+    at: 1_800_000_000_000 + second * 1000,
+    cpuPercent,
+    memoryUsedBytes,
+  }));
 
 describe('appStats', () => {
-  it('sums the running containers now, and their lines from the newest point back', () => {
+  it('sums the running containers now, and their lines by time', () => {
     const stats = appStats([container('web'), container('db')], {
-      web: points([1, 10], [2, 20], [3, 30]),
+      web: points([0, 1, 10], [2, 2, 20], [4, 3, 30]),
       // Started later: nothing before its first point.
-      db: points([5, 50], [6, 60]),
+      db: points([2, 5, 50], [4, 6, 60]),
     });
     expect(stats).toEqual({
       cpuPercent: 20,
@@ -42,6 +47,22 @@ describe('appStats', () => {
       cpuHistory: [1, 7, 9],
       memoryHistory: [10, 70, 90],
     });
+  });
+
+  it('never adds a container’s old points to another’s new ones (stopped a while, kept its history)', () => {
+    const stats = appStats([container('web'), container('db')], {
+      web: points([0, 1, 10], [2, 1, 10], [20, 1, 10], [22, 1, 10]),
+      db: points([0, 5, 50], [2, 5, 50]),
+    });
+    expect(stats!.cpuHistory).toEqual([6, 6, 1, 1]);
+  });
+
+  it('a sample just past a step’s edge leaves no dip', () => {
+    const stats = appStats([container('web'), container('db')], {
+      web: points([0, 1, 10], [2, 1, 10], [4, 1, 10]),
+      db: points([0.5, 5, 50], [3.9, 5, 50], [4.1, 5, 50]),
+    });
+    expect(stats!.cpuHistory).toEqual([6, 6, 6]);
   });
 
   it('leaves out a stopped container, and is null with none running or no stats yet', () => {

@@ -39,7 +39,7 @@
         class="font-mono text-xs"
         [value]="compose()"
         [disabled]="disabled()"
-        (change)="composeChanged.emit(text($event))"
+        (input)="composeChanged.emit(text($event))"
       ></textarea>
       <label hlmLabel for="env-file" dir="ltr">.env</label>
       <textarea
@@ -51,7 +51,7 @@
         class="font-mono text-xs"
         [value]="env()"
         [disabled]="disabled()"
-        (change)="envChanged.emit(text($event))"
+        (input)="envChanged.emit(text($event))"
       ></textarea>
     </div>
   </details>

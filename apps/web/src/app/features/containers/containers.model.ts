@@ -16,10 +16,3 @@ export interface ContainerGroup {
   containers: Container[];
   running: number;
 }
-
-/** The page's sentence: a plural key, its count and the total. */
-export interface ContainersHeadline {
-  key: string;
-  count: number;
-  total: number;
-}

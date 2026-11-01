@@ -116,7 +116,7 @@ describe('AppPage', () => {
     expect(el.querySelector('[data-save-bar]')).toBeNull();
     const env = el.querySelector<HTMLTextAreaElement>('#env-file')!;
     env.value = 'VERSION=1.28\n';
-    env.dispatchEvent(new Event('change'));
+    env.dispatchEvent(new Event('input'));
     await settle();
     const bar = el.querySelector<HTMLElement>('[data-save-bar]')!;
     expect(bar.className).toContain('sticky bottom-0');

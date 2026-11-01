@@ -14,6 +14,7 @@ import { HlmButton } from '@ui/button';
 import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
 import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { StatusDot } from '../../../shared/status-dot/status-dot';
+import { canStart, canStop } from '../app-actions';
 import { shortFolder } from '../app-stats';
 import { APP_STATE_DOTS } from '../apps.constants';
 
@@ -40,7 +41,6 @@ export class AppHeader {
   readonly name = input.required<string>();
   readonly iconUrl = input<string | null>(null);
   readonly templateName = input<string | null>(null);
-  /** Null: not known yet (no dot). */
   readonly state = input<AppState | null>(null);
   /** Being installed: says so, without actions. */
   readonly installing = input(false);
@@ -50,10 +50,11 @@ export class AppHeader {
   readonly folder = input<string | null>(null);
   readonly containers = input(0);
   readonly openUrl = input<string | null>(null);
-  /** A start or stop is under way. */
   readonly pending = input(false);
   /** A task runs, or a change is being made: no removal meanwhile. */
   readonly busy = input(false);
+  /** Its folder is known (from the files or from Docker's labels): what removing it needs. */
+  readonly removable = input(true);
   readonly start = output<void>();
   readonly stop = output<void>();
   readonly remove = output<void>();
@@ -65,10 +66,10 @@ export class AppHeader {
   });
   protected readonly canStart = computed(() => {
     const state = this.state();
-    return state === 'stopped' || state === 'partial';
+    return state !== null && canStart(state);
   });
   protected readonly canStop = computed(() => {
     const state = this.state();
-    return state === 'running' || state === 'partial' || state === 'unhealthy';
+    return state !== null && canStop(state);
   });
 }
