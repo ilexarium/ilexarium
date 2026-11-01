@@ -40,7 +40,8 @@
       "@ui/message-scroller": ["./src/ui/message-scroller/src/index.ts"],
       "@ui/marker": ["./src/ui/marker/src/index.ts"],
       "@ui/textarea": ["./src/ui/textarea/src/index.ts"],
-      "@ui/dialog": ["./src/ui/dialog/src/index.ts"]
+      "@ui/dialog": ["./src/ui/dialog/src/index.ts"],
+      "@ui/tabs": ["./src/ui/tabs/src/index.ts"]
     }
   },
   "angularCompilerOptions": {
