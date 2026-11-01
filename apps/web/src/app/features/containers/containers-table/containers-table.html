@@ -236,14 +236,9 @@
         {{ row.pendingLabel }}
       </span>
     } @else {
-      <span class="flex items-center gap-1.5 text-sm">
-        <span
-          class="size-2 shrink-0 rounded-full bg-current"
-          [class]="row.stateDot"
-          aria-hidden="true"
-        ></span>
-        {{ row.stateLabel }}
-      </span>
+      <laris-status-dot class="text-sm" [tone]="row.stateDot"
+        >{{ row.stateLabel }}
+      </laris-status-dot>
     }
     @if (row.health; as health) {
       <laris-status-badge [tone]="health.tone">{{ health.label }}</laris-status-badge>

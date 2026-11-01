@@ -20,6 +20,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
 import { StatusBadge } from '../../../shared/status-badge/status-badge';
+import { StatusDot } from '../../../shared/status-dot/status-dot';
+import type { DotTone } from '../../../shared/status-dot/status-dot.model';
 import {
   CPU_TREND_MIN_TOP,
   HEALTH_TONES,
@@ -43,7 +45,7 @@ interface Row {
   stateLabel: string;
   /** "Stopping…" while an action runs. */
   pendingLabel: string | null;
-  stateDot: string;
+  stateDot: DotTone;
   health: { label: string; tone: StatusTone } | null;
   cpu: string;
   /** Used memory; the limit goes on a second, quieter line. */
@@ -79,6 +81,7 @@ interface Group {
     EmptyState,
     ContainerActions,
     StatusBadge,
+    StatusDot,
     HlmCardImports,
     HlmSkeleton,
     HlmTableImports,
