@@ -2,7 +2,7 @@
   @if (list.length === 0) {
     <laris-empty-state icon="lucideHistory" [text]="'backups.history.none' | translate" />
   } @else {
-    @if (sizeLine().length > 1) {
+    @if (sizeLine().length > 1 && anySize()) {
       <section
         class="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card p-4 text-sm"
         aria-labelledby="size-line-title"

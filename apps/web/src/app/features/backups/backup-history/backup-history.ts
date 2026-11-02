@@ -30,8 +30,7 @@ export class BackupHistory {
   protected readonly series = computed(() => [
     { values: this.sizeLine(), color: 'var(--chart-1)' },
   ]);
-  protected readonly lastAdded = computed(() => {
-    const known = this.sizeLine().filter((v): v is number => v !== null);
-    return known.length > 0 ? known[known.length - 1] : null;
-  });
+  /** The newest run's; none when it added nothing measurable (failed, still running). */
+  protected readonly lastAdded = computed(() => this.sizeLine().at(-1) ?? null);
+  protected readonly anySize = computed(() => this.sizeLine().some((v) => v !== null));
 }

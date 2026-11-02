@@ -1,7 +1,12 @@
 <div class="flex flex-wrap items-start gap-x-6 gap-y-4">
   <div class="grid min-w-0 flex-1 basis-72 gap-1">
     @if (headline(); as line) {
-      <p class="text-xl font-semibold md:text-[1.625rem]" role="status" data-headline>
+      <!-- While a backup runs, its banner is the live region: not announced twice. -->
+      <p
+        class="text-xl font-semibold md:text-[1.625rem]"
+        [attr.role]="line.kind === 'running' ? null : 'status'"
+        data-headline
+      >
         @switch (line.kind) {
           @case ('running') {
             {{ 'backups.headline.running' | translate: { done: line.done, total: line.total } }}
@@ -65,6 +70,9 @@
       <span class="sr-only">{{ 'backups.header.disk' | translate }}</span>
       <span class="min-w-0 truncate" dir="ltr" [title]="destinationPath()">{{ shownPath() }}</span>
     </h2>
+    @if (shownPath() !== destinationPath()) {
+      <p class="text-xs break-all text-muted-foreground" dir="ltr">{{ destinationPath() }}</p>
+    }
     @if (destination(); as disk) {
       <p class="text-muted-foreground">
         {{

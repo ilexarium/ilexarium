@@ -313,7 +313,7 @@ describe('BackupsPage with a plan', () => {
       'immich',
       '/home/alice/Documents',
     ]);
-    expect(names[2].getAttribute('dir')).toBe('ltr');
+    expect(names.map((n) => n.getAttribute('dir'))).toEqual([null, 'ltr', 'ltr']);
     const cards = el.querySelector('laris-backup-items > ul')!;
     expect(cards.textContent).toContain('A folder to back up is missing.');
     expect(cards.textContent).toContain(formatBytes(2e9));
@@ -353,6 +353,16 @@ describe('BackupsPage with a plan', () => {
       'Everything is backed up · 9 hours ago',
     );
     await pushStatus(status({ lastSuccessAt: null }));
+    expect(el.querySelector('[data-headline]')!.textContent).toContain(
+      'Not everything is backed up yet',
+    );
+  });
+
+  it('doesn’t say everything is backed up while an item added since never was', async () => {
+    const fresh = plan();
+    fresh.items = [fresh.items[0], { ...fresh.items[1], lastSuccessAt: null, lastResult: null }];
+    const { el, pushStatus } = await render(fresh);
+    await pushStatus(status());
     expect(el.querySelector('[data-headline]')!.textContent).toContain(
       'Not everything is backed up yet',
     );

@@ -50,6 +50,8 @@ describe('ItemSheet', () => {
     expect(boxes[1].disabled).toBe(true);
     expect(sheet()!.textContent).toContain('not backed up');
     boxes[0].click();
+    // Shown once saved: the folders come back with the item.
+    expect(boxes[0].checked).toBe(false);
     expect(fixture.componentInstance.changes).toEqual([
       {
         itemId: ITEM,
@@ -59,6 +61,7 @@ describe('ItemSheet', () => {
     const select = sheet()!.querySelector<HTMLSelectElement>('#item-mode')!;
     select.value = 'live';
     select.dispatchEvent(new Event('change'));
+    expect(select.value).toBe('stop');
     [...sheet()!.querySelectorAll('button')]
       .find((b) => b.textContent?.trim() === 'Back up')!
       .click();

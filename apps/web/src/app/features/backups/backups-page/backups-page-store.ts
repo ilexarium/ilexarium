@@ -116,15 +116,34 @@ export const BackupsPageStore = signalStore(
     /** The apps Docker knows (live). */
     apps: computed(() => appsStore.apps() ?? []),
 
+    /**
+     * Each app's template icon, by name. Its own step, equal while the icons stay: Docker's
+     * updates come every few seconds, and the cards needn't be built again for them.
+     */
+    icons: computed(
+      () => {
+        const templates = appsStore.templatesById();
+        const icons = new Map<string, string>();
+        for (const app of appsStore.apps() ?? []) {
+          const id = app.template?.id;
+          if (id && templates.has(id)) icons.set(app.name, catalogIconPath(id));
+        }
+        return icons;
+      },
+      {
+        equal: (a, b) => a.size === b.size && [...a].every(([name, icon]) => b.get(name) === icon),
+      },
+    ),
+  })),
+  withComputed((store) => ({
     /** The plan's items as shown: active ones and removed ones (backups kept). */
     rows: computed((): { active: ItemRow[]; removed: ItemRow[] } => {
-      const apps = new Map((appsStore.apps() ?? []).map((app) => [app.name, app]));
-      const templates = appsStore.templatesById();
-      const icon = (item: BackupItem) => {
-        const id = item.project ? apps.get(item.project)?.template?.id : undefined;
-        return id && templates.has(id) ? catalogIconPath(id) : null;
-      };
-      const row = (item: BackupItem): ItemRow => ({ item, name: item.project, icon: icon(item) });
+      const icons = store.icons();
+      const row = (item: BackupItem): ItemRow => ({
+        item,
+        name: item.project,
+        icon: (item.project && icons.get(item.project)) || null,
+      });
       const items = store.plan()?.items ?? [];
       return {
         active: items.filter((i) => !i.removed).map(row),
@@ -164,11 +183,13 @@ export const BackupsPageStore = signalStore(
       const failed = store
         .rows()
         .active.filter((r) => r.item.lastResult?.status === 'failed').length;
-      // A failed item already says the last run failed.
+      // A failed item already says the last run failed. Failed items show on their cards, not
+      // in the warnings band, so the count can be more than the band lists.
       const warnings = status.warnings.filter((w) => !(w === 'lastRunFailed' && failed > 0));
       const count = failed + warnings.length;
       if (count > 0) return { kind: 'attention', count };
-      return status.lastSuccessAt
+      const fresh = store.rows().active.some((r) => r.item.lastSuccessAt === null);
+      return status.lastSuccessAt && !fresh
         ? { kind: 'allGood', at: status.lastSuccessAt }
         : { kind: 'never' };
     }),

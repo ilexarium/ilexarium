@@ -23,11 +23,14 @@ async function render(path: string) {
 }
 
 describe('BackupHeader', () => {
-  it('shows a long disk path by its last folder, the whole path on hover', async () => {
+  it('names a long disk path by its last folder, the whole path below it (no hover needed)', async () => {
     const el = await render('/media/anna/WD Elements 2TB/backups');
     const path = el.querySelector('#disk-title [title]')!;
     expect(path.textContent).toBe('…/backups');
     expect(path.getAttribute('title')).toBe('/media/anna/WD Elements 2TB/backups');
+    expect(el.querySelector('[data-disk-tile]')!.textContent).toContain(
+      '/media/anna/WD Elements 2TB/backups',
+    );
     expect((await render('/mnt/usb')).querySelector('#disk-title [title]')!.textContent).toBe(
       '/mnt/usb',
     );
