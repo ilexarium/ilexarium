@@ -1,150 +1,210 @@
-<section hlmCard class="max-w-3xl">
-  <div hlmCardHeader>
-    <h2 hlmCardTitle>{{ 'backups.setup.title' | translate }}</h2>
-    <p hlmCardDescription>{{ 'backups.setup.text' | translate }}</p>
-  </div>
-  <div hlmCardContent>
-    <form [formRoot]="form" class="grid gap-8">
-      <laris-form-errors [form]="form" />
+<form [formRoot]="form" class="grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+  <div class="grid content-start gap-6">
+    <div class="grid gap-1">
+      <p class="text-xl font-semibold md:text-[1.625rem]" data-headline>
+        {{ 'backups.headline.notSetUp' | translate }}
+      </p>
+      <p class="text-sm text-muted-foreground">{{ 'backups.setup.text' | translate }}</p>
+    </div>
+    <laris-form-errors [form]="form" />
 
-      <fieldset class="grid gap-3">
-        <legend class="mb-2 font-medium">{{ 'backups.setup.disk' | translate }}</legend>
-        @if (destinations(); as disks) {
-          @if (disks.length === 0) {
-            <div hlmAlert role="status">
-              <p hlmAlertDescription>{{ 'backups.setup.noDisk' | translate }}</p>
-            </div>
-          }
-          @for (disk of disks; track disk.mountPoint) {
-            <label
-              class="flex cursor-pointer items-start gap-3 rounded-md border p-3 has-checked:border-primary has-disabled:cursor-not-allowed has-disabled:opacity-60"
-            >
-              <input
-                type="radio"
-                name="destination"
-                class="mt-1 size-4"
-                [value]="disk.mountPoint"
-                [disabled]="!disk.supported"
-                [checked]="form.destination().value() === disk.mountPoint"
-                (change)="form.destination().value.set(disk.mountPoint)"
-              />
-              <span class="grid gap-1 text-sm">
-                <span class="flex items-center gap-2 font-medium">
-                  <ng-icon name="lucideHardDrive" class="shrink-0" aria-hidden="true" />
-                  <code class="break-all" dir="ltr">{{ disk.mountPoint }}</code>
-                </span>
-                <span class="text-muted-foreground">
-                  {{
-                    'backups.setup.diskSpace'
-                      | translate
-                        : {
-                            free: formatter.bytes(disk.freeBytes),
-                            total: formatter.bytes(disk.totalBytes),
-                            filesystem: disk.filesystem,
-                          }
-                  }}
-                </span>
-                @if (!disk.supported) {
-                  <span class="text-destructive">{{
-                    'backups.setup.unsupported' | translate
-                  }}</span>
-                }
-                @if (disk.sameDiskAsData) {
-                  <span class="text-warning">{{ 'backups.setup.sameDisk' | translate }}</span>
-                }
-                @if (disk.hasRepository) {
-                  <span class="text-muted-foreground">{{
-                    'backups.setup.hasRepository' | translate
-                  }}</span>
-                }
-              </span>
-            </label>
-          }
-          <!-- After "Set up backups" (it marks every field touched), and one message is enough. -->
-          @if (form.destination().touched() && form.destination().errors()[0]; as error) {
-            <hlm-field-error>{{ error | errorText }}</hlm-field-error>
-          }
-          <a hlmBtn variant="outline" size="sm" class="justify-self-start" routerLink="/disks">
-            <ng-icon name="lucideHardDrive" aria-hidden="true" />
-            {{ 'backups.setup.mountDisk' | translate }}
-          </a>
-        } @else {
-          <p class="text-sm text-muted-foreground" role="status">
-            {{ 'backups.loading' | translate }}
-          </p>
-        }
-      </fieldset>
-
-      <fieldset class="grid gap-4">
-        <legend class="mb-2 font-medium">{{ 'backups.setup.when' | translate }}</legend>
-        <div class="flex flex-wrap gap-4">
-          <laris-schedule-fields [schedule]="form.schedule" idPrefix="setup" />
-        </div>
-        <p class="text-sm text-muted-foreground">
-          {{ 'backups.retention.summary' | translate: form.retention().value() }}
-        </p>
-        <details class="rounded-md border p-3">
-          <summary class="cursor-pointer text-sm font-medium select-none">
-            {{ 'backups.retention.advanced' | translate }}
-          </summary>
-          <div class="mt-4 flex flex-wrap gap-4">
-            <laris-retention-fields [retention]="form.retention" idPrefix="setup" />
+    <fieldset class="grid gap-3 rounded-xl border bg-card p-4">
+      <legend class="float-start mb-1 font-semibold">{{ 'backups.setup.disk' | translate }}</legend>
+      @if (destinations(); as disks) {
+        @if (disks.length === 0) {
+          <div hlmAlert role="status">
+            <p hlmAlertDescription>{{ 'backups.setup.noDisk' | translate }}</p>
           </div>
-        </details>
-      </fieldset>
-
-      <fieldset class="grid gap-3">
-        <legend class="mb-2 font-medium">{{ 'backups.setup.what' | translate }}</legend>
-        <p class="text-sm">{{ 'backups.items.platform' | translate }}</p>
-        <p class="-mt-2 text-sm text-muted-foreground">
-          {{ 'backups.items.platformHelp' | translate }}
-        </p>
-        @for (app of apps(); track app.name) {
-          <label class="flex items-center gap-2 rounded-md border p-3 text-sm font-medium">
+        }
+        @for (disk of disks; track disk.mountPoint) {
+          <label
+            class="flex cursor-pointer items-start gap-3 rounded-md border p-3 has-checked:border-primary has-disabled:cursor-not-allowed has-disabled:opacity-60"
+          >
             <input
-              type="checkbox"
-              class="size-4"
-              [checked]="!skippedApps().includes(app.name)"
-              (change)="toggleApp(app.name, checked($event))"
+              type="radio"
+              name="destination"
+              class="mt-1 size-4"
+              [value]="disk.mountPoint"
+              [disabled]="!disk.supported"
+              [checked]="form.destination().value() === disk.mountPoint"
+              (change)="form.destination().value.set(disk.mountPoint)"
             />
-            <span dir="ltr">{{ app.name }}</span>
+            <span class="grid min-w-0 gap-1 text-sm">
+              <span class="flex items-center gap-2 font-medium">
+                <ng-icon name="lucideHardDrive" class="shrink-0" aria-hidden="true" />
+                <code class="break-all" dir="ltr">{{ disk.mountPoint }}</code>
+              </span>
+              <span class="text-muted-foreground">
+                {{
+                  'backups.setup.diskSpace'
+                    | translate
+                      : {
+                          free: formatter.bytes(disk.freeBytes),
+                          total: formatter.bytes(disk.totalBytes),
+                          filesystem: disk.filesystem,
+                        }
+                }}
+              </span>
+              @if (!disk.supported) {
+                <span class="text-destructive">{{ 'backups.setup.unsupported' | translate }}</span>
+              }
+              @if (disk.sameDiskAsData) {
+                <span class="text-warning">{{ 'backups.setup.sameDisk' | translate }}</span>
+              }
+              @if (disk.hasRepository) {
+                <span class="text-muted-foreground">{{
+                  'backups.setup.hasRepository' | translate
+                }}</span>
+              }
+            </span>
           </label>
         }
-        @for (path of folders(); track path) {
-          <div class="flex items-center gap-2 rounded-md border p-3 text-sm">
-            <code class="min-w-0 flex-1 break-all" dir="ltr">{{ path }}</code>
-            <button
-              hlmBtn
-              type="button"
-              variant="ghost"
-              size="icon"
-              [attr.aria-label]="'backups.setup.removeFolder' | translate: { path }"
-              (click)="removeFolder(path)"
-            >
-              <ng-icon name="lucideTrash2" aria-hidden="true" />
-            </button>
-          </div>
+        <!-- After "Set up backups" (it marks every field touched), and one message is enough. -->
+        @if (form.destination().touched() && form.destination().errors()[0]; as error) {
+          <hlm-field-error>{{ error | errorText }}</hlm-field-error>
         }
-        <button
-          hlmBtn
-          type="button"
-          variant="outline"
-          class="justify-self-start"
-          (click)="openPicker()"
-        >
-          <ng-icon name="lucideFolderPlus" aria-hidden="true" />
-          {{ 'backups.items.addFolder' | translate }}
-        </button>
-      </fieldset>
+        <a hlmBtn variant="outline" size="sm" class="justify-self-start" routerLink="/disks">
+          <ng-icon name="lucideHardDrive" aria-hidden="true" />
+          {{ 'backups.setup.mountDisk' | translate }}
+        </a>
+      } @else {
+        <p class="text-sm text-muted-foreground" role="status">
+          {{ 'backups.loading' | translate }}
+        </p>
+      }
+    </fieldset>
 
-      <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
-        {{
-          (form().submitting() ? 'backups.setup.submitting' : 'backups.setup.submit') | translate
-        }}
+    <fieldset class="grid gap-3 rounded-xl border bg-card p-4">
+      <legend class="float-start mb-1 font-semibold">{{ 'backups.setup.what' | translate }}</legend>
+      <div class="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm">
+        <ng-icon name="lucideServer" class="mt-0.5 shrink-0" aria-hidden="true" />
+        <span class="grid gap-1">
+          <span class="font-medium">{{ 'backups.items.platform' | translate }}</span>
+          <span class="text-muted-foreground">{{ 'backups.items.platformHelp' | translate }}</span>
+        </span>
+      </div>
+      @for (app of apps(); track app.name) {
+        <label class="flex items-center gap-2 rounded-md border p-3 text-sm font-medium">
+          <input
+            type="checkbox"
+            class="size-4"
+            [checked]="!skippedApps().includes(app.name)"
+            (change)="toggleApp(app.name, checked($event))"
+          />
+          <span dir="ltr">{{ app.name }}</span>
+        </label>
+      }
+      @for (path of folders(); track path) {
+        <div class="flex items-center gap-2 rounded-md border p-3 text-sm">
+          <code class="min-w-0 flex-1 break-all" dir="ltr">{{ path }}</code>
+          <button
+            hlmBtn
+            type="button"
+            variant="ghost"
+            size="icon"
+            [attr.aria-label]="'backups.setup.removeFolder' | translate: { path }"
+            (click)="removeFolder(path)"
+          >
+            <ng-icon name="lucideTrash2" aria-hidden="true" />
+          </button>
+        </div>
+      }
+      <button
+        hlmBtn
+        type="button"
+        variant="outline"
+        class="justify-self-start"
+        (click)="openPicker()"
+      >
+        <ng-icon name="lucideFolderPlus" aria-hidden="true" />
+        {{ 'backups.items.addFolder' | translate }}
       </button>
-    </form>
+    </fieldset>
+
+    <fieldset class="grid gap-4 rounded-xl border bg-card p-4">
+      <legend class="float-start mb-1 font-semibold">{{ 'backups.setup.when' | translate }}</legend>
+      <div class="flex flex-wrap gap-4">
+        <laris-schedule-fields [schedule]="form.schedule" idPrefix="setup" />
+      </div>
+      <p class="text-sm text-muted-foreground">
+        {{ 'backups.retention.summary' | translate: form.retention().value() }}
+      </p>
+      <details class="rounded-md border p-3">
+        <summary class="cursor-pointer text-sm font-medium select-none">
+          {{ 'backups.retention.advanced' | translate }}
+        </summary>
+        <div class="mt-4 flex flex-wrap gap-4">
+          <laris-retention-fields [retention]="form.retention" idPrefix="setup" />
+        </div>
+      </details>
+    </fieldset>
   </div>
-</section>
+
+  <!-- Desktop: a summary beside the form, Set up in it. -->
+  <aside class="hidden lg:block" [attr.aria-label]="'backups.setup.summary' | translate">
+    <div class="sticky top-4 grid gap-4 rounded-xl border bg-card p-4 text-sm" data-setup-summary>
+      <dl class="grid gap-3">
+        <div class="grid gap-0.5">
+          <dt class="text-xs text-muted-foreground">
+            {{ 'backups.setup.summaryDisk' | translate }}
+          </dt>
+          <dd class="break-all">
+            @if (chosen(); as disk) {
+              <span dir="ltr">{{ disk.mountPoint }}</span>
+            } @else {
+              {{ 'backups.setup.noDiskChosen' | translate }}
+            }
+          </dd>
+        </div>
+        <div class="grid gap-0.5">
+          <dt class="text-xs text-muted-foreground">
+            {{ 'backups.setup.summaryWhat' | translate }}
+          </dt>
+          <dd class="grid">
+            <span>{{ 'backups.items.platformShort' | translate }}</span>
+            @if (appCount() > 0) {
+              <span>{{ 'backups.setup.summaryApps' | plural: appCount() }}</span>
+            }
+            @if (folders().length > 0) {
+              <span>{{ 'backups.setup.summaryFolders' | plural: folders().length }}</span>
+            }
+          </dd>
+        </div>
+        <div class="grid gap-0.5">
+          <dt class="text-xs text-muted-foreground">
+            {{ 'backups.setup.summaryWhen' | translate }}
+          </dt>
+          <dd>
+            {{ 'backups.schedule.' + form.schedule.frequency().value() | translate }}
+            · <span dir="ltr">{{ form.schedule.time().value() }}</span>
+          </dd>
+        </div>
+      </dl>
+      <ng-container *ngTemplateOutlet="submit" />
+    </div>
+  </aside>
+
+  <!-- Phones and tablets: Set up in a bar at the bottom. -->
+  <div
+    class="sticky bottom-0 z-10 -mx-1 flex items-center gap-3 rounded-t-xl border bg-background/95 p-3 shadow-lg backdrop-blur lg:hidden"
+    data-setup-bar
+  >
+    <p class="me-auto min-w-0 truncate text-sm">
+      @if (chosen(); as disk) {
+        <span dir="ltr">{{ disk.mountPoint }}</span>
+      } @else {
+        {{ 'backups.setup.noDiskChosen' | translate }}
+      }
+    </p>
+    <ng-container *ngTemplateOutlet="submit" />
+  </div>
+</form>
+
+<ng-template #submit>
+  <button hlmBtn type="submit" [disabled]="form().submitting()">
+    {{ (form().submitting() ? 'backups.setup.submitting' : 'backups.setup.submit') | translate }}
+  </button>
+</ng-template>
 
 <laris-folder-picker
   [open]="pickerOpen()"

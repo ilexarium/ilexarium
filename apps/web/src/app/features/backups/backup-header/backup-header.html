@@ -1,0 +1,117 @@
+<div class="flex flex-wrap items-start gap-x-6 gap-y-4">
+  <div class="grid min-w-0 flex-1 basis-72 gap-1">
+    @if (headline(); as line) {
+      <p class="text-xl font-semibold md:text-[1.625rem]" role="status" data-headline>
+        @switch (line.kind) {
+          @case ('running') {
+            {{ 'backups.headline.running' | translate: { done: line.done, total: line.total } }}
+          }
+          @case ('attention') {
+            {{ 'backups.headline.attention' | plural: line.count }}
+          }
+          @case ('allGood') {
+            {{ 'backups.headline.allGood' | translate: { time: formatter.ago(line.at) } }}
+          }
+          @default {
+            {{ 'backups.headline.never' | translate }}
+          }
+        }
+      </p>
+    }
+    <p class="text-sm text-muted-foreground">
+      @if (status().nextRunAt; as next) {
+        {{ 'backups.header.next' | translate: { time: formatter.dateTime(next) } }}
+      } @else {
+        {{ 'backups.header.noNext' | translate }}
+      }
+    </p>
+    <div class="mt-2 flex flex-wrap items-center gap-2">
+      <button hlmBtn [disabled]="pending() || running()" (click)="runNow.emit()">
+        @if (pending() || running()) {
+          <ng-icon name="lucideLoaderCircle" class="animate-spin" aria-hidden="true" />
+        } @else {
+          <ng-icon name="lucidePlay" aria-hidden="true" />
+        }
+        {{ 'backups.overview.runNow' | translate }}
+      </button>
+      <button
+        hlmBtn
+        variant="ghost"
+        size="icon"
+        [hlmDropdownMenuTrigger]="menu"
+        align="end"
+        [attr.aria-label]="'backups.header.more' | translate"
+      >
+        <ng-icon name="lucideEllipsis" aria-hidden="true" />
+      </button>
+      <ng-template #menu>
+        <hlm-dropdown-menu class="w-60">
+          <button hlmDropdownMenuItem (triggered)="showPassphrase.emit()">
+            <ng-icon name="lucideKeyRound" aria-hidden="true" />
+            {{ 'backups.passphrase.again' | translate }}
+          </button>
+        </hlm-dropdown-menu>
+      </ng-template>
+    </div>
+  </div>
+
+  <section
+    class="grid w-full min-w-0 gap-2 rounded-xl border bg-card p-4 text-sm sm:w-80"
+    aria-labelledby="disk-title"
+    data-disk-tile
+  >
+    <h2 id="disk-title" class="flex min-w-0 items-center gap-2 font-semibold">
+      <ng-icon name="lucideHardDrive" class="shrink-0" aria-hidden="true" />
+      <span class="sr-only">{{ 'backups.header.disk' | translate }}</span>
+      <span class="min-w-0 truncate" dir="ltr" [title]="destinationPath()">{{ shownPath() }}</span>
+    </h2>
+    @if (destination(); as disk) {
+      <p class="text-muted-foreground">
+        {{
+          'backups.overview.space'
+            | translate
+              : { free: formatter.bytes(disk.freeBytes), total: formatter.bytes(disk.totalBytes) }
+        }}
+      </p>
+      <hlm-progress
+        [value]="usedPercent()"
+        [attr.aria-label]="'backups.overview.used' | translate: { percent: usedPercent() }"
+      >
+        <hlm-progress-indicator />
+      </hlm-progress>
+    } @else {
+      <p class="text-destructive">{{ 'backups.header.diskMissing' | translate }}</p>
+    }
+    @if (status().lastCheck; as check) {
+      <p class="flex items-center gap-1.5 text-muted-foreground">
+        <ng-icon
+          class="shrink-0"
+          [name]="check.status === 'failed' ? 'lucideCircleX' : 'lucideCircleCheck'"
+          aria-hidden="true"
+        />
+        {{
+          (check.status === 'failed' ? 'backups.overview.checkFailed' : 'backups.overview.checkOk')
+            | translate: { time: formatter.dateTime(check.at) }
+        }}
+      </p>
+    }
+  </section>
+</div>
+
+@if (status().warnings.length > 0) {
+  <ul class="grid gap-2 rounded-xl border border-destructive/40 bg-destructive/5 p-3" role="alert">
+    @for (warning of status().warnings; track warning) {
+      <li class="flex items-start gap-2 text-sm">
+        <ng-icon
+          name="lucideTriangleAlert"
+          class="mt-0.5 shrink-0 text-destructive"
+          aria-hidden="true"
+        />
+        <span>
+          <span class="font-medium">{{ 'backups.warning.' + warning + '.title' | translate }}</span>
+          — {{ 'backups.warning.' + warning + '.text' | translate }}
+        </span>
+      </li>
+    }
+  </ul>
+}

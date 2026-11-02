@@ -13,6 +13,7 @@ const row = (kind: BackupItem['kind'], appRemoved = false): ItemRow => ({
       ? testAppItem('immich', { id: ITEM, appRemoved })
       : testItem({ id: ITEM, kind, path: kind === 'folder' ? '/srv/x' : null }),
   name: 'immich',
+  icon: null,
 });
 
 @Component({

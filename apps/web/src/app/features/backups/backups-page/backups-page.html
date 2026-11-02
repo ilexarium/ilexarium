@@ -1,12 +1,12 @@
 @if (!backupsPageStore.loaded()) {
   <div class="grid gap-4" role="status" [attr.aria-label]="'backups.loading' | translate">
-    <hlm-skeleton class="h-40 w-full max-w-3xl rounded-xl" />
-    <hlm-skeleton class="h-64 w-full max-w-3xl rounded-xl" />
+    <hlm-skeleton class="h-32 w-full max-w-3xl rounded-xl" />
+    <hlm-skeleton class="h-64 w-full rounded-xl" />
   </div>
 } @else if (backupsPageStore.failed()) {
   <p role="alert" class="text-sm text-destructive">{{ 'backups.failed' | translate }}</p>
 } @else if (backupsPageStore.plan(); as plan) {
-  <div class="grid grid-cols-1 gap-4 md:gap-6">
+  <div class="grid grid-cols-1 gap-5">
     @if (backupsPageStore.passphrase(); as passphrase) {
       <laris-passphrase-card
         [passphrase]="passphrase"
@@ -15,14 +15,18 @@
       />
     }
     @if (backupsPageStore.status(); as status) {
-      <laris-backup-overview
+      <laris-backup-header
+        [headline]="backupsPageStore.headline()"
         [status]="status"
         [destination]="plan.destinationStatus"
         [destinationPath]="plan.destination"
-        [labels]="labels()"
         [pending]="backupsPageStore.pending().includes('run')"
         (runNow)="backupsPageStore.runNow()"
+        (showPassphrase)="backupsPageStore.showPassphrase()"
       />
+      @if (status.running; as run) {
+        <laris-run-progress [run]="run" [labels]="labels()" />
+      }
     }
     @if (restore(); as latest) {
       <laris-restore-status
@@ -37,31 +41,67 @@
         (apply)="backupsPageStore.applyRestored(latest)"
       />
     }
-    <laris-backup-items
-      [active]="backupsPageStore.rows().active"
-      [removed]="backupsPageStore.rows().removed"
-      [addable]="backupsPageStore.addable()"
-      [labels]="labels()"
-      [pending]="backupsPageStore.pending()"
-      [running]="backupsPageStore.running() !== null"
-      [folderListing]="backupsPageStore.folders()"
-      (runNow)="backupsPageStore.runNow($event)"
-      (restore)="openRestore($event)"
-      (change)="backupsPageStore.changeItem($event)"
-      (remove)="backupsPageStore.removeItem($event)"
-      (addApp)="backupsPageStore.addApp($event)"
-      (addFolder)="backupsPageStore.addFolder($event)"
-      (browse)="backupsPageStore.browse($event)"
-      (closeBrowser)="backupsPageStore.closeBrowser()"
-    />
-    <laris-backup-history
-      [runs]="backupsPageStore.runs()"
-      [outputs]="backupsPageStore.outputs()"
-      [labels]="labels()"
-      (openOutput)="backupsPageStore.loadOutput($event)"
-    />
-    <laris-backup-settings [plan]="plan" [destinations]="backupsPageStore.destinations()" />
+
+    <div hlmTabs [tab]="backupsPageStore.tab()" (tabActivated)="chooseTab($event)">
+      <div hlmTabsList [attr.aria-label]="'backups.tabs.label' | translate">
+        <button hlmTabsTrigger="items" class="px-4">{{ 'backups.tabs.items' | translate }}</button>
+        <button hlmTabsTrigger="history" class="px-4">
+          {{ 'backups.tabs.history' | translate }}
+        </button>
+        <button hlmTabsTrigger="settings" class="px-4">
+          {{ 'backups.tabs.settings' | translate }}
+        </button>
+      </div>
+
+      <div hlmTabsContent="items" class="pt-2">
+        <laris-backup-items
+          [active]="backupsPageStore.rows().active"
+          [removed]="backupsPageStore.rows().removed"
+          [addable]="backupsPageStore.addable()"
+          [labels]="labels()"
+          [pending]="backupsPageStore.pending()"
+          [runningItemId]="backupsPageStore.runningItemId()"
+          [runBusy]="backupsPageStore.running() !== null"
+          [folderListing]="backupsPageStore.folders()"
+          (openItem)="backupsPageStore.openSheet($event)"
+          (runNow)="backupsPageStore.runNow($event)"
+          (restore)="openRestore($event)"
+          (remove)="askRemove($event)"
+          (addApp)="backupsPageStore.addApp($event)"
+          (addFolder)="backupsPageStore.addFolder($event)"
+          (browse)="backupsPageStore.browse($event)"
+          (closeBrowser)="backupsPageStore.closeBrowser()"
+        />
+      </div>
+
+      <div hlmTabsContent="history" class="pt-2">
+        <laris-backup-history
+          [runs]="backupsPageStore.runs()"
+          [outputs]="backupsPageStore.outputs()"
+          [labels]="labels()"
+          [sizeLine]="backupsPageStore.sizeLine()"
+          (openOutput)="backupsPageStore.loadOutput($event)"
+        />
+      </div>
+
+      <div hlmTabsContent="settings" class="pt-2">
+        <laris-backup-settings [plan]="plan" [destinations]="backupsPageStore.destinations()" />
+      </div>
+    </div>
   </div>
+
+  <laris-item-sheet
+    [row]="backupsPageStore.sheetRow()"
+    [label]="sheetLabel()"
+    [runBusy]="backupsPageStore.running() !== null"
+    [pending]="backupsPageStore.pending()"
+    (change)="backupsPageStore.changeItem($event)"
+    (runNow)="fromSheet('runNow')"
+    (restore)="fromSheet('restore')"
+    (remove)="fromSheet('remove')"
+    (closed)="backupsPageStore.closeSheet()"
+  />
+  <laris-remove-item-dialog [labels]="labels()" (remove)="backupsPageStore.removeItem($event)" />
   <laris-restore-dialog
     [archives]="backupsPageStore.archives()?.list ?? null"
     [labels]="labels()"

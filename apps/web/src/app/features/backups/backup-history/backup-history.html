@@ -1,69 +1,38 @@
-<section hlmCard aria-labelledby="history-title">
-  <div hlmCardHeader>
-    <h2 hlmCardTitle id="history-title">{{ 'backups.history.title' | translate }}</h2>
-  </div>
-  <div hlmCardContent>
-    @if (runs(); as list) {
-      @if (list.length === 0) {
-        <laris-empty-state icon="lucideHistory" [text]="'backups.history.none' | translate" />
-      } @else {
-        <ul class="grid gap-2">
-          @for (run of list; track run.id) {
-            <li>
-              <details class="rounded-md border" (toggle)="toggled(run, $event)">
-                <summary
-                  class="flex min-h-11 cursor-pointer flex-wrap items-center gap-2 px-3 py-2 text-sm select-none"
-                >
-                  <span class="font-medium">{{ formatter.dateTime(run.startedAt) }}</span>
-                  <span class="text-muted-foreground">{{
-                    'backups.history.' + run.trigger | translate
-                  }}</span>
-                  <laris-status-badge class="ms-auto" [tone]="statusTones[run.status]">{{
-                    'backups.status.' + run.status | translate
-                  }}</laris-status-badge>
-                </summary>
-                <div class="grid gap-2 border-t px-3 py-2 text-sm">
-                  @if (run.errorCode; as code) {
-                    <p class="text-destructive">{{ 'errors.' + code | translate }}</p>
-                  }
-                  <ul class="grid gap-1">
-                    @for (item of run.items; track item.itemId) {
-                      @let label = labels().get(item.itemId);
-                      <li class="flex flex-wrap gap-2">
-                        <span [attr.dir]="label?.ltr ? 'ltr' : null" class="break-all">{{
-                          label?.text ?? ('backups.history.gone' | translate)
-                        }}</span>
-                        <span class="text-muted-foreground">{{
-                          'backups.status.' + item.status | translate
-                        }}</span>
-                        @if (item.errorCode; as code) {
-                          <span class="text-destructive">{{ 'errors.' + code | translate }}</span>
-                        }
-                        @if (item.addedBytes !== null) {
-                          <span class="text-muted-foreground">{{
-                            'backups.history.added'
-                              | translate: { size: formatter.bytes(item.addedBytes) }
-                          }}</span>
-                        }
-                      </li>
-                    }
-                  </ul>
-                  @if (outputs()[run.id]; as output) {
-                    @if (output.length > 0) {
-                      <pre
-                        class="max-h-72 overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap"
-                        dir="ltr"
-                        >{{ output.join('\n') }}</pre>
-                    }
-                  }
-                </div>
-              </details>
-            </li>
+@if (runs(); as list) {
+  @if (list.length === 0) {
+    <laris-empty-state icon="lucideHistory" [text]="'backups.history.none' | translate" />
+  } @else {
+    @if (sizeLine().length > 1) {
+      <section
+        class="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-card p-4 text-sm"
+        aria-labelledby="size-line-title"
+      >
+        <div class="grid gap-0.5">
+          <h2 id="size-line-title" class="text-xs text-muted-foreground">
+            {{ 'backups.history.sizeLine' | translate }}
+          </h2>
+          @if (lastAdded(); as size) {
+            <p class="font-medium tabular-nums">
+              {{ 'backups.history.lastAdded' | translate: { size: formatter.bytes(size) } }}
+            </p>
           }
-        </ul>
-      }
-    } @else {
-      <p class="text-sm text-muted-foreground" role="status">{{ 'backups.loading' | translate }}</p>
+        </div>
+        <laris-sparkline class="h-10 min-w-0 flex-1 basis-40" [series]="series()" />
+      </section>
     }
-  </div>
-</section>
+    <ul class="grid gap-2" [attr.aria-label]="'backups.history.title' | translate">
+      @for (run of list; track run.id) {
+        <li>
+          <laris-run-row
+            [run]="run"
+            [output]="outputs()[run.id] ?? null"
+            [labels]="labels()"
+            (opened)="openOutput.emit(run.id)"
+          />
+        </li>
+      }
+    </ul>
+  }
+} @else {
+  <p class="text-sm text-muted-foreground" role="status">{{ 'backups.loading' | translate }}</p>
+}

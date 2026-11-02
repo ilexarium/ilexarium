@@ -6,23 +6,20 @@ import {
   type BackupSettingsForm,
   backupSettingsFormSchema,
 } from '@laris/shared';
-import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideKeyRound } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmButton } from '@ui/button';
-import { HlmCardImports } from '@ui/card';
 import { HlmFieldImports } from '@ui/field';
 import { HlmSelectImports } from '@ui/select';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
+import { SaveBar } from '../../../shared/save-bar/save-bar';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
 import { RetentionFields } from '../retention-fields/retention-fields';
 import { ScheduleFields } from '../schedule-fields/schedule-fields';
 
 /**
  * The plan's settings: when backups run, how many are kept, the disk (another disk starts a new
- * set of backups) — and "Show the passphrase again". Submits through the page store.
+ * set of backups). A save bar while something changed; submits through the page store.
  */
 @Component({
   selector: 'laris-backup-settings',
@@ -31,16 +28,13 @@ import { ScheduleFields } from '../schedule-fields/schedule-fields';
     FormErrors,
     FormField,
     FormRoot,
-    HlmButton,
-    HlmCardImports,
     HlmFieldImports,
     HlmSelectImports,
-    NgIcon,
     RetentionFields,
+    SaveBar,
     ScheduleFields,
     TranslatePipe,
   ],
-  providers: [provideIcons({ lucideKeyRound })],
   templateUrl: './backup-settings.html',
 })
 export class BackupSettings {
@@ -55,17 +49,16 @@ export class BackupSettings {
    */
   // A computed, not a plain function: linkedSignal would recompute for every new plan object.
   private readonly savedAt = computed(() => this.plan().updatedAt);
-  private readonly model = linkedSignal<string, BackupSettingsForm>({
-    source: this.savedAt,
-    computation: () => {
-      const plan = untracked(this.plan);
-      return {
-        destination: plan.destination,
-        schedule: { ...plan.schedule },
-        retention: { ...plan.retention },
-      };
-    },
+  private readonly saved = computed((): BackupSettingsForm => {
+    this.savedAt();
+    const plan = untracked(this.plan);
+    return {
+      destination: plan.destination,
+      schedule: { ...plan.schedule },
+      retention: { ...plan.retention },
+    };
   });
+  private readonly model = linkedSignal(() => structuredClone(this.saved()));
   protected readonly form = form(
     this.model,
     (path) => validateStandardSchema(path, backupSettingsFormSchema),
@@ -97,9 +90,11 @@ export class BackupSettings {
   protected readonly diskChanged = computed(
     () => this.model().destination !== this.plan().destination,
   );
+  protected readonly changed = computed(
+    () => JSON.stringify(this.model()) !== JSON.stringify(this.saved()),
+  );
 
-  /** Through the person's sudo (the prompt asks when it's locked). */
-  protected showPassphrase(): void {
-    void this.backupsPageStore.showPassphrase();
+  protected discard(): void {
+    this.model.set(structuredClone(this.saved()));
   }
 }

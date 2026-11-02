@@ -1,0 +1,54 @@
+<details class="rounded-md border bg-card" (toggle)="toggled($event)" data-run>
+  <summary
+    class="grid min-h-11 cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-3 py-2 text-sm select-none sm:grid-cols-[12rem_minmax(0,1fr)_auto_auto]"
+  >
+    <span class="font-medium">{{ formatter.dateTime(run().startedAt) }}</span>
+    <laris-status-dot class="justify-self-end sm:order-last" [tone]="dots[run().status]">{{
+      'backups.status.' + run().status | translate
+    }}</laris-status-dot>
+    <span class="text-muted-foreground">{{ 'backups.history.' + run().trigger | translate }}</span>
+    <span class="justify-self-end text-muted-foreground tabular-nums">
+      @if (run().items.length > 0) {
+        {{ 'backups.history.done' | translate: { done: done(), total: run().items.length } }}
+      }
+      @if (added(); as size) {
+        · {{ 'backups.history.added' | translate: { size: formatter.bytes(size) } }}
+      }
+    </span>
+  </summary>
+  <div class="grid gap-2 border-t px-3 py-2 text-sm">
+    @if (run().errorCode; as code) {
+      <p class="text-destructive">{{ 'errors.' + code | translate }}</p>
+    }
+    <ul class="grid gap-1">
+      @for (item of run().items; track item.itemId) {
+        @let label = labels().get(item.itemId);
+        <li class="flex flex-wrap gap-2">
+          <span [attr.dir]="label?.ltr ? 'ltr' : null" class="break-all">{{
+            label?.text ?? ('backups.history.gone' | translate)
+          }}</span>
+          <span class="text-muted-foreground">{{
+            'backups.status.' + item.status | translate
+          }}</span>
+          @if (item.errorCode; as code) {
+            <span class="text-destructive">{{ 'errors.' + code | translate }}</span>
+          }
+          @if (item.addedBytes !== null) {
+            <span class="text-muted-foreground">{{
+              'backups.history.added' | translate: { size: formatter.bytes(item.addedBytes) }
+            }}</span>
+          }
+        </li>
+      }
+    </ul>
+    @if (output(); as lines) {
+      @if (lines.length > 0) {
+        <pre
+          class="max-h-72 overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap"
+          dir="ltr"
+          tabindex="0"
+          >{{ lines.join('\n') }}</pre>
+      }
+    }
+  </div>
+</details>

@@ -19,6 +19,7 @@ import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTabsImports } from '@ui/tabs';
 import { Formatter } from '../../../shared/format/formatter';
+import { SaveBar } from '../../../shared/save-bar/save-bar';
 import { openUrl } from '../app-actions';
 import { AppHeader } from '../app-header/app-header';
 import { AppOverview } from '../app-overview/app-overview';
@@ -42,6 +43,7 @@ import { AppPageStore } from './app-page-store';
     NgTemplateOutlet,
     RemoveDialog,
     RouterLink,
+    SaveBar,
     TaskOutput,
     TranslatePipe,
   ],

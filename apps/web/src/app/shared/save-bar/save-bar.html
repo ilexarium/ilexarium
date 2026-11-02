@@ -1,0 +1,17 @@
+<ng-content />
+@if (actions()) {
+  <div class="flex flex-wrap items-center gap-3">
+    <p class="me-auto text-sm font-medium">{{ 'saveBar.unsaved' | translate }}</p>
+    <button hlmBtn type="button" variant="ghost" (click)="discard.emit()">
+      {{ 'saveBar.discard' | translate }}
+    </button>
+    <button
+      hlmBtn
+      [type]="submit() ? 'submit' : 'button'"
+      [disabled]="busy()"
+      (click)="submit() || save.emit()"
+    >
+      {{ saveLabel() | translate }}
+    </button>
+  </div>
+}

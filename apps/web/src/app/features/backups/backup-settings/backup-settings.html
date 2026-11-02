@@ -1,55 +1,57 @@
-<section hlmCard aria-labelledby="settings-title">
-  <div hlmCardHeader>
-    <h2 hlmCardTitle id="settings-title">{{ 'backups.settings.title' | translate }}</h2>
-  </div>
-  <div hlmCardContent class="grid grid-cols-1 gap-6">
-    <form [formRoot]="form" class="grid grid-cols-1 gap-5">
-      <laris-form-errors [form]="form" />
-      <div class="flex flex-wrap gap-4">
-        <laris-schedule-fields [schedule]="form.schedule" idPrefix="settings" />
-      </div>
+<form [formRoot]="form" class="grid max-w-3xl grid-cols-1 gap-6">
+  <laris-form-errors [form]="form" />
 
-      <fieldset class="flex flex-wrap gap-4">
-        <legend class="mb-2 text-sm font-medium">
-          {{ 'backups.retention.title' | translate }}
-        </legend>
-        <laris-retention-fields [retention]="form.retention" idPrefix="settings" />
-      </fieldset>
-
-      <div hlmField class="min-w-0 max-w-md">
-        <label hlmFieldLabel for="settings-disk">{{ 'backups.settings.disk' | translate }}</label>
-        <!-- Paths are machine text: left to right. -->
-        <hlm-select [formField]="form.destination" dir="ltr">
-          <hlm-select-trigger buttonId="settings-disk" class="w-full min-w-0"
-            ><hlm-select-value class="min-w-0 truncate"
-          /></hlm-select-trigger>
-          <hlm-select-content *hlmSelectPortal>
-            @for (disk of disks(); track disk) {
-              <hlm-select-item [value]="disk">{{ disk }}</hlm-select-item>
-            }
-          </hlm-select-content>
-        </hlm-select>
-        @if (diskChanged()) {
-          <p hlmFieldDescription class="text-warning">
-            {{ 'backups.settings.newDisk' | translate }}
-          </p>
-        }
-        <laris-field-errors [field]="form.destination" />
-      </div>
-
-      <button hlmBtn type="submit" class="justify-self-start" [disabled]="form().submitting()">
-        {{
-          (form().submitting() ? 'backups.settings.saving' : 'backups.settings.save') | translate
-        }}
-      </button>
-    </form>
-
-    <div class="grid gap-2 border-t pt-4">
-      <p class="text-sm text-muted-foreground">{{ 'backups.passphrase.againHint' | translate }}</p>
-      <button hlmBtn variant="outline" class="justify-self-start" (click)="showPassphrase()">
-        <ng-icon name="lucideKeyRound" aria-hidden="true" />
-        {{ 'backups.passphrase.again' | translate }}
-      </button>
+  <section class="grid gap-3 rounded-xl border bg-card p-4" aria-labelledby="settings-when">
+    <h2 id="settings-when" class="font-semibold">{{ 'backups.settings.when' | translate }}</h2>
+    <div class="flex flex-wrap gap-4">
+      <laris-schedule-fields [schedule]="form.schedule" idPrefix="settings" />
     </div>
-  </div>
-</section>
+  </section>
+
+  <section class="grid gap-3 rounded-xl border bg-card p-4" aria-labelledby="settings-kept">
+    <h2 id="settings-kept" class="font-semibold">{{ 'backups.retention.title' | translate }}</h2>
+    <p class="text-sm text-muted-foreground">
+      {{ 'backups.retention.summary' | translate: form.retention().value() }}
+    </p>
+    <div class="flex flex-wrap gap-4">
+      <laris-retention-fields [retention]="form.retention" idPrefix="settings" />
+    </div>
+  </section>
+
+  <section class="grid gap-3 rounded-xl border bg-card p-4" aria-labelledby="settings-disk-title">
+    <h2 id="settings-disk-title" class="font-semibold">
+      {{ 'backups.settings.disk' | translate }}
+    </h2>
+    <div hlmField class="min-w-0 max-w-md">
+      <label hlmFieldLabel for="settings-disk" class="sr-only">{{
+        'backups.settings.disk' | translate
+      }}</label>
+      <!-- Paths are machine text: left to right. -->
+      <hlm-select [formField]="form.destination" dir="ltr">
+        <hlm-select-trigger buttonId="settings-disk" class="w-full min-w-0"
+          ><hlm-select-value class="min-w-0 truncate"
+        /></hlm-select-trigger>
+        <hlm-select-content *hlmSelectPortal>
+          @for (disk of disks(); track disk) {
+            <hlm-select-item [value]="disk">{{ disk }}</hlm-select-item>
+          }
+        </hlm-select-content>
+      </hlm-select>
+      @if (diskChanged()) {
+        <p hlmFieldDescription class="text-warning">
+          {{ 'backups.settings.newDisk' | translate }}
+        </p>
+      }
+      <laris-field-errors [field]="form.destination" />
+    </div>
+  </section>
+
+  @if (changed()) {
+    <laris-save-bar
+      [submit]="true"
+      [busy]="form().submitting()"
+      [saveLabel]="form().submitting() ? 'backups.settings.saving' : 'backups.settings.save'"
+      (discard)="discard()"
+    />
+  }
+</form>
