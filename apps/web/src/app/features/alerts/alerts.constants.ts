@@ -1,7 +1,8 @@
 import type { AlertSeverity } from '@laris/shared';
-import type { StatusTone } from '../../shared/status-badge/status-badge.model';
+import type { DotTone } from '../../shared/status-dot/status-dot.model';
 
-export const SEVERITY_TONES: Record<AlertSeverity, StatusTone> = {
-  warning: 'warning',
-  critical: 'failed',
+/** An open alert's severity as a status dot. */
+export const SEVERITY_DOTS: Record<AlertSeverity, DotTone> = {
+  warning: 'warn',
+  critical: 'fail',
 };

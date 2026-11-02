@@ -1000,8 +1000,6 @@
     "noneOpen": "Alles in Ordnung: keine offenen Warnungen.",
     "closed": "In den letzten 7 Tagen behoben",
     "noneClosed": "Nichts in den letzten 7 Tagen.",
-    "since": "Seit {{time}}",
-    "resolved": "{{from}} – {{to}}",
     "acknowledge": "Bestätigen",
     "acknowledgeHelp": "Beendet die tägliche Erinnerung. Die Warnung bleibt, bis das Problem behoben ist.",
     "acknowledged": "Bestätigt von {{name}}",
@@ -1039,7 +1037,16 @@
       "all": "Alle Warnungen",
       "openCount_one": "{{count}} offen",
       "openCount_other": "{{count}} offen"
-    }
+    },
+    "headline": {
+      "critical_one": "{{count}} kritische Meldung",
+      "critical_other": "{{count}} kritische Meldungen",
+      "warning_one": "{{count}} Warnung",
+      "warning_other": "{{count}} Warnungen",
+      "both": "{{critical}}, {{warning}}"
+    },
+    "openFor": "Seit {{duration}} ({{time}})",
+    "lasted": "Dauerte {{duration}} · beendet {{time}}"
   },
   "notifications": {
     "description": "Warnungen erscheinen immer in der App. Sie können dich auch per E-Mail erreichen oder mit ntfy auf dem Handy.",

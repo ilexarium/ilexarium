@@ -1066,8 +1066,6 @@
     "noneOpen": "كل شيء على ما يرام: لا توجد تنبيهات مفتوحة.",
     "closed": "حُلّت في آخر 7 أيام",
     "noneClosed": "لا شيء في آخر 7 أيام.",
-    "since": "منذ {{time}}",
-    "resolved": "{{from}} – {{to}}",
     "acknowledge": "إقرار",
     "acknowledgeHelp": "يوقف التذكير اليومي. يبقى التنبيه حتى تزول المشكلة.",
     "acknowledged": "أقرّه {{name}}",
@@ -1115,7 +1113,24 @@
       "openCount_few": "{{count}} مفتوحة",
       "openCount_many": "{{count}} مفتوحًا",
       "openCount_other": "{{count}} مفتوح"
-    }
+    },
+    "headline": {
+      "critical_zero": "لا تنبيهات حرجة",
+      "critical_one": "تنبيه حرج واحد",
+      "critical_two": "تنبيهان حرجان",
+      "critical_few": "{{count}} تنبيهات حرجة",
+      "critical_many": "{{count}} تنبيهًا حرجًا",
+      "critical_other": "{{count}} تنبيه حرج",
+      "warning_zero": "لا تحذيرات",
+      "warning_one": "تحذير واحد",
+      "warning_two": "تحذيران",
+      "warning_few": "{{count}} تحذيرات",
+      "warning_many": "{{count}} تحذيرًا",
+      "warning_other": "{{count}} تحذير",
+      "both": "{{critical}}، {{warning}}"
+    },
+    "openFor": "منذ {{duration}} ({{time}})",
+    "lasted": "استمر {{duration}} · انتهى {{time}}"
   },
   "notifications": {
     "description": "تظهر التنبيهات دائمًا في التطبيق. ويمكن أن تصلك أيضًا بالبريد الإلكتروني أو على هاتفك عبر ntfy.",

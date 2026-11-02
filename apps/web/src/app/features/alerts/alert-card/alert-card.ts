@@ -2,24 +2,24 @@ import { Component, computed, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { Alert } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert } from '@ng-icons/lucide';
+import { lucideCircleAlert, lucideTriangleAlert } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { alertIcon, alertLink, alertText, alertTitle } from '../../../core/alerts/alert-wording';
 import { Formatter } from '../../../shared/format/formatter';
-import { StatusBadge } from '../../../shared/status-badge/status-badge';
-import { SEVERITY_TONES } from '../alerts.constants';
+import { StatusDot } from '../../../shared/status-dot/status-dot';
+import { SEVERITY_DOTS } from '../alerts.constants';
 
-/** One alert: what happened, since when, where to look; an open one can be acknowledged. */
+/** An open alert: what happened, for how long, where to look; it can be acknowledged. */
 @Component({
   selector: 'laris-alert-card',
-  imports: [StatusBadge, HlmButton, NgIcon, RouterLink, TranslatePipe],
-  providers: [provideIcons({ lucideCircleAlert, lucideCircleCheck, lucideTriangleAlert })],
+  imports: [HlmButton, NgIcon, RouterLink, StatusDot, TranslatePipe],
+  providers: [provideIcons({ lucideCircleAlert, lucideTriangleAlert })],
   host: { class: 'block' },
   templateUrl: './alert-card.html',
 })
 export class AlertCard {
-  protected readonly severityTones = SEVERITY_TONES;
+  protected readonly severityDots = SEVERITY_DOTS;
   readonly alert = input.required<Alert>();
   /** Being acknowledged. */
   readonly pending = input(false);
@@ -30,4 +30,9 @@ export class AlertCard {
   protected readonly text = computed(() => alertText(this.alert()));
   protected readonly link = computed(() => alertLink(this.alert()));
   protected readonly icon = computed(() => alertIcon(this.alert()));
+  /** The container, when the title names its app instead ("Immich has stopped"). */
+  protected readonly container = computed(() => {
+    const { kind, app, subject } = this.alert();
+    return kind !== 'backup' && app ? subject : null;
+  });
 }

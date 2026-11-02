@@ -1000,8 +1000,6 @@
     "noneOpen": "All is well: no open alerts.",
     "closed": "Resolved in the last 7 days",
     "noneClosed": "Nothing in the last 7 days.",
-    "since": "Since {{time}}",
-    "resolved": "{{from}} – {{to}}",
     "acknowledge": "Acknowledge",
     "acknowledgeHelp": "Stops the daily reminder. The alert stays until the problem is gone.",
     "acknowledged": "Acknowledged by {{name}}",
@@ -1039,7 +1037,16 @@
       "all": "All alerts",
       "openCount_one": "{{count}} open",
       "openCount_other": "{{count}} open"
-    }
+    },
+    "headline": {
+      "critical_one": "{{count}} critical alert",
+      "critical_other": "{{count}} critical alerts",
+      "warning_one": "{{count}} warning",
+      "warning_other": "{{count}} warnings",
+      "both": "{{critical}}, {{warning}}"
+    },
+    "openFor": "For {{duration}}, since {{time}}",
+    "lasted": "Lasted {{duration}} · ended {{time}}"
   },
   "notifications": {
     "description": "Alerts always show in the app. They can also reach you by email, or on your phone with ntfy.",

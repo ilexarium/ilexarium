@@ -77,6 +77,72 @@ describe('AlertsPage', () => {
     expect(closed.querySelector('button')).toBeNull();
   });
 
+  it('says in one line what is open, the notification settings beside it', async () => {
+    const headline = async (open: Parameters<typeof alertsStatus>[0]) => {
+      TestBed.resetTestingModule();
+      const { el } = await render(alertsStatus(open));
+      return el;
+    };
+    let el = await headline({
+      open: [testAlert(), testAlert({ severity: 'warning' }), testAlert({ severity: 'warning' })],
+    });
+    expect(el.querySelector('[data-headline]')!.textContent!.trim()).toBe(
+      '1 critical alert, 2 warnings',
+    );
+    // At the top, before the lists however long they are.
+    const settings = el.querySelector<HTMLAnchorElement>('a[href="/settings/notifications"]')!;
+    expect(settings.textContent).toContain('Notification settings');
+    expect(
+      settings.compareDocumentPosition(el.querySelector('#alerts-open')!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    el = await headline({ open: [testAlert({ severity: 'warning' })] });
+    expect(el.querySelector('[data-headline]')!.textContent!.trim()).toBe('1 warning');
+    el = await headline({});
+    expect(el.querySelector('[data-headline]')!.textContent!.trim()).toBe(
+      'All is well: no open alerts.',
+    );
+  });
+
+  it('names the container below an app’s alert, not again below a disk’s or a container’s', async () => {
+    const { el } = await render(
+      alertsStatus({
+        open: [
+          testAlert(),
+          testAlert({ subject: 'hl-redis-1', app: null }),
+          testAlert({ kind: 'diskFull', subject: '/mnt/usb', app: null, percent: 93 }),
+        ],
+      }),
+    );
+    const meta = [...el.querySelectorAll('laris-alert-card')].map(
+      (c) => c.querySelectorAll('p')[1].textContent!,
+    );
+    expect(meta[0]).toContain('hl-immich-server-1');
+    expect(meta[0]).toMatch(/^\s*For /);
+    expect(meta[1]).not.toContain('hl-redis-1');
+    expect(meta[2]).not.toContain('/mnt/usb');
+  });
+
+  it('lists resolved alerts as quiet rows: how long they lasted, when they ended', async () => {
+    const { section } = await render(
+      alertsStatus({
+        closed: [
+          testAlert({
+            kind: 'restartLoop',
+            subject: 'hl-navidrome-1',
+            app: null,
+            openedAt: '2026-10-17T12:00:00.000Z',
+            closedAt: '2026-10-17T12:20:00.000Z',
+          }),
+        ],
+      }),
+    );
+    const row = section('alerts-closed').querySelector('laris-alert-row')!;
+    expect(row.textContent).toContain('hl-navidrome-1 keeps restarting');
+    expect(row.textContent).toContain('Lasted 20 minutes · ended');
+    expect(row.querySelector('laris-alert-card, a, button')).toBeNull();
+  });
+
   it('says so when all is well', async () => {
     const { section } = await render(alertsStatus());
     expect(section('alerts-open').textContent).toContain('no open alerts');

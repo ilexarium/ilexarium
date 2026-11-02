@@ -1,58 +1,54 @@
 <article
-  class="grid gap-3 rounded-lg border p-4 sm:grid-cols-[auto_1fr_auto] sm:items-start"
-  [class.border-destructive]="!alert().closedAt && alert().severity === 'critical'"
+  class="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[auto_1fr_auto] sm:items-start"
+  [class.border-destructive]="alert().severity === 'critical'"
   [attr.aria-labelledby]="'alert-' + alert().id"
 >
   <ng-icon [name]="icon().icon" class="size-5" [class]="icon().color" aria-hidden="true" />
   <div class="grid min-w-0 gap-1">
-    <h3 [id]="'alert-' + alert().id" class="flex flex-wrap items-center gap-2 font-medium">
+    <h3
+      [id]="'alert-' + alert().id"
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 font-medium"
+    >
       <span class="min-w-0 break-words">{{ title()[0] | translate: title()[1] }}</span>
-      @if (!alert().closedAt) {
-        <laris-status-badge [tone]="severityTones[alert().severity]">{{
-          'alerts.severity.' + alert().severity | translate
-        }}</laris-status-badge>
-      }
+      <laris-status-dot class="text-sm font-normal" [tone]="severityDots[alert().severity]">{{
+        'alerts.severity.' + alert().severity | translate
+      }}</laris-status-dot>
     </h3>
-    @if (!alert().closedAt) {
-      <p class="text-sm">{{ text()[0] | translate }}</p>
-    }
+    <p class="text-sm">{{ text()[0] | translate }}</p>
     <p class="text-sm text-muted-foreground">
-      @if (alert().closedAt; as closedAt) {
-        {{
-          'alerts.resolved'
-            | translate
-              : { from: formatter.dateTime(alert().openedAt), to: formatter.dateTime(closedAt) }
-        }}
-      } @else {
-        {{ 'alerts.since' | translate: { time: formatter.dateTime(alert().openedAt) } }}
-      }
-      @if (alert().kind !== 'backup') {
-        · <span dir="ltr">{{ alert().subject }}</span>
+      {{
+        'alerts.openFor'
+          | translate
+            : {
+                duration: formatter.ago(alert().openedAt),
+                time: formatter.dateTime(alert().openedAt),
+              }
+      }}
+      @if (container(); as name) {
+        · <span dir="ltr">{{ name }}</span>
       }
     </p>
-    @if (alert().acknowledgedBy && !alert().closedAt) {
+    @if (alert().acknowledgedBy) {
       <p class="text-sm text-muted-foreground">
         {{ 'alerts.acknowledged' | translate: { name: alert().acknowledgedBy } }}
       </p>
     }
   </div>
-  @if (!alert().closedAt) {
-    <div class="flex flex-wrap gap-2 sm:justify-end">
-      <a hlmBtn variant="outline" size="sm" [routerLink]="link().link">{{
-        link().label | translate
-      }}</a>
-      @if (!alert().acknowledgedAt) {
-        <button
-          hlmBtn
-          variant="secondary"
-          size="sm"
-          [disabled]="pending()"
-          [attr.title]="'alerts.acknowledgeHelp' | translate"
-          (click)="acknowledge.emit(alert().id)"
-        >
-          {{ 'alerts.acknowledge' | translate }}
-        </button>
-      }
-    </div>
-  }
+  <div class="flex flex-wrap gap-2 sm:justify-end">
+    <a hlmBtn variant="outline" size="sm" [routerLink]="link().link">{{
+      link().label | translate
+    }}</a>
+    @if (!alert().acknowledgedAt) {
+      <button
+        hlmBtn
+        variant="secondary"
+        size="sm"
+        [disabled]="pending()"
+        [attr.title]="'alerts.acknowledgeHelp' | translate"
+        (click)="acknowledge.emit(alert().id)"
+      >
+        {{ 'alerts.acknowledge' | translate }}
+      </button>
+    }
+  </div>
 </article>
