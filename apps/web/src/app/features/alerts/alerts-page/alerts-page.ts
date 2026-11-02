@@ -1,35 +1,40 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideMailWarning } from '@ng-icons/lucide';
+import { lucideBellRing, lucideMailWarning } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
+import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { Translator } from '../../../core/i18n/translator';
 import { Formatter } from '../../../shared/format/formatter';
 import { AlertCard } from '../alert-card/alert-card';
+import { AlertRow } from '../alert-row/alert-row';
 import { AlertsPageStore } from './alerts-page-store';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 /**
- * The Alerts page (docs/plans/health_alerts.md): open alerts first (each can be acknowledged),
- * then those resolved in the last 7 days; a notice when a message couldn't be sent.
+ * The Alerts page (docs/plans/health_alerts.md): a headline with the notification settings beside
+ * it, a notice when a message couldn't be sent, the open alerts (each can be acknowledged), then
+ * those resolved in the last 7 days as quiet rows.
  */
 @Component({
   selector: 'laris-alerts-page',
   imports: [
-    EmptyState,
     AlertCard,
+    AlertRow,
+    EmptyState,
     HlmAlertImports,
     HlmButton,
     HlmSkeleton,
     NgIcon,
+    PluralPipe,
     RouterLink,
     TranslatePipe,
   ],
-  providers: [AlertsPageStore, provideIcons({ lucideMailWarning })],
+  providers: [AlertsPageStore, provideIcons({ lucideBellRing, lucideMailWarning })],
   templateUrl: './alerts-page.html',
 })
 export class AlertsPage {

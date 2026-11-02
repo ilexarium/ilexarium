@@ -1,5 +1,31 @@
 @if (alertsStore.loaded()) {
   <div class="grid gap-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      @let counts = alertsPageStore.counts();
+      <p class="text-xl font-semibold md:text-[1.625rem]" role="status" data-headline>
+        @if (counts.critical > 0 && counts.warning > 0) {
+          {{
+            'alerts.headline.both'
+              | translate
+                : {
+                    critical: 'alerts.headline.critical' | plural: counts.critical,
+                    warning: 'alerts.headline.warning' | plural: counts.warning,
+                  }
+          }}
+        } @else if (counts.critical > 0) {
+          {{ 'alerts.headline.critical' | plural: counts.critical }}
+        } @else if (counts.warning > 0) {
+          {{ 'alerts.headline.warning' | plural: counts.warning }}
+        } @else {
+          {{ 'alerts.noneOpen' | translate }}
+        }
+      </p>
+      <a hlmBtn variant="outline" routerLink="/settings/notifications">
+        <ng-icon name="lucideBellRing" aria-hidden="true" />
+        {{ 'alerts.settingsLink' | translate }}
+      </a>
+    </div>
+
     @if (deliveryText(); as text) {
       <div hlmAlert variant="destructive" role="alert">
         <ng-icon name="lucideMailWarning" aria-hidden="true" />
@@ -35,22 +61,20 @@
       <h2 id="alerts-closed" class="text-lg font-semibold">
         {{ 'alerts.closed' | translate }}
       </h2>
-      @for (alert of alertsStore.closed(); track alert.id) {
-        <laris-alert-card [alert]="alert" />
-      } @empty {
+      @if (alertsStore.closed().length > 0) {
+        <ul class="divide-y rounded-xl border bg-card">
+          @for (alert of alertsStore.closed(); track alert.id) {
+            <li><laris-alert-row [alert]="alert" /></li>
+          }
+        </ul>
+      } @else {
         <p class="text-sm text-muted-foreground">{{ 'alerts.noneClosed' | translate }}</p>
       }
     </section>
-
-    <p class="text-sm">
-      <a class="underline underline-offset-4" routerLink="/settings/notifications">{{
-        'alerts.settingsLink' | translate
-      }}</a>
-    </p>
   </div>
 } @else {
   <div class="grid gap-3" role="status" [attr.aria-label]="'alerts.loading' | translate">
-    <hlm-skeleton class="h-6 w-40" />
+    <hlm-skeleton class="h-8 w-64" />
     <hlm-skeleton class="h-24 rounded-lg" />
     <hlm-skeleton class="h-24 rounded-lg" />
   </div>

@@ -1,5 +1,12 @@
-import { inject } from '@angular/core';
-import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
+import { computed, inject } from '@angular/core';
+import {
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
@@ -8,6 +15,7 @@ import { AlertsStore } from '../../../core/alerts/alerts-store';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { Translator } from '../../../core/i18n/translator';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
+import type { AlertCounts } from '../alerts.model';
 
 interface AlertsPageState {
   /** Alerts being acknowledged, for pending buttons. */
@@ -21,6 +29,14 @@ interface AlertsPageState {
  */
 export const AlertsPageStore = signalStore(
   withState<AlertsPageState>({ pending: [] }),
+  withComputed((store, alertsStore = inject(AlertsStore)) => ({
+    /** For the headline: "1 critical, 2 warnings". */
+    counts: computed((): AlertCounts => {
+      const open = alertsStore.open();
+      const critical = open.filter((a) => a.severity === 'critical').length;
+      return { critical, warning: open.length - critical };
+    }),
+  })),
   withMethods(
     (
       store,
