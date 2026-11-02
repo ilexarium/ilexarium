@@ -810,7 +810,8 @@
       "unskip": "Sichern",
       "new": "Neu",
       "add": "Zu den Sicherungen hinzufügen",
-      "addFolderMenu": "Einen Ordner…"
+      "addFolderMenu": "Einen Ordner…",
+      "skipBelow": "Darunter"
     },
     "remove": {
       "title": "{{name}} nicht mehr sichern?",

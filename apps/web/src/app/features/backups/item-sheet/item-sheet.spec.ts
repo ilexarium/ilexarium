@@ -71,6 +71,59 @@ describe('ItemSheet', () => {
     ]);
   });
 
+  it('adds a subfolder to skip below a folder backed up; refuses one that leaves it', async () => {
+    const fixture = TestBed.createComponent(Host);
+    const two = immich();
+    two.item.folders = ['/home/anna/apps/immich/data', '/home/anna/apps/immich/db'];
+    two.item.skip = [];
+    fixture.componentInstance.row.set(two);
+    await vi.waitFor(() => expect(sheet()).not.toBeNull());
+    const input = sheet()!.querySelector<HTMLInputElement>(
+      'input[aria-label="A subfolder to skip"]',
+    )!;
+    const add = () =>
+      [...sheet()!.querySelectorAll('button')]
+        .find((b) => b.textContent?.trim() === 'Skip')!
+        .click();
+    const type = async (text: string) => {
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+    };
+
+    await type('../../secrets');
+    add();
+    await fixture.whenStable();
+    expect(sheet()!.textContent).toContain('A path below the folder, without .. or brackets.');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(fixture.componentInstance.changes).toEqual([]);
+
+    const folder = sheet()!.querySelector<HTMLSelectElement>('#skip-folder')!;
+    folder.value = '/home/anna/apps/immich/db';
+    folder.dispatchEvent(new Event('change'));
+    await type('./cache/*.tmp');
+    add();
+    await fixture.whenStable();
+    expect(fixture.componentInstance.changes).toEqual([
+      { itemId: ITEM, change: { skip: ['/home/anna/apps/immich/db/cache/*.tmp'] } },
+    ]);
+    expect(input.value).toBe('');
+    expect(sheet()!.textContent).not.toContain('without .. or brackets');
+
+    // The chosen folder no longer backed up: below the first one instead.
+    fixture.componentInstance.row.update((r) => ({
+      ...r!,
+      item: { ...r!.item, folders: ['/home/anna/apps/immich/data'] },
+    }));
+    await fixture.whenStable();
+    await type('thumbs');
+    add();
+    expect(fixture.componentInstance.changes.at(-1)).toEqual({
+      itemId: ITEM,
+      change: { skip: ['/home/anna/apps/immich/data/thumbs'] },
+    });
+  });
+
   it('says when it closed itself (Escape), not when the page closed it', async () => {
     const fixture = TestBed.createComponent(Host);
     fixture.componentInstance.row.set(immich());

@@ -810,7 +810,8 @@
       "unskip": "Back up",
       "new": "New",
       "add": "Add to backups",
-      "addFolderMenu": "A folder…"
+      "addFolderMenu": "A folder…",
+      "skipBelow": "Below"
     },
     "remove": {
       "title": "Stop backing up {{name}}?",
