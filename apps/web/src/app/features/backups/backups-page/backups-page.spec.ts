@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import type { BackupDestination, BackupPlan, BackupsStatus, Container } from '@laris/shared';
 import { defer, of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -100,7 +101,7 @@ const status = (change: Partial<BackupsStatus> = {}): BackupsStatus => ({
   ...change,
 });
 
-async function render(start: BackupPlan | null) {
+async function render(start: BackupPlan | null, url = '/backups') {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   let current = start;
@@ -125,6 +126,7 @@ async function render(start: BackupPlan | null) {
       }),
     ),
     runNow: vi.fn(() => of({ runId: 'r1' })),
+    updateItem: vi.fn(() => of(null)),
     // 204: no body.
     removeItem: vi.fn(() => of(null)),
     passphrase: vi.fn(() => of({ passphrase: PASSPHRASE })),
@@ -143,7 +145,7 @@ async function render(start: BackupPlan | null) {
   const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
   TestBed.configureTestingModule({
     providers: [
-      provideRouter([]),
+      provideRouter([{ path: 'backups', component: BackupsPage }]),
       auth.provider,
       sockets.provider,
       { provide: BackupsApi, useValue: api },
@@ -157,7 +159,8 @@ async function render(start: BackupPlan | null) {
   socket.open();
   // The shell follows the backups topic all session long.
   TestBed.inject(BackupsStore).watch();
-  const fixture = TestBed.createComponent(BackupsPage);
+  const harness = await RouterTestingHarness.create(url);
+  const fixture = harness.fixture;
   await fixture.whenStable();
   socket.receive({
     event: 'containers:snapshot',
@@ -171,7 +174,8 @@ async function render(start: BackupPlan | null) {
     },
   });
   await fixture.whenStable();
-  const el = fixture.nativeElement as HTMLElement;
+  const el = harness.routeNativeElement!;
+  const store = harness.routeDebugElement!.injector.get(BackupsPageStore);
   const pushStatus = async (data: BackupsStatus) => {
     socket.receive({ event: 'backups:update', data });
     await fixture.whenStable();
@@ -180,7 +184,19 @@ async function render(start: BackupPlan | null) {
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
       b.textContent?.includes(text),
     )!;
-  return { fixture, el, api, asPerson, socket, pushStatus, button };
+  return { fixture, el, api, asPerson, socket, pushStatus, button, store };
+}
+
+/** "⋯" → "Show the passphrase again" (the header shows once the topic's status is in). */
+async function morePassphrase(el: HTMLElement) {
+  await vi.waitFor(() =>
+    expect(el.querySelector('button[aria-label="More backup actions"]')).not.toBeNull(),
+  );
+  el.querySelector<HTMLButtonElement>('button[aria-label="More backup actions"]')!.click();
+  await vi.waitFor(() => expect(document.querySelector('[role="menuitem"]')).not.toBeNull());
+  [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+    .find((i) => i.textContent?.includes('Show the passphrase again'))!
+    .click();
 }
 
 describe('BackupsPage before setup', () => {
@@ -222,6 +238,29 @@ describe('BackupsPage before setup', () => {
     button("I've saved it").click();
     await fixture.whenStable();
     expect(el.textContent).not.toContain('acorn');
+  });
+
+  it('sums up the choice beside the form on desktop, Set up in a bar on phones', async () => {
+    const { el, fixture } = await render(null);
+    const summary = el.querySelector<HTMLElement>('[data-setup-summary]')!;
+    const bar = el.querySelector<HTMLElement>('[data-setup-bar]')!;
+    expect(summary.closest('aside')!.className).toContain('hidden lg:block');
+    expect(bar.className).toContain('sticky');
+    expect(bar.className).toContain('lg:hidden');
+    expect(summary.textContent).toContain('No disk chosen yet');
+    expect(summary.textContent).toContain('This app');
+    expect(summary.textContent).toContain('2 apps');
+    expect(summary.textContent).toContain('Every day · 03:00');
+    el.querySelector<HTMLInputElement>('input[value="/mnt/usb"]')!.click();
+    [...el.querySelectorAll('label')]
+      .find((l) => l.textContent?.trim() === 'notes')!
+      .querySelector('input')!
+      .click();
+    await fixture.whenStable();
+    expect(summary.textContent).toContain('/mnt/usb');
+    expect(summary.textContent).toContain('1 app');
+    expect(bar.textContent).toContain('/mnt/usb');
+    expect(bar.querySelector('button[type="submit"]')!.textContent).toContain('Set up backups');
   });
 
   it('leaves out an app switched off', async () => {
@@ -266,17 +305,98 @@ describe('BackupsPage before setup', () => {
 });
 
 describe('BackupsPage with a plan', () => {
-  it('names each item: this app, the app, the folder (left to right)', async () => {
+  it('names each item on its card: this app, the app, the folder (left to right)', async () => {
     const { el } = await render(plan());
-    const items = el.querySelector('section[aria-labelledby="items-title"]')!;
-    expect(items.textContent).toContain('This app');
-    expect(items.textContent).toContain('immich');
-    const path = [...items.querySelectorAll('p')].find(
-      (p) => p.textContent?.trim() === '/home/alice/Documents',
-    )!;
-    expect(path.getAttribute('dir')).toBe('ltr');
-    expect(items.textContent).toContain('A folder to back up is missing.');
-    expect(items.textContent).toContain(formatBytes(2e9));
+    const names = [...el.querySelectorAll<HTMLElement>('[data-open-sheet]')];
+    expect(names.map((n) => n.textContent!.trim())).toEqual([
+      'This app',
+      'immich',
+      '/home/alice/Documents',
+    ]);
+    expect(names[2].getAttribute('dir')).toBe('ltr');
+    const cards = el.querySelector('laris-backup-items > ul')!;
+    expect(cards.textContent).toContain('A folder to back up is missing.');
+    expect(cards.textContent).toContain(formatBytes(2e9));
+  });
+
+  it('says how backups stand in one line: all good, attention, running', async () => {
+    const { el, pushStatus } = await render(plan());
+    const headline = () => el.querySelector('[data-headline]')!.textContent!.trim();
+    // The folder's last backup failed.
+    await pushStatus(status({ warnings: ['lastRunFailed'] }));
+    expect(headline()).toBe('1 thing needs attention');
+    await pushStatus(status({ warnings: ['lastRunFailed', 'lowSpace'] }));
+    expect(headline()).toBe('2 things need attention');
+    await pushStatus(
+      status({
+        running: {
+          runId: '0193a000-0000-7000-8000-0000000000ff',
+          trigger: 'manual',
+          startedAt: ago(0),
+          items: [
+            { itemId: PLATFORM, state: 'done', phase: null, result: null },
+            { itemId: IMMICH_ITEM, state: 'running', phase: 'archiving', result: null },
+          ],
+          output: [],
+        },
+      }),
+    );
+    expect(headline()).toBe('Backing up… 1 of 2');
+  });
+
+  it('says everything is backed up when nothing failed', async () => {
+    const healthy = plan();
+    healthy.items = healthy.items.slice(0, 2);
+    const { el, pushStatus } = await render(healthy);
+    await pushStatus(status());
+    expect(el.querySelector('[data-headline]')!.textContent).toContain(
+      'Everything is backed up · 9 hours ago',
+    );
+    await pushStatus(status({ lastSuccessAt: null }));
+    expect(el.querySelector('[data-headline]')!.textContent).toContain(
+      'Not everything is backed up yet',
+    );
+  });
+
+  it('keeps the open tab in the URL', async () => {
+    const { el, fixture, button } = await render(plan(), '/backups?tab=history');
+    const shown = () =>
+      [...el.querySelectorAll<HTMLElement>('[role="tabpanel"]')]
+        .filter((p) => !p.hidden && p.childElementCount > 0)
+        .map(
+          (p) =>
+            p.querySelector('laris-backup-items, laris-backup-history, laris-backup-settings')
+              ?.tagName,
+        );
+    expect(shown()).toEqual(['LARIS-BACKUP-HISTORY']);
+    expect(el.textContent).toContain('No backups have run yet.');
+    button('Settings').click();
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/backups?tab=settings'));
+    await fixture.whenStable();
+    expect(shown()).toEqual(['LARIS-BACKUP-SETTINGS']);
+    button('What’s backed up').click();
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/backups'));
+  });
+
+  it('opens an item’s sheet from its card; a folder change is saved as the person', async () => {
+    const { el, api, asPerson, fixture } = await render(plan());
+    [...el.querySelectorAll<HTMLButtonElement>('[data-open-sheet]')][1].click();
+    await vi.waitFor(() => expect(document.querySelector('[data-item-sheet]')).not.toBeNull());
+    const sheet = document.querySelector<HTMLElement>('[data-item-sheet]')!;
+    expect(sheet.querySelector('h2')!.textContent!.trim()).toBe('immich');
+    expect(sheet.textContent).toContain('/home/anna/apps/immich/data');
+    asPerson.mockClear();
+    const before = api.plan.mock.calls.length;
+    sheet.querySelector<HTMLSelectElement>('#item-mode')!.value = 'live';
+    sheet.querySelector('#item-mode')!.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      expect(api.updateItem).toHaveBeenCalledWith(IMMICH_ITEM, { mode: 'live' }),
+    );
+    expect(asPerson).toHaveBeenCalled();
+    await vi.waitFor(() => expect(api.plan.mock.calls.length).toBeGreaterThan(before));
+    sheet.querySelector<HTMLButtonElement>('button[hlmSheetClose]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-item-sheet]')).toBeNull());
+    await fixture.whenStable();
   });
 
   it('backs up now', async () => {
@@ -333,17 +453,15 @@ describe('BackupsPage with a plan', () => {
   });
 
   it('shows a removed item gone at once (an empty answer is done, not cancelled)', async () => {
-    const { api, fixture } = await render(plan());
+    const { api, store } = await render(plan());
     const before = api.plan.mock.calls.length;
-    const store = fixture.debugElement.injector.get(BackupsPageStore);
     await store.removeItem({ itemId: FOLDER_ITEM, deleteArchives: false });
     expect(api.removeItem).toHaveBeenCalledWith(FOLDER_ITEM, false);
     await vi.waitFor(() => expect(api.plan.mock.calls.length).toBeGreaterThan(before));
   });
 
   it('applies a restored app’s settings as the person, in its own folder', async () => {
-    const { api, asPerson, fixture } = await render(plan());
-    const store = fixture.debugElement.injector.get(BackupsPageStore);
+    const { api, asPerson, store } = await render(plan());
     const before = api.plan.mock.calls.length;
     await store.applyRestored({ id: 'r1', itemId: IMMICH_ITEM } as never);
     expect(asPerson).toHaveBeenCalled();
@@ -352,18 +470,20 @@ describe('BackupsPage with a plan', () => {
     await vi.waitFor(() => expect(api.plan.mock.calls.length).toBeGreaterThan(before));
   });
 
-  it('shows the passphrase again through the person’s sudo', async () => {
-    const { el, api, asPerson, button } = await render(plan());
-    button('Show the passphrase again').click();
+  it('shows the passphrase again through the person’s sudo, from "⋯"', async () => {
+    const { el, api, asPerson, pushStatus } = await render(plan());
+    await pushStatus(status());
+    await morePassphrase(el);
     await vi.waitFor(() => expect(api.passphrase).toHaveBeenCalledWith());
     expect(asPerson).toHaveBeenCalled();
     await vi.waitFor(() => expect(el.textContent).toContain('dolphin'));
   });
 
   it('shows nothing when the sudo prompt is closed', async () => {
-    const { el, api, asPerson, button, fixture } = await render(plan());
+    const { el, api, asPerson, fixture, pushStatus } = await render(plan());
+    await pushStatus(status());
     asPerson.mockResolvedValueOnce(null);
-    button('Show the passphrase again').click();
+    await morePassphrase(el);
     await fixture.whenStable();
     expect(api.passphrase).not.toHaveBeenCalled();
     expect(el.textContent).not.toContain('dolphin');

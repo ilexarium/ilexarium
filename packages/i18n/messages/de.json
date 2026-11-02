@@ -677,21 +677,29 @@
     "loading": "Backups werden geladen",
     "failed": "Die Backups konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
     "setup": {
-      "title": "Backups einrichten",
       "text": "Die Daten deiner Apps, gewählte Ordner und diese App werden täglich gesichert – verschlüsselt, und nur Änderungen brauchen Platz. Sicherungen laufen auch, wenn diese App nicht läuft.",
-      "disk": "1. Das Backup-Laufwerk",
+      "disk": "1. Der Sicherungsdatenträger",
       "noDisk": "Außer der Systemplatte ist keine Festplatte eingehängt. Schließe eine USB-Festplatte oder ein zweites Laufwerk an und hänge es auf der Seite Festplatten ein.",
       "diskSpace": "{{free}} frei von {{total}} ({{filesystem}})",
       "unsupported": "Das Format dieses Laufwerks kann nicht für Backups genutzt werden.",
       "sameDisk": "Das ist dasselbe Laufwerk wie deine Daten: Fällt es aus, sind auch die Backups weg. Ein eigenes Laufwerk ist sicherer.",
       "hasRepository": "Es enthält bereits einen Backup-Ordner.",
-      "when": "2. Wann, und wie lange sie aufbewahrt werden",
-      "what": "3. Was gesichert wird",
+      "when": "3. Wann, und wie lange sie aufbewahrt werden",
+      "what": "2. Was gesichert wird",
       "removeFolder": "{{path}} entfernen",
       "submit": "Backups einrichten",
       "submitting": "Wird eingerichtet …",
       "done": "Backups sind eingerichtet. Das erste läuft zur gewählten Zeit – oder starte es jetzt.",
-      "mountDisk": "Laufwerk einbinden"
+      "mountDisk": "Laufwerk einbinden",
+      "summary": "Übersicht",
+      "summaryDisk": "Datenträger",
+      "noDiskChosen": "Noch kein Datenträger gewählt",
+      "summaryWhat": "Was",
+      "summaryApps_one": "{{count}} App",
+      "summaryApps_other": "{{count}} Apps",
+      "summaryFolders_one": "{{count}} Ordner",
+      "summaryFolders_other": "{{count}} Ordner",
+      "summaryWhen": "Wann"
     },
     "schedule": {
       "frequency": "Sichern",
@@ -719,17 +727,10 @@
       "copyFailed": "Kopieren ist fehlgeschlagen. Markiere die Wörter und kopiere sie selbst.",
       "saved": "Ich habe sie gespeichert",
       "again": "Passphrase erneut anzeigen",
-      "againHint": "Passphrase verloren? Mit dem sudo deines Linux-Kontos kannst du sie wieder sehen.",
-      "cancel": "Abbrechen",
       "failed": "Die Passphrase konnte nicht gezeigt werden"
     },
     "overview": {
-      "title": "Backups",
-      "lastSuccess": "Alles vor {{time}} gesichert",
-      "never": "Noch ist nicht alles gesichert",
-      "next": "nächstes: {{time}}",
       "runNow": "Jetzt sichern",
-      "disk": "Laufwerk:",
       "space": "{{free}} frei von {{total}}",
       "used": "{{percent}} % des Laufwerks belegt",
       "checkOk": "Letzte Prüfung: keine Probleme ({{time}})",
@@ -765,7 +766,7 @@
       },
       "lastRunFailed": {
         "title": "Das letzte Backup ist fehlgeschlagen",
-        "text": "Etwas wurde nicht gesichert. Unten siehst du, was passiert ist."
+        "text": "Etwas wurde nicht gesichert. Was passiert ist, steht im Verlauf."
       },
       "noRecentBackup": {
         "title": "Seit über zwei Tagen kein Backup",
@@ -802,12 +803,14 @@
       "removedTitle": "Nicht mehr gesichert",
       "removedText": "Ihre Backups bleiben erhalten, bis du sie löschst.",
       "deleteBackups": "Backups löschen",
-      "addApp": "{{name}} hinzufügen",
       "appRemoved": "Die App ist entfernt; ihre Sicherungen bleiben.",
       "mode": "Während der Sicherung",
       "notBackedUp": "nicht gesichert",
       "skipped": "Ausgelassen:",
-      "unskip": "Sichern"
+      "unskip": "Sichern",
+      "new": "Neu",
+      "add": "Zu den Sicherungen hinzufügen",
+      "addFolderMenu": "Einen Ordner…"
     },
     "remove": {
       "title": "{{name}} nicht mehr sichern?",
@@ -874,19 +877,43 @@
       "scheduled": "Geplant",
       "manual": "Von Hand gestartet",
       "added": "{{size}} hinzugekommen",
-      "gone": "Entfernter Eintrag"
+      "gone": "Entfernter Eintrag",
+      "done": "{{done}} von {{total}} Einträgen",
+      "sizeLine": "Hinzugefügt pro Sicherung",
+      "lastAdded": "Zuletzt: {{size}}"
     },
     "settings": {
-      "title": "Einstellungen",
       "disk": "Backup-Laufwerk",
       "newDisk": "Ein anderes Laufwerk beginnt einen neuen Satz Backups. Die Backups auf dem alten Laufwerk bleiben dort.",
       "save": "Speichern",
       "saving": "Wird gespeichert …",
-      "saved": "Gespeichert."
+      "saved": "Gespeichert.",
+      "when": "Wann Sicherungen laufen"
     },
     "run": {
       "started": "Backup gestartet. Du kannst es auf dieser Seite verfolgen.",
       "failed": "Das Backup konnte nicht gestartet werden"
+    },
+    "headline": {
+      "running": "Sicherung läuft… {{done}} von {{total}}",
+      "attention_one": "{{count}} Sache braucht Aufmerksamkeit",
+      "attention_other": "{{count}} Sachen brauchen Aufmerksamkeit",
+      "allGood": "Alles ist gesichert · vor {{time}}",
+      "never": "Noch ist nicht alles gesichert",
+      "notSetUp": "Sicherungen sind noch nicht eingerichtet"
+    },
+    "header": {
+      "next": "Nächste Sicherung: {{time}}",
+      "noNext": "Keine Sicherung geplant.",
+      "more": "Weitere Aktionen für Sicherungen",
+      "disk": "Sicherungsdatenträger",
+      "diskMissing": "Nicht verbunden"
+    },
+    "tabs": {
+      "label": "Sicherungen",
+      "items": "Was gesichert wird",
+      "history": "Verlauf",
+      "settings": "Einstellungen"
     }
   },
   "disks": {
@@ -1585,12 +1612,10 @@
     },
     "save": {
       "action": "Speichern und anwenden",
-      "discard": "Änderungen verwerfen",
       "conflict": "Die Dateien wurden seit dem Lesen auf der Festplatte geändert.",
       "reload": "Neu laden",
       "overwrite": "Überschreiben",
-      "failed": "{{name}} konnte nicht gespeichert werden",
-      "unsaved": "Ungespeicherte Änderungen"
+      "failed": "{{name}} konnte nicht gespeichert werden"
     },
     "remove": {
       "action": "Entfernen…",
@@ -1640,5 +1665,10 @@
       "logs": "Logs",
       "logsFor": "Logs von {{name}}"
     }
+  },
+  "saveBar": {
+    "unsaved": "Ungespeicherte Änderungen",
+    "discard": "Änderungen verwerfen",
+    "save": "Speichern"
   }
 }

@@ -7,18 +7,19 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type {
-  BackupArchive,
-  BackupDestination,
-  BackupFoldersResponse,
-  BackupItem,
-  BackupPlan,
-  BackupPlanUpdate,
-  BackupRestore,
-  BackupRun,
-  BackupItemRequest,
-  BackupItemUpdate,
-  BackupSetupRequest,
+import {
+  type BackupArchive,
+  type BackupDestination,
+  type BackupFoldersResponse,
+  type BackupItem,
+  type BackupPlan,
+  type BackupPlanUpdate,
+  type BackupRestore,
+  type BackupRun,
+  type BackupItemRequest,
+  type BackupItemUpdate,
+  type BackupSetupRequest,
+  catalogIconPath,
 } from '@laris/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
@@ -46,7 +47,15 @@ import { AppsStore } from '../../../core/apps/apps-store';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
-import type { ItemChange, ItemRemoval, ItemRow, RestoreChoice } from '../backups.model';
+import { runAdded } from '../backup-runs';
+import type {
+  BackupsHeadline,
+  BackupsTab,
+  ItemChange,
+  ItemRemoval,
+  ItemRow,
+  RestoreChoice,
+} from '../backups.model';
 
 interface BackupsPageState {
   /** Null while loading (`loaded` false) or before setup. */
@@ -68,6 +77,10 @@ interface BackupsPageState {
   passphraseFirst: boolean;
   /** Actions waiting for the server, for pending buttons (`run`, `run:<item>`, `remove:<item>`…). */
   pending: string[];
+  /** The open tab (the page keeps it in the URL). */
+  tab: BackupsTab;
+  /** The item whose side sheet is open. */
+  sheetItemId: string | null;
 }
 
 const initialState: BackupsPageState = {
@@ -83,6 +96,8 @@ const initialState: BackupsPageState = {
   passphrase: null,
   passphraseFirst: false,
   pending: [],
+  tab: 'items',
+  sheetItemId: null,
 };
 
 /**
@@ -103,7 +118,13 @@ export const BackupsPageStore = signalStore(
 
     /** The plan's items as shown: active ones and removed ones (backups kept). */
     rows: computed((): { active: ItemRow[]; removed: ItemRow[] } => {
-      const row = (item: BackupItem): ItemRow => ({ item, name: item.project });
+      const apps = new Map((appsStore.apps() ?? []).map((app) => [app.name, app]));
+      const templates = appsStore.templatesById();
+      const icon = (item: BackupItem) => {
+        const id = item.project ? apps.get(item.project)?.template?.id : undefined;
+        return id && templates.has(id) ? catalogIconPath(id) : null;
+      };
+      const row = (item: BackupItem): ItemRow => ({ item, name: item.project, icon: icon(item) });
       const items = store.plan()?.items ?? [];
       return {
         active: items.filter((i) => !i.removed).map(row),
@@ -117,6 +138,43 @@ export const BackupsPageStore = signalStore(
       const inPlan = new Set(store.rows().active.map((r) => r.item.project));
       return store.apps().filter((app) => !inPlan.has(app.name));
     }),
+
+    /** The item whose side sheet is open, as it is now; null once it's gone from the plan. */
+    sheetRow: computed(
+      () => store.rows().active.find((r) => r.item.id === store.sheetItemId()) ?? null,
+    ),
+
+    /** The item being backed up right now. */
+    runningItemId: computed(
+      () => store.running()?.items.find((i) => i.state === 'running')?.itemId ?? null,
+    ),
+
+    /** Null until the status and the plan are known. */
+    headline: computed((): BackupsHeadline | null => {
+      const status = store.status();
+      if (!status || !store.plan()) return null;
+      if (status.running) {
+        const { items } = status.running;
+        return {
+          kind: 'running',
+          done: items.filter((i) => i.state === 'done').length,
+          total: items.length,
+        };
+      }
+      const failed = store
+        .rows()
+        .active.filter((r) => r.item.lastResult?.status === 'failed').length;
+      // A failed item already says the last run failed.
+      const warnings = status.warnings.filter((w) => !(w === 'lastRunFailed' && failed > 0));
+      const count = failed + warnings.length;
+      if (count > 0) return { kind: 'attention', count };
+      return status.lastSuccessAt
+        ? { kind: 'allGood', at: status.lastSuccessAt }
+        : { kind: 'never' };
+    }),
+
+    /** What each run added, oldest first, for the history's line. */
+    sizeLine: computed(() => [...(store.runs() ?? [])].reverse().map(runAdded)),
   })),
   withMethods(
     (
@@ -406,6 +464,18 @@ export const BackupsPageStore = signalStore(
 
         closeBrowser(): void {
           patchState(store, { folders: null });
+        },
+
+        setTab(tab: BackupsTab): void {
+          patchState(store, { tab });
+        },
+
+        openSheet(itemId: string): void {
+          patchState(store, { sheetItemId: itemId });
+        },
+
+        closeSheet(): void {
+          patchState(store, { sheetItemId: null });
         },
       };
     },

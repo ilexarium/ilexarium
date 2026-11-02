@@ -677,7 +677,6 @@
     "loading": "Loading backups",
     "failed": "The backups couldn't be loaded. Reload the page to try again.",
     "setup": {
-      "title": "Set up backups",
       "text": "Your apps' data, chosen folders and this app are backed up every day — encrypted, and only changes take space. Backups run even when this app is down.",
       "disk": "1. The backup disk",
       "noDisk": "No disk is mounted besides the system's. Connect a USB disk or a second drive and mount it on the Disks page.",
@@ -685,13 +684,22 @@
       "unsupported": "This disk's format can't be used for backups.",
       "sameDisk": "This is the same disk as your data: if it breaks, the backups are gone too. A separate disk is safer.",
       "hasRepository": "It already holds a backup folder.",
-      "when": "2. When, and how long they're kept",
-      "what": "3. What is backed up",
+      "when": "3. When, and how long they’re kept",
+      "what": "2. What is backed up",
       "removeFolder": "Remove {{path}}",
       "submit": "Set up backups",
       "submitting": "Setting up…",
       "done": "Backups are set up. The first one runs at the time you chose — or start it now.",
-      "mountDisk": "Mount a disk"
+      "mountDisk": "Mount a disk",
+      "summary": "Summary",
+      "summaryDisk": "Disk",
+      "noDiskChosen": "No disk chosen yet",
+      "summaryWhat": "What",
+      "summaryApps_one": "{{count}} app",
+      "summaryApps_other": "{{count}} apps",
+      "summaryFolders_one": "{{count}} folder",
+      "summaryFolders_other": "{{count}} folders",
+      "summaryWhen": "When"
     },
     "schedule": {
       "frequency": "Back up",
@@ -719,17 +727,10 @@
       "copyFailed": "Couldn't copy. Select the words and copy them yourself.",
       "saved": "I've saved it",
       "again": "Show the passphrase again",
-      "againHint": "Lost the passphrase? You can see it again with your Linux account's sudo.",
-      "cancel": "Cancel",
       "failed": "Couldn't show the passphrase"
     },
     "overview": {
-      "title": "Backups",
-      "lastSuccess": "Everything backed up {{time}} ago",
-      "never": "Not everything is backed up yet",
-      "next": "next: {{time}}",
       "runNow": "Back up now",
-      "disk": "Disk:",
       "space": "{{free}} free of {{total}}",
       "used": "{{percent}}% of the disk used",
       "checkOk": "Last check: no problems ({{time}})",
@@ -765,7 +766,7 @@
       },
       "lastRunFailed": {
         "title": "The last backup failed",
-        "text": "Something wasn't backed up. See what happened below."
+        "text": "Something wasn’t backed up. See what happened under History."
       },
       "noRecentBackup": {
         "title": "No backup for more than two days",
@@ -802,12 +803,14 @@
       "removedTitle": "No longer backed up",
       "removedText": "Their backups are kept until you delete them.",
       "deleteBackups": "Delete backups",
-      "addApp": "Add {{name}}",
       "appRemoved": "The app is removed; its backups stay.",
       "mode": "While it's backed up",
       "notBackedUp": "not backed up",
       "skipped": "Skipped:",
-      "unskip": "Back up"
+      "unskip": "Back up",
+      "new": "New",
+      "add": "Add to backups",
+      "addFolderMenu": "A folder…"
     },
     "remove": {
       "title": "Stop backing up {{name}}?",
@@ -874,19 +877,43 @@
       "scheduled": "Scheduled",
       "manual": "Started by hand",
       "added": "{{size}} added",
-      "gone": "Removed item"
+      "gone": "Removed item",
+      "done": "{{done}} of {{total}} items",
+      "sizeLine": "Added per backup",
+      "lastAdded": "Last: {{size}}"
     },
     "settings": {
-      "title": "Settings",
       "disk": "Backup disk",
       "newDisk": "Another disk starts a new set of backups. The backups on the old disk stay there.",
       "save": "Save",
       "saving": "Saving…",
-      "saved": "Saved."
+      "saved": "Saved.",
+      "when": "When backups run"
     },
     "run": {
       "started": "Backup started. You can follow it on this page.",
       "failed": "Couldn't start the backup"
+    },
+    "headline": {
+      "running": "Backing up… {{done}} of {{total}}",
+      "attention_one": "{{count}} thing needs attention",
+      "attention_other": "{{count}} things need attention",
+      "allGood": "Everything is backed up · {{time}} ago",
+      "never": "Not everything is backed up yet",
+      "notSetUp": "Backups aren’t set up yet"
+    },
+    "header": {
+      "next": "Next backup: {{time}}",
+      "noNext": "No backup is scheduled.",
+      "more": "More backup actions",
+      "disk": "Backup disk",
+      "diskMissing": "Not connected"
+    },
+    "tabs": {
+      "label": "Backups",
+      "items": "What’s backed up",
+      "history": "History",
+      "settings": "Settings"
     }
   },
   "disks": {
@@ -1585,12 +1612,10 @@
     },
     "save": {
       "action": "Save and apply",
-      "discard": "Discard changes",
       "conflict": "The files changed on disk since they were read.",
       "reload": "Reload",
       "overwrite": "Overwrite",
-      "failed": "Couldn't save {{name}}",
-      "unsaved": "Unsaved changes"
+      "failed": "Couldn't save {{name}}"
     },
     "remove": {
       "action": "Remove…",
@@ -1640,5 +1665,10 @@
       "logs": "Logs",
       "logsFor": "Logs of {{name}}"
     }
+  },
+  "saveBar": {
+    "unsaved": "Unsaved changes",
+    "discard": "Discard changes",
+    "save": "Save"
   }
 }

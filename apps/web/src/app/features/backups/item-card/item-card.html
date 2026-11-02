@@ -1,0 +1,89 @@
+@let item = row().item;
+<article
+  class="relative flex h-full flex-col gap-3 rounded-xl border bg-card p-4 text-card-foreground shadow-xs transition-colors hover:border-primary has-[[data-open-sheet]:focus-visible]:outline-2 has-[[data-open-sheet]:focus-visible]:outline-ring"
+>
+  <div class="flex items-start gap-3">
+    @if (row().icon; as url) {
+      <img [src]="url" alt="" width="40" height="40" class="size-10 shrink-0 rounded-lg" />
+    } @else {
+      <span
+        class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+      >
+        <ng-icon [name]="kindIcon()" class="size-5" aria-hidden="true" />
+      </span>
+    }
+    <div class="grid min-w-0 flex-1 gap-1">
+      <h3 class="leading-tight font-semibold">
+        <!-- The whole card opens the sheet: the button's area covers it. -->
+        <button
+          type="button"
+          data-open-sheet
+          class="max-w-full truncate text-start outline-none after:absolute after:inset-0 after:rounded-xl"
+          [attr.dir]="label().ltr ? 'ltr' : null"
+          [title]="label().text"
+          (click)="open.emit()"
+        >
+          {{ label().text }}
+        </button>
+      </h3>
+      <laris-status-dot class="text-sm" [tone]="state().tone">{{
+        state().key | translate
+      }}</laris-status-dot>
+    </div>
+    <button
+      hlmBtn
+      variant="ghost"
+      size="icon"
+      class="relative z-10 shrink-0"
+      [hlmDropdownMenuTrigger]="menu"
+      align="end"
+      [attr.aria-label]="'backups.items.actionsFor' | translate: { name: label().text }"
+    >
+      <ng-icon name="lucideEllipsis" aria-hidden="true" />
+    </button>
+    <ng-template #menu>
+      <hlm-dropdown-menu class="w-48">
+        <button
+          hlmDropdownMenuItem
+          [disabled]="runBusy() || pending().includes('run:' + item.id)"
+          (triggered)="runNow.emit()"
+        >
+          <ng-icon name="lucidePlay" aria-hidden="true" />
+          {{ 'backups.items.runNow' | translate }}
+        </button>
+        <button hlmDropdownMenuItem (triggered)="restore.emit()">
+          <ng-icon name="lucideArchiveRestore" aria-hidden="true" />
+          {{ 'backups.items.restore' | translate }}
+        </button>
+        @if (item.kind !== 'platform') {
+          <button
+            hlmDropdownMenuItem
+            variant="destructive"
+            [disabled]="pending().includes('remove:' + item.id)"
+            (triggered)="remove.emit()"
+          >
+            <ng-icon name="lucideTrash2" aria-hidden="true" />
+            {{ 'backups.items.remove' | translate }}
+          </button>
+        }
+      </hlm-dropdown-menu>
+    </ng-template>
+  </div>
+
+  <p class="mt-auto text-sm text-muted-foreground">
+    @if (item.lastSuccessAt; as at) {
+      {{ 'backups.items.lastSuccess' | translate: { time: formatter.ago(at) } }}
+      @if (item.lastResult?.originalBytes; as size) {
+        · {{ formatter.bytes(size) }}
+      }
+    } @else {
+      {{ 'backups.items.never' | translate }}
+    }
+  </p>
+  @if (item.lastResult?.errorCode; as code) {
+    <p class="text-sm text-destructive">{{ 'errors.' + code | translate }}</p>
+  }
+  @if (item.appRemoved) {
+    <p class="text-sm text-warning">{{ 'backups.items.appRemoved' | translate }}</p>
+  }
+</article>

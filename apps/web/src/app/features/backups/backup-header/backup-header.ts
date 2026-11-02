@@ -4,59 +4,68 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideCircleCheck,
   lucideCircleX,
+  lucideEllipsis,
+  lucideHardDrive,
+  lucideKeyRound,
   lucideLoaderCircle,
   lucidePlay,
   lucideTriangleAlert,
 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
-import { HlmCardImports } from '@ui/card';
+import { HlmDropdownMenuImports } from '@ui/dropdown-menu';
 import { HlmProgressImports } from '@ui/progress';
+import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { Formatter } from '../../../shared/format/formatter';
-import type { ItemLabel } from '../backups.model';
+import { DISK_PATH_SHOWN } from '../backups.constants';
+import type { BackupsHeadline } from '../backups.model';
 
 /**
- * Where backups stand: what needs attention, when everything was last backed up and when the
- * next run is, the disk's free space, a running backup's progress (scheduled ones too) — and
- * "Back up now". UI only: `runNow` reports the click.
+ * The top of the Backups page: the headline, the next run, Back up now and "⋯" (the passphrase
+ * again), the disk tile, and the warnings as a band. UI only: the clicks go out.
  */
 @Component({
-  selector: 'laris-backup-overview',
-  imports: [HlmAlertImports, HlmButton, HlmCardImports, HlmProgressImports, NgIcon, TranslatePipe],
+  selector: 'laris-backup-header',
+  imports: [
+    HlmButton,
+    HlmDropdownMenuImports,
+    HlmProgressImports,
+    NgIcon,
+    PluralPipe,
+    TranslatePipe,
+  ],
   providers: [
     provideIcons({
       lucideCircleCheck,
       lucideCircleX,
+      lucideEllipsis,
+      lucideHardDrive,
+      lucideKeyRound,
       lucideLoaderCircle,
       lucidePlay,
       lucideTriangleAlert,
     }),
   ],
-  templateUrl: './backup-overview.html',
+  host: { class: 'grid gap-4' },
+  templateUrl: './backup-header.html',
 })
-export class BackupOverview {
+export class BackupHeader {
+  readonly headline = input<BackupsHeadline | null>(null);
   readonly status = input.required<BackupsStatus>();
   /** The disk now; null when it isn't mounted. */
   readonly destination = input<BackupDestination | null>(null);
   readonly destinationPath = input.required<string>();
-  /** What each item is called, by id. */
-  readonly labels = input<Map<string, ItemLabel>>(new Map());
   readonly pending = input(false);
 
   readonly runNow = output<void>();
+  readonly showPassphrase = output<void>();
 
   protected readonly formatter = inject(Formatter);
-
-  protected readonly running = computed(() => this.status().running);
-  protected readonly done = computed(() => {
-    const items = this.running()?.items ?? [];
-    return items.filter((i) => i.state === 'done').length;
+  protected readonly shownPath = computed(() => {
+    const path = this.destinationPath();
+    return path.length > DISK_PATH_SHOWN ? `…/${path.split('/').filter(Boolean).at(-1)}` : path;
   });
-  protected readonly total = computed(() => this.running()?.items.length ?? 0);
-  protected readonly current = computed(
-    () => this.running()?.items.find((i) => i.state === 'running') ?? null,
-  );
+  protected readonly running = computed(() => this.status().running !== null);
   protected readonly usedPercent = computed(() => {
     const disk = this.destination();
     return disk && disk.totalBytes > 0

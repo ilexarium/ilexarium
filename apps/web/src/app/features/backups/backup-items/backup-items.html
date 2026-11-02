@@ -1,199 +1,85 @@
-<section hlmCard aria-labelledby="items-title">
-  <div hlmCardHeader>
-    <h2 hlmCardTitle id="items-title">{{ 'backups.items.title' | translate }}</h2>
-  </div>
-  <div hlmCardContent class="grid gap-3">
-    <ul class="grid gap-3">
-      @for (row of active(); track row.item.id) {
+<ul
+  class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+  [attr.aria-label]="'backups.items.title' | translate"
+>
+  @for (row of active(); track row.item.id) {
+    <li>
+      <laris-item-card
+        class="h-full"
+        [row]="row"
+        [label]="label(row)"
+        [backingUp]="runningItemId() === row.item.id"
+        [runBusy]="runBusy()"
+        [pending]="pending()"
+        (open)="openItem.emit(row.item.id)"
+        (runNow)="runNow.emit(row.item.id)"
+        (restore)="restore.emit(row)"
+        (remove)="remove.emit(row)"
+      />
+    </li>
+  }
+  <li>
+    <button
+      type="button"
+      data-add-tile
+      class="flex h-full min-h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+      [hlmDropdownMenuTrigger]="addMenu"
+      align="center"
+    >
+      <ng-icon name="lucidePlus" class="size-6" aria-hidden="true" />
+      {{ 'backups.items.add' | translate }}
+    </button>
+    <ng-template #addMenu>
+      <hlm-dropdown-menu class="w-60">
+        @for (app of addable(); track app.name) {
+          <button
+            hlmDropdownMenuItem
+            [disabled]="pending().includes('add:' + app.name)"
+            (triggered)="addApp.emit(app.name)"
+          >
+            <ng-icon name="lucideBox" aria-hidden="true" />
+            <span class="truncate" dir="ltr">{{ app.name }}</span>
+          </button>
+        }
+        <button hlmDropdownMenuItem (triggered)="openPicker()">
+          <ng-icon name="lucideFolderPlus" aria-hidden="true" />
+          {{ 'backups.items.addFolderMenu' | translate }}
+        </button>
+      </hlm-dropdown-menu>
+    </ng-template>
+  </li>
+</ul>
+
+@if (removed().length > 0) {
+  <section class="grid gap-2" aria-labelledby="removed-title">
+    <h2 id="removed-title" class="text-sm font-medium text-muted-foreground">
+      {{ 'backups.items.removedTitle' | translate }}
+    </h2>
+    <p class="text-sm text-muted-foreground">{{ 'backups.items.removedText' | translate }}</p>
+    <ul class="grid gap-2">
+      @for (row of removed(); track row.item.id) {
         @let name = label(row);
-        @let last = row.item.lastResult;
-        <li class="grid gap-2 rounded-md border p-3">
-          <div class="flex flex-wrap items-start gap-2">
-            <div class="grid min-w-0 flex-1 gap-1">
-              <p class="font-medium break-all" [attr.dir]="name.ltr ? 'ltr' : null">
-                {{ name.text }}
-              </p>
-              <p class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                @if (last) {
-                  <laris-status-badge [tone]="statusTones[last.status]">{{
-                    'backups.status.' + last.status | translate
-                  }}</laris-status-badge>
-                }
-                @if (row.item.lastSuccessAt; as at) {
-                  <span>{{
-                    'backups.items.lastSuccess' | translate: { time: formatter.ago(at) }
-                  }}</span>
-                } @else {
-                  <span>{{ 'backups.items.never' | translate }}</span>
-                }
-                @if (last?.originalBytes; as size) {
-                  <span>· {{ formatter.bytes(size) }}</span>
-                }
-              </p>
-              @if (last?.errorCode; as code) {
-                <p class="text-sm text-destructive">{{ 'errors.' + code | translate }}</p>
-              }
-              @if (last && last.warnings.length > 0) {
-                <details class="text-sm">
-                  <summary class="cursor-pointer select-none">
-                    {{ 'backups.items.warnings' | plural: last.warnings.length }}
-                  </summary>
-                  <ul class="mt-1 grid gap-1 ps-4" dir="ltr">
-                    @for (warning of last.warnings; track $index) {
-                      <li class="text-xs break-all">{{ warning }}</li>
-                    }
-                  </ul>
-                </details>
-              }
-            </div>
-            <button
-              hlmBtn
-              variant="ghost"
-              size="icon"
-              [hlmDropdownMenuTrigger]="menu"
-              align="end"
-              [attr.aria-label]="'backups.items.actionsFor' | translate: { name: name.text }"
-            >
-              <ng-icon name="lucideEllipsis" aria-hidden="true" />
-            </button>
-            <ng-template #menu>
-              <hlm-dropdown-menu class="w-48">
-                <button
-                  hlmDropdownMenuItem
-                  [disabled]="running() || pending().includes('run:' + row.item.id)"
-                  (triggered)="runNow.emit(row.item.id)"
-                >
-                  <ng-icon name="lucidePlay" aria-hidden="true" />
-                  {{ 'backups.items.runNow' | translate }}
-                </button>
-                <button hlmDropdownMenuItem (triggered)="restore.emit(row)">
-                  <ng-icon name="lucideArchiveRestore" aria-hidden="true" />
-                  {{ 'backups.items.restore' | translate }}
-                </button>
-                @if (row.item.kind !== 'platform') {
-                  <button hlmDropdownMenuItem (triggered)="confirmRemove(row)">
-                    <ng-icon name="lucideTrash2" aria-hidden="true" />
-                    {{ 'backups.items.remove' | translate }}
-                  </button>
-                }
-              </hlm-dropdown-menu>
-            </ng-template>
-          </div>
-          @if (row.item.kind === 'platform') {
-            <p class="text-sm text-muted-foreground">
-              {{ 'backups.items.platformHelp' | translate }}
-            </p>
-          }
-          @if (row.item.kind === 'app') {
-            @if (row.item.appRemoved) {
-              <p class="text-sm text-warning">{{ 'backups.items.appRemoved' | translate }}</p>
-            }
-            <fieldset class="grid gap-1">
-              <legend class="text-sm text-muted-foreground">
-                {{ 'backups.items.folders' | translate }}
-              </legend>
-              @for (folder of allFolders(row); track folder) {
-                <label class="flex items-start gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    class="mt-0.5 size-4 shrink-0"
-                    [checked]="row.item.folders.includes(folder)"
-                    [disabled]="
-                      lastFolder(row, folder) || pending().includes('folders:' + row.item.id)
-                    "
-                    (change)="toggleFolder(row, folder, $event)"
-                  />
-                  <code dir="ltr" class="break-all">{{ folder }}</code>
-                  @if (!row.item.folders.includes(folder)) {
-                    <span class="text-warning">{{ 'backups.items.notBackedUp' | translate }}</span>
-                  }
-                </label>
-              }
-            </fieldset>
-            <label class="flex flex-wrap items-center gap-2 text-sm">
-              {{ 'backups.items.mode' | translate }}
-              <select
-                class="h-8 rounded-md border bg-background px-2 text-sm"
-                [value]="row.item.mode ?? 'stop'"
-                [disabled]="pending().includes('folders:' + row.item.id)"
-                (change)="setMode(row, $event)"
-              >
-                <option value="stop">{{ 'apps.backup.stop' | translate }}</option>
-                <option value="live">{{ 'apps.backup.live' | translate }}</option>
-              </select>
-            </label>
-            @if (row.item.skip.length > 0) {
-              <div class="grid gap-1 text-sm">
-                <span class="text-muted-foreground">{{ 'backups.items.skipped' | translate }}</span>
-                @for (skip of row.item.skip; track skip) {
-                  <span class="flex items-center gap-2">
-                    <code dir="ltr" class="break-all">{{ skip }}</code>
-                    <button
-                      hlmBtn
-                      variant="ghost"
-                      size="sm"
-                      [disabled]="pending().includes('folders:' + row.item.id)"
-                      (click)="removeSkip(row, skip)"
-                    >
-                      {{ 'backups.items.unskip' | translate }}
-                    </button>
-                  </span>
-                }
-              </div>
-            }
-          }
+        <li class="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-3 text-sm">
+          <span class="min-w-0 flex-1 break-all" [attr.dir]="name.ltr ? 'ltr' : null">{{
+            name.text
+          }}</span>
+          <button hlmBtn variant="outline" size="sm" (click)="restore.emit(row)">
+            {{ 'backups.items.restore' | translate }}
+          </button>
+          <button
+            hlmBtn
+            variant="ghost"
+            size="sm"
+            [disabled]="pending().includes('remove:' + row.item.id)"
+            (click)="remove.emit(row)"
+          >
+            {{ 'backups.items.deleteBackups' | translate }}
+          </button>
         </li>
       }
     </ul>
-
-    <div class="flex flex-wrap gap-2">
-      @for (app of addable(); track app.name) {
-        <button
-          hlmBtn
-          variant="outline"
-          [disabled]="pending().includes('add:' + app.name)"
-          (click)="addApp.emit(app.name)"
-        >
-          <ng-icon name="lucidePlus" aria-hidden="true" />
-          {{ 'backups.items.addApp' | translate: { name: app.name } }}
-        </button>
-      }
-      <button hlmBtn variant="outline" (click)="openPicker()">
-        <ng-icon name="lucideFolderPlus" aria-hidden="true" />
-        {{ 'backups.items.addFolder' | translate }}
-      </button>
-    </div>
-
-    @if (removed().length > 0) {
-      <div class="grid gap-2 border-t pt-4">
-        <h3 class="text-sm font-medium">{{ 'backups.items.removedTitle' | translate }}</h3>
-        <p class="text-sm text-muted-foreground">{{ 'backups.items.removedText' | translate }}</p>
-        <ul class="grid gap-2">
-          @for (row of removed(); track row.item.id) {
-            @let name = label(row);
-            <li class="flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm">
-              <span class="min-w-0 flex-1 break-all" [attr.dir]="name.ltr ? 'ltr' : null">{{
-                name.text
-              }}</span>
-              <button hlmBtn variant="outline" size="sm" (click)="restore.emit(row)">
-                {{ 'backups.items.restore' | translate }}
-              </button>
-              <button
-                hlmBtn
-                variant="ghost"
-                size="sm"
-                [disabled]="pending().includes('remove:' + row.item.id)"
-                (click)="confirmRemove(row, true)"
-              >
-                {{ 'backups.items.deleteBackups' | translate }}
-              </button>
-            </li>
-          }
-        </ul>
-      </div>
-    }
-  </div>
-</section>
+  </section>
+}
 
 <laris-folder-picker
   [open]="pickerOpen()"
@@ -202,48 +88,3 @@
   (choose)="chooseFolder($event)"
   (cancel)="closePicker()"
 />
-
-<hlm-alert-dialog>
-  <hlm-alert-dialog-content *hlmAlertDialogPortal>
-    @if (removing(); as removal) {
-      <hlm-alert-dialog-header>
-        <h2 hlmAlertDialogTitle>
-          {{
-            (removal.row.item.removed ? 'backups.remove.deleteTitle' : 'backups.remove.title')
-              | translate: { name: label(removal.row).text }
-          }}
-        </h2>
-        <p hlmAlertDialogDescription>
-          {{
-            (removal.row.item.removed ? 'backups.remove.deleteText' : 'backups.remove.text')
-              | translate
-          }}
-        </p>
-      </hlm-alert-dialog-header>
-      @if (!removal.row.item.removed) {
-        <label class="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            class="mt-0.5 size-4"
-            [checked]="removal.deleteArchives"
-            (change)="setDeleteArchives($event)"
-          />
-          {{ 'backups.remove.alsoDelete' | translate }}
-        </label>
-      }
-      <hlm-alert-dialog-footer>
-        <button hlmAlertDialogCancel>{{ 'backups.remove.cancel' | translate }}</button>
-        <button
-          hlmAlertDialogAction
-          [variant]="removal.deleteArchives ? 'destructive' : 'default'"
-          (click)="confirmed()"
-        >
-          {{
-            (removal.deleteArchives ? 'backups.remove.confirmDelete' : 'backups.remove.confirm')
-              | translate
-          }}
-        </button>
-      </hlm-alert-dialog-footer>
-    }
-  </hlm-alert-dialog-content>
-</hlm-alert-dialog>

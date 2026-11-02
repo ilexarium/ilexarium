@@ -1,0 +1,41 @@
+<section
+  class="grid gap-2 rounded-xl border bg-muted/40 p-4"
+  role="status"
+  aria-live="polite"
+  data-run-progress
+>
+  <p class="text-sm font-medium">
+    {{
+      (run().trigger === 'scheduled' ? 'backups.running.scheduled' : 'backups.running.manual')
+        | translate: { done: done(), total: total() }
+    }}
+  </p>
+  <hlm-progress
+    [value]="done()"
+    [max]="total()"
+    [attr.aria-label]="'backups.running.progress' | translate: { done: done(), total: total() }"
+  >
+    <hlm-progress-indicator />
+  </hlm-progress>
+  @if (current(); as item) {
+    <p class="text-sm text-muted-foreground">
+      @let label = labels().get(item.itemId);
+      <span [attr.dir]="label?.ltr ? 'ltr' : null">{{ label?.text }}</span>
+      @if (item.phase) {
+        — {{ 'backups.phase.' + item.phase | translate }}
+      }
+    </p>
+  }
+  @if (run().output.length > 0) {
+    <details>
+      <summary class="cursor-pointer text-sm select-none">
+        {{ 'backups.running.output' | translate }}
+      </summary>
+      <pre
+        class="mt-2 max-h-60 overflow-auto rounded-md bg-muted p-2 text-xs whitespace-pre-wrap"
+        dir="ltr"
+        tabindex="0"
+        >{{ run().output.join('\n') }}</pre>
+    </details>
+  }
+</section>

@@ -5,7 +5,19 @@ export interface ItemRow {
   item: BackupItem;
   /** An app's name; null for the platform (translated) and folders (their path). */
   name: string | null;
+  /** An app's template icon, when its template is known. */
+  icon: string | null;
 }
+
+/** The page's tabs; the open one is in the URL (`?tab=`), "What's backed up" without. */
+export type BackupsTab = 'items' | 'history' | 'settings';
+
+/** How backups stand, in one sentence at the top of the page. */
+export type BackupsHeadline =
+  | { kind: 'running'; done: number; total: number }
+  | { kind: 'attention'; count: number }
+  | { kind: 'allGood'; at: string }
+  | { kind: 'never' };
 
 /** What a restore dialog chose: the backup, and where (null: back where it was). */
 export interface RestoreChoice {

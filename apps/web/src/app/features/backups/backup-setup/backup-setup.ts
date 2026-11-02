@@ -9,13 +9,14 @@ import {
   DEFAULT_BACKUP_SCHEDULE,
 } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideFolderPlus, lucideHardDrive, lucideTrash2 } from '@ng-icons/lucide';
+import { lucideFolderPlus, lucideHardDrive, lucideServer, lucideTrash2 } from '@ng-icons/lucide';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
-import { HlmCardImports } from '@ui/card';
 import { HlmFieldImports } from '@ui/field';
+import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
@@ -27,10 +28,11 @@ import { RetentionFields } from '../retention-fields/retention-fields';
 import { ScheduleFields } from '../schedule-fields/schedule-fields';
 
 /**
- * Setting backups up, once: the disk (mounted ones under /mnt and /media, free space, a warning
- * when it holds the data too), when and how long (presets, numbers under "Advanced"), and what
- * (apps ticked, folders added; this app itself always). "Set up backups" creates
- * the repository; its passphrase is shown next. Submits through the page store.
+ * Setting backups up, once, in numbered sections: the disk (mounted ones under /mnt and /media,
+ * free space, a warning when it holds the data too), what (apps ticked, folders added; this app
+ * itself always), and when and how long (presets, numbers under "Advanced"). A summary with
+ * "Set up backups" beside it on desktop, a bar at the bottom on phones. It creates the
+ * repository; its passphrase is shown next. Submits through the page store.
  */
 @Component({
   selector: 'laris-backup-setup',
@@ -41,15 +43,16 @@ import { ScheduleFields } from '../schedule-fields/schedule-fields';
     FormRoot,
     HlmAlertImports,
     HlmButton,
-    HlmCardImports,
     HlmFieldImports,
     NgIcon,
+    NgTemplateOutlet,
+    PluralPipe,
     RetentionFields,
     RouterLink,
     ScheduleFields,
     TranslatePipe,
   ],
-  providers: [provideIcons({ lucideFolderPlus, lucideHardDrive, lucideTrash2 })],
+  providers: [provideIcons({ lucideFolderPlus, lucideHardDrive, lucideServer, lucideTrash2 })],
   templateUrl: './backup-setup.html',
 })
 export class BackupSetup {
@@ -103,6 +106,9 @@ export class BackupSetup {
   protected readonly chosen = computed(
     () =>
       (this.destinations() ?? []).find((d) => d.mountPoint === this.model().destination) ?? null,
+  );
+  protected readonly appCount = computed(
+    () => this.apps().filter((app) => !this.skippedApps().includes(app.name)).length,
   );
 
   protected checked(event: Event): boolean {

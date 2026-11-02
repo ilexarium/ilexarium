@@ -158,9 +158,12 @@
             (envChanged)="appPageStore.setEnv($event)"
           />
           @if (appPageStore.changed() || appPageStore.conflict()) {
-            <div
-              class="sticky bottom-0 z-10 -mx-1 grid gap-3 rounded-t-xl border bg-background/95 p-3 shadow-lg backdrop-blur"
-              data-save-bar
+            <laris-save-bar
+              saveLabel="apps.save.action"
+              [actions]="!appPageStore.conflict()"
+              [busy]="appPageStore.busy() || appPageStore.running()"
+              (discard)="appPageStore.reload()"
+              (save)="appPageStore.save()"
             >
               @if (appPageStore.conflict()) {
                 <div role="alert" class="grid gap-2 text-sm">
@@ -179,22 +182,8 @@
                     </button>
                   </div>
                 </div>
-              } @else {
-                <div class="flex flex-wrap items-center gap-3">
-                  <p class="me-auto text-sm font-medium">{{ 'apps.save.unsaved' | translate }}</p>
-                  <button hlmBtn variant="ghost" (click)="appPageStore.reload()">
-                    {{ 'apps.save.discard' | translate }}
-                  </button>
-                  <button
-                    hlmBtn
-                    [disabled]="appPageStore.busy() || appPageStore.running()"
-                    (click)="appPageStore.save()"
-                  >
-                    {{ 'apps.save.action' | translate }}
-                  </button>
-                </div>
               }
-            </div>
+            </laris-save-bar>
           }
         </div>
       } @else {

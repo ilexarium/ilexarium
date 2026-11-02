@@ -1,0 +1,44 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @if (removing(); as removal) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle>
+          {{
+            (removal.row.item.removed ? 'backups.remove.deleteTitle' : 'backups.remove.title')
+              | translate: { name: name() }
+          }}
+        </h2>
+        <p hlmAlertDialogDescription>
+          {{
+            (removal.row.item.removed ? 'backups.remove.deleteText' : 'backups.remove.text')
+              | translate
+          }}
+        </p>
+      </hlm-alert-dialog-header>
+      @if (!removal.row.item.removed) {
+        <label class="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            class="mt-0.5 size-4"
+            [checked]="removal.deleteArchives"
+            (change)="setDeleteArchives($event)"
+          />
+          {{ 'backups.remove.alsoDelete' | translate }}
+        </label>
+      }
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>{{ 'backups.remove.cancel' | translate }}</button>
+        <button
+          hlmAlertDialogAction
+          [variant]="removal.deleteArchives ? 'destructive' : 'default'"
+          (click)="confirmed()"
+        >
+          {{
+            (removal.deleteArchives ? 'backups.remove.confirmDelete' : 'backups.remove.confirm')
+              | translate
+          }}
+        </button>
+      </hlm-alert-dialog-footer>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

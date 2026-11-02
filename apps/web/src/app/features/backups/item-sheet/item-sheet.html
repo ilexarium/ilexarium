@@ -1,0 +1,141 @@
+<!-- Follows `row` through its own state input (never opened from an effect). -->
+<hlm-sheet [side]="side()" [state]="row() ? 'open' : 'closed'" (closed)="dismissed()">
+  <hlm-sheet-content
+    *hlmSheetPortal
+    class="overflow-y-auto p-4 data-[side=left]:w-full data-[side=right]:w-full data-[side=left]:sm:max-w-md data-[side=right]:sm:max-w-md"
+    data-item-sheet
+  >
+    @if (row(); as row) {
+      @let item = row.item;
+      @let last = item.lastResult;
+      <hlm-sheet-header class="p-0 pe-8">
+        <h2 hlmSheetTitle class="break-all" [attr.dir]="label().ltr ? 'ltr' : null">
+          {{ label().text }}
+        </h2>
+        <p hlmSheetDescription>
+          @if (item.lastSuccessAt; as at) {
+            {{ 'backups.items.lastSuccess' | translate: { time: formatter.ago(at) } }}
+            @if (last?.originalBytes; as size) {
+              · {{ formatter.bytes(size) }}
+            }
+          } @else {
+            {{ 'backups.items.never' | translate }}
+          }
+        </p>
+      </hlm-sheet-header>
+
+      <div class="grid gap-5 text-sm">
+        @if (last?.errorCode; as code) {
+          <p class="text-destructive" role="alert">{{ 'errors.' + code | translate }}</p>
+        }
+        @if (item.kind === 'platform') {
+          <p class="text-muted-foreground">{{ 'backups.items.platformHelp' | translate }}</p>
+        }
+        @if (item.kind === 'folder') {
+          <p>
+            <code class="break-all" dir="ltr">{{ item.path }}</code>
+          </p>
+        }
+        @if (item.kind === 'app') {
+          @if (item.appRemoved) {
+            <p class="text-warning">{{ 'backups.items.appRemoved' | translate }}</p>
+          }
+          <fieldset class="grid gap-2">
+            <legend class="mb-1 font-medium">{{ 'backups.items.folders' | translate }}</legend>
+            @for (folder of allFolders(); track folder) {
+              <label class="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  class="mt-0.5 size-4 shrink-0"
+                  [checked]="item.folders.includes(folder)"
+                  [disabled]="lastFolder(row, folder) || changing()"
+                  (change)="toggleFolder(row, folder, $event)"
+                />
+                <code dir="ltr" class="min-w-0 break-all">{{ folder }}</code>
+                @if (!item.folders.includes(folder)) {
+                  <span class="shrink-0 text-warning">{{
+                    'backups.items.notBackedUp' | translate
+                  }}</span>
+                }
+              </label>
+            }
+          </fieldset>
+          <div class="grid gap-1.5">
+            <label for="item-mode" class="font-medium">{{
+              'backups.items.mode' | translate
+            }}</label>
+            <select
+              id="item-mode"
+              class="h-9 rounded-md border bg-background px-2"
+              [value]="item.mode ?? 'stop'"
+              [disabled]="changing()"
+              (change)="setMode(row, $event)"
+            >
+              <option value="stop">{{ 'apps.backup.stop' | translate }}</option>
+              <option value="live">{{ 'apps.backup.live' | translate }}</option>
+            </select>
+          </div>
+          @if (item.skip.length > 0) {
+            <div class="grid gap-1">
+              <span class="font-medium">{{ 'backups.items.skipped' | translate }}</span>
+              @for (skip of item.skip; track skip) {
+                <span class="flex items-center gap-2">
+                  <code dir="ltr" class="min-w-0 flex-1 break-all">{{ skip }}</code>
+                  <button
+                    hlmBtn
+                    variant="ghost"
+                    size="sm"
+                    [disabled]="changing()"
+                    (click)="removeSkip(row, skip)"
+                  >
+                    {{ 'backups.items.unskip' | translate }}
+                  </button>
+                </span>
+              }
+            </div>
+          }
+        }
+        @if (last && last.warnings.length > 0) {
+          <details>
+            <summary class="cursor-pointer select-none">
+              {{ 'backups.items.warnings' | plural: last.warnings.length }}
+            </summary>
+            <ul class="mt-1 grid gap-1 ps-4" dir="ltr">
+              @for (warning of last.warnings; track $index) {
+                <li class="text-xs break-all">{{ warning }}</li>
+              }
+            </ul>
+          </details>
+        }
+      </div>
+
+      <hlm-sheet-footer class="mt-auto flex-row flex-wrap gap-2 p-0">
+        <button
+          hlmBtn
+          variant="outline"
+          [disabled]="runBusy() || pending().includes('run:' + item.id)"
+          (click)="runNow.emit()"
+        >
+          <ng-icon name="lucidePlay" aria-hidden="true" />
+          {{ 'backups.items.runNow' | translate }}
+        </button>
+        <button hlmBtn variant="outline" (click)="restore.emit()">
+          <ng-icon name="lucideArchiveRestore" aria-hidden="true" />
+          {{ 'backups.items.restore' | translate }}
+        </button>
+        @if (item.kind !== 'platform') {
+          <button
+            hlmBtn
+            variant="ghost"
+            class="text-destructive"
+            [disabled]="pending().includes('remove:' + item.id)"
+            (click)="remove.emit()"
+          >
+            <ng-icon name="lucideTrash2" aria-hidden="true" />
+            {{ 'backups.items.remove' | translate }}
+          </button>
+        }
+      </hlm-sheet-footer>
+    }
+  </hlm-sheet-content>
+</hlm-sheet>

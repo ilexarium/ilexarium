@@ -59,4 +59,38 @@ describe('BackupSettings', () => {
     await fixture.whenStable();
     expect(daily().value).toBe('14');
   });
+
+  it('shows the save bar only while something changed; Discard puts the saved plan back', async () => {
+    const fixture = await render();
+    const bar = () => document.querySelector('[data-save-bar]');
+    expect(bar()).toBeNull();
+    await type(fixture, '9');
+    expect(bar()!.textContent).toContain('Unsaved changes');
+    await type(fixture, '7');
+    expect(bar()).toBeNull();
+    await type(fixture, '9');
+    [...bar()!.querySelectorAll('button')]
+      .find((b) => b.textContent?.trim() === 'Discard changes')!
+      .click();
+    await fixture.whenStable();
+    expect(daily().value).toBe('7');
+    expect(bar()).toBeNull();
+  });
+
+  it('saves through the page store from the bar', async () => {
+    const fixture = await render();
+    const store = TestBed.inject(BackupsPageStore) as unknown as {
+      updatePlan: ReturnType<typeof vi.fn>;
+    };
+    await type(fixture, '9');
+    [...document.querySelectorAll<HTMLButtonElement>('[data-save-bar] button')]
+      .find((b) => b.textContent?.trim() === 'Save')!
+      .click();
+    await vi.waitFor(() =>
+      expect(store.updatePlan).toHaveBeenCalledWith({
+        schedule: { frequency: 'daily', time: '03:00' },
+        retention: { daily: 9, weekly: 4, monthly: 6 },
+      }),
+    );
+  });
 });
