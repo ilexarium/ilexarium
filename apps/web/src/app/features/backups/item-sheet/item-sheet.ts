@@ -55,8 +55,12 @@ export class ItemSheet {
     if (this.row()) this.closed.emit();
   }
 
+  // The controls go back to the saved value at once: the change shows once it's saved (a
+  // refused one, or a closed sudo prompt, leaves them as they were).
   protected toggleFolder(row: ItemRow, folder: string, event: Event): void {
-    const on = (event.target as HTMLInputElement).checked;
+    const box = event.target as HTMLInputElement;
+    const on = box.checked;
+    box.checked = !on;
     const { folders } = row.item;
     this.change.emit({
       itemId: row.item.id,
@@ -70,7 +74,9 @@ export class ItemSheet {
   }
 
   protected setMode(row: ItemRow, event: Event): void {
-    const mode = (event.target as HTMLSelectElement).value === 'live' ? 'live' : 'stop';
+    const select = event.target as HTMLSelectElement;
+    const mode = select.value === 'live' ? 'live' : 'stop';
+    select.value = row.item.mode ?? 'stop';
     this.change.emit({ itemId: row.item.id, change: { mode } });
   }
 

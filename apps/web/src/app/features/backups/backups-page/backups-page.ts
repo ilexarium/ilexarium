@@ -69,7 +69,7 @@ export class BackupsPage {
           ? { text: this.translator.t('backups.items.platformShort'), ltr: false }
           : item.kind === 'folder'
             ? { text: item.path ?? '', ltr: true }
-            : { text: row.name ?? '', ltr: false },
+            : { text: row.name ?? '', ltr: true },
       );
     }
     return labels;

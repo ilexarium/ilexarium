@@ -25,5 +25,5 @@ export const RESTORE_SHOWN_MS = 24 * 60 * 60_000;
 /** The tabs, in the URL's words. */
 export const BACKUPS_TABS = ['items', 'history', 'settings'] as const;
 
-/** A disk path longer than this is shown by its last folder (full on hover). */
+/** A disk path longer than this is named by its last folder, the full path below it. */
 export const DISK_PATH_SHOWN = 24;
