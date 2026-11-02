@@ -1,8 +1,10 @@
-import { Component, computed, inject, input, output } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, output } from '@angular/core';
+import { backupItemSkipSchema, RELATIVE_PATH_PATTERN } from '@laris/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArchiveRestore, lucidePlay, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
+import { HlmInput } from '@ui/input';
 import { HlmSheetImports } from '@ui/sheet';
 import { LanguageService } from '../../../core/i18n/language';
 import { PluralPipe } from '../../../core/i18n/plural-pipe';
@@ -11,12 +13,12 @@ import type { ItemChange, ItemLabel, ItemRow } from '../backups.model';
 
 /**
  * An item's details in a side sheet, open while `row` is set: an app's folders (those not backed
- * up marked), stopped or kept running, what's skipped; Borg's warnings and the last error; Back up
+ * up marked), stopped or kept running, what's skipped (and a subfolder to skip); Borg's warnings and the last error; Back up
  * now, Restore…, Remove. UI only: changes and actions go out, `closed` when it closes itself.
  */
 @Component({
   selector: 'laris-item-sheet',
-  imports: [HlmButton, HlmSheetImports, NgIcon, PluralPipe, TranslatePipe],
+  imports: [HlmButton, HlmInput, HlmSheetImports, NgIcon, PluralPipe, TranslatePipe],
   providers: [provideIcons({ lucideArchiveRestore, lucidePlay, lucideTrash2 })],
   templateUrl: './item-sheet.html',
 })
@@ -45,6 +47,21 @@ export class ItemSheet {
     const item = this.row()?.item;
     return item ? [...new Set([...item.folders, ...item.otherFolders])].sort() : [];
   });
+
+  /** A subfolder to skip: typed below one of the folders backed up (the first, until chosen). */
+  private readonly itemId = computed(() => this.row()?.item.id ?? null);
+  protected readonly newSkip = linkedSignal({ source: this.itemId, computation: () => '' });
+  private readonly chosenSkipFolder = linkedSignal<string | null, string | null>({
+    source: this.itemId,
+    computation: () => null,
+  });
+  /** The folder chosen while it's still backed up; the first one otherwise. */
+  protected readonly skipFolder = computed(() => {
+    const folders = this.row()?.item.folders ?? [];
+    const chosen = this.chosenSkipFolder();
+    return chosen && folders.includes(chosen) ? chosen : (folders[0] ?? '');
+  });
+  protected readonly skipInvalid = linkedSignal({ source: this.itemId, computation: () => false });
 
   protected readonly changing = computed(() => {
     const id = this.row()?.item.id;
@@ -78,6 +95,36 @@ export class ItemSheet {
     const mode = select.value === 'live' ? 'live' : 'stop';
     select.value = row.item.mode ?? 'stop';
     this.change.emit({ itemId: row.item.id, change: { mode } });
+  }
+
+  protected typeSkip(event: Event): void {
+    this.newSkip.set((event.target as HTMLInputElement).value);
+    this.skipInvalid.set(false);
+  }
+
+  protected chooseSkipFolder(event: Event): void {
+    this.chosenSkipFolder.set((event.target as HTMLSelectElement).value);
+  }
+
+  /** The server checks it too; here, so a mistake is said at the field. */
+  protected addSkip(row: ItemRow): void {
+    const below = this.newSkip()
+      .trim()
+      .replace(/^\.?\/+/, '');
+    if (!below) return;
+    const skip = `${this.skipFolder()}/${below}`;
+    if (
+      !row.item.folders.includes(this.skipFolder()) ||
+      !RELATIVE_PATH_PATTERN.test(below) ||
+      !backupItemSkipSchema.safeParse(skip).success
+    ) {
+      this.skipInvalid.set(true);
+      return;
+    }
+    if (!row.item.skip.includes(skip)) {
+      this.change.emit({ itemId: row.item.id, change: { skip: [...row.item.skip, skip] } });
+    }
+    this.newSkip.set('');
   }
 
   protected removeSkip(row: ItemRow, skip: string): void {
