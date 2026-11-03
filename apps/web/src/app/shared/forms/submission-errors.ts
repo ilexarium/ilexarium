@@ -11,6 +11,7 @@ import {
   PROCESS_ERROR_CODES,
   PROFILE_ERROR_CODES,
   APP_ERROR_CODES,
+  SYSTEM_SERVICE_ERROR_CODES,
 } from '@laris/shared';
 import type { FormError } from './forms.model';
 
@@ -25,6 +26,7 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(PROCESS_ERROR_CODES),
   ...Object.values(FILES_ERROR_CODES),
   ...Object.values(PROFILE_ERROR_CODES),
+  ...Object.values(SYSTEM_SERVICE_ERROR_CODES),
 ];
 
 /** The server's error code of a failed API call, if it sent one. */

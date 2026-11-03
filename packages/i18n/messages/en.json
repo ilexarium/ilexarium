@@ -15,7 +15,8 @@
     "profile": "Profile",
     "apps": "Apps",
     "newApp": "Add app",
-    "app": "App"
+    "app": "App",
+    "services": "Services"
   },
   "app": {
     "loading": "Loading…",
@@ -43,7 +44,8 @@
     "processes": "Processes",
     "files": "Files",
     "terminal": "Terminal",
-    "apps": "Apps"
+    "apps": "Apps",
+    "services": "Services"
   },
   "userMenu": {
     "open": "Account menu",
@@ -261,7 +263,12 @@
     "app_failed": "It didn't work.",
     "program_unavailable": "The root program didn't run (not installed?).",
     "target_not_empty": "That folder has something in it.",
-    "mount_point_in_use": "That folder is in use, or its parent is missing."
+    "mount_point_in_use": "That folder is in use, or its parent is missing.",
+    "service_not_found": "systemd doesn’t know this service.",
+    "service_protected": "This service is protected: Laris needs it.",
+    "service_action_failed": "systemd couldn’t do it. The service’s state and its log say why.",
+    "service_timed_out": "It’s still in progress. Look at the service’s state in a moment.",
+    "services_unavailable": "systemd couldn’t be asked for the services."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -1611,5 +1618,85 @@
     "unsaved": "Unsaved changes",
     "discard": "Discard changes",
     "save": "Save"
+  },
+  "systemServices": {
+    "signIn": {
+      "title": "Sign in as a Linux user",
+      "text": "The services are read as your Linux account; starting and stopping one needs its sudo.",
+      "button": "Sign in"
+    },
+    "retry": "Try again",
+    "summary": "Services by state",
+    "group": {
+      "failed": "Failed",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "only": {
+      "failed": "only failed ones",
+      "active": "only active ones",
+      "inactive": "only inactive ones"
+    },
+    "showAll": "Show all",
+    "search": "Search services",
+    "searchPlaceholder": "Search by name or description…",
+    "showInactive": "Show inactive",
+    "truncated": "There are more services than this list shows. Failed and active ones come first.",
+    "none": "No services match.",
+    "loading": "Loading services",
+    "column": {
+      "name": "Name",
+      "description": "Description",
+      "state": "State",
+      "enabled": "Enabled",
+      "actions": "Actions"
+    },
+    "protected": {
+      "laris": "(Laris’s own)",
+      "essential": "(Laris needs it)",
+      "larisHelp": "One of Laris’s own services: it isn’t started, stopped or restarted from here.",
+      "essentialHelp": "Laris needs this service to work: it can be restarted, never stopped from here."
+    },
+    "working": "Working…",
+    "actionsFor": "Actions for {{name}}",
+    "details": "Details",
+    "action": {
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart"
+    },
+    "confirm": {
+      "stop": {
+        "title": "Stop {{name}}?",
+        "text": "What it does stops until it’s started again — or the machine restarts, if it’s enabled."
+      },
+      "restart": {
+        "title": "Restart {{name}}?",
+        "text": "It stops and starts again; what it does is interrupted for a moment."
+      },
+      "essential": "Laris needs this service: while it restarts, Laris may not answer for a moment.",
+      "cancel": "Cancel"
+    },
+    "done": {
+      "start": "{{name}} started",
+      "stop": "{{name}} stopped",
+      "restart": "{{name}} restarted"
+    },
+    "failed": {
+      "start": "{{name}} wasn’t started",
+      "stop": "{{name}} wasn’t stopped",
+      "restart": "{{name}} wasn’t restarted"
+    },
+    "sheet": {
+      "since": "Since",
+      "mainPid": "Main process",
+      "memory": "Memory",
+      "result": "Last result",
+      "exitStatus": "exit status {{status}}",
+      "restarts": "Restarted by systemd",
+      "unitFile": "Unit file"
+    },
+    "count_one": "{{count}} service",
+    "count_other": "{{count}} services"
   }
 }

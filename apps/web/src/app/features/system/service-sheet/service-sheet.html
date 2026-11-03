@@ -1,0 +1,76 @@
+<!-- Follows `row` through its own state input (never opened from an effect). -->
+<hlm-sheet [side]="side()" [state]="row() ? 'open' : 'closed'" (closed)="dismissed()">
+  <hlm-sheet-content
+    *hlmSheetPortal
+    class="overflow-y-auto p-4 data-[side=left]:w-full data-[side=right]:w-full data-[side=left]:sm:max-w-md data-[side=right]:sm:max-w-md"
+    data-service-sheet
+  >
+    @if (row(); as row) {
+      <hlm-sheet-header class="p-0 pe-8">
+        <h2 hlmSheetTitle class="break-all" dir="ltr">{{ row.service.name }}</h2>
+        <p hlmSheetDescription>{{ row.service.description }}</p>
+      </hlm-sheet-header>
+
+      <div class="grid gap-5 text-sm">
+        @if (row.service.protection; as protection) {
+          <p class="text-muted-foreground">
+            {{ 'systemServices.protected.' + protection + 'Help' | translate }}
+          </p>
+        }
+        @if (error(); as code) {
+          <p class="text-destructive" role="alert">{{ 'errors.' + code | translate }}</p>
+        } @else if (details(); as details) {
+          <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
+            <dt class="text-muted-foreground">{{ 'systemServices.column.state' | translate }}</dt>
+            <dd>
+              <laris-status-dot [tone]="row.dot"
+                ><span dir="ltr">{{ row.state }}</span></laris-status-dot
+              >
+            </dd>
+            <dt class="text-muted-foreground">{{ 'systemServices.sheet.since' | translate }}</dt>
+            <dd>{{ details.since ? formatter.dateTime(details.since) : '—' }}</dd>
+            <dt class="text-muted-foreground">{{ 'systemServices.sheet.mainPid' | translate }}</dt>
+            <dd class="tabular-nums" dir="ltr">{{ details.mainPid ?? '—' }}</dd>
+            <dt class="text-muted-foreground">{{ 'systemServices.sheet.memory' | translate }}</dt>
+            <dd class="tabular-nums">
+              {{ details.memoryBytes !== null ? formatter.bytes(details.memoryBytes) : '—' }}
+            </dd>
+            <dt class="text-muted-foreground">{{ 'systemServices.sheet.result' | translate }}</dt>
+            <dd dir="ltr">
+              {{ details.result || '—' }}
+              @if (details.result !== 'success' && details.exitStatus !== null) {
+                ({{
+                  'systemServices.sheet.exitStatus' | translate: { status: details.exitStatus }
+                }})
+              }
+            </dd>
+            <dt class="text-muted-foreground">{{ 'systemServices.sheet.restarts' | translate }}</dt>
+            <dd class="tabular-nums">
+              {{ details.restarts !== null ? formatter.count(details.restarts) : '—' }}
+            </dd>
+            <dt class="text-muted-foreground">{{ 'systemServices.column.enabled' | translate }}</dt>
+            <dd dir="ltr">{{ details.enabled ?? '—' }}</dd>
+            <dt class="text-muted-foreground">{{ 'systemServices.sheet.unitFile' | translate }}</dt>
+            <dd>
+              @if (details.unitFile; as file) {
+                <code class="break-all" dir="ltr">{{ file }}</code>
+              } @else {
+                —
+              }
+            </dd>
+          </dl>
+        } @else {
+          <div
+            class="grid gap-2"
+            role="status"
+            [attr.aria-label]="'systemServices.loading' | translate"
+          >
+            <hlm-skeleton class="h-5 w-full" />
+            <hlm-skeleton class="h-5 w-full" />
+            <hlm-skeleton class="h-5 w-2/3" />
+          </div>
+        }
+      </div>
+    }
+  </hlm-sheet-content>
+</hlm-sheet>

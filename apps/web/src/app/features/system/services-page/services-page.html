@@ -1,0 +1,122 @@
+@let store = servicesPageStore;
+<div class="grid gap-4">
+  @if (store.signInNeeded()) {
+    <div hlmAlert role="status">
+      <h2 hlmAlertTitle>{{ 'systemServices.signIn.title' | translate }}</h2>
+      <div hlmAlertDescription class="grid gap-3">
+        <p>{{ 'systemServices.signIn.text' | translate }}</p>
+        <div>
+          <button hlmBtn size="sm" (click)="store.signInAndLoad()">
+            {{ 'systemServices.signIn.button' | translate }}
+          </button>
+        </div>
+      </div>
+    </div>
+  } @else if (store.loadError(); as code) {
+    <div hlmAlert variant="destructive" role="alert">
+      <p hlmAlertDescription>{{ 'errors.' + code | translate }}</p>
+      <div>
+        <button hlmBtn variant="outline" size="sm" (click)="store.load()">
+          {{ 'systemServices.retry' | translate }}
+        </button>
+      </div>
+    </div>
+  } @else if (store.loaded()) {
+    <div
+      class="grid grid-cols-3 gap-2 sm:gap-3"
+      role="group"
+      [attr.aria-label]="'systemServices.summary' | translate"
+    >
+      @for (group of groups; track group) {
+        <button
+          type="button"
+          class="grid min-w-0 gap-1 rounded-lg border bg-card p-3 text-start hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring aria-pressed:border-primary aria-pressed:bg-accent"
+          [attr.aria-pressed]="store.group() === group"
+          [attr.data-group]="group"
+          (click)="store.toggleGroup(group)"
+        >
+          <span class="text-sm font-medium text-muted-foreground">
+            {{ 'systemServices.group.' + group | translate }}
+          </span>
+          <span
+            class="text-2xl font-semibold tabular-nums"
+            [class.text-destructive]="group === 'failed' && store.counts().failed > 0"
+            >{{ store.counts()[group] }}</span
+          >
+        </button>
+      }
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="relative min-w-0 flex-1 basis-60">
+        <ng-icon
+          name="lucideSearch"
+          class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <input
+          hlmInput
+          type="search"
+          class="w-full ps-9"
+          [attr.aria-label]="'systemServices.search' | translate"
+          [placeholder]="'systemServices.searchPlaceholder' | translate"
+          [value]="store.search()"
+          (input)="search($event)"
+        />
+      </div>
+      <label class="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          class="size-4"
+          [checked]="store.showInactive()"
+          [disabled]="store.group() !== null"
+          (change)="showInactive($event)"
+        />
+        {{ 'systemServices.showInactive' | translate }}
+      </label>
+    </div>
+
+    @if (store.truncated()) {
+      <div hlmAlert role="status">
+        <p hlmAlertDescription>{{ 'systemServices.truncated' | translate }}</p>
+      </div>
+    }
+
+    <div
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground"
+      aria-live="polite"
+    >
+      <span>{{ 'systemServices.count' | plural: store.rows().length }}</span>
+      @if (store.group(); as group) {
+        <span>· {{ 'systemServices.only.' + group | translate }}</span>
+        <button hlmBtn variant="ghost" size="sm" (click)="store.toggleGroup(group)">
+          <ng-icon name="lucideX" aria-hidden="true" />
+          {{ 'systemServices.showAll' | translate }}
+        </button>
+      }
+    </div>
+
+    @if (store.rows().length > 0) {
+      <laris-service-list
+        [rows]="store.rows()"
+        (action)="store.act($event)"
+        (open)="store.open($event)"
+      />
+    } @else {
+      <laris-empty-state icon="lucideSearchX" [text]="'systemServices.none' | translate" />
+    }
+  } @else {
+    <div class="grid gap-2" role="status" [attr.aria-label]="'systemServices.loading' | translate">
+      @for (line of [1, 2, 3, 4, 5]; track line) {
+        <hlm-skeleton class="h-6 w-full" />
+      }
+    </div>
+  }
+</div>
+
+<laris-service-sheet
+  [row]="store.selectedRow()"
+  [details]="store.details()"
+  [error]="store.detailsError()"
+  (closed)="store.close()"
+/>

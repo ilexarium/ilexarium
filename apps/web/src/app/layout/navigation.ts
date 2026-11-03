@@ -8,6 +8,7 @@ import {
   lucideFolderOpen,
   lucideHardDrive,
   lucideLayoutDashboard,
+  lucideServerCog,
   lucideSquareTerminal,
 } from '@ng-icons/lucide';
 import type { NavGroup } from './layout.model';
@@ -31,6 +32,7 @@ export const NAVIGATION: NavGroup[] = [
     label: 'nav.system',
     items: [
       { label: 'nav.processes', link: '/system/processes', icon: 'lucideActivity' },
+      { label: 'nav.services', link: '/system/services', icon: 'lucideServerCog' },
       { label: 'nav.files', link: '/system/files', icon: 'lucideFolderOpen' },
       { label: 'nav.terminal', link: '/system/terminal', icon: 'lucideSquareTerminal' },
     ],
@@ -54,4 +56,5 @@ export const NAV_ICONS = {
   lucideBell,
   lucideBellRing,
   lucideHardDrive,
+  lucideServerCog,
 };
