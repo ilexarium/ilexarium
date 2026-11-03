@@ -60,12 +60,30 @@
     class="min-h-0 flex-1 overflow-auto rounded-lg border bg-muted/40 py-2 font-mono text-xs leading-5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     (scroll)="onScroll()"
   >
+    @if (canLoadOlder()) {
+      <li class="px-3 pb-2" dir="auto">
+        <button
+          hlmBtn
+          variant="outline"
+          size="sm"
+          [disabled]="loadingOlder()"
+          (click)="loadOlder.emit()"
+        >
+          <ng-icon name="lucideChevronsUp" aria-hidden="true" />
+          {{ (loadingOlder() ? 'logs.loadingOlder' : 'logs.loadOlder') | translate }}
+        </button>
+      </li>
+    }
     @for (entry of visible(); track entry.id) {
       <li
         class="flex min-w-full flex-col px-3 [contain-intrinsic-block-size:auto_1.25rem] [content-visibility:auto] sm:flex-row sm:gap-3"
         [class]="{ 'w-max': !logPreferences.wrap() }"
       >
-        @if (logPreferences.timestamps() || entry.stream === 'stderr') {
+        @let marked =
+          entry.priority !== undefined &&
+          entry.priority !== null &&
+          entry.priority <= markedPriority;
+        @if (logPreferences.timestamps() || entry.stream === 'stderr' || entry.source || marked) {
           <span class="flex shrink-0 items-center gap-2">
             @if (logPreferences.timestamps()) {
               <time class="text-muted-foreground" [attr.datetime]="entry.at">{{
@@ -76,6 +94,21 @@
               <span class="inline-flex items-center gap-1 font-medium text-destructive">
                 <ng-icon name="lucideTriangleAlert" aria-hidden="true" />stderr
               </span>
+            }
+            @if (marked) {
+              @let error = entry.priority! <= errorPriority;
+              <span
+                class="inline-flex items-center gap-1 font-medium"
+                [class]="error ? 'text-destructive' : 'text-warning'"
+              >
+                <ng-icon
+                  [name]="error ? 'lucideCircleAlert' : 'lucideTriangleAlert'"
+                  aria-hidden="true"
+                />{{ 'logs.priority.' + entry.priority | translate }}
+              </span>
+            }
+            @if (entry.source) {
+              <span class="text-muted-foreground">{{ entry.source }}</span>
             }
           </span>
         }

@@ -16,7 +16,8 @@
     "apps": "التطبيقات",
     "newApp": "إضافة تطبيق",
     "app": "تطبيق",
-    "services": "الخدمات"
+    "services": "الخدمات",
+    "journal": "السجلات"
   },
   "app": {
     "loading": "جارٍ التحميل…",
@@ -45,7 +46,8 @@
     "files": "الملفات",
     "terminal": "الطرفية",
     "apps": "التطبيقات",
-    "services": "الخدمات"
+    "services": "الخدمات",
+    "journal": "السجلات"
   },
   "userMenu": {
     "open": "قائمة الحساب",
@@ -272,7 +274,8 @@
     "service_protected": "هذه الخدمة محمية: يحتاجها Laris.",
     "service_action_failed": "لم يتمكن systemd من تنفيذ ذلك. حالة الخدمة وسجلها يوضحان السبب.",
     "service_timed_out": "ما زال الأمر جاريًا. انظر إلى حالة الخدمة بعد لحظة.",
-    "services_unavailable": "تعذّر سؤال systemd عن الخدمات."
+    "services_unavailable": "تعذّر سؤال systemd عن الخدمات.",
+    "journal_unavailable": "تعذّرت قراءة سجل النظام الآن. حاول مرة أخرى بعد قليل."
   },
   "format": {
     "lessThanAMinute": "أقل من دقيقة"
@@ -619,7 +622,16 @@
     "matches_few": "الأسطر المطابقة: {{shown}} من {{count}}",
     "matches_many": "الأسطر المطابقة: {{shown}} من {{count}}",
     "matches_other": "الأسطر المطابقة: {{shown}} من {{count}}",
-    "jumpToLatest": "الانتقال إلى الأحدث"
+    "jumpToLatest": "الانتقال إلى الأحدث",
+    "loadOlder": "تحميل الأسطر الأقدم",
+    "loadingOlder": "جارٍ تحميل الأسطر الأقدم…",
+    "priority": {
+      "0": "طوارئ",
+      "1": "تنبيه",
+      "2": "حرج",
+      "3": "خطأ",
+      "4": "تحذير"
+    }
   },
   "catalog": {
     "navidrome": {
@@ -1830,7 +1842,8 @@
       "result": "آخر نتيجة",
       "exitStatus": "حالة الخروج {{status}}",
       "restarts": "أعاد systemd تشغيلها",
-      "unitFile": "ملف الوحدة"
+      "unitFile": "ملف الوحدة",
+      "logs": "السجلات"
     },
     "count_zero": "لا توجد خدمات",
     "count_one": "خدمة واحدة",
@@ -1838,5 +1851,51 @@
     "count_few": "{{count}} خدمات",
     "count_many": "{{count}} خدمة",
     "count_other": "{{count}} خدمة"
+  },
+  "journal": {
+    "signIn": {
+      "title": "سجّل الدخول كمستخدم Linux",
+      "text": "تُقرأ سجلات النظام بحساب Linux الخاص بك؛ وقد تحتاج قراءتها كلها إلى sudo الخاص به.",
+      "button": "تسجيل الدخول"
+    },
+    "filters": "عوامل التصفية",
+    "unit": "الخدمة",
+    "allUnits": "كل الخدمات",
+    "priority": "إظهار",
+    "priorities": {
+      "error": "الأخطاء",
+      "warning": "التحذيرات وما فوقها",
+      "info": "المعلومات وما فوقها",
+      "debug": "الكل"
+    },
+    "bootLabel": "الإقلاع",
+    "boot": {
+      "current": "هذا الإقلاع",
+      "currentSince": "هذا الإقلاع (منذ {{first}})",
+      "previous": "الإقلاع السابق",
+      "previousSince": "الإقلاع السابق ({{first}} – {{last}})",
+      "earlier_zero": "قبل {{count}} إقلاع ({{first}} – {{last}})",
+      "earlier_one": "قبل إقلاع واحد ({{first}} – {{last}})",
+      "earlier_two": "قبل إقلاعين ({{first}} – {{last}})",
+      "earlier_few": "قبل {{count}} إقلاعات ({{first}} – {{last}})",
+      "earlier_many": "قبل {{count}} إقلاعًا ({{first}} – {{last}})",
+      "earlier_other": "قبل {{count}} إقلاع ({{first}} – {{last}})"
+    },
+    "own": {
+      "title": "رسائلك أنت فقط",
+      "text": "حساب Linux الخاص بك ليس في مجموعة يحق لها قراءة سجل النظام كله، لذلك ترى فقط ما سجّلته برامجك.",
+      "button": "القراءة كمسؤول"
+    },
+    "stopped": {
+      "title": "المتابعة متوقفة مؤقتًا",
+      "text": "لا تُحمَّل أسطر جديدة كمسؤول أثناء غيابك، حتى يُقفل sudo نفسه من جديد.",
+      "button": "المتابعة من جديد"
+    },
+    "retry": "حاول مرة أخرى",
+    "loading": "جارٍ تحميل السجلات",
+    "empty": {
+      "title": "لا توجد أسطر",
+      "text": "لم يُسجَّل شيء هنا لعوامل التصفية هذه. تظهر الأسطر الجديدة فور كتابتها."
+    }
   }
 }
