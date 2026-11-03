@@ -7,6 +7,7 @@
 # Its host keys are made at the first start into /keys, a folder shared with the app
 # (apps/server/.dev/sshd), which pins them like production pins /etc/ssh/ssh_host_*_key.pub.
 # Node 24 runs the helper and laris-root (system/programs/, mounted where the installer puts it).
+# A fake systemctl with sample units (no systemd in a container).
 # Docker's CLI with Compose, no daemon: the helper's Compose check (`config`) needs none; tasks
 # themselves are the install test's.
 FROM node:24-slim AS node
@@ -30,5 +31,7 @@ RUN apt-get update \
  && rm -f /etc/ssh/ssh_host_*
 COPY sshd_config /etc/ssh/sshd_config
 COPY entrypoint.sh /entrypoint.sh
+# No systemd in here: sample units for the Services page (docs/plans/system_services.md).
+COPY --chmod=0755 fake-systemctl.cjs /usr/bin/systemctl
 EXPOSE 22
 ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
