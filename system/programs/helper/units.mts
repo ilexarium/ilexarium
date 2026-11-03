@@ -2,6 +2,7 @@
 // anyone read them —, started, stopped and restarted by laris-root. Only systemd's machine output:
 // JSON for the lists, `key=value` for one unit's fixed properties.
 
+import { Buffer } from 'node:buffer';
 import { BAD_REQUEST, ok, refused, said, type Answer, type Request } from './answers.mts';
 import {
   MESSAGE_MAX,
@@ -83,7 +84,8 @@ export async function listUnits(): Promise<Answer> {
   const kept = [];
   let size = 0;
   for (const unit of all) {
-    size += JSON.stringify(unit).length + 1;
+    // Bytes, as the server counts them: descriptions may be in any language.
+    size += Buffer.byteLength(JSON.stringify(unit)) + 1;
     if (size > UNITS_ANSWER_MAX) break;
     kept.push(unit);
   }

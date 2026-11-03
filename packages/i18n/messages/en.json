@@ -1652,9 +1652,9 @@
       "actions": "Actions"
     },
     "protected": {
-      "laris": "(Laris’s own)",
+      "laris": "(protected: Laris runs on it)",
       "essential": "(Laris needs it)",
-      "larisHelp": "One of Laris’s own services: it isn’t started, stopped or restarted from here.",
+      "larisHelp": "Laris itself, or something it runs on (Docker, the system bus, a person’s own services): it isn’t started, stopped or restarted from here.",
       "essentialHelp": "Laris needs this service to work: it can be restarted, never stopped from here."
     },
     "working": "Working…",

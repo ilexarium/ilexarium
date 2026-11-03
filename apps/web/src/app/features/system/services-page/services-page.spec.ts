@@ -232,6 +232,18 @@ describe('ServicesPage', () => {
     expect(api.list.mock.calls.length).toBe(before + 1);
   });
 
+  it('a refresh that fails keeps the list, and says so', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { el, api, names, fixture } = await render();
+    api.list.mockReturnValue(throwError(() => httpError(503, 'services_unavailable')));
+    vi.advanceTimersByTime(10_000);
+    await fixture.whenStable();
+    expect(names()).toContain('nginx.service');
+    expect(el.querySelector('[role="alert"]')!.textContent).toContain(
+      'systemd couldn’t be asked for the services.',
+    );
+  });
+
   it('says so when systemd can’t be asked', async () => {
     const auth = fakeAuthApi({ user: OWNER });
     TestBed.configureTestingModule({

@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import {
   type ApiErrorResponse,
   type FilesErrorCode,
@@ -15,7 +15,9 @@ import { linuxError, linuxSessionRequired } from '../linux-sessions/linux-sessio
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { HelperAnswer, LinuxActor } from '../linux-sessions/linux-sessions.model.js';
 import {
+  ACTION_FAILED_MESSAGES,
   CONTROL_TIMEOUT_MS,
+  ERROR_STATUS,
   HELPER_ERRORS,
   helperPropertiesSchema,
   helperUnitsSchema,
@@ -23,20 +25,10 @@ import {
   UNSET_BYTES,
 } from './system-services.constants.js';
 
-/** Never 401: that means the app session is gone (the Linux side's rule). */
-const STATUS: Record<SystemServiceErrorCode, HttpStatus> = {
-  [SYSTEM_SERVICE_ERROR_CODES.notFound]: HttpStatus.NOT_FOUND,
-  [SYSTEM_SERVICE_ERROR_CODES.protected]: HttpStatus.FORBIDDEN,
-  [SYSTEM_SERVICE_ERROR_CODES.actionFailed]: HttpStatus.BAD_GATEWAY,
-  [SYSTEM_SERVICE_ERROR_CODES.timedOut]: HttpStatus.GATEWAY_TIMEOUT,
-  [SYSTEM_SERVICE_ERROR_CODES.unavailable]: HttpStatus.SERVICE_UNAVAILABLE,
-  [SYSTEM_SERVICE_ERROR_CODES.auditUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
-};
-
 function failure(code: SystemServiceErrorCode | FilesErrorCode, message: string): HttpException {
-  if (!(code in STATUS)) return linuxError(code as FilesErrorCode, message);
+  if (!(code in ERROR_STATUS)) return linuxError(code as FilesErrorCode, message);
   const body: ApiErrorResponse = { message, code };
-  return new HttpException(body, STATUS[code as SystemServiceErrorCode]);
+  return new HttpException(body, ERROR_STATUS[code as SystemServiceErrorCode]);
 }
 
 const apiErrorCode = (error: unknown): string | undefined =>
@@ -116,7 +108,9 @@ export class SystemServicesService {
       throw failure(SYSTEM_SERVICE_ERROR_CODES.unavailable, 'systemd could not be asked');
     }
     const p = parsed.data.properties;
-    if (!p['LoadState'] || p['LoadState'] === 'not-found') {
+    // A unit whose file is gone may still run (a package removed): it can still be stopped.
+    const gone = p['LoadState'] === 'not-found' && (p['ActiveState'] ?? 'inactive') === 'inactive';
+    if (!p['LoadState'] || gone) {
       throw failure(SYSTEM_SERVICE_ERROR_CODES.notFound, 'No such service');
     }
     const id = p['Id'] || name;
@@ -199,6 +193,6 @@ export class SystemServicesService {
       outcome: code === null ? 'success' : 'failure',
       details: code === null ? details : { ...details, reason: code },
     });
-    if (code !== null) throw failure(code, `The service could not be ${action}ed`);
+    if (code !== null) throw failure(code, ACTION_FAILED_MESSAGES[action]);
   }
 }

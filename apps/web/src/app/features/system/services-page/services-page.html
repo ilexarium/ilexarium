@@ -12,16 +12,13 @@
         </div>
       </div>
     </div>
-  } @else if (store.loadError(); as code) {
-    <div hlmAlert variant="destructive" role="alert">
-      <p hlmAlertDescription>{{ 'errors.' + code | translate }}</p>
-      <div>
-        <button hlmBtn variant="outline" size="sm" (click)="store.load()">
-          {{ 'systemServices.retry' | translate }}
-        </button>
-      </div>
-    </div>
   } @else if (store.loaded()) {
+    @if (store.loadError(); as code) {
+      <!-- A refresh that failed: the list stays as it was. -->
+      <div hlmAlert variant="destructive" role="alert">
+        <p hlmAlertDescription>{{ 'errors.' + code | translate }}</p>
+      </div>
+    }
     <div
       class="grid grid-cols-3 gap-2 sm:gap-3"
       role="group"
@@ -105,6 +102,15 @@
     } @else {
       <laris-empty-state icon="lucideSearchX" [text]="'systemServices.none' | translate" />
     }
+  } @else if (store.loadError(); as code) {
+    <div hlmAlert variant="destructive" role="alert">
+      <p hlmAlertDescription>{{ 'errors.' + code | translate }}</p>
+      <div>
+        <button hlmBtn variant="outline" size="sm" (click)="store.load()">
+          {{ 'systemServices.retry' | translate }}
+        </button>
+      </div>
+    </div>
   } @else {
     <div class="grid gap-2" role="status" [attr.aria-label]="'systemServices.loading' | translate">
       @for (line of [1, 2, 3, 4, 5]; track line) {

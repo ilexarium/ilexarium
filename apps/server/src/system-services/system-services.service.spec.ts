@@ -161,11 +161,27 @@ describe('SystemServicesService', () => {
   });
 
   it('a unit systemd doesn’t know: not found', async () => {
-    answers['units.show'] = { ok: true, properties: properties({ LoadState: 'not-found' }) };
+    answers['units.show'] = {
+      ok: true,
+      properties: properties({ LoadState: 'not-found', ActiveState: 'inactive' }),
+    };
     expect(await rejection(service.details(SESSION, 'nope.service'))).toEqual([
       404,
       'service_not_found',
     ]);
+  });
+
+  it('a unit whose file is gone but still runs: shown, and can be stopped', async () => {
+    answers['units.show'] = {
+      ok: true,
+      properties: properties({ LoadState: 'not-found', FragmentPath: '' }),
+    };
+    expect(await service.details(SESSION, 'nginx.service')).toMatchObject({
+      load: 'not-found',
+      active: 'active',
+    });
+    await act('nginx.service', 'stop');
+    expect(tryRecord).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'success' }));
   });
 
   it('restarts a unit through sudo by its own name, recorded first', async () => {
