@@ -11,6 +11,7 @@
 //   {"id":2,"action":"process.signal","pid":1234,"signal":"TERM","administrator":true}
 //   {"id":3,"action":"app.task","project":"music","folder":"…","task":"up","unit":"…","log":"…"}
 //   {"id":4,"action":"units.control","unit":"nginx.service","command":"restart"}
+//   {"id":5,"action":"journal.read","priority":6,"boot":0,"administrator":true}, journal.boots
 //   compose.check / volumes.remove ("docker":"sudo"), paths.remove ("administrator":true), touch
 //
 // The first line it writes is {"laris-root":1}. Whoever unlocked it is root anyway: its checks

@@ -2,6 +2,7 @@ import { userInfo } from 'node:os';
 import { BAD_REQUEST, ok, refused, type Answer, type Request } from './answers.mts';
 import { checkCompose, dockerAccess, removeVolumes, startTask, taskState } from './apps.mts';
 import { KILL_TIMEOUT_MS, MESSAGES, PID_MAX, PROGRAMS, SIGNALS } from './config.mts';
+import { listBoots, readJournal } from './journal.mts';
 import { pathSizes, removePaths } from './paths.mts';
 import { run } from './run.mts';
 import { forward, unlock } from './sudo.mts';
@@ -37,6 +38,8 @@ export function privileged(request: Request): boolean {
   switch (request['action']) {
     case 'process.signal':
     case 'paths.remove':
+    case 'journal.read':
+    case 'journal.boots':
       return request['administrator'] === true;
     case 'volumes.remove':
       return request['docker'] === 'sudo';
@@ -75,6 +78,10 @@ export function handle(request: Request): Promise<Answer> | Answer {
       return listUnits();
     case 'units.show':
       return showUnit(request);
+    case 'journal.read':
+      return readJournal(request);
+    case 'journal.boots':
+      return listBoots(request);
     default:
       return BAD_REQUEST;
   }

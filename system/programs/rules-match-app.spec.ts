@@ -13,6 +13,10 @@ import {
   DISK_UUID_PATTERN,
   FILES_LIMITS,
   isMountPointAllowed,
+  JOURNAL_BOOT_ID_PATTERN,
+  JOURNAL_CURSOR_PATTERN,
+  JOURNAL_LIMITS,
+  JOURNAL_PRIORITIES,
   linuxSudoRequestSchema,
   PATH_FORBIDDEN,
   PROCESS_LIMITS,
@@ -108,7 +112,7 @@ describe('the app and the root programs check the same rules', () => {
     }
   });
 
-  it('the helper: PIDs, signals, sudo passwords on one line, root’s idle time, app, volume and service names', () => {
+  it('the helper: PIDs, signals, sudo passwords on one line, root’s idle time, app, volume and service names, the journal’s cursors, boots and limits', () => {
     expect(helperConfig.PID_MAX).toBe(PROCESS_LIMITS.maxPid);
     expect([...helperConfig.SIGNALS]).toEqual([...PROCESS_SIGNALS]);
     expect(helperConfig.PASSWORD_MAX).toBe(FILES_LIMITS.passwordMax);
@@ -121,6 +125,12 @@ describe('the app and the root programs check the same rules', () => {
     expect(String(helperConfig.SERVICE_PATTERN)).toBe(String(SYSTEM_SERVICE_NAME_PATTERN));
     expect([...helperConfig.SERVICE_COMMANDS]).toEqual([...SYSTEM_SERVICE_ACTIONS]);
     expect(helperConfig.UNITS_ANSWER_MAX).toBeLessThan(HELPER_ANSWER_MAX);
+    expect(String(helperConfig.CURSOR_PATTERN)).toBe(String(JOURNAL_CURSOR_PATTERN));
+    expect(String(helperConfig.BOOT_ID_PATTERN)).toBe(String(JOURNAL_BOOT_ID_PATTERN));
+    expect(helperConfig.JOURNAL_LINES_MAX).toBe(JOURNAL_LIMITS.linesPerRead);
+    expect(helperConfig.JOURNAL_MESSAGE_MAX).toBe(JOURNAL_LIMITS.maxMessageBytes);
+    expect(helperConfig.JOURNAL_ANSWER_MAX).toBeLessThan(HELPER_ANSWER_MAX);
+    expect(Math.max(...Object.values(JOURNAL_PRIORITIES))).toBe(7);
     for (const password of [
       'right',
       'with spaces and ünïcödé',

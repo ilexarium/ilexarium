@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { userInfo } from 'node:os';
 import { StringDecoder } from 'node:string_decoder';
 import { OUTPUT_MAX, PATH } from './config.mts';
+import { readLines } from '../lib/lines.mts';
 
 export interface RunResult {
   /** Its exit code; null when it ended by a signal, didn't start or didn't finish. */
@@ -79,5 +80,50 @@ export function run(
     // A program that exits without reading its input closes the pipe first (EPIPE).
     child.stdin.on('error', () => {});
     child.stdin.end(options.input ?? '');
+  });
+}
+
+/**
+ * Runs a program (no shell) and hands each line of its output to `onLine`, which answers false
+ * to stop it there — what's long is never held whole. A line over `lineMax` is skipped.
+ */
+export function runLines(
+  program: string,
+  args: string[],
+  options: { timeoutMs: number; lineMax: number },
+  onLine: (line: string) => boolean,
+): Promise<{ code: number | null; stopped: boolean; missing: boolean; timedOut: boolean }> {
+  return new Promise((resolve) => {
+    let stopped = false;
+    let timedOut = false;
+    let missing = false;
+    const child = spawn(program, args, {
+      env: ENVIRONMENT,
+      cwd: me.homedir,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+    }, options.timeoutMs);
+    readLines(child.stdout, options.lineMax, (line) => {
+      if (stopped || timedOut) return;
+      if (!onLine(line)) {
+        stopped = true;
+        child.kill('SIGKILL');
+      }
+    });
+    let finished = false;
+    const done = (code: number | null) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      resolve({ code: stopped || timedOut ? null : code, stopped, missing, timedOut });
+    };
+    child.on('error', () => {
+      missing = true;
+      done(null);
+    });
+    child.on('close', done);
   });
 }
