@@ -486,7 +486,10 @@ async function systemServices() {
   );
   sh('usermod', ['-aG', 'sudo', 'anna']);
   await api('POST', '/files/session', { username: 'anna', password: 'anna-smoke-password' });
-  await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  // Unlocking is limited to 5 a minute: the processes' checks just used them.
+  await sleep(61_000);
+  const unlocked = await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  check('sudo unlocked again', unlocked.status === 200, `${unlocked.status} ${unlocked.text}`);
   const isActive = () => {
     try {
       return sh('systemctl', ['is-active', 'smoke-sleeper.service']).trim();
