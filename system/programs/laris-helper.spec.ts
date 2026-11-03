@@ -705,7 +705,7 @@ describe('laris-helper', () => {
     }
   });
 
-  it('lists service units from systemd’s JSON: their file’s state, failed first, odd entries left out', async () => {
+  it('lists service units from systemd’s JSON: their file’s state, failed first, unit files never loaded too, odd entries left out', async () => {
     writeFileSync(
       join(dir, 'systemctl-list-units-out.txt'),
       JSON.stringify([
@@ -741,6 +741,9 @@ describe('laris-helper', () => {
       JSON.stringify([
         { unit_file: 'nginx.service', state: 'enabled', preset: 'enabled' },
         { unit_file: 'vpn.service', state: 'disabled', preset: null },
+        { unit_file: 'spare.service', state: 'disabled', preset: 'disabled' },
+        { unit_file: 'getty@.service', state: 'enabled', preset: 'enabled' },
+        { unit_file: 'web.service', state: 'alias', preset: null },
       ]),
     );
     expect(await ask({ action: 'units.list' })).toEqual({
@@ -778,6 +781,14 @@ describe('laris-helper', () => {
           sub: 'dead',
           description: '',
           enabled: null,
+        },
+        {
+          unit: 'spare.service',
+          load: 'not-loaded',
+          active: 'inactive',
+          sub: 'dead',
+          description: '',
+          enabled: 'disabled',
         },
       ],
     });

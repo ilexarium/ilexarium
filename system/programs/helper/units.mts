@@ -7,6 +7,7 @@ import { BAD_REQUEST, ok, refused, said, type Answer, type Request } from './ans
 import {
   MESSAGE_MAX,
   PROGRAMS,
+  NOT_LOADED,
   QUICK_TIMEOUT_MS,
   SERVICE_COMMANDS,
   SERVICE_PATTERN,
@@ -70,7 +71,7 @@ export async function listUnits(): Promise<Answer> {
       states.set(file['unit_file'], text(file['state']));
     }
   }
-  const all = listed
+  const loaded = listed
     .filter((unit) => service(unit['unit']))
     .map((unit) => ({
       unit: unit['unit'] as string,
@@ -79,8 +80,22 @@ export async function listUnits(): Promise<Answer> {
       sub: text(unit['sub']),
       description: text(unit['description']),
       enabled: states.get(unit['unit'] as string) ?? null,
-    }))
-    .sort((a, b) => rank(a.active) - rank(b.active));
+    }));
+  // systemd lists only what it has loaded: a service installed but never started (most disabled
+  // ones) is only a unit file. Templates (`getty@.service`) can't run themselves; aliases are
+  // their unit.
+  const names = new Set(loaded.map((unit) => unit.unit));
+  const notLoaded = [...states]
+    .filter(([name, state]) => !names.has(name) && !name.endsWith('@.service') && state !== 'alias')
+    .map(([name, state]) => ({
+      unit: name,
+      load: NOT_LOADED,
+      active: 'inactive',
+      sub: 'dead',
+      description: '',
+      enabled: state,
+    }));
+  const all = [...loaded, ...notLoaded].sort((a, b) => rank(a.active) - rank(b.active));
   const kept = [];
   let size = 0;
   for (const unit of all) {

@@ -105,6 +105,8 @@ export const SERVICE_PROPERTIES = [
   'NRestarts',
   'StateChangeTimestamp',
 ] as const;
+/** A unit file systemd hasn't loaded (never started): no description or state of its own yet. */
+export const NOT_LOADED = 'not-loaded';
 /** systemctl's lists are one JSON line: all of it, or nothing. */
 export const UNITS_OUTPUT_MAX = 4 * 1024 * 1024;
 /** What a list answers at most (the server reads 256 KB of an answer). */
