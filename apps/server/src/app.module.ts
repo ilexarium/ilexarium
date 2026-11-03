@@ -17,6 +17,7 @@ import { HealthModule } from './health/health.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProcessesModule } from './processes/processes.module.js';
+import { SystemJournalModule } from './system-journal/system-journal.module.js';
 import { SystemServicesModule } from './system-services/system-services.module.js';
 import { ProfileModule } from './profile/profile.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
@@ -48,6 +49,7 @@ import { UsersModule } from './users/users.module.js';
     ActivityModule,
     ProcessesModule,
     SystemServicesModule,
+    SystemJournalModule,
     FilesModule,
     TerminalModule,
   ],
