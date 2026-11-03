@@ -8,7 +8,6 @@ import {
   lucideLoaderCircle,
   lucidePlay,
   lucideBox,
-  lucideSparkles,
 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
@@ -29,7 +28,6 @@ import type { AppTile, Light } from '../dashboard.model';
       lucideLoaderCircle,
       lucidePlay,
       lucideBox,
-      lucideSparkles,
     }),
   ],
   host: { class: 'block' },

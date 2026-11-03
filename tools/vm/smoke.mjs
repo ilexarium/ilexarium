@@ -596,19 +596,6 @@ async function install() {
     `Ollama is not reachable on the network address (${networkAddress})`,
     networkAddress !== undefined && !(await answers(networkAddress)),
   );
-  const assistant = await until(
-    'the Assistant finds Ollama',
-    async () => {
-      const s = await api('GET', '/assistant/status');
-      return { done: s.json?.state === 'ready', value: s.json };
-    },
-    2 * 60_000,
-  );
-  check(
-    'the Assistant finds Ollama',
-    assistant.value?.state === 'ready',
-    JSON.stringify(assistant.value),
-  );
 
   console.log('\nBacking up, through anna’s sudo');
   // Unlocked again: the installs above may have taken longer than laris-root's 15 idle minutes.
@@ -786,10 +773,19 @@ async function update() {
     apps.json?.apps?.some((a) => a.name === 'navidrome' && a.state === 'running'),
     apps.text.slice(0, 300),
   );
-  check(
-    'the chat tables migrated (the Assistant answers)',
-    (await api('GET', '/assistant/chats')).status === 200,
-  );
+  const chatTables = sh('docker', [
+    'exec',
+    'laris-postgres-1',
+    'psql',
+    '-tA',
+    '-U',
+    'laris_owner',
+    '-d',
+    'laris',
+    '-c',
+    "SELECT count(*) FROM information_schema.tables WHERE table_name IN ('Chat', 'ChatMessage')",
+  ]).trim();
+  check('migrated: the Assistant’s chat tables are gone', chatTables === '0', chatTables);
   check('backups still set up', (await api('GET', '/backups/status')).json?.configured === true);
   check(
     'a database backup was made before migrating',

@@ -23,7 +23,6 @@ model User {
   sessions       Session[]
   backupRuns     BackupRun[]
   backupRestores BackupRestore[]
-  chats          Chat[]
 }
 
 /// The profile picture: 600×600, checked by its bytes (WebP, JPEG or PNG). In the database, so backups carry it.
@@ -257,41 +256,4 @@ model AlertChannel {
   lastProblem   String?
   lastProblemAt DateTime? @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
-}
-
-/// An Assistant conversation (docs/plans/ai_assistant.md). Only its owner sees it; it goes with them.
-model Chat {
-  id        String        @id @default(uuid(7)) @db.Uuid
-  userId    String        @db.Uuid
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  /// The first message, shortened.
-  title     String
-  /// The model last used (an Ollama name, e.g. "llama3.2:3b").
-  model     String
-  createdAt DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime      @updatedAt @db.Timestamptz(3)
-  messages  ChatMessage[]
-
-  @@index([userId, updatedAt])
-}
-
-enum ChatRole {
-  user
-  assistant
-}
-
-/// One message. Never logged or audited.
-model ChatMessage {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  chatId    String   @db.Uuid
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  role      ChatRole
-  content   String
-  /// The model that wrote an answer.
-  model     String?
-  /// An answer stopped before the model finished (Stop, or a lost connection).
-  stopped   Boolean  @default(false)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-
-  @@index([chatId, createdAt])
 }

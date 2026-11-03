@@ -1,0 +1,19 @@
+{
+  "id": "open-webui",
+  "version": "1",
+  "name": "Open WebUI",
+  "category": "tools",
+  "website": "https://openwebui.com",
+  "web": { "port": 8080 },
+  "fields": [
+    { "key": "WEB_PORT", "kind": "port", "default": 3080 },
+    { "key": "MODELS_DIR", "kind": "folder", "default": "./ollama" },
+    { "key": "DATA_DIR", "kind": "folder", "default": "./data", "advanced": true },
+    { "key": "OPEN_WEBUI_VERSION", "kind": "version", "default": "0.12" },
+    { "key": "OLLAMA_VERSION", "kind": "version", "default": "0.40.6" },
+    { "key": "WEBUI_SECRET_KEY", "kind": "generated" },
+    { "key": "USER_ID", "kind": "text", "default": "@account", "advanced": true }
+  ],
+  "backup": { "mode": "stop", "skip": ["ollama/models", "data/static"] },
+  "note": true
+}

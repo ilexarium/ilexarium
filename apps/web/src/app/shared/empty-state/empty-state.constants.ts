@@ -1,5 +1,4 @@
 import {
-  lucideBot,
   lucideBox,
   lucideCircleCheck,
   lucideFolderLock,
@@ -8,13 +7,11 @@ import {
   lucidePackage,
   lucideScrollText,
   lucideSearchX,
-  lucideSparkles,
   lucideSquareTerminal,
 } from '@ng-icons/lucide';
 
 /** The pictures an empty state can show. */
 export const EMPTY_ICONS = {
-  lucideBot,
   lucideBox,
   lucideCircleCheck,
   lucideFolderLock,
@@ -23,6 +20,5 @@ export const EMPTY_ICONS = {
   lucidePackage,
   lucideScrollText,
   lucideSearchX,
-  lucideSparkles,
   lucideSquareTerminal,
 };

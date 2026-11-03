@@ -11,7 +11,6 @@ import {
   PROCESS_ERROR_CODES,
   PROFILE_ERROR_CODES,
   APP_ERROR_CODES,
-  AI_ERROR_CODES,
 } from '@laris/shared';
 import type { FormError } from './forms.model';
 
@@ -25,7 +24,6 @@ export const TRANSLATED_ERROR_CODES: readonly string[] = [
   ...Object.values(ALERT_ERROR_CODES),
   ...Object.values(PROCESS_ERROR_CODES),
   ...Object.values(FILES_ERROR_CODES),
-  ...Object.values(AI_ERROR_CODES),
   ...Object.values(PROFILE_ERROR_CODES),
 ];
 

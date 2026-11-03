@@ -17,7 +17,6 @@ export const ACTIVITY_ACTIONS = [
   'backup.restore',
   'disk.mount',
   'disk.unmount',
-  'assistant.model_pull',
 ] as const;
 export const activityActionSchema = z.enum(ACTIVITY_ACTIONS);
 export type ActivityAction = z.infer<typeof activityActionSchema>;

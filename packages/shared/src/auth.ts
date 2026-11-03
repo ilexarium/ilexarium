@@ -30,8 +30,6 @@ export const VALIDATION_LIMITS = {
   backupMonthlyMax: 120,
   // Disks (`DISK_NAME_MAX` in disks.ts).
   diskNameMax: 32,
-  // The Assistant (`AI_LIMITS.messageMax` in ai.ts).
-  messageMax: 16_000,
   // The profile (`PROFILE_LIMITS` in profile.ts).
   displayNameMax: 64,
   emailMax: 254,

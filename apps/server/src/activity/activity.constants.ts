@@ -3,7 +3,6 @@ import {
   APP_NAME_PATTERN,
   containerNameSchema,
   isMountPointAllowed,
-  MODEL_NAME_PATTERN,
 } from '@laris/shared';
 
 const pattern = (regex: RegExp) => (value: string) => regex.test(value);
@@ -27,5 +26,4 @@ export const ACTIVITY_SUBJECTS: Record<
   'backup.restore': null,
   'disk.mount': { field: 'mountPoint', valid: isMountPointAllowed },
   'disk.unmount': { field: 'mountPoint', valid: isMountPointAllowed },
-  'assistant.model_pull': { field: 'model', valid: pattern(MODEL_NAME_PATTERN) },
 };

@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { APP_PIPE } from '@nestjs/core';
 import { ActivityModule } from './activity/activity.module.js';
 import { AlertsModule } from './alerts/alerts.module.js';
-import { AssistantModule } from './assistant/assistant.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BackupsModule } from './backups/backups.module.js';
@@ -46,7 +45,6 @@ import { UsersModule } from './users/users.module.js';
     DisksModule,
     AlertsModule,
     ActivityModule,
-    AssistantModule,
     ProcessesModule,
     FilesModule,
     TerminalModule,
