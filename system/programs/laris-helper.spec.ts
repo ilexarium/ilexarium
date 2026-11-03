@@ -87,7 +87,16 @@ beforeEach(async () => {
   mkdirSync(join(dir, 'bin'));
   fake('sudo', 'fake-sudo.cjs');
   fake('kill', 'fake-kill.cjs');
-  for (const name of ['systemd-run', 'systemctl', 'docker', 'du', 'rm', 'id', 'laris-backup.mts']) {
+  for (const name of [
+    'systemd-run',
+    'systemctl',
+    'journalctl',
+    'docker',
+    'du',
+    'rm',
+    'id',
+    'laris-backup.mts',
+  ]) {
     fake(name, 'fake-program.cjs');
   }
   symlinkSync(join(HERE, 'laris-root.mts'), join(dir, 'bin', 'laris-root.mts'));
@@ -890,6 +899,217 @@ describe('laris-helper', () => {
       expect(await ask(bad)).toEqual({ ok: false, error: 'bad_request' });
     }
     expect(calls('systemctl')).toHaveLength(2);
+  });
+
+  describe('the journal', () => {
+    const CURSOR = (i: number) => `s=abc;i=${i.toString(16)};b=f00d;m=1;t=2;x=3`;
+    const entry = (i: number, fields: Record<string, unknown> = {}) => ({
+      __CURSOR: CURSOR(i),
+      __REALTIME_TIMESTAMP: String(1_792_000_000_000_000 + i),
+      __MONOTONIC_TIMESTAMP: '5',
+      _BOOT_ID: 'f00d',
+      PRIORITY: '6',
+      _SYSTEMD_UNIT: 'nginx.service',
+      SYSLOG_IDENTIFIER: 'nginx',
+      _PID: '42',
+      MESSAGE: `line ${i}`,
+      ...fields,
+    });
+    const output = (entries: object[]) =>
+      writeFileSync(
+        join(dir, 'journalctl-out.txt'),
+        entries.map((e) => JSON.stringify(e)).join('\n') + '\n',
+      );
+    const read = { action: 'journal.read', priority: 6, boot: 0, administrator: false };
+    const group = (name: string) =>
+      writeFileSync(
+        join(dir, 'bin', 'group'),
+        `root:x:0:\n${name}:x:${process.getgroups()[0]}:someone\n`,
+      );
+
+    it('reads the newest lines, newest first, and gives them oldest first — only the fields it knows, messages as text', async () => {
+      group('users');
+      output([
+        entry(3, { MESSAGE: [104, 105, 0xff], _CMDLINE: 'secret --password=x', _EXE: '/x' }),
+        entry(2, { SYSLOG_IDENTIFIER: ['first', 'second'], PRIORITY: undefined }),
+        { MESSAGE: 'no cursor', __REALTIME_TIMESTAMP: '1' },
+        'not json',
+        entry(1, { MESSAGE: 'é'.repeat(9000) }),
+      ]);
+      const answer = (await ask(read)) as { lines: Record<string, unknown>[] };
+      expect(answer).toMatchObject({ ok: true, more: false, access: 'own' });
+      expect(answer.lines.map((l) => l['cursor'])).toEqual([CURSOR(1), CURSOR(2), CURSOR(3)]);
+      expect(answer.lines[2]).toEqual({
+        cursor: CURSOR(3),
+        time: '1792000000000003',
+        priority: '6',
+        unit: 'nginx.service',
+        identifier: 'nginx',
+        pid: '42',
+        message: 'hi�',
+      });
+      expect(answer.lines[1]).toMatchObject({ identifier: 'first', priority: null });
+      // 16 KB of a two-byte character: cut between characters, marked.
+      expect(answer.lines[0]).toMatchObject({ message: 'é'.repeat(8192), truncated: true });
+      expect(calls('journalctl').map((call) => call.args)).toEqual([
+        [
+          '--no-pager',
+          '--quiet',
+          '--output=json',
+          '--all',
+          '--output-fields=PRIORITY,_SYSTEMD_UNIT,SYSLOG_IDENTIFIER,_PID,MESSAGE',
+          '--boot=0',
+          '--priority=6',
+          '--lines=501',
+          '--reverse',
+        ],
+      ]);
+    });
+
+    it('reads after a cursor oldest first, and before one back from it; each filter one argument', async () => {
+      group('adm');
+      output([entry(5), entry(6)]);
+      expect(
+        await ask({
+          ...read,
+          unit: 'nginx.service',
+          priority: 7,
+          boot: 'f9f89b85a48e4a8e9fa9736de394a41f',
+          after: CURSOR(4),
+        }),
+      ).toMatchObject({ ok: true, more: false, access: 'all' });
+      output([entry(4), entry(3), entry(2)]);
+      const older = (await ask({ ...read, boot: -1, before: CURSOR(4) })) as {
+        lines: { cursor: string }[];
+      };
+      // The cursor's own entry isn't sent again.
+      expect(older.lines.map((l) => l.cursor)).toEqual([CURSOR(2), CURSOR(3)]);
+      const [after, before] = calls('journalctl').map((call) => call.args.slice(5));
+      expect(after).toEqual([
+        '--boot=f9f89b85a48e4a8e9fa9736de394a41f',
+        '--unit=nginx.service',
+        '--lines=501',
+        `--after-cursor=${CURSOR(4)}`,
+      ]);
+      expect(before).toEqual([
+        '--boot=-1',
+        '--priority=6',
+        '--lines=502',
+        `--cursor=${CURSOR(4)}`,
+        '--reverse',
+      ]);
+    });
+
+    it('stops at 500 lines or what the server reads, and says there’s more', async () => {
+      output(Array.from({ length: 600 }, (_, i) => entry(i + 1)));
+      const many = (await ask({ ...read, after: CURSOR(0) })) as {
+        lines: { cursor: string }[];
+        more: boolean;
+      };
+      expect(many.more).toBe(true);
+      expect(many.lines).toHaveLength(500);
+      expect(many.lines.at(-1)?.cursor).toBe(CURSOR(500));
+      output(Array.from({ length: 100 }, (_, i) => entry(i + 1, { MESSAGE: 'x'.repeat(10_000) })));
+      const long = (await ask({ ...read, after: CURSOR(0) })) as {
+        lines: { cursor: string }[];
+        more: boolean;
+      };
+      expect(long.more).toBe(true);
+      expect(long.lines[0]?.cursor).toBe(CURSOR(1));
+      expect(JSON.stringify(long).length).toBeLessThan(256 * 1024);
+      expect(long.lines.length).toBeGreaterThan(15);
+    });
+
+    it('refuses what isn’t a unit, priority, boot or cursor; journalctl’s refusals say failed', async () => {
+      for (const bad of [
+        { ...read, unit: 'nginx' },
+        { ...read, unit: '--all.service' },
+        { ...read, priority: 8 },
+        { ...read, priority: '6' },
+        { ...read, boot: 1 },
+        { ...read, boot: 'F9F89B85A48E4A8E9FA9736DE394A41F' },
+        { ...read, boot: undefined },
+        { ...read, after: 'a b' },
+        { ...read, after: '--x=y;z' + ',' },
+        { ...read, after: CURSOR(1), before: CURSOR(2) },
+        { ...read, administrator: 'no' },
+      ]) {
+        expect(await ask(bad)).toEqual({ ok: false, error: 'bad_request' });
+      }
+      expect(calls('journalctl')).toEqual([]);
+      writeFileSync(join(dir, 'journalctl-exit.txt'), '1');
+      expect(await ask(read)).toEqual({ ok: false, error: 'failed' });
+    });
+
+    it('reads as administrator through laris-root only — locked, it says so', async () => {
+      output([entry(1)]);
+      const asAdministrator = { ...read, administrator: true };
+      expect(await ask(asAdministrator)).toEqual({ ok: false, error: 'sudo_required' });
+      expect(await ask({ action: 'journal.boots', administrator: true })).toEqual({
+        ok: false,
+        error: 'sudo_required',
+      });
+      expect(calls('journalctl')).toEqual([]);
+      await ask({ action: 'sudo.unlock', password: 'right' });
+      expect(await ask(asAdministrator)).toMatchObject({
+        ok: true,
+        lines: [{ cursor: CURSOR(1) }],
+      });
+      expect(calls('journalctl')).toHaveLength(1);
+    });
+
+    it('lists the boots newest first; journalctl that can’t say them as JSON: none', async () => {
+      group('systemd-journal');
+      writeFileSync(
+        join(dir, 'journalctl-out.txt'),
+        JSON.stringify([
+          {
+            index: -1,
+            boot_id: 'a'.repeat(32),
+            first_entry: 1_700_000_000_000_000,
+            last_entry: 1_700_000_100_000_000,
+          },
+          {
+            index: 0,
+            boot_id: 'b'.repeat(32),
+            first_entry: 1_700_000_200_000_000,
+            last_entry: 1_700_000_300_000_000,
+          },
+          { index: 1, boot_id: '../x', first_entry: 1, last_entry: 2 },
+          null,
+        ]),
+      );
+      const request = { action: 'journal.boots', administrator: false };
+      expect(await ask(request)).toEqual({
+        ok: true,
+        access: 'all',
+        boots: [
+          {
+            id: 'b'.repeat(32),
+            offset: 0,
+            first: 1_700_000_200_000_000,
+            last: 1_700_000_300_000_000,
+          },
+          {
+            id: 'a'.repeat(32),
+            offset: -1,
+            first: 1_700_000_000_000_000,
+            last: 1_700_000_100_000_000,
+          },
+        ],
+      });
+      expect(calls('journalctl')[0]?.args).toEqual([
+        '--no-pager',
+        '--quiet',
+        '--output=json',
+        '--list-boots',
+      ]);
+      writeFileSync(join(dir, 'journalctl-out.txt'), ' -1 aaaa Mon 2026-11-02 — Mon 2026-11-02\n');
+      expect(await ask(request)).toEqual({ ok: true, access: 'all', boots: null });
+      writeFileSync(join(dir, 'journalctl-exit.txt'), '1');
+      expect(await ask(request)).toEqual({ ok: false, error: 'failed' });
+      expect(await ask({ action: 'journal.boots' })).toEqual({ ok: false, error: 'bad_request' });
+    });
   });
 
   it.each([

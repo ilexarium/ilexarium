@@ -69,11 +69,13 @@ describe('laris-root', () => {
       { action: 'root.run', program: 'compose', command: 'up', input: '' },
       { action: 'units.list' },
       { action: 'units.show', unit: 'nginx.service' },
+      { action: 'journal.read', priority: 6, boot: 0, administrator: false },
+      { action: 'journal.boots', administrator: false },
     ]);
     expect(lines[0]).toEqual({ 'laris-root': 1 });
     expect(lines[1]).toEqual({ id: 1, ok: true });
     const refused = lines.slice(2);
-    expect(refused).toHaveLength(11);
+    expect(refused).toHaveLength(13);
     for (const answer of refused) expect(answer).toMatchObject({ ok: false, error: 'bad_request' });
   });
 

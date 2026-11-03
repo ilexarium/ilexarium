@@ -10,6 +10,7 @@ export const PROGRAMS = {
   kill: program('/usr/bin/kill'),
   systemdRun: program('/usr/bin/systemd-run'),
   systemctl: program('/usr/bin/systemctl'),
+  journalctl: program('/usr/bin/journalctl'),
   docker: program('/usr/bin/docker'),
   rm: program('/usr/bin/rm'),
   du: program('/usr/bin/du'),
@@ -115,6 +116,25 @@ export const UNITS_ANSWER_MAX = 200 * 1024;
 export const UNIT_TEXT_MAX = 1024;
 /** systemd's own start and stop timeouts are 90 s. */
 export const UNIT_CONTROL_TIMEOUT_MS = 100_000;
+/** journald's cursor (the app's JOURNAL_CURSOR_PATTERN): opaque, one argument. */
+export const CURSOR_PATTERN = /^[A-Za-z0-9=;_-]{1,512}$/;
+/** A boot's ID. */
+export const BOOT_ID_PATTERN = /^[0-9a-f]{32}$/;
+/** Lines in one answer at most (JOURNAL_LIMITS.linesPerRead in the app). */
+export const JOURNAL_LINES_MAX = 500;
+/** What a journal answer is at most, in bytes (the server reads 256 KB of an answer). */
+export const JOURNAL_ANSWER_MAX = 200 * 1024;
+/** A message is cut here, in bytes (JOURNAL_LIMITS.maxMessageBytes). */
+export const JOURNAL_MESSAGE_MAX = 16 * 1024;
+/** One entry of journalctl's output: a longer one is skipped (a message as bytes is 4× longer). */
+export const JOURNAL_ENTRY_MAX = 1024 * 1024;
+/** What is asked of each entry; journalctl adds its cursor and times. Never the command line. */
+export const JOURNAL_FIELDS = ['PRIORITY', '_SYSTEMD_UNIT', 'SYSLOG_IDENTIFIER', '_PID', 'MESSAGE'];
+/** Boots listed at most, the newest. */
+export const BOOTS_MAX = 500;
+/** The groups journald lets read everything (systemd's own and its tmpfiles' ACLs). */
+export const JOURNAL_GROUPS = ['systemd-journal', 'adm', 'wheel'];
+export const GROUP_FILE = FAKE_BIN ? join(FAKE_BIN, 'group') : '/etc/group';
 /** A path: absolute, plain, one line. */
 export const PATH_FORBIDDEN = /[\x00-\x1f\x7f]/;
 export const PATH_MAX = 1024;
