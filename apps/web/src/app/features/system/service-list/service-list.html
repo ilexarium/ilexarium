@@ -1,0 +1,106 @@
+<!-- Extra-large screens: a table. -->
+<div hlmTableContainer class="hidden xl:block">
+  <table hlmTable>
+    <thead hlmTHead>
+      <tr hlmTr>
+        <th hlmTh scope="col">{{ 'systemServices.column.name' | translate }}</th>
+        <th hlmTh scope="col">{{ 'systemServices.column.description' | translate }}</th>
+        <th hlmTh scope="col">{{ 'systemServices.column.state' | translate }}</th>
+        <th hlmTh scope="col">{{ 'systemServices.column.enabled' | translate }}</th>
+        <th hlmTh scope="col" class="w-12">
+          <span class="sr-only">{{ 'systemServices.column.actions' | translate }}</span>
+        </th>
+      </tr>
+    </thead>
+    <tbody hlmTBody>
+      @for (row of rows(); track row.service.name) {
+        <tr hlmTr>
+          <th hlmTd scope="row" class="text-start font-normal whitespace-nowrap">
+            <ng-container *ngTemplateOutlet="name; context: { $implicit: row }" />
+          </th>
+          <td
+            hlmTd
+            class="max-w-80 truncate text-muted-foreground"
+            [title]="row.service.description"
+          >
+            {{ row.service.description }}
+          </td>
+          <td hlmTd>
+            <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
+          </td>
+          <td hlmTd class="text-muted-foreground" dir="ltr">{{ row.service.enabled ?? '—' }}</td>
+          <td hlmTd class="text-end">
+            <ng-container *ngTemplateOutlet="menu; context: { $implicit: row }" />
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<!-- Phones, tablets and laptops: one card per service. -->
+<ul class="grid gap-3 xl:hidden">
+  @for (row of rows(); track row.service.name) {
+    <li class="grid gap-1.5 rounded-lg border p-3">
+      <div class="flex items-start justify-between gap-2">
+        <span class="min-w-0">
+          <ng-container *ngTemplateOutlet="name; context: { $implicit: row }" />
+        </span>
+        <ng-container *ngTemplateOutlet="menu; context: { $implicit: row }" />
+      </div>
+      @if (row.service.description) {
+        <p class="text-sm text-muted-foreground">{{ row.service.description }}</p>
+      }
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
+        @if (row.service.enabled; as enabled) {
+          <span class="text-muted-foreground" dir="ltr">{{ enabled }}</span>
+        }
+      </div>
+    </li>
+  }
+</ul>
+
+<ng-template #name let-row>
+  <button
+    type="button"
+    class="flex items-center gap-1.5 rounded-sm text-start font-medium [overflow-wrap:anywhere] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+    (click)="open.emit(row.service.name)"
+  >
+    <span dir="ltr">{{ row.service.name }}</span>
+    @if (row.service.protection) {
+      <ng-icon
+        name="lucideLock"
+        class="size-3.5 shrink-0 text-muted-foreground"
+        aria-hidden="true"
+      />
+      <span class="sr-only">{{
+        'systemServices.protected.' + row.service.protection | translate
+      }}</span>
+    }
+  </button>
+</ng-template>
+
+<ng-template #state let-row>
+  @if (row.pending) {
+    <span class="flex items-center gap-1.5 text-sm" role="status">
+      <ng-icon name="lucideLoaderCircle" class="size-3.5 animate-spin" aria-hidden="true" />
+      {{ 'systemServices.working' | translate }}
+    </span>
+  } @else {
+    <laris-status-dot class="text-sm" [tone]="row.dot"
+      ><span dir="ltr">{{ row.state }}</span></laris-status-dot
+    >
+  }
+</ng-template>
+
+<ng-template #menu let-row>
+  <laris-service-actions
+    [name]="row.service.name"
+    [group]="row.group"
+    [protection]="row.service.protection"
+    [busy]="row.pending"
+    (action)="action.emit({ name: row.service.name, action: $event })"
+    (details)="open.emit(row.service.name)"
+  />
+</ng-template>

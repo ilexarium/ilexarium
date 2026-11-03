@@ -15,7 +15,8 @@
     "profile": "Profil",
     "apps": "Apps",
     "newApp": "App hinzufügen",
-    "app": "App"
+    "app": "App",
+    "services": "Dienste"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -43,7 +44,8 @@
     "processes": "Prozesse",
     "files": "Dateien",
     "terminal": "Terminal",
-    "apps": "Apps"
+    "apps": "Apps",
+    "services": "Dienste"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -261,7 +263,12 @@
     "app_failed": "Es hat nicht funktioniert.",
     "program_unavailable": "Das Root-Programm ist nicht gelaufen (nicht installiert?).",
     "target_not_empty": "In diesem Ordner ist schon etwas.",
-    "mount_point_in_use": "Dieser Ordner wird benutzt, oder sein übergeordneter Ordner fehlt."
+    "mount_point_in_use": "Dieser Ordner wird benutzt, oder sein übergeordneter Ordner fehlt.",
+    "service_not_found": "systemd kennt diesen Dienst nicht.",
+    "service_protected": "Dieser Dienst ist geschützt: Laris braucht ihn.",
+    "service_action_failed": "systemd konnte es nicht ausführen. Der Zustand des Dienstes und sein Protokoll sagen, warum.",
+    "service_timed_out": "Es läuft noch. Sieh dir den Zustand des Dienstes gleich noch einmal an.",
+    "services_unavailable": "systemd konnte nicht nach den Diensten gefragt werden."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -1611,5 +1618,85 @@
     "unsaved": "Ungespeicherte Änderungen",
     "discard": "Änderungen verwerfen",
     "save": "Speichern"
+  },
+  "systemServices": {
+    "signIn": {
+      "title": "Als Linux-Benutzer anmelden",
+      "text": "Die Dienste werden mit deinem Linux-Konto gelesen; zum Starten und Stoppen braucht es dessen sudo.",
+      "button": "Anmelden"
+    },
+    "retry": "Erneut versuchen",
+    "summary": "Dienste nach Zustand",
+    "group": {
+      "failed": "Fehlgeschlagen",
+      "active": "Aktiv",
+      "inactive": "Inaktiv"
+    },
+    "only": {
+      "failed": "nur fehlgeschlagene",
+      "active": "nur aktive",
+      "inactive": "nur inaktive"
+    },
+    "showAll": "Alle zeigen",
+    "search": "Dienste durchsuchen",
+    "searchPlaceholder": "Nach Name oder Beschreibung suchen…",
+    "showInactive": "Inaktive zeigen",
+    "truncated": "Es gibt mehr Dienste, als diese Liste zeigt. Fehlgeschlagene und aktive stehen vorne.",
+    "none": "Keine passenden Dienste.",
+    "loading": "Dienste werden geladen",
+    "column": {
+      "name": "Name",
+      "description": "Beschreibung",
+      "state": "Zustand",
+      "enabled": "Aktiviert",
+      "actions": "Aktionen"
+    },
+    "protected": {
+      "laris": "(von Laris)",
+      "essential": "(Laris braucht ihn)",
+      "larisHelp": "Einer der eigenen Dienste von Laris: Er wird hier nicht gestartet, gestoppt oder neu gestartet.",
+      "essentialHelp": "Laris braucht diesen Dienst: Er kann hier neu gestartet, aber nie gestoppt werden."
+    },
+    "working": "Wird ausgeführt…",
+    "actionsFor": "Aktionen für {{name}}",
+    "details": "Details",
+    "action": {
+      "start": "Starten",
+      "stop": "Stoppen",
+      "restart": "Neu starten"
+    },
+    "confirm": {
+      "stop": {
+        "title": "{{name}} stoppen?",
+        "text": "Was er tut, hört auf, bis er wieder gestartet wird – oder die Maschine neu startet, wenn er aktiviert ist."
+      },
+      "restart": {
+        "title": "{{name}} neu starten?",
+        "text": "Er stoppt und startet wieder; was er tut, wird kurz unterbrochen."
+      },
+      "essential": "Laris braucht diesen Dienst: Während er neu startet, antwortet Laris vielleicht kurz nicht.",
+      "cancel": "Abbrechen"
+    },
+    "done": {
+      "start": "{{name}} gestartet",
+      "stop": "{{name}} gestoppt",
+      "restart": "{{name}} neu gestartet"
+    },
+    "failed": {
+      "start": "{{name}} wurde nicht gestartet",
+      "stop": "{{name}} wurde nicht gestoppt",
+      "restart": "{{name}} wurde nicht neu gestartet"
+    },
+    "sheet": {
+      "since": "Seit",
+      "mainPid": "Hauptprozess",
+      "memory": "Arbeitsspeicher",
+      "result": "Letztes Ergebnis",
+      "exitStatus": "Exit-Status {{status}}",
+      "restarts": "Von systemd neu gestartet",
+      "unitFile": "Unit-Datei"
+    },
+    "count_one": "{{count}} Dienst",
+    "count_other": "{{count}} Dienste"
   }
 }

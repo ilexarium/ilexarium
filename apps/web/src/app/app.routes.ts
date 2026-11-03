@@ -81,6 +81,12 @@ export const routes: Routes = [
           import('./features/system/processes-page/processes-page').then((m) => m.ProcessesPage),
       },
       {
+        path: 'system/services',
+        title: 'pages.services',
+        loadComponent: () =>
+          import('./features/system/services-page/services-page').then((m) => m.ServicesPage),
+      },
+      {
         path: 'system/files',
         title: 'pages.files',
         loadComponent: () =>
