@@ -1,7 +1,9 @@
+import { HttpStatus } from '@nestjs/common';
 import {
   FILES_ERROR_CODES,
   type FilesErrorCode,
   SYSTEM_SERVICE_ERROR_CODES,
+  type SystemServiceAction,
   type SystemServiceErrorCode,
 } from '@laris/shared';
 import { z } from 'zod';
@@ -45,3 +47,19 @@ export const helperPropertiesSchema = z.object({ properties: z.record(z.string()
 
 /** systemd's "no limit" for a byte count (2^64 − 1). */
 export const UNSET_BYTES = '18446744073709551615';
+
+/** Never 401: that means the app session is gone (the Linux side's rule). */
+export const ERROR_STATUS: Record<SystemServiceErrorCode, HttpStatus> = {
+  [SYSTEM_SERVICE_ERROR_CODES.notFound]: HttpStatus.NOT_FOUND,
+  [SYSTEM_SERVICE_ERROR_CODES.protected]: HttpStatus.FORBIDDEN,
+  [SYSTEM_SERVICE_ERROR_CODES.actionFailed]: HttpStatus.BAD_GATEWAY,
+  [SYSTEM_SERVICE_ERROR_CODES.timedOut]: HttpStatus.GATEWAY_TIMEOUT,
+  [SYSTEM_SERVICE_ERROR_CODES.unavailable]: HttpStatus.SERVICE_UNAVAILABLE,
+  [SYSTEM_SERVICE_ERROR_CODES.auditUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
+};
+
+export const ACTION_FAILED_MESSAGES: Record<SystemServiceAction, string> = {
+  start: 'The service was not started',
+  stop: 'The service was not stopped',
+  restart: 'The service was not restarted',
+};

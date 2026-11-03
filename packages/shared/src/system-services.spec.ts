@@ -60,8 +60,13 @@ describe('systemServiceNameSchema', () => {
 });
 
 describe('systemServiceProtection', () => {
-  it('Laris’s own units: nothing from here', () => {
+  it('Laris’s own units and what it runs on: nothing from here', () => {
     for (const name of [
+      'docker.service',
+      'containerd.service',
+      'dbus.service',
+      'dbus-broker.service',
+      'user@1000.service',
       'laris.service',
       'laris-platform.service',
       'laris-backup-now@1.service',
@@ -77,13 +82,8 @@ describe('systemServiceProtection', () => {
     for (const name of [
       'ssh.service',
       'sshd.service',
-      'docker.service',
-      'containerd.service',
       'tailscaled.service',
-      'dbus.service',
-      'dbus-broker.service',
       'systemd-journald.service',
-      'user@1000.service',
     ]) {
       expect(systemServiceProtection([name]), name).toBe('essential');
     }

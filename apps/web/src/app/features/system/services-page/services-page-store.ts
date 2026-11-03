@@ -16,7 +16,7 @@ import {
   type SystemServicesResponse,
 } from '@laris/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { SystemServicesApi } from '../../../core/system-services/system-services-api';
@@ -154,9 +154,10 @@ export const ServicesPageStore = signalStore(
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
+      // The latest wins: a reload after an action must not be dropped for a refresh still on its way.
       const load = rxMethod<void>(
         pipe(
-          exhaustMap(() =>
+          switchMap(() =>
             systemServicesApi.list().pipe(
               tap((list) => patchState(store, { list, loadError: null })),
               catchError((error: unknown) => {

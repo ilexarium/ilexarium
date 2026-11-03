@@ -13,11 +13,14 @@ import { z } from 'zod';
 export const SYSTEM_SERVICE_NAME_PATTERN = /^(?!-)[A-Za-z0-9:_.\\@-]{1,240}\.service$/;
 export const systemServiceNameSchema = z.string().regex(SYSTEM_SERVICE_NAME_PATTERN);
 
-/** Laris's own: never stopped, started or restarted from here (like `laris.protected` containers). */
-const LARIS_UNITS = /^laris(?:-[^/]+)?\.service$/;
-/** What Laris needs to work (the sign-in, Docker, Tailscale, the system bus): never stopped. */
-const ESSENTIAL_UNITS =
-  /^(?:ssh|sshd|docker|containerd|tailscaled|dbus|dbus-broker|systemd-[^/]+|user@[^/]+)\.service$/;
+/**
+ * Laris's own, and what it runs on — restarting Docker restarts Laris's platform and then Laris
+ * (their `Requires=`), the system bus and a person's own units (apps run as them) take others
+ * down: never started, stopped or restarted from here (like `laris.protected` containers).
+ */
+const LARIS_UNITS = /^(?:laris(?:-[^/]+)?|docker|containerd|dbus|dbus-broker|user@[^/]+)\.service$/;
+/** What Laris needs to be reached and signed in to (SSH, Tailscale, systemd's own): never stopped. */
+const ESSENTIAL_UNITS = /^(?:ssh|sshd|tailscaled|systemd-[^/]+)\.service$/;
 
 export const SYSTEM_SERVICE_PROTECTIONS = ['laris', 'essential'] as const;
 export const systemServiceProtectionSchema = z.enum(SYSTEM_SERVICE_PROTECTIONS);
