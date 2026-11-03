@@ -24,6 +24,18 @@ export type HelperRequest =
   | { action: 'units.show'; unit: string }
   | { action: 'units.control'; unit: string; command: SystemServiceAction }
   | {
+      action: 'journal.read';
+      unit?: string;
+      /** journald's priority: this one and the more urgent. */
+      priority: number;
+      /** An ID, or 0 (this boot) / -1 (the previous one). */
+      boot: string | 0 | -1;
+      after?: string;
+      before?: string;
+      administrator: boolean;
+    }
+  | { action: 'journal.boots'; administrator: boolean }
+  | {
       action: 'root.run';
       program: 'backup' | 'disk';
       /** The program's own action. */
