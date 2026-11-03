@@ -705,6 +705,182 @@ describe('laris-helper', () => {
     }
   });
 
+  it('lists service units from systemd’s JSON: their file’s state, failed first, odd entries left out', async () => {
+    writeFileSync(
+      join(dir, 'systemctl-list-units-out.txt'),
+      JSON.stringify([
+        {
+          unit: 'nginx.service',
+          load: 'loaded',
+          active: 'active',
+          sub: 'running',
+          description: 'Web',
+        },
+        {
+          unit: 'old.service',
+          load: 'not-found',
+          active: 'inactive',
+          sub: 'dead',
+          description: '',
+        },
+        {
+          unit: 'vpn.service',
+          load: 'loaded',
+          active: 'failed',
+          sub: 'failed',
+          description: 'VPN',
+        },
+        { unit: '-x.service', load: 'loaded', active: 'active', sub: 'running', description: '' },
+        { unit: 'dbus.socket', load: 'loaded', active: 'active', sub: 'running', description: '' },
+        { unit: 'getty@tty1.service', load: 'loaded', active: 'active', sub: 'running' },
+        null,
+      ]),
+    );
+    writeFileSync(
+      join(dir, 'systemctl-list-unit-files-out.txt'),
+      JSON.stringify([
+        { unit_file: 'nginx.service', state: 'enabled', preset: 'enabled' },
+        { unit_file: 'vpn.service', state: 'disabled', preset: null },
+      ]),
+    );
+    expect(await ask({ action: 'units.list' })).toEqual({
+      ok: true,
+      truncated: false,
+      units: [
+        {
+          unit: 'vpn.service',
+          load: 'loaded',
+          active: 'failed',
+          sub: 'failed',
+          description: 'VPN',
+          enabled: 'disabled',
+        },
+        {
+          unit: 'nginx.service',
+          load: 'loaded',
+          active: 'active',
+          sub: 'running',
+          description: 'Web',
+          enabled: 'enabled',
+        },
+        {
+          unit: 'getty@tty1.service',
+          load: 'loaded',
+          active: 'active',
+          sub: 'running',
+          description: '',
+          enabled: null,
+        },
+        {
+          unit: 'old.service',
+          load: 'not-found',
+          active: 'inactive',
+          sub: 'dead',
+          description: '',
+          enabled: null,
+        },
+      ],
+    });
+    // Both asked at once: in either order.
+    expect(calls('systemctl').map((call) => call.args)).toEqual(
+      expect.arrayContaining([
+        ['list-units', '--type=service', '--all', '--output=json', '--no-pager'],
+        ['list-unit-files', '--type=service', '--output=json', '--no-pager'],
+      ]),
+    );
+    expect(calls('sudo')).toEqual([]);
+  });
+
+  it('keeps a list within what the server reads, failed ones first; says when systemctl fails', async () => {
+    const units = Array.from({ length: 3000 }, (_, i) => ({
+      unit: `unit-${i}.service`,
+      load: 'loaded',
+      active: i === 2999 ? 'failed' : 'inactive',
+      sub: 'dead',
+      description: 'd'.repeat(60),
+    }));
+    writeFileSync(join(dir, 'systemctl-list-units-out.txt'), JSON.stringify(units));
+    const answer = (await ask({ action: 'units.list' })) as {
+      truncated: boolean;
+      units: { unit: string }[];
+    };
+    expect(answer.truncated).toBe(true);
+    expect(answer.units[0]?.unit).toBe('unit-2999.service');
+    expect(JSON.stringify(answer).length).toBeLessThan(256 * 1024);
+
+    writeFileSync(join(dir, 'systemctl-list-units-out.txt'), 'not json');
+    expect(await ask({ action: 'units.list' })).toEqual({ ok: false, error: 'failed' });
+    writeFileSync(join(dir, 'systemctl-list-units-exit.txt'), '1');
+    expect(await ask({ action: 'units.list' })).toEqual({ ok: false, error: 'failed' });
+  });
+
+  it('shows one unit’s fixed properties, nothing else it says', async () => {
+    writeFileSync(
+      join(dir, 'systemctl-show-out.txt'),
+      [
+        'Id=nginx.service',
+        'Names=nginx.service web.service',
+        'ActiveState=active',
+        'MainPID=452',
+        'MemoryCurrent=[not set]',
+        'StateChangeTimestamp=@1792573340',
+        'Environment=SECRET=x',
+        'Description=A web server = fast',
+        '',
+      ].join('\n'),
+    );
+    expect(await ask({ action: 'units.show', unit: 'nginx.service' })).toEqual({
+      ok: true,
+      properties: {
+        Id: 'nginx.service',
+        Names: 'nginx.service web.service',
+        ActiveState: 'active',
+        MainPID: '452',
+        MemoryCurrent: '[not set]',
+        StateChangeTimestamp: '@1792573340',
+        Description: 'A web server = fast',
+      },
+    });
+    const args = calls('systemctl')[0]?.args ?? [];
+    expect(args.slice(0, 3)).toEqual(['show', '--timestamp=unix', '--no-pager']);
+    expect(args[3]).toMatch(/^--property=Id,Names,/);
+    expect(args.slice(4)).toEqual(['--', 'nginx.service']);
+    for (const unit of ['nginx', '--all.service', 'a/b.service', 'x.socket', 42]) {
+      expect(await ask({ action: 'units.show', unit })).toEqual({
+        ok: false,
+        error: 'bad_request',
+      });
+    }
+    expect(calls('systemctl')).toHaveLength(1);
+  });
+
+  it('starts, stops and restarts a unit through laris-root only — locked, it says so', async () => {
+    const request = { action: 'units.control', unit: 'nginx.service', command: 'restart' };
+    expect(await ask(request)).toEqual({ ok: false, error: 'sudo_required' });
+    expect(calls('systemctl')).toEqual([]);
+    await ask({ action: 'sudo.unlock', password: 'right' });
+    expect(await ask(request)).toEqual({ ok: true });
+    expect(calls('systemctl').map((call) => call.args)).toEqual([
+      ['restart', '--no-ask-password', '--', 'nginx.service'],
+    ]);
+    writeFileSync(join(dir, 'systemctl-restart-exit.txt'), '1');
+    writeFileSync(join(dir, 'systemctl-restart-err.txt'), 'Job for nginx.service failed.\n');
+    expect(await ask(request)).toEqual({
+      ok: false,
+      error: 'failed',
+      message: 'Job for nginx.service failed.',
+    });
+    for (const bad of [
+      { ...request, command: 'enable' },
+      { ...request, command: 'kill' },
+      { ...request, unit: '-H.service' },
+      { ...request, unit: 'nginx' },
+    ]) {
+      expect(await ask(bad)).toEqual({ ok: false, error: 'bad_request' });
+    }
+    expect(calls('systemctl')).toHaveLength(2);
+  });
+
   it.each([
     ['helper', 'actions.mts'],
     ['lib', 'lines.mts'],

@@ -5,6 +5,7 @@ import { KILL_TIMEOUT_MS, MESSAGES, PID_MAX, PROGRAMS, SIGNALS } from './config.
 import { pathSizes, removePaths } from './paths.mts';
 import { run } from './run.mts';
 import { forward, unlock } from './sudo.mts';
+import { listUnits, showUnit } from './units.mts';
 
 export type { Answer, Request } from './answers.mts';
 
@@ -40,6 +41,7 @@ export function privileged(request: Request): boolean {
     case 'volumes.remove':
       return request['docker'] === 'sudo';
     case 'root.run':
+    case 'units.control':
       return true;
     default:
       return false;
@@ -69,6 +71,10 @@ export function handle(request: Request): Promise<Answer> | Answer {
       return pathSizes(request);
     case 'paths.remove':
       return removePaths(request);
+    case 'units.list':
+      return listUnits();
+    case 'units.show':
+      return showUnit(request);
     default:
       return BAD_REQUEST;
   }

@@ -85,6 +85,34 @@ export const TASK_ACTIONS = {
   down: ['down', '--remove-orphans'],
 } as const;
 export type TaskAction = keyof typeof TASK_ACTIONS;
+/** A service unit's name (the app's SYSTEM_SERVICE_NAME_PATTERN): never a leading `-`. */
+export const SERVICE_PATTERN = /^(?!-)[A-Za-z0-9:_.\\@-]{1,240}\.service$/;
+export const SERVICE_COMMANDS = ['start', 'stop', 'restart'] as const;
+/** What is asked of one unit (`systemctl show -p`). */
+export const SERVICE_PROPERTIES = [
+  'Id',
+  'Names',
+  'Description',
+  'LoadState',
+  'ActiveState',
+  'SubState',
+  'UnitFileState',
+  'FragmentPath',
+  'MainPID',
+  'MemoryCurrent',
+  'Result',
+  'ExecMainStatus',
+  'NRestarts',
+  'StateChangeTimestamp',
+] as const;
+/** systemctl's lists are one JSON line: all of it, or nothing. */
+export const UNITS_OUTPUT_MAX = 4 * 1024 * 1024;
+/** What a list answers at most (the server reads 256 KB of an answer). */
+export const UNITS_ANSWER_MAX = 200 * 1024;
+/** A unit's description or property is cut here. */
+export const UNIT_TEXT_MAX = 1024;
+/** systemd's own start and stop timeouts are 90 s. */
+export const UNIT_CONTROL_TIMEOUT_MS = 100_000;
 /** A path: absolute, plain, one line. */
 export const PATH_FORBIDDEN = /[\x00-\x1f\x7f]/;
 export const PATH_MAX = 1024;
