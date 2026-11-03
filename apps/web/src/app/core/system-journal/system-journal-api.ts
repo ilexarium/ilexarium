@@ -1,18 +1,8 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { JournalBootsResponse, JournalPriority, JournalResponse } from '@laris/shared';
+import type { JournalBootsResponse, JournalResponse } from '@laris/shared';
 import type { Observable } from 'rxjs';
-
-/** What is read: the filters, a direction, and whether through the account's sudo. */
-export interface JournalRequest {
-  unit: string | null;
-  priority: JournalPriority;
-  /** A boot's ID, `-1` (the previous one), or null: this boot. */
-  boot: string | null;
-  after?: string;
-  before?: string;
-  administrator: boolean;
-}
+import type { JournalRequest } from './system-journal.model';
 
 /**
  * The machine's journal, read as the signed-in Linux account or as administrator through its

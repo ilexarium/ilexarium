@@ -26,8 +26,18 @@ import { run, runLines } from './run.mts';
 
 const BASE = ['--no-pager', '--quiet', '--output=json'];
 
-/** journald's groups by their IDs: in one of them, the account reads everything. */
+let access: 'all' | 'own' | null = null;
+
+/**
+ * journald's groups by their IDs: in one of them, the account reads everything. Worked out once:
+ * a process's groups don't change.
+ */
 export function journalAccess(): 'all' | 'own' {
+  access ??= readAccess();
+  return access;
+}
+
+function readAccess(): 'all' | 'own' {
   if (process.getuid?.() === 0) return 'all';
   let groups: string;
   try {

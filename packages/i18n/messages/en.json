@@ -1744,7 +1744,7 @@
     },
     "stopped": {
       "title": "Following paused",
-      "text": "New lines aren’t loaded as administrator while you’re away, so sudo can lock itself again.",
+      "text": "As administrator, new lines are loaded only while sudo is unlocked and you’re using this page, so sudo can lock itself again.",
       "button": "Follow again"
     },
     "retry": "Try again",

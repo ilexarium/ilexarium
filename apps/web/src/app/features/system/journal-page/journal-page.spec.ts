@@ -7,14 +7,12 @@ import type {
   JournalResponse,
   LinuxSession,
 } from '@laris/shared';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
-import {
-  type JournalRequest,
-  SystemJournalApi,
-} from '../../../core/system-journal/system-journal-api';
+import { SystemJournalApi } from '../../../core/system-journal/system-journal-api';
+import type { JournalRequest } from '../../../core/system-journal/system-journal.model';
 import { SystemServicesApi } from '../../../core/system-services/system-services-api';
 import { SignInPrompt } from '../../../layout/sign-in-prompt/sign-in-prompt';
 import { SudoDialog } from '../../../layout/sudo-dialog/sudo-dialog';
@@ -259,6 +257,59 @@ describe('JournalPage', () => {
     await vi.waitFor(() => expect(el.querySelector('[data-notice="stopped"]')).toBeNull());
     vi.advanceTimersByTime(2000);
     expect(api.read.mock.calls.length).toBe(calls + 1);
+  });
+
+  it('as administrator, a filter changed after sudo locked asks to unlock, then reads', async () => {
+    const { el, api, button, choose, fixture } = await render({
+      first: answer([line(1)], { access: 'own' }),
+    });
+    api.read.mockReturnValueOnce(of(answer([line(1)])));
+    button('Read as administrator')!.click();
+    await vi.waitFor(() =>
+      expect(api.read).toHaveBeenLastCalledWith(expect.objectContaining({ administrator: true })),
+    );
+    api.read.mockReturnValueOnce(throwError(() => httpError(403, 'sudo_required')));
+    await choose('priority', 'error');
+    expect(el.querySelector('[data-notice="stopped"]')).not.toBeNull();
+    expect(el.querySelector('[role="alert"]')).toBeNull();
+    api.read.mockReturnValueOnce(of(answer([line(7, { priority: 3 })])));
+    button('Follow again')!.click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Administrator rights'));
+    fill(dialog()!.querySelector<HTMLInputElement>('#sudo-password')!, 'right');
+    dialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await vi.waitFor(() => expect(el.textContent).toContain('line 7'));
+    await fixture.whenStable();
+    expect(api.read).toHaveBeenLastCalledWith(
+      expect.objectContaining({ priority: 'error', administrator: true }),
+    );
+  });
+
+  it('older lines asked for the filters before: dropped, and “Load older” works again', async () => {
+    const { api, button, choose, fixture } = await render({
+      first: answer([line(10)], { more: true }),
+    });
+    const pending = new Subject<JournalResponse>();
+    api.read.mockReturnValueOnce(pending);
+    button('Load older lines')!.click();
+    await fixture.whenStable();
+    expect(button('Loading older lines')!.disabled).toBe(true);
+    api.read.mockReturnValueOnce(of(answer([line(20)], { more: true })));
+    await choose('priority', 'error');
+    pending.error(httpError(503, 'journal_unavailable'));
+    await fixture.whenStable();
+    expect(button('Load older lines')!.disabled).toBe(false);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('an empty view filled by a poll offers the older lines it couldn’t hold', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { api, button, fixture } = await render({ first: answer([]) });
+    expect(button('Load older lines')).toBeUndefined();
+    api.read.mockReturnValueOnce(of(answer([line(1), line(2)], { more: true })));
+    vi.advanceTimersByTime(2000);
+    await fixture.whenStable();
+    expect(api.read.mock.calls[1]![0]).not.toHaveProperty('after');
+    expect(button('Load older lines')).toBeDefined();
   });
 
   it('without a Linux session: asks for the sign-in, then reads', async () => {

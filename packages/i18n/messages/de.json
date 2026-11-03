@@ -1744,7 +1744,7 @@
     },
     "stopped": {
       "title": "Mitverfolgen pausiert",
-      "text": "Als Administrator werden keine neuen Zeilen geladen, während du weg bist, damit sich sudo wieder sperren kann.",
+      "text": "Als Administrator werden neue Zeilen nur geladen, solange sudo entsperrt ist und du diese Seite benutzt, damit sich sudo wieder sperren kann.",
       "button": "Wieder mitverfolgen"
     },
     "retry": "Erneut versuchen",
