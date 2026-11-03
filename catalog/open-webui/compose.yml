@@ -7,6 +7,9 @@
 #   models built into the image stay visible, and its static files are copied there too.
 # - OFFLINE_MODE: it downloads nothing by itself (no Hugging Face, no update check). Models still
 #   come through Ollama.
+# - The admin account is made at the first start from WEBUI_ADMIN_EMAIL and WEBUI_ADMIN_PASSWORD,
+#   and sign-ups are then off: no one else on the network can claim it first. Used only then;
+#   change the password in Open WebUI afterwards.
 # For a graphics card, add the lines from Ollama's documentation to the ollama service.
 services:
   open-webui:
@@ -15,10 +18,13 @@ services:
     ports:
       - '${WEB_PORT}:8080'
     environment:
+      HOME: /data
       DATA_DIR: /data
       STATIC_DIR: /data/static
       OLLAMA_BASE_URL: http://ollama:11434
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      WEBUI_ADMIN_EMAIL: ${WEBUI_ADMIN_EMAIL}
+      WEBUI_ADMIN_PASSWORD: ${WEBUI_ADMIN_PASSWORD}
       OFFLINE_MODE: 'true'
     volumes:
       - ${DATA_DIR}:/data

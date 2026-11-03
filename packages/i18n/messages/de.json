@@ -653,11 +653,19 @@
     },
     "open-webui": {
       "description": "Chatte im Browser mit Sprachmodellen auf diesem Server. Bringt sein eigenes Ollama mit; nichts verlässt den Rechner.",
-      "note": "Lege dein Konto in Open WebUI gleich nach der Installation an: Das erste Konto wird Administrator. Modelle lädst du in den Einstellungen von Open WebUI herunter. Kleine Modelle (1–4 Mrd. Parameter) brauchen etwa 8 GB Arbeitsspeicher, größere mehr.",
+      "note": "Lege hier dein Administratorkonto an: Open WebUI erstellt es beim ersten Start und schaltet danach die Registrierung ab, sodass niemand sonst im Netzwerk es zuerst beanspruchen kann. Weitere Personen lädst du in Open WebUI ein. Modelle lädst du in seinen Einstellungen herunter. Kleine Modelle (1–4 Mrd. Parameter) brauchen etwa 8 GB Arbeitsspeicher, größere mehr.",
       "fields": {
         "WEB_PORT": {
           "label": "Web-Port",
           "help": "Der Port, auf dem sich die Seite von Open WebUI öffnet."
+        },
+        "WEBUI_ADMIN_EMAIL": {
+          "label": "Administrator-E-Mail",
+          "help": "Deine Anmeldung bei Open WebUI."
+        },
+        "WEBUI_ADMIN_PASSWORD": {
+          "label": "Administratorpasswort",
+          "help": "Nur beim ersten Start verwendet. Ändere es danach in Open WebUI."
         },
         "MODELS_DIR": {
           "label": "Modellordner",
