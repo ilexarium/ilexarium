@@ -10,6 +10,7 @@ export * from './env-file.js';
 export * from './files.js';
 export * from './terminal.js';
 export * from './health.js';
+export * from './journal.js';
 export * from './logs.js';
 export * from './monitoring.js';
 export * from './processes.js';
