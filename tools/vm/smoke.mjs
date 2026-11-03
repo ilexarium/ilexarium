@@ -8,7 +8,7 @@
 //   node smoke.mjs update    after running the installer again: everything is still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 
 const BASE = 'http://127.0.0.1:3000';
@@ -311,6 +311,7 @@ async function files() {
   check('deletes it', del.status === 204 && !existsSync('/home/anna/hello.txt'), `${del.status}`);
   await terminal();
   await processes();
+  await systemServices();
   await api('DELETE', '/files/session');
 }
 
@@ -443,6 +444,99 @@ async function processes() {
   sh('gpasswd', ['-d', 'anna', 'sudo']);
   const init = await api('POST', '/processes/signal', { pid: 1, startTicks: '1', signal: 'KILL' });
   check('PID 1 refused', init.status === 403 || init.status === 404, `${init.status}`);
+}
+
+/**
+ * The Services page against the real systemd (docs/plans/system_services.md): systemctl's JSON
+ * and unix timestamps on this release, a harmless unit of its own started, restarted and stopped
+ * through anna's sudo, Laris's own refused.
+ */
+async function systemServices() {
+  console.log('\nSystem services (as anna; changes through her sudo)');
+  writeFileSync(
+    '/etc/systemd/system/smoke-sleeper.service',
+    '[Unit]\nDescription=Laris smoke test\n[Service]\nExecStart=/usr/bin/sleep infinity\n',
+  );
+  sh('systemctl', ['daemon-reload']);
+  const list = await api('GET', '/system/services');
+  const byName = Object.fromEntries((list.json?.services ?? []).map((s) => [s.name, s]));
+  check(
+    'lists the services (systemctl’s JSON)',
+    list.status === 200,
+    `${list.status} ${list.text.slice(0, 300)}`,
+  );
+  check(
+    'laris.service is there, protected',
+    byName['laris.service']?.active === 'active' && byName['laris.service']?.protection === 'laris',
+    JSON.stringify(byName['laris.service']),
+  );
+  check('the test unit is there, inactive', byName['smoke-sleeper.service']?.active === 'inactive');
+  const ssh = await api('GET', '/system/services/ssh.service');
+  check(
+    'a unit’s details (unix timestamps)',
+    ssh.status === 200 && Date.parse(ssh.json?.since) > 0 && ssh.json?.protection === 'essential',
+    `${ssh.status} ${ssh.text}`,
+  );
+
+  const locked = await api('POST', '/system/services/smoke-sleeper.service/start');
+  check(
+    'starting needs her sudo (403 sudo_required)',
+    locked.status === 403 && locked.json?.code === 'sudo_required',
+    `${locked.status} ${locked.text}`,
+  );
+  sh('usermod', ['-aG', 'sudo', 'anna']);
+  await api('POST', '/files/session', { username: 'anna', password: 'anna-smoke-password' });
+  await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  const isActive = () => {
+    try {
+      return sh('systemctl', ['is-active', 'smoke-sleeper.service']).trim();
+    } catch (error) {
+      return String(error.stdout ?? '').trim();
+    }
+  };
+  const start = await api('POST', '/system/services/smoke-sleeper.service/start');
+  check(
+    'starts it through her sudo',
+    start.status === 204 && isActive() === 'active',
+    `${start.status} ${start.text}`,
+  );
+  const pid = sh('systemctl', ['show', '-p', 'MainPID', '--value', 'smoke-sleeper.service']).trim();
+  const restart = await api('POST', '/system/services/smoke-sleeper.service/restart');
+  const pidAfter = sh('systemctl', [
+    'show',
+    '-p',
+    'MainPID',
+    '--value',
+    'smoke-sleeper.service',
+  ]).trim();
+  check(
+    'restarts it (a new main process)',
+    restart.status === 204 && pid !== pidAfter,
+    `${restart.status} ${pid} ${pidAfter}`,
+  );
+  const stop = await api('POST', '/system/services/smoke-sleeper.service/stop');
+  check(
+    'stops it',
+    stop.status === 204 && isActive() === 'inactive',
+    `${stop.status} ${stop.text}`,
+  );
+  const own = await api('POST', '/system/services/laris.service/restart');
+  check(
+    'Laris’s own refused',
+    own.status === 403 && own.json?.code === 'service_protected',
+    `${own.status}`,
+  );
+  const needed = await api('POST', '/system/services/ssh.service/stop');
+  check(
+    'ssh never stopped',
+    needed.status === 403 && needed.json?.code === 'service_protected',
+    `${needed.status}`,
+  );
+
+  await api('DELETE', '/files/session/sudo');
+  sh('gpasswd', ['-d', 'anna', 'sudo']);
+  rmSync('/etc/systemd/system/smoke-sleeper.service');
+  sh('systemctl', ['daemon-reload']);
 }
 
 /**
