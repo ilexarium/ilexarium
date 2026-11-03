@@ -67,11 +67,13 @@ describe('laris-root', () => {
       { action: 'compose.check', folder: dir, project: 'music' },
       { action: 'volumes.remove', names: ['x'], docker: 'direct' },
       { action: 'root.run', program: 'compose', command: 'up', input: '' },
+      { action: 'units.list' },
+      { action: 'units.show', unit: 'nginx.service' },
     ]);
     expect(lines[0]).toEqual({ 'laris-root': 1 });
     expect(lines[1]).toEqual({ id: 1, ok: true });
     const refused = lines.slice(2);
-    expect(refused).toHaveLength(9);
+    expect(refused).toHaveLength(11);
     for (const answer of refused) expect(answer).toMatchObject({ ok: false, error: 'bad_request' });
   });
 

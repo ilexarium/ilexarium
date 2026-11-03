@@ -8,6 +8,7 @@ import { FAKE_BIN, ROOT_IDLE_MS } from '../helper/config.mts';
 import { serve } from '../helper/main.mts';
 import { removePaths } from '../helper/paths.mts';
 import { runRoot } from '../helper/root.mts';
+import { controlUnit } from '../helper/units.mts';
 
 function handle(request: Request): Promise<Answer> | Answer {
   // Unlocking while unlocked: the idle time starts again.
@@ -26,6 +27,8 @@ function handle(request: Request): Promise<Answer> | Answer {
       return removeVolumes(request);
     case 'app.task':
       return startSystemTask(request);
+    case 'units.control':
+      return controlUnit(request);
     default:
       return BAD_REQUEST;
   }

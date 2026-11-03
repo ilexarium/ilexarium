@@ -18,6 +18,8 @@ import {
   PROCESS_LIMITS,
   PROCESS_SIGNALS,
   RELATIVE_PATH_PATTERN,
+  SYSTEM_SERVICE_ACTIONS,
+  SYSTEM_SERVICE_NAME_PATTERN,
   TEMPLATE_LABEL,
   VOLUME_NAME_PATTERN,
 } from '@laris/shared';
@@ -106,7 +108,7 @@ describe('the app and the root programs check the same rules', () => {
     }
   });
 
-  it('the helper: PIDs, signals, sudo passwords on one line, root’s idle time, app and volume names', () => {
+  it('the helper: PIDs, signals, sudo passwords on one line, root’s idle time, app, volume and service names', () => {
     expect(helperConfig.PID_MAX).toBe(PROCESS_LIMITS.maxPid);
     expect([...helperConfig.SIGNALS]).toEqual([...PROCESS_SIGNALS]);
     expect(helperConfig.PASSWORD_MAX).toBe(FILES_LIMITS.passwordMax);
@@ -116,6 +118,9 @@ describe('the app and the root programs check the same rules', () => {
     expect(helperConfig.MESSAGE_MAX).toBe(HELPER_MESSAGE_MAX);
     expect(helperConfig.COMPOSE_ANSWER_MAX).toBeLessThan(HELPER_ANSWER_MAX);
     expect(String(helperConfig.VOLUME_PATTERN)).toBe(String(VOLUME_NAME_PATTERN));
+    expect(String(helperConfig.SERVICE_PATTERN)).toBe(String(SYSTEM_SERVICE_NAME_PATTERN));
+    expect([...helperConfig.SERVICE_COMMANDS]).toEqual([...SYSTEM_SERVICE_ACTIONS]);
+    expect(helperConfig.UNITS_ANSWER_MAX).toBeLessThan(HELPER_ANSWER_MAX);
     for (const password of [
       'right',
       'with spaces and ünïcödé',
