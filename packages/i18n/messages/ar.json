@@ -12,8 +12,6 @@
     "processes": "العمليات",
     "files": "الملفات",
     "terminal": "الطرفية",
-    "assistant": "المساعد",
-    "assistantModels": "النماذج",
     "profile": "الملف الشخصي",
     "apps": "التطبيقات",
     "newApp": "إضافة تطبيق",
@@ -45,7 +43,6 @@
     "processes": "العمليات",
     "files": "الملفات",
     "terminal": "الطرفية",
-    "assistant": "المساعد",
     "apps": "التطبيقات"
   },
   "userMenu": {
@@ -159,10 +156,6 @@
     "fileNameTooLong": "255 حرفًا على الأكثر",
     "fileNameInvalid": "اسم بلا «/» (وليس «.» أو «..»)",
     "linuxUsernameInvalid": "اسم مستخدم لينكس، مثل anna",
-    "modelNameRequired": "أدخل اسم نموذج",
-    "modelNameInvalid": "اسم نموذج مثل ⁦llama3.2:3b⁩",
-    "messageRequired": "اكتب رسالة",
-    "messageTooLong": "{{messageMax}} حرفًا كحد أقصى",
     "displayNameTooLong": "{{displayNameMax}} حرفًا كحد أقصى",
     "emailTooLong": "{{emailMax}} حرفًا كحد أقصى",
     "nothingToChange": "لا يوجد ما يتغير",
@@ -253,18 +246,6 @@
     "wrong_type": "لا يصلح هذا هنا (مجلد بدل ملف أو العكس).",
     "file_too_large": "كبير جدًا (10 غيغابايت على الأكثر لكل ملف).",
     "file_operation_failed": "رفض الجهاز ذلك (قرص ممتلئ أو مجلد غير فارغ؟).",
-    "ollama_not_installed": "Ollama غير مثبّت.",
-    "ollama_unreachable": "لا يستجيب Ollama. تحقّق من أنه يعمل.",
-    "model_not_found": "هذا النموذج غير موجود أو غير مثبّت.",
-    "answer_running": "ما زالت إجابة قيد الكتابة. انتظرها أو أوقفها.",
-    "answer_failed": "توقف النموذج عن الإجابة. ما كتبه محفوظ.",
-    "pull_running": "يجري تنزيل نموذج. انتظر حتى ينتهي.",
-    "pull_failed": "فشل التنزيل. تحقّق من الاسم والاتصال، ثم حاول مجددًا.",
-    "not_enough_space": "لا توجد مساحة كافية على قرص النماذج.",
-    "chat_not_found": "هذه المحادثة غير موجودة (لم تعد موجودة).",
-    "library_unreachable": "لا يمكن الوصول إلى Hugging Face الآن.",
-    "library_not_found": "لا يوجد نموذج بهذا الاسم على Hugging Face.",
-    "models_folder_unavailable": "تعذّرت قراءة مجلد النماذج، فالمساحة الحرة فيه غير معروفة. تحقّق من وجود قرصه.",
     "invalid_picture": "تعذّر استخدام الصورة. اختر صورة أخرى بصيغة JPEG أو PNG أو WebP.",
     "picture_too_large": "الصورة كبيرة جدًا.",
     "process_not_permitted": "لم يسمح Linux لهذا الحساب بإنهاء تلك العملية.",
@@ -417,7 +398,6 @@
       },
       "start": "تشغيل",
       "startLabel": "تشغيل {{name}}",
-      "chat": "الدردشة في المساعد",
       "otherContainers_zero": "لا حاويات أخرى",
       "otherContainers_one": "حاوية أخرى واحدة",
       "otherContainers_two": "حاويتان أخريان",
@@ -466,7 +446,6 @@
         "backupRestore": "تمت استعادة نسخة احتياطية",
         "diskMount": "تم ربط القرص {{name}}",
         "diskUnmount": "تم فصل القرص {{name}}",
-        "modelPull": "تم تنزيل النموذج {{name}}",
         "appInstall": "تم تثبيت {{name}}",
         "appUpdate": "تم تحديث {{name}}",
         "appRemove": "تمت إزالة {{name}}"
@@ -699,7 +678,7 @@
       }
     },
     "ollama": {
-      "description": "يشغّل نماذج لغوية على هذا الخادم، للمساعد. محادثاتك لا تغادره أبدًا.",
+      "description": "يشغّل نماذج لغوية على هذا الخادم، للبرامج على هذا الجهاز. للدردشة معها، ثبّت Open WebUI.",
       "note": "لاستخدام بطاقة رسوميات، أضف الأسطر الواردة في توثيق Ollama ‏(deploy → resources → devices) إلى compose.yml تحت الإعدادات.",
       "fields": {
         "DATA_DIR": {
@@ -721,6 +700,40 @@
         "USER_ID": {
           "label": "يعمل باسم",
           "help": "المستخدم والمجموعة اللذان يعمل بهما (حسابك افتراضيًا)."
+        }
+      }
+    },
+    "open-webui": {
+      "description": "دردش مع نماذج لغوية على هذا الخادم من متصفحك. يأتي مع Ollama خاص به؛ لا شيء يغادر الجهاز.",
+      "note": "أنشئ حسابك في Open WebUI فور التثبيت: أول حساب يصبح المسؤول. نزّل النماذج من إعدادات Open WebUI. النماذج الصغيرة (1–4 مليارات معامل) تحتاج نحو 8 غيغابايت من الذاكرة، والأكبر أكثر.",
+      "fields": {
+        "WEB_PORT": {
+          "label": "منفذ الويب",
+          "help": "المنفذ الذي تُفتح عليه صفحة Open WebUI."
+        },
+        "MODELS_DIR": {
+          "label": "مجلد النماذج",
+          "help": "حيث يحفظ Ollama النماذج. إنها كبيرة (غالبًا عدة غيغابايت لكل منها) ولا تُنسخ احتياطيًا: تُنزَّل من جديد."
+        },
+        "DATA_DIR": {
+          "label": "مجلد البيانات",
+          "help": "حسابات Open WebUI ومحادثاته وإعداداته."
+        },
+        "OPEN_WEBUI_VERSION": {
+          "label": "إصدار Open WebUI",
+          "help": "خط الإصدارات الذي يتبعه."
+        },
+        "OLLAMA_VERSION": {
+          "label": "إصدار Ollama",
+          "help": "Ollama الذي يشغّل النماذج."
+        },
+        "WEBUI_SECRET_KEY": {
+          "label": "المفتاح السري",
+          "help": "يُنشأ لك. يوقّع تسجيلات الدخول إلى Open WebUI."
+        },
+        "USER_ID": {
+          "label": "يعمل باسم",
+          "help": "المستخدم والمجموعة اللذان يعمل بهما الاثنان (افتراضيًا أنت)."
         }
       }
     }
@@ -1473,94 +1486,6 @@
       "text": "يقوم Laris بذلك بحساب لينكس الخاص بك وبصلاحياته.",
       "submit": "تسجيل الدخول والمتابعة"
     }
-  },
-  "assistant": {
-    "copy": "نسخ",
-    "copied": "تم النسخ",
-    "newChat": "محادثة جديدة",
-    "chats": "المحادثات",
-    "noChats": "لا توجد محادثات بعد.",
-    "deleteChat": "حذف المحادثة «{{title}}»",
-    "delete": {
-      "title": "حذف «{{title}}»؟",
-      "text": "ستُحذف المحادثة وكل رسائلها. لا يمكن التراجع عن ذلك.",
-      "cancel": "إبقاؤها",
-      "confirm": "حذف"
-    },
-    "conversation": "المحادثة",
-    "thinking": "يفكّر…",
-    "stopped": "أُوقفت",
-    "toLatest": "الانتقال إلى أحدث رسالة",
-    "notInstalled": "Ollama غير مثبّت",
-    "notInstalledText": "يشغّل Ollama النماذج اللغوية على هذا الخادم. أضفه من صفحة التطبيقات، ثم نزّل نموذجًا.",
-    "installOllama": "تثبيت Ollama",
-    "notRunning": "Ollama لا يعمل",
-    "notRunningText": "إنه مثبّت لكنه لا يستجيب. تحقّق من حاويته في صفحة الحاويات.",
-    "noModels": "لا يوجد نموذج مثبّت",
-    "noModelsText": "نزّل نموذجًا لتبدأ المحادثة. النماذج الصغيرة (1–4 مليارات معامل) تعمل جيدًا دون بطاقة رسوميات.",
-    "noModelsHere": "نزّل نموذجًا باسمه أو ابحث عن واحد على Hugging Face أدناه.",
-    "getModel": "الحصول على نموذج",
-    "chat": "محادثة",
-    "model": "النموذج",
-    "models": "النماذج",
-    "loading": "جارٍ التحميل…",
-    "start": "اسأل عن أي شيء",
-    "startText": "تأتي الإجابات من ⁦{{model}}⁩ الذي يعمل على هذا الخادم. لا شيء يغادره.",
-    "message": "الرسالة",
-    "placeholder": "اكتب رسالة… (Enter للإرسال، Shift+Enter لسطر جديد)",
-    "stop": "إيقاف الإجابة",
-    "send": "إرسال",
-    "loadFailed": "تعذّر تحميل المساعد",
-    "openFailed": "تعذّر فتح المحادثة",
-    "answerFailed": "توقفت الإجابة",
-    "sendFailed": "لم تُرسل الرسالة",
-    "removeChatFailed": "تعذّر حذف المحادثة",
-    "pulled": "⁦{{model}}⁩ جاهز",
-    "pullFailed": "تعذّر تنزيل ⁦{{model}}⁩",
-    "removed": "أُزيل ⁦{{model}}⁩",
-    "removeFailed": "تعذّرت إزالة ⁦{{model}}⁩",
-    "searchFailed": "تعذّر البحث في Hugging Face",
-    "loaded": "محمّل",
-    "remove": "إزالة",
-    "removeModel": {
-      "title": "إزالة ⁦{{model}}⁩؟",
-      "text": "سيُحذف النموذج من هذا الخادم؛ تبقى محادثاته. يمكنك تنزيله مجددًا في أي وقت.",
-      "cancel": "إبقاؤه",
-      "confirm": "إزالة"
-    },
-    "pull": {
-      "title": "التنزيل",
-      "running": "جارٍ التنزيل",
-      "succeeded": "اكتمل التنزيل",
-      "failed": "فشل",
-      "progress": "جارٍ تنزيل ⁦{{model}}⁩",
-      "bytes": "{{done}} من {{total}} ({{percent}})",
-      "starting": "جارٍ البدء…"
-    },
-    "installed": "النماذج المثبّتة",
-    "installedSize": "{{size}} إجمالًا",
-    "byName": {
-      "title": "التنزيل بالاسم",
-      "label": "اسم النموذج",
-      "download": "تنزيل",
-      "help": "اسم من ⁦ollama.com/library⁩، مثل ⁦llama3.2:3b⁩ أو ⁦qwen2.5:7b⁩. تحتاج النماذج الأكبر ذاكرة أكثر: نحو 1 GB من الذاكرة لكل مليار معامل."
-    },
-    "library": {
-      "title": "البحث على Hugging Face",
-      "description": "نماذج بصيغة GGUF، وهي التي يشغّلها Ollama. يجري البحث هذا الخادم؛ وتبقى محادثاتك هنا.",
-      "search": "بحث",
-      "placeholder": "مثل llama أو qwen أو mistral",
-      "none": "لم يُعثر على نماذج.",
-      "downloads": "تنزيلات",
-      "likes": "إعجابات",
-      "gated": "يحتاج هذا النموذج إلى حساب على Hugging Face وقبول شروطه، لذا لا يمكن تنزيله هنا.",
-      "noFiles": "لا يحتوي هذا المستودع على نموذج في ملف واحد للتنزيل.",
-      "license": "الترخيص:",
-      "sizesHelp": "الأحجام الأصغر (Q4) تحتاج ذاكرة أقل وتجيب أسرع؛ والأكبر (Q8) أفضل قليلًا.",
-      "installed": "مثبّت",
-      "download": "تنزيل"
-    },
-    "checkAgain": "التحقق مجددًا"
   },
   "profile": {
     "edit": "تعديل",

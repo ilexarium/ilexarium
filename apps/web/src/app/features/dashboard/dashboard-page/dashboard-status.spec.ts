@@ -282,7 +282,7 @@ describe('appTiles and otherContainers', () => {
     container('my-own-thing'),
   ];
 
-  it('each app with its stopped containers, whether one is busy, and the Assistant marked', () => {
+  it('each app with its stopped containers and whether one is busy', () => {
     const tiles = appTiles(
       [
         app('immich', { state: 'partial' }),
@@ -291,9 +291,9 @@ describe('appTiles and otherContainers', () => {
       containers,
       new Map([['immich-ml-1', 'start']]),
     );
-    expect(tiles.map((t) => [t.app.name, t.stopped, t.pending, t.assistant])).toEqual([
-      ['immich', ['immich-ml-1'], true, false],
-      ['ollama', [], false, true],
+    expect(tiles.map((t) => [t.app.name, t.stopped, t.pending])).toEqual([
+      ['immich', ['immich-ml-1'], true],
+      ['ollama', [], false],
     ]);
   });
 

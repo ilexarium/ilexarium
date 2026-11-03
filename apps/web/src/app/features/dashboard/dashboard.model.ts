@@ -25,8 +25,6 @@ export interface AppTile {
   stopped: string[];
   /** One of them is being started (or stopped) right now. */
   pending: boolean;
-  /** Ollama: its button opens the Assistant instead of its own page. */
-  assistant: boolean;
 }
 
 /** One day of the backups' strip: its worst outcome, or null without a run. */

@@ -34,8 +34,6 @@ export const AUDIT_ACTIONS = [
   'files.delete',
   'terminal.open',
   'terminal.close',
-  'assistant.model_pull',
-  'assistant.model_remove',
   'profile.update',
   'profile.avatar',
 ] as const;

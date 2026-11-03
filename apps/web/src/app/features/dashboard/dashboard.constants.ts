@@ -26,9 +26,6 @@ export const BACKUP_OUTCOME_RANK = { ok: 0, warning: 1, failed: 2 } as const;
 /** The page's clock: relative times, the strip's days and the activity follow it. */
 export const CLOCK_MS = 60_000;
 
-/** The catalog entry whose tile opens the Assistant. */
-export const ASSISTANT_TEMPLATE_ID = 'ollama';
-
 /** CPU use in words: below `quiet`, below `busy`, else very busy (percent). */
 export const CPU_WORDS = { quiet: 25, busy: 75 };
 

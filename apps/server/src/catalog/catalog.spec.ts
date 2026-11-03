@@ -96,7 +96,12 @@ const compose = `services:
 
 describe('the catalog', () => {
   it('loads every template', () => {
-    expect(catalog.map((entry) => entry.template.id)).toEqual(['immich', 'navidrome', 'ollama']);
+    expect(catalog.map((entry) => entry.template.id)).toEqual([
+      'immich',
+      'navidrome',
+      'ollama',
+      'open-webui',
+    ]);
   });
 
   it.each(catalog.map((entry) => [entry.template.id, entry] as const))(
@@ -113,6 +118,18 @@ describe('the catalog', () => {
     expect(ollama.compose).toMatch(/'\$\{API_ADDRESS\}:\$\{API_PORT\}:11434'/);
     expect(ollama.template.fields.find((f) => f.key === 'API_ADDRESS')?.default).toBe('127.0.0.1');
     expect(ollama.template.web).toBeUndefined();
+  });
+
+  it('gives Open WebUI its own Ollama, publishing no port (only Open WebUI reaches it)', () => {
+    const openWebUi = catalog.find((entry) => entry.template.id === 'open-webui')!;
+    const services = (
+      parse(openWebUi.compose) as { services: Record<string, Record<string, unknown>> }
+    ).services;
+    expect(services['ollama']!['ports']).toBeUndefined();
+    expect(services['open-webui']!['ports']).toEqual(['${WEB_PORT}:8080']);
+    expect(
+      (services['open-webui']!['environment'] as Record<string, string>)['OLLAMA_BASE_URL'],
+    ).toBe('http://ollama:11434');
   });
 
   it('has the texts of every template in English (the consistency test covers the other languages)', async () => {

@@ -73,7 +73,7 @@ describe('apps and templates (e2e)', () => {
 
   it('serves the templates, each with its compose.yml, and their icons only as harmless images', async () => {
     const list = (await api().get('/catalog').expect(200)).body as TemplateSummary[];
-    expect(list.map((t) => t.id)).toEqual(['immich', 'navidrome', 'ollama']);
+    expect(list.map((t) => t.id)).toEqual(['immich', 'navidrome', 'ollama', 'open-webui']);
     const navidrome = (await api().get('/catalog/navidrome').expect(200)).body;
     expect(navidrome.compose).toContain('laris.template: navidrome@2');
     const icon = await api().get('/catalog/navidrome/icon').expect(200);

@@ -1,0 +1,46 @@
+# Open WebUI, from the Laris template (catalog/open-webui): chat with language models on this
+# server. This folder is yours: change anything.
+# Differences from Open WebUI's own Compose file, on purpose:
+# - Ollama comes with it and publishes no port: only Open WebUI reaches it, over this app's own
+#   network. (The Ollama app's port is on 127.0.0.1, which another container can't reach.)
+# - Both run as you. Open WebUI's data is in /data (not the image's /app/backend/data), so the
+#   models built into the image stay visible, and its static files are copied there too.
+# - OFFLINE_MODE: it downloads nothing by itself (no Hugging Face, no update check). Models still
+#   come through Ollama.
+# For a graphics card, add the lines from Ollama's documentation to the ollama service.
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:${OPEN_WEBUI_VERSION}
+    user: '${USER_ID}'
+    ports:
+      - '${WEB_PORT}:8080'
+    environment:
+      DATA_DIR: /data
+      STATIC_DIR: /data/static
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      OFFLINE_MODE: 'true'
+    volumes:
+      - ${DATA_DIR}:/data
+    depends_on:
+      - ollama
+    labels:
+      laris.template: open-webui@1
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+  ollama:
+    image: ollama/ollama:${OLLAMA_VERSION}
+    user: '${USER_ID}'
+    environment:
+      HOME: /data
+      OLLAMA_MODELS: /data/models
+    volumes:
+      - ${MODELS_DIR}:/data
+    labels:
+      laris.template: open-webui@1
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }

@@ -71,11 +71,6 @@
                 }
                 {{ 'dashboard.apps.start' | translate }}
               </button>
-            } @else if (app.assistant && app.app.state === 'running') {
-              <a hlmBtn variant="outline" size="sm" routerLink="/assistant">
-                <ng-icon name="lucideSparkles" aria-hidden="true" />
-                {{ 'dashboard.apps.chat' | translate }}
-              </a>
             } @else if (row.openUrl; as url) {
               <a
                 hlmBtn

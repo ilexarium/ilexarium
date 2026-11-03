@@ -10,7 +10,6 @@ import type { Wording } from '../../../core/alerts/alert-wording';
 import { percentOf } from '../../../shared/format/format';
 import {
   APP_ALERT_KINDS,
-  ASSISTANT_TEMPLATE_ID,
   BACKUP_DAYS,
   BACKUP_OUTCOME_RANK,
   DISK_WARN_PERCENT,
@@ -236,7 +235,6 @@ export function appTiles(
       app,
       stopped: own.filter((c) => c.state !== 'running').map((c) => c.name),
       pending: own.some((c) => pending.has(c.name)),
-      assistant: app.template?.id === ASSISTANT_TEMPLATE_ID,
     };
   });
 }

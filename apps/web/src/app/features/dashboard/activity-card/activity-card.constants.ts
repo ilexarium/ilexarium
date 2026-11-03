@@ -13,7 +13,6 @@ export const ACTION_WORDS: Record<ActivityAction, { key: string; icon: string; m
     'backup.restore': { key: 'backupRestore', icon: 'lucideHistory', machine: false },
     'disk.mount': { key: 'diskMount', icon: 'lucideHardDrive', machine: true },
     'disk.unmount': { key: 'diskUnmount', icon: 'lucideHardDrive', machine: true },
-    'assistant.model_pull': { key: 'modelPull', icon: 'lucideDownload', machine: true },
   };
 
 /** The icon's colours: what people did plainly, outcomes in their status colour. */

@@ -1,7 +1,8 @@
-# Ollama, from the Laris template (catalog/ollama): runs language models for the Assistant. This
-# folder is yours: change anything.
-# Ollama has no sign-in: its port is on 127.0.0.1 (this machine only) by default — only Laris
-# talks to it. For a graphics card, see the note in Laris (the lines to add here).
+# Ollama, from the Laris template (catalog/ollama): runs language models for programs on this
+# machine. This folder is yours: change anything. To chat with models, Open WebUI's template brings
+# its own Ollama.
+# Ollama has no sign-in: its port is on 127.0.0.1 (this machine only) by default. For a graphics
+# card, see the note in Laris (the lines to add here).
 services:
   ollama:
     image: ollama/ollama:${OLLAMA_VERSION}
@@ -14,7 +15,7 @@ services:
     volumes:
       - ${DATA_DIR}:/data
     labels:
-      laris.template: ollama@2
+      laris.template: ollama@3
     restart: unless-stopped
     logging:
       driver: json-file
