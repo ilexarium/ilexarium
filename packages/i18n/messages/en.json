@@ -16,7 +16,8 @@
     "apps": "Apps",
     "newApp": "Add app",
     "app": "App",
-    "services": "Services"
+    "services": "Services",
+    "journal": "Logs"
   },
   "app": {
     "loading": "Loading…",
@@ -45,7 +46,8 @@
     "files": "Files",
     "terminal": "Terminal",
     "apps": "Apps",
-    "services": "Services"
+    "services": "Services",
+    "journal": "Logs"
   },
   "userMenu": {
     "open": "Account menu",
@@ -268,7 +270,8 @@
     "service_protected": "This service is protected: Laris needs it.",
     "service_action_failed": "systemd couldn’t do it. The service’s state and its log say why.",
     "service_timed_out": "It’s still in progress. Look at the service’s state in a moment.",
-    "services_unavailable": "systemd couldn’t be asked for the services."
+    "services_unavailable": "systemd couldn’t be asked for the services.",
+    "journal_unavailable": "The journal can’t be read right now. Try again in a moment."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -567,7 +570,16 @@
     "noMatch": "No lines match “{{filter}}”.",
     "matches_one": "{{shown}} of {{count}} line matches",
     "matches_other": "{{shown}} of {{count}} lines match",
-    "jumpToLatest": "Jump to latest"
+    "jumpToLatest": "Jump to latest",
+    "loadOlder": "Load older lines",
+    "loadingOlder": "Loading older lines…",
+    "priority": {
+      "0": "emergency",
+      "1": "alert",
+      "2": "critical",
+      "3": "error",
+      "4": "warning"
+    }
   },
   "catalog": {
     "navidrome": {
@@ -1694,9 +1706,52 @@
       "result": "Last result",
       "exitStatus": "exit status {{status}}",
       "restarts": "Restarted by systemd",
-      "unitFile": "Unit file"
+      "unitFile": "Unit file",
+      "logs": "Logs"
     },
     "count_one": "{{count}} service",
     "count_other": "{{count}} services"
+  },
+  "journal": {
+    "signIn": {
+      "title": "Sign in as a Linux user",
+      "text": "The system logs are read as your Linux account; reading all of them may need its sudo.",
+      "button": "Sign in"
+    },
+    "filters": "Filters",
+    "unit": "Service",
+    "allUnits": "All services",
+    "priority": "Show",
+    "priorities": {
+      "error": "Errors",
+      "warning": "Warnings and above",
+      "info": "Info and above",
+      "debug": "Everything"
+    },
+    "bootLabel": "Boot",
+    "boot": {
+      "current": "This boot",
+      "currentSince": "This boot (since {{first}})",
+      "previous": "Previous boot",
+      "previousSince": "Previous boot ({{first}} – {{last}})",
+      "earlier_one": "{{count}} boot ago ({{first}} – {{last}})",
+      "earlier_other": "{{count}} boots ago ({{first}} – {{last}})"
+    },
+    "own": {
+      "title": "Only your own messages",
+      "text": "Your Linux account isn’t in a group that may read the whole journal, so you see only what your own programs logged.",
+      "button": "Read as administrator"
+    },
+    "stopped": {
+      "title": "Following paused",
+      "text": "New lines aren’t loaded as administrator while you’re away, so sudo can lock itself again.",
+      "button": "Follow again"
+    },
+    "retry": "Try again",
+    "loading": "Loading logs",
+    "empty": {
+      "title": "No lines",
+      "text": "Nothing was logged here for these filters. New lines appear as soon as they’re written."
+    }
   }
 }

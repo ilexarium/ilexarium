@@ -1,0 +1,151 @@
+@let store = journalPageStore;
+@if (store.signInNeeded()) {
+  <div hlmAlert role="status">
+    <h2 hlmAlertTitle>{{ 'journal.signIn.title' | translate }}</h2>
+    <div hlmAlertDescription class="grid gap-3">
+      <p>{{ 'journal.signIn.text' | translate }}</p>
+      <div>
+        <button hlmBtn size="sm" (click)="store.signIn()">
+          {{ 'journal.signIn.button' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="flex flex-col gap-2">
+    <button
+      hlmBtn
+      variant="outline"
+      class="self-start sm:hidden"
+      aria-controls="journal-filters"
+      [attr.aria-expanded]="filtersShown()"
+      (click)="filtersShown.set(!filtersShown())"
+    >
+      <ng-icon name="lucideListFilter" aria-hidden="true" />
+      {{ 'journal.filters' | translate }}
+    </button>
+    <div
+      id="journal-filters"
+      class="flex-col gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-3"
+      role="group"
+      [class]="filtersShown() ? 'flex' : 'hidden'"
+      [attr.aria-label]="'journal.filters' | translate"
+    >
+      <label class="flex items-center gap-2 text-sm">
+        <span class="w-20 shrink-0 text-muted-foreground sm:w-auto">{{
+          'journal.unit' | translate
+        }}</span>
+        <select
+          hlmInput
+          class="h-9 min-w-0 flex-1 py-0 sm:w-56 sm:flex-none"
+          data-filter="unit"
+          (change)="chooseUnit($event)"
+        >
+          <option value="" [selected]="store.filters().unit === null">
+            {{ 'journal.allUnits' | translate }}
+          </option>
+          @for (unit of store.unitChoices(); track unit) {
+            <option dir="ltr" [value]="unit" [selected]="store.filters().unit === unit">
+              {{ unit }}
+            </option>
+          }
+        </select>
+      </label>
+      <label class="flex items-center gap-2 text-sm">
+        <span class="w-20 shrink-0 text-muted-foreground sm:w-auto">{{
+          'journal.priority' | translate
+        }}</span>
+        <select
+          hlmInput
+          class="h-9 min-w-0 flex-1 py-0 sm:w-auto sm:flex-none"
+          data-filter="priority"
+          (change)="choosePriority($event)"
+        >
+          @for (priority of priorities; track priority) {
+            <option [value]="priority" [selected]="store.filters().priority === priority">
+              {{ 'journal.priorities.' + priority | translate }}
+            </option>
+          }
+        </select>
+      </label>
+      <label class="flex items-center gap-2 text-sm">
+        <span class="w-20 shrink-0 text-muted-foreground sm:w-auto">{{
+          'journal.bootLabel' | translate
+        }}</span>
+        <select
+          hlmInput
+          class="h-9 min-w-0 flex-1 py-0 sm:w-auto sm:flex-none"
+          data-filter="boot"
+          (change)="chooseBoot($event)"
+        >
+          @for (choice of store.bootChoices(); track choice.offset) {
+            <option [value]="choice.value ?? ''" [selected]="store.filters().boot === choice.value">
+              {{ bootLabel(choice) }}
+            </option>
+          }
+        </select>
+      </label>
+    </div>
+  </div>
+
+  @if (store.ownOnly()) {
+    <div hlmAlert role="status" data-notice="own">
+      <p hlmAlertTitle>{{ 'journal.own.title' | translate }}</p>
+      <div hlmAlertDescription class="grid gap-2">
+        <p>{{ 'journal.own.text' | translate }}</p>
+        <div>
+          <button hlmBtn variant="outline" size="sm" (click)="store.readAsAdministrator()">
+            {{ 'journal.own.button' | translate }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+  @if (store.followStopped()) {
+    <div hlmAlert role="status" data-notice="stopped">
+      <p hlmAlertTitle>{{ 'journal.stopped.title' | translate }}</p>
+      <div hlmAlertDescription class="grid gap-2">
+        <p>{{ 'journal.stopped.text' | translate }}</p>
+        <div>
+          <button hlmBtn variant="outline" size="sm" (click)="store.follow()">
+            {{ 'journal.stopped.button' | translate }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+  @if (store.loadError(); as code) {
+    <div hlmAlert variant="destructive" role="alert">
+      <p hlmAlertDescription>{{ 'errors.' + code | translate }}</p>
+      @if (!store.loaded()) {
+        <div>
+          <button hlmBtn variant="outline" size="sm" (click)="store.load()">
+            {{ 'journal.retry' | translate }}
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @if (store.entries().length > 0) {
+    <laris-log-view
+      class="min-h-0 flex-1"
+      [entries]="store.entries()"
+      [canLoadOlder]="store.canLoadOlder()"
+      [loadingOlder]="store.loadingOlder()"
+      (loadOlder)="store.loadOlder()"
+    />
+  } @else if (store.loaded()) {
+    <laris-empty-state
+      icon="lucideScrollText"
+      role="status"
+      [text]="'journal.empty.title' | translate"
+      [detail]="'journal.empty.text' | translate"
+    />
+  } @else if (!store.loadError()) {
+    <div class="grid gap-2" role="status" [attr.aria-label]="'journal.loading' | translate">
+      <hlm-skeleton class="h-9 w-full" />
+      <hlm-skeleton class="h-64 w-full" />
+    </div>
+  }
+}

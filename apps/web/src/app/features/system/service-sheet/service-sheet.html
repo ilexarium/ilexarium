@@ -12,6 +12,18 @@
       </hlm-sheet-header>
 
       <div class="grid gap-5 text-sm">
+        <div>
+          <a
+            hlmBtn
+            variant="outline"
+            size="sm"
+            routerLink="/system/logs"
+            [queryParams]="{ unit: row.service.name }"
+          >
+            <ng-icon name="lucideScrollText" aria-hidden="true" />
+            {{ 'systemServices.sheet.logs' | translate }}
+          </a>
+        </div>
         @if (row.service.protection; as protection) {
           <p class="text-muted-foreground">
             {{ 'systemServices.protected.' + protection + 'Help' | translate }}

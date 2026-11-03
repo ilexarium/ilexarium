@@ -5,12 +5,15 @@ import {
   type ElementRef,
   inject,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowDownToLine,
+  lucideChevronsUp,
+  lucideCircleAlert,
   lucideClock,
   lucidePause,
   lucidePlay,
@@ -22,8 +25,8 @@ import { HlmButton } from '@ui/button';
 import { HlmInput } from '@ui/input';
 import { LogPreferences } from './log-preferences';
 import { LogTimePipe } from './log-time-pipe';
-import { BOTTOM_SLACK_PX } from './log-view.constants';
-import type { LogEntry } from '../containers.model';
+import { BOTTOM_SLACK_PX, ERROR_PRIORITY, MARKED_PRIORITY } from './log-view.constants';
+import type { LogViewEntry } from '../containers.model';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Translator } from '../../../core/i18n/translator';
 
@@ -36,6 +39,8 @@ import { Translator } from '../../../core/i18n/translator';
  * - A plain list, not virtual scrolling: lines may wrap to any height, and Ctrl+F and copying many
  *   lines keep working. Off-screen lines skip rendering (`content-visibility: auto`).
  * - Log text is always rendered as text, never HTML (it can hold anything).
+ * - Journal lines carry who wrote them, and warnings and worse a mark and a word (not colour
+ *   alone); "Load older" above the first line when there's more.
  */
 @Component({
   selector: 'laris-log-view',
@@ -43,6 +48,8 @@ import { Translator } from '../../../core/i18n/translator';
   providers: [
     provideIcons({
       lucideArrowDownToLine,
+      lucideChevronsUp,
+      lucideCircleAlert,
       lucideClock,
       lucidePause,
       lucidePlay,
@@ -56,7 +63,11 @@ import { Translator } from '../../../core/i18n/translator';
 })
 export class LogView {
   /** Oldest first. */
-  readonly entries = input.required<LogEntry[]>();
+  readonly entries = input.required<LogViewEntry[]>();
+  /** Older lines can be asked for ("Load older" above the first line). */
+  readonly canLoadOlder = input(false);
+  readonly loadingOlder = input(false);
+  readonly loadOlder = output<void>();
 
   protected readonly logPreferences = inject(LogPreferences);
   private readonly translator = inject(Translator);
@@ -72,7 +83,10 @@ export class LogView {
     const query = this.filter().trim().toLowerCase();
     const entries = this.entries();
     if (!query) return entries;
-    return entries.filter((entry) => entry.text.toLowerCase().includes(query));
+    return entries.filter(
+      (entry) =>
+        entry.text.toLowerCase().includes(query) || !!entry.source?.toLowerCase().includes(query),
+    );
   });
 
   protected readonly matchSummary = computed(() => {
@@ -80,6 +94,9 @@ export class LogView {
     const shown = this.visible().length;
     return this.translator.plural('logs.matches', total, { shown });
   });
+
+  protected readonly markedPriority = MARKED_PRIORITY;
+  protected readonly errorPriority = ERROR_PRIORITY;
 
   constructor() {
     // After each render with new lines: keep the newest in view while following.

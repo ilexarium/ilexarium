@@ -16,7 +16,8 @@
     "apps": "Apps",
     "newApp": "App hinzufügen",
     "app": "App",
-    "services": "Dienste"
+    "services": "Dienste",
+    "journal": "Protokolle"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -45,7 +46,8 @@
     "files": "Dateien",
     "terminal": "Terminal",
     "apps": "Apps",
-    "services": "Dienste"
+    "services": "Dienste",
+    "journal": "Protokolle"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -268,7 +270,8 @@
     "service_protected": "Dieser Dienst ist geschützt: Laris braucht ihn.",
     "service_action_failed": "systemd konnte es nicht ausführen. Der Zustand des Dienstes und sein Protokoll sagen, warum.",
     "service_timed_out": "Es läuft noch. Sieh dir den Zustand des Dienstes gleich noch einmal an.",
-    "services_unavailable": "systemd konnte nicht nach den Diensten gefragt werden."
+    "services_unavailable": "systemd konnte nicht nach den Diensten gefragt werden.",
+    "journal_unavailable": "Das Journal kann gerade nicht gelesen werden. Versuche es gleich noch einmal."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -567,7 +570,16 @@
     "noMatch": "Keine Zeile passt zu „{{filter}}“.",
     "matches_one": "{{shown}} von {{count}} Zeile passt",
     "matches_other": "{{shown}} von {{count}} Zeilen passen",
-    "jumpToLatest": "Zur neuesten Zeile"
+    "jumpToLatest": "Zur neuesten Zeile",
+    "loadOlder": "Ältere Zeilen laden",
+    "loadingOlder": "Ältere Zeilen werden geladen…",
+    "priority": {
+      "0": "Notfall",
+      "1": "Alarm",
+      "2": "kritisch",
+      "3": "Fehler",
+      "4": "Warnung"
+    }
   },
   "catalog": {
     "navidrome": {
@@ -1694,9 +1706,52 @@
       "result": "Letztes Ergebnis",
       "exitStatus": "Exit-Status {{status}}",
       "restarts": "Von systemd neu gestartet",
-      "unitFile": "Unit-Datei"
+      "unitFile": "Unit-Datei",
+      "logs": "Protokolle"
     },
     "count_one": "{{count}} Dienst",
     "count_other": "{{count}} Dienste"
+  },
+  "journal": {
+    "signIn": {
+      "title": "Als Linux-Benutzer anmelden",
+      "text": "Die Systemprotokolle werden mit deinem Linux-Konto gelesen; um alle zu lesen, braucht es eventuell dessen sudo.",
+      "button": "Anmelden"
+    },
+    "filters": "Filter",
+    "unit": "Dienst",
+    "allUnits": "Alle Dienste",
+    "priority": "Zeigen",
+    "priorities": {
+      "error": "Fehler",
+      "warning": "Warnungen und höher",
+      "info": "Info und höher",
+      "debug": "Alles"
+    },
+    "bootLabel": "Systemstart",
+    "boot": {
+      "current": "Dieser Start",
+      "currentSince": "Dieser Start (seit {{first}})",
+      "previous": "Vorheriger Start",
+      "previousSince": "Vorheriger Start ({{first}} – {{last}})",
+      "earlier_one": "Vor {{count}} Start ({{first}} – {{last}})",
+      "earlier_other": "Vor {{count}} Starts ({{first}} – {{last}})"
+    },
+    "own": {
+      "title": "Nur deine eigenen Meldungen",
+      "text": "Dein Linux-Konto ist in keiner Gruppe, die das ganze Journal lesen darf; du siehst nur, was deine eigenen Programme protokolliert haben.",
+      "button": "Als Administrator lesen"
+    },
+    "stopped": {
+      "title": "Mitverfolgen pausiert",
+      "text": "Als Administrator werden keine neuen Zeilen geladen, während du weg bist, damit sich sudo wieder sperren kann.",
+      "button": "Wieder mitverfolgen"
+    },
+    "retry": "Erneut versuchen",
+    "loading": "Protokolle werden geladen",
+    "empty": {
+      "title": "Keine Zeilen",
+      "text": "Für diese Filter wurde hier nichts protokolliert. Neue Zeilen erscheinen, sobald sie geschrieben werden."
+    }
   }
 }

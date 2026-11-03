@@ -1,6 +1,10 @@
 import { Component, computed, inject, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import type { SystemServiceDetails } from '@laris/shared';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucideScrollText } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
+import { HlmButton } from '@ui/button';
 import { HlmSheetImports } from '@ui/sheet';
 import { HlmSkeleton } from '@ui/skeleton';
 import { LanguageService } from '../../../core/i18n/language';
@@ -11,7 +15,8 @@ import type { ServiceRow } from '../system-services.model';
 /** A service's details in a side sheet, open while `row` is set. UI only: `closed` when it closes. */
 @Component({
   selector: 'laris-service-sheet',
-  imports: [HlmSheetImports, HlmSkeleton, StatusDot, TranslatePipe],
+  imports: [HlmButton, HlmSheetImports, HlmSkeleton, NgIcon, RouterLink, StatusDot, TranslatePipe],
+  providers: [provideIcons({ lucideScrollText })],
   templateUrl: './service-sheet.html',
 })
 export class ServiceSheet {
