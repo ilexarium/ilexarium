@@ -478,6 +478,12 @@ async function systemServices() {
     `${ssh.status} ${ssh.text}`,
   );
 
+  const ownJournal = await api('GET', '/system/journal?priority=debug');
+  check(
+    'journal: anna (no journal group) reads only her own',
+    ownJournal.status === 200 && ownJournal.json?.access === 'own',
+    `${ownJournal.status} ${ownJournal.text.slice(0, 300)}`,
+  );
   const locked = await api('POST', '/system/services/smoke-sleeper.service/start');
   check(
     'starting needs her sudo (403 sudo_required)',
@@ -536,10 +542,65 @@ async function systemServices() {
     `${needed.status}`,
   );
 
+  await systemJournal();
+
   await api('DELETE', '/files/session/sudo');
   sh('gpasswd', ['-d', 'anna', 'sudo']);
   rmSync('/etc/systemd/system/smoke-sleeper.service');
   sh('systemctl', ['daemon-reload']);
+}
+
+/** The journal as administrator, through anna's unlocked sudo (systemServices() unlocked it). */
+async function systemJournal() {
+  console.log('\nSystem journal (as administrator through her sudo)');
+  sh('logger', ['-t', 'smoke-journal', '-p', 'user.err', 'a line from the smoke test']);
+  const unit = await api(
+    'GET',
+    '/system/journal?administrator=true&priority=debug&unit=smoke-sleeper.service',
+  );
+  check(
+    'real journal lines for a unit (systemd starting and stopping it)',
+    unit.status === 200 &&
+      unit.json?.access === 'all' &&
+      unit.json.lines.some((line) => /smoke/i.test(line.text)),
+    `${unit.status} ${unit.text.slice(0, 400)}`,
+  );
+  const errors = await api('GET', '/system/journal?administrator=true&priority=error');
+  check(
+    'an error logged now is there, with its priority and program',
+    errors.status === 200 &&
+      errors.json.lines.some(
+        (line) =>
+          line.identifier === 'smoke-journal' &&
+          line.priority === 3 &&
+          line.text === 'a line from the smoke test',
+      ),
+    `${errors.status} ${errors.text.slice(-400)}`,
+  );
+  const all = await api('GET', '/system/journal?administrator=true&priority=debug');
+  const first = all.json?.lines?.[0];
+  const older = first
+    ? await api(
+        'GET',
+        `/system/journal?administrator=true&priority=debug&before=${encodeURIComponent(first.cursor)}`,
+      )
+    : null;
+  check(
+    'pages back from the first line (older, without it)',
+    all.status === 200 &&
+      (!all.json.more ||
+        (older?.status === 200 &&
+          older.json.lines.length > 0 &&
+          older.json.lines.at(-1).at <= first.at &&
+          !older.json.lines.some((line) => line.cursor === first.cursor))),
+    `${all.status} more=${all.json?.more} ${older?.status} ${older?.text.slice(0, 200)}`,
+  );
+  const boots = await api('GET', '/system/journal/boots?administrator=true');
+  check(
+    'the boots list (journalctl’s JSON)',
+    boots.status === 200 && Array.isArray(boots.json?.boots) && boots.json.boots[0]?.offset === 0,
+    `${boots.status} ${boots.text.slice(0, 300)}`,
+  );
 }
 
 /**
