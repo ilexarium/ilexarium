@@ -7,6 +7,8 @@
   "web": { "port": 8080 },
   "fields": [
     { "key": "WEB_PORT", "kind": "port", "default": 3080 },
+    { "key": "WEBUI_ADMIN_EMAIL", "kind": "text" },
+    { "key": "WEBUI_ADMIN_PASSWORD", "kind": "secret" },
     { "key": "MODELS_DIR", "kind": "folder", "default": "./ollama" },
     { "key": "DATA_DIR", "kind": "folder", "default": "./data", "advanced": true },
     { "key": "OPEN_WEBUI_VERSION", "kind": "version", "default": "0.12" },

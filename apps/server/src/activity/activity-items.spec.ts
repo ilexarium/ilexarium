@@ -49,6 +49,7 @@ describe('fromAudit', () => {
 
   it('drops a detail that fails its check', () => {
     expect(subjectOf(event('disk.mount', { mountPoint: '/etc', uuid: 'abc' }))).toBeNull();
+    expect(subjectOf(event('app.install', { name: 'a b' }))).toBeNull();
     expect(subjectOf(event('container.stop', { container: 42 }))).toBeNull();
   });
 

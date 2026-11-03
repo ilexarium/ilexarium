@@ -132,6 +132,13 @@ describe('the catalog', () => {
     ).toBe('http://ollama:11434');
   });
 
+  it('makes Open WebUI’s admin from the setup form (no default: the person enters both)', () => {
+    const openWebUi = catalog.find((entry) => entry.template.id === 'open-webui')!;
+    const field = (key: string) => openWebUi.template.fields.find((f) => f.key === key);
+    expect(field('WEBUI_ADMIN_EMAIL')).toEqual({ key: 'WEBUI_ADMIN_EMAIL', kind: 'text' });
+    expect(field('WEBUI_ADMIN_PASSWORD')).toEqual({ key: 'WEBUI_ADMIN_PASSWORD', kind: 'secret' });
+  });
+
   it('has the texts of every template in English (the consistency test covers the other languages)', async () => {
     const keys = new Set(Object.keys(flattenMessages(en)));
     for (const { template: entry } of await loadCatalog(CATALOG_DIR)) {

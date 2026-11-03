@@ -653,11 +653,19 @@
     },
     "open-webui": {
       "description": "Chat with language models on this server, in your browser. Comes with its own Ollama; nothing leaves the machine.",
-      "note": "Create your account in Open WebUI right after installing: the first account becomes its admin. Download models in Open WebUI's settings. Small models (1–4B parameters) need about 8 GB of memory; larger ones more.",
+      "note": "Create your admin account here: Open WebUI makes it at its first start and then turns sign-ups off, so no one else on the network can claim it first. Invite others in Open WebUI. Download models in its settings. Small models (1–4B parameters) need about 8 GB of memory; larger ones more.",
       "fields": {
         "WEB_PORT": {
           "label": "Web port",
           "help": "The port Open WebUI's page opens on."
+        },
+        "WEBUI_ADMIN_EMAIL": {
+          "label": "Admin email",
+          "help": "Your sign-in to Open WebUI."
+        },
+        "WEBUI_ADMIN_PASSWORD": {
+          "label": "Admin password",
+          "help": "Used once, at the first start. Change it in Open WebUI afterwards."
         },
         "MODELS_DIR": {
           "label": "Models folder",
