@@ -915,7 +915,7 @@ describe('laris-helper', () => {
       MESSAGE: `line ${i}`,
       ...fields,
     });
-    const output = (entries: object[]) =>
+    const output = (entries: unknown[]) =>
       writeFileSync(
         join(dir, 'journalctl-out.txt'),
         entries.map((e) => JSON.stringify(e)).join('\n') + '\n',
@@ -924,7 +924,7 @@ describe('laris-helper', () => {
     const group = (name: string) =>
       writeFileSync(
         join(dir, 'bin', 'group'),
-        `root:x:0:\n${name}:x:${process.getgroups()[0]}:someone\n`,
+        `root:x:0:\n${name}:x:${process.getgroups!()[0]}:someone\n`,
       );
 
     it('reads the newest lines, newest first, and gives them oldest first — only the fields it knows, messages as text', async () => {
