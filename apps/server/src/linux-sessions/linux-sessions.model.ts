@@ -1,4 +1,4 @@
-import type { ProcessSignal, PublicUser } from '@laris/shared';
+import type { ProcessSignal, PublicUser, SystemServiceAction } from '@laris/shared';
 import type { ClientChannel, Client, SFTPWrapper } from 'ssh2';
 import type { LinuxHelper } from './linux-helper.js';
 
@@ -20,6 +20,9 @@ export type HelperRequest =
   | { action: 'volumes.remove'; names: string[]; docker: 'direct' | 'sudo' }
   | { action: 'paths.size'; paths: string[] }
   | { action: 'paths.remove'; paths: string[]; administrator: boolean }
+  | { action: 'units.list' }
+  | { action: 'units.show'; unit: string }
+  | { action: 'units.control'; unit: string; command: SystemServiceAction }
   | {
       action: 'root.run';
       program: 'backup' | 'disk';
