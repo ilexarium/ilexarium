@@ -77,9 +77,17 @@ export function toUnixSeconds(timestamp: string): string {
 const ANSI_ALL = new RegExp(ANSI, 'g');
 const CONTROL_ALL = new RegExp(CONTROL, 'g');
 
-/** Plain text: ANSI escapes and control characters removed. */
-export function stripAnsi(text: string): string {
-  return text.replace(ANSI_ALL, '').replace(CONTROL_ALL, '');
+// oxlint-disable-next-line no-control-regex
+const CONTROL_BUT_LINES = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/g;
+
+/**
+ * Plain text: ANSI escapes and control characters removed (tabs kept). `keepLineBreaks`: for a
+ * message that may span lines (the journal's).
+ */
+export function stripAnsi(text: string, options: { keepLineBreaks?: boolean } = {}): string {
+  return text
+    .replace(ANSI_ALL, '')
+    .replace(options.keepLineBreaks ? CONTROL_BUT_LINES : CONTROL_ALL, '');
 }
 
 /** Bytes collected up to `limit`; what doesn't fit is dropped, and that is remembered. */

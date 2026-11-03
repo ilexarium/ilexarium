@@ -123,11 +123,29 @@ describe('SystemJournalService', () => {
         'journal_unavailable',
       ]);
     }
-    answer = { ok: true, lines: [helperLine({ time: 'soon' })], more: false, access: 'all' };
+    answer = { ok: true, lines: 'many', more: false, access: 'all' };
     expect(await rejection(service.read(SESSION, { priority: 'info' }))).toEqual([
       503,
       'journal_unavailable',
     ]);
+  });
+
+  it('an odd line is left out, not the whole answer (a time no date can hold, no cursor)', async () => {
+    answer = {
+      ok: true,
+      lines: [
+        helperLine({ time: 'soon' }),
+        helperLine({ time: '99999999999999999999' }),
+        { message: 'no cursor' },
+        helperLine({ cursor: 'kept', identifier: '\x1b[31mevil\x07', unit: '\x07' }),
+      ],
+      more: false,
+      access: 'all',
+    };
+    const read = await service.read(SESSION, { priority: 'info' });
+    expect(read.lines).toHaveLength(1);
+    // Anyone can log under any name: plain text too.
+    expect(read.lines[0]).toMatchObject({ cursor: 'kept', identifier: 'evil', unit: null });
   });
 
   it('lists the boots with their times; none when journalctl can’t say them', async () => {
@@ -152,6 +170,8 @@ describe('SystemJournalService', () => {
       { action: 'journal.boots', administrator: false },
       { sudo: false, timeoutMs: 35_000 },
     );
+    answer = { ok: true, boots: [{ id: 'x', offset: 0, first: 1e19, last: 1e19 }], access: 'all' };
+    expect(await rejection(service.boots(SESSION, false))).toEqual([503, 'journal_unavailable']);
     answer = { ok: true, boots: null, access: 'all' };
     expect(await service.boots(SESSION, true)).toEqual({ boots: null, access: 'all' });
     expect(ask.mock.calls.at(-1)?.[2]).toEqual({ sudo: true, timeoutMs: 35_000 });

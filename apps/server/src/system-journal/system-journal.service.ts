@@ -10,12 +10,12 @@ import {
 import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { HelperAnswer } from '../linux-sessions/linux-sessions.model.js';
+import { stripAnsi } from '../docker/log-lines.js';
 import {
-  CONTROL,
-  ESCAPES,
   HELPER_ERRORS,
   helperBootsSchema,
   helperJournalSchema,
+  helperLineSchema,
   READ_TIMEOUT_MS,
   UNAVAILABLE,
   UNAVAILABLE_STATUS,
@@ -33,6 +33,8 @@ function readFailure(answer: HelperAnswer & { ok: false }): HttpException {
 }
 
 const iso = (microseconds: number) => new Date(Math.floor(microseconds / 1000)).toISOString();
+/** A name as the journal has it (anyone can log under any identifier): plain, or none. */
+const name = (value: string | null) => (value ? stripAnsi(value) || null : null);
 
 const smallInt = (value: string | null, min: number, max: number) => {
   if (value === null || !/^\d{1,7}$/.test(value)) return null;
@@ -68,16 +70,22 @@ export class SystemJournalService {
     const parsed = helperJournalSchema.safeParse(answer);
     if (!parsed.success) throw unavailable();
     return {
-      lines: parsed.data.lines.map((line): JournalLine => ({
-        cursor: line.cursor,
-        at: iso(Number(line.time)),
-        priority: smallInt(line.priority, 0, 7),
-        unit: line.unit || null,
-        identifier: line.identifier || null,
-        pid: smallInt(line.pid, 1, 4_194_304),
-        text: line.message.replace(ESCAPES, '').replace(CONTROL, ''),
-        ...(line.truncated && { truncated: true }),
-      })),
+      lines: parsed.data.lines.flatMap((entry): JournalLine[] => {
+        const line = helperLineSchema.safeParse(entry).data;
+        if (!line) return [];
+        return [
+          {
+            cursor: line.cursor,
+            at: iso(Number(line.time)),
+            priority: smallInt(line.priority, 0, 7),
+            unit: name(line.unit),
+            identifier: name(line.identifier),
+            pid: smallInt(line.pid, 1, 4_194_304),
+            text: stripAnsi(line.message, { keepLineBreaks: true }),
+            ...(line.truncated && { truncated: true }),
+          },
+        ];
+      }),
       more: parsed.data.more,
       access: parsed.data.access,
     };

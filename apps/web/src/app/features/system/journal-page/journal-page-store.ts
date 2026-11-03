@@ -19,10 +19,8 @@ import {
 } from '@laris/shared';
 import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
-import {
-  SystemJournalApi,
-  type JournalRequest,
-} from '../../../core/system-journal/system-journal-api';
+import { SystemJournalApi } from '../../../core/system-journal/system-journal-api';
+import type { JournalRequest } from '../../../core/system-journal/system-journal.model';
 import { SystemServicesApi } from '../../../core/system-services/system-services-api';
 import { apiErrorCode, TRANSLATED_ERROR_CODES } from '../../../shared/forms/submission-errors';
 import type { LogViewEntry } from '../../containers/containers.model';
@@ -142,6 +140,9 @@ export const JournalPageStore = signalStore(
         administrator: store.administrator(),
         ...extra,
       });
+      /** sudo locked meanwhile ("Lock now", its idle end): the notice offers unlocking again. */
+      const locked = (error: unknown) =>
+        store.administrator() && apiErrorCode(error) === FILES_ERROR_CODES.sudoRequired;
       const failed = (error: unknown) => {
         const code = errorOf(error);
         if (code === FILES_ERROR_CODES.linuxSessionRequired) linuxSessionStore.ended();
@@ -157,14 +158,27 @@ export const JournalPageStore = signalStore(
         pipe(
           switchMap(() => {
             const run = ++generation;
-            patchState(store, { lines: [], loaded: false, loadError: null, olderMore: false });
+            patchState(store, {
+              lines: [],
+              loaded: false,
+              loadError: null,
+              olderMore: false,
+              loadingOlder: false,
+            });
             return systemJournalApi.read(request()).pipe(
               tap(({ lines, more, access }) => {
                 if (run === generation) {
                   patchState(store, { lines, olderMore: more, access, loaded: true });
                 }
               }),
-              catchError(failed),
+              catchError((error: unknown) => {
+                if (run !== generation) return EMPTY;
+                if (locked(error)) {
+                  patchState(store, { followStopped: true });
+                  return EMPTY;
+                }
+                return failed(error);
+              }),
             );
           }),
         ),
@@ -179,10 +193,20 @@ export const JournalPageStore = signalStore(
             return systemJournalApi.read(request(after ? { after } : {})).pipe(
               tap(({ lines, more, access }) => {
                 if (run !== generation) return;
+                // Nothing new (most polls): nothing changes, nothing is drawn again.
+                if (after && lines.length === 0) {
+                  if (store.loadError() !== null || store.access() !== access) {
+                    patchState(store, { access, loadError: null });
+                  }
+                  return;
+                }
                 const all = after ? [...store.lines(), ...lines] : lines;
                 patchState(store, {
                   lines: trim(all),
-                  olderMore: store.olderMore() || all.length > JOURNAL_LIMITS.maxLinesInView,
+                  // Read from the newest (the view was empty): `more` means older ones.
+                  olderMore: after
+                    ? store.olderMore() || all.length > JOURNAL_LIMITS.maxLinesInView
+                    : more,
                   access,
                   loadError: null,
                 });
@@ -190,8 +214,7 @@ export const JournalPageStore = signalStore(
               }),
               catchError((error: unknown) => {
                 if (run !== generation) return EMPTY;
-                // sudo locked meanwhile ("Lock now", or elsewhere): the notice says so.
-                if (apiErrorCode(error) === FILES_ERROR_CODES.sudoRequired) {
+                if (locked(error)) {
                   patchState(store, { followStopped: true });
                   return EMPTY;
                 }
@@ -219,7 +242,12 @@ export const JournalPageStore = signalStore(
                 });
               }),
               catchError((error: unknown) => {
+                if (run !== generation) return EMPTY;
                 patchState(store, { loadingOlder: false });
+                if (locked(error)) {
+                  patchState(store, { followStopped: true });
+                  return EMPTY;
+                }
                 return failed(error);
               }),
             );
@@ -317,16 +345,17 @@ export const JournalPageStore = signalStore(
           read();
         },
 
-        /** Following again (as administrator, after it stopped). */
+        /** Following again (as administrator, after it stopped): sudo unlocked again if needed. */
         async follow(): Promise<void> {
-          if (!store.administrator()) {
-            touched();
-            return;
+          if (store.administrator()) {
+            const ok = await linuxSessionStore
+              .withSudo(() => firstValueFrom(systemJournalApi.boots(true)))
+              .catch(() => null);
+            if (!ok) return;
           }
-          const ok = await linuxSessionStore
-            .withSudo(() => firstValueFrom(systemJournalApi.boots(true)))
-            .catch(() => null);
-          if (ok) touched();
+          touched();
+          // The read that sudo stopped: again.
+          if (!store.loaded()) read();
         },
       };
     },
