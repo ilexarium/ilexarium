@@ -1210,7 +1210,8 @@
         "title": "Benutzer-Units",
         "about": "App-Aufgaben laufen als systemd-Units deines Kontos.",
         "ok": "Das systemd deines Kontos startet Units.",
-        "failed": "Das systemd deines Kontos startet keine Units. Schalte Lingering mit dem Befehl unten ein oder installiere libpam-systemd und dbus-user-session. Bis dahin laufen App-Aufgaben über dein sudo."
+        "failed": "Das systemd deines Kontos startet keine Units. Schalte Lingering mit dem Befehl unten ein oder installiere libpam-systemd und dbus-user-session. Bis dahin laufen App-Aufgaben über dein sudo.",
+        "noLingering": "Units starten, solange du bei Linux angemeldet bist, aber Lingering ist aus: Die Installation oder Aktualisierung einer App würde mit dem Ende der Linux-Anmeldung abbrechen. Schalte Lingering mit dem Befehl unten ein."
       },
       "sudo": {
         "title": "sudo",

@@ -1210,7 +1210,8 @@
         "title": "User units",
         "about": "App tasks run as systemd units of your account.",
         "ok": "Your account’s systemd starts units.",
-        "failed": "Your account’s systemd doesn’t start units. Turn lingering on with the command below, or install libpam-systemd and dbus-user-session. Until then, app tasks run through your sudo."
+        "failed": "Your account’s systemd doesn’t start units. Turn lingering on with the command below, or install libpam-systemd and dbus-user-session. Until then, app tasks run through your sudo.",
+        "noLingering": "Units start while you’re signed in to Linux, but lingering is off: an app’s install or update would stop when the Linux sign-in ends. Turn lingering on with the command below."
       },
       "sudo": {
         "title": "sudo",

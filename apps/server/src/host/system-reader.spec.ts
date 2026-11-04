@@ -1,4 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { diskUsageSchema, hostInfoSchema } from '@laris/shared';
 import { SystemReader } from './system-reader.js';
 
@@ -46,6 +49,23 @@ describe('SystemReader (this machine)', () => {
     expect(await reader.folder('/proc')).toBe('folder');
     expect(await reader.folder('/proc/meminfo')).toBe('other');
     expect(await reader.folder('/no/such/folder')).toBe('missing');
+  });
+
+  it('tells lingering from systemd’s marker files; a name that isn’t an account is never a path', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'linger-'));
+    try {
+      mkdirSync(join(root, 'var/lib/systemd/linger'), { recursive: true });
+      writeFileSync(join(root, 'var/lib/systemd/linger/anna'), '');
+      const host = new SystemReader(root);
+      expect(await host.lingering('anna')).toBe(true);
+      expect(await host.lingering('bob')).toBe(false);
+      for (const name of ['../linger/anna', '.', 'a/b', '']) {
+        expect(await host.lingering(name), name).toBeNull();
+      }
+      expect(await new SystemReader(join(root, 'none')).lingering('anna')).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('fails clearly when the files are not there', async () => {
