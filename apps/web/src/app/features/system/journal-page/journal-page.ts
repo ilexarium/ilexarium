@@ -13,7 +13,7 @@ import { map } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
 import { Formatter } from '../../../shared/format/formatter';
-import { LogView } from '../../containers/log-view/log-view';
+import { LogView } from '../../../shared/log-view/log-view';
 import type { BootChoice } from '../system-journal.model';
 import { PRIORITY_CHOICES } from './journal-page.constants';
 import { JournalPageStore } from './journal-page-store';

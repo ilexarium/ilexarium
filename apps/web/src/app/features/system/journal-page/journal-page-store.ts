@@ -23,7 +23,7 @@ import { SystemJournalApi } from '../../../core/system-journal/system-journal-ap
 import type { JournalRequest } from '../../../core/system-journal/system-journal.model';
 import { SystemServicesApi } from '../../../core/system-services/system-services-api';
 import { apiErrorCode, TRANSLATED_ERROR_CODES } from '../../../shared/forms/submission-errors';
-import type { LogViewEntry } from '../../containers/containers.model';
+import type { LogViewEntry } from '../../../shared/log-view/log-view.model';
 import type { BootChoice, JournalFilters } from '../system-journal.model';
 
 interface JournalPageState {

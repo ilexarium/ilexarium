@@ -1,5 +1,5 @@
 import { inject, Pipe, type PipeTransform } from '@angular/core';
-import { Formatter } from '../../../shared/format/formatter';
+import { Formatter } from '../../shared/format/formatter';
 
 /** Pure: each line's time is formatted once, not on every batch. */
 @Pipe({ name: 'logTime' })

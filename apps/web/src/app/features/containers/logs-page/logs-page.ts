@@ -8,7 +8,7 @@ import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
 import { map } from 'rxjs';
-import { LogView } from '../log-view/log-view';
+import { LogView } from '../../../shared/log-view/log-view';
 import { LogsPageStore } from './logs-page-store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
