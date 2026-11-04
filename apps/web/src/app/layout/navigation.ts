@@ -12,6 +12,7 @@ import {
   lucideServerCog,
   lucideSquareTerminal,
   lucideStethoscope,
+  lucideCircleArrowUp,
 } from '@ng-icons/lucide';
 import type { NavGroup } from './layout.model';
 
@@ -45,6 +46,12 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { label: 'nav.notifications', link: '/settings/notifications', icon: 'lucideBellRing' },
       { label: 'nav.machineCheck', link: '/settings/machine-check', icon: 'lucideStethoscope' },
+      {
+        label: 'nav.updates',
+        link: '/settings/updates',
+        icon: 'lucideCircleArrowUp',
+        attention: 'updates',
+      },
     ],
   },
 ];
@@ -63,4 +70,5 @@ export const NAV_ICONS = {
   lucideHardDrive,
   lucideServerCog,
   lucideStethoscope,
+  lucideCircleArrowUp,
 };

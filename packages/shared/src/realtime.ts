@@ -9,6 +9,7 @@ import { backupsStatusSchema } from './backups.js';
 import { disksStatusSchema } from './disks.js';
 import { alertsStatusSchema } from './alerts.js';
 import { processesUpdateSchema } from './processes.js';
+import { updatesStatusSchema } from './updates.js';
 
 /** The app's single WebSocket, same origin as the API. */
 export const REALTIME_PATH = '/api/ws';
@@ -28,6 +29,7 @@ export const REALTIME_TOPICS = [
   'disks',
   'alerts',
   'processes',
+  'updates',
 ] as const;
 export const realtimeTopicSchema = z.enum(REALTIME_TOPICS);
 export type RealtimeTopic = z.infer<typeof realtimeTopicSchema>;
@@ -72,6 +74,8 @@ export const serverMessageSchema = z.discriminatedUnion('event', [
   z.object({ event: z.literal('disks:update'), data: disksStatusSchema }),
   z.object({ event: z.literal('alerts:snapshot'), data: alertsStatusSchema }),
   z.object({ event: z.literal('alerts:update'), data: alertsStatusSchema }),
+  z.object({ event: z.literal('updates:snapshot'), data: updatesStatusSchema }),
+  z.object({ event: z.literal('updates:update'), data: updatesStatusSchema }),
   z.object({ event: z.literal('processes:snapshot'), data: processesUpdateSchema }),
   z.object({ event: z.literal('processes:update'), data: processesUpdateSchema }),
   z.object({ event: z.literal('error'), data: realtimeErrorSchema }),

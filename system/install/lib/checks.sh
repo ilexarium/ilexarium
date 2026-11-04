@@ -31,7 +31,9 @@ check_version() {
   NEW_VERSION="$(cat "$RELEASE/VERSION")"
   OLD_VERSION=''
   if [[ -f /etc/laris/version ]]; then OLD_VERSION="$(cat /etc/laris/version)"; fi
-  if [[ -z "$OLD_VERSION" ]]; then
+  if [[ -z "$OLD_VERSION" && "$UPDATE" == 1 ]]; then
+    die '--update is for an installed Laris'
+  elif [[ -z "$OLD_VERSION" ]]; then
     info "Installing $NEW_VERSION"
   elif dpkg --compare-versions "$NEW_VERSION" lt "$OLD_VERSION"; then
     die "$OLD_VERSION is installed; this is the older $NEW_VERSION — going back isn't supported"

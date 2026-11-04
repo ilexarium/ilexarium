@@ -107,6 +107,7 @@ describe('Shell (app layout)', () => {
       'Terminal',
       'Notifications',
       'Machine check',
+      'Updates',
     ]);
     expect(nav.textContent).toContain('Storage');
   });

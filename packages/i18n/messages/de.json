@@ -18,7 +18,8 @@
     "newApp": "App hinzufügen",
     "app": "App",
     "services": "Dienste",
-    "journal": "Protokolle"
+    "journal": "Protokolle",
+    "updates": "Updates"
   },
   "app": {
     "loading": "Wird geladen …",
@@ -49,7 +50,8 @@
     "terminal": "Terminal",
     "apps": "Apps",
     "services": "Dienste",
-    "journal": "Protokolle"
+    "journal": "Protokolle",
+    "updates": "Updates"
   },
   "userMenu": {
     "open": "Kontomenü",
@@ -279,7 +281,11 @@
     "volume_protected": "Dieses Volume gehört zu Laris selbst und kann hier nicht gelöscht werden.",
     "volume_in_use": "Ein Container nutzt dieses Volume. Entferne zuerst den Container.",
     "volume_not_found": "Dieses Volume gibt es nicht mehr.",
-    "cleanup_failed": "Docker konnte den Speicher nicht freigeben. Versuche es später erneut."
+    "cleanup_failed": "Docker konnte den Speicher nicht freigeben. Versuche es später erneut.",
+    "update_not_configured": "Diese Installation weiß nicht, woher ihre Updates kommen.",
+    "update_not_available": "Diese Version ist nicht mehr die neueste gefundene. Prüfe erneut.",
+    "update_busy": "Gerade läuft etwas anderes (eine Sicherung, eine Wiederherstellung, eine App-Aufgabe oder ein anderes Update). Versuche es danach erneut.",
+    "update_unavailable": "Das Update konnte auf diesem Rechner nicht gestartet werden."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -297,7 +303,8 @@
       "attention_one": "Eine Sache braucht deine Aufmerksamkeit",
       "attention_other": "{{count}} Dinge brauchen deine Aufmerksamkeit",
       "alerts_one": "{{count}} offene Warnung",
-      "alerts_other": "{{count}} offene Warnungen"
+      "alerts_other": "{{count}} offene Warnungen",
+      "update": "Laris {{version}} ist verfügbar"
     },
     "rack": {
       "title": "Status",
@@ -1853,6 +1860,76 @@
     "empty": {
       "title": "Keine Zeilen",
       "text": "Für diese Filter wurde hier nichts protokolliert. Neue Zeilen erscheinen, sobald sie geschrieben werden."
+    }
+  },
+  "updates": {
+    "installed": "Laris {{version}} ist installiert",
+    "newestPublished": "zuletzt veröffentlicht: {{date}}",
+    "notConfigured": "Diese Installation weiß nicht, woher ihre Updates kommen (sie wurde ohne Release-Adresse gebaut). Aktualisiere sie von Hand.",
+    "available": "Laris {{version}} ist verfügbar",
+    "published": "Veröffentlicht am {{date}}",
+    "update": "Auf {{version}} aktualisieren",
+    "upToDate": "Laris ist auf dem neuesten Stand.",
+    "checkNow": "Jetzt prüfen",
+    "checkedAt": "Zuletzt geprüft {{when}}",
+    "checkAutomatically": "Automatisch nach Updates suchen",
+    "checkAutomaticallyHint": "Einmal am Tag. Der Release-Server sieht dabei die Adresse dieses Rechners.",
+    "checkFailed": "Konnte nicht nach Updates suchen",
+    "settingFailed": "Die Einstellung konnte nicht gespeichert werden",
+    "startFailed": "Das Update konnte nicht gestartet werden",
+    "started": "Aktualisiere auf {{version}} …",
+    "updating": "Aktualisiere auf {{version}}",
+    "restarting": "Laris startet neu. Diese Seite macht weiter, sobald es wieder antwortet.",
+    "output": "Ausgabe des Installers",
+    "loading": "Wird geladen …",
+    "loadFailed": "Der Update-Status konnte nicht geladen werden.",
+    "checkError": {
+      "unreachable": "Der Release-Server war nicht erreichbar.",
+      "bad_signature": "Die Release-Informationen sind nicht mit dem Laris-Release-Schlüssel signiert. Sie wurden ignoriert.",
+      "bad_manifest": "Die Release-Informationen sind fehlerhaft. Sie wurden ignoriert."
+    },
+    "phase": {
+      "waiting": "Wird gestartet …",
+      "check": "Signatur des Releases wird geprüft …",
+      "download": "Wird heruntergeladen …",
+      "unpack": "Wird entpackt …",
+      "install": "Wird installiert …",
+      "checked": "Rechner geprüft",
+      "saved": "Installierte Version aufbewahrt (der Weg zurück)",
+      "stopped": "Laris angehalten",
+      "migrated": "Datenbank aktualisiert",
+      "installed": "Neue Version installiert",
+      "started": "Laris wird gestartet …",
+      "health": "Warte auf Antwort von Laris …",
+      "rollback": "Zurück zur installierten Version …"
+    },
+    "outcome": {
+      "updated": "Auf {{version}} aktualisiert",
+      "failed": "Das Update auf {{to}} ist fehlgeschlagen. Es wurde nichts geändert.",
+      "rolled_back": "Das Update auf {{to}} ist fehlgeschlagen. Laris läuft wieder mit {{version}}.",
+      "rollback_failed": "Das Update auf {{to}} ist fehlgeschlagen, und Laris konnte nicht von selbst zurück. Siehe die Ausgabe des Installers."
+    },
+    "error": {
+      "busy": "Eine andere Aktion lief gerade.",
+      "not_configured": "Keine Release-Adresse auf diesem Rechner.",
+      "not_newer": "Diese Version ist bereits installiert.",
+      "download_failed": "Das Release konnte nicht heruntergeladen werden.",
+      "too_large": "Der Download war größer als seine signierte Größe.",
+      "wrong_size": "Der Download hatte die falsche Größe.",
+      "wrong_checksum": "Der Download passte nicht zu seinem signierten Fingerabdruck.",
+      "bad_signature": "Das Release ist nicht mit dem Laris-Release-Schlüssel signiert.",
+      "bad_manifest": "Die Release-Informationen sind fehlerhaft.",
+      "unpack_failed": "Das Release konnte nicht entpackt werden.",
+      "install_failed": "Der Installer brach mit einem Fehler ab.",
+      "not_answering": "Die neue Version hat nicht innerhalb einer Minute geantwortet.",
+      "interrupted": "Der Rechner ist während des Updates ausgegangen.",
+      "internal": "Etwas Unerwartetes ist schiefgegangen."
+    },
+    "confirm": {
+      "title": "Auf Laris {{version}} aktualisieren?",
+      "text": "Laris startet neu und ist etwa eine Minute offline; Linux-Anmeldungen und Terminals werden beendet. Die Datenbank wird vorher gesichert, und wenn die neue Version nicht startet, kommt die installierte von selbst zurück.",
+      "cancel": "Abbrechen",
+      "confirm": "Aktualisieren"
     }
   }
 }

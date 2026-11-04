@@ -18,7 +18,8 @@
     "newApp": "Add app",
     "app": "App",
     "services": "Services",
-    "journal": "Logs"
+    "journal": "Logs",
+    "updates": "Updates"
   },
   "app": {
     "loading": "Loading…",
@@ -49,7 +50,8 @@
     "terminal": "Terminal",
     "apps": "Apps",
     "services": "Services",
-    "journal": "Logs"
+    "journal": "Logs",
+    "updates": "Updates"
   },
   "userMenu": {
     "open": "Account menu",
@@ -279,7 +281,11 @@
     "volume_protected": "This volume belongs to Laris itself and can’t be deleted here.",
     "volume_in_use": "A container uses this volume. Remove the container first.",
     "volume_not_found": "This volume doesn’t exist any more.",
-    "cleanup_failed": "Docker couldn’t free the space. Try again later."
+    "cleanup_failed": "Docker couldn’t free the space. Try again later.",
+    "update_not_configured": "This install doesn't know where its updates come from.",
+    "update_not_available": "This version is no longer the newest found. Check again.",
+    "update_busy": "Something else is running (a backup, a restore, an app task or another update). Try again when it has finished.",
+    "update_unavailable": "The update couldn't be started on this machine."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -297,7 +303,8 @@
       "attention_one": "One thing needs your attention",
       "attention_other": "{{count}} things need your attention",
       "alerts_one": "{{count}} open alert",
-      "alerts_other": "{{count}} open alerts"
+      "alerts_other": "{{count}} open alerts",
+      "update": "Laris {{version}} is available"
     },
     "rack": {
       "title": "Status",
@@ -1853,6 +1860,76 @@
     "empty": {
       "title": "No lines",
       "text": "Nothing was logged here for these filters. New lines appear as soon as they’re written."
+    }
+  },
+  "updates": {
+    "installed": "Laris {{version}} is installed",
+    "newestPublished": "newest published: {{date}}",
+    "notConfigured": "This install doesn't know where its updates come from (it was built without a release address). Update it by hand.",
+    "available": "Laris {{version}} is available",
+    "published": "Published {{date}}",
+    "update": "Update to {{version}}",
+    "upToDate": "Laris is up to date.",
+    "checkNow": "Check now",
+    "checkedAt": "Last checked {{when}}",
+    "checkAutomatically": "Check for updates automatically",
+    "checkAutomaticallyHint": "Once a day. The release server sees this machine’s address when it checks.",
+    "checkFailed": "Couldn't check for updates",
+    "settingFailed": "Couldn't save the setting",
+    "startFailed": "Couldn't start the update",
+    "started": "Updating to {{version}}…",
+    "updating": "Updating to {{version}}",
+    "restarting": "Laris is restarting. This page carries on once it answers again.",
+    "output": "What the installer said",
+    "loading": "Loading…",
+    "loadFailed": "Couldn't load the update status.",
+    "checkError": {
+      "unreachable": "The release server couldn't be reached.",
+      "bad_signature": "The release information isn't signed by the Laris release key. It was ignored.",
+      "bad_manifest": "The release information is malformed. It was ignored."
+    },
+    "phase": {
+      "waiting": "Starting…",
+      "check": "Checking the release’s signature…",
+      "download": "Downloading…",
+      "unpack": "Unpacking…",
+      "install": "Installing…",
+      "checked": "Machine checked",
+      "saved": "The installed version kept (the way back)",
+      "stopped": "Laris stopped",
+      "migrated": "Database updated",
+      "installed": "New version installed",
+      "started": "Starting Laris…",
+      "health": "Waiting for Laris to answer…",
+      "rollback": "Going back to the installed version…"
+    },
+    "outcome": {
+      "updated": "Updated to {{version}}",
+      "failed": "The update to {{to}} failed. Nothing was changed.",
+      "rolled_back": "The update to {{to}} failed. Laris is back on {{version}}.",
+      "rollback_failed": "The update to {{to}} failed, and Laris couldn't go back on its own. See what the installer said."
+    },
+    "error": {
+      "busy": "Another operation was running.",
+      "not_configured": "No release address on this machine.",
+      "not_newer": "That version is already installed.",
+      "download_failed": "The release couldn't be downloaded.",
+      "too_large": "The download was larger than its signed size.",
+      "wrong_size": "The download had the wrong size.",
+      "wrong_checksum": "The download didn't match its signed fingerprint.",
+      "bad_signature": "The release isn't signed by the Laris release key.",
+      "bad_manifest": "The release information is malformed.",
+      "unpack_failed": "The release couldn't be unpacked.",
+      "install_failed": "The installer stopped with an error.",
+      "not_answering": "The new version didn't answer within a minute.",
+      "interrupted": "The machine stopped during the update.",
+      "internal": "Something unexpected went wrong."
+    },
+    "confirm": {
+      "title": "Update to Laris {{version}}?",
+      "text": "Laris restarts and is offline for about a minute; Linux sign-ins and terminals end. The database is backed up first, and if the new version doesn’t start, the installed one comes back on its own.",
+      "cancel": "Cancel",
+      "confirm": "Update"
     }
   }
 }

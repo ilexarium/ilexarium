@@ -19,6 +19,8 @@ import {
   DISK_TIMEOUT_MS,
   PATH,
   PROGRAM_FILES,
+  UPDATE,
+  UPDATE_START_TIMEOUT_MS,
 } from './root-programs.constants.js';
 import type {
   BackupOutcome,
@@ -27,6 +29,7 @@ import type {
   ProgramKind,
   ProgramRestoreInput,
   RootActor,
+  UpdateStartOutcome,
 } from './root-programs.model.js';
 
 /** What one run printed and how it ended, before it means anything. */
@@ -46,7 +49,7 @@ type Result<Code extends string, T> =
   { ok: true; value: T } | { ok: false; code: Code; value: T | null };
 
 /**
- * The root programs (laris-backup, laris-disk; docs/plans/acting_as_you.md): started through the
+ * The root programs (laris-backup, laris-disk, laris-update; docs/plans/acting_as_you.md): started through the
  * signed-in person's own sudo, by their helper — Laris holds no root. Every call records the
  * request in the audit log first (no record, no run), then runs the program (values on stdin)
  * and records the outcome. A locked sudo is a 403 `sudo_required`: the web app asks for the
@@ -176,6 +179,23 @@ export class RootPrograms {
     return result.ok ? { ok: true, result: result.value } : { ok: false, code: result.code };
   }
 
+  /**
+   * Starts an update to `version` as its own unit (laris-update@<updateId>), which outlives the
+   * app: only the version goes in — the program fetches and checks everything itself.
+   */
+  async updateStart(
+    updateId: string,
+    version: string,
+    actor: RootActor,
+  ): Promise<UpdateStartOutcome> {
+    const result = await this.run(UPDATE, 'start', { updateId, version }, actor, {
+      audit: { action: 'laris.update', details: { version } },
+      timeoutMs: UPDATE_START_TIMEOUT_MS,
+      read: (r) => (typeof r?.['to'] === 'string' ? true : undefined),
+    });
+    return result.ok ? { ok: true } : { ok: false, code: result.code };
+  }
+
   /** Unmounts a disk mounted here, and forgets it. */
   async diskUnmount(mountPoint: string, actor: RootActor): Promise<DiskOutcome<null>> {
     const result = await this.run(DISK, 'unmount', { mountPoint }, actor, {
@@ -291,7 +311,7 @@ export class RootPrograms {
 
   /** Through the person's helper and their unlocked laris-root: `<program> <command>`, the input on its stdin. */
   private async throughSudo(
-    program: 'backup' | 'disk',
+    program: ProgramKind<string>['name'],
     command: string,
     stdin: string,
     appSessionId: string,
@@ -326,7 +346,7 @@ export class RootPrograms {
 
   /** Development: the repository's program, as the developer — never in production. */
   private spawnDirect(
-    program: 'backup' | 'disk',
+    program: ProgramKind<string>['name'],
     command: string,
     stdin: string,
     timeoutMs: number,

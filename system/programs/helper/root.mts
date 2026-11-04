@@ -1,4 +1,4 @@
-// The root programs (laris-backup, laris-disk), started by laris-root. Their input goes on stdin;
+// The root programs (laris-backup, laris-disk, laris-update), started by laris-root. Their input goes on stdin;
 // their output (markers and results) comes back as it is, for the server to read.
 
 import { BAD_REQUEST, ok, refused, type Answer, type Request } from './answers.mts';

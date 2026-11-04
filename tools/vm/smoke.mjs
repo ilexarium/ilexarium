@@ -7,9 +7,15 @@
 //                            setup (files, no sudo for the app, who reaches the proxy), and
 //                            freeing Docker's unused data, and the machine check (the
 //                            installer's checks and the page's)
-//   node smoke.mjs update    after running the installer again: everything is still there
+//   node smoke.mjs update    after a restart or running the installer again: everything is
+//                            still there (--installed-again: and the installed version kept)
+//   node smoke.mjs self-update <version> <outcome>
+//                            an update by laris-update from the test's release folder: its
+//                            outcome (updated, rolled_back), the version answering, and then
+//                            everything still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
 import { execFile, execFileSync, spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { promisify } from 'node:util';
@@ -104,6 +110,14 @@ function mode(path) {
 }
 const uidOf = (user) => Number(sh('id', ['-u', user]).trim());
 const gidOf = (group) => Number(sh('getent', ['group', group]).split(':')[2]);
+function expect(path, want) {
+  const got = mode(path);
+  check(
+    `${path}: ${JSON.stringify(want)}`,
+    Object.entries(want).every(([k, v]) => got[k] === v),
+    JSON.stringify(got),
+  );
+}
 
 async function signIn() {
   const login = await api('POST', '/auth/login', { username: USER, password: PASSWORD });
@@ -114,19 +128,20 @@ async function securitySetup() {
   console.log('\nThe security setup');
   const app = uidOf('laris');
   const appGroup = gidOf('laris');
-  const expect = (path, want) => {
-    const got = mode(path);
-    check(
-      `${path}: ${JSON.stringify(want)}`,
-      Object.entries(want).every(([k, v]) => got[k] === v),
-      JSON.stringify(got),
-    );
-  };
   expect('/etc/laris/master.key', { mode: '0400', uid: app });
   expect('/etc/laris/app.env', { mode: '0640', uid: 0, gid: appGroup });
   expect('/etc/laris/database.env', { mode: '0600', uid: 0 });
   expect('/etc/laris/wrappers.json', { mode: '0644', uid: 0 });
   expect('/opt/laris/libexec', { mode: '0755', uid: 0 });
+  expect('/etc/laris/release.env', { mode: '0644', uid: 0 });
+  expect('/etc/laris/release.pub', { mode: '0644', uid: 0 });
+  const release = readFileSync('/etc/laris/release.env', 'utf8');
+  check(
+    'release.env: where updates come from, and no HTTPS (the first install’s choice)',
+    release.includes('RELEASE_URL=https://localhost:8443/releases\n') &&
+      release.includes('HTTPS=none\n'),
+    release,
+  );
   check('no sudoers drop-in for the app', !existsSync('/etc/sudoers.d/laris'));
   check(
     'the deploy and process wrappers are gone (an update removes them)',
@@ -1052,13 +1067,66 @@ async function update() {
     sh('ls', ['/var/lib/laris/install-backups']).trim().length > 0,
   );
   check('the version recorded', existsSync('/etc/laris/version'));
+  if (process.argv[3] === '--installed-again') {
+    const version = readFileSync('/etc/laris/version', 'utf8');
+    expect('/opt/laris/previous', { mode: '0700', uid: 0 });
+    check(
+      'the installed version kept before it was replaced (the way back)',
+      readFileSync('/opt/laris/previous/VERSION', 'utf8') === version &&
+        existsSync('/opt/laris/previous/app/apps/server/dist/main.js') &&
+        existsSync('/opt/laris/previous/libexec/laris-root.mts') &&
+        existsSync('/opt/laris/previous/files/etc/laris/app.env') &&
+        existsSync('/opt/laris/previous/files/etc/systemd/system/laris.service'),
+    );
+    check(
+      '--update kept the HTTPS choice (TRUST_PROXY)',
+      readFileSync('/etc/laris/app.env', 'utf8').includes('TRUST_PROXY=false\n'),
+    );
+  }
   await securitySetup();
   await files();
   await profile();
   done();
 }
 
-await (process.argv[2] === 'update' ? update() : install());
+async function selfUpdate(version, expected) {
+  console.log(`An update to ${version} by laris-update (expected: ${expected})`);
+  const before = readFileSync('/etc/laris/version', 'utf8').trim();
+  const id = randomUUID();
+  const out = sh('/opt/laris/libexec/laris-update.mts', ['start'], {
+    input: JSON.stringify({ updateId: id, version }),
+  });
+  check('laris-update start: its unit started', out.includes('@@result'), out);
+  const job = `/var/lib/laris/updates/${id}.jsonl`;
+  const end = await until(
+    'the update ended',
+    async () => {
+      const events = existsSync(job)
+        ? readFileSync(job, 'utf8')
+            .trim()
+            .split('\n')
+            .map((line) => JSON.parse(line))
+        : [];
+      const result = events.find((event) => event.type === 'done');
+      return { done: Boolean(result), value: result ?? events.at(-1) };
+    },
+    15 * 60_000,
+  );
+  check(`outcome: ${expected}`, end.value?.outcome === expected, JSON.stringify(end.value));
+  const want = expected === 'updated' ? version : before;
+  const health = await api('GET', '/health');
+  check(
+    `${want} installed and answering`,
+    readFileSync('/etc/laris/version', 'utf8').trim() === want && health.json?.version === want,
+    `${readFileSync('/etc/laris/version', 'utf8').trim()} ${health.text}`,
+  );
+  expect(job, { mode: '0640', uid: 0, gid: gidOf('laris') });
+  check('its download folder is gone', !existsSync(`/var/lib/laris/updates/${id}`));
+  await update();
+}
+
+if (process.argv[2] === 'self-update') await selfUpdate(process.argv[3], process.argv[4]);
+else await (process.argv[2] === 'update' ? update() : install());
 
 /** Docker's unused data, freed through the proxy socket: the prunes really run here. */
 async function dockerCleanup() {

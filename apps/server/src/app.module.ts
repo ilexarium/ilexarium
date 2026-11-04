@@ -17,6 +17,7 @@ import { ContainersModule } from './containers/containers.module.js';
 import { HealthModule } from './health/health.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { MachineCheckModule } from './machine-check/machine-check.module.js';
+import { UpdatesModule } from './updates/updates.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProcessesModule } from './processes/processes.module.js';
 import { SystemJournalModule } from './system-journal/system-journal.module.js';
@@ -54,6 +55,7 @@ import { UsersModule } from './users/users.module.js';
     SystemServicesModule,
     SystemJournalModule,
     MachineCheckModule,
+    UpdatesModule,
     FilesModule,
     TerminalModule,
   ],

@@ -21,6 +21,7 @@ import {
   PATH_FORBIDDEN,
   PROCESS_LIMITS,
   PROCESS_SIGNALS,
+  RELEASE_VERSION_PATTERN,
   RELATIVE_PATH_PATTERN,
   SYSTEM_SERVICE_ACTIONS,
   SYSTEM_SERVICE_NAME_PATTERN,
@@ -34,6 +35,8 @@ import {
 import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
 import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
+import * as appManifest from '../../apps/server/src/updates/release-manifest.ts';
+import { ARCHIVE_MAX_BYTES } from '../../apps/server/src/updates/updates.constants.ts';
 import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
@@ -45,6 +48,7 @@ import * as wrapperDiskUnits from './disk/units.mts';
 import * as helperSudo from './helper/sudo.mts';
 import * as helperConfig from './helper/config.mts';
 import * as wrapperPaths from './lib/paths.mts';
+import * as updateRelease from './update/release.mts';
 
 // The app's rules and the root programs' are written twice on purpose (the programs share no code
 // with the app). This keeps the two copies the same; that they are right is the programs' own
@@ -146,5 +150,52 @@ describe('the app and the root programs check the same rules', () => {
         linuxSudoRequestSchema.safeParse({ password }).success,
       );
     }
+  });
+
+  it('updates: versions, which is newer, and what a release manifest must say', () => {
+    expect(updateRelease.VERSION).toEqual(RELEASE_VERSION_PATTERN);
+    expect(updateRelease.ARCHIVE_MAX_BYTES).toBe(ARCHIVE_MAX_BYTES);
+    for (const [a, b] of [
+      ['0.2.0', '0.1.0'],
+      ['0.1.0', '0.1.0'],
+      ['0.10.0', '0.9.9'],
+      ['1.0.0', '0.99.99'],
+      ['0.1.1', '0.1.10'],
+    ] as const) {
+      expect(updateRelease.newer(a, b), `${a} > ${b}`).toBe(appManifest.isNewer(a, b));
+    }
+    const good = {
+      version: '0.2.0',
+      published: '2026-11-20T10:00:00Z',
+      archive: 'laris-0.2.0.tar.gz',
+      sha256: 'a'.repeat(64),
+      size: 1000,
+    };
+    for (const manifest of [
+      good,
+      { ...good, notes: 'NOTES.md' },
+      { ...good, notes: 'https://elsewhere/notes' },
+      { ...good, archive: 'https://elsewhere/laris-0.2.0.tar.gz' },
+      { ...good, archive: '../laris-0.2.0.tar.gz' },
+      { ...good, archive: 'laris-0.3.0.tar.gz' },
+      { ...good, version: '0.2' },
+      { ...good, version: '01.2.0' },
+      { ...good, published: '2026-11-20' },
+      { ...good, published: '2026-13-40T10:00:00Z' },
+      { ...good, sha256: 'A'.repeat(64) },
+      { ...good, size: 0 },
+      { ...good, size: 1.5 },
+      { ...good, size: ARCHIVE_MAX_BYTES + 1 },
+      { ...good, size: '1000' },
+      { ...good, extra: true },
+      [good],
+    ]) {
+      const text = JSON.stringify(manifest);
+      expect(updateRelease.parseManifest(text) !== null, text).toBe(
+        appManifest.parseManifest(text) !== null,
+      );
+    }
+    expect(appManifest.parseManifest(JSON.stringify(good))).not.toBeNull();
+    expect(appManifest.parseManifest('not json')).toBeNull();
   });
 });

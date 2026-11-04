@@ -34,6 +34,10 @@ export const ROOT_PROGRAMS: Record<string, { path: string; actions: readonly str
     path: program('/opt/laris/libexec/laris-disk.mts'),
     actions: ['mount', 'unmount'],
   },
+  update: {
+    path: program('/opt/laris/libexec/laris-update.mts'),
+    actions: ['start'],
+  },
 };
 
 export const PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';

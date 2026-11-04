@@ -1,0 +1,22 @@
+# /etc/systemd/system/laris-update@.service — an update from the app, started by
+# `laris-update start` (through the person's sudo) with the instance <updateId> — a uuid, checked
+# again by the program, which reads the version from its own root-only request file. Its own unit,
+# not a child of the app or of laris-root: the installer stops the app (and with it the person's
+# sudo session), the update goes on. Progress and result: /var/lib/laris/updates/<id>.jsonl.
+# Design: docs/plans/install_and_update.md.
+#
+# Without sandboxing, like the installer it runs: it replaces /opt/laris, writes /etc, runs Docker
+# and systemctl.
+
+[Unit]
+Description=Laris update
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/laris/libexec/laris-update.mts run %i
+# A slow download and the install; the program ignores SIGTERM until it's done or rolled back.
+TimeoutStartSec=1h
+TimeoutStopSec=30min
+KillMode=mixed
