@@ -13,6 +13,7 @@ import {
   rmSync,
   statSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer, type Server } from 'node:http';
@@ -238,6 +239,22 @@ describe('laris-update start', () => {
     expect(out).toContain('@@error code=busy');
   });
 
+  it('is refused while another update is starting, not after its request went stale', async () => {
+    const state = join(root, 'var/lib/laris/updates');
+    mkdirSync(state, { recursive: true });
+    const stale = join(state, `${randomUUID()}.request`);
+    writeFileSync(stale, '{}');
+    expect((await start({ updateId: randomUUID(), version: '0.2.0' })).out).toContain(
+      '@@error code=busy',
+    );
+    const old = new Date(Date.now() - 11 * 60_000);
+    utimesSync(stale, old, old);
+    publish();
+    const { out } = await start({ updateId: randomUUID(), version: '0.2.0' });
+    expect(out).toContain('@@result');
+    expect(existsSync(stale)).toBe(false);
+  });
+
   it('needs an update source', async () => {
     rmSync(join(root, 'etc/laris/release.pub'));
     expect((await start({ updateId: randomUUID(), version: '0.2.0' })).out).toContain(
@@ -366,6 +383,18 @@ describe('laris-update run', { timeout: 30_000 }, () => {
       ['reload-or-restart', 'ssh.service'],
       ['start', 'laris.service'],
     ]);
+  });
+
+  it('a machine without its version file: the job still gets its end', async () => {
+    const id = randomUUID();
+    const state = join(root, 'var/lib/laris/updates');
+    mkdirSync(state, { recursive: true });
+    writeFileSync(join(state, `${id}.request`), JSON.stringify({ version: '0.2.0' }));
+    writeFileSync(join(state, `${id}.jsonl`), '');
+    rmSync(join(root, 'etc/laris/version'));
+    const { code } = await program(['run', id]);
+    expect(code).toBe(5);
+    expect(jobOf(id).at(-1)).toMatchObject({ type: 'done', outcome: 'failed', error: 'setup' });
   });
 
   it('puts nothing back from a kept copy of another version', async () => {

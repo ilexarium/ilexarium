@@ -22,7 +22,11 @@ const ANNA: LinuxSession = {
   sudoUntil: new Date(Date.now() + 15 * 60_000).toISOString(),
 };
 const AVAILABLE = updatesStatus({
-  available: { version: '0.2.0', published: '2026-11-20T10:00:00Z', notes: 'Faster <b>backups</b>.' },
+  available: {
+    version: '0.2.0',
+    published: '2026-11-20T10:00:00Z',
+    notes: 'Faster <b>backups</b>.',
+  },
 });
 const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
 const buttonIn = (root: ParentNode | null, text: string) =>
@@ -78,7 +82,8 @@ describe('UpdatesPage', () => {
       AVAILABLE,
       vi.fn(() =>
         throwError(
-          () => new HttpErrorResponse({ status: 409, error: { message: 'x', code: 'update_busy' } }),
+          () =>
+            new HttpErrorResponse({ status: 409, error: { message: 'x', code: 'update_busy' } }),
         ),
       ),
     );

@@ -1923,7 +1923,9 @@
       "install_failed": "Der Installer brach mit einem Fehler ab.",
       "not_answering": "Die neue Version hat nicht innerhalb einer Minute geantwortet.",
       "interrupted": "Der Rechner ist während des Updates ausgegangen.",
-      "internal": "Etwas Unerwartetes ist schiefgegangen."
+      "internal": "Etwas Unerwartetes ist schiefgegangen.",
+      "setup": "Die Update-Einrichtung dieses Rechners hat ein Problem (siehe die Dateien des Installers in /etc/laris).",
+      "invalid_request": "Die Update-Anfrage wurde abgelehnt."
     },
     "confirm": {
       "title": "Auf Laris {{version}} aktualisieren?",

@@ -50,7 +50,7 @@ export async function run(
 
   const job = new JobFile(config, paths, updateId, false);
   const work = join(paths.state, updateId);
-  const from = installedVersion(paths);
+  let from = '';
   let unlock: (() => void) | null = null;
   // Cleaned up and unlocked before the end is written: whoever reads it may start the next thing.
   const tidy = () => {
@@ -65,7 +65,14 @@ export async function run(
     return outcome === 'updated' ? 0 : 5;
   };
 
-  unlock = tryLock(paths.lock);
+  // Whatever goes wrong from here on, the job file gets its end.
+  try {
+    from = installedVersion(paths);
+    unlock = tryLock(paths.lock);
+  } catch (error) {
+    emit(`@@info ${String((error as Error)?.message ?? error)}`);
+    return finish('failed', from, 'setup');
+  }
   if (!unlock) return finish('failed', from, 'busy');
   let progress: Progress = { phases: new Set(), dump: null };
   try {

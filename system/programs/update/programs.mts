@@ -27,13 +27,18 @@ export function runProgram(
     const child = spawn(file, args, {
       env: { PATH: SAFE_PATH, LANG: 'C.UTF-8', HOME: '/root' },
       cwd: options.cwd ?? '/',
-      stdio: [stdinFd ?? 'pipe', 'pipe', 'pipe'],
+      stdio: [stdinFd ?? (options.input === undefined ? 'ignore' : 'pipe'), 'pipe', 'pipe'],
       shell: false,
       timeout: options.timeoutMs,
       killSignal: 'SIGKILL',
     });
     if (stdinFd !== undefined) closeSync(stdinFd);
-    else child.stdin!.end(options.input ?? '');
+    if (child.stdin) {
+      // A program that ends before reading its input: the write fails (EPIPE), which would
+      // otherwise end this program halfway through an update.
+      child.stdin.on('error', () => undefined);
+      child.stdin.end(options.input);
+    }
     const onLine = options.onLine ?? (() => {});
     readLines(child.stdout!, LINE_MAX, onLine);
     readLines(child.stderr!, LINE_MAX, onLine);

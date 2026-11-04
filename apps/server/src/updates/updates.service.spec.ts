@@ -81,7 +81,8 @@ describe('UpdatesService.start', () => {
     ['without an update source', { configured: false }, NEWER, UPDATE_ERROR_CODES.notConfigured],
     ['another version than the one found', {}, '99.0.0', UPDATE_ERROR_CODES.notAvailable],
     ['nothing found', { available: null }, NEWER, UPDATE_ERROR_CODES.notAvailable],
-    ['while an update runs', { running: true }, NEWER, UPDATE_ERROR_CODES.busy],
+    // A running update tells ChangesUnderway too (UpdateJobs follows it).
+    ['while an update runs', { appsChanging: true }, NEWER, UPDATE_ERROR_CODES.busy],
     ['while an app is being changed', { appsChanging: true }, NEWER, UPDATE_ERROR_CODES.busy],
   ])('refuses %s', async (_, options, version, code) => {
     const { service, rootPrograms } = setup(options);

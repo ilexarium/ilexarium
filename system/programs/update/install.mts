@@ -8,6 +8,16 @@ import { runProgram } from './programs.mts';
 import { emit } from '../lib/output.mts';
 
 export const INSTALL_PHASES = ['checked', 'saved', 'stopped', 'migrated', 'installed', 'started'];
+/** Every phase a job file names, in order (the app words each). */
+export const JOB_PHASES = [
+  'check',
+  'download',
+  'unpack',
+  'install',
+  ...INSTALL_PHASES,
+  'health',
+  'rollback',
+];
 const INSTALL_TIMEOUT_MS = 30 * 60_000;
 
 export interface Progress {
