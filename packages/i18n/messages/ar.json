@@ -1302,7 +1302,8 @@
         "title": "وحدات المستخدم",
         "about": "تعمل مهام التطبيقات كوحدات systemd لحسابك.",
         "ok": "systemd الخاص بحسابك يشغّل الوحدات.",
-        "failed": "systemd الخاص بحسابك لا يشغّل الوحدات. فعّل lingering بالأمر أدناه، أو ثبّت libpam-systemd و dbus-user-session. حتى ذلك الحين تعمل مهام التطبيقات عبر sudo الخاص بك."
+        "failed": "systemd الخاص بحسابك لا يشغّل الوحدات. فعّل lingering بالأمر أدناه، أو ثبّت libpam-systemd و dbus-user-session. حتى ذلك الحين تعمل مهام التطبيقات عبر sudo الخاص بك.",
+        "noLingering": "تبدأ الوحدات ما دمت مسجّل الدخول إلى Linux، لكن lingering معطّل: سيتوقف تثبيت تطبيق أو تحديثه عند انتهاء تسجيل الدخول إلى Linux. فعّل lingering بالأمر أدناه."
       },
       "sudo": {
         "title": "sudo",

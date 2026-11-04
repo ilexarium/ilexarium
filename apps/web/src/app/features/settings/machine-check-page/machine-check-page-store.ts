@@ -57,10 +57,12 @@ export const MachineCheckPageStore = signalStore(
           check.helper === 'ok'
             ? { status: 'ok', text: 'helper.ok' }
             : { status: 'failed', text: `helper.${check.helper}` };
-        if (check.userUnits !== null) {
-          results.userUnits = check.userUnits
-            ? { status: 'ok', text: 'userUnits.ok' }
-            : { status: 'failed', text: 'userUnits.failed' };
+        if (check.userUnits === false) {
+          results.userUnits = { status: 'failed', text: 'userUnits.failed' };
+        } else if (check.userUnits && check.lingering === false) {
+          results.userUnits = { status: 'failed', text: 'userUnits.noLingering' };
+        } else if (check.userUnits) {
+          results.userUnits = { status: 'ok', text: 'userUnits.ok' };
         }
         if (check.docker) results.docker = { status: 'info', text: `docker.${check.docker}` };
       }

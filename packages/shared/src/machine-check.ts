@@ -19,6 +19,8 @@ export type MachineCheckDocker = (typeof MACHINE_CHECK_DOCKER)[number];
 export const personCheckSchema = z.object({
   helper: z.enum(MACHINE_CHECK_HELPER),
   userUnits: z.boolean().nullable(),
+  /** User units keep running once the Linux sign-in ends; null: can't be told (or not checked). */
+  lingering: z.boolean().nullable(),
   docker: z.enum(MACHINE_CHECK_DOCKER).nullable(),
 });
 export type PersonCheck = z.infer<typeof personCheckSchema>;

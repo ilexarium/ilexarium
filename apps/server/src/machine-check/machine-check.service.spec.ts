@@ -1,4 +1,5 @@
 import type { LinuxSession } from '@laris/shared';
+import type { SystemReader } from '../host/system-reader.js';
 import type { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import { linuxError, linuxSessionRequired } from '../linux-sessions/linux-session-errors.js';
 import type { HelperAnswer } from '../linux-sessions/linux-sessions.model.js';
@@ -10,6 +11,7 @@ describe('MachineCheckService', () => {
   let linux: LinuxSession | null;
   let answers: Record<string, HelperAnswer | Error>;
   let ask: ReturnType<typeof vi.fn>;
+  let lingering: ReturnType<typeof vi.fn>;
   let service: MachineCheckService;
 
   beforeEach(() => {
@@ -24,18 +26,21 @@ describe('MachineCheckService', () => {
       if (answer instanceof Error) throw answer;
       return answer;
     });
-    service = new MachineCheckService({
-      current: () => linux,
-      ask,
-    } as unknown as LinuxSessions);
+    lingering = vi.fn(async () => true);
+    service = new MachineCheckService(
+      { current: () => linux, ask } as unknown as LinuxSessions,
+      { lingering } as unknown as SystemReader,
+    );
   });
 
   it('asks the helper who it is, then how apps reach Docker: every step passed', async () => {
     expect(await service.person(SESSION)).toEqual({
       helper: 'ok',
       userUnits: true,
+      lingering: true,
       docker: 'user_units',
     });
+    expect(lingering).toHaveBeenCalledWith('anna');
     expect(ask.mock.calls.map(([session, request]) => [session, request])).toEqual([
       [SESSION, { action: 'hello' }],
       [SESSION, { action: 'docker.access' }],
@@ -57,12 +62,18 @@ describe('MachineCheckService', () => {
     expect(await service.person(SESSION)).toEqual({
       helper: 'ok',
       userUnits: false,
+      lingering: true,
       docker: 'system_units',
     });
   });
 
+  it('user units start in the session, but lingering is off: said apart', async () => {
+    lingering.mockResolvedValue(false);
+    expect(await service.person(SESSION)).toMatchObject({ userUnits: true, lingering: false });
+  });
+
   it('a helper that didn’t start, doesn’t answer, or runs as someone else: the later steps aren’t checked', async () => {
-    const notChecked = { userUnits: null, docker: null };
+    const notChecked = { userUnits: null, lingering: null, docker: null };
     answers['hello'] = linuxError('helper_unavailable', 'no helper');
     expect(await service.person(SESSION)).toEqual({ helper: 'unavailable', ...notChecked });
     answers['hello'] = { ok: false, error: 'timed_out' };

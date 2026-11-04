@@ -37,3 +37,8 @@ export const CPU_THERMAL_ZONES = [/^x86_pkg_temp$/, /^cpu[-_]?thermal/, /^cpu/, 
 
 /** Readings outside this range are a broken or unwired sensor. */
 export const TEMPERATURE_RANGE_C = { min: -40, max: 150 };
+
+/** systemd's marker files: one per account with lingering on, named after it. */
+export const LINGER_DIR = 'var/lib/systemd/linger';
+/** A Linux account name as the sign-in accepts it: never a path. */
+export const ACCOUNT_NAME = /^[a-z_][a-z0-9_.-]*\$?$/;

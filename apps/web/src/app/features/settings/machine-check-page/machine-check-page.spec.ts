@@ -14,7 +14,12 @@ import { stubScreenWidth } from '../../../layout/testing';
 import { MachineCheckPage } from './machine-check-page';
 
 const ANNA: LinuxSession = { username: 'anna', home: '/home/anna', uid: 1000, sudoUntil: null };
-const PASSED: PersonCheck = { helper: 'ok', userUnits: true, docker: 'user_units' };
+const PASSED: PersonCheck = {
+  helper: 'ok',
+  userUnits: true,
+  lingering: true,
+  docker: 'user_units',
+};
 const unlocked = () => ({
   ...ANNA,
   sudoUntil: new Date(Date.now() + 15 * 60_000).toISOString(),
@@ -128,6 +133,7 @@ describe('MachineCheckPage', () => {
     const { el, rows, fixture } = await render(ANNA, {
       helper: 'unavailable',
       userUnits: null,
+      lingering: null,
       docker: null,
     });
     buttonIn(el, 'Check this machine').click();
@@ -147,6 +153,7 @@ describe('MachineCheckPage', () => {
     const { el, rows, fixture } = await render(ANNA, {
       helper: 'ok',
       userUnits: false,
+      lingering: true,
       docker: 'system_units',
     });
     buttonIn(el, 'Check without sudo').click();
@@ -154,6 +161,15 @@ describe('MachineCheckPage', () => {
     await fixture.whenStable();
     expect(rows()[2][2]).toBe('sudo loginctl enable-linger anna');
     expect(rows()[4][2]).toBe('sudo usermod -aG docker anna');
+  });
+
+  it('user units start in the session, but lingering is off: failed, with lingering as the fix', async () => {
+    const { el, rows, fixture } = await render(ANNA, { ...PASSED, lingering: false });
+    buttonIn(el, 'Check without sudo').click();
+    await vi.waitFor(() => expect(rows()[2][0]).toBe('User units — failed'));
+    await fixture.whenStable();
+    expect(rows()[2][1]).toContain('lingering is off');
+    expect(rows()[2][2]).toBe('sudo loginctl enable-linger anna');
   });
 
   it('the sudo prompt closed: sudo not unlocked, with what to do', async () => {

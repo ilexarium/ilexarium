@@ -960,7 +960,7 @@ async function machineCheck() {
     'the page’s checks: the helper, user units, apps with the docker group',
     person.status === 200 &&
       JSON.stringify(person.json) ===
-        JSON.stringify({ helper: 'ok', userUnits: true, docker: 'user_units' }),
+        JSON.stringify({ helper: 'ok', userUnits: true, lingering: true, docker: 'user_units' }),
     `${person.status} ${person.text}`,
   );
   let out = installerChecks('bob');
@@ -998,12 +998,24 @@ async function machineCheck() {
   rmSync(dropin);
   sh('systemctl', ['reload', 'ssh']);
 
-  // Lingering off: named, with its fix (user units themselves still start: on demand).
-  await api('DELETE', '/files/session');
+  // Lingering off: named by both, with its fix (user units still start: on demand, in session).
+  const signedIn = await api('POST', '/files/session', {
+    username: 'bob',
+    password: 'bob-smoke-password',
+  });
   sh('loginctl', ['disable-linger', 'bob']);
+  const noLinger = await api('POST', '/machine-check/person');
+  check(
+    'lingering off: the page says so, though user units start in the session',
+    signedIn.status === 200 &&
+      noLinger.json?.userUnits === true &&
+      noLinger.json?.lingering === false,
+    `${signedIn.status} ${noLinger.status} ${noLinger.text}`,
+  );
+  await api('DELETE', '/files/session');
   out = installerChecks('bob');
   check(
-    'lingering off: named, with its fix',
+    'lingering off: the installer names it, with its fix',
     out.includes('✗ lingering is off for bob') && out.includes('loginctl enable-linger bob'),
     out,
   );

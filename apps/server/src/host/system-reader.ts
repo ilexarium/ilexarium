@@ -30,7 +30,7 @@ import {
   procHidesProcesses,
 } from './process-parsers.js';
 import { type CpuTemperature, parseMilliCelsius, pickCpuSensor } from './thermal-parsers.js';
-import { CPU_HWMON_CHIPS, CPU_THERMAL_ZONES } from './host.constants.js';
+import { ACCOUNT_NAME, CPU_HWMON_CHIPS, CPU_THERMAL_ZONES, LINGER_DIR } from './host.constants.js';
 import type {
   BlockDevice,
   CpuTimes,
@@ -368,6 +368,17 @@ export class SystemReader {
   /** Account names by uid, from /etc/passwd (empty if it can't be read). */
   async users(): Promise<Map<number, string>> {
     return parsePasswd((await this.readOptional('etc/passwd')) ?? '');
+  }
+
+  /** Whether an account's user units keep running without a session; null: can't be told. */
+  async lingering(account: string): Promise<boolean | null> {
+    if (!ACCOUNT_NAME.test(account)) return null;
+    try {
+      await stat(join(this.root, LINGER_DIR, account));
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'ENOENT' ? false : null;
+    }
   }
 
   /** When the machine booted, in seconds since 1970. */

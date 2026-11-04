@@ -34,6 +34,7 @@ export const COMMANDS: Record<string, (account: string) => string> = {
   'helper.unavailable': () => 'sudo ./install.sh',
   'helper.wrong_account': () => 'sudo ./install.sh',
   'userUnits.failed': (account) => `sudo loginctl enable-linger ${account}`,
+  'userUnits.noLingering': (account) => `sudo loginctl enable-linger ${account}`,
   'sudo.notUnlocked': (account) => `sudo usermod -aG sudo ${account}`,
   'docker.system_units': (account) => `sudo usermod -aG docker ${account}`,
 };
