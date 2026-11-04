@@ -113,6 +113,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'settings/machine-check',
+        title: 'pages.machineCheck',
+        loadComponent: () =>
+          import('./features/settings/machine-check-page/machine-check-page').then(
+            (m) => m.MachineCheckPage,
+          ),
+      },
+      {
         path: 'profile',
         title: 'pages.profile',
         loadComponent: () =>

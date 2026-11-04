@@ -1,0 +1,41 @@
+@let store = machineCheckPageStore;
+<div class="grid max-w-2xl gap-6">
+  <p class="text-sm text-muted-foreground">{{ 'machineCheck.description' | translate }}</p>
+  <div class="flex flex-wrap gap-2">
+    <button hlmBtn [disabled]="store.running()" (click)="store.run()">
+      {{ (store.started() ? 'machineCheck.checkAgain' : 'machineCheck.check') | translate }}
+    </button>
+    <button hlmBtn variant="outline" [disabled]="store.running()" (click)="store.run(true)">
+      {{ 'machineCheck.checkWithoutSudo' | translate }}
+    </button>
+  </div>
+  <ol class="grid divide-y rounded-xl border bg-card" [attr.aria-busy]="store.running()">
+    @for (step of store.steps(); track step.id) {
+      <li class="flex gap-3 p-4">
+        <ng-icon
+          [name]="icons[step.status]"
+          class="mt-0.5 size-5 shrink-0 {{ colors[step.status] }}"
+          aria-hidden="true"
+        />
+        <div class="grid min-w-0 gap-1">
+          <h2 class="text-sm font-medium">
+            {{ 'machineCheck.steps.' + step.id + '.title' | translate }}
+            <span class="font-normal text-muted-foreground">
+              — {{ 'machineCheck.status.' + step.status | translate }}
+            </span>
+          </h2>
+          <p class="text-sm break-words text-muted-foreground">
+            {{ step.text | translate: { account: store.account() } }}
+          </p>
+          @if (step.command; as command) {
+            <code
+              dir="ltr"
+              class="block overflow-x-auto rounded-md bg-muted px-2 py-1 text-start font-mono text-xs"
+              >{{ command }}</code
+            >
+          }
+        </div>
+      </li>
+    }
+  </ol>
+</div>
