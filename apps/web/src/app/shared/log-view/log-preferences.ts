@@ -1,7 +1,7 @@
 import { DOCUMENT, inject, Service, signal } from '@angular/core';
 
 import { LOG_TIMESTAMPS_KEY, LOG_WRAP_KEY, PHONE_QUERY } from './log-preferences.constants';
-import { readStored, writeStored } from '../../../core/storage/browser-storage';
+import { readStored, writeStored } from '../../core/storage/browser-storage';
 
 /**
  * The log view's toggles, remembered per browser — device preferences, not user data, so they

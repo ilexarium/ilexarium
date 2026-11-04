@@ -1,14 +1,14 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { LOG_LIMITS, type LogLine } from '@laris/shared';
-import { stubLocalStorage, stubScreenWidth } from '../../../layout/testing';
-import { formatLogTime } from '../../../shared/format/format';
+import { stubLocalStorage, stubScreenWidth } from '../../layout/testing';
+import { formatLogTime } from '../../shared/format/format';
 import { LOG_TIMESTAMPS_KEY, LOG_WRAP_KEY } from './log-preferences.constants';
 import { LogView } from './log-view';
-import type { LogEntry } from '../containers.model';
+import type { LogViewEntry } from './log-view.model';
 
 let nextId = 0;
-function entry(text: string, stream: LogLine['stream'] = 'stdout'): LogEntry {
+function entry(text: string, stream: LogLine['stream'] = 'stdout'): LogViewEntry {
   const id = nextId++;
   const at = `2026-10-11T12:00:00.${String(id).padStart(9, '0')}Z`;
   return { id, at, stream, text };
@@ -19,7 +19,7 @@ function entry(text: string, stream: LogLine['stream'] = 'stdout'): LogEntry {
   template: `<laris-log-view [entries]="entries()" />`,
 })
 class Host {
-  readonly entries = signal<LogEntry[]>([]);
+  readonly entries = signal<LogViewEntry[]>([]);
 }
 
 /** jsdom has no layout: gives the log box a size and a working scroll position. */
@@ -54,7 +54,7 @@ describe('LogView', () => {
     restoreScreen();
   });
 
-  async function render(entries: LogEntry[] = []) {
+  async function render(entries: LogViewEntry[] = []) {
     const fixture = TestBed.createComponent(Host);
     fixture.componentInstance.entries.set(entries);
     await fixture.whenStable();
@@ -69,7 +69,7 @@ describe('LogView', () => {
         [...el.querySelectorAll<HTMLButtonElement>('button')].find(
           (b) => b.textContent!.replace(/\s+/g, ' ').trim() === name,
         ),
-      async set(next: LogEntry[]) {
+      async set(next: LogViewEntry[]) {
         fixture.componentInstance.entries.set(next);
         await fixture.whenStable();
       },

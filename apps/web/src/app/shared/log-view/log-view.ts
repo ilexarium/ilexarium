@@ -26,9 +26,9 @@ import { HlmInput } from '@ui/input';
 import { LogPreferences } from './log-preferences';
 import { LogTimePipe } from './log-time-pipe';
 import { BOTTOM_SLACK_PX, ERROR_PRIORITY, MARKED_PRIORITY } from './log-view.constants';
-import type { LogViewEntry } from '../containers.model';
+import type { LogViewEntry } from './log-view.model';
 import { TranslatePipe } from '@ngx-translate/core';
-import { Translator } from '../../../core/i18n/translator';
+import { Translator } from '../../core/i18n/translator';
 
 /**
  * Follows new lines while at the bottom, like `docker logs -f`; scrolling up or Pause stops it.
