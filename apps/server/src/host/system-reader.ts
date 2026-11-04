@@ -1,7 +1,7 @@
 import { readdir, readFile, stat, statfs } from 'node:fs/promises';
 import os from 'node:os';
 import { join } from 'node:path';
-import type { DiskUsage, HostInfo } from '@laris/shared';
+import { type DiskUsage, type HostInfo, LINUX_USERNAME_PATTERN } from '@laris/shared';
 import {
   isShownInterface,
   parseCpuTimes,
@@ -30,7 +30,7 @@ import {
   procHidesProcesses,
 } from './process-parsers.js';
 import { type CpuTemperature, parseMilliCelsius, pickCpuSensor } from './thermal-parsers.js';
-import { ACCOUNT_NAME, CPU_HWMON_CHIPS, CPU_THERMAL_ZONES, LINGER_DIR } from './host.constants.js';
+import { CPU_HWMON_CHIPS, CPU_THERMAL_ZONES, LINGER_DIR } from './host.constants.js';
 import type {
   BlockDevice,
   CpuTimes,
@@ -372,7 +372,7 @@ export class SystemReader {
 
   /** Whether an account's user units keep running without a session; null: can't be told. */
   async lingering(account: string): Promise<boolean | null> {
-    if (!ACCOUNT_NAME.test(account)) return null;
+    if (!LINUX_USERNAME_PATTERN.test(account)) return null;
     try {
       await stat(join(this.root, LINGER_DIR, account));
       return true;

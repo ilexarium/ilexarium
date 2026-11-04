@@ -67,9 +67,13 @@ check_setup() {
     info "✓ password logins from this machine, for $person"
   else
     problems=$((problems + 1))
-    # A global "no" never wins over laris.conf's Match block: a Match block read before it does.
+    # A global "no" never wins over laris.conf's Match block: only a Match block read before it
+    # does — a drop-in sorted earlier (the main file includes them at its top).
     local turned_off
-    turned_off="$(grep -lisE '^\s*PasswordAuthentication\s+no\b' /etc/ssh/sshd_config.d/*.conf 2>/dev/null | grep -vx /etc/ssh/sshd_config.d/laris.conf | paste -sd ' ' || true)"
+    turned_off="$(awk 'FNR == 1 { in_match = 0 }
+      tolower($1) == "match" { in_match = 1 }
+      in_match && tolower($1) == "passwordauthentication" && tolower($2) == "no" { print FILENAME }' \
+      /etc/ssh/sshd_config.d/*.conf 2>/dev/null | grep -vx /etc/ssh/sshd_config.d/laris.conf | sort -u | paste -sd ' ' || true)"
     info "✗ password logins from this machine are off for $person: the Linux sign-in won't work"
     if [[ -n "$turned_off" ]]; then
       info "  look in: $turned_off — a setting there turns them off; then: sudo systemctl reload ssh"

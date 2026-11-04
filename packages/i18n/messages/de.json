@@ -1225,7 +1225,8 @@
         "about": "Wie deine Apps Docker erreichen.",
         "user_units": "Deine Apps laufen als deine eigenen Units, mit der Gruppe docker.",
         "system_units": "Deine Apps laufen als System-Units, über dein sudo. Damit sie ohne sudo laufen: Führe den Befehl unten aus und starte dann den Rechner neu.",
-        "restart_needed": "Dein Konto ist in der Gruppe docker, aber sein systemd lief schon vorher. Bis zum Neustart des Rechners laufen deine Apps über dein sudo."
+        "restart_needed": "Dein Konto ist in der Gruppe docker, aber sein systemd lief schon vorher. Bis zum Neustart des Rechners laufen deine Apps über dein sudo.",
+        "no_user_units": "Deine Apps laufen als System-Units, über dein sudo, bis Benutzer-Units starten (siehe oben)."
       }
     }
   },

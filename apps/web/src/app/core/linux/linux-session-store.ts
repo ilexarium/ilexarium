@@ -135,6 +135,12 @@ export const LinuxSessionStore = signalStore(
         ),
       ),
 
+      /** The session as the server sees it now (sudo may have ended there); rejects on failure. */
+      async refresh(): Promise<void> {
+        const { session } = await firstValueFrom(filesApi.session());
+        patchState(store, { session, checked: true, now: Date.now() });
+      },
+
       /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
       async signIn(request: LinuxSignInRequest): Promise<void> {
         const session = await firstValueFrom(filesApi.signIn(request));

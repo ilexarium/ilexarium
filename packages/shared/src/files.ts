@@ -77,6 +77,9 @@ export const fileNameSchema = z
     'validation.fileNameInvalid',
   );
 
+/** A Linux account name as the sign-in accepts it (never a path: no `/`, no leading `.`). */
+export const LINUX_USERNAME_PATTERN = /^[a-z_][a-z0-9_.-]*\$?$/;
+
 /** `POST /api/files/session`: sign in as a Linux user. */
 export const linuxSignInRequestSchema = z.strictObject({
   username: z
@@ -84,7 +87,7 @@ export const linuxSignInRequestSchema = z.strictObject({
     .trim()
     .min(1, 'validation.usernameRequired')
     .max(FILES_LIMITS.usernameMax, 'validation.linuxUsernameInvalid')
-    .regex(/^[a-z_][a-z0-9_.-]*\$?$/, 'validation.linuxUsernameInvalid'),
+    .regex(LINUX_USERNAME_PATTERN, 'validation.linuxUsernameInvalid'),
   password: z
     .string()
     .min(1, 'validation.passwordRequired')

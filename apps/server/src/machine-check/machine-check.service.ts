@@ -2,9 +2,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { FILES_ERROR_CODES, type MachineCheckDocker, type PersonCheck } from '@laris/shared';
 import { SystemReader } from '../host/system-reader.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
-import { CHECK_TIMEOUT_MS } from './machine-check.constants.js';
-
-const NOT_CHECKED = { userUnits: null, lingering: null, docker: null } as const;
+import { CHECK_TIMEOUT_MS, NOT_CHECKED } from './machine-check.constants.js';
 
 /**
  * Is this machine set up the way Laris needs (docs/plans/machine_check.md)? The steps done as the
@@ -35,7 +33,8 @@ export class MachineCheckService {
       );
       if (!access.ok) return { helper: 'unavailable', ...NOT_CHECKED };
       const userUnits = access['userUnits'] === true;
-      let docker: MachineCheckDocker = 'system_units';
+      // Without user units, joining the docker group changes nothing: theirs is the fix.
+      let docker: MachineCheckDocker = userUnits ? 'system_units' : 'no_user_units';
       if (userUnits && access['unitDocker'] === true) docker = 'user_units';
       else if (userUnits && access['loginDocker'] === true) docker = 'restart_needed';
       const lingering = await this.systemReader.lingering(user);

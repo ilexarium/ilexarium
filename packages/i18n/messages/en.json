@@ -1225,7 +1225,8 @@
         "about": "How your apps reach Docker.",
         "user_units": "Your apps run as your own units, with the docker group.",
         "system_units": "Your apps run as system units, through your sudo. To run them without sudo, run the command below, then restart the machine.",
-        "restart_needed": "Your account is in the docker group, but its systemd started before that. Until the machine restarts, your apps run through your sudo."
+        "restart_needed": "Your account is in the docker group, but its systemd started before that. Until the machine restarts, your apps run through your sudo.",
+        "no_user_units": "Your apps run as system units, through your sudo, until user units start (see above)."
       }
     }
   },
