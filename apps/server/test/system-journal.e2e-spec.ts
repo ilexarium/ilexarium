@@ -3,7 +3,7 @@ import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import type { JournalLine } from '@laris/shared';
+import { JOURNAL_LIMITS, type JournalLine } from '@laris/shared';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
@@ -63,7 +63,9 @@ describe.skipIf(!sshdUp)('system journal (e2e)', () => {
     await signIn();
     const { body } = await get('/system/journal').expect(200);
     expect(body.access).toBe('own');
-    expect(body.more).toBe(false);
+    // The fake journal's current boot grows a line every 5 s from the container's first read:
+    // after a few hours anna has more than one answer's worth.
+    expect(body.more).toBe(lines(body).length === JOURNAL_LIMITS.linesPerRead);
     expect(lines(body).length).toBeGreaterThan(100);
     expect(lines(body).every((line) => line.identifier === 'anna-script')).toBe(true);
     const at = lines(body).map((line) => line.at);
