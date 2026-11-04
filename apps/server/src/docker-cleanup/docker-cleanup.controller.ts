@@ -15,8 +15,10 @@ export class DockerCleanupController {
     return this.dockerCleanupService.overview();
   }
 
-  /** Separate: Docker walks every volume to count them. */
+  /** Separate, and limited: Docker walks every volume to count them. */
   @Get('volume-sizes')
+  @UseGuards(ThrottlerGuard)
+  @Throttle(CLEANUP_LIMIT)
   volumeSizes(): Promise<VolumeSizes> {
     return this.dockerCleanupService.volumeSizes();
   }

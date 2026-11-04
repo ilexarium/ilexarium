@@ -550,6 +550,7 @@
       "deleteVolume": "Volume {{name}} löschen",
       "cancel": "Abbrechen",
       "freed": "{{size}} freigegeben",
+      "freedNotCache": "{{size}} freigegeben, aber der Build-Cache konnte nicht geleert werden",
       "pruneFailed": "Speicher konnte nicht freigegeben werden",
       "volumeDeleted": "Volume {{name}} gelöscht",
       "volumeFailed": "Volume {{name}} konnte nicht gelöscht werden",

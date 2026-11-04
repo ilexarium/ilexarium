@@ -16,6 +16,11 @@ import Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
 import { toContainerStats } from './container-stats.js';
 import { createDockerClient, dockerRequest } from './docker-client.js';
+import {
+  ANONYMOUS_VOLUME_LABEL,
+  DISK_USAGE_TIMEOUT_MS,
+  VOLUME_SIZES_TIMEOUT_MS,
+} from './docker.constants.js';
 import { jsonLines } from './json-lines.js';
 import { logLines, normaliseTimestamp, toUnixSeconds } from './log-lines.js';
 import type {
@@ -37,10 +42,6 @@ export class ContainerLogsError extends Error {
 
 /** Requests that answer at once; streams have no timeout (they end with their abort signal). */
 const REQUEST_TIMEOUT_MS = 5_000;
-/** Docker walks every volume to count its size: on a big disk that takes a while. */
-const VOLUME_SIZES_TIMEOUT_MS = 60_000;
-/** Docker's own label on a volume it made without a name. */
-const ANONYMOUS_VOLUME_LABEL = 'com.docker.volume.anonymous';
 /** Set by Compose on every container it creates: the project's name. */
 const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project';
 const COMPOSE_WORKING_DIR_LABEL = 'com.docker.compose.project.working_dir';
@@ -203,7 +204,7 @@ export class DockerService {
       path: '/system/df',
       query: { type: ['image', 'build-cache'] },
       statusCodes: { 200: true, 500: 'server error' },
-      abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      abortSignal: AbortSignal.timeout(DISK_USAGE_TIMEOUT_MS),
     });
     const unused = (usage.Images ?? []).filter((image) => image.Containers === 0);
     const cache = usage.BuildCache ?? [];

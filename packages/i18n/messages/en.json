@@ -550,6 +550,7 @@
       "deleteVolume": "Delete volume {{name}}",
       "cancel": "Cancel",
       "freed": "Freed {{size}}",
+      "freedNotCache": "Freed {{size}}, but the build cache couldn’t be emptied",
       "pruneFailed": "Space couldn’t be freed",
       "volumeDeleted": "Volume {{name}} deleted",
       "volumeFailed": "Volume {{name}} couldn’t be deleted",

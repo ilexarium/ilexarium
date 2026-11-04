@@ -5,7 +5,7 @@ import {
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { provideRouter, TitleStrategy, withInMemoryScrolling } from '@angular/router';
+import { provideRouter, TitleStrategy } from '@angular/router';
 import {
   MissingTranslationHandler,
   provideTranslateService,
@@ -24,8 +24,7 @@ import { ThemeService } from './core/theme/theme';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    // `/containers#free-space` (the disk-full alert, the dashboard) scrolls to the card.
-    provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled' })),
+    provideRouter(routes),
     { provide: TitleStrategy, useExisting: PageTitleStrategy },
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     provideSpartanHlm(),

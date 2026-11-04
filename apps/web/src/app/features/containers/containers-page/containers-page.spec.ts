@@ -130,6 +130,25 @@ describe('ContainersPage', () => {
       await vi.waitFor(() => expect(success).toHaveBeenCalledWith('Freed 3.0 GB'));
       expect(cleanupApi.prune).toHaveBeenCalledTimes(1);
       expect(cleanupApi.overview).toHaveBeenCalledTimes(2);
+      // The same volumes: their sizes are kept, not counted again.
+      expect(cleanupApi.volumeSizes).toHaveBeenCalledTimes(1);
+    });
+
+    it('says when the images went but the build cache didn’t', async () => {
+      const warning = vi.spyOn(toast, 'warning');
+      const { fixture, el, cleanupApi } = await render();
+      cleanupApi.prune.mockReturnValueOnce(
+        of({ bytesFreed: 3e9, images: 1, buildCacheFailed: true as const }),
+      );
+      button(el, 'Free 200 MB').click();
+      await vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull());
+      await fixture.whenStable();
+      button(dialog(), 'Free space').click();
+      await vi.waitFor(() =>
+        expect(warning).toHaveBeenCalledWith(
+          'Freed 3.0 GB, but the build cache couldn’t be emptied',
+        ),
+      );
     });
 
     it('deletes a volume after confirming; Docker’s refusal comes as a toast', async () => {

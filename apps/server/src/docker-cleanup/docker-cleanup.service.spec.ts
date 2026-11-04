@@ -167,13 +167,28 @@ describe('DockerCleanupService', () => {
       [new CleanupError('failed'), 502, 'cleanup_failed'],
       [new CleanupError('unavailable'), 503, 'docker_unavailable'],
       [new Error('unexpected'), 502, 'cleanup_failed'],
-    ])('records a failure with what was freed so far (%s)', async (failure, status, code) => {
+    ])(
+      'answers with an error when the images can’t be removed (%s)',
+      async (failure, status, code) => {
+        const { service, control, entries } = setup();
+        control.pruneImages.mockRejectedValueOnce(failure);
+        await expect(service.prune(ACTOR)).rejects.toMatchObject({ status, response: { code } });
+        expect(control.pruneBuildCache).not.toHaveBeenCalled();
+        expect(entries[1]).toMatchObject({ outcome: 'failure', details: { reason: code } });
+      },
+    );
+
+    it('still says what was freed when only the build cache fails', async () => {
       const { service, control, entries } = setup();
-      control.pruneBuildCache.mockRejectedValueOnce(failure);
-      await expect(service.prune(ACTOR)).rejects.toMatchObject({ status, response: { code } });
+      control.pruneBuildCache.mockRejectedValueOnce(new CleanupError('failed'));
+      await expect(service.prune(ACTOR)).resolves.toEqual({
+        bytesFreed: 3000,
+        images: 1,
+        buildCacheFailed: true,
+      });
       expect(entries[1]).toMatchObject({
         outcome: 'failure',
-        details: { bytesFreed: 3000, images: 1, reason: code },
+        details: { bytesFreed: 3000, images: 1, reason: 'cleanup_failed' },
       });
     });
   });
