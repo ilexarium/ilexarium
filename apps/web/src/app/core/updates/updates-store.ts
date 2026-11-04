@@ -63,7 +63,9 @@ export const UpdatesStore = signalStore(
   withHooks((store, authStore = inject(AuthStore)) => ({
     onInit() {
       effect(() => {
-        if (!authStore.isAuthenticated()) patchState(store, initialState);
+        // The loaded version stays: it's this page's, not the user's (a sign-in after an update
+        // must still reload).
+        if (!authStore.isAuthenticated()) patchState(store, { status: null });
       });
     },
   })),

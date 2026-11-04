@@ -4,6 +4,7 @@
 # only after asking. Sourced by install.sh.
 
 KEYRINGS=/etc/apt/keyrings
+NODE_MIN=24.5.0
 
 apt_install() {
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@" >/dev/null
@@ -30,43 +31,27 @@ add_repository() {
 
 # Nothing (not a failure) when it isn't installed: under `set -e` a failing command
 # substitution would end the script without a word.
-node_major() { /usr/bin/node --version 2>/dev/null | sed -n 's/^v\([0-9]*\).*/\1/p' || true; }
+node_version() { /usr/bin/node --version 2>/dev/null | sed -n 's/^v\([0-9.]*\).*/\1/p' || true; }
 
-ensure_base() {
-  log 'Checking the basics'
-  local missing=()
-  for tool in curl gpg sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
-  # The program, not the shell's builtin: ending a process runs `env kill` as the person.
-  [[ -x /usr/bin/kill ]] || missing+=(kill)
-  # A person's own systemd and its bus (user units: apps without sudo for the docker group).
-  for package in libpam-systemd dbus-user-session; do
-    dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'ok installed' ||
-      missing+=("$package")
-  done
-  if ((${#missing[@]} > 0)); then
-    confirm "Install the basics Laris needs (missing: ${missing[*]})?" || die 'They are needed'
-    apt_update
-    apt_install ca-certificates curl gnupg sudo procps libpam-systemd dbus-user-session
-  fi
-  info 'curl, gnupg, sudo, procps, libpam-systemd, dbus-user-session'
-}
-
-# Node 24 or newer at /usr/bin/node — that one, whatever else is on PATH: the root wrappers'
-# shebang and laris.service name that exact path.
+# Node 24.5 or newer (laris-update trusts the machine's certificates with an API from 24.5) at
+# /usr/bin/node — that one, whatever else is on PATH: the root programs' shebang and laris.service
+# name that exact path.
 ensure_node() {
-  local major
-  major="$(node_major)"
-  if [[ -n "$major" ]] && ((major >= 24)); then
+  local version
+  version="$(node_version)"
+  if [[ -n "$version" ]] && dpkg --compare-versions "$version" ge "$NODE_MIN"; then
     info "Node $(/usr/bin/node --version)"
     return
   fi
-  confirm 'Install Node.js 24 (from NodeSource)?' || die 'Node.js 24 is needed'
+  confirm "Install Node.js 24 (from NodeSource; $NODE_MIN or newer is needed)?" || die "Node.js $NODE_MIN is needed"
   add_repository nodesource https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
     'deb [signed-by=@KEY@] https://deb.nodesource.com/node_24.x nodistro main'
   apt_update
   apt_install nodejs
-  major="$(node_major)"
-  if [[ -z "$major" ]] || ((major < 24)); then die 'Node.js 24 could not be installed at /usr/bin/node'; fi
+  version="$(node_version)"
+  if [[ -z "$version" ]] || ! dpkg --compare-versions "$version" ge "$NODE_MIN"; then
+    die "Node.js $NODE_MIN could not be installed at /usr/bin/node"
+  fi
   info "Node $(/usr/bin/node --version)"
 }
 

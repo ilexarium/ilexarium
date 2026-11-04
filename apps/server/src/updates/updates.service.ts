@@ -1,6 +1,5 @@
 import {
   HttpException,
-  HttpStatus,
   Injectable,
   Logger,
   type OnApplicationBootstrap,
@@ -24,20 +23,16 @@ import type { RootActor } from '../root-programs/root-programs.model.js';
 import { ReleaseCheck } from './release-check.js';
 import { isNewer } from './release-manifest.js';
 import { UpdateJobs } from './update-jobs.js';
-import { CHECK_EVERY_MS, FIRST_CHECK_AFTER_MS } from './updates.constants.js';
-
-const ID = 1;
-
-const ERROR_STATUS: Record<UpdateErrorCode, HttpStatus> = {
-  [UPDATE_ERROR_CODES.notConfigured]: HttpStatus.CONFLICT,
-  [UPDATE_ERROR_CODES.notAvailable]: HttpStatus.CONFLICT,
-  [UPDATE_ERROR_CODES.busy]: HttpStatus.CONFLICT,
-  [UPDATE_ERROR_CODES.unavailable]: HttpStatus.SERVICE_UNAVAILABLE,
-};
+import {
+  CHECK_EVERY_MS,
+  FIRST_CHECK_AFTER_MS,
+  UPDATE_CHECK_ID,
+  UPDATE_ERROR_STATUS,
+} from './updates.constants.js';
 
 function updateError(code: UpdateErrorCode): HttpException {
   const body: ApiErrorResponse = { message: 'The update could not be started', code };
-  return new HttpException(body, ERROR_STATUS[code]);
+  return new HttpException(body, UPDATE_ERROR_STATUS[code]);
 }
 
 /**
@@ -81,7 +76,7 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
   async status(): Promise<UpdatesStatus> {
     const [source, row] = await Promise.all([
       this.releaseCheck.source(),
-      this.prisma.updateCheck.findUnique({ where: { id: ID } }),
+      this.prisma.updateCheck.findUnique({ where: { id: UPDATE_CHECK_ID } }),
     ]);
     const available =
       row?.availableVersion && isNewer(row.availableVersion, LARIS_VERSION)
@@ -111,8 +106,8 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
 
   async setCheckAutomatically(checkAutomatically: boolean): Promise<void> {
     await this.prisma.updateCheck.upsert({
-      where: { id: ID },
-      create: { id: ID, checkAutomatically },
+      where: { id: UPDATE_CHECK_ID },
+      create: { id: UPDATE_CHECK_ID, checkAutomatically },
       update: { checkAutomatically },
     });
     this.changed.next();
@@ -123,9 +118,9 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
     const status = await this.status();
     if (!status.configured) throw updateError(UPDATE_ERROR_CODES.notConfigured);
     if (status.available?.version !== version) throw updateError(UPDATE_ERROR_CODES.notAvailable);
-    // The installer stops every app's database connection and the platform: not in the middle of
-    // a backup, a restore or an app's task.
-    if (this.updateJobs.running() || this.changesUnderway.anyApp()) {
+    // The installer stops the app and the platform: not in the middle of a backup, a restore, an
+    // app's task or another update (each tells ChangesUnderway).
+    if (this.changesUnderway.anyApp()) {
       throw updateError(UPDATE_ERROR_CODES.busy);
     }
     const id = randomUUID();
@@ -156,7 +151,7 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private async scheduledCheck(): Promise<void> {
-    const row = await this.prisma.updateCheck.findUnique({ where: { id: ID } });
+    const row = await this.prisma.updateCheck.findUnique({ where: { id: UPDATE_CHECK_ID } });
     if (row && !row.checkAutomatically) return;
     // Restarts don't add checks: once a day.
     if (row?.checkedAt && Date.now() - row.checkedAt.getTime() < CHECK_EVERY_MS / 2) return;
@@ -184,8 +179,8 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
       : // A failed check keeps what the last good one found.
         { checkedAt, checkError: result.error };
     await this.prisma.updateCheck.upsert({
-      where: { id: ID },
-      create: { id: ID, ...data },
+      where: { id: UPDATE_CHECK_ID },
+      create: { id: UPDATE_CHECK_ID, ...data },
       update: data,
     });
     this.changed.next();

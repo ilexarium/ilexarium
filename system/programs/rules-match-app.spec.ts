@@ -22,6 +22,7 @@ import {
   PROCESS_LIMITS,
   PROCESS_SIGNALS,
   RELEASE_VERSION_PATTERN,
+  UPDATE_PHASES,
   RELATIVE_PATH_PATTERN,
   SYSTEM_SERVICE_ACTIONS,
   SYSTEM_SERVICE_NAME_PATTERN,
@@ -36,7 +37,7 @@ import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
 import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
 import * as appManifest from '../../apps/server/src/updates/release-manifest.ts';
-import { ARCHIVE_MAX_BYTES } from '../../apps/server/src/updates/updates.constants.ts';
+import * as appUpdates from '../../apps/server/src/updates/updates.constants.ts';
 import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
@@ -48,6 +49,7 @@ import * as wrapperDiskUnits from './disk/units.mts';
 import * as helperSudo from './helper/sudo.mts';
 import * as helperConfig from './helper/config.mts';
 import * as wrapperPaths from './lib/paths.mts';
+import * as updateInstall from './update/install.mts';
 import * as updateRelease from './update/release.mts';
 
 // The app's rules and the root programs' are written twice on purpose (the programs share no code
@@ -154,7 +156,11 @@ describe('the app and the root programs check the same rules', () => {
 
   it('updates: versions, which is newer, and what a release manifest must say', () => {
     expect(updateRelease.VERSION).toEqual(RELEASE_VERSION_PATTERN);
-    expect(updateRelease.ARCHIVE_MAX_BYTES).toBe(ARCHIVE_MAX_BYTES);
+    expect(updateRelease.ARCHIVE_MAX_BYTES).toBe(appUpdates.ARCHIVE_MAX_BYTES);
+    expect(updateRelease.MANIFEST_MAX_BYTES).toBe(appUpdates.MANIFEST_MAX_BYTES);
+    expect(updateRelease.RELEASE_URL).toEqual(appUpdates.RELEASE_URL);
+    expect(updateRelease.DEV_RELEASE_URL).toEqual(appUpdates.DEV_RELEASE_URL);
+    expect(updateInstall.JOB_PHASES).toEqual([...UPDATE_PHASES]);
     for (const [a, b] of [
       ['0.2.0', '0.1.0'],
       ['0.1.0', '0.1.0'],
@@ -185,7 +191,7 @@ describe('the app and the root programs check the same rules', () => {
       { ...good, sha256: 'A'.repeat(64) },
       { ...good, size: 0 },
       { ...good, size: 1.5 },
-      { ...good, size: ARCHIVE_MAX_BYTES + 1 },
+      { ...good, size: appUpdates.ARCHIVE_MAX_BYTES + 1 },
       { ...good, size: '1000' },
       { ...good, extra: true },
       [good],

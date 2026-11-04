@@ -9,9 +9,12 @@ import { parseManifest } from './release-manifest.js';
 import { UpdatePlaces } from './update-places.js';
 import {
   CHECK_TIMEOUT_MS,
+  DEV_RELEASE_URL,
   MANIFEST_MAX_BYTES,
   MAX_REDIRECTS,
   NOTES_MAX_BYTES,
+  REDIRECTS,
+  RELEASE_URL,
 } from './updates.constants.js';
 import type { ReleaseManifest } from './updates.model.js';
 
@@ -23,10 +26,6 @@ export interface ReleaseSource {
 export type CheckResult =
   | { ok: true; newest: ReleaseManifest; notes: string | null }
   | { ok: false; error: UpdateCheckError };
-
-const RELEASE_URL = /^https:\/\/[A-Za-z0-9.-]+(:\d+)?(\/[A-Za-z0-9._~-]+)*$/;
-const DEV_RELEASE_URL = /^http:\/\/127\.0\.0\.1:\d+(\/[A-Za-z0-9._~-]+)*$/;
-const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 
 class Unreachable extends Error {}
 

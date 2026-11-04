@@ -30,13 +30,12 @@ import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { UpdatePlaces } from './update-places.js';
 import {
+  JOB_FILE,
   JOB_READ_MS,
   JOB_STALE_MS,
   OUTPUT_LINES_KEPT,
   UPDATE_FILES_POLL_MS,
 } from './updates.constants.js';
-
-const JOB_FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/;
 
 /** One job file's events as a job; null if it has no start (being written, or not ours). */
 export function readJob(
@@ -125,6 +124,7 @@ export class UpdateJobs implements OnApplicationBootstrap, OnModuleDestroy {
   private following: Subscription | null = null;
   private current: UpdateJob | null = null;
   private seen = '';
+  private newestFile = '';
 
   constructor(
     private readonly updatePlaces: UpdatePlaces,
@@ -170,14 +170,20 @@ export class UpdateJobs implements OnApplicationBootstrap, OnModuleDestroy {
   async refresh(): Promise<void> {
     const dir = this.updatePlaces.jobsDir;
     const names = await readdir(dir).catch(() => [] as string[]);
-    let newest: { id: string; path: string; at: number } | null = null;
+    let newest: { id: string; path: string; at: number; size: number } | null = null;
     for (const name of names) {
       const id = JOB_FILE.exec(name)?.[1];
       if (!id) continue;
-      const at = (await stat(join(dir, name)).catch(() => null))?.mtimeMs;
-      if (at !== undefined && (!newest || at > newest.at))
-        newest = { id, path: join(dir, name), at };
+      const info = await stat(join(dir, name)).catch(() => null);
+      if (info && (!newest || info.mtimeMs > newest.at)) {
+        newest = { id, path: join(dir, name), at: info.mtimeMs, size: info.size };
+      }
     }
+    // Unchanged since the last read: nothing to parse. A running one is read again anyway (its
+    // file may stop changing because the machine went down: it turns interrupted).
+    const fileKey = newest ? `${newest.path}:${newest.at}:${newest.size}` : '';
+    if (fileKey === this.newestFile && !this.running()) return;
+    this.newestFile = fileKey;
     const job = newest ? readJob(newest.id, await readFile(newest.path, 'utf8'), newest.at) : null;
     const key = JSON.stringify(job);
     if (key === this.seen) return;

@@ -3,7 +3,15 @@
 // when the installer stops the app. Returns at once; the app follows the job file.
 
 import { spawn } from 'node:child_process';
-import { closeSync, existsSync, openSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { JobFile, prepareState } from './job.mts';
 import type { Config, Paths, Programs } from './model.mts';
@@ -14,6 +22,9 @@ import { lockHolder } from '../lib/lock.mts';
 import { Refusal } from '../lib/output.mts';
 import { SAFE_PATH } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
+
+/** A unit that starts at all reads its request within seconds. */
+const REQUEST_STALE_MS = 10 * 60_000;
 
 export const UPDATE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -38,8 +49,13 @@ export async function start(
   // A backup, restore or disk change holds the root programs' lock; the unit takes it for real.
   if (lockHolder(paths.lock).alive) throw new Refusal('busy', 'another operation runs', 3);
   prepareState(config, paths);
-  if (readdirSync(paths.state).some((name) => name.endsWith('.request'))) {
-    throw new Refusal('busy', 'an update is starting', 3);
+  // A request its unit never picked up (it didn't start) is forgotten after a while.
+  for (const name of readdirSync(paths.state).filter((n) => n.endsWith('.request'))) {
+    const path = join(paths.state, name);
+    if (Date.now() - statSync(path).mtimeMs < REQUEST_STALE_MS) {
+      throw new Refusal('busy', 'an update is starting', 3);
+    }
+    rmSync(path, { force: true });
   }
   if (existsSync(join(paths.state, `${updateId}.jsonl`))) {
     throw new Refusal('invalid_request', 'updateId used', 2, 'updateId');
@@ -49,14 +65,19 @@ export async function start(
     mode: 0o600,
     flag: 'wx',
   });
-  new JobFile(config, paths, updateId, true).event({ type: 'start', from, to: version });
+  const job = new JobFile(config, paths, updateId, true);
+  job.event({ type: 'start', from, to: version });
   if (isRoot) {
     const code = await runProgram(programs.systemctl, [
       'start',
       '--no-block',
       `laris-update@${updateId}.service`,
     ]);
-    if (code !== 0) throw new Refusal('setup', 'systemctl start failed', 6);
+    if (code !== 0) {
+      rmSync(requestFile(paths, updateId), { force: true });
+      job.event({ type: 'done', outcome: 'failed', version: from, error: 'setup' });
+      throw new Refusal('setup', 'systemctl start failed', 6);
+    }
   } else {
     startDetached(paths, updateId);
   }

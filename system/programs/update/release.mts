@@ -14,7 +14,7 @@ export const SHA256 = /^[0-9a-f]{64}$/;
 /** A plain https:// address: it's written into settings files and joined into URLs. */
 export const RELEASE_URL = /^https:\/\/[A-Za-z0-9.-]+(:\d+)?(\/[A-Za-z0-9._~-]+)*$/;
 /** Development (tests) also serves releases from this machine over plain HTTP. */
-const DEV_RELEASE_URL = /^http:\/\/127\.0\.0\.1:\d+(\/[A-Za-z0-9._~-]+)*$/;
+export const DEV_RELEASE_URL = /^http:\/\/127\.0\.0\.1:\d+(\/[A-Za-z0-9._~-]+)*$/;
 export const MANIFEST_MAX_BYTES = 4096;
 export const ARCHIVE_MAX_BYTES = 1024 * 1024 * 1024;
 const PUBLISHED = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
