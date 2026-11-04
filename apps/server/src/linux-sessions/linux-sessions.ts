@@ -277,7 +277,9 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         code,
         code === FILES_ERROR_CODES.linuxLoginRefused
           ? 'Wrong user name or password'
-          : 'The SSH server is not available',
+          : code === FILES_ERROR_CODES.linuxPasswordLoginsOff
+            ? 'The SSH server allows no password logins from this machine'
+            : 'The SSH server is not available',
       );
     }
     try {
@@ -400,11 +402,16 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     return new Promise((ok, fail) => {
       const client = new Client();
       let hostKeyRefused = false;
+      let passwordLoginsOff = false;
+      let attempt = 0;
       client
         .on('ready', () => ok(client))
         .on('error', (error: Error & { level?: string }) => {
           if (error.level === 'client-authentication') {
-            fail(Object.assign(error, { code: FILES_ERROR_CODES.linuxLoginRefused }));
+            const code = passwordLoginsOff
+              ? FILES_ERROR_CODES.linuxPasswordLoginsOff
+              : FILES_ERROR_CODES.linuxLoginRefused;
+            fail(Object.assign(error, { code }));
             return;
           }
           if (hostKeyRefused) {
@@ -420,6 +427,16 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
           username,
           password,
           tryKeyboard: false,
+          // "none" first: its refusal lists the methods the server allows, so a server that turned
+          // password logins off is told apart from a wrong password (the machine check's fix).
+          authHandler: (methodsLeft, _partial, next) => {
+            attempt += 1;
+            if (attempt === 1) return next('none');
+            if (attempt === 2 && methodsLeft?.includes('password')) return next('password');
+            if (attempt === 2) passwordLoginsOff = true;
+            // No more methods (ssh2 takes false; its types don't say so).
+            return next(false as never);
+          },
           readyTimeout: CONNECT_TIMEOUT_MS,
           keepaliveInterval: KEEPALIVE_INTERVAL_MS,
           keepaliveCountMax: KEEPALIVE_COUNT_MAX,

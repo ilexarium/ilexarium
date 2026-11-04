@@ -29,6 +29,8 @@ export const FILES_ERROR_CODES = {
   linuxSessionRequired: 'linux_session_required',
   /** The user name or password was refused (or the account can't sign in). */
   linuxLoginRefused: 'linux_login_refused',
+  /** The SSH server allows no password logins from this machine (a drop-in turned them off). */
+  linuxPasswordLoginsOff: 'linux_password_logins_off',
   /** root never signs in here. */
   linuxRootRefused: 'linux_root_refused',
   /** The machine's SSH server doesn't answer, or isn't the one expected (host key). */

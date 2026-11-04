@@ -12,6 +12,8 @@ import type { Env } from '../config/env.schema.js';
 const HOST_KEY = Buffer.from('the pinned host key');
 let serverKey = HOST_KEY;
 let refuse = false;
+/** What the server allows after "none" is refused. */
+let serverMethods = ['publickey', 'password'];
 const clients: FakeClient[] = [];
 const HELPER = '/opt/laris/libexec/laris-helper.mts';
 /** How the fake helper behaves: answers, not installed, refusing to start, or never answering. */
@@ -28,12 +30,28 @@ let closedHelpers = 0;
 class FakeClient extends EventEmitter {
   ended = false;
   options: Record<string, unknown> = {};
+  triedMethods: unknown[] = [];
   connect(options: Record<string, unknown>) {
     this.options = options;
     clients.push(this);
     setImmediate(() => {
       const verify = options['hostVerifier'] as (key: Buffer) => boolean;
       if (!verify(serverKey)) return this.emit('error', new Error('host key refused'));
+      // ssh2 asks the handler for each method: first with no list, then with the server's.
+      const tried: unknown[] = [];
+      const handler = options['authHandler'] as (
+        left: string[] | null,
+        partial: boolean,
+        next: (method: unknown) => void,
+      ) => void;
+      handler(null, false, (method) => tried.push(method));
+      handler(serverMethods, false, (method) => tried.push(method));
+      this.triedMethods = tried;
+      if (tried[1] === false)
+        return this.emit(
+          'error',
+          Object.assign(new Error('auth'), { level: 'client-authentication' }),
+        );
       if (refuse)
         return this.emit(
           'error',
@@ -114,6 +132,7 @@ describe('LinuxSessions', () => {
     clients.length = 0;
     serverKey = HOST_KEY;
     refuse = false;
+    serverMethods = ['publickey', 'password'];
     helperMode = 'answers';
     helperAnswers = { hello: { ok: true, uid: 1500, user: 'anna', home: '/home/anna' } };
     asked.length = 0;
@@ -428,6 +447,17 @@ describe('LinuxSessions', () => {
     refuse = true;
     await expect(signIn()).rejects.toMatchObject({ response: { code: 'linux_login_refused' } });
     expect(JSON.stringify(audit.tryRecord.mock.calls)).not.toContain('pw"');
+  });
+
+  it('asks for the server’s methods first: password logins turned off are told apart from a wrong password', async () => {
+    await signIn();
+    expect(clients[0].triedMethods).toEqual(['none', 'password']);
+    serverMethods = ['publickey'];
+    await expect(signIn()).rejects.toMatchObject({
+      response: { code: 'linux_password_logins_off' },
+      status: 403,
+    });
+    expect(clients[1].triedMethods).toEqual(['none', false]);
   });
 
   it('refuses root before connecting', async () => {
