@@ -4,7 +4,8 @@
 //                            (through her sudo; with the docker group as user units), a backup,
 //                            a restore to a new folder and one back where it was (the app brought
 //                            up with the restored settings) through her sudo, and the security
-//                            setup (files, no sudo for the app, who reaches the proxy)
+//                            setup (files, no sudo for the app, who reaches the proxy), and
+//                            freeing Docker's unused data
 //   node smoke.mjs update    after running the installer again: everything is still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
 import { execFileSync, spawn } from 'node:child_process';
@@ -708,6 +709,10 @@ async function install() {
     names.join(', '),
   );
 
+  // Before any app task: Laris refuses cleanup for a while after one (an image just pulled for
+  // an install looks unused).
+  await dockerCleanup();
+
   // anna's sudo and Lock now first (processes): the apps below need her sudo unlocked again.
   await files();
 
@@ -957,6 +962,74 @@ async function update() {
 }
 
 await (process.argv[2] === 'update' ? update() : install());
+
+/** Docker's unused data, freed through the proxy socket: the prunes really run here. */
+async function dockerCleanup() {
+  console.log('\nDocker cleanup');
+  const UNUSED_IMAGE = 'busybox:1.36';
+  sh('docker', ['pull', '-q', UNUSED_IMAGE]);
+  const before = await api('GET', '/docker/cleanup');
+  check(
+    'an unused image listed',
+    before.json?.images?.some((i) => i.tags.includes(UNUSED_IMAGE)),
+    before.text.slice(0, 300),
+  );
+  const pruned = await api('POST', '/docker/cleanup/prune');
+  check(
+    'unused images and the build cache freed',
+    pruned.status === 200 && pruned.json?.bytesFreed > 0 && pruned.json?.images >= 1,
+    `${pruned.status} ${pruned.text}`,
+  );
+  check(
+    'the image is gone, the platform’s stay',
+    fails('docker', ['image', 'inspect', UNUSED_IMAGE]) &&
+      (await snapshot('containers')).containers?.every((c) => c.state === 'running'),
+  );
+
+  // A volume in use (a created, never started container holds it), the platform's own, a free one.
+  const proxyImage = sh('docker', [
+    'inspect',
+    '-f',
+    '{{.Config.Image}}',
+    'laris-docker-proxy-1',
+  ]).trim();
+  sh('docker', ['volume', 'create', 'smoke_used']);
+  sh('docker', ['create', '--name', 'smoke-holder', '-v', 'smoke_used:/x', proxyImage]);
+  sh('docker', [
+    'volume',
+    'create',
+    '--label',
+    'com.docker.compose.project=laris',
+    'smoke_platform',
+  ]);
+  sh('docker', ['volume', 'create', 'smoke_unused']);
+  const listed = (await api('GET', '/docker/cleanup')).json?.volumes?.map((v) => v.name) ?? [];
+  check(
+    'unused volumes listed, not the platform’s or one in use',
+    listed.includes('smoke_unused') &&
+      !listed.includes('smoke_platform') &&
+      !listed.includes('smoke_used'),
+    listed.join(', '),
+  );
+  const sizes = await api('GET', '/docker/cleanup/volume-sizes');
+  check(
+    'volume sizes counted',
+    sizes.status === 200 && 'smoke_unused' in (sizes.json?.sizes ?? {}),
+    `${sizes.status} ${sizes.text.slice(0, 200)}`,
+  );
+  const inUse = await api('DELETE', '/docker/cleanup/volumes/smoke_used');
+  check('a volume in use refused (409)', inUse.status === 409, `${inUse.status} ${inUse.text}`);
+  const own = await api('DELETE', '/docker/cleanup/volumes/smoke_platform');
+  check('the platform’s volume refused (403)', own.status === 403, `${own.status} ${own.text}`);
+  const removed = await api('DELETE', '/docker/cleanup/volumes/smoke_unused');
+  check(
+    'an unused volume deleted',
+    removed.status === 204 && fails('docker', ['volume', 'inspect', 'smoke_unused']),
+    `${removed.status} ${removed.text}`,
+  );
+  sh('docker', ['rm', 'smoke-holder']);
+  sh('docker', ['volume', 'rm', 'smoke_used', 'smoke_platform']);
+}
 
 /** Signs the app session in to Linux as this person. */
 async function linuxSignIn(user) {
