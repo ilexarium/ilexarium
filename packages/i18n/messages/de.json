@@ -9,6 +9,7 @@
     "disks": "Laufwerke",
     "alerts": "Warnungen",
     "notifications": "Benachrichtigungen",
+    "machineCheck": "Systemprüfung",
     "processes": "Prozesse",
     "files": "Dateien",
     "terminal": "Terminal",
@@ -41,6 +42,7 @@
     "storage": "Speicher",
     "alerts": "Warnungen",
     "notifications": "Benachrichtigungen",
+    "machineCheck": "Systemprüfung",
     "system": "System",
     "processes": "Prozesse",
     "files": "Dateien",
@@ -238,6 +240,7 @@
     "signal_failed": "Das Signal konnte nicht gesendet werden.",
     "linux_session_required": "Melde dich erneut als Linux-Benutzer an (die Sitzung ist beendet).",
     "linux_login_refused": "Falscher Benutzername oder falsches Passwort, oder dieses Konto kann sich nicht anmelden.",
+    "linux_password_logins_off": "Der SSH-Server dieses Rechners erlaubt Laris keine Anmeldung mit Passwort. Führe das Installationsprogramm erneut aus (sudo ./install.sh) oder entferne die Einstellung, die sie abschaltet (oft /etc/ssh/sshd_config.d/50-cloud-init.conf).",
     "linux_root_refused": "root kann sich hier nicht anmelden. Nimm dein eigenes Konto.",
     "ssh_unavailable": "Der SSH-Server dieses Rechners antwortet nicht.",
     "file_not_found": "Das ist nicht mehr da.",
@@ -250,7 +253,7 @@
     "picture_too_large": "Das Bild ist zu groß.",
     "process_not_permitted": "Linux hat diesem Konto nicht erlaubt, den Prozess zu beenden.",
     "sudo_password_wrong": "sudo hat dieses Passwort nicht angenommen.",
-    "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden.",
+    "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden: Es ist kein Administrator. Von einem Administratorkonto aus: sudo usermod -aG sudo <Konto>, dann erneut bei Linux anmelden.",
     "sudo_required": "Dafür sind Administratorrechte nötig: Entsperre sudo mit dem Passwort des Linux-Kontos.",
     "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Laris ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Laris erneut.",
     "sudo_failed": "sudo hat nicht geantwortet oder ist ohne Begründung fehlgeschlagen. Versuche es erneut; bleibt es so, prüfe sudo in einem Terminal.",
@@ -1172,6 +1175,58 @@
     "testSent": "Testnachricht gesendet",
     "testFailed": "Die Testnachricht konnte nicht gesendet werden",
     "lastFailure": "Die letzte Nachricht konnte nicht gesendet werden ({{time}}). {{problem}}"
+  },
+  "machineCheck": {
+    "description": "Ob dieser Rechner so eingerichtet ist, wie Laris es braucht – geprüft als dein Linux-Konto: Alles, was Laris für dich ändert, läuft als dieses Konto.",
+    "check": "Rechner prüfen",
+    "checkAgain": "Erneut prüfen",
+    "checkWithoutSudo": "Ohne sudo prüfen",
+    "failed": "Die Prüfung konnte nicht ausgeführt werden",
+    "notChecked": "Nicht geprüft: Ein früherer Schritt ist nicht bestanden.",
+    "status": {
+      "waiting": "noch nicht geprüft",
+      "running": "wird geprüft …",
+      "ok": "bestanden",
+      "failed": "fehlgeschlagen",
+      "info": "Hinweis",
+      "skipped": "übersprungen",
+      "not_checked": "nicht geprüft"
+    },
+    "steps": {
+      "signIn": {
+        "title": "Anmeldung bei Linux",
+        "about": "Mit Benutzername und Passwort deines Linux-Kontos.",
+        "ok": "Angemeldet als {{account}}.",
+        "notSignedIn": "Nicht angemeldet. Wurde die Anmeldung abgelehnt, stand dort, warum und was zu tun ist."
+      },
+      "helper": {
+        "title": "Laris’ Helfer",
+        "about": "Das Programm, das Laris für jede Änderung als dein Konto ausführt.",
+        "ok": "Er antwortet, als dein Konto.",
+        "unavailable": "Er ist nicht gestartet oder antwortet nicht. Führe das Installationsprogramm erneut aus (der Befehl unten, im Ordner der Version) und melde dich dann erneut bei Linux an.",
+        "wrong_account": "Er antwortet als ein anderes Konto. Führe das Installationsprogramm erneut aus (der Befehl unten, im Ordner der Version)."
+      },
+      "userUnits": {
+        "title": "Benutzer-Units",
+        "about": "App-Aufgaben laufen als systemd-Units deines Kontos.",
+        "ok": "Das systemd deines Kontos startet Units.",
+        "failed": "Das systemd deines Kontos startet keine Units. Schalte Lingering mit dem Befehl unten ein oder installiere libpam-systemd und dbus-user-session. Bis dahin laufen App-Aufgaben über dein sudo."
+      },
+      "sudo": {
+        "title": "sudo",
+        "about": "Administratoraufgaben laufen über dein eigenes sudo, entsperrt mit deinem Passwort.",
+        "ok": "Entsperrt: Administratoraufgaben funktionieren.",
+        "skipped": "Nicht geprüft. Ohne sudo kann dieses Konto keine Administratoraufgaben erledigen (Sicherungen, Datenträger, Dienste).",
+        "notUnlocked": "Nicht entsperrt. Hat sudo abgelehnt, ist dieses Konto kein Administrator: Führe den Befehl unten von einem Administratorkonto aus und melde dich dann erneut bei Linux an."
+      },
+      "docker": {
+        "title": "Docker für Apps",
+        "about": "Wie deine Apps Docker erreichen.",
+        "user_units": "Deine Apps laufen als deine eigenen Units, mit der Gruppe docker.",
+        "system_units": "Deine Apps laufen als System-Units, über dein sudo. Damit sie ohne sudo laufen: Führe den Befehl unten aus und starte dann den Rechner neu.",
+        "restart_needed": "Dein Konto ist in der Gruppe docker, aber sein systemd lief schon vorher. Bis zum Neustart des Rechners laufen deine Apps über dein sudo."
+      }
+    }
   },
   "processes": {
     "loading": "Prozesse werden geladen",

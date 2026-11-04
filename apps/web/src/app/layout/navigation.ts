@@ -11,6 +11,7 @@ import {
   lucideScrollText,
   lucideServerCog,
   lucideSquareTerminal,
+  lucideStethoscope,
 } from '@ng-icons/lucide';
 import type { NavGroup } from './layout.model';
 
@@ -43,6 +44,7 @@ export const NAVIGATION: NavGroup[] = [
     label: 'nav.settings',
     items: [
       { label: 'nav.notifications', link: '/settings/notifications', icon: 'lucideBellRing' },
+      { label: 'nav.machineCheck', link: '/settings/machine-check', icon: 'lucideStethoscope' },
     ],
   },
 ];
@@ -60,4 +62,5 @@ export const NAV_ICONS = {
   lucideBellRing,
   lucideHardDrive,
   lucideServerCog,
+  lucideStethoscope,
 };
