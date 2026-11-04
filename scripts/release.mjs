@@ -2,7 +2,14 @@
 //   release/laris-<version>.tar.gz and its .sha256
 // holding the built server and web app, their production packages (one archive for amd64 and
 // arm64: no native modules, and Prisma's migration engine for both), the migrations, the catalog
-// and system/ (the installer, the root programs and the helper, units). Usage: npm run release
+// and system/ (the installer, the root programs and the helper, units).
+//
+//   RELEASE_URL=https://… npm run release
+//
+// RELEASE_URL is where this release's updates come from (docs/plans/install_and_update.md); with
+// it, the public key (RELEASE_PUB, by default system/install/release.pub) goes into the release
+// and release/get-laris.sh is written for that address. Without both, the release can't update
+// itself (tests).
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -30,6 +37,22 @@ const APP = join(STAGE, 'app');
 /** Prisma's migration engine for the CPUs the installer supports (all three distributions ship OpenSSL 3). */
 const ENGINE_TARGETS = ['debian-openssl-3.0.x', 'linux-arm64-openssl-3.0.x'];
 
+const releaseUrl = process.env.RELEASE_URL?.replace(/\/+$/, '');
+const releasePub = process.env.RELEASE_PUB ?? join(ROOT, 'system/install/release.pub');
+// Written into a shell script and a settings file: plain characters only.
+if (releaseUrl && !/^https:\/\/[A-Za-z0-9.-]+(:\d+)?(\/[A-Za-z0-9._~-]+)*$/.test(releaseUrl)) {
+  throw new Error(`RELEASE_URL ${releaseUrl} isn't a plain https:// address`);
+}
+if (releaseUrl && !existsSync(releasePub)) {
+  throw new Error(
+    `RELEASE_URL is set, but there's no public key at ${releasePub} (npm run release:key)`,
+  );
+}
+const publicKeyLine = releaseUrl ? readFileSync(releasePub, 'utf8').split('\n')[1] : undefined;
+if (releaseUrl && !/^[A-Za-z0-9+/]{56}$/.test(publicKeyLine ?? '')) {
+  throw new Error(`${releasePub} isn't a minisign public key`);
+}
+
 const run = (command, args, cwd = ROOT) =>
   execFileSync(command, args, { cwd, stdio: 'inherit', env: { ...process.env, CI: '1' } });
 const copy = (from, to, filter) => cpSync(join(ROOT, from), to, { recursive: true, filter });
@@ -42,6 +65,7 @@ run('npm', ['run', 'build', '-w', '@laris/server']);
 run('npm', ['run', 'build', '-w', '@laris/web']);
 
 rmSync(STAGE, { recursive: true, force: true });
+rmSync(join(OUT, 'get-laris.sh'), { force: true });
 mkdirSync(APP, { recursive: true });
 
 // The app, laid out like the repository (the workspace links in node_modules point at packages/).
@@ -129,10 +153,20 @@ copy('catalog', join(STAGE, 'catalog'));
 copy(
   'system',
   join(STAGE, 'system'),
-  (src) => !/\.spec\.ts$|\/testing(\/|$)|tsconfig\.json$/.test(src),
+  (src) => !/\.spec\.ts$|\/testing(\/|$)|tsconfig\.json$|get-laris\.sh$|release\.pub$/.test(src),
 );
 copy('system/install/install.sh', join(STAGE, 'install.sh'));
 writeFileSync(join(STAGE, 'VERSION'), `${version}\n`);
+if (releaseUrl) {
+  writeFileSync(join(STAGE, 'release.env'), `RELEASE_URL=${releaseUrl}\n`);
+  cpSync(releasePub, join(STAGE, 'release.pub'));
+  const getLaris = readFileSync(join(ROOT, 'system/install/get-laris.sh'), 'utf8')
+    .replace("RELEASE_URL='@RELEASE_URL@'", `RELEASE_URL='${releaseUrl}'`)
+    .replace("PUBLIC_KEY='@PUBLIC_KEY@'", `PUBLIC_KEY='${publicKeyLine}'`);
+  writeFileSync(join(OUT, 'get-laris.sh'), getLaris, { mode: 0o755 });
+} else {
+  console.warn('No RELEASE_URL: this release will not find updates by itself.');
+}
 
 // The archive: owned by root inside, so unpacking it as root keeps nothing of this machine's users.
 const archive = join(OUT, `${NAME}.tar.gz`);

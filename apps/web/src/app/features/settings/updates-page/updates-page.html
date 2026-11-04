@@ -1,0 +1,167 @@
+@let store = updatesPageStore;
+@let status = store.status();
+<div class="grid max-w-2xl gap-6">
+  @if (status) {
+    <p class="text-sm text-muted-foreground">
+      {{ 'updates.installed' | translate: { version: status.installed } }}
+      @if (status.newestPublished; as published) {
+        · {{ 'updates.newestPublished' | translate: { date: formatter.date(published) } }}
+      }
+    </p>
+
+    @if (!status.configured) {
+      <p class="rounded-xl border bg-card p-4 text-sm">{{ 'updates.notConfigured' | translate }}</p>
+    }
+
+    @if (store.job(); as job) {
+      <section class="grid gap-3 rounded-xl border bg-card p-4" aria-live="polite">
+        @if (!job.done) {
+          <h2 class="flex items-center gap-2 text-base font-medium">
+            <ng-icon name="lucideLoaderCircle" class="size-5 animate-spin" aria-hidden="true" />
+            {{ 'updates.updating' | translate: { version: job.to } }}
+          </h2>
+          <p class="text-sm text-muted-foreground">
+            @if (store.restarting()) {
+              {{ 'updates.restarting' | translate }}
+            } @else if (job.phase) {
+              {{ 'updates.phase.' + job.phase | translate }}
+            } @else {
+              {{ 'updates.phase.waiting' | translate }}
+            }
+          </p>
+          @if (job.phase === 'download' && job.download; as download) {
+            <hlm-progress
+              [value]="percent(download.bytes, download.total)"
+              [attr.aria-label]="'updates.phase.download' | translate"
+            >
+              <hlm-progress-indicator />
+            </hlm-progress>
+            <p class="text-xs text-muted-foreground">
+              {{ formatter.bytes(download.bytes) }} / {{ formatter.bytes(download.total) }}
+            </p>
+          }
+        } @else {
+          <h2 class="flex items-center gap-2 text-base font-medium">
+            <ng-icon
+              [name]="job.done.outcome === 'updated' ? 'lucideCircleCheck' : 'lucideCircleAlert'"
+              class="size-5 {{
+                job.done.outcome === 'updated' ? 'text-success' : 'text-destructive'
+              }}"
+              aria-hidden="true"
+            />
+            {{
+              'updates.outcome.' + job.done.outcome
+                | translate: { version: job.done.version, to: job.to }
+            }}
+          </h2>
+          @if (job.done.error) {
+            <p class="text-sm text-muted-foreground">
+              {{ 'updates.error.' + job.done.error | translate }}
+            </p>
+          }
+          <p class="text-xs text-muted-foreground">{{ formatter.dateTime(job.startedAt) }}</p>
+        }
+        @if (job.output.length) {
+          <details>
+            <summary class="cursor-pointer text-sm">{{ 'updates.output' | translate }}</summary>
+            <pre
+              dir="ltr"
+              class="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-2 text-start font-mono text-xs whitespace-pre-wrap"
+              >{{ job.output.join('\n') }}</pre>
+          </details>
+        }
+      </section>
+    }
+
+    @if (status.available; as release) {
+      <section class="grid gap-3 rounded-xl border bg-card p-4">
+        <h2 class="flex items-center gap-2 text-base font-medium">
+          <ng-icon name="lucideCircleArrowUp" class="size-5 text-primary" aria-hidden="true" />
+          {{ 'updates.available' | translate: { version: release.version } }}
+        </h2>
+        @if (release.published) {
+          <p class="text-sm text-muted-foreground">
+            {{ 'updates.published' | translate: { date: formatter.date(release.published) } }}
+          </p>
+        }
+        @if (release.notes) {
+          <pre
+            class="max-h-72 overflow-y-auto rounded-md bg-muted p-3 font-sans text-sm break-words whitespace-pre-wrap"
+            >{{ release.notes }}</pre>
+        }
+        <div>
+          <button
+            hlmBtn
+            [disabled]="store.running() || store.starting() || !status.configured"
+            (click)="confirm()"
+          >
+            {{ 'updates.update' | translate: { version: release.version } }}
+          </button>
+        </div>
+      </section>
+    } @else if (status.configured && !store.running()) {
+      <p class="flex items-center gap-2 text-sm">
+        <ng-icon name="lucideCircleCheck" class="size-5 text-success" aria-hidden="true" />
+        {{ 'updates.upToDate' | translate }}
+      </p>
+    }
+
+    @if (status.checkError) {
+      <p class="text-sm text-destructive">
+        {{ 'updates.checkError.' + status.checkError | translate }}
+      </p>
+    }
+
+    @if (status.configured) {
+      <section class="grid gap-3">
+        <label class="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            class="mt-0.5 size-4"
+            [checked]="status.checkAutomatically"
+            (change)="store.setCheckAutomatically($any($event.target).checked)"
+          />
+          <span class="grid gap-0.5">
+            <span>{{ 'updates.checkAutomatically' | translate }}</span>
+            <span class="text-muted-foreground">{{
+              'updates.checkAutomaticallyHint' | translate
+            }}</span>
+          </span>
+        </label>
+        <div class="flex flex-wrap items-center gap-3">
+          <button hlmBtn variant="outline" [disabled]="store.checking()" (click)="store.check()">
+            {{ 'updates.checkNow' | translate }}
+          </button>
+          @if (status.checkedAt; as checkedAt) {
+            <span class="text-sm text-muted-foreground">
+              {{ 'updates.checkedAt' | translate: { when: formatter.ago(checkedAt) } }}
+            </span>
+          }
+        </div>
+      </section>
+    }
+  } @else if (store.failed()) {
+    <p class="text-sm text-destructive">{{ 'updates.loadFailed' | translate }}</p>
+  } @else {
+    <p class="text-sm text-muted-foreground" role="status">{{ 'updates.loading' | translate }}</p>
+  }
+</div>
+
+<hlm-alert-dialog #confirmDialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @if (status?.available; as release) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle>
+          {{ 'updates.confirm.title' | translate: { version: release.version } }}
+        </h2>
+        <p hlmAlertDialogDescription>{{ 'updates.confirm.text' | translate }}</p>
+      </hlm-alert-dialog-header>
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>{{ 'updates.confirm.cancel' | translate }}</button>
+        <button hlmAlertDialogAction (click)="update(release.version)">
+          {{ 'updates.confirm.confirm' | translate }}
+        </button>
+      </hlm-alert-dialog-footer>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

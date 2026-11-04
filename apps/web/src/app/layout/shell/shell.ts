@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { UpdatesStore } from '../../core/updates/updates-store';
 import { RouterOutlet } from '@angular/router';
 import { HlmSidebarImports } from '@ui/sidebar';
 import { AlertsStore } from '../../core/alerts/alerts-store';
@@ -29,6 +30,8 @@ export class Shell {
     inject(BackupsStore).watch();
     // The open alerts: the bell in the top bar, the dashboard notice.
     inject(AlertsStore).watch();
+    // Laris's own updates: the badge, the dashboard's line, the reload after an update.
+    inject(UpdatesStore).watch();
     // The machine's kernel, for the top bar's status.
     inject(MonitoringStore).loadHost();
     // A Linux session still open (a reload): the top bar shows it.

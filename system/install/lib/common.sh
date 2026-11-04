@@ -10,12 +10,19 @@ die() {
 }
 
 # Asks before changing the system outside our own files (installing packages); --yes answers.
+# An update from the app installs nothing: it stops before anything changed.
 confirm() {
+  if [[ "$UPDATE" == 1 ]]; then die "Needed first: $1 — an update from Laris installs no programs; update by hand (get-laris.sh) or install it, then update again"; fi
   if [[ "$ASSUME_YES" == 1 ]]; then return 0; fi
   if [[ ! -t 0 ]]; then die "$1 — run again with --yes to agree without being asked"; fi
   local answer
   read -r -p "    $1 [y/N] " answer
   [[ "$answer" == y || "$answer" == Y ]]
+}
+
+# Progress for laris-update (an update from the app), which reads the @@ lines.
+marker() {
+  if [[ "$UPDATE" == 1 ]]; then printf '@@%s\n' "$*"; fi
 }
 
 # Writes stdin to a file atomically: a temporary file beside it, owner and mode set first, then

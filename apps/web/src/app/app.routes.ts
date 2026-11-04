@@ -121,6 +121,12 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'settings/updates',
+        title: 'pages.updates',
+        loadComponent: () =>
+          import('./features/settings/updates-page/updates-page').then((m) => m.UpdatesPage),
+      },
+      {
         path: 'profile',
         title: 'pages.profile',
         loadComponent: () =>

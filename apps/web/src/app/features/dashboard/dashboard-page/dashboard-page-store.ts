@@ -23,6 +23,7 @@ import {
 import { ActivityApi } from '../../../core/activity/activity-api';
 import { alertTitle } from '../../../core/alerts/alert-wording';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
+import { UpdatesStore } from '../../../core/updates/updates-store';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
@@ -85,6 +86,7 @@ export const DashboardPageStore = signalStore(
       appsStore = inject(AppsStore),
       backupsStore = inject(BackupsStore),
       alertsStore = inject(AlertsStore),
+      updatesStore = inject(UpdatesStore),
       containerActionsStore = inject(ContainerActionsStore),
       realtimeService = inject(RealtimeService),
       formatter = inject(Formatter),
@@ -128,6 +130,8 @@ export const DashboardPageStore = signalStore(
         /** Some unit doesn't know yet: the sentence waits instead of saying all is well. */
         checking: computed(() => units().some((unit) => unit.text.key === LOADING_KEY)),
         alertCount: computed(() => alertsStore.open().length),
+        /** A newer Laris to update to: one line under the headline, not an alert. */
+        updateAvailable: computed(() => updatesStore.available()?.version ?? null),
         live: computed(() => realtimeService.status() === 'live'),
         appsLoaded: computed(() => apps() !== null),
         apps: computed(() => appTiles(apps() ?? [], containers(), containerActionsStore.pending())),

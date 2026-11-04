@@ -257,3 +257,39 @@ model AlertChannel {
   lastProblemAt DateTime? @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
 }
+
+/// Laris's own updates (docs/plans/install_and_update.md): the switch and the last check — one
+/// row, id 1. The release found is kept only while it's newer than the installed version.
+model UpdateCheck {
+  id                 Int       @id @default(1)
+  checkAutomatically Boolean   @default(true)
+  checkedAt          DateTime? @db.Timestamptz(3)
+  /// An UPDATE_CHECK_ERRORS code: the last check found nothing usable.
+  checkError         String?
+  /// The newest release's publishing date, whatever its version (a stale folder shows).
+  newestPublished    String?
+  availableVersion   String?
+  availablePublished String?
+  /// Plain text, never rendered as HTML.
+  availableNotes     String?
+}
+
+/// An update started from the app: who started it, and its result once laris-update wrote it —
+/// read from its job file, also after the app's own restart. Written before the installer's
+/// database dump, so a rollback keeps it.
+model UpdateRun {
+  id          String    @id @db.Uuid
+  fromVersion String
+  toVersion   String
+  /// No relation to User, like the audit log; the username is a snapshot.
+  userId      String    @db.Uuid
+  username    String
+  ip          String?
+  startedAt   DateTime  @default(now()) @db.Timestamptz(3)
+  finishedAt  DateTime? @db.Timestamptz(3)
+  /// An UPDATE_OUTCOMES value.
+  outcome     String?
+  error       String?
+
+  @@index([startedAt])
+}

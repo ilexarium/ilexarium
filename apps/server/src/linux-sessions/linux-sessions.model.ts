@@ -37,7 +37,7 @@ export type HelperRequest =
   | { action: 'journal.boots'; administrator: boolean }
   | {
       action: 'root.run';
-      program: 'backup' | 'disk';
+      program: 'backup' | 'disk' | 'update';
       /** The program's own action. */
       command: string;
       input: string;

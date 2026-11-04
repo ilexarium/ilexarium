@@ -5,6 +5,7 @@ APP_USER=laris
 OPT=/opt/laris
 ETC=/etc/laris
 VAR=/var/lib/laris
+PREVIOUS=$OPT/previous
 
 # A system user without a login shell. Its home, the only folder it may write, is
 # /var/lib/laris/app: /var/lib/laris itself is root's, so the app can't swap the backups'
@@ -28,6 +29,7 @@ ensure_folders() {
   ensure_dir "$VAR" root:root 0755
   ensure_dir "$VAR/app" "$APP_USER:$APP_USER" 0700
   ensure_dir "$VAR/backups" "root:$APP_USER" 0750
+  ensure_dir "$VAR/updates" "root:$APP_USER" 0750
   ensure_dir "$VAR/install-backups" root:root 0700
 }
 
@@ -90,6 +92,58 @@ enable_lingering() {
   info "lingering: on for $person"
 }
 
+# An update keeps the machine's HTTPS choice (the first install's): it decides TRUST_PROXY. Installed
+# before release.env existed: app.env tells (Tailscale is the proxy on loopback).
+keep_https_choice() {
+  if [[ "$UPDATE" != 1 ]]; then return; fi
+  local https
+  https="$(read_setting "$ETC/release.env" HTTPS)"
+  if [[ -z "$https" ]]; then
+    https=none
+    if [[ "$(read_setting "$ETC/app.env" TRUST_PROXY)" == loopback ]]; then https=tailscale; fi
+  fi
+  if [[ "$https" == tailscale ]]; then USE_TAILSCALE=1; else USE_TAILSCALE=0; fi
+}
+
+# Where updates come from and the key they're checked with: the release's own, written on every
+# install and update (a release built without them can't update itself). laris-update checks a new
+# release with the installed key, so a new key only arrives signed by the old one.
+write_release_settings() {
+  local url='' https=none
+  if [[ -f "$RELEASE/release.env" ]]; then url="$(read_setting "$RELEASE/release.env" RELEASE_URL)"; fi
+  if [[ "$USE_TAILSCALE" == 1 ]]; then https=tailscale; fi
+  printf 'RELEASE_URL=%s\nHTTPS=%s\n' "$url" "$https" | write_file "$ETC/release.env" root:root 0644
+  if [[ -n "$url" && -f "$RELEASE/release.pub" ]]; then
+    write_file "$ETC/release.pub" root:root 0644 <"$RELEASE/release.pub"
+  else
+    rm -f "$ETC/release.pub"
+  fi
+}
+
+# Before an update changes anything: the installed version as it is — the way back
+# (laris-update puts it back if the new one doesn't start). The release's folders whole, the
+# files it writes elsewhere with their paths; VERSION last, so a kept copy without it is unfinished.
+keep_previous() {
+  log "Keeping $OLD_VERSION (the way back)"
+  local kept="$PREVIOUS.new" dir file
+  rm -rf "$kept"
+  mkdir -p "$kept/files"
+  for dir in app libexec catalog platform; do
+    if [[ -d "$OPT/$dir" ]]; then cp -a "$OPT/$dir" "$kept/$dir"; fi
+  done
+  for file in /etc/systemd/system/laris*.service /etc/systemd/system/laris*.timer \
+    "$ETC"/{version,app.env,platform.env,wrappers.json,release.env,release.pub} \
+    "$OPT/backup-recovery.md" /etc/tmpfiles.d/laris.conf /etc/ssh/sshd_config.d/laris.conf \
+    /usr/local/bin/laris-setup-code; do
+    if [[ -f "$file" ]]; then cp -a --parents "$file" "$kept/files/"; fi
+  done
+  printf '%s\n' "$OLD_VERSION" >"$kept/VERSION"
+  chmod 0700 "$kept"
+  rm -rf "$PREVIOUS"
+  mv "$kept" "$PREVIOUS"
+  info "$PREVIOUS"
+}
+
 # Settings: passwords and the master key made once and kept; everything else written each time.
 write_settings() {
   log 'Settings'
@@ -133,6 +187,7 @@ CONF
       protectedPaths: ["/opt/laris", "/etc/laris", "/var/lib/laris"],
       dockerBin: "/usr/bin/docker",
       disk: { systemctlBin: "/usr/bin/systemctl" },
+      update: { appGid: Number(process.env.APP_GID) },
       backup: {
         borgBin: process.env.BORG_BIN,
         systemctlBin: "/usr/bin/systemctl",

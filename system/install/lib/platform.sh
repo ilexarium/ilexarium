@@ -42,6 +42,7 @@ backup_database() {
   mv -f "$tmp" "$dump"
   DATABASE_BACKUP="$dump"
   info "$DATABASE_BACKUP"
+  marker dump "$DATABASE_BACKUP"
 }
 
 # The app's own role may only read and write data: no tables made or dropped, no migrations.
@@ -110,6 +111,11 @@ start_app() {
 
 # HTTPS in front of the app, through Tailscale (the session cookie needs HTTPS).
 setup_https() {
+  if [[ "$UPDATE" == 1 ]]; then
+    PUBLIC_URL=''
+    info 'HTTPS: left as it is (an update)'
+    return
+  fi
   if [[ "$USE_TAILSCALE" != 1 ]]; then
     PUBLIC_URL='http://localhost:3000'
     warn 'Without Tailscale: the app is reachable only on this machine (http://localhost:3000)'
@@ -140,7 +146,7 @@ print_result() {
     info "    $PUBLIC_URL/setup#token=$token"
     info ''
     info 'Lost it? sudo laris-setup-code'
-  else
+  elif [[ -n "$PUBLIC_URL" ]]; then
     info "Open $PUBLIC_URL"
   fi
   if [[ -n "${DATABASE_BACKUP:-}" ]]; then info "Database before the update: $DATABASE_BACKUP"; fi

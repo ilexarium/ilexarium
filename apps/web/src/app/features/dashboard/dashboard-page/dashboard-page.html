@@ -16,6 +16,13 @@
         >{{ 'dashboard.headline.alerts' | plural: store.alertCount() }}</a
       >
     }
+    @if (store.updateAvailable(); as version) {
+      <a
+        routerLink="/settings/updates"
+        class="justify-self-start rounded-sm text-sm font-medium text-accent-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+        >{{ 'dashboard.headline.update' | translate: { version } }}</a
+      >
+    }
   </div>
 
   @if (store.system(); as system) {

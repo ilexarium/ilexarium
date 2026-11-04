@@ -35,7 +35,7 @@ function start(entry: string) {
   return { code: result.status, out: result.stdout.toString() };
 }
 
-describe.each(['laris-backup.mts', 'laris-disk.mts'])('%s', (entry) => {
+describe.each(['laris-backup.mts', 'laris-disk.mts', 'laris-update.mts'])('%s', (entry) => {
   const area = entry.slice('laris-'.length, -'.mts'.length);
 
   it('loads its modules when only their owner can change them', () => {

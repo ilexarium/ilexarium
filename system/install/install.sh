@@ -8,21 +8,25 @@
 #
 #   --yes            install missing programs (Node.js, Docker, Tailscale, Borg) without asking
 #   --no-tailscale   no HTTPS: the app is reachable only on this machine (tests)
+#   --update         an update from the app (laris-update): installs no programs, leaves HTTPS
+#                    as it is, asks nothing, prints its progress as @@ lines
 #
 # Every step checks first and changes only what's missing or outdated: running it again is safe.
-# It never deletes a user's data. Design: docs/plans/installer.md.
+# It never deletes a user's data. Design: docs/plans/installer.md, install_and_update.md.
 set -euo pipefail
 umask 0022
 
 RELEASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSUME_YES=0
 USE_TAILSCALE=1
+UPDATE=0
 for arg in "$@"; do
   case "$arg" in
     --yes) ASSUME_YES=1 ;;
     --no-tailscale) USE_TAILSCALE=0 ;;
+    --update) UPDATE=1 ;;
     -h | --help)
-      sed -n '2,14s/^# \{0,1\}//p' "$0"
+      sed -n '2,16s/^# \{0,1\}//p' "$0"
       exit 0
       ;;
     *)
@@ -48,24 +52,35 @@ LIB="$RELEASE/system/install/lib"
 
 check_machine
 check_version
+keep_https_choice
 ensure_packages
+marker phase checked
 ensure_user
 ensure_folders
+if [[ -n "$OLD_VERSION" ]]; then
+  keep_previous
+  marker phase saved
+fi
 write_settings
+write_release_settings
 if [[ -n "$OLD_VERSION" ]]; then
   # The app stops first: nothing writes to the database while it's backed up and migrated.
   systemctl stop laris.service 2>/dev/null || true
+  marker phase stopped
 fi
 install_platform_files
 start_platform
 backup_database
 # Migrated from the new release before it replaces the old: a failure leaves the old one.
 migrate_database
+marker phase migrated
 install_release
+marker phase installed
 setup_ssh_login
 enable_lingering
 setup_https
 start_app
+marker phase started
 check_setup
 printf '%s\n' "$NEW_VERSION" | write_file "$ETC/version" root:root 0644
 print_result

@@ -5,6 +5,7 @@ import type {
   BackupSchedule,
   DiskErrorCode,
   PublicUser,
+  UpdateErrorCode,
 } from '@laris/shared';
 
 /** The root programs' config file (the same one they read, as root, in production). */
@@ -18,6 +19,13 @@ export interface ProgramConfig {
   backup?: ProgramBackupConfig;
   /** The disk program's part; missing until the installer (or development) adds it. */
   disk?: ProgramDiskConfig;
+  /** The update program's part: the app's group (production); a pretend machine (development). */
+  update?: ProgramUpdateConfig;
+}
+
+export interface ProgramUpdateConfig {
+  appGid?: number;
+  dev?: { root: string; bin: string; healthUrl: string };
 }
 
 export interface ProgramDiskConfig {
@@ -86,10 +94,11 @@ export type BackupOutcome<T> =
   { ok: true; result: T } | { ok: false; code: BackupErrorCode; result: T | null };
 
 export type DiskOutcome<T> = { ok: true; result: T } | { ok: false; code: DiskErrorCode };
+export type UpdateStartOutcome = { ok: true } | { ok: false; code: UpdateErrorCode };
 
 /** How a program's run is read: its `@@error` codes and the codes for the cases every run has. */
 export interface ProgramKind<Code extends string> {
-  name: 'backup' | 'disk';
+  name: 'backup' | 'disk' | 'update';
   codes: Record<string, Code>;
   /** It ran and failed without saying why. */
   failed: Code;

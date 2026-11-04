@@ -7,7 +7,12 @@ import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
 import type { Env } from '../config/env.schema.js';
 import { withDevelopmentDisks } from './development-disks.js';
-import type { ProgramBackupConfig, ProgramConfig } from './root-programs.model.js';
+import { LARIS_VERSION } from '../common/laris-version.js';
+import type {
+  ProgramBackupConfig,
+  ProgramConfig,
+  ProgramUpdateConfig,
+} from './root-programs.model.js';
 
 const absolute = z.string().startsWith('/');
 const backupConfigSchema = z.object({
@@ -37,6 +42,10 @@ const diskConfigSchema = z.object({
     .object({ root: absolute, mountRoot: absolute, unitDir: absolute, backupPlan: absolute })
     .optional(),
 });
+const updateConfigSchema = z.object({
+  appGid: z.number().int().optional(),
+  dev: z.object({ root: absolute, bin: absolute, healthUrl: z.string() }).optional(),
+});
 const programConfigSchema = z.object({
   reservedPorts: z.array(z.number().int()),
   protectedPaths: z.array(absolute),
@@ -45,6 +54,7 @@ const programConfigSchema = z.object({
   home: absolute.optional(),
   backup: backupConfigSchema.optional(),
   disk: diskConfigSchema.optional(),
+  update: updateConfigSchema.optional(),
 });
 
 /**
@@ -92,6 +102,26 @@ export class ProgramConfigService implements OnModuleInit {
       await writeFile(this.file, `${JSON.stringify(this.loaded, null, 2)}\n`, { mode: 0o600 });
       this.logger.warn(`Added a development disk config (pretend disks) to ${this.file}`);
     }
+    if (!this.production && !this.loaded.update) {
+      this.loaded = { ...this.loaded, update: await this.developmentUpdateConfig() };
+      await writeFile(this.file, `${JSON.stringify(this.loaded, null, 2)}\n`, { mode: 0o600 });
+      this.logger.warn(`Added a development update config (a pretend machine) to ${this.file}`);
+    }
+  }
+
+  /**
+   * Development updates: laris-update against a pretend machine under .dev/update — its
+   * etc/laris holds the installed version, and release.env and release.pub once a developer puts
+   * a test release folder there. Its programs folder is empty on purpose: an update gets as far
+   * as unpacking, then fails without touching this machine.
+   */
+  private async developmentUpdateConfig(): Promise<ProgramUpdateConfig> {
+    const root = resolve(dirname(this.file), 'update');
+    const bin = resolve(root, 'bin');
+    await mkdir(resolve(root, 'etc/laris'), { recursive: true, mode: 0o700 });
+    await mkdir(bin, { recursive: true, mode: 0o700 });
+    await writeFile(resolve(root, 'etc/laris/version'), `${LARIS_VERSION}\n`);
+    return { dev: { root, bin, healthUrl: `http://127.0.0.1:${this.port}/api/health` } };
   }
 
   /**

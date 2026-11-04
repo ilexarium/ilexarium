@@ -18,6 +18,8 @@ mkdir -p "$R"
 rm -rf "$R/root" && mkdir -p "$R/root/apps/server"
 for d in catalog system node_modules; do ln -s "$P/$d" "$R/root/$d"; done
 cp "$P/apps/server/package.json" "$R/root/apps/server/"
+# Laris's version is the root package's (the server reads it, like an installed release).
+cp "$P/package.json" "$R/root/"
 (cd "$P" && npm run build:shared >/dev/null && npm run prisma:generate -w @laris/server >/dev/null)
 # The test database's schema up to date (only ever laris_test here — never the dev database).
 (cd "$P/apps/server" && DATABASE_URL='postgresql://laris:laris-dev@127.0.0.1:5432/laris_test' npx prisma migrate deploy >/dev/null)

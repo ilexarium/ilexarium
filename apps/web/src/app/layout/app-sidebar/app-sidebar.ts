@@ -3,6 +3,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmSidebarImports } from '@ui/sidebar';
+import { UpdatesStore } from '../../core/updates/updates-store';
 import { AlertsStore } from '../../core/alerts/alerts-store';
 import { BackupsStore } from '../../core/backups/backups-store';
 import { LanguageService } from '../../core/i18n/language';
@@ -28,9 +29,11 @@ export class AppSidebar {
   protected readonly rtl = computed(() => this.languageService.dir() === 'rtl');
   private readonly backups = inject(BackupsStore);
   private readonly alerts = inject(AlertsStore);
+  private readonly updatesStore = inject(UpdatesStore);
   /** Parts of the app that need attention: a badge beside their entry. */
   protected readonly attention = computed(() => ({
     backups: this.backups.warnings().length,
     alerts: this.alerts.open().length,
+    updates: this.updatesStore.available() ? 1 : 0,
   }));
 }
