@@ -54,10 +54,10 @@ describe('DiskList', () => {
     expect(full.querySelector('hlm-progress-indicator')!.className).toContain('bg-destructive');
   });
 
-  it('links to freeing Docker’s unused data only while a disk is filling up', async () => {
+  it('links to freeing Docker’s unused data only while the system disk is filling up', async () => {
     const link = (el: HTMLElement) =>
       [...el.querySelectorAll('a')].find((a) => a.textContent?.trim() === 'Free space');
-    expect(link((await render([disk('/', 79)])).el)).toBeUndefined();
+    expect(link((await render([disk('/', 79), disk('/mnt/usb', 95)])).el)).toBeUndefined();
     TestBed.resetTestingModule();
     const free = link((await render([disk('/', 85)])).el)!;
     expect(free.getAttribute('href')).toBe('/containers#free-space');

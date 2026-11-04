@@ -105,8 +105,15 @@ export const ContainersPageStore = signalStore(
             dockerCleanupApi.overview().pipe(
               tap((cleanup) => {
                 patchState(store, { cleanup });
-                if (cleanup.volumes.length > 0) loadVolumeSizes();
-                else patchState(store, { volumeSizes: {} });
+                // Counted again only for a volume it doesn't know: a delete or a prune keeps them.
+                const names = cleanup.volumes.map((volume) => volume.name);
+                const sizes = store.volumeSizes();
+                if (names.length === 0) patchState(store, { volumeSizes: {} });
+                else if (sizes && names.every((name) => name in sizes)) {
+                  patchState(store, {
+                    volumeSizes: Object.fromEntries(names.map((name) => [name, sizes[name]])),
+                  });
+                } else loadVolumeSizes();
               }),
               catchError(() => {
                 patchState(store, { cleanup: null });
@@ -129,10 +136,11 @@ export const ContainersPageStore = signalStore(
           if (store.pruning()) return;
           patchState(store, { pruning: true });
           try {
-            const { bytesFreed } = await firstValueFrom(dockerCleanupApi.prune());
-            toast.success(
-              translator.t('containers.freeSpace.freed', { size: formatter.bytes(bytesFreed) }),
-            );
+            const { bytesFreed, buildCacheFailed } = await firstValueFrom(dockerCleanupApi.prune());
+            const size = formatter.bytes(bytesFreed);
+            if (buildCacheFailed) {
+              toast.warning(translator.t('containers.freeSpace.freedNotCache', { size }));
+            } else toast.success(translator.t('containers.freeSpace.freed', { size }));
           } catch (error) {
             toast.error(translator.t('containers.freeSpace.pruneFailed'), {
               description: translator.t(...apiErrorText(error)),

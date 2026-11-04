@@ -110,20 +110,27 @@ export class DockerCleanupService {
     // Throws if it can't be written: then nothing happens.
     await this.auditService.record(entry('requested'));
 
-    const result: DockerPruneResult = { bytesFreed: 0, images: 0 };
+    const result = { bytesFreed: 0, images: 0 };
     try {
       const images = await this.dockerControl.pruneImages();
-      result.bytesFreed += images.bytesFreed;
+      result.bytesFreed = images.bytesFreed;
       result.images = new Set(
         images.deleted
           .map((id) => id.replace(/^sha256:/, '').slice(0, 12))
           .filter((id) => unused.has(id)),
       ).size;
-      result.bytesFreed += (await this.dockerControl.pruneBuildCache()).bytesFreed;
     } catch (failure) {
       const code = codeOf(failure);
-      await this.auditService.tryRecord(entry('failure', { ...result, reason: code }));
+      await this.auditService.tryRecord(entry('failure', { reason: code }));
       throw refusal(code);
+    }
+    try {
+      result.bytesFreed += (await this.dockerControl.pruneBuildCache()).bytesFreed;
+    } catch (failure) {
+      // The images are gone: say what was freed, and that the cache wasn't.
+      const code = codeOf(failure);
+      await this.auditService.tryRecord(entry('failure', { ...result, reason: code }));
+      return { ...result, buildCacheFailed: true };
     }
     await this.auditService.tryRecord(entry('success', { ...result }));
     return result;
@@ -174,12 +181,8 @@ export class DockerCleanupService {
    */
   private async protectionCheck(name: string): Promise<DockerCleanupErrorCode | null> {
     try {
-      const [volumes, own] = await Promise.all([
-        this.dockerService.unusedVolumes(),
-        this.dockerService.protectedProjects(),
-      ]);
-      const volume = volumes.find((v) => v.name === name);
-      return volume?.composeProject && own.has(volume.composeProject)
+      const { platform } = await this.unusedVolumes();
+      return platform.some((volume) => volume.name === name)
         ? DOCKER_CLEANUP_ERROR_CODES.volumeProtected
         : null;
     } catch {
@@ -188,10 +191,17 @@ export class DockerCleanupService {
   }
 
   private async ownVolumesLeftOut(): Promise<DockerVolume[]> {
+    return (await this.unusedVolumes()).others;
+  }
+
+  /** Unused volumes: the platform's own (its protected containers' Compose projects) and the others. */
+  private async unusedVolumes(): Promise<{ platform: DockerVolume[]; others: DockerVolume[] }> {
     const [volumes, own] = await Promise.all([
       this.dockerService.unusedVolumes(),
       this.dockerService.protectedProjects(),
     ]);
-    return volumes.filter((volume) => !volume.composeProject || !own.has(volume.composeProject));
+    const isPlatform = (volume: DockerVolume) =>
+      volume.composeProject !== null && own.has(volume.composeProject);
+    return { platform: volumes.filter(isPlatform), others: volumes.filter((v) => !isPlatform(v)) };
   }
 }

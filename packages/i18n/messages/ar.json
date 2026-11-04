@@ -606,6 +606,7 @@
       "deleteVolume": "حذف وحدة التخزين {{name}}",
       "cancel": "إلغاء",
       "freed": "تم تحرير {{size}}",
+      "freedNotCache": "تم تحرير {{size}}، لكن تعذّر إفراغ ذاكرة البناء المؤقتة",
       "pruneFailed": "تعذّر تحرير المساحة",
       "volumeDeleted": "تم حذف وحدة التخزين {{name}}",
       "volumeFailed": "تعذّر حذف وحدة التخزين {{name}}",

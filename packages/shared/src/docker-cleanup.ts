@@ -52,10 +52,14 @@ export const volumeSizesSchema = z.object({
 });
 export type VolumeSizes = z.infer<typeof volumeSizesSchema>;
 
-/** `POST /api/docker/cleanup/prune`: unused images and the build cache removed. */
+/**
+ * `POST /api/docker/cleanup/prune`: unused images and the build cache removed. The images gone but
+ * the cache not: still the answer (what was freed), with `buildCacheFailed`.
+ */
 export const dockerPruneResultSchema = z.object({
   bytesFreed: z.number().int().nonnegative(),
   images: z.number().int().nonnegative(),
+  buildCacheFailed: z.literal(true).optional(),
 });
 export type DockerPruneResult = z.infer<typeof dockerPruneResultSchema>;
 
