@@ -1,14 +1,54 @@
 import { computed, inject } from '@angular/core';
-import { signalStore, withComputed, withHooks, withMethods } from '@ngrx/signals';
-import type { ContainerActionParams } from '@laris/shared';
+import {
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import type { ContainerActionParams, DockerCleanup } from '@laris/shared';
+import { toast } from '@spartan-ng/brain/sonner';
+import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
+import { DockerCleanupApi } from '../../../core/containers/docker-cleanup-api';
+import { Translator } from '../../../core/i18n/translator';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
+import { Formatter } from '../../../shared/format/formatter';
+import { apiErrorText } from '../../../shared/forms/submission-errors';
 import { groupByApp, needsAttention } from '../container-groups';
 import { headline } from '../../../shared/headline/headline';
 import type { Headline } from '../../../shared/headline/headline.model';
 import type { ContainerGroup } from '../containers.model';
 
+interface ContainersPageState {
+  /** What Docker keeps unused; null until it's read (or when it couldn't be). */
+  cleanup: DockerCleanup | null;
+  /** Volume sizes by name; null while Docker counts them. */
+  volumeSizes: Record<string, number | null> | null;
+  /** The sizes couldn't be counted. */
+  volumeSizesFailed: boolean;
+  /** Unused images and the build cache are being removed. */
+  pruning: boolean;
+  /** Volumes being deleted. */
+  removing: string[];
+}
+
+const initialState: ContainersPageState = {
+  cleanup: null,
+  volumeSizes: null,
+  volumeSizesFailed: false,
+  pruning: false,
+  removing: [],
+};
+
+/**
+ * The Containers page's data: the containers (the `containers` topic, through the monitoring
+ * store), their actions, and Docker's unused data with freeing it (docs/plans/docker_cleanup.md).
+ */
 export const ContainersPageStore = signalStore(
+  withState<ContainersPageState>(initialState),
   withComputed(
     (
       _,
@@ -35,16 +75,100 @@ export const ContainersPageStore = signalStore(
       }),
     }),
   ),
-  withMethods((_, containerActionsStore = inject(ContainerActionsStore)) => ({
-    act(request: ContainerActionParams): void {
-      void containerActionsStore.run(request);
+  withMethods(
+    (
+      store,
+      containerActionsStore = inject(ContainerActionsStore),
+      dockerCleanupApi = inject(DockerCleanupApi),
+      translator = inject(Translator),
+      formatter = inject(Formatter),
+    ) => {
+      // The latest wins: a reload after freeing space replaces one still on its way.
+      const loadVolumeSizes = rxMethod<void>(
+        pipe(
+          tap(() => patchState(store, { volumeSizes: null, volumeSizesFailed: false })),
+          switchMap(() =>
+            dockerCleanupApi.volumeSizes().pipe(
+              tap(({ sizes }) => patchState(store, { volumeSizes: sizes })),
+              catchError(() => {
+                patchState(store, { volumeSizesFailed: true });
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      );
+      // Without Docker the card stays away: the table says Docker isn't reachable.
+      const loadCleanup = rxMethod<void>(
+        pipe(
+          switchMap(() =>
+            dockerCleanupApi.overview().pipe(
+              tap((cleanup) => {
+                patchState(store, { cleanup });
+                if (cleanup.volumes.length > 0) loadVolumeSizes();
+                else patchState(store, { volumeSizes: {} });
+              }),
+              catchError(() => {
+                patchState(store, { cleanup: null });
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      );
+
+      return {
+        loadCleanup,
+
+        act(request: ContainerActionParams): void {
+          void containerActionsStore.run(request);
+        },
+
+        /** Every unused image and the build cache (already confirmed). */
+        async prune(): Promise<void> {
+          if (store.pruning()) return;
+          patchState(store, { pruning: true });
+          try {
+            const { bytesFreed } = await firstValueFrom(dockerCleanupApi.prune());
+            toast.success(
+              translator.t('containers.freeSpace.freed', { size: formatter.bytes(bytesFreed) }),
+            );
+          } catch (error) {
+            toast.error(translator.t('containers.freeSpace.pruneFailed'), {
+              description: translator.t(...apiErrorText(error)),
+            });
+          } finally {
+            patchState(store, { pruning: false });
+            loadCleanup();
+          }
+        },
+
+        /** One volume no container uses (already confirmed). */
+        async removeVolume(name: string): Promise<void> {
+          if (store.removing().includes(name)) return;
+          patchState(store, { removing: [...store.removing(), name] });
+          const params = { name: formatter.machine(name) };
+          try {
+            await firstValueFrom(dockerCleanupApi.removeVolume(name));
+            toast.success(translator.t('containers.freeSpace.volumeDeleted', params));
+          } catch (error) {
+            toast.error(translator.t('containers.freeSpace.volumeFailed', params), {
+              description: translator.t(...apiErrorText(error)),
+            });
+          } finally {
+            patchState(store, { removing: store.removing().filter((n) => n !== name) });
+            loadCleanup();
+          }
+        },
+      };
     },
-  })),
-  withHooks((_, monitoringStore = inject(MonitoringStore)) => {
+  ),
+  withHooks((store, monitoringStore = inject(MonitoringStore)) => {
     let stop: (() => void) | null = null;
     return {
       onInit() {
         stop = monitoringStore.watch(['containers']);
+        store.loadCleanup();
       },
       onDestroy() {
         stop?.();

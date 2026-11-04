@@ -1,11 +1,21 @@
 <section hlmCard class="h-full" aria-labelledby="storage-title">
   <div hlmCardHeader class="flex flex-row flex-wrap items-baseline justify-between gap-3">
     <h2 hlmCardTitle id="storage-title">{{ 'dashboard.storage.title' | translate }}</h2>
-    <a
-      routerLink="/disks"
-      class="rounded-sm text-sm font-medium text-accent-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-      >{{ 'dashboard.storage.manage' | translate }}</a
-    >
+    <div class="flex flex-wrap gap-x-4 gap-y-1">
+      @if (filling()) {
+        <a
+          routerLink="/containers"
+          fragment="free-space"
+          class="rounded-sm text-sm font-medium text-accent-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+          >{{ 'dashboard.storage.freeSpace' | translate }}</a
+        >
+      }
+      <a
+        routerLink="/disks"
+        class="rounded-sm text-sm font-medium text-accent-foreground underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+        >{{ 'dashboard.storage.manage' | translate }}</a
+      >
+    </div>
   </div>
   <div hlmCardContent>
     @if (rows().length === 0) {

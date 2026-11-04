@@ -38,6 +38,11 @@
     <a hlmBtn variant="outline" size="sm" [routerLink]="link().link">{{
       link().label | translate
     }}</a>
+    @if (freesSpace()) {
+      <a hlmBtn variant="outline" size="sm" routerLink="/containers" fragment="free-space">{{
+        'alerts.action.freeSpace' | translate
+      }}</a>
+    }
     @if (!alert().acknowledgedAt) {
       <button
         hlmBtn

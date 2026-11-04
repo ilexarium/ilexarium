@@ -4,6 +4,17 @@
       {{ headline.key | plural: headline.count : { total: headline.total } }}
     </p>
   }
+  @if (store.cleanup(); as cleanup) {
+    <laris-free-space
+      [cleanup]="cleanup"
+      [volumeSizes]="store.volumeSizes()"
+      [volumeSizesFailed]="store.volumeSizesFailed()"
+      [pruning]="store.pruning()"
+      [removing]="store.removing()"
+      (prune)="store.prune()"
+      (removeVolume)="store.removeVolume($event)"
+    />
+  }
   <laris-containers-table
     [containers]="store.containers()"
     [groups]="store.groups()"

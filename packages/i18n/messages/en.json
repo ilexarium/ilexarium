@@ -271,7 +271,12 @@
     "service_action_failed": "systemd couldn’t do it. The service’s state and its log say why.",
     "service_timed_out": "It’s still in progress. Look at the service’s state in a moment.",
     "services_unavailable": "systemd couldn’t be asked for the services.",
-    "journal_unavailable": "The journal can’t be read right now. Try again in a moment."
+    "journal_unavailable": "The journal can’t be read right now. Try again in a moment.",
+    "changes_underway": "Apps are being changed right now (a backup, a restore or an app task). Try again in a few minutes.",
+    "volume_protected": "This volume belongs to Laris itself and can’t be deleted here.",
+    "volume_in_use": "A container uses this volume. Remove the container first.",
+    "volume_not_found": "This volume doesn’t exist any more.",
+    "cleanup_failed": "Docker couldn’t free the space. Try again later."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -406,7 +411,8 @@
       "full": "Almost full",
       "free": "{{size}} free",
       "spaceUsedOn": "Space used on {{mount}}",
-      "usage": "{{used}} of {{size}} used ({{percent}})"
+      "usage": "{{used}} of {{size}} used ({{percent}})",
+      "freeSpace": "Free space"
     },
     "activity": {
       "title": "Recent activity",
@@ -522,6 +528,42 @@
       "start": "{{name}} only partly started",
       "stop": "{{name}} only partly stopped",
       "restart": "{{name}} only partly restarted"
+    },
+    "freeSpace": {
+      "title": "Free space",
+      "description": "What Docker keeps that nothing uses.",
+      "nothing": "Docker keeps nothing unused right now.",
+      "images_one": "One unused image",
+      "images_other": "{{count}} unused images",
+      "buildCache": "And {{size}} of build cache",
+      "free": "Free {{size}}",
+      "freeing": "Freeing space…",
+      "volumes_one": "One volume no container uses",
+      "volumes_other": "{{count}} volumes no container uses",
+      "volumesHelp": "An app that was removed may have left its data here. Delete only what you no longer need.",
+      "volumeApp": "Made for",
+      "volumeAnonymous": "Made by a container, without a name",
+      "volumeNoApp": "No app",
+      "calculating": "Calculating size…",
+      "sizeUnknown": "Size unknown",
+      "delete": "Delete",
+      "deleteVolume": "Delete volume {{name}}",
+      "cancel": "Cancel",
+      "freed": "Freed {{size}}",
+      "pruneFailed": "Space couldn’t be freed",
+      "volumeDeleted": "Volume {{name}} deleted",
+      "volumeFailed": "Volume {{name}} couldn’t be deleted",
+      "pruneDialog": {
+        "title": "Free {{size}}?",
+        "text": "These images and the build cache are removed. Docker downloads an image again when an app needs it.",
+        "cache": "Build cache",
+        "confirm": "Free space"
+      },
+      "volumeDialog": {
+        "title": "Delete volume",
+        "text": "Its files are deleted for good and can’t be restored unless a backup has them.",
+        "confirm": "Delete volume"
+      }
     }
   },
   "logs": {
@@ -1047,7 +1089,8 @@
     "action": {
       "logs": "Show logs",
       "disks": "Open disks",
-      "backups": "Open backups"
+      "backups": "Open backups",
+      "freeSpace": "Free space"
     },
     "delivery": {
       "title": "A message couldn't be sent",

@@ -271,7 +271,12 @@
     "service_action_failed": "systemd konnte es nicht ausführen. Der Zustand des Dienstes und sein Protokoll sagen, warum.",
     "service_timed_out": "Es läuft noch. Sieh dir den Zustand des Dienstes gleich noch einmal an.",
     "services_unavailable": "systemd konnte nicht nach den Diensten gefragt werden.",
-    "journal_unavailable": "Das Journal kann gerade nicht gelesen werden. Versuche es gleich noch einmal."
+    "journal_unavailable": "Das Journal kann gerade nicht gelesen werden. Versuche es gleich noch einmal.",
+    "changes_underway": "Gerade werden Apps geändert (ein Backup, eine Wiederherstellung oder eine App-Aufgabe). Versuche es in ein paar Minuten erneut.",
+    "volume_protected": "Dieses Volume gehört zu Laris selbst und kann hier nicht gelöscht werden.",
+    "volume_in_use": "Ein Container nutzt dieses Volume. Entferne zuerst den Container.",
+    "volume_not_found": "Dieses Volume gibt es nicht mehr.",
+    "cleanup_failed": "Docker konnte den Speicher nicht freigeben. Versuche es später erneut."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -406,7 +411,8 @@
       "full": "Fast voll",
       "free": "{{size}} frei",
       "spaceUsedOn": "Belegter Platz auf {{mount}}",
-      "usage": "{{used}} von {{size}} belegt ({{percent}})"
+      "usage": "{{used}} von {{size}} belegt ({{percent}})",
+      "freeSpace": "Speicher freigeben"
     },
     "activity": {
       "title": "Letzte Aktivität",
@@ -522,6 +528,42 @@
       "start": "{{name}} wurde nur teilweise gestartet",
       "stop": "{{name}} wurde nur teilweise gestoppt",
       "restart": "{{name}} wurde nur teilweise neu gestartet"
+    },
+    "freeSpace": {
+      "title": "Speicher freigeben",
+      "description": "Was Docker aufbewahrt, aber nichts mehr nutzt.",
+      "nothing": "Docker bewahrt gerade nichts Ungenutztes auf.",
+      "images_one": "Ein ungenutztes Image",
+      "images_other": "{{count}} ungenutzte Images",
+      "buildCache": "Und {{size}} Build-Cache",
+      "free": "{{size}} freigeben",
+      "freeing": "Speicher wird freigegeben…",
+      "volumes_one": "Ein Volume, das kein Container nutzt",
+      "volumes_other": "{{count}} Volumes, die kein Container nutzt",
+      "volumesHelp": "Eine entfernte App hat ihre Daten vielleicht hier gelassen. Lösche nur, was du nicht mehr brauchst.",
+      "volumeApp": "Angelegt für",
+      "volumeAnonymous": "Von einem Container angelegt, ohne Namen",
+      "volumeNoApp": "Keine App",
+      "calculating": "Größe wird berechnet…",
+      "sizeUnknown": "Größe unbekannt",
+      "delete": "Löschen",
+      "deleteVolume": "Volume {{name}} löschen",
+      "cancel": "Abbrechen",
+      "freed": "{{size}} freigegeben",
+      "pruneFailed": "Speicher konnte nicht freigegeben werden",
+      "volumeDeleted": "Volume {{name}} gelöscht",
+      "volumeFailed": "Volume {{name}} konnte nicht gelöscht werden",
+      "pruneDialog": {
+        "title": "{{size}} freigeben?",
+        "text": "Diese Images und der Build-Cache werden entfernt. Docker lädt ein Image erneut herunter, wenn eine App es braucht.",
+        "cache": "Build-Cache",
+        "confirm": "Speicher freigeben"
+      },
+      "volumeDialog": {
+        "title": "Volume löschen",
+        "text": "Seine Dateien werden endgültig gelöscht und lassen sich nur aus einem Backup wiederherstellen.",
+        "confirm": "Volume löschen"
+      }
     }
   },
   "logs": {
@@ -1047,7 +1089,8 @@
     "action": {
       "logs": "Logs anzeigen",
       "disks": "Laufwerke öffnen",
-      "backups": "Backups öffnen"
+      "backups": "Backups öffnen",
+      "freeSpace": "Speicher freigeben"
     },
     "delivery": {
       "title": "Eine Nachricht konnte nicht gesendet werden",

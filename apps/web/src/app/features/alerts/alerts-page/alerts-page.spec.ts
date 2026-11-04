@@ -123,6 +123,19 @@ describe('AlertsPage', () => {
     expect(meta[2]).not.toContain('/mnt/usb');
   });
 
+  it('links an open full disk to freeing Docker’s unused data too', async () => {
+    const { el } = await render(
+      alertsStatus({
+        open: [testAlert(), testAlert({ kind: 'diskFull', subject: '/', app: null, percent: 93 })],
+      }),
+    );
+    const links = [...el.querySelectorAll('laris-alert-card')].map((card) =>
+      [...card.querySelectorAll('a')].map((a) => a.getAttribute('href')),
+    );
+    expect(links[0]).toEqual([expect.stringContaining('/logs')]);
+    expect(links[1]).toEqual(['/disks', '/containers#free-space']);
+  });
+
   it('lists resolved alerts as quiet rows: how long they lasted, when they ended', async () => {
     const { section } = await render(
       alertsStatus({

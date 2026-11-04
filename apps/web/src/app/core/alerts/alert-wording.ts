@@ -43,3 +43,11 @@ export function alertLink(alert: Alert): { link: string[]; label: string } {
       return { link: ['/containers', alert.subject, 'logs'], label: 'alerts.action.logs' };
   }
 }
+
+/**
+ * A full disk often has Docker's unused data on it: an open one also links to freeing that
+ * (docs/plans/docker_cleanup.md).
+ */
+export function alertFreesSpace(alert: Alert): boolean {
+  return alert.kind === 'diskFull' && !alert.closedAt;
+}
