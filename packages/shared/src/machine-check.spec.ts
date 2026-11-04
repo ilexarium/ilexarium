@@ -5,7 +5,7 @@ describe('personCheckSchema', () => {
   it('accepts every step passed, and the later steps not checked after the helper failed', () => {
     for (const check of [
       { helper: 'ok', userUnits: true, lingering: true, docker: 'user_units' },
-      { helper: 'ok', userUnits: false, lingering: false, docker: 'system_units' },
+      { helper: 'ok', userUnits: false, lingering: false, docker: 'no_user_units' },
       { helper: 'ok', userUnits: true, lingering: null, docker: 'system_units' },
       { helper: 'unavailable', userUnits: null, lingering: null, docker: null },
       { helper: 'wrong_account', userUnits: null, lingering: null, docker: null },

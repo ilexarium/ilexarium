@@ -149,18 +149,22 @@ describe('MachineCheckPage', () => {
     expect(dialog()).toBeNull();
   });
 
-  it('no user units: the fix names lingering for the account; Docker through sudo', async () => {
+  it('no user units: the fix names lingering for the account; Docker through sudo until they start', async () => {
     const { el, rows, fixture } = await render(ANNA, {
       helper: 'ok',
       userUnits: false,
       lingering: true,
-      docker: 'system_units',
+      docker: 'no_user_units',
     });
     buttonIn(el, 'Check without sudo').click();
     await vi.waitFor(() => expect(rows()[2][0]).toBe('User units — failed'));
     await fixture.whenStable();
     expect(rows()[2][2]).toBe('sudo loginctl enable-linger anna');
-    expect(rows()[4][2]).toBe('sudo usermod -aG docker anna');
+    // Joining the docker group is no fix without user units.
+    expect(rows()[4]).toEqual([
+      'Docker for apps — information',
+      'Your apps run as system units, through your sudo, until user units start (see above).',
+    ]);
   });
 
   it('user units start in the session, but lingering is off: failed, with lingering as the fix', async () => {
@@ -190,6 +194,27 @@ describe('MachineCheckPage', () => {
     await vi.waitFor(() => expect(error).toHaveBeenCalled());
     await fixture.whenStable();
     expect(error.mock.calls[0][0]).toBe('The check couldn’t be run');
+    expect(rows()[0][0]).toBe('Signing in to Linux — passed');
     expect(rows()[1][0]).toBe('Laris’s helper — not checked');
+  });
+
+  it('sudo ended on the server though this page thought it unlocked: the prompt again', async () => {
+    const { el, rows, filesApi, unlock, fixture } = await render(unlocked());
+    // laris-root ended meanwhile (another tab's "Lock now", its idle end).
+    filesApi.session.mockReturnValue(of({ session: ANNA }));
+    buttonIn(el, 'Check this machine').click();
+    await unlock();
+    await vi.waitFor(() => expect(rows()[3][0]).toBe('sudo — passed'));
+    await fixture.whenStable();
+    expect(filesApi.unlockSudo).toHaveBeenCalledTimes(1);
+  });
+
+  it('sudo unlocked on the server: passed without asking', async () => {
+    const { el, rows, filesApi, fixture } = await render(unlocked());
+    buttonIn(el, 'Check this machine').click();
+    await vi.waitFor(() => expect(rows()[3][0]).toBe('sudo — passed'));
+    await fixture.whenStable();
+    expect(filesApi.unlockSudo).not.toHaveBeenCalled();
+    expect(dialog()).toBeNull();
   });
 });

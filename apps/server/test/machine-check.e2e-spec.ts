@@ -52,7 +52,7 @@ describe.skipIf(!sshdUp)('machine check (e2e)', () => {
   it('checks the helper as anna, and how her apps would reach Docker', async () => {
     await post('/files/session', ANNA).expect(200);
     const { body } = await post('/machine-check/person').expect(200);
-    expect(body).toMatchObject({ helper: 'ok', userUnits: false, docker: 'system_units' });
+    expect(body).toMatchObject({ helper: 'ok', userUnits: false, docker: 'no_user_units' });
     // Read from this machine's files, where the dev SSH server's anna has no marker.
     expect(body.lingering).toBe(false);
   });

@@ -9,9 +9,12 @@
 //                            installer's checks and the page's)
 //   node smoke.mjs update    after running the installer again: everything is still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
-import { execFileSync, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const BASE = 'http://127.0.0.1:3000';
 const ORIGIN = BASE;
@@ -41,25 +44,15 @@ const fails = (cmd, args) => {
 
 let cookie = '';
 async function api(method, path, body) {
-  const send = () =>
-    fetch(`${BASE}/api${path}`, {
-      method,
-      headers: {
-        Origin: ORIGIN,
-        ...(cookie && { Cookie: cookie }),
-        ...(body !== undefined && { 'Content-Type': 'application/json' }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  let res;
-  try {
-    res = await send();
-  } catch (error) {
-    // A kept-alive connection the app closed while this script was busy (a synchronous
-    // program longer than its 5 s keep-alive): it never reached the app, so sent again.
-    if (error?.cause?.code !== 'UND_ERR_SOCKET') throw error;
-    res = await send();
-  }
+  const res = await fetch(`${BASE}/api${path}`, {
+    method,
+    headers: {
+      Origin: ORIGIN,
+      ...(cookie && { Cookie: cookie }),
+      ...(body !== undefined && { 'Content-Type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
   const setCookie = res.headers.getSetCookie().find((c) => c.startsWith('__Host-sid='));
   if (setCookie) cookie = setCookie.split(';')[0];
   const text = await res.text();
@@ -938,14 +931,17 @@ async function install() {
 }
 
 /** The installer's own checks (check_setup) for a person, as the installer prints them. */
-function installerChecks(person) {
+async function installerChecks(person) {
   const version = readFileSync('/etc/laris/version', 'utf8').trim();
   const lib = `/root/laris-${version}/system/install/lib`;
-  return sh(
+  // Not synchronous: it takes seconds, and a blocked script finds the app's kept-alive
+  // connection closed (its 5 s keep-alive) at the next request.
+  const { stdout } = await execFileAsync(
     'bash',
     ['-c', 'set -euo pipefail; . "$1/common.sh"; . "$1/checks.sh"; check_setup', '_', lib],
-    { env: { ...process.env, SUDO_USER: person } },
+    { encoding: 'utf8', env: { ...process.env, SUDO_USER: person } },
   );
+  return stdout;
 }
 
 /**
@@ -963,7 +959,7 @@ async function machineCheck() {
         JSON.stringify({ helper: 'ok', userUnits: true, lingering: true, docker: 'user_units' }),
     `${person.status} ${person.text}`,
   );
-  let out = installerChecks('bob');
+  let out = await installerChecks('bob');
   check(
     'the installer: password logins, lingering and user units pass, no sudo named with its fix',
     out.includes('✓ password logins') &&
@@ -973,17 +969,20 @@ async function machineCheck() {
       out.includes('usermod -aG sudo bob'),
     out,
   );
-  out = installerChecks('anna');
+  out = await installerChecks('anna');
   check('the installer: anna may use sudo', out.includes('✓ anna may use sudo'), out);
 
   // A Match block read before laris.conf's turns password logins off.
+  // Alongside, a global "no" (as cloud-init writes): harmless here, so never named.
   const dropin = '/etc/ssh/sshd_config.d/10-smoke-off.conf';
+  const harmless = '/etc/ssh/sshd_config.d/05-smoke-global.conf';
   writeFileSync(dropin, 'Match all\n    PasswordAuthentication no\n');
+  writeFileSync(harmless, 'PasswordAuthentication no\n');
   sh('systemctl', ['reload', 'ssh']);
-  out = installerChecks('bob');
+  out = await installerChecks('bob');
   check(
     'the installer names the drop-in that turned password logins off',
-    out.includes('✗ password logins') && out.includes(dropin),
+    out.includes('✗ password logins') && out.includes(dropin) && !out.includes(harmless),
     out,
   );
   const off = await api('POST', '/files/session', {
@@ -996,6 +995,7 @@ async function machineCheck() {
     `${off.status} ${off.text}`,
   );
   rmSync(dropin);
+  rmSync(harmless);
   sh('systemctl', ['reload', 'ssh']);
 
   // Lingering off: named by both, with its fix (user units still start: on demand, in session).
@@ -1013,7 +1013,7 @@ async function machineCheck() {
     `${signedIn.status} ${noLinger.status} ${noLinger.text}`,
   );
   await api('DELETE', '/files/session');
-  out = installerChecks('bob');
+  out = await installerChecks('bob');
   check(
     'lingering off: the installer names it, with its fix',
     out.includes('✗ lingering is off for bob') && out.includes('loginctl enable-linger bob'),

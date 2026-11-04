@@ -115,10 +115,17 @@ export const MachineCheckPageStore = signalStore(
             patchState(store, { sudo: 'skipped' });
             return;
           }
-          // Already unlocked: laris-root runs. Otherwise the prompt says what sudo answered.
-          const unlocked = await linuxSessionStore.withSudo(async () => true);
+          // Unlocked as the server sees it (laris-root may have ended meanwhile); otherwise the
+          // prompt, which says what sudo answered.
+          await linuxSessionStore.refresh();
+          const unlocked =
+            linuxSessionStore.sudoMinutes() !== null ||
+            (await linuxSessionStore.withSudo(async () => true)) === true;
           patchState(store, { sudo: unlocked ? 'ok' : 'not_unlocked' });
         } catch (error) {
+          if (store.signedIn() === null && linuxSessionStore.session()) {
+            patchState(store, { signedIn: true });
+          }
           toast.error(translator.t('machineCheck.failed'), {
             description: translator.t(...apiErrorText(error)),
           });

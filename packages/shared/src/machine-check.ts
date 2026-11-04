@@ -10,9 +10,15 @@ export type MachineCheckHelper = (typeof MACHINE_CHECK_HELPER)[number];
 
 /**
  * How this account's apps reach Docker: its user units with the docker group, or system units
- * through sudo — also while it's in the group but its user systemd started before (until restarted).
+ * through sudo — without the group, while its user systemd started before joining it (until
+ * restarted), or while user units don't start at all.
  */
-export const MACHINE_CHECK_DOCKER = ['user_units', 'system_units', 'restart_needed'] as const;
+export const MACHINE_CHECK_DOCKER = [
+  'user_units',
+  'system_units',
+  'restart_needed',
+  'no_user_units',
+] as const;
 export type MachineCheckDocker = (typeof MACHINE_CHECK_DOCKER)[number];
 
 /** `POST /api/machine-check/person`: codes only, never values. Null: not checked (an earlier step failed). */

@@ -57,13 +57,13 @@ describe('MachineCheckService', () => {
     expect(await service.person(SESSION)).toMatchObject({ docker: 'restart_needed' });
   });
 
-  it('no user units: they fail, and apps run as system units', async () => {
+  it('no user units: they fail, and apps run as system units until they start (the docker group is no fix)', async () => {
     answers['docker.access'] = { ok: true, userUnits: false, unitDocker: false, loginDocker: true };
     expect(await service.person(SESSION)).toEqual({
       helper: 'ok',
       userUnits: false,
       lingering: true,
-      docker: 'system_units',
+      docker: 'no_user_units',
     });
   });
 
