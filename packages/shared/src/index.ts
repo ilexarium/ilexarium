@@ -13,6 +13,7 @@ export * from './terminal.js';
 export * from './health.js';
 export * from './journal.js';
 export * from './logs.js';
+export * from './machine-check.js';
 export * from './monitoring.js';
 export * from './processes.js';
 export * from './profile.js';
