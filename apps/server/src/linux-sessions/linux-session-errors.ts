@@ -9,6 +9,7 @@ import { type ApiErrorResponse, FILES_ERROR_CODES, type FilesErrorCode } from '@
 const STATUS: Partial<Record<FilesErrorCode, HttpStatus>> = {
   [FILES_ERROR_CODES.linuxSessionRequired]: HttpStatus.FORBIDDEN,
   [FILES_ERROR_CODES.linuxLoginRefused]: HttpStatus.FORBIDDEN,
+  [FILES_ERROR_CODES.linuxPasswordLoginsOff]: HttpStatus.FORBIDDEN,
   [FILES_ERROR_CODES.linuxRootRefused]: HttpStatus.FORBIDDEN,
   [FILES_ERROR_CODES.sshUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
   [FILES_ERROR_CODES.sudoRequired]: HttpStatus.FORBIDDEN,
