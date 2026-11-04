@@ -6,6 +6,7 @@ export * from './backups.js';
 export * from './catalog.js';
 export * from './containers.js';
 export * from './disks.js';
+export * from './docker-cleanup.js';
 export * from './env-file.js';
 export * from './files.js';
 export * from './terminal.js';
