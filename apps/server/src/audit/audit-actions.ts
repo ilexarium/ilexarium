@@ -8,6 +8,8 @@ export const AUDIT_ACTIONS = [
   'container.start',
   'container.stop',
   'container.restart',
+  'docker.prune',
+  'docker.volume.remove',
   'app.install',
   'app.change',
   'app.update',

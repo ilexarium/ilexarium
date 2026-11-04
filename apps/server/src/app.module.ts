@@ -11,6 +11,7 @@ import { TerminalModule } from './terminal/terminal.module.js';
 import { ZodValidationPipe } from './common/zod-validation.pipe.js';
 import { ConfigModule } from './config/config.module.js';
 import { ContainerActionsModule } from './container-actions/container-actions.module.js';
+import { DockerCleanupModule } from './docker-cleanup/docker-cleanup.module.js';
 import { ContainerLogsModule } from './container-logs/container-logs.module.js';
 import { ContainersModule } from './containers/containers.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -41,6 +42,7 @@ import { UsersModule } from './users/users.module.js';
     ContainersModule,
     ContainerLogsModule,
     ContainerActionsModule,
+    DockerCleanupModule,
     CatalogModule,
     AppsModule,
     BackupsModule,

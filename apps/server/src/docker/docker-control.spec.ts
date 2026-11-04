@@ -2,15 +2,19 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import type { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.schema.js';
-import { ContainerActionError, DockerControl } from './docker-control.js';
+import { CleanupError, ContainerActionError, DockerControl } from './docker-control.js';
+
+const IMAGE_PRUNE_QUERY = 'filters=%7B%22dangling%22%3A%5B%22false%22%5D%7D';
 
 /**
  * Enough of the Docker Engine API for DockerControl: `web` is running, `app` is stopped, `broken`
- * fails. Records every request with its body.
+ * fails; volume `music_cache` is unused, `pgdata` in use. Records every request with its body.
  */
 class FakeDocker {
   readonly requests: { method: string; url: string; body: string }[] = [];
   readonly running = new Set(['web']);
+  readonly volumes = new Set(['music_cache', 'pgdata']);
+  pruneFails = false;
   private server!: Server;
 
   async listen(): Promise<string> {
@@ -33,6 +37,26 @@ class FakeDocker {
         res.writeHead(status, { 'Content-Type': 'application/json' });
         res.end(payload === undefined ? undefined : JSON.stringify(payload));
       };
+      if (req.method === 'POST' && req.url === `/images/prune?${IMAGE_PRUNE_QUERY}`) {
+        if (this.pruneFails) return json(500, { message: 'a prune operation is already running' });
+        return json(200, {
+          ImagesDeleted: [
+            { Untagged: 'debian:13' },
+            { Deleted: 'sha256:aaa' },
+            { Deleted: 'sha256:bbb' },
+          ],
+          SpaceReclaimed: 3000,
+        });
+      }
+      if (req.method === 'POST' && req.url === '/build/prune?all=true') {
+        return json(200, { CachesDeleted: ['c1', 'c2'], SpaceReclaimed: 500 });
+      }
+      const volume = /^\/volumes\/([\w.-]+)$/.exec(req.url!);
+      if (req.method === 'DELETE' && volume) {
+        if (volume[1] === 'pgdata') return json(409, { message: 'volume is in use' });
+        if (!this.volumes.delete(volume[1])) return json(404, { message: 'no such volume' });
+        return json(204);
+      }
       const match = /^\/containers\/(\w+)\/(start|stop|restart)$/.exec(req.url!);
       if (req.method !== 'POST' || !match) return json(404, { message: 'page not found' });
       const [, name, action] = match;
@@ -93,11 +117,66 @@ describe('DockerControl', () => {
     expect(fake.requests).toEqual([]);
   });
 
-  it('can do exactly three things', () => {
+  it('removes unused images and the build cache: each with its one query, no body', async () => {
+    await expect(control.pruneImages()).resolves.toEqual({
+      bytesFreed: 3000,
+      deleted: ['sha256:aaa', 'sha256:bbb'],
+    });
+    await expect(control.pruneBuildCache()).resolves.toEqual({
+      bytesFreed: 500,
+      deleted: ['c1', 'c2'],
+    });
+    expect(fake.requests).toEqual([
+      { method: 'POST', url: `/images/prune?${IMAGE_PRUNE_QUERY}`, body: '' },
+      { method: 'POST', url: '/build/prune?all=true', body: '' },
+    ]);
+  });
+
+  it('tells a failed prune from an unreachable Docker', async () => {
+    fake.pruneFails = true;
+    await expect(control.pruneImages()).rejects.toMatchObject({ reason: 'failed' });
+    await fake.close();
+    const error = await control.pruneBuildCache().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(CleanupError);
+    expect(error).toMatchObject({ reason: 'unavailable' });
+  });
+
+  it('removes a volume by name, never forced', async () => {
+    await control.removeVolume('music_cache');
+    expect(fake.requests).toEqual([{ method: 'DELETE', url: '/volumes/music_cache', body: '' }]);
+    expect(fake.volumes).toEqual(new Set(['pgdata']));
+  });
+
+  it('tells a volume in use, a missing one and an unreachable Docker apart', async () => {
+    await expect(control.removeVolume('pgdata')).rejects.toMatchObject({ reason: 'in_use' });
+    await expect(control.removeVolume('nope')).rejects.toMatchObject({ reason: 'not_found' });
+    await fake.close();
+    await expect(control.removeVolume('music_cache')).rejects.toMatchObject({
+      reason: 'unavailable',
+    });
+  });
+
+  it('refuses a volume name that could leave the path, without asking Docker', async () => {
+    for (const name of ['../images/json', 'a/b', 'x?force=true', '', 'a']) {
+      await expect(control.removeVolume(name), name).rejects.toThrow(/Invalid volume name/);
+    }
+    expect(fake.requests).toEqual([]);
+  });
+
+  it('can do exactly six things', () => {
     const methods = Object.getOwnPropertyNames(DockerControl.prototype).filter(
       (name) => name !== 'constructor',
     );
-    // `act` is the private helper the three share.
-    expect(methods.sort()).toEqual(['act', 'restart', 'start', 'stop']);
+    // `act` and `prune` are the private helpers.
+    expect(methods.sort()).toEqual([
+      'act',
+      'prune',
+      'pruneBuildCache',
+      'pruneImages',
+      'removeVolume',
+      'restart',
+      'start',
+      'stop',
+    ]);
   });
 });
