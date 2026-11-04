@@ -4,9 +4,14 @@ import { proxy, proxyReachable } from './docker-proxy.js';
 
 // The allow-list in system/docker-socket-proxy/haproxy.cfg, against the running dev proxy and
 // the real Docker daemon behind it. Every refusal must come from the proxy (403), never Docker.
-// The write tests only ever touch the dev sandbox container.
+// The write tests only ever touch the dev sandbox container and volumes that can't be deleted
+// (in use, or missing). The prunes are never run here: they'd delete the developer's own unused
+// images — the install test runs them (tools/vm/smoke.mjs).
 
 const SANDBOX = 'laris-dev-sandbox-1';
+/** The dev Postgres's volume: always in use, so Docker itself refuses to delete it. */
+const VOLUME_IN_USE = 'laris-dev_pgdata';
+const IMAGE_PRUNE_QUERY = `filters=${encodeURIComponent('{"dangling":["false"]}')}`;
 
 const reachable = await proxyReachable();
 if (!reachable) console.warn('Docker socket proxy not reachable — run `npm run db:up`. Skipping.');
@@ -171,6 +176,10 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
       `/containers/${containerId}/logs?stdout=1&stderr=1&tail=1`,
       `/containers/${containerName}/logs?stdout=1&stderr=1&timestamps=1&tail=1`,
       `/v1.47/containers/${containerName}/logs?stdout=1&tail=1`,
+      '/system/df?type=image&type=build-cache',
+      '/v1.47/system/df?type=volume',
+      `/volumes?filters=${encodeURIComponent('{"dangling":["true"]}')}`,
+      '/volumes',
     ]) {
       expect(await status(path), path).toBe(200);
     }
@@ -218,6 +227,83 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
     expect(statuses).toEqual([403]);
   });
 
+  it('passes a volume delete to Docker, which refuses one in use and a missing one', async () => {
+    expect(await status(`/volumes/${VOLUME_IN_USE}`, 'DELETE')).toBe(409);
+    expect(await status('/volumes/laris-test-no-such-volume', 'DELETE')).toBe(404);
+    expect(await status('/v1.40/volumes/laris-test-no-such-volume', 'DELETE')).toBe(404);
+  });
+
+  it('refuses a forced volume delete, a body, and every other delete', async () => {
+    for (const path of [
+      `/volumes/${VOLUME_IN_USE}?force=true`,
+      `/volumes/${VOLUME_IN_USE}?force=1`,
+      `/volumes/${VOLUME_IN_USE}?`,
+      `/volumes/${VOLUME_IN_USE}/`,
+      `/volumes/${VOLUME_IN_USE}/x`,
+      `/volumes/.${VOLUME_IN_USE}`,
+      `/volumes/a%2F..%2F${VOLUME_IN_USE}`,
+      '/volumes/a',
+      '/volumes',
+      `/v1.39/volumes/${VOLUME_IN_USE}`,
+      `/v1.4/volumes/${VOLUME_IN_USE}`,
+      `/containers/${sandbox}`,
+      '/images/debian:13',
+      '/networks/bridge',
+    ]) {
+      expect(await status(path, 'DELETE'), `DELETE ${path}`).toBe(403);
+    }
+    expect(
+      await rawStatuses(
+        `DELETE /volumes/${VOLUME_IN_USE} HTTP/1.1\r\nHost: x\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}`,
+      ),
+    ).toEqual([403]);
+    // The volume path for other methods: creating, inspecting one, …
+    for (const method of ['GET', 'POST', 'PUT', 'HEAD']) {
+      expect(await status(`/volumes/${VOLUME_IN_USE}`, method), method).toBe(403);
+    }
+  });
+
+  it('refuses the prunes with any other query, a body, another method or an old API', async () => {
+    // Never the allowed queries themselves: that would really delete images (see the top).
+    for (const path of [
+      '/images/prune',
+      '/images/prune?',
+      `/images/prune?filters=${encodeURIComponent('{"dangling":["true"]}')}`,
+      `/images/prune?${IMAGE_PRUNE_QUERY}&x=1`,
+      `/images/prune?x=1&${IMAGE_PRUNE_QUERY}`,
+      `/images/prune?filters=${encodeURIComponent('{"dangling":["false"],"label":["x"]}')}`,
+      `/images/prune?filters={"dangling":["false"]}`,
+      `/images/prune/?${IMAGE_PRUNE_QUERY}`,
+      `/v1.39/images/prune?${IMAGE_PRUNE_QUERY}`,
+      '/build/prune',
+      '/build/prune?all=1',
+      '/build/prune?all=true&filters=x',
+      '/build/prune?keep-storage=0&all=true',
+      '/build/prune?all=TRUE',
+      '/v1.39/build/prune?all=true',
+      '/containers/prune',
+      '/volumes/prune',
+      '/networks/prune',
+    ]) {
+      expect(await status(path, 'POST'), `POST ${path}`).toBe(403);
+    }
+    for (const method of ['GET', 'PUT', 'DELETE']) {
+      // Refused for the method alone, so these never reach Docker.
+      expect(await status(`/images/prune?${IMAGE_PRUNE_QUERY}`, method), method).toBe(403);
+      expect(await status('/build/prune?all=true', method), method).toBe(403);
+    }
+    for (const path of [`/images/prune?${IMAGE_PRUNE_QUERY}`, '/build/prune?all=true']) {
+      const res = await fetch(`${proxy.http}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ filters: { dangling: ['true'] } }),
+        signal: AbortSignal.timeout(5000),
+      });
+      await res.body?.cancel();
+      expect(res.status, path).toBe(403);
+    }
+  });
+
   it('refuses every other write', async () => {
     for (const [method, path] of [
       ['POST', '/containers/create'],
@@ -248,10 +334,12 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
       `/containers/${containerId}/changes`,
       '/images/json',
       '/info',
-      '/volumes',
+      `/volumes/${VOLUME_IN_USE}`,
+      '/volumes/',
       '/networks',
       '/secrets',
-      '/system/df',
+      '/system/df/',
+      '/system/info',
     ]) {
       expect(await status(path), path).toBe(403);
     }
