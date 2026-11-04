@@ -27,6 +27,12 @@ export class ChangesUnderway {
     return this.anything() || (until !== undefined && until > Date.now());
   }
 
+  /** Any app is being changed: one of its tasks started a little while ago, or anything above. */
+  anyApp(): boolean {
+    const now = Date.now();
+    return this.anything() || [...this.apps.values()].some((until) => until > now);
+  }
+
   /** A follower that knows when its work runs (backup runs, restores). */
   follow(running: () => boolean): void {
     this.sources.push(running);

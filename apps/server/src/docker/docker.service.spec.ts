@@ -71,6 +71,50 @@ const statsFrame = {
   memory_stats: { usage: 1000, stats: { inactive_file: 100 }, limit: 4000 },
 };
 
+const diskUsage = {
+  Images: [
+    {
+      Id: `sha256:${'1'.repeat(64)}`,
+      RepoTags: ['nginx:1.27'],
+      Created: 1_790_000_000,
+      Size: 200,
+      SharedSize: 50,
+      Containers: 1,
+    },
+    {
+      Id: `sha256:${'2'.repeat(64)}`,
+      RepoTags: ['debian:13', 'debian:latest'],
+      Created: 1_790_000_000,
+      Size: 300,
+      SharedSize: 100,
+      Containers: 0,
+    },
+    {
+      Id: `sha256:${'3'.repeat(64)}`,
+      RepoTags: ['<none>:<none>'],
+      Size: 40,
+      SharedSize: -1,
+      Containers: 0,
+    },
+  ],
+  ImageUsage: { Reclaimable: 330 },
+  BuildCache: [
+    { InUse: false, Shared: false, Size: 10 },
+    { InUse: true, Shared: false, Size: 1000 },
+  ],
+  BuildCacheUsage: { Reclaimable: 15 },
+};
+
+const volumes = [
+  {
+    Name: 'navidrome_data',
+    CreatedAt: '2026-10-11T19:59:33+02:00',
+    Labels: { 'com.docker.compose.project': 'navidrome' },
+  },
+  { Name: 'f'.repeat(64), CreatedAt: 'not a date', Labels: { 'com.docker.volume.anonymous': '' } },
+  { Name: 'cache', Labels: null },
+];
+
 /** Enough of the Docker Engine API for DockerService; records every request. */
 class FakeDocker {
   readonly requests: { method: string; url: string }[] = [];
@@ -96,6 +140,19 @@ class FakeDocker {
       res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
     };
     if (path === '/containers/json') return json(200, summaries);
+    if (path === '/system/df') {
+      const types = new URL(req.url!, 'http://docker').searchParams.getAll('type');
+      if (types.join() === 'volume') {
+        return json(200, {
+          Volumes: [
+            { Name: 'navidrome_data', UsageData: { RefCount: 0, Size: 2100 } },
+            { Name: 'cache', UsageData: { RefCount: 0, Size: -1 } },
+          ],
+        });
+      }
+      return json(200, diskUsage);
+    }
+    if (path === '/volumes') return json(200, { Volumes: volumes, Warnings: null });
     const inspect = /^\/containers\/(\w+)\/json$/.exec(path);
     if (inspect) {
       const body = inspects[inspect[1]];
@@ -344,12 +401,75 @@ describe('DockerService', () => {
     await expect(take(logs, 1)).rejects.not.toBeInstanceOf(ContainerLogsError);
   });
 
+  it('lists unused images and the build cache with what removing them frees', async () => {
+    await expect(docker.diskUsage()).resolves.toEqual({
+      images: [
+        {
+          id: '222222222222',
+          tags: ['debian:13', 'debian:latest'],
+          bytes: 300,
+          created: new Date(1_790_000_000_000).toISOString(),
+        },
+        { id: '333333333333', tags: [], bytes: 40, created: null },
+      ],
+      imagesBytes: 330,
+      buildCacheBytes: 15,
+    });
+    expect(fake.requests.at(-1)?.url).toBe('/system/df?type=image&type=build-cache');
+  });
+
+  it('works out what can be freed when an older Docker leaves the sums out', async () => {
+    const { ImageUsage, BuildCacheUsage } = diskUsage;
+    Object.assign(diskUsage, { ImageUsage: undefined, BuildCacheUsage: undefined });
+    try {
+      const usage = await docker.diskUsage();
+      expect(usage.imagesBytes).toBe(200 + 40); // shared layers left out
+      expect(usage.buildCacheBytes).toBe(10); // what's in use stays
+    } finally {
+      Object.assign(diskUsage, { ImageUsage, BuildCacheUsage });
+    }
+  });
+
+  it('lists volumes no container uses, by name, with their app', async () => {
+    await expect(docker.unusedVolumes()).resolves.toEqual([
+      { name: 'cache', composeProject: null, anonymous: false, created: null },
+      { name: 'f'.repeat(64), composeProject: null, anonymous: true, created: null },
+      {
+        name: 'navidrome_data',
+        composeProject: 'navidrome',
+        anonymous: false,
+        created: '2026-10-11T17:59:33.000Z',
+      },
+    ]);
+    expect(fake.requests.at(-1)?.url).toBe(
+      `/volumes?filters=${encodeURIComponent('{"dangling":["true"]}')}`,
+    );
+  });
+
+  it('reads volume sizes separately; null where Docker didn’t count', async () => {
+    const sizes = await docker.volumeSizes();
+    expect(sizes).toEqual(
+      new Map([
+        ['navidrome_data', 2100],
+        ['cache', null],
+      ]),
+    );
+    expect(fake.requests.at(-1)?.url).toBe('/system/df?type=volume');
+  });
+
+  it('names the Compose projects of the platform’s own containers', async () => {
+    await expect(docker.protectedProjects()).resolves.toEqual(new Set(['hl-web']));
+  });
+
   it('only ever reads: every request is a GET', async () => {
     const controller = new AbortController();
     await docker.listContainers();
     await take(docker.containerStats(ID_B, controller.signal), 1);
     await take(docker.containerEvents(controller.signal), 1);
     await take(docker.containerLogs('web', {}, controller.signal), 1);
+    await docker.diskUsage();
+    await docker.unusedVolumes();
+    await docker.volumeSizes();
     controller.abort();
     expect(fake.requests.length).toBeGreaterThan(3);
     expect(new Set(fake.requests.map((r) => r.method))).toEqual(new Set(['GET']));
@@ -372,8 +492,12 @@ describe('DockerService', () => {
       'containerNames',
       'containerState',
       'containerStats',
+      'diskUsage',
       'isProtected',
       'listContainers',
+      'protectedProjects',
+      'unusedVolumes',
+      'volumeSizes',
     ]);
   });
 });

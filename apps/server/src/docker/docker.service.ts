@@ -15,10 +15,17 @@ import {
 import Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
 import { toContainerStats } from './container-stats.js';
-import { createDockerClient } from './docker-client.js';
+import { createDockerClient, dockerRequest } from './docker-client.js';
 import { jsonLines } from './json-lines.js';
 import { logLines, normaliseTimestamp, toUnixSeconds } from './log-lines.js';
-import type { DockerContainer, DockerContainerEvent, RawContainerStats } from './docker.model.js';
+import type {
+  DockerContainer,
+  DockerContainerEvent,
+  DockerDiskUsage,
+  DockerVolume,
+  RawContainerStats,
+  RawDiskUsage,
+} from './docker.model.js';
 
 /** Why a container's logs can't be read: no such container, or a log driver Docker can't read back. */
 export class ContainerLogsError extends Error {
@@ -30,6 +37,10 @@ export class ContainerLogsError extends Error {
 
 /** Requests that answer at once; streams have no timeout (they end with their abort signal). */
 const REQUEST_TIMEOUT_MS = 5_000;
+/** Docker walks every volume to count its size: on a big disk that takes a while. */
+const VOLUME_SIZES_TIMEOUT_MS = 60_000;
+/** Docker's own label on a volume it made without a name. */
+const ANONYMOUS_VOLUME_LABEL = 'com.docker.volume.anonymous';
 /** Set by Compose on every container it creates: the project's name. */
 const COMPOSE_PROJECT_LABEL = 'com.docker.compose.project';
 const COMPOSE_WORKING_DIR_LABEL = 'com.docker.compose.project.working_dir';
@@ -52,8 +63,9 @@ const CONTAINER_EVENTS = [
 ];
 
 /**
- * Reading from Docker, and **read-only by construction**: list, inspect, stats, events and logs —
- * there is no method that changes anything (the three container actions are `DockerControl`'s). Docker access is root-equivalent (see CLAUDE.md);
+ * Reading from Docker, and **read-only by construction**: list, inspect, stats, events, logs and
+ * disk usage — there is no method that changes anything (that's `DockerControl`'s). Docker access
+ * is root-equivalent (see CLAUDE.md);
  * the socket proxy enforces the same allow-list at the network level. Only `src/docker/` may
  * import `dockerode` (lint rule). Returns our own types, never Dockerode's.
  */
@@ -164,6 +176,95 @@ export class DockerService {
     } catch {
       return [];
     }
+  }
+
+  /** The Compose projects of the platform's own containers (`laris.protected`). */
+  async protectedProjects(): Promise<Set<string>> {
+    const summaries = await this.docker.listContainers({
+      all: true,
+      abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    return new Set(
+      summaries
+        .filter((summary) => summary.Labels?.[PROTECTED_LABEL] === 'true')
+        .map((summary) => summary.Labels?.[COMPOSE_PROJECT_LABEL])
+        .filter((project) => project !== undefined),
+    );
+  }
+
+  /**
+   * Images no container uses (a stopped one counts as using it) and the build cache, with what
+   * removing them frees. Asks only for those two (`type` needs API 1.42; an older Docker answers
+   * with everything, just slower).
+   */
+  async diskUsage(): Promise<DockerDiskUsage> {
+    const usage = await dockerRequest<RawDiskUsage>(this.docker, {
+      method: 'GET',
+      path: '/system/df',
+      query: { type: ['image', 'build-cache'] },
+      statusCodes: { 200: true, 500: 'server error' },
+      abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    const unused = (usage.Images ?? []).filter((image) => image.Containers === 0);
+    const cache = usage.BuildCache ?? [];
+    return {
+      images: unused.map((image) => ({
+        id: image.Id.replace(/^sha256:/, '').slice(0, 12),
+        tags: (image.RepoTags ?? []).filter((tag) => tag !== '<none>:<none>'),
+        bytes: Math.max(0, image.Size ?? 0),
+        created: image.Created ? new Date(image.Created * 1000).toISOString() : null,
+      })),
+      // Docker's own sum counts layers shared between unused images once; older APIs lack it.
+      imagesBytes:
+        usage.ImageUsage?.Reclaimable ??
+        unused.reduce(
+          (sum, image) => sum + Math.max(0, (image.Size ?? 0) - Math.max(0, image.SharedSize ?? 0)),
+          0,
+        ),
+      buildCacheBytes:
+        usage.BuildCacheUsage?.Reclaimable ??
+        cache
+          .filter((record) => !record.InUse && !record.Shared)
+          .reduce((sum, record) => sum + Math.max(0, record.Size ?? 0), 0),
+    };
+  }
+
+  /** Volumes no container uses (Docker's `dangling`), sorted by name. No sizes: `volumeSizes()`. */
+  async unusedVolumes(): Promise<DockerVolume[]> {
+    const { Volumes } = await this.docker.listVolumes({
+      filters: { dangling: ['true'] },
+      abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    } as Dockerode.VolumeListOptions);
+    return (Volumes ?? [])
+      .map((volume) => {
+        // Docker sends it; the types don't know it.
+        const createdAt = (volume as { CreatedAt?: string }).CreatedAt;
+        const created = createdAt ? new Date(createdAt) : null;
+        return {
+          name: volume.Name,
+          composeProject: volume.Labels?.[COMPOSE_PROJECT_LABEL] ?? null,
+          anonymous: volume.Labels?.[ANONYMOUS_VOLUME_LABEL] !== undefined,
+          created: created && !Number.isNaN(created.getTime()) ? created.toISOString() : null,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Every volume's size by name; null where Docker didn't count it. Slow: Docker walks them all. */
+  async volumeSizes(): Promise<Map<string, number | null>> {
+    const usage = await dockerRequest<RawDiskUsage>(this.docker, {
+      method: 'GET',
+      path: '/system/df',
+      query: { type: ['volume'] },
+      statusCodes: { 200: true, 500: 'server error' },
+      abortSignal: AbortSignal.timeout(VOLUME_SIZES_TIMEOUT_MS),
+    });
+    return new Map(
+      (usage.Volumes ?? []).map((volume) => {
+        const size = volume.UsageData?.Size;
+        return [volume.Name, size !== undefined && size >= 0 ? size : null];
+      }),
+    );
   }
 
   /** Live stats of a running container, about one per second, until `signal` aborts. */

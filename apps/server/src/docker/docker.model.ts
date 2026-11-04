@@ -1,4 +1,4 @@
-import type { Container } from '@laris/shared';
+import type { Container, UnusedImage } from '@laris/shared';
 
 /** A container without its live stats. */
 export type DockerContainer = Omit<Container, 'stats'>;
@@ -46,4 +46,46 @@ interface CpuStats {
   cpu_usage?: { total_usage?: number; percpu_usage?: number[] | null };
   system_cpu_usage?: number;
   online_cpus?: number;
+}
+
+/** Unused images and the build cache, with what removing them frees. */
+export interface DockerDiskUsage {
+  images: UnusedImage[];
+  imagesBytes: number;
+  buildCacheBytes: number;
+}
+
+/** A volume no container uses. */
+export interface DockerVolume {
+  name: string;
+  composeProject: string | null;
+  anonymous: boolean;
+  created: string | null;
+}
+
+/** What a prune removed: the bytes Docker says it freed and the IDs it deleted. */
+export interface DockerPruned {
+  bytesFreed: number;
+  deleted: string[];
+}
+
+/** Why freeing space failed: as `ContainerActionFailure`, and a volume a container uses. */
+export type CleanupFailure = 'not_found' | 'in_use' | 'failed' | 'unavailable';
+
+/** The parts of `GET /system/df` we use; Docker leaves sections out that weren't asked for. */
+export interface RawDiskUsage {
+  Images?: {
+    Id: string;
+    RepoTags?: string[] | null;
+    Created?: number;
+    Size?: number;
+    /** -1 when Docker didn't work it out. */
+    SharedSize?: number;
+    /** -1 when Docker didn't count. */
+    Containers?: number;
+  }[];
+  ImageUsage?: { Reclaimable?: number };
+  BuildCache?: { InUse?: boolean; Shared?: boolean; Size?: number }[] | null;
+  BuildCacheUsage?: { Reclaimable?: number };
+  Volumes?: { Name: string; UsageData?: { Size?: number } | null }[];
 }
