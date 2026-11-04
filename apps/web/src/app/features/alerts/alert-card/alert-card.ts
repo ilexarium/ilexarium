@@ -5,7 +5,13 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCircleAlert, lucideTriangleAlert } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
-import { alertIcon, alertLink, alertText, alertTitle } from '../../../core/alerts/alert-wording';
+import {
+  alertFreesSpace,
+  alertIcon,
+  alertLink,
+  alertText,
+  alertTitle,
+} from '../../../core/alerts/alert-wording';
 import { Formatter } from '../../../shared/format/formatter';
 import { StatusDot } from '../../../shared/status-dot/status-dot';
 import { SEVERITY_DOTS } from '../alerts.constants';
@@ -30,6 +36,7 @@ export class AlertCard {
   protected readonly text = computed(() => alertText(this.alert()));
   protected readonly link = computed(() => alertLink(this.alert()));
   protected readonly icon = computed(() => alertIcon(this.alert()));
+  protected readonly freesSpace = computed(() => alertFreesSpace(this.alert()));
   /** The container, when the title names its app instead ("Immich has stopped"). */
   protected readonly container = computed(() => {
     const { kind, app, subject } = this.alert();

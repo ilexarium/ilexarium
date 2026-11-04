@@ -1,12 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Container } from '@laris/shared';
-import { of } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import type { Container, DockerCleanup } from '@laris/shared';
+import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
 import { ContainersApi } from '../../../core/containers/containers-api';
+import { DockerCleanupApi } from '../../../core/containers/docker-cleanup-api';
 import { stubScreenWidth } from '../../../layout/testing';
 import { ContainersPage } from './containers-page';
 
@@ -25,16 +28,32 @@ const stopped: Container = {
   stats: null,
 };
 
-async function render() {
+const CLEANUP: DockerCleanup = {
+  images: [{ id: 'aaaaaaaaaaaa', tags: ['debian:13'], bytes: 2e8, created: null }],
+  imagesBytes: 2e8,
+  buildCacheBytes: 0,
+  volumes: [{ name: 'music_cache', app: 'music', anonymous: false, created: null }],
+};
+
+async function render(cleanup: DockerCleanup | null = CLEANUP) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   const api = { act: vi.fn(() => of(null)) };
+  const cleanupApi = {
+    overview: vi.fn(() =>
+      cleanup ? of(cleanup) : throwError(() => new HttpErrorResponse({ status: 503 })),
+    ),
+    volumeSizes: vi.fn(() => of({ sizes: { music_cache: 2.1e9 } })),
+    prune: vi.fn(() => of({ bytesFreed: 3e9, images: 1 })),
+    removeVolume: vi.fn(() => of(undefined)),
+  };
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       auth.provider,
       sockets.provider,
       { provide: ContainersApi, useValue: api },
+      { provide: DockerCleanupApi, useValue: cleanupApi },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -43,8 +62,14 @@ async function render() {
   socket.open();
   const fixture = TestBed.createComponent(ContainersPage);
   await fixture.whenStable();
-  return { fixture, el: fixture.nativeElement as HTMLElement, socket, api };
+  return { fixture, el: fixture.nativeElement as HTMLElement, socket, api, cleanupApi };
 }
+
+const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]')!;
+const button = (root: ParentNode, text: string) =>
+  [...root.querySelectorAll<HTMLButtonElement>('button')].find(
+    (b) => b.textContent?.trim() === text,
+  )!;
 
 describe('ContainersPage', () => {
   it('subscribes to the containers topic only, until it is left', async () => {
@@ -83,6 +108,60 @@ describe('ContainersPage', () => {
     expect(el.querySelector('tbody')!.textContent).toContain('old-app');
     expect(el.querySelector('tbody')!.textContent).toContain('Stopped');
     expect(el.querySelector('button[aria-label="Actions for old-app"]')).not.toBeNull();
+  });
+
+  describe('free space', () => {
+    afterEach(() => document.querySelectorAll('[role="alertdialog"]').forEach((d) => d.remove()));
+
+    it('reads what can be freed, then the volume sizes', async () => {
+      const { el, cleanupApi } = await render();
+      expect(cleanupApi.overview).toHaveBeenCalledTimes(1);
+      expect(cleanupApi.volumeSizes).toHaveBeenCalledTimes(1);
+      expect(el.querySelector('#free-space')!.textContent).toContain('2.1 GB');
+    });
+
+    it('frees images and cache after confirming, says how much, and reads again', async () => {
+      const success = vi.spyOn(toast, 'success');
+      const { fixture, el, cleanupApi } = await render();
+      button(el, 'Free 200 MB').click();
+      await vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull());
+      await fixture.whenStable();
+      button(dialog(), 'Free space').click();
+      await vi.waitFor(() => expect(success).toHaveBeenCalledWith('Freed 3.0 GB'));
+      expect(cleanupApi.prune).toHaveBeenCalledTimes(1);
+      expect(cleanupApi.overview).toHaveBeenCalledTimes(2);
+    });
+
+    it('deletes a volume after confirming; Docker’s refusal comes as a toast', async () => {
+      const error = vi.spyOn(toast, 'error');
+      const { fixture, el, cleanupApi } = await render();
+      cleanupApi.removeVolume.mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: { message: 'in use', code: 'volume_in_use' },
+            }),
+        ),
+      );
+      el.querySelector<HTMLButtonElement>(
+        'button[aria-label="Delete volume music_cache"]',
+      )!.click();
+      await vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull());
+      await fixture.whenStable();
+      button(dialog(), 'Delete volume').click();
+      await vi.waitFor(() =>
+        expect(error).toHaveBeenCalledWith('Volume music_cache couldn’t be deleted', {
+          description: 'A container uses this volume. Remove the container first.',
+        }),
+      );
+      expect(cleanupApi.removeVolume).toHaveBeenCalledWith('music_cache');
+    });
+
+    it('shows no card when Docker can’t be asked', async () => {
+      const { el } = await render(null);
+      expect(el.querySelector('#free-space')).toBeNull();
+    });
   });
 
   describe('headline', () => {

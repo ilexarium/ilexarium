@@ -51,4 +51,6 @@ export class DiskList {
       free: this.formatter.bytes(disk.sizeBytes - disk.usedBytes),
     })),
   );
+  /** A disk filling up: Docker's unused data may be the quickest space to win back. */
+  protected readonly filling = computed(() => this.rows().some((disk) => disk.level !== null));
 }

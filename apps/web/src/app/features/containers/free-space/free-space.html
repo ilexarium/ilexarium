@@ -1,0 +1,159 @@
+<section hlmCard id="free-space" aria-labelledby="free-space-title">
+  <div hlmCardHeader>
+    <h2 hlmCardTitle id="free-space-title">{{ 'containers.freeSpace.title' | translate }}</h2>
+    <p hlmCardDescription>{{ 'containers.freeSpace.description' | translate }}</p>
+  </div>
+  <div hlmCardContent class="grid gap-6">
+    @if (empty()) {
+      <p class="text-sm text-muted-foreground">{{ 'containers.freeSpace.nothing' | translate }}</p>
+    }
+
+    @if (hasPrunable()) {
+      <div class="grid gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="grid gap-0.5">
+            <h3 class="font-semibold">
+              {{ 'containers.freeSpace.images' | plural: cleanup().images.length }}
+            </h3>
+            @if (cleanup().buildCacheBytes > 0) {
+              <p class="text-sm text-muted-foreground tabular-nums">
+                {{
+                  'containers.freeSpace.buildCache'
+                    | translate: { size: formatter.bytes(cleanup().buildCacheBytes) }
+                }}
+              </p>
+            }
+          </div>
+          <button hlmBtn size="sm" [disabled]="pruning()" (click)="confirmPrune()">
+            @if (pruning()) {
+              {{ 'containers.freeSpace.freeing' | translate }}
+            } @else {
+              {{ 'containers.freeSpace.free' | translate: { size: freeableText() } }}
+            }
+          </button>
+        </div>
+        @if (cleanup().images.length > 0) {
+          <ul class="grid max-h-64 gap-1 overflow-y-auto text-sm">
+            @for (image of cleanup().images; track image.id) {
+              <li class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-md py-1">
+                <span class="min-w-0 font-mono text-xs break-all" dir="ltr">{{
+                  imageName(image)
+                }}</span>
+                <span class="ms-auto text-muted-foreground tabular-nums">
+                  {{ formatter.bytes(image.bytes) }}
+                  @if (image.created) {
+                    · {{ formatter.date(image.created) }}
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+
+    @if (cleanup().volumes.length > 0) {
+      <div class="grid gap-3">
+        <div class="grid gap-0.5">
+          <h3 class="font-semibold">
+            {{ 'containers.freeSpace.volumes' | plural: cleanup().volumes.length }}
+          </h3>
+          <p class="text-sm text-muted-foreground">
+            {{ 'containers.freeSpace.volumesHelp' | translate }}
+          </p>
+        </div>
+        <ul class="grid gap-2">
+          @for (volume of cleanup().volumes; track volume.name) {
+            <li
+              class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border px-3 py-2"
+            >
+              <div class="grid min-w-0 flex-1 basis-56 gap-0.5">
+                <span class="font-mono text-xs break-all" dir="ltr">{{ volume.name }}</span>
+                <span class="text-xs text-muted-foreground">
+                  @if (volume.app) {
+                    {{ 'containers.freeSpace.volumeApp' | translate }}
+                    <span dir="ltr">{{ volume.app }}</span>
+                  } @else if (volume.anonymous) {
+                    {{ 'containers.freeSpace.volumeAnonymous' | translate }}
+                  } @else {
+                    {{ 'containers.freeSpace.volumeNoApp' | translate }}
+                  }
+                  @if (volume.created) {
+                    · {{ formatter.date(volume.created) }}
+                  }
+                </span>
+              </div>
+              <span class="text-sm text-muted-foreground tabular-nums">
+                @switch (sizeOf(volume)) {
+                  @case (undefined) {
+                    <span class="sr-only">{{
+                      'containers.freeSpace.calculating' | translate
+                    }}</span>
+                    <hlm-skeleton class="inline-block h-4 w-14 align-middle" aria-hidden="true" />
+                  }
+                  @case (null) {
+                    {{ 'containers.freeSpace.sizeUnknown' | translate }}
+                  }
+                  @default {
+                    {{ formatter.bytes(sizeOf(volume)!) }}
+                  }
+                }
+              </span>
+              <button
+                hlmBtn
+                variant="outline"
+                size="sm"
+                [disabled]="removing().includes(volume.name)"
+                [attr.aria-label]="
+                  'containers.freeSpace.deleteVolume' | translate: { name: volume.name }
+                "
+                (click)="confirmRemove(volume)"
+              >
+                {{ 'containers.freeSpace.delete' | translate }}
+              </button>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+</section>
+
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal class="max-h-[90dvh] overflow-y-auto">
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle>
+        {{ 'containers.freeSpace.pruneDialog.title' | translate: { size: freeableText() } }}
+      </h2>
+      <p hlmAlertDialogDescription>
+        {{ 'containers.freeSpace.pruneDialog.text' | translate }}
+      </p>
+    </hlm-alert-dialog-header>
+    <ul class="grid gap-1 text-sm">
+      @for (image of cleanup().images; track image.id) {
+        <li class="flex flex-wrap gap-x-3">
+          <span class="min-w-0 font-mono text-xs break-all" dir="ltr">{{ imageName(image) }}</span>
+          <span class="ms-auto text-muted-foreground tabular-nums">{{
+            formatter.bytes(image.bytes)
+          }}</span>
+        </li>
+      }
+      @if (cleanup().buildCacheBytes > 0) {
+        <li class="flex flex-wrap gap-x-3">
+          <span>{{ 'containers.freeSpace.pruneDialog.cache' | translate }}</span>
+          <span class="ms-auto text-muted-foreground tabular-nums">{{
+            formatter.bytes(cleanup().buildCacheBytes)
+          }}</span>
+        </li>
+      }
+    </ul>
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'containers.freeSpace.cancel' | translate }}</button>
+      <button hlmAlertDialogAction (click)="pruneConfirmed()">
+        {{ 'containers.freeSpace.pruneDialog.confirm' | translate }}
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>
+
+<laris-volume-dialog (confirm)="removeVolume.emit($event)" />

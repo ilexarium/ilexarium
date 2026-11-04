@@ -1,0 +1,24 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @if (volume(); as volume) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle class="break-words">
+          {{ 'containers.freeSpace.volumeDialog.title' | translate }}
+          <span dir="ltr" class="break-all">{{ volume.name }}</span>
+          @if (bytes() !== null) {
+            ({{ formatter.bytes(bytes()!) }})
+          }
+        </h2>
+        <p hlmAlertDialogDescription>
+          {{ 'containers.freeSpace.volumeDialog.text' | translate }}
+        </p>
+      </hlm-alert-dialog-header>
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>{{ 'containers.freeSpace.cancel' | translate }}</button>
+        <button hlmAlertDialogAction variant="destructive" (click)="confirmed()">
+          {{ 'containers.freeSpace.volumeDialog.confirm' | translate }}
+        </button>
+      </hlm-alert-dialog-footer>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>
