@@ -46,3 +46,63 @@ check_not_in_docker_group() {
     die "$APP_USER is in the docker group (root-equivalent): remove it (gpasswd -d $APP_USER docker) and run this again"
   fi
 }
+
+# After the install: is the installing account set up the way Laris acts as it
+# (docs/plans/machine_check.md)? Not fatal — each problem with what to do; Laris → Settings →
+# Machine check checks again, as the person.
+check_setup() {
+  log 'Checking the setup for your account'
+  local person="${SUDO_USER:-}"
+  if [[ -z "$person" || "$person" == root ]]; then
+    info 'skipped: these checks need an installing account (run with sudo from your account)'
+    return
+  fi
+  local problems=0 effective sudo_rights
+  # Read whole first: `grep -q` stops at its match, and the program it reads from then fails
+  # (SIGPIPE) — a failed pipeline under pipefail.
+  effective="$(/usr/sbin/sshd -T -C "user=$person,host=localhost,addr=127.0.0.1" 2>/dev/null || true)"
+  sudo_rights="$(sudo -l -U "$person" 2>/dev/null || true)"
+
+  if grep -qx 'passwordauthentication yes' <<<"$effective"; then
+    info "✓ password logins from this machine, for $person"
+  else
+    problems=$((problems + 1))
+    # A global "no" never wins over laris.conf's Match block: a Match block read before it does.
+    local turned_off
+    turned_off="$(grep -lisE '^\s*PasswordAuthentication\s+no\b' /etc/ssh/sshd_config.d/*.conf 2>/dev/null | grep -vx /etc/ssh/sshd_config.d/laris.conf | paste -sd ' ' || true)"
+    info "✗ password logins from this machine are off for $person: the Linux sign-in won't work"
+    if [[ -n "$turned_off" ]]; then
+      info "  look in: $turned_off — a setting there turns them off; then: sudo systemctl reload ssh"
+    else
+      info "  see why: sudo sshd -T -C user=$person,host=localhost,addr=127.0.0.1 | grep -i password"
+    fi
+  fi
+
+  if grep -qE '^\s*\((ALL|root)(\s*:\s*\S+)?\)' <<<"$sudo_rights"; then
+    info "✓ $person may use sudo"
+  else
+    problems=$((problems + 1))
+    info "✗ $person may not use sudo: no administrator tasks (backups, disks, services)"
+    info "  fix: sudo usermod -aG sudo $person (then sign in again)"
+  fi
+
+  # Lingering keeps a user unit running once the person's sessions end (an app's install after
+  # the Linux sign-in closed). systemd-run below starts the user manager itself: it can't tell.
+  if [[ -e "/var/lib/systemd/linger/$person" ]]; then
+    info "✓ lingering on for $person"
+  else
+    problems=$((problems + 1))
+    info "✗ lingering is off for $person: app tasks would stop with the Linux sign-in"
+    info "  fix: sudo loginctl enable-linger $person"
+  fi
+  if timeout 30 systemd-run --user --machine="$person@" --wait --quiet --collect true >/dev/null 2>&1; then
+    info "✓ user units start for $person"
+  else
+    problems=$((problems + 1))
+    info "✗ user units don't start for $person: app tasks will need sudo"
+    info "  fix: install libpam-systemd and dbus-user-session"
+  fi
+
+  if ((problems > 0)); then info 'Fix these, then check again:'; fi
+  info 'Laris → Settings → Machine check checks again, as you (running this installer again does too)'
+}

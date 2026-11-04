@@ -66,5 +66,6 @@ setup_ssh_login
 enable_lingering
 setup_https
 start_app
+check_setup
 printf '%s\n' "$NEW_VERSION" | write_file "$ETC/version" root:root 0644
 print_result

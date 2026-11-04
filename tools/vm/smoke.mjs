@@ -5,7 +5,8 @@
 //                            a restore to a new folder and one back where it was (the app brought
 //                            up with the restored settings) through her sudo, and the security
 //                            setup (files, no sudo for the app, who reaches the proxy), and
-//                            freeing Docker's unused data
+//                            freeing Docker's unused data, and the machine check (the
+//                            installer's checks and the page's)
 //   node smoke.mjs update    after running the installer again: everything is still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
 import { execFileSync, spawn } from 'node:child_process';
@@ -40,15 +41,25 @@ const fails = (cmd, args) => {
 
 let cookie = '';
 async function api(method, path, body) {
-  const res = await fetch(`${BASE}/api${path}`, {
-    method,
-    headers: {
-      Origin: ORIGIN,
-      ...(cookie && { Cookie: cookie }),
-      ...(body !== undefined && { 'Content-Type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const send = () =>
+    fetch(`${BASE}/api${path}`, {
+      method,
+      headers: {
+        Origin: ORIGIN,
+        ...(cookie && { Cookie: cookie }),
+        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  let res;
+  try {
+    res = await send();
+  } catch (error) {
+    // A kept-alive connection the app closed while this script was busy (a synchronous
+    // program longer than its 5 s keep-alive): it never reached the app, so sent again.
+    if (error?.cause?.code !== 'UND_ERR_SOCKET') throw error;
+    res = await send();
+  }
   const setCookie = res.headers.getSetCookie().find((c) => c.startsWith('__Host-sid='));
   if (setCookie) cookie = setCookie.split(';')[0];
   const text = await res.text();
@@ -919,10 +930,84 @@ async function install() {
       !sh('docker', ['volume', 'ls', '-q']).split('\n').includes('hello_cache'),
     `${removed.status} ${down?.state} ${deleted.status} ${deleted.text}`,
   );
+  await machineCheck();
   await api('DELETE', '/files/session');
 
   await profile();
   done();
+}
+
+/** The installer's own checks (check_setup) for a person, as the installer prints them. */
+function installerChecks(person) {
+  const version = readFileSync('/etc/laris/version', 'utf8').trim();
+  const lib = `/root/laris-${version}/system/install/lib`;
+  return sh(
+    'bash',
+    ['-c', 'set -euo pipefail; . "$1/common.sh"; . "$1/checks.sh"; check_setup', '_', lib],
+    { env: { ...process.env, SUDO_USER: person } },
+  );
+}
+
+/**
+ * The machine check (docs/plans/machine_check.md), as bob — signed in, in the docker group,
+ * lingering on, no sudo: the page's checks through the API and the installer's; then password
+ * logins turned off by a drop-in, and lingering off, each named with what to do.
+ */
+async function machineCheck() {
+  console.log('\nThe machine check (as bob)');
+  const person = await api('POST', '/machine-check/person');
+  check(
+    'the page’s checks: the helper, user units, apps with the docker group',
+    person.status === 200 &&
+      JSON.stringify(person.json) ===
+        JSON.stringify({ helper: 'ok', userUnits: true, docker: 'user_units' }),
+    `${person.status} ${person.text}`,
+  );
+  let out = installerChecks('bob');
+  check(
+    'the installer: password logins, lingering and user units pass, no sudo named with its fix',
+    out.includes('✓ password logins') &&
+      out.includes('✓ lingering on for bob') &&
+      out.includes('✓ user units start for bob') &&
+      out.includes('✗ bob may not use sudo') &&
+      out.includes('usermod -aG sudo bob'),
+    out,
+  );
+  out = installerChecks('anna');
+  check('the installer: anna may use sudo', out.includes('✓ anna may use sudo'), out);
+
+  // A Match block read before laris.conf's turns password logins off.
+  const dropin = '/etc/ssh/sshd_config.d/10-smoke-off.conf';
+  writeFileSync(dropin, 'Match all\n    PasswordAuthentication no\n');
+  sh('systemctl', ['reload', 'ssh']);
+  out = installerChecks('bob');
+  check(
+    'the installer names the drop-in that turned password logins off',
+    out.includes('✗ password logins') && out.includes(dropin),
+    out,
+  );
+  const off = await api('POST', '/files/session', {
+    username: 'bob',
+    password: 'bob-smoke-password',
+  });
+  check(
+    'the sign-in says password logins are off (not a wrong password)',
+    off.status === 403 && off.json?.code === 'linux_password_logins_off',
+    `${off.status} ${off.text}`,
+  );
+  rmSync(dropin);
+  sh('systemctl', ['reload', 'ssh']);
+
+  // Lingering off: named, with its fix (user units themselves still start: on demand).
+  await api('DELETE', '/files/session');
+  sh('loginctl', ['disable-linger', 'bob']);
+  out = installerChecks('bob');
+  check(
+    'lingering off: named, with its fix',
+    out.includes('✗ lingering is off for bob') && out.includes('loginctl enable-linger bob'),
+    out,
+  );
+  sh('loginctl', ['enable-linger', 'bob']);
 }
 
 async function update() {
