@@ -11,20 +11,36 @@ check_machine() {
   OS_ID="$(. /etc/os-release && printf '%s' "$ID")"
   OS_VERSION="$(. /etc/os-release && printf '%s' "${VERSION_ID:-}")"
   OS_CODENAME="$(. /etc/os-release && printf '%s' "${VERSION_CODENAME:-}")"
-  case "$OS_ID $OS_VERSION" in
-    'debian 12' | 'debian 13' | 'ubuntu 24.04') ;;
-    *) die "Supported: Debian 12 and 13, Ubuntu 24.04 — this is $OS_ID $OS_VERSION" ;;
-  esac
-  ARCH="$(dpkg --print-architecture)"
-  case "$ARCH" in
-    amd64 | arm64) ;;
-    *) die "Supported: amd64 and arm64 — this machine is $ARCH" ;;
-  esac
+  OS_FAMILY="$(os_family "$OS_ID" "$OS_VERSION" "$(. /etc/os-release && printf '%s' "${ID_LIKE:-}")")"
+  [[ -n "$OS_FAMILY" ]] ||
+    die "Supported: Debian 12 and 13, Ubuntu 24.04, Arch Linux — this is $OS_ID $OS_VERSION"
+  ARCH="$(cpu_arch "$(uname -m)")"
+  [[ -n "$ARCH" ]] || die "Supported: amd64 and arm64 — this machine is $(uname -m)"
   local free_mb
   free_mb="$(df -Pm /opt | awk 'NR == 2 { print $4 }')"
   ((free_mb >= MIN_FREE_MB)) || die "At least ${MIN_FREE_MB} MB free on /opt needed (${free_mb} MB)"
-  info "$OS_ID $OS_VERSION ($OS_CODENAME), $ARCH"
+  if [[ "$OS_FAMILY" == pacman ]]; then info "$OS_ID, $ARCH"; else info "$OS_ID $OS_VERSION ($OS_CODENAME), $ARCH"; fi
 }
+
+# How a supported system installs packages (apt, pacman), from os-release's ID, VERSION_ID and
+# ID_LIKE; nothing for any other. Arch is rolling: no version.
+os_family() {
+  case "$1 $2" in
+    'debian 12' | 'debian 13' | 'ubuntu 24.04') printf apt ;;
+    *) if [[ "$1" == arch || "$1" == archarm || " $3 " == *' arch '* ]]; then printf pacman; fi ;;
+  esac
+}
+
+# The CPU as Debian names it (Docker's repository too), from `uname -m`; nothing for any other.
+cpu_arch() {
+  case "$1" in
+    x86_64) printf amd64 ;;
+    aarch64) printf arm64 ;;
+  esac
+}
+
+# Is version $1 at least $2 (1.4.0 ≥ 1.4; 2.0.0b1 ≥ 2)?
+version_ge() { [[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" == "$2" ]]; }
 
 # A first install, or an update of an older one — never back to an older version.
 check_version() {
@@ -35,7 +51,7 @@ check_version() {
     die '--update is for an installed Laris'
   elif [[ -z "$OLD_VERSION" ]]; then
     info "Installing $NEW_VERSION"
-  elif dpkg --compare-versions "$NEW_VERSION" lt "$OLD_VERSION"; then
+  elif ! version_ge "$NEW_VERSION" "$OLD_VERSION"; then
     die "$OLD_VERSION is installed; this is the older $NEW_VERSION — going back isn't supported"
   else
     info "Updating $OLD_VERSION to $NEW_VERSION"
@@ -78,7 +94,7 @@ check_setup() {
       /etc/ssh/sshd_config.d/*.conf 2>/dev/null | grep -vx /etc/ssh/sshd_config.d/laris.conf | sort -u | paste -sd ' ' || true)"
     info "✗ password logins from this machine are off for $person: the Linux sign-in won't work"
     if [[ -n "$turned_off" ]]; then
-      info "  look in: $turned_off — a setting there turns them off; then: sudo systemctl reload ssh"
+      info "  look in: $turned_off — a setting there turns them off; then: sudo systemctl reload $SSH_UNIT"
     else
       info "  see why: sudo sshd -T -C user=$person,host=localhost,addr=127.0.0.1 | grep -i password"
     fi
@@ -89,7 +105,11 @@ check_setup() {
   else
     problems=$((problems + 1))
     info "✗ $person may not use sudo: no administrator tasks (backups, disks, services)"
-    info "  fix: sudo usermod -aG sudo $person (then sign in again)"
+    if [[ "$OS_FAMILY" == pacman ]]; then
+      info "  fix: sudo usermod -aG wheel $person, allow the wheel group (sudo visudo: the %wheel ALL=(ALL:ALL) ALL line), then sign in again"
+    else
+      info "  fix: sudo usermod -aG sudo $person (then sign in again)"
+    fi
   fi
 
   # Lingering keeps a user unit running once the person's sessions end (an app's install after
@@ -106,7 +126,8 @@ check_setup() {
   else
     problems=$((problems + 1))
     info "✗ user units don't start for $person: app tasks will need sudo"
-    info "  fix: install libpam-systemd and dbus-user-session"
+    if [[ "$OS_FAMILY" == apt ]]; then info '  fix: install libpam-systemd and dbus-user-session'; fi
+    info "  see why: systemctl status user@$(id -u "$person").service"
   fi
 
   if ((problems > 0)); then info 'Fix these, then check again:'; fi

@@ -22,8 +22,9 @@ die() {
 
 as_root() { if [[ "$(id -u)" == 0 ]]; then "$@"; else sudo "$@"; fi; }
 
-for tool in curl openssl tar sha256sum base64 cmp; do
-  command -v "$tool" >/dev/null || die "$tool is needed (sudo apt install $tool)"
+for tool in curl:curl openssl:openssl tar:tar sha256sum:coreutils base64:coreutils cmp:diffutils; do
+  command -v "${tool%%:*}" >/dev/null ||
+    die "${tool%%:*} is needed (sudo apt install ${tool#*:}, or on Arch: sudo pacman -S ${tool#*:})"
 done
 [[ "$(id -u)" == 0 ]] || command -v sudo >/dev/null || die 'Run it as root, or install sudo'
 

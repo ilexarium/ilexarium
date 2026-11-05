@@ -1,7 +1,9 @@
 # system/install/lib/packages.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
-# The programs the platform needs, from their makers' signed apt repositories (each key stored
-# in /etc/apt/keyrings and named by `signed-by` — trusted for that repository only), installed
-# only after asking. Sourced by install.sh.
+# The programs the platform needs, installed only after asking. Debian and Ubuntu: from their
+# makers' signed apt repositories (each key stored in /etc/apt/keyrings and named by `signed-by` —
+# trusted for that repository only). Arch: from Arch's own repositories, as the system is — never
+# upgraded by us (a full upgrade is the person's decision; a partial one Arch doesn't support).
+# Sourced by install.sh.
 
 KEYRINGS=/etc/apt/keyrings
 NODE_MIN=24.5.0
@@ -11,6 +13,13 @@ apt_install() {
 }
 
 apt_update() { DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null; }
+
+# Packages from the package database as it is: when it's too old for one to download (or has
+# never been read), the person upgrades the system first.
+pacman_install() {
+  pacman -S --needed --noconfirm "$@" >/dev/null ||
+    die "Could not install $* — bring the system up to date first (sudo pacman -Syu), then run this again"
+}
 
 # A repository: its key (downloaded over HTTPS; de-armored if it's ASCII-armored) and its source
 # line.
@@ -36,6 +45,17 @@ node_version() { /usr/bin/node --version 2>/dev/null | sed -n 's/^v\([0-9.]*\).*
 ensure_base() {
   log 'Checking the basics'
   local missing=()
+  if [[ "$OS_FAMILY" == pacman ]]; then
+    for tool in curl sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
+    [[ -x /usr/bin/kill ]] || missing+=(kill)
+    if ((${#missing[@]} > 0)); then
+      confirm "Install the basics Laris needs (missing: ${missing[*]})?" || die 'They are needed'
+      pacman_install ca-certificates curl sudo util-linux
+    fi
+    # A person's own systemd and its bus are part of systemd and dbus.
+    info 'curl, sudo, util-linux'
+    return
+  fi
   for tool in curl gpg sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
   # The program, not the shell's builtin: ending a process runs `env kill` as the person.
   [[ -x /usr/bin/kill ]] || missing+=(kill)
@@ -58,47 +78,65 @@ ensure_base() {
 ensure_node() {
   local version
   version="$(node_version)"
-  if [[ -n "$version" ]] && dpkg --compare-versions "$version" ge "$NODE_MIN"; then
+  if [[ -n "$version" ]] && version_ge "$version" "$NODE_MIN"; then
     info "Node $(/usr/bin/node --version)"
     return
   fi
-  confirm "Install Node.js 24 (from NodeSource; $NODE_MIN or newer is needed)?" || die "Node.js $NODE_MIN is needed"
-  add_repository nodesource https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-    'deb [signed-by=@KEY@] https://deb.nodesource.com/node_24.x nodistro main'
-  apt_update
-  apt_install nodejs
+  if [[ "$OS_FAMILY" == pacman ]]; then
+    confirm "Install Node.js ($NODE_MIN or newer is needed)?" || die "Node.js $NODE_MIN is needed"
+    pacman_install nodejs
+  else
+    confirm "Install Node.js 24 (from NodeSource; $NODE_MIN or newer is needed)?" || die "Node.js $NODE_MIN is needed"
+    add_repository nodesource https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+      'deb [signed-by=@KEY@] https://deb.nodesource.com/node_24.x nodistro main'
+    apt_update
+    apt_install nodejs
+  fi
   version="$(node_version)"
-  if [[ -z "$version" ]] || ! dpkg --compare-versions "$version" ge "$NODE_MIN"; then
+  if [[ -z "$version" ]] || ! version_ge "$version" "$NODE_MIN"; then
     die "Node.js $NODE_MIN could not be installed at /usr/bin/node"
   fi
   info "Node $(/usr/bin/node --version)"
 }
 
-# Docker Engine and its Compose plugin (docker.com's packages, not the distribution's).
+# Docker Engine and its Compose plugin (docker.com's packages on Debian and Ubuntu, Arch's own
+# on Arch).
 ensure_docker() {
   if docker compose version >/dev/null 2>&1; then
     info "$(docker --version)"
     return
   fi
-  confirm 'Install Docker Engine and Docker Compose (from docker.com)?' || die 'Docker is needed'
-  add_repository docker "https://download.docker.com/linux/$OS_ID/gpg" \
-    "deb [arch=$ARCH signed-by=@KEY@] https://download.docker.com/linux/$OS_ID $OS_CODENAME stable"
-  apt_update
-  apt_install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  if [[ "$OS_FAMILY" == pacman ]]; then
+    confirm 'Install Docker Engine and Docker Compose?' || die 'Docker is needed'
+    pacman_install docker docker-compose
+  else
+    confirm 'Install Docker Engine and Docker Compose (from docker.com)?' || die 'Docker is needed'
+    add_repository docker "https://download.docker.com/linux/$OS_ID/gpg" \
+      "deb [arch=$ARCH signed-by=@KEY@] https://download.docker.com/linux/$OS_ID $OS_CODENAME stable"
+    apt_update
+    apt_install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  fi
   systemctl enable --now docker >/dev/null
   info "$(docker --version)"
 }
 
 borg_version() { borg --version 2>/dev/null | awk '{ print $2 }' || true; }
 
-# Borg 1.4: Debian 13 has it; Debian 12 from its official backports; Ubuntu 24.04 from the
-# Borg maintainers' PPA (costae/borgbackup).
+# Borg 1.4 or a later 1.x: Borg 2 changed its repositories and commands (laris-backup is written
+# for 1.x).
+borg_fits() { [[ -n "$1" ]] && version_ge "$1" 1.4 && ! version_ge "$1" 2; }
+
+# Borg 1.4: Debian 13 and Arch have it; Debian 12 from its official backports; Ubuntu 24.04 from
+# the Borg maintainers' PPA (costae/borgbackup).
 ensure_borg() {
   local version
   version="$(borg_version)"
-  if [[ -n "$version" ]] && dpkg --compare-versions "$version" ge 1.4; then
+  if borg_fits "$version"; then
     info "Borg $version"
     return
+  fi
+  if [[ -n "$version" ]] && version_ge "$version" 2; then
+    die "Borg $version is installed: Laris needs Borg 1.4 (Borg 2 is not supported yet)"
   fi
   confirm 'Install Borg 1.4 (backups)?' || die 'Borg 1.4 is needed for backups'
   case "$OS_ID $OS_VERSION" in
@@ -118,9 +156,10 @@ ensure_borg() {
       add-apt-repository -y ppa:costae/borgbackup >/dev/null
       apt_install borgbackup
       ;;
+    *) pacman_install borg ;;
   esac
   version="$(borg_version)"
-  if [[ -z "$version" ]] || ! dpkg --compare-versions "$version" ge 1.4; then
+  if ! borg_fits "$version"; then
     die "Borg 1.4 could not be installed (have: ${version:-none})"
   fi
   info "Borg $version"
@@ -128,14 +167,23 @@ ensure_borg() {
 
 # The machine's own SSH server: the Linux sign-in connects to it (as a person, with their password).
 ensure_ssh_server() {
-  if [[ -x /usr/sbin/sshd ]]; then
-    info "$(/usr/sbin/sshd -V 2>&1 | head -n1)"
-    return
+  if [[ ! -x /usr/sbin/sshd ]]; then
+    confirm 'Install the OpenSSH server (the Linux sign-in uses it)?' || die 'The OpenSSH server is needed'
+    if [[ "$OS_FAMILY" == pacman ]]; then
+      pacman_install openssh
+    else
+      apt_update
+      apt_install openssh-server
+    fi
   fi
-  confirm 'Install the OpenSSH server (the Linux sign-in uses it)?' || die 'The OpenSSH server is needed'
-  apt_update
-  apt_install openssh-server
-  info "$(/usr/sbin/sshd -V 2>&1 | head -n1)"
+  SSH_UNIT="$(ssh_unit)"
+  info "$(/usr/sbin/sshd -V 2>&1 | head -n1) ($SSH_UNIT)"
+}
+
+# Its unit: ssh.service on Debian and Ubuntu (sshd.service is only its alias there), sshd.service
+# on Arch.
+ssh_unit() {
+  if systemctl cat ssh.service >/dev/null 2>&1; then printf ssh.service; else printf sshd.service; fi
 }
 
 ensure_packages() {

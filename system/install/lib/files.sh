@@ -143,12 +143,12 @@ DOCKER_GID=$docker_gid
 CONF
 
   borg_bin="$(command -v borg)"
-  APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" node --input-type=module -e '
+  APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" SSH_UNIT="$SSH_UNIT" node --input-type=module -e '
     const config = {
       protectedPaths: ["/opt/laris", "/etc/laris", "/var/lib/laris"],
       dockerBin: "/usr/bin/docker",
       disk: { systemctlBin: "/usr/bin/systemctl" },
-      update: { appGid: Number(process.env.APP_GID) },
+      update: { appGid: Number(process.env.APP_GID), sshUnit: process.env.SSH_UNIT },
       backup: {
         borgBin: process.env.BORG_BIN,
         systemctlBin: "/usr/bin/systemctl",
