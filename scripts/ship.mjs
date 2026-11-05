@@ -62,7 +62,9 @@ if (!newer(version, current) || !newer(version, published)) {
   fail(`${version} isn't newer than ${current} (package.json) and ${published} (published)`);
 }
 
-const secret = await passphrase('Passphrase of the release key: ');
+const secret = await passphrase('Passphrase of the release key: ').catch((error) =>
+  fail(error.message),
+);
 try {
   createPrivateKey({ key: readFileSync(key), passphrase: secret });
 } catch {
