@@ -21,6 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { publicKeyFile, signatureFile } from '../../scripts/lib/minisign.mjs';
+import { healthUrlOf } from './update/config.mts';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const PROGRAM = join(HERE, 'laris-update.mts');
@@ -67,7 +68,7 @@ beforeEach(() => {
   writeFileSync(join(root, 'etc/laris/version'), '0.1.0\n');
   writeFileSync(
     join(root, 'etc/laris/release.env'),
-    `RELEASE_URL=http://127.0.0.1:${port}/releases\nHTTPS=none\n`,
+    `RELEASE_URL=http://127.0.0.1:${port}/releases\n`,
   );
   writeFileSync(join(root, 'etc/laris/release.pub'), publicKeyFile(releaseKey.publicKey));
   writeFileSync(join(root, 'etc/systemd/system/laris.service'), 'old unit\n');
@@ -404,5 +405,36 @@ describe('laris-update run', { timeout: 30_000 }, () => {
     const { done } = await update();
     expect(done).toMatchObject({ outcome: 'rollback_failed', version: '0.2.0' });
     expect(calls('docker')).toEqual([]);
+  });
+});
+
+describe('the health URL, from the machine’s app settings', () => {
+  it('HOST and PORT, the app’s defaults without them', () => {
+    expect(healthUrlOf('')).toBe('http://127.0.0.1:3000/api/health');
+    expect(
+      healthUrlOf('DATABASE_URL=postgresql://laris:pw@127.0.0.1:5432/laris\nPORT=8080\n'),
+    ).toBe('http://127.0.0.1:8080/api/health');
+    expect(healthUrlOf('HOST=192.168.1.10\nPORT=3000\n')).toBe(
+      'http://192.168.1.10:3000/api/health',
+    );
+    expect(healthUrlOf('HOST=::1\n')).toBe('http://[::1]:3000/api/health');
+  });
+
+  it('every address: asked on 127.0.0.1; the last setting wins, as systemd reads them', () => {
+    expect(healthUrlOf('HOST=0.0.0.0\n')).toBe('http://127.0.0.1:3000/api/health');
+    expect(healthUrlOf('HOST=::\n')).toBe('http://127.0.0.1:3000/api/health');
+    expect(healthUrlOf('PORT=3000\nPORT=4000\n')).toBe('http://127.0.0.1:4000/api/health');
+  });
+
+  it('refuses anything that isn’t an address or a port', () => {
+    for (const settings of [
+      'HOST=evil.example\n',
+      'HOST=127.0.0.1/x\n',
+      'PORT=0\n',
+      'PORT=70000\n',
+      'PORT=80x\n',
+    ]) {
+      expect(() => healthUrlOf(settings), settings).toThrow(/HOST or PORT/);
+    }
   });
 });

@@ -22,7 +22,14 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-const BASE = 'http://127.0.0.1:3000';
+// Where the app answers: the machine's settings (the person's — the install test moves it to
+// another port before updating), like the installer's app_url.
+function appSetting(name) {
+  const lines = readFileSync('/etc/laris/app.env', 'utf8').split('\n');
+  return lines.findLast((line) => line.startsWith(`${name}=`))?.slice(name.length + 1) ?? '';
+}
+const PORT = appSetting('PORT') || '3000';
+const BASE = `http://127.0.0.1:${PORT}`;
 const ORIGIN = BASE;
 const USER = 'owner';
 const PASSWORD = 'correct horse battery staple';
@@ -84,7 +91,7 @@ async function until(name, fn, timeoutMs) {
 /** The first snapshot of a realtime topic. */
 function snapshot(topic) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:3000/api/ws`, {
+    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/api/ws`, {
       headers: { Cookie: cookie, Origin: ORIGIN },
     });
     const timer = setTimeout(
@@ -137,10 +144,24 @@ async function securitySetup() {
   expect('/etc/laris/release.pub', { mode: '0644', uid: 0 });
   const release = readFileSync('/etc/laris/release.env', 'utf8');
   check(
-    'release.env: where updates come from, and no HTTPS (the first install’s choice)',
-    release.includes('RELEASE_URL=https://localhost:8443/releases\n') &&
-      release.includes('HTTPS=none\n'),
+    'release.env: where updates come from, nothing about how the machine is reached',
+    release === 'RELEASE_URL=https://localhost:8443/releases\n',
     release,
+  );
+  const appSettings = readFileSync('/etc/laris/app.env', 'utf8');
+  check(
+    'app.env: the machine’s settings only (where the app listens, its database)',
+    /^HOST=/m.test(appSettings) &&
+      /^DATABASE_URL=/m.test(appSettings) &&
+      !/^(NODE_ENV|DOCKER_HOST|WEB_ROOT|SETUP_TOKEN_FILE|TRUST_PROXY)=/m.test(appSettings),
+  );
+  const environment = sh('systemctl', ['show', '-p', 'Environment', '--value', 'laris']);
+  check(
+    'laris.service: the release’s settings',
+    ['NODE_ENV=production', 'DOCKER_HOST=unix:///run/laris/proxy/docker.sock'].every((setting) =>
+      environment.includes(setting),
+    ),
+    environment,
   );
   check('no sudoers drop-in for the app', !existsSync('/etc/sudoers.d/laris'));
   check(
@@ -161,7 +182,7 @@ async function securitySetup() {
   check('the app runs as laris', mode(`/proc/${appProcess}`).uid === app);
   check(
     'the app listens on 127.0.0.1 only',
-    !/0\.0\.0\.0:3000|\[::\]:3000|\*:3000/.test(sh('ss', ['-ltnH'])),
+    !new RegExp(`(0\\.0\\.0\\.0|\\[::\\]|\\*):${PORT}\\b`).test(sh('ss', ['-ltnH'])),
   );
   check(
     'Postgres listens on 127.0.0.1 only',
@@ -667,7 +688,7 @@ async function terminal() {
   const result = await new Promise((resolve) => {
     let output = '';
     const ws = new WebSocket(
-      `ws://127.0.0.1:3000/api/terminal?ticket=${ticket.json?.ticket}&cols=80&rows=24`,
+      `ws://127.0.0.1:${PORT}/api/terminal?ticket=${ticket.json?.ticket}&cols=80&rows=24`,
       { headers: { Cookie: cookie, Origin: ORIGIN } },
     );
     const timer = setTimeout(() => (ws.terminate(), resolve({ output, code: 'timeout' })), 20_000);
@@ -1077,10 +1098,6 @@ async function update() {
         existsSync('/opt/laris/previous/libexec/laris-root.mts') &&
         existsSync('/opt/laris/previous/files/etc/laris/app.env') &&
         existsSync('/opt/laris/previous/files/etc/systemd/system/laris.service'),
-    );
-    check(
-      '--update kept the HTTPS choice (TRUST_PROXY)',
-      readFileSync('/etc/laris/app.env', 'utf8').includes('TRUST_PROXY=false\n'),
     );
   }
   await securitySetup();

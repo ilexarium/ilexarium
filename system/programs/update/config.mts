@@ -1,6 +1,7 @@
 // The configuration (root-owned in root mode), the places and the programs.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { isIP } from 'node:net';
 import { join } from 'node:path';
 import type { Config, Paths, Programs } from './model.mts';
 import { ROOT_LOCK } from '../lib/lock.mts';
@@ -9,6 +10,8 @@ import { assertRootOwned, isPlainAbsolutePath } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
 export const ROOT_CONFIG = '/etc/laris/wrappers.json';
+/** The machine's settings for the app (the person's: where it listens), never changed by an update. */
+const APP_SETTINGS = '/etc/laris/app.env';
 
 const absolute = (p: unknown): p is string => typeof p === 'string' && isPlainAbsolutePath(p);
 
@@ -44,8 +47,35 @@ export function pathsFor(config: Config): Paths {
     units: under('/etc/systemd/system'),
     host: isRoot || !dev ? '/' : dev.root,
     lock: isRoot || !dev ? ROOT_LOCK : join(dev.root, 'root.lock'),
-    healthUrl: isRoot || !dev ? 'http://127.0.0.1:3000/api/health' : dev.healthUrl,
+    healthUrl: isRoot || !dev ? healthUrlOf(readAppSettings()) : dev.healthUrl,
   };
+}
+
+function readAppSettings(): string {
+  if (!existsSync(APP_SETTINGS)) return '';
+  assertRootOwned(APP_SETTINGS);
+  return readFileSync(APP_SETTINGS, 'utf8');
+}
+
+/**
+ * Where the app answers, from its settings: HOST and PORT (the last of each, as systemd reads
+ * them), the app's own defaults without them (127.0.0.1, 3000); listening on every address, it
+ * answers on 127.0.0.1. Only those two values are read — the file also holds the database password.
+ */
+export function healthUrlOf(appSettings: string): string {
+  const setting = (name: string) =>
+    appSettings
+      .split('\n')
+      .findLast((line) => line.startsWith(`${name}=`))
+      ?.slice(name.length + 1)
+      .trim() ?? '';
+  const host = setting('HOST');
+  const port = Number(setting('PORT') || '3000');
+  if ((host !== '' && !isIP(host)) || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Refusal('setup', `invalid HOST or PORT in ${APP_SETTINGS}`, 6);
+  }
+  const address = host === '' || host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host;
+  return `http://${isIP(address) === 6 ? `[${address}]` : address}:${port}/api/health`;
 }
 
 export function programsFor(config: Config): Programs {

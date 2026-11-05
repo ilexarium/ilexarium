@@ -12,8 +12,8 @@ apt_install() {
 
 apt_update() { DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null; }
 
-# A repository: its key (downloaded over HTTPS; de-armored if it's ASCII-armored — Tailscale's
-# .noarmor.gpg is binary already) and its source line.
+# A repository: its key (downloaded over HTTPS; de-armored if it's ASCII-armored) and its source
+# line.
 add_repository() {
   local name="$1" key_url="$2" line="$3" key="$KEYRINGS/$1.gpg"
   ensure_dir "$KEYRINGS" root:root 0755
@@ -89,21 +89,6 @@ ensure_docker() {
   info "$(docker --version)"
 }
 
-ensure_tailscale() {
-  if [[ "$USE_TAILSCALE" != 1 ]]; then return; fi
-  if command -v tailscale >/dev/null; then
-    info "Tailscale $(tailscale version | head -n1)"
-    return
-  fi
-  confirm 'Install Tailscale (from tailscale.com)?' || die 'Tailscale is needed for HTTPS (or use --no-tailscale)'
-  add_repository tailscale "https://pkgs.tailscale.com/stable/$OS_ID/$OS_CODENAME.noarmor.gpg" \
-    "deb [signed-by=@KEY@] https://pkgs.tailscale.com/stable/$OS_ID $OS_CODENAME main"
-  apt_update
-  apt_install tailscale
-  systemctl enable --now tailscaled >/dev/null
-  info "Tailscale $(tailscale version | head -n1)"
-}
-
 borg_version() { borg --version 2>/dev/null | awk '{ print $2 }' || true; }
 
 # Borg 1.4: Debian 13 has it; Debian 12 from its official backports; Ubuntu 24.04 from the
@@ -159,6 +144,5 @@ ensure_packages() {
   ensure_ssh_server
   ensure_node
   ensure_docker
-  ensure_tailscale
   ensure_borg
 }

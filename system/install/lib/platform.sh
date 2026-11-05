@@ -1,5 +1,5 @@
 # system/install/lib/platform.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
-# The platform's containers, the database (two roles, migrations), the app's service, HTTPS.
+# The platform's containers, the database (two roles, migrations), the app's service.
 # Sourced by install.sh.
 
 POSTGRES_CONTAINER=laris-postgres-1
@@ -48,11 +48,6 @@ backup_database() {
 # The app's own role may only read and write data: no tables made or dropped, no migrations.
 migrate_database() {
   log 'Database'
-  owner_sql <<SQL
-SELECT 'CREATE ROLE laris LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'laris')
-\gexec
-ALTER ROLE laris WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '$APP_DB_PASSWORD';
-SQL
   # Prisma's migrations, as the owner (only this step ever holds its password) — from the new
   # release, before it replaces anything: if one fails, the old version is still installed.
   if ! (cd "$RELEASE/app/apps/server" &&
@@ -99,8 +94,10 @@ start_app() {
   systemctl enable laris.service >/dev/null 2>&1
   systemctl restart laris.service
 
+  local url
+  url="$(app_url)"
   for _ in $(seq 1 60); do
-    if curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1; then
+    if curl -fsS "$url/api/health" >/dev/null 2>&1; then
       info 'the app answers'
       return
     fi
@@ -109,45 +106,21 @@ start_app() {
   die 'The app did not answer within a minute (journalctl -u laris)'
 }
 
-# HTTPS in front of the app, through Tailscale (the session cookie needs HTTPS).
-setup_https() {
-  if [[ "$UPDATE" == 1 ]]; then
-    PUBLIC_URL=''
-    info 'HTTPS: left as it is (an update)'
-    return
-  fi
-  if [[ "$USE_TAILSCALE" != 1 ]]; then
-    PUBLIC_URL='http://localhost:3000'
-    warn 'Without Tailscale: the app is reachable only on this machine (http://localhost:3000)'
-    return
-  fi
-  log 'HTTPS (tailscale serve)'
-  local state
-  state="$(tailscale status --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>{try{process.stdout.write(JSON.parse(s).BackendState??"")}catch{}})' || true)"
-  [[ "$state" == Running ]] || die 'Tailscale is not signed in: run "sudo tailscale up", then this again'
-  tailscale serve --bg --https=443 http://127.0.0.1:3000 >/dev/null ||
-    die 'tailscale serve failed (are MagicDNS and HTTPS certificates on in your tailnet?)'
-  local name
-  name="$(tailscale status --json | node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>process.stdout.write(JSON.parse(s).Self.DNSName.replace(/\.$/,"")))')" ||
-    die 'Tailscale gave no name for this machine'
-  PUBLIC_URL="https://$name"
-  info "$PUBLIC_URL"
-}
-
 print_result() {
   log "Laris $NEW_VERSION is running"
-  local status token
-  status="$(curl -fsS http://127.0.0.1:3000/api/auth/status 2>/dev/null || true)"
+  if [[ -n "${DATABASE_BACKUP:-}" ]]; then info "Database before the update: $DATABASE_BACKUP"; fi
+  if [[ "$UPDATE" == 1 ]]; then return; fi
+  local url status token
+  url="$(app_url)"
+  info "It listens on $url. Signing in needs HTTPS: put an HTTPS proxy of your choice in front of it."
+  status="$(curl -fsS "$url/api/auth/status" 2>/dev/null || true)"
   if [[ "$status" == *'"needsSetup":true'* ]]; then
     # Read as the app's user: the file is in its folder (root reading it could follow a link).
     token="$(runuser -u "$APP_USER" -- cat "$VAR/app/setup-token" 2>/dev/null || true)"
-    info 'Open this link to create your account (it works once):'
+    info 'Then create your account (the link works once):'
     info ''
-    info "    $PUBLIC_URL/setup#token=$token"
+    info "    https://<your address>/setup#token=$token"
     info ''
     info 'Lost it? sudo laris-setup-code'
-  elif [[ -n "$PUBLIC_URL" ]]; then
-    info "Open $PUBLIC_URL"
   fi
-  if [[ -n "${DATABASE_BACKUP:-}" ]]; then info "Database before the update: $DATABASE_BACKUP"; fi
 }

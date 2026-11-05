@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Tests the installer end to end on a throwaway machine (docs/plans/installer.md,
 # install_and_update.md): builds a release signed with a test key, serves it over HTTPS inside the
-# machine, installs it through get-laris.sh (--no-tailscale --yes; a tampered archive refused
-# first), runs the smoke test inside, runs the installer again (--update) and the smoke test again.
+# machine, installs it through get-laris.sh (--yes; a tampered archive refused first), runs the
+# smoke test inside, moves the app to another port (the machine's settings, which updates keep),
+# runs the installer again (--update) and the smoke test again, then updates by laris-update.
 #
 #   tools/vm/test-install.sh --container   a Debian 13 container with systemd (any machine with
 #                                           Docker; privileged — root-equivalent while it runs)
@@ -114,14 +115,14 @@ run_in bash -c "cd /root && sha256sum -c laris-$VERSION.tar.gz.sha256 && tar xzf
 step 'get-laris.sh refuses a tampered archive'
 SERVED="/srv/www/releases/download/v$VERSION/laris-$VERSION.tar.gz"
 run_in bash -c "cp $SERVED /root/served.tar.gz && printf x | dd of=$SERVED bs=1 seek=1000 conv=notrunc status=none"
-if run_in bash /root/get-laris.sh --yes --no-tailscale >>"$LOG" 2>&1 || run_in test -e /etc/laris/version; then
+if run_in bash /root/get-laris.sh --yes >>"$LOG" 2>&1 || run_in test -e /etc/laris/version; then
   echo 'get-laris.sh installed a tampered archive' | tee -a "$LOG"
   exit 1
 fi
 run_in cp /root/served.tar.gz "$SERVED"
 
 step 'Installing (get-laris.sh)'
-if ! run_in bash /root/get-laris.sh --yes --no-tailscale >>"$LOG" 2>&1; then
+if ! run_in bash /root/get-laris.sh --yes >>"$LOG" 2>&1; then
   tail -40 "$LOG"
   exit 1
 fi
@@ -137,11 +138,26 @@ if [[ "$MODE" == vm ]]; then
   run_in node /root/smoke.mjs update | tee -a "$LOG"
 fi
 
+# The machine's settings are the person's: on another port, every update must leave them as they
+# are (byte for byte) and find the app there.
+step 'Moving the app to port 3300 (app.env)'
+run_in bash -c "sed -i 's/^PORT=.*/PORT=3300/' /etc/laris/app.env && systemctl restart laris &&
+  sha256sum /etc/laris/app.env >/root/app.env.sha256 &&
+  for _ in \$(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:3300/api/health && exit 0; sleep 1; done; exit 1" >>"$LOG" 2>&1
+app_settings_kept() {
+  if ! run_in sha256sum --quiet -c /root/app.env.sha256 >>"$LOG" 2>&1; then
+    echo "  FAIL app.env changed by $1" | tee -a "$LOG"
+    exit 1
+  fi
+  echo "  ok   app.env as it was after $1" | tee -a "$LOG"
+}
+
 step 'Installing again (--update)'
 if ! run_in bash -c "cd /root/laris-$VERSION && ./install.sh --update" >>"$LOG" 2>&1; then
   tail -40 "$LOG"
   exit 1
 fi
+app_settings_kept 'install.sh --update'
 run_in node /root/smoke.mjs update --installed-again | tee -a "$LOG"
 
 # Two newer versions of the same release, signed with the test key: one that works, one whose app
@@ -162,5 +178,7 @@ step "Updating to $GOOD, then to a broken $BROKEN (laris-update)"
 run_in rm -rf /srv/www/releases
 copy_in "$RELEASES" /srv/www/releases
 run_in node /root/smoke.mjs self-update "$GOOD" updated | tee -a "$LOG"
+app_settings_kept "the update to $GOOD"
 run_in node /root/smoke.mjs self-update "$BROKEN" rolled_back | tee -a "$LOG"
+app_settings_kept "the rolled-back update to $BROKEN"
 step "Done — log: ${LOG#"$ROOT"/}"

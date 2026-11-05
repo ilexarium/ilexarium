@@ -1,5 +1,4 @@
 {
-  "reservedPorts": [22, 53, 2375, 3000, 5432, 41641],
   "protectedPaths": ["/opt/laris", "/etc/laris", "/var/lib/laris"],
   "dockerBin": "/usr/bin/docker",
   "disk": {

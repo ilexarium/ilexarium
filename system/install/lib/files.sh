@@ -92,27 +92,13 @@ enable_lingering() {
   info "lingering: on for $person"
 }
 
-# An update keeps the machine's HTTPS choice (the first install's): it decides TRUST_PROXY. Installed
-# before release.env existed: app.env tells (Tailscale is the proxy on loopback).
-keep_https_choice() {
-  if [[ "$UPDATE" != 1 ]]; then return; fi
-  local https
-  https="$(read_setting "$ETC/release.env" HTTPS)"
-  if [[ -z "$https" ]]; then
-    https=none
-    if [[ "$(read_setting "$ETC/app.env" TRUST_PROXY)" == loopback ]]; then https=tailscale; fi
-  fi
-  if [[ "$https" == tailscale ]]; then USE_TAILSCALE=1; else USE_TAILSCALE=0; fi
-}
-
 # Where updates come from and the key they're checked with: the release's own, written on every
 # install and update (a release built without them can't update itself). laris-update checks a new
 # release with the installed key, so a new key only arrives signed by the old one.
 write_release_settings() {
-  local url='' https=none
+  local url=''
   if [[ -f "$RELEASE/release.env" ]]; then url="$(read_setting "$RELEASE/release.env" RELEASE_URL)"; fi
-  if [[ "$USE_TAILSCALE" == 1 ]]; then https=tailscale; fi
-  printf 'RELEASE_URL=%s\nHTTPS=%s\n' "$url" "$https" | write_file "$ETC/release.env" root:root 0644
+  printf 'RELEASE_URL=%s\n' "$url" | write_file "$ETC/release.env" root:root 0644
   if [[ -n "$url" && -f "$RELEASE/release.pub" ]]; then
     write_file "$ETC/release.pub" root:root 0644 <"$RELEASE/release.pub"
   else
@@ -144,16 +130,15 @@ keep_previous() {
   info "$PREVIOUS"
 }
 
-# Settings: passwords and the master key made once and kept; everything else written each time.
+# The platform's own settings: the owner's password and the master key made once and kept; the
+# rest worked out from the machine each time (no one's choices). The app's settings are the
+# person's: ensure_app_settings.
 write_settings() {
   log 'Settings'
-  local owner_password app_password docker_gid borg_bin trust_proxy
+  local owner_password docker_gid borg_bin
   owner_password="$(read_setting "$ETC/database.env" POSTGRES_PASSWORD)"
   [[ -n "$owner_password" ]] || owner_password="$(random_hex 24)"
-  app_password="$(read_setting "$ETC/app.env" DATABASE_URL | sed -n 's|^postgresql://laris:\([0-9a-f]*\)@.*|\1|p' || true)"
-  [[ -n "$app_password" ]] || app_password="$(random_hex 24)"
   OWNER_DATABASE_URL="postgresql://laris_owner:$owner_password@127.0.0.1:5432/laris"
-  APP_DB_PASSWORD="$app_password"
 
   write_file "$ETC/database.env" root:root 0600 <<CONF
 POSTGRES_USER=laris_owner
@@ -167,23 +152,9 @@ CONF
 DOCKER_GID=$docker_gid
 CONF
 
-  trust_proxy=false
-  if [[ "$USE_TAILSCALE" == 1 ]]; then trust_proxy=loopback; fi
-  write_file "$ETC/app.env" "root:$APP_USER" 0640 <<CONF
-NODE_ENV=production
-PORT=3000
-HOST=127.0.0.1
-DATABASE_URL=postgresql://laris:$app_password@127.0.0.1:5432/laris
-DOCKER_HOST=unix:///run/laris/proxy/docker.sock
-TRUST_PROXY=$trust_proxy
-WEB_ROOT=$OPT/app/apps/web/browser
-SETUP_TOKEN_FILE=$VAR/app/setup-token
-CONF
-
   borg_bin="$(command -v borg)"
   APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" node --input-type=module -e '
     const config = {
-      reservedPorts: [22, 53, 2375, 3000, 5432, 41641],
       protectedPaths: ["/opt/laris", "/etc/laris", "/var/lib/laris"],
       dockerBin: "/usr/bin/docker",
       disk: { systemctlBin: "/usr/bin/systemctl" },
@@ -218,4 +189,55 @@ CONF
   chown "$APP_USER:$APP_USER" "$ETC/master.key"
   chmod 0400 "$ETC/master.key"
   info "$ETC"
+}
+
+# The machine's settings for the app (/etc/laris/app.env, read by laris.service): where it listens
+# and its database role's password — made with the role at the first install, then the person's.
+# An update never changes them. Needs the database running.
+ensure_app_settings() {
+  log 'The app’s settings'
+  owner_sql <<'SQL'
+SELECT 'CREATE ROLE laris LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'laris')
+\gexec
+ALTER ROLE laris WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+SQL
+  if [[ -f "$ETC/app.env" ]]; then
+    drop_release_settings
+    info "$ETC/app.env (kept as it is)"
+    return
+  fi
+  local password
+  password="$(random_hex 24)"
+  owner_sql <<SQL
+ALTER ROLE laris PASSWORD '$password';
+SQL
+  write_file "$ETC/app.env" "root:$APP_USER" 0640 <<CONF
+HOST=127.0.0.1
+PORT=3000
+DATABASE_URL=postgresql://laris:$password@127.0.0.1:5432/laris
+CONF
+  info "$ETC/app.env"
+}
+
+# Installed before the settings were split, app.env also held the release's (now in laris.service,
+# which they would override): those lines go once, the person's stay.
+drop_release_settings() {
+  local release='^(NODE_ENV|DOCKER_HOST|WEB_ROOT|SETUP_TOKEN_FILE)='
+  if grep -Eq "$release" "$ETC/app.env"; then
+    grep -Ev "$release" "$ETC/app.env" | write_file "$ETC/app.env" "root:$APP_USER" 0640
+    info "$ETC/app.env: the release's settings moved to laris.service"
+  fi
+}
+
+# Where the app answers on this machine, from its settings (the last of each, as systemd reads
+# them; the app's defaults without them): listening on every address, on 127.0.0.1.
+app_url() {
+  local host port
+  host="$(sed -n 's/^HOST=//p' "$ETC/app.env" 2>/dev/null | tail -n1)"
+  port="$(sed -n 's/^PORT=//p' "$ETC/app.env" 2>/dev/null | tail -n1)"
+  case "$host" in
+    '' | 0.0.0.0 | ::) host=127.0.0.1 ;;
+    *:*) host="[$host]" ;;
+  esac
+  printf 'http://%s:%s' "$host" "${port:-3000}"
 }
