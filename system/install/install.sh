@@ -58,8 +58,8 @@ ensure_packages
 marker phase checked
 ensure_user
 ensure_folders
-# The same version again (a repair) keeps the older one as the way back.
-if [[ -n "$OLD_VERSION" && "$OLD_VERSION" != "$NEW_VERSION" ]]; then
+# The same version again (a repair) keeps an older one already kept as the way back.
+if [[ -n "$OLD_VERSION" && ("$OLD_VERSION" != "$NEW_VERSION" || ! -f "$PREVIOUS/VERSION") ]]; then
   keep_previous
   marker phase saved
 fi
