@@ -80,8 +80,8 @@ setup_ssh_login() {
   ensure_dir /etc/ssh/sshd_config.d root:root 0755
   write_file "$dropin" root:root 0644 <"$RELEASE/system/install/sshd.conf"
   # Arch makes the host keys when sshd first starts: `sshd -t` (and the app, which pins them)
-  # needs them now. Only missing ones are made.
-  ssh-keygen -A >/dev/null
+  # needs them now. Only on a machine without any: one an administrator removed stays removed.
+  if ! compgen -G '/etc/ssh/ssh_host_*_key' >/dev/null; then ssh-keygen -A >/dev/null || true; fi
   if ! /usr/sbin/sshd -t 2>/dev/null; then
     rm -f "$dropin"
     die 'sshd refused the configuration with the drop-in (removed again; nothing changed)'

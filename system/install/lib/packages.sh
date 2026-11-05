@@ -17,8 +17,11 @@ apt_update() { DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null; }
 # Packages from the package database as it is: when it's too old for one to download (or has
 # never been read), the person upgrades the system first.
 pacman_install() {
-  pacman -S --needed --noconfirm "$@" >/dev/null ||
-    die "Could not install $* — bring the system up to date first (sudo pacman -Syu), then run this again"
+  local output
+  if ! output="$(pacman -S --needed --noconfirm "$@" 2>&1)"; then
+    printf '%s\n' "$output" | tail -n 20 >&2
+    die "Could not install $* (pacman's answer above) — if a package could not be downloaded, bring the system up to date first (sudo pacman -Syu), then run this again"
+  fi
 }
 
 # A repository: its key (downloaded over HTTPS; de-armored if it's ASCII-armored) and its source
@@ -183,7 +186,11 @@ ensure_ssh_server() {
 # Its unit: ssh.service on Debian and Ubuntu (sshd.service is only its alias there), sshd.service
 # on Arch.
 ssh_unit() {
-  if systemctl cat ssh.service >/dev/null 2>&1; then printf ssh.service; else printf sshd.service; fi
+  if [[ -n "$(systemctl list-unit-files --no-legend ssh.service 2>/dev/null)" ]]; then
+    printf ssh.service
+  else
+    printf sshd.service
+  fi
 }
 
 ensure_packages() {
