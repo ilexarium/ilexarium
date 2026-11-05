@@ -27,6 +27,7 @@ export async function rollBack(
   job: JobFile,
   progress: Progress,
   from: string,
+  sshUnit: string,
 ): Promise<RollbackResult> {
   const say = (line: string) => {
     job.event({ type: 'line', text: line });
@@ -103,7 +104,7 @@ export async function rollBack(
     ok = false;
   }
 
-  await run(programs.systemctl, ['reload-or-restart', 'ssh.service']);
+  await run(programs.systemctl, ['reload-or-restart', sshUnit]);
   await run(programs.systemctl, ['start', 'laris.service']);
   if (!(await answersAs(paths.healthUrl, from, START_TIMEOUT_MS))) {
     say(`${from} did not answer after it was put back`);

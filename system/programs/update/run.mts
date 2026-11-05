@@ -48,6 +48,8 @@ export async function run(
   if (typeof version !== 'string' || !VERSION.test(version))
     throw new Refusal('invalid_request', 'version');
 
+  // A machine installed before the setting was written runs Debian's.
+  const sshUnit = config.update.sshUnit ?? 'ssh.service';
   const job = new JobFile(config, paths, updateId, false);
   const work = join(paths.state, updateId);
   let from = '';
@@ -97,13 +99,13 @@ export async function run(
         return finish('updated', version);
     }
     const error = installed.code === 0 ? 'not_answering' : 'install_failed';
-    const back = await rollBack(paths, programs, job, progress, from);
+    const back = await rollBack(paths, programs, job, progress, from, sshUnit);
     if (back === 'nothing_changed') return finish('failed', from, error);
     return finish(back, back === 'rolled_back' ? from : version, error);
   } catch (error) {
     // Whatever went wrong, the machine mustn't be left half-installed.
     emit(`@@info ${String((error as Error)?.message ?? error)}`);
-    const back = await rollBack(paths, programs, job, progress, from);
+    const back = await rollBack(paths, programs, job, progress, from, sshUnit);
     if (back === 'nothing_changed') return finish('failed', from, 'internal');
     return finish(back, back === 'rolled_back' ? from : version, 'internal');
   } finally {
