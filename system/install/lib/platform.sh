@@ -79,12 +79,15 @@ setup_ssh_login() {
   local dropin=/etc/ssh/sshd_config.d/laris.conf
   ensure_dir /etc/ssh/sshd_config.d root:root 0755
   write_file "$dropin" root:root 0644 <"$RELEASE/system/install/sshd.conf"
+  # Arch makes the host keys when sshd first starts: `sshd -t` (and the app, which pins them)
+  # needs them now. Only missing ones are made.
+  ssh-keygen -A >/dev/null
   if ! /usr/sbin/sshd -t 2>/dev/null; then
     rm -f "$dropin"
     die 'sshd refused the configuration with the drop-in (removed again; nothing changed)'
   fi
-  systemctl enable ssh.service >/dev/null 2>&1 || true
-  systemctl reload-or-restart ssh.service || die 'sshd could not be reloaded (journalctl -u ssh)'
+  systemctl enable "$SSH_UNIT" >/dev/null 2>&1 || true
+  systemctl reload-or-restart "$SSH_UNIT" || die "sshd could not be reloaded (journalctl -u $SSH_UNIT)"
   info "$dropin"
 }
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # install.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root, once per install or update.
 #
-# Turns a fresh Debian 12/13 or Ubuntu 24.04 machine (amd64, arm64) into a running platform, or
+# Turns a fresh Debian 12/13, Ubuntu 24.04 or Arch Linux machine (amd64, arm64) into a running platform, or
 # updates an installed one to this release. Run from the unpacked release archive:
 #
 #   sudo ./install.sh [--yes]
 #
-#   --yes            install missing programs (Node.js, Docker, Borg) without asking
+#   --yes            install missing programs (Node.js, Docker, Borg) without asking (on Arch
+#                    from the package database as it is — never a system upgrade)
 #   --update         an update from the app (laris-update): installs no programs, asks nothing,
 #                    prints its progress as @@ lines
 #
@@ -26,7 +27,7 @@ for arg in "$@"; do
     --yes) ASSUME_YES=1 ;;
     --update) UPDATE=1 ;;
     -h | --help)
-      sed -n '2,17s/^# \{0,1\}//p' "$0"
+      sed -n '2,18s/^# \{0,1\}//p' "$0"
       exit 0
       ;;
     *)
