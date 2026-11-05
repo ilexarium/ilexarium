@@ -67,7 +67,6 @@ function plan(change: Record<string, unknown> = {}): Record<string, any> {
 
 function writeConfig(change: Record<string, unknown> = {}) {
   const config = {
-    reservedPorts: [],
     protectedPaths: [join(storage, 'platform')],
     dockerBin: join(dir, 'docker'),
     lockFile: join(dir, 'run', 'compose.lock'),

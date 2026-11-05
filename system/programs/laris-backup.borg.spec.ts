@@ -102,7 +102,6 @@ describe.skipIf(!BORG)('laris-backup with the real Borg', () => {
     writeFileSync(
       join(dir, 'wrappers.json'),
       JSON.stringify({
-        reservedPorts: [],
         protectedPaths: [],
         dockerBin: join(dir, 'docker'),
         lockFile: join(dir, 'compose.lock'),

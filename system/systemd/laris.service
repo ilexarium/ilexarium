@@ -1,7 +1,8 @@
 # /etc/systemd/system/laris.service — REVIEW-REQUIRED (system/CLAUDE.md).
-# The app, as its own unprivileged user. Listens on 127.0.0.1 only (tailscale serve puts HTTPS
-# in front). Its settings: /etc/laris/app.env (root:laris 0640 — the database password).
-# Design: docs/plans/installer.md.
+# The app, as its own unprivileged user. Two kinds of settings (docs/plans/no_access_knowledge.md):
+# the release's — facts about this version's files, below, replaced with every update — and the
+# machine's, /etc/laris/app.env (root:laris 0640: where it listens, the database password),
+# written once by the installer and never by an update. Design: docs/plans/installer.md.
 #
 # Deliberately without NoNewPrivileges, ProtectSystem, PrivateTmp and the like: they apply to
 # everything the app starts too, and the app's privileged work happens in its root wrappers,
@@ -17,6 +18,10 @@ Wants=network-online.target
 [Service]
 User=laris
 Group=laris
+Environment=NODE_ENV=production
+Environment=DOCKER_HOST=unix:///run/laris/proxy/docker.sock
+Environment=WEB_ROOT=/opt/laris/app/apps/web/browser
+Environment=SETUP_TOKEN_FILE=/var/lib/laris/app/setup-token
 EnvironmentFile=/etc/laris/app.env
 WorkingDirectory=/opt/laris/app/apps/server
 ExecStart=/usr/bin/node dist/main.js

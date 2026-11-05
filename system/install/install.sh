@@ -4,12 +4,14 @@
 # Turns a fresh Debian 12/13 or Ubuntu 24.04 machine (amd64, arm64) into a running platform, or
 # updates an installed one to this release. Run from the unpacked release archive:
 #
-#   sudo ./install.sh [--yes] [--no-tailscale]
+#   sudo ./install.sh [--yes]
 #
-#   --yes            install missing programs (Node.js, Docker, Tailscale, Borg) without asking
-#   --no-tailscale   no HTTPS: the app is reachable only on this machine (tests)
-#   --update         an update from the app (laris-update): installs no programs, leaves HTTPS
-#                    as it is, asks nothing, prints its progress as @@ lines
+#   --yes            install missing programs (Node.js, Docker, Borg) without asking
+#   --update         an update from the app (laris-update): installs no programs, asks nothing,
+#                    prints its progress as @@ lines
+#
+# How people reach the machine is theirs: Laris listens where /etc/laris/app.env says
+# (127.0.0.1:3000 at first) and needs an HTTPS proxy of their choice in front of it.
 #
 # Every step checks first and changes only what's missing or outdated: running it again is safe.
 # It never deletes a user's data. Design: docs/plans/installer.md, install_and_update.md.
@@ -18,15 +20,13 @@ umask 0022
 
 RELEASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSUME_YES=0
-USE_TAILSCALE=1
 UPDATE=0
 for arg in "$@"; do
   case "$arg" in
     --yes) ASSUME_YES=1 ;;
-    --no-tailscale) USE_TAILSCALE=0 ;;
     --update) UPDATE=1 ;;
     -h | --help)
-      sed -n '2,16s/^# \{0,1\}//p' "$0"
+      sed -n '2,17s/^# \{0,1\}//p' "$0"
       exit 0
       ;;
     *)
@@ -52,7 +52,6 @@ LIB="$RELEASE/system/install/lib"
 
 check_machine
 check_version
-keep_https_choice
 ensure_packages
 marker phase checked
 ensure_user
@@ -71,6 +70,7 @@ fi
 install_platform_files
 start_platform
 backup_database
+ensure_app_settings
 # Migrated from the new release before it replaces the old: a failure leaves the old one.
 migrate_database
 marker phase migrated
@@ -78,7 +78,6 @@ install_release
 marker phase installed
 setup_ssh_login
 enable_lingering
-setup_https
 start_app
 marker phase started
 check_setup
