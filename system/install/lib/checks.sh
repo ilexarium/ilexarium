@@ -45,11 +45,7 @@ version_ge() { [[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" == "$2" 
 # Not while a backup, restore or disk change runs: the installer stops the app and restarts the
 # database. An update from the app runs under laris-update, which holds the lock for it.
 hold_lock() {
-  if [[ "$UPDATE" == 1 ]]; then
-    [[ "$(lock_owner "$ROOT_LOCK")" == "$PPID" ]] ||
-      die '--update runs only from laris-update (which holds the lock)'
-    return
-  fi
+  if [[ "$UPDATE" == 1 && "$(lock_owner "$ROOT_LOCK")" == "$PPID" ]]; then return; fi
   take_lock "$ROOT_LOCK" ||
     die 'A backup, restore or disk change is running — run this again when it’s done'
 }
