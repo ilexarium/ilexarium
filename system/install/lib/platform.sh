@@ -7,7 +7,7 @@ POSTGRES_CONTAINER=laris-postgres-1
 # SQL as the database owner, inside the container (local socket: no password, no network).
 # Statements come on stdin — never in arguments, which every user can see in `ps`.
 owner_sql() {
-  docker exec -i "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 -q -X -U laris_owner -d laris
+  docker exec -i "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 -q -X -U laris_owner -d laris "$@"
 }
 
 start_platform() {

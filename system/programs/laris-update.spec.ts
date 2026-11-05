@@ -426,6 +426,33 @@ describe('the health URL, from the machine’s app settings', () => {
     expect(healthUrlOf('PORT=3000\nPORT=4000\n')).toBe('http://127.0.0.1:4000/api/health');
   });
 
+  it('as systemd reads them: spaces and one pair of quotes taken off, CRLF lines', () => {
+    expect(healthUrlOf('HOST="0.0.0.0"\nPORT=\'8080\'\n')).toBe('http://127.0.0.1:8080/api/health');
+    expect(healthUrlOf('  PORT=8080 \r\nHOST=::1\r\n')).toBe('http://[::1]:8080/api/health');
+  });
+
+  it('the installer reads them the same way (app_url in files.sh)', () => {
+    const files = join(HERE, '../install/lib/files.sh');
+    for (const settings of [
+      '',
+      'PORT=8080\n',
+      'HOST=192.168.1.10\nPORT=3000\n',
+      'HOST=::1\n',
+      'HOST=0.0.0.0\n',
+      'HOST=::\n',
+      'PORT=3000\nPORT=4000\n',
+      'HOST="0.0.0.0"\nPORT=\'8080\'\n',
+      '  PORT=8080 \r\nHOST=::1\r\n',
+      'DATABASE_URL=postgresql://laris:pw@127.0.0.1:5432/laris\nHOST=127.0.0.1\n',
+    ]) {
+      writeFileSync(join(dir, 'app.env'), settings);
+      const url = execFileSync('bash', ['-c', 'source "$1"; ETC="$2"; app_url', '_', files, dir], {
+        encoding: 'utf8',
+      });
+      expect(`${url}/api/health`, JSON.stringify(settings)).toBe(healthUrlOf(settings));
+    }
+  });
+
   it('refuses anything that isn’t an address or a port', () => {
     for (const settings of [
       'HOST=evil.example\n',

@@ -58,17 +58,21 @@ function readAppSettings(): string {
 }
 
 /**
- * Where the app answers, from its settings: HOST and PORT (the last of each, as systemd reads
- * them), the app's own defaults without them (127.0.0.1, 3000); listening on every address, it
+ * Where the app answers, from its settings: HOST and PORT as systemd reads them (the last of
+ * each, spaces and one pair of quotes taken off), the app's own defaults without them (127.0.0.1, 3000); listening on every address, it
  * answers on 127.0.0.1. Only those two values are read — the file also holds the database password.
  */
 export function healthUrlOf(appSettings: string): string {
-  const setting = (name: string) =>
-    appSettings
-      .split('\n')
-      .findLast((line) => line.startsWith(`${name}=`))
-      ?.slice(name.length + 1)
-      .trim() ?? '';
+  const setting = (name: string) => {
+    const value =
+      appSettings
+        .split('\n')
+        .map((line) => line.trim())
+        .findLast((line) => line.startsWith(`${name}=`))
+        ?.slice(name.length + 1)
+        .trim() ?? '';
+    return /^(["']).*\1$/.test(value) ? value.slice(1, -1) : value;
+  };
   const host = setting('HOST');
   const port = Number(setting('PORT') || '3000');
   if ((host !== '' && !isIP(host)) || !Number.isInteger(port) || port < 1 || port > 65535) {
