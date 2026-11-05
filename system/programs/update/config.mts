@@ -59,8 +59,9 @@ function readAppSettings(): string {
 
 /**
  * Where the app answers, from its settings: HOST and PORT as systemd reads them (the last of
- * each, spaces and one pair of quotes taken off), the app's own defaults without them (127.0.0.1, 3000); listening on every address, it
- * answers on 127.0.0.1. Only those two values are read — the file also holds the database password.
+ * each, spaces and one pair of quotes taken off), the app's own defaults without them (127.0.0.1,
+ * 3000); listening on every address, it answers on 127.0.0.1. Only those two values are read —
+ * the file also holds the database password.
  */
 export function healthUrlOf(appSettings: string): string {
   const setting = (name: string) => {

@@ -230,16 +230,6 @@ CONF
   info "$ETC/app.env"
 }
 
-# Installed before the settings were split, app.env also held the release's (now in laris.service,
-# which they would override): those lines go once, the person's stay.
-drop_release_settings() {
-  local release='^(NODE_ENV|DOCKER_HOST|WEB_ROOT|SETUP_TOKEN_FILE)='
-  if grep -Eqs "$release" "$ETC/app.env"; then
-    grep -Ev "$release" "$ETC/app.env" | write_file "$ETC/app.env" "root:$APP_USER" 0640
-    info "$ETC/app.env: the release's settings moved to laris.service"
-  fi
-}
-
 # A setting of the app's, as systemd reads it: the last one, spaces around it and one pair of quotes
 # taken off. The same rule as laris-update's healthUrlOf (laris-update.spec.ts compares them).
 app_setting() {
