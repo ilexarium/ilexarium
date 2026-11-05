@@ -76,7 +76,7 @@
   "auth": {
     "insecure": {
       "title": "This connection isn't encrypted",
-      "text": "Open this app over HTTPS — for example {{example}} with Tailscale. Signing in isn't possible over an unencrypted connection."
+      "text": "Open this app over HTTPS. Signing in isn't possible over an unencrypted connection."
     },
     "showPasswords": "Show passwords",
     "hidePasswords": "Hide passwords",
@@ -234,7 +234,7 @@
     "duplicate_uuid": "Another disk has the same ID (a copied disk?). Unplug one of them to mount this one.",
     "alert_not_found": "This alert isn't open any more.",
     "channel_not_configured": "Save the settings first.",
-    "address_refused": "The app never sends to this address: not to the platform's own ports, not to link-local addresses, and plain http:// only on your own network.",
+    "address_refused": "The app never sends to this address: not to link-local addresses, and plain http:// only on your own network.",
     "topic_required": "Enter the topic URL.",
     "password_required": "Enter the password.",
     "process_not_found": "This process isn't running any more.",

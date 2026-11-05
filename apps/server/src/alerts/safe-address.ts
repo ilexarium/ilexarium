@@ -11,7 +11,7 @@ export type Lookup = (host: string) => Promise<{ address: string; family: number
 export interface SafeTarget {
   address: string;
   family: 4 | 6;
-  /** Loopback or a private network (LAN, Tailscale): plain HTTP is allowed there. */
+  /** Loopback or a private network: plain HTTP is allowed there. */
   local: boolean;
   loopback: boolean;
 }
@@ -56,20 +56,15 @@ export function classify(address: string): 'refused' | 'loopback' | 'private' | 
 
 /**
  * The address rule (docs/plans/health_alerts.md, "Where the app may send"): the app sends to an
- * address the user typed, so never to the platform's own ports (`reservedPorts`) on any address,
- * nor to link-local addresses (cloud metadata) — loopback, LAN, Tailscale and the internet are
- * fine. Checked **after the name is resolved**: every address the name has must pass (one
+ * address the user typed, so never to link-local addresses (cloud metadata) — loopback, private
+ * networks and the internet are fine. Checked **after the name is resolved**: every address the name has must pass (one
  * pointing somewhere refused is refused), and the caller connects to the address returned.
  * `plain`: an unencrypted connection, allowed only to loopback and private addresses.
  */
 export async function checkTarget(
   host: string,
-  port: number,
-  options: { reservedPorts: readonly number[]; plain: boolean; lookup?: Lookup },
+  options: { plain: boolean; lookup?: Lookup },
 ): Promise<SafeTarget> {
-  if (options.reservedPorts.includes(port)) {
-    throw new DeliveryError('addressRefused', `Port ${port} is one of the platform's own`);
-  }
   const bare = host.replace(/^\[(.*)\]$/, '$1').replace(/\.$/, '');
   let addresses: { address: string; family: number }[];
   if (isIP(bare)) addresses = [{ address: bare, family: isIP(bare) }];

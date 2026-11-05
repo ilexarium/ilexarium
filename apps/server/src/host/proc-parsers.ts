@@ -68,7 +68,7 @@ export function parseNetDev(netDev: string): Map<string, NetCounters> {
 
 const HIDDEN_INTERFACE = /^(lo|docker0|br-.*|veth.*)$/;
 
-/** Physical interfaces and VPNs like `tailscale0`; not loopback or Docker's virtual ones. */
+/** Physical interfaces and VPNs like `wg0`; not loopback or Docker's virtual ones. */
 export function isShownInterface(name: string): boolean {
   return !HIDDEN_INTERFACE.test(name);
 }

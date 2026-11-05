@@ -249,11 +249,7 @@ describe('alerts (e2e)', () => {
   });
 
   it('refuses addresses the app never sends to', async () => {
-    for (const url of [
-      'http://169.254.169.254/latest',
-      'http://127.0.0.1:22/topic',
-      'http://[fe80::1]/t',
-    ]) {
+    for (const url of ['http://169.254.169.254/latest', 'http://[fe80::1]/t']) {
       await api()
         .put('/alerts/channels/ntfy', { enabled: true, topicUrl: url })
         .expect(400)
@@ -263,6 +259,12 @@ describe('alerts (e2e)', () => {
       .put('/alerts/channels/email', emailSettings({ host: '169.254.169.254', port: 25 }))
       .expect(400)
       .expect((res) => expect(res.body.code).toBe('address_refused'));
+  });
+
+  it('accepts a server on this machine, any port (a self-hosted ntfy)', async () => {
+    await api()
+      .put('/alerts/channels/ntfy', { enabled: true, topicUrl: 'http://127.0.0.1:8080/laris' })
+      .expect(204);
   });
 
   it('validates the settings', async () => {

@@ -79,12 +79,7 @@ describe('systemServiceProtection', () => {
   });
 
   it('what Laris needs: restarted, never stopped', () => {
-    for (const name of [
-      'ssh.service',
-      'sshd.service',
-      'tailscaled.service',
-      'systemd-journald.service',
-    ]) {
+    for (const name of ['ssh.service', 'sshd.service', 'systemd-journald.service']) {
       expect(systemServiceProtection([name]), name).toBe('essential');
     }
     expect(systemServiceActionAllowed('essential', 'stop')).toBe(false);

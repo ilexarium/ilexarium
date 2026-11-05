@@ -10,7 +10,6 @@ import type {
 
 /** The root programs' config file (the same one they read, as root, in production). */
 export interface ProgramConfig {
-  reservedPorts: number[];
   protectedPaths: string[];
   dockerBin: string;
   lockFile?: string;

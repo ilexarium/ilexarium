@@ -18,7 +18,6 @@ export class NtfySender implements ChannelSender<NtfyConfig> {
   readonly channel = 'ntfy';
 
   constructor(
-    private readonly reservedPorts: () => readonly number[],
     private readonly lookup?: Lookup,
     private readonly timeoutMs = SEND_TIMEOUT_MS,
   ) {}
@@ -26,9 +25,7 @@ export class NtfySender implements ChannelSender<NtfyConfig> {
   async send(config: NtfyConfig, message: AlertMessage): Promise<void> {
     const url = new URL(config.topicUrl);
     const secure = url.protocol === 'https:';
-    const port = url.port ? Number(url.port) : secure ? 443 : 80;
-    const target = await checkTarget(url.hostname, port, {
-      reservedPorts: this.reservedPorts(),
+    const target = await checkTarget(url.hostname, {
       plain: !secure,
       lookup: this.lookup,
     });

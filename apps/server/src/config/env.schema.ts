@@ -18,7 +18,6 @@ const trustProxySchema = z
   .string()
   .trim()
   .toLowerCase()
-  .default('false')
   .refine((value) => value !== 'true' && value !== '*', {
     error:
       'Trusting every client would let anyone fake their IP. Use "loopback" or explicit IPs/CIDRs.',
@@ -48,13 +47,17 @@ export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/, error: 'Must be a postgresql:// URL' }),
-    TRUST_PROXY: trustProxySchema,
+    /**
+     * Unset: `loopback` in production — the app listens on 127.0.0.1, so whatever sends it requests
+     * (the HTTPS proxy in front, whichever the person chose) is on this machine; none otherwise.
+     */
+    TRUST_PROXY: trustProxySchema.optional(),
     SETUP_TOKEN_FILE: z.string().trim().min(1).optional(),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     /**
      * The address the app listens on. Production: 127.0.0.1 unless set — only the HTTPS proxy in
-     * front of it (tailscale serve) reaches it. Development: every interface (the dev server's
-     * proxy may use IPv6 for "localhost").
+     * front of it reaches it. Development: every interface (the dev server's proxy may use IPv6
+     * for "localhost").
      */
     HOST: z.union([z.ipv4(), z.ipv6()]).optional(),
     /**
@@ -78,8 +81,8 @@ export const envSchema = z
     /** The key that encrypts services' secrets (32 random bytes, base64). Created in development. */
     MASTER_KEY_FILE: z.string().trim().min(1).optional(),
     /**
-     * The deploy wrapper's config (root-owned in production): the catalog folder, storage roots
-     * and reserved ports — the app reads the same file, so the two never disagree.
+     * The root programs' config (root-owned in production) — the app reads the same file, so the
+     * two never disagree.
      */
     WRAPPER_CONFIG_FILE: z.string().trim().min(1).optional(),
     /** The app templates (catalog/): installed with Laris, the repository's own in development. */
@@ -132,6 +135,7 @@ export const envSchema = z
           ? '/opt/laris/catalog'
           : fileURLToPath(new URL('../../../../catalog', import.meta.url))),
       HOST: env.HOST ?? (production ? '127.0.0.1' : undefined),
+      TRUST_PROXY: env.TRUST_PROXY ?? (production ? ['loopback'] : false),
       SSH_PORT: env.SSH_PORT ?? (production ? 22 : 2222),
       SSH_HOST_KEYS: env.SSH_HOST_KEYS ?? (production ? '/etc/ssh' : '.dev/sshd'),
     };

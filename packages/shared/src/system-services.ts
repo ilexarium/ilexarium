@@ -19,8 +19,8 @@ export const systemServiceNameSchema = z.string().regex(SYSTEM_SERVICE_NAME_PATT
  * down: never started, stopped or restarted from here (like `laris.protected` containers).
  */
 const LARIS_UNITS = /^(?:laris(?:-[^/]+)?|docker|containerd|dbus|dbus-broker|user@[^/]+)\.service$/;
-/** What Laris needs to be reached and signed in to (SSH, Tailscale, systemd's own): never stopped. */
-const ESSENTIAL_UNITS = /^(?:ssh|sshd|tailscaled|systemd-[^/]+)\.service$/;
+/** What Laris needs to sign in to the machine (SSH, systemd's own): never stopped. */
+const ESSENTIAL_UNITS = /^(?:ssh|sshd|systemd-[^/]+)\.service$/;
 
 export const SYSTEM_SERVICE_PROTECTIONS = ['laris', 'essential'] as const;
 export const systemServiceProtectionSchema = z.enum(SYSTEM_SERVICE_PROTECTIONS);

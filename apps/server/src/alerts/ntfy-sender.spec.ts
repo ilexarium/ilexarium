@@ -48,8 +48,7 @@ describe('NtfySender', () => {
     await new Promise((resolve) => server.close(resolve));
   });
 
-  const sender = (reserved: number[] = [22], lookup?: Lookup) =>
-    new NtfySender(() => reserved, lookup);
+  const sender = (lookup?: Lookup) => new NtfySender(lookup);
 
   it('posts the message as JSON to the server, the topic inside', async () => {
     await sender().send(
@@ -85,7 +84,7 @@ describe('NtfySender', () => {
       lookups++;
       return [{ address: '127.0.0.1', family: 4 }];
     };
-    await sender([22], lookup).send(
+    await sender(lookup).send(
       { kind: 'ntfy', topicUrl: `http://ntfy.home.arpa:${port}/t`, token: null },
       MESSAGE,
     );
@@ -115,16 +114,10 @@ describe('NtfySender', () => {
     ).rejects.toMatchObject({ problem: 'failed' });
   });
 
-  it('refuses a reserved port and plain HTTP to the internet before connecting', async () => {
-    await expect(
-      sender([port]).send(
-        { kind: 'ntfy', topicUrl: `http://127.0.0.1:${port}/t`, token: null },
-        MESSAGE,
-      ),
-    ).rejects.toMatchObject({ problem: 'addressRefused' });
+  it('refuses plain HTTP to the internet before connecting', async () => {
     const publicLookup: Lookup = async () => [{ address: '159.203.148.75', family: 4 }];
     await expect(
-      sender([22], publicLookup).send(
+      sender(publicLookup).send(
         { kind: 'ntfy', topicUrl: 'http://ntfy.sh/t', token: null },
         MESSAGE,
       ),
@@ -146,7 +139,7 @@ describe('NtfySender', () => {
     expect(SEND_TIMEOUT_MS).toBe(10_000);
     answer = () => undefined; // never answers
     await expect(
-      new NtfySender(() => [22], undefined, 50).send(
+      new NtfySender(undefined, 50).send(
         { kind: 'ntfy', topicUrl: `http://127.0.0.1:${port}/t`, token: null },
         MESSAGE,
       ),

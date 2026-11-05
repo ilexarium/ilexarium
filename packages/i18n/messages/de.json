@@ -76,7 +76,7 @@
   "auth": {
     "insecure": {
       "title": "Diese Verbindung ist nicht verschlüsselt",
-      "text": "Öffne diese App über HTTPS – zum Beispiel {{example}} mit Tailscale. Über eine unverschlüsselte Verbindung ist keine Anmeldung möglich."
+      "text": "Öffne diese App über HTTPS. Über eine unverschlüsselte Verbindung ist keine Anmeldung möglich."
     },
     "showPasswords": "Passwörter anzeigen",
     "hidePasswords": "Passwörter verbergen",
@@ -234,7 +234,7 @@
     "duplicate_uuid": "Ein anderes Laufwerk hat dieselbe Kennung (ein kopiertes Laufwerk?). Ziehe eines von beiden ab, um dieses einzubinden.",
     "alert_not_found": "Diese Warnung ist nicht mehr offen.",
     "channel_not_configured": "Speichere zuerst die Einstellungen.",
-    "address_refused": "An diese Adresse sendet die App nie: nicht an die eigenen Ports der Plattform, nicht an Link-Local-Adressen, und unverschlüsseltes http:// nur im eigenen Netzwerk.",
+    "address_refused": "An diese Adresse sendet die App nie: nicht an Link-Local-Adressen, und unverschlüsseltes http:// nur im eigenen Netzwerk.",
     "topic_required": "Gib die Topic-URL ein.",
     "password_required": "Gib das Passwort ein.",
     "process_not_found": "Dieser Prozess läuft nicht mehr.",

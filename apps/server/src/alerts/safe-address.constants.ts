@@ -21,7 +21,7 @@ export const LOOPBACK_RANGES: readonly Range[] = [
   ['::1', 128, 'ipv6'],
 ];
 
-/** LAN ranges, Tailscale's (100.64.0.0/10, fd7a:115c:a1e0::/48 inside fc00::/7). */
+/** LAN ranges, shared address space (100.64.0.0/10, used by VPNs) and unique local IPv6. */
 export const PRIVATE_RANGES: readonly Range[] = [
   ['10.0.0.0', 8, 'ipv4'],
   ['172.16.0.0', 12, 'ipv4'],
