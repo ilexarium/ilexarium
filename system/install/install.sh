@@ -75,9 +75,6 @@ ensure_app_settings
 migrate_database
 marker phase migrated
 install_release
-# Only now: until the new release is in place, a failed step leaves the old one, which may still
-# read its settings from there.
-drop_release_settings
 marker phase installed
 setup_ssh_login
 enable_lingering
