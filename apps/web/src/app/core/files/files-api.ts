@@ -9,6 +9,7 @@ import type {
   LinuxSudoRequest,
 } from '@laris/shared';
 import { filter, map, type Observable } from 'rxjs';
+import { STRICT_QUERY_CODEC } from '../http/strict-query.constants';
 
 /** The Linux sign-in (with its sudo) and the file explorer's endpoints. */
 @Service()
@@ -51,7 +52,7 @@ export class FilesApi {
 
   /** Where the browser downloads a file from (an attachment: never shown in the page). */
   downloadUrl(path: string): string {
-    return `/api/files/download?${new HttpParams().set('path', path).toString()}`;
+    return `/api/files/download?${new HttpParams({ encoder: STRICT_QUERY_CODEC }).set('path', path).toString()}`;
   }
 
   /** Uploads one file; emits its progress (0–1), completes when it's there. */
