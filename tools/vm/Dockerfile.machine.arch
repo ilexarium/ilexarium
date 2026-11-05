@@ -1,0 +1,16 @@
+# A throwaway Arch Linux "machine" for testing the installer (tools/vm/test-install.sh --container
+# --os arch): the official image on x86_64, Arch Linux ARM's root filesystem on aarch64 (BASE),
+# brought up to date with systemd as its first process — everything else is the installer's job.
+# Never for anything but tests. pacman's sandbox can't switch users while the image builds (the
+# privileged machine itself can, where the installer runs).
+ARG BASE=archlinux:latest
+FROM ${BASE}
+ENV container=docker
+RUN pacman-key --init \
+ && pacman-key --populate \
+ && pacman -Syu --disable-sandbox --noconfirm --needed systemd dbus \
+ && pacman -Scc --disable-sandbox --noconfirm \
+ && systemctl mask getty.target console-getty.service systemd-firstboot.service \
+    systemd-networkd.service systemd-resolved.service systemd-timesyncd.service
+STOPSIGNAL SIGRTMIN+3
+CMD ["/usr/lib/systemd/systemd"]

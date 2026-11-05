@@ -9,6 +9,9 @@
 #                                           Docker; privileged — root-equivalent while it runs)
 #   tools/vm/test-install.sh --vm           a QEMU VM (tools/vm/vm.sh; a machine with KVM): also
 #                                           restarts it and checks everything comes back
+#   --os arch                               container mode on Arch Linux instead (the official
+#                                           image on x86_64, Arch Linux ARM's root filesystem on
+#                                           aarch64)
 #   --keep                                  leave the machine running afterwards (to look around)
 #
 # Container mode leaves out what a container can't fake: mounting a real disk and a real restart.
@@ -17,20 +20,26 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 MODE=''
+OS=debian
 KEEP=0
-for arg in "$@"; do
-  case "$arg" in
+usage() { echo "usage: $0 --container [--os debian|arch]|--vm [--keep]" >&2; exit 2; }
+while (($# > 0)); do
+  case "$1" in
     --container) MODE=container ;;
     --vm) MODE=vm ;;
+    --os) OS="${2:-}"; shift ;;
     --keep) KEEP=1 ;;
-    *) echo "usage: $0 --container|--vm [--keep]" >&2; exit 2 ;;
+    *) usage ;;
   esac
+  shift
 done
-[[ -n "$MODE" ]] || { echo "usage: $0 --container|--vm [--keep]" >&2; exit 2; }
+[[ -n "$MODE" && ("$OS" == debian || "$OS" == arch) ]] || usage
+[[ "$OS" == debian || "$MODE" == container ]] || { echo '--os arch is for --container' >&2; exit 2; }
 mkdir -p "$HERE/run"
 
 # Served inside the machine by openssl s_server, with a certificate the machine trusts.
 RELEASE_URL=https://localhost:8443/releases
+ALARM_ROOTFS=https://fl.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
 KEYS="$HERE/run/release-key"
 RELEASES="$HERE/run/releases"
 export RELEASE_KEY_PASSPHRASE=test-release-key-passphrase
@@ -52,8 +61,29 @@ if [[ "$MODE" == container ]]; then
   NAME=laris-install-test
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker volume rm -f "$NAME-docker" "$NAME-containerd" "$NAME-backup" >/dev/null 2>&1 || true
-  echo '==> Starting the test machine (a Debian 13 container with systemd)'
-  docker build -q -t laris-test-machine -f "$HERE/Dockerfile.machine" "$HERE" >/dev/null
+  if [[ "$OS" == arch ]]; then
+    echo '==> Starting the test machine (an Arch Linux container with systemd)'
+    base=archlinux:latest
+    if [[ "$(uname -m)" == aarch64 ]]; then
+      # No official arm64 image: Arch Linux ARM's root filesystem (an HTTPS mirror: their own site
+      # has none), checked against its checksum.
+      base=laris-test-alarm
+      rootfs="$HERE/run/ArchLinuxARM-aarch64-latest.tar.gz"
+      curl -fsSL --proto '=https' -o "$rootfs.md5" "$ALARM_ROOTFS.md5"
+      if ! (cd "$HERE/run" && md5sum --quiet -c "$rootfs.md5" 2>/dev/null); then
+        curl -fsSL --proto '=https' -o "$rootfs" "$ALARM_ROOTFS"
+        (cd "$HERE/run" && md5sum --quiet -c "$rootfs.md5") || { echo 'The root filesystem does not match its checksum' >&2; exit 1; }
+      fi
+      docker import "$rootfs" "$base" >/dev/null
+    fi
+    docker build -q -t laris-test-machine-arch --build-arg "BASE=$base" \
+      -f "$HERE/Dockerfile.machine.arch" "$HERE" >/dev/null
+    IMAGE=laris-test-machine-arch
+  else
+    echo '==> Starting the test machine (a Debian 13 container with systemd)'
+    docker build -q -t laris-test-machine -f "$HERE/Dockerfile.machine" "$HERE" >/dev/null
+    IMAGE=laris-test-machine
+  fi
   # Privileged with its own cgroup namespace: systemd and Docker inside it. /var/lib/docker and
   # /var/lib/containerd (Docker 29 keeps image layers there) are volumes: overlay can't be nested
   # in the container's own overlay. /mnt/backup another volume — a real mount point on a real
@@ -62,7 +92,7 @@ if [[ "$MODE" == container ]]; then
     --tmpfs /run --tmpfs /run/lock \
     -v "$NAME-docker:/var/lib/docker" -v "$NAME-containerd:/var/lib/containerd" \
     -v "$NAME-backup:/mnt/backup" \
-    laris-test-machine >/dev/null
+    "$IMAGE" >/dev/null
   run_in() { docker exec -i "$NAME" "$@"; }
   copy_in() { docker cp "$1" "$NAME:$2"; }
   cleanup() {
@@ -90,16 +120,24 @@ LOG="$HERE/run/$MODE.log"
 : >"$LOG"
 step() { echo "==> $*" | tee -a "$LOG"; }
 
+# The test's own tools, and a certificate the machine trusts: each system's way.
+if [[ "$OS" == arch ]]; then
+  install_tools() { run_in pacman -S --needed --noconfirm "$@" >>"$LOG" 2>&1; }
+  TRUST='trust anchor --store /srv/tls/cert.pem'
+else
+  install_tools() { run_in bash -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "$@" >/dev/null' _ "$@" >>"$LOG" 2>&1; }
+  TRUST='cp /srv/tls/cert.pem /usr/local/share/ca-certificates/laris-test-releases.crt && update-ca-certificates >/dev/null'
+  run_in bash -c 'DEBIAN_FRONTEND=noninteractive apt-get update -qq' >>"$LOG" 2>&1
+fi
+
 step 'Serving the release over HTTPS'
-run_in bash -c 'DEBIAN_FRONTEND=noninteractive apt-get update -qq && apt-get install -y -qq --no-install-recommends curl ca-certificates >/dev/null' >>"$LOG" 2>&1
+install_tools curl ca-certificates openssl
 run_in mkdir -p /srv/www /srv/tls
 copy_in "$RELEASES" /srv/www/releases
-run_in bash -c '
-  set -e
+run_in bash -c "set -e; TRUST() { $TRUST; }"'
   openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 2 -subj /CN=localhost \
     -addext subjectAltName=DNS:localhost -keyout /srv/tls/key.pem -out /srv/tls/cert.pem 2>/dev/null
-  cp /srv/tls/cert.pem /usr/local/share/ca-certificates/laris-test-releases.crt
-  update-ca-certificates >/dev/null
+  TRUST
   systemd-run --unit laris-test-releases --working-directory=/srv/www \
     openssl s_server -quiet -WWW -accept 8443 -cert /srv/tls/cert.pem -key /srv/tls/key.pem
   for _ in $(seq 1 20); do curl -fsS -o /dev/null https://localhost:8443/releases/latest/download/latest.json && exit 0; sleep 0.5; done
@@ -127,7 +165,11 @@ if ! run_in bash /root/get-laris.sh --yes >>"$LOG" 2>&1; then
   exit 1
 fi
 # The smoke test's own tools (not the platform's).
-run_in bash -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iproute2 >/dev/null' >>"$LOG" 2>&1
+install_tools iproute2
+# Arch's administrators' group, wheel, may use sudo once sudoers allows it (an administrator's step).
+if [[ "$OS" == arch ]]; then
+  run_in bash -c "printf '%%wheel ALL=(ALL:ALL) ALL\n' >/etc/sudoers.d/wheel && chmod 0440 /etc/sudoers.d/wheel"
+fi
 
 step 'Smoke test'
 run_in node /root/smoke.mjs install | tee -a "$LOG"

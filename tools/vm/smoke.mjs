@@ -38,6 +38,9 @@ const HOST = appSetting('HOST');
 const EVERY_ADDRESS = HOST === '' || HOST === '0.0.0.0' || HOST === '::';
 const PORT = appSetting('PORT') || '3000';
 const ADDRESS = EVERY_ADDRESS ? '127.0.0.1' : HOST.includes(':') ? `[${HOST}]` : HOST;
+// The machine's SSH server unit (the installer found it) and its administrators' group.
+const SSH_UNIT = JSON.parse(readFileSync('/etc/laris/wrappers.json', 'utf8')).update.sshUnit;
+const ADMINS = existsSync('/etc/arch-release') ? 'wheel' : 'sudo';
 const BASE = `http://${ADDRESS}:${PORT}`;
 const ORIGIN = BASE;
 const USER = 'owner';
@@ -309,10 +312,10 @@ async function files() {
   console.log('\nLinux sign-in and files (through this machine’s sshd)');
   ensurePerson();
   // Without sudo at first (the "not allowed" check below); an earlier pass gave it back.
-  fails('gpasswd', ['-d', 'anna', 'sudo']);
+  fails('gpasswd', ['-d', 'anna', ADMINS]);
   const effective = (addr) =>
     sh('sshd', ['-T', '-C', `user=anna,host=client,addr=${addr}`]).match(
-      /^passwordauthentication (\w+)/m,
+      /^passwordauthentication (\w+)/im,
     )?.[1];
   check('sshd: password logins from 127.0.0.1', effective('127.0.0.1') === 'yes');
   check('sshd: password logins from ::1', effective('::1') === 'yes');
@@ -430,7 +433,7 @@ async function processes() {
     noSudo.status === 403 && noSudo.json?.code === 'sudo_not_allowed',
     `${noSudo.status} ${noSudo.text}`,
   );
-  sh('usermod', ['-aG', 'sudo', 'anna']);
+  sh('usermod', ['-aG', ADMINS, 'anna']);
   // Group changes count from the next sign-in.
   await api('POST', '/files/session', { username: 'anna', password: 'anna-smoke-password' });
   const wrong = await api('POST', '/files/session/sudo', { password: 'wrong' });
@@ -492,7 +495,7 @@ async function processes() {
     `${third.status} ${third.text}`,
   );
   roots2.stop();
-  sh('gpasswd', ['-d', 'anna', 'sudo']);
+  sh('gpasswd', ['-d', 'anna', ADMINS]);
   const init = await api('POST', '/processes/signal', { pid: 1, startTicks: '1', signal: 'KILL' });
   check('PID 1 refused', init.status === 403 || init.status === 404, `${init.status}`);
 }
@@ -522,17 +525,20 @@ async function systemServices() {
     JSON.stringify(byName['laris.service']),
   );
   check('the test unit is there, inactive', byName['smoke-sleeper.service']?.active === 'inactive');
-  const ssh = await api('GET', '/system/services/ssh.service');
+  const ssh = await api('GET', `/system/services/${SSH_UNIT}`);
   check(
     'a unit’s details (unix timestamps)',
     ssh.status === 200 && Date.parse(ssh.json?.since) > 0 && ssh.json?.protection === 'essential',
     `${ssh.status} ${ssh.text}`,
   );
 
+  // Her helper started at "Lock now" (processes), while she was an administrator: on Arch, wheel
+  // is one of journald's groups too.
+  const journalAccess = ADMINS === 'wheel' ? 'all' : 'own';
   const ownJournal = await api('GET', '/system/journal?priority=debug');
   check(
-    'journal: anna (no journal group) reads only her own',
-    ownJournal.status === 200 && ownJournal.json?.access === 'own',
+    `journal: anna reads ${journalAccess === 'own' ? 'only her own (no journal group)' : 'all (wheel)'}`,
+    ownJournal.status === 200 && ownJournal.json?.access === journalAccess,
     `${ownJournal.status} ${ownJournal.text.slice(0, 300)}`,
   );
   const locked = await api('POST', '/system/services/smoke-sleeper.service/start');
@@ -541,7 +547,7 @@ async function systemServices() {
     locked.status === 403 && locked.json?.code === 'sudo_required',
     `${locked.status} ${locked.text}`,
   );
-  sh('usermod', ['-aG', 'sudo', 'anna']);
+  sh('usermod', ['-aG', ADMINS, 'anna']);
   await api('POST', '/files/session', { username: 'anna', password: 'anna-smoke-password' });
   // Unlocking is limited to 5 a minute: the processes' checks just used them.
   await sleep(61_000);
@@ -586,7 +592,7 @@ async function systemServices() {
     own.status === 403 && own.json?.code === 'service_protected',
     `${own.status}`,
   );
-  const needed = await api('POST', '/system/services/ssh.service/stop');
+  const needed = await api('POST', `/system/services/${SSH_UNIT}/stop`);
   check(
     'ssh never stopped',
     needed.status === 403 && needed.json?.code === 'service_protected',
@@ -596,7 +602,7 @@ async function systemServices() {
   await systemJournal();
 
   await api('DELETE', '/files/session/sudo');
-  sh('gpasswd', ['-d', 'anna', 'sudo']);
+  sh('gpasswd', ['-d', 'anna', ADMINS]);
   rmSync('/etc/systemd/system/smoke-sleeper.service');
   sh('systemctl', ['daemon-reload']);
 }
@@ -768,7 +774,7 @@ async function install() {
 
   console.log('\nApps, as anna (not in the docker group: system units through her sudo)');
   // Taken out of the sudo group above (the "not allowed" check): an administrator again.
-  sh('usermod', ['-aG', 'sudo', 'anna']);
+  sh('usermod', ['-aG', ADMINS, 'anna']);
   await linuxSignIn('anna');
   // The sudo checks above used the minute's unlock attempts (SUDO_LIMIT: 5 a minute).
   await sleep(61_000);
@@ -985,7 +991,16 @@ async function installerChecks(person) {
   const { stdout } = await execFileAsync(
     'bash',
     ['-c', 'set -euo pipefail; . "$1/common.sh"; . "$1/checks.sh"; check_setup', '_', lib],
-    { encoding: 'utf8', env: { ...process.env, SUDO_USER: person } },
+    {
+      encoding: 'utf8',
+      // What check_machine and ensure_ssh_server work out before it, in the installer.
+      env: {
+        ...process.env,
+        SUDO_USER: person,
+        OS_FAMILY: ADMINS === 'wheel' ? 'pacman' : 'apt',
+        SSH_UNIT,
+      },
+    },
   );
   return stdout;
 }
@@ -1012,7 +1027,7 @@ async function machineCheck() {
       out.includes('✓ lingering on for bob') &&
       out.includes('✓ user units start for bob') &&
       out.includes('✗ bob may not use sudo') &&
-      out.includes('usermod -aG sudo bob'),
+      out.includes(`usermod -aG ${ADMINS} bob`),
     out,
   );
   out = await installerChecks('anna');
@@ -1024,7 +1039,7 @@ async function machineCheck() {
   const harmless = '/etc/ssh/sshd_config.d/05-smoke-global.conf';
   writeFileSync(dropin, 'Match all\n    PasswordAuthentication no\n');
   writeFileSync(harmless, 'PasswordAuthentication no\n');
-  sh('systemctl', ['reload', 'ssh']);
+  sh('systemctl', ['reload', SSH_UNIT]);
   out = await installerChecks('bob');
   check(
     'the installer names the drop-in that turned password logins off',
@@ -1042,7 +1057,7 @@ async function machineCheck() {
   );
   rmSync(dropin);
   rmSync(harmless);
-  sh('systemctl', ['reload', 'ssh']);
+  sh('systemctl', ['reload', SSH_UNIT]);
 
   // Lingering off: named by both, with its fix (user units still start: on demand, in session).
   const signedIn = await api('POST', '/files/session', {
