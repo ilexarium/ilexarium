@@ -23,13 +23,22 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 // Where the app answers: the machine's settings (the person's — the install test moves it to
-// another port before updating), like the installer's app_url.
+// another port before updating), read like the installer's app_url.
 function appSetting(name) {
-  const lines = readFileSync('/etc/laris/app.env', 'utf8').split('\n');
-  return lines.findLast((line) => line.startsWith(`${name}=`))?.slice(name.length + 1) ?? '';
+  const value =
+    readFileSync('/etc/laris/app.env', 'utf8')
+      .split('\n')
+      .map((line) => line.trim())
+      .findLast((line) => line.startsWith(`${name}=`))
+      ?.slice(name.length + 1)
+      .trim() ?? '';
+  return /^(["']).*\1$/.test(value) ? value.slice(1, -1) : value;
 }
+const HOST = appSetting('HOST');
+const EVERY_ADDRESS = HOST === '' || HOST === '0.0.0.0' || HOST === '::';
 const PORT = appSetting('PORT') || '3000';
-const BASE = `http://127.0.0.1:${PORT}`;
+const ADDRESS = EVERY_ADDRESS ? '127.0.0.1' : HOST.includes(':') ? `[${HOST}]` : HOST;
+const BASE = `http://${ADDRESS}:${PORT}`;
 const ORIGIN = BASE;
 const USER = 'owner';
 const PASSWORD = 'correct horse battery staple';
@@ -91,7 +100,7 @@ async function until(name, fn, timeoutMs) {
 /** The first snapshot of a realtime topic. */
 function snapshot(topic) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/api/ws`, {
+    const ws = new WebSocket(`ws://${ADDRESS}:${PORT}/api/ws`, {
       headers: { Cookie: cookie, Origin: ORIGIN },
     });
     const timer = setTimeout(
@@ -181,8 +190,9 @@ async function securitySetup() {
   const appProcess = sh('systemctl', ['show', '-p', 'MainPID', '--value', 'laris']).trim();
   check('the app runs as laris', mode(`/proc/${appProcess}`).uid === app);
   check(
-    'the app listens on 127.0.0.1 only',
-    !new RegExp(`(0\\.0\\.0\\.0|\\[::\\]|\\*):${PORT}\\b`).test(sh('ss', ['-ltnH'])),
+    'the app listens only where app.env says, not on every address',
+    EVERY_ADDRESS ||
+      !new RegExp(`(0\\.0\\.0\\.0|\\[::\\]|\\*):${PORT}\\b`).test(sh('ss', ['-ltnH'])),
   );
   check(
     'Postgres listens on 127.0.0.1 only',
@@ -688,7 +698,7 @@ async function terminal() {
   const result = await new Promise((resolve) => {
     let output = '';
     const ws = new WebSocket(
-      `ws://127.0.0.1:${PORT}/api/terminal?ticket=${ticket.json?.ticket}&cols=80&rows=24`,
+      `ws://${ADDRESS}:${PORT}/api/terminal?ticket=${ticket.json?.ticket}&cols=80&rows=24`,
       { headers: { Cookie: cookie, Origin: ORIGIN } },
     );
     const timer = setTimeout(() => (ws.terminate(), resolve({ output, code: 'timeout' })), 20_000);

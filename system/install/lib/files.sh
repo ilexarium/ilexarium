@@ -193,24 +193,35 @@ CONF
 
 # The machine's settings for the app (/etc/laris/app.env, read by laris.service): where it listens
 # and its database role's password — made with the role at the first install, then the person's.
-# An update never changes them. Needs the database running.
+# An update never changes them; only a database without the role (made again, recovered) gets a
+# new password, in DATABASE_URL alone. Needs the database running.
 ensure_app_settings() {
   log 'The app’s settings'
-  owner_sql <<'SQL'
-SELECT 'CREATE ROLE laris LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'laris')
-\gexec
+  local role password
+  role="$(owner_sql -tA <<'SQL'
+SELECT count(*) FROM pg_roles WHERE rolname = 'laris';
+SQL
+)"
+  if [[ "$role" == 1 && -f "$ETC/app.env" ]]; then
+    owner_sql <<'SQL'
 ALTER ROLE laris WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 SQL
-  if [[ -f "$ETC/app.env" ]]; then
-    drop_release_settings
     info "$ETC/app.env (kept as it is)"
     return
   fi
-  local password
   password="$(random_hex 24)"
   owner_sql <<SQL
-ALTER ROLE laris PASSWORD '$password';
+SELECT 'CREATE ROLE laris LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'laris')
+\gexec
+ALTER ROLE laris WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '$password';
 SQL
+  if [[ -f "$ETC/app.env" ]]; then
+    { grep -v '^DATABASE_URL=' "$ETC/app.env" || true
+      printf 'DATABASE_URL=postgresql://laris:%s@127.0.0.1:5432/laris\n' "$password"
+    } | write_file "$ETC/app.env" "root:$APP_USER" 0640
+    info "$ETC/app.env: a new database password (the database had no role for the app)"
+    return
+  fi
   write_file "$ETC/app.env" "root:$APP_USER" 0640 <<CONF
 HOST=127.0.0.1
 PORT=3000
@@ -223,18 +234,29 @@ CONF
 # which they would override): those lines go once, the person's stay.
 drop_release_settings() {
   local release='^(NODE_ENV|DOCKER_HOST|WEB_ROOT|SETUP_TOKEN_FILE)='
-  if grep -Eq "$release" "$ETC/app.env"; then
+  if grep -Eqs "$release" "$ETC/app.env"; then
     grep -Ev "$release" "$ETC/app.env" | write_file "$ETC/app.env" "root:$APP_USER" 0640
     info "$ETC/app.env: the release's settings moved to laris.service"
   fi
 }
 
-# Where the app answers on this machine, from its settings (the last of each, as systemd reads
-# them; the app's defaults without them): listening on every address, on 127.0.0.1.
+# A setting of the app's, as systemd reads it: the last one, spaces around it and one pair of quotes
+# taken off. The same rule as laris-update's healthUrlOf (laris-update.spec.ts compares them).
+app_setting() {
+  local value
+  value="$(sed -n "s/^[[:space:]]*$1=//p" "$ETC/app.env" 2>/dev/null | tail -n1 | tr -d '\r')"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  if [[ "$value" =~ ^\"(.*)\"$ || "$value" =~ ^\'(.*)\'$ ]]; then value="${BASH_REMATCH[1]}"; fi
+  printf '%s' "$value"
+}
+
+# Where the app answers on this machine, from its settings (the app's defaults without them):
+# listening on every address, on 127.0.0.1.
 app_url() {
   local host port
-  host="$(sed -n 's/^HOST=//p' "$ETC/app.env" 2>/dev/null | tail -n1)"
-  port="$(sed -n 's/^PORT=//p' "$ETC/app.env" 2>/dev/null | tail -n1)"
+  host="$(app_setting HOST)"
+  port="$(app_setting PORT)"
   case "$host" in
     '' | 0.0.0.0 | ::) host=127.0.0.1 ;;
     *:*) host="[$host]" ;;
