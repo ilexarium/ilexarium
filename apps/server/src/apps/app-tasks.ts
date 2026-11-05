@@ -161,7 +161,13 @@ export class AppTasks {
         { timeoutMs: QUICK_MS },
       );
       const active = answer.ok ? String(answer['active']) : 'unknown';
-      state = ['active', 'activating', 'reloading'].includes(active) ? 'running' : 'interrupted';
+      // A check that timed out (a busy machine: an image extracting) says nothing — only a unit
+      // that ended without its result was interrupted.
+      const unanswered = !answer.ok && answer.error === 'timed_out';
+      state =
+        unanswered || ['active', 'activating', 'reloading'].includes(active)
+          ? 'running'
+          : 'interrupted';
     }
     // While it runs, whole lines only (the last may be half written).
     const output = taskLines(
