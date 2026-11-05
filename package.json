@@ -26,7 +26,8 @@
     "release": "node scripts/release.mjs",
     "release:key": "node scripts/release-key.mjs",
     "release:sign": "node scripts/sign-release.mjs",
-    "release:publish": "node scripts/publish-release.mjs"
+    "release:publish": "node scripts/publish-release.mjs",
+    "ship": "node scripts/ship.mjs"
   },
   "devDependencies": {
     "prettier": "^3.8.1",

@@ -46,3 +46,6 @@ release/
 
 # The installer test (tools/vm/): logs, the VM image and disks
 tools/vm/run/
+
+# Where releases go and the key that signs them (npm run ship): this machine's own
+release-settings.json
