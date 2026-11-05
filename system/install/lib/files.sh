@@ -65,17 +65,7 @@ install_release() {
   replace_tree "$staged" "$OPT/libexec"
   rm -rf "$staged"
   install -o root -g root -m 0755 "$RELEASE/system/install/laris-setup-code" /usr/local/bin/laris-setup-code
-  remove_old_sudoers
   info "$OPT"
-}
-
-# The app holds no root (docs/plans/acting_as_you.md): an earlier version's drop-in, which let
-# it run its wrappers through sudo, goes on update.
-remove_old_sudoers() {
-  if [[ -e /etc/sudoers.d/laris ]]; then
-    rm -f /etc/sudoers.d/laris
-    info 'sudoers: the earlier drop-in removed (the app holds no root)'
-  fi
 }
 
 # User units (an app's install or update as the person, with the docker group) need the
