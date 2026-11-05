@@ -193,8 +193,10 @@ export const JournalPageStore = signalStore(
             return systemJournalApi.read(request(after ? { after } : {})).pipe(
               tap(({ lines, more, access }) => {
                 if (run !== generation) return;
-                // Nothing new (most polls): nothing changes, nothing is drawn again.
-                if (after && lines.length === 0) {
+                // Nothing new (most polls): nothing changes, nothing is drawn again. An answer
+                // ending on the cursor itself ignored it (the newest lines again): never added,
+                // never asked again at once.
+                if (after && (lines.length === 0 || lines.at(-1)!.cursor === after)) {
                   if (store.loadError() !== null || store.access() !== access) {
                     patchState(store, { access, loadError: null });
                   }

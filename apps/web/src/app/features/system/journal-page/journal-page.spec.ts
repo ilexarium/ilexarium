@@ -174,6 +174,18 @@ describe('JournalPage', () => {
     ]);
   });
 
+  it('an answer that ignored the cursor (the newest lines again): not added, not asked again at once', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { api, texts, fixture } = await render();
+    api.read.mockReturnValue(of(answer([line(1), line(2), line(3)], { more: true })));
+    vi.advanceTimersByTime(2000);
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(api.read).toHaveBeenCalledTimes(2);
+    expect(api.read.mock.calls[1]![0]).toMatchObject({ after: 'c3' });
+    expect(texts().map((t) => /line \d+$/.exec(t)?.[0])).toEqual(['line 1', 'line 2', 'line 3']);
+  });
+
   it('loads older lines before the first one, while there are more', async () => {
     const { api, button, texts, fixture } = await render({
       first: answer([line(10), line(11)], { more: true }),

@@ -14,6 +14,7 @@ import {
 import { provideSpartanHlm } from '@ui/utils';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth-interceptor';
+import { strictQueryInterceptor } from './core/http/strict-query';
 import { AuthStore } from './core/auth/auth-store';
 import { I18nLoader } from './core/i18n/i18n-loader';
 import { LanguageService } from './core/i18n/language';
@@ -26,7 +27,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     { provide: TitleStrategy, useExisting: PageTitleStrategy },
-    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
+    provideHttpClient(withFetch(), withInterceptors([strictQueryInterceptor, authInterceptor])),
     provideSpartanHlm(),
     provideTranslateService({
       fallbackLang: 'en',
