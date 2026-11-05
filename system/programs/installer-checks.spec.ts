@@ -142,7 +142,7 @@ describe('the installer’s lock (the root programs’ own)', () => {
     expect(script('take_lock "$LOCK"', { LOCK: lock }).status).toBe(0);
   });
 
-  it('an update from the app runs only under laris-update, which holds it', () => {
+  it('--update under laris-update uses its lock; run by hand, takes it like any install', () => {
     const update = (owner: string) => {
       script('mkdir -p "$(dirname "$LOCK")"; printf %s "$OWNER" >"$LOCK"', {
         LOCK: lock,
@@ -150,12 +150,15 @@ describe('the installer’s lock (the root programs’ own)', () => {
       });
       return script('UPDATE=1; ROOT_LOCK="$LOCK"; hold_lock', { LOCK: lock });
     };
-    // The test's own process starts bash, as laris-update starts install.sh.
+    // The test's own process starts bash, as laris-update starts install.sh: its lock stays.
     expect(update(String(process.pid)).status).toBe(0);
-    const other = update(String(living()));
-    expect(other.status).toBe(1);
-    expect(other.stderr).toContain('--update runs only from laris-update');
-    expect(existsSync(lock)).toBe(true);
+    expect(readFileSync(lock, 'utf8')).toBe(String(process.pid));
+    const busy = update(String(living()));
+    expect(busy.status).toBe(1);
+    expect(busy.stderr).toContain('A backup, restore or disk change is running');
+    spawnSync('rm', ['-f', lock]);
+    expect(script('UPDATE=1; ROOT_LOCK="$LOCK"; hold_lock', { LOCK: lock }).status).toBe(0);
+    expect(existsSync(lock)).toBe(false);
   });
 
   it('a hand-run install refuses while another operation holds it', () => {
