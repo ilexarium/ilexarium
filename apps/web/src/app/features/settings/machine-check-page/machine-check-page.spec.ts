@@ -183,7 +183,8 @@ describe('MachineCheckPage', () => {
     buttonIn(dialog(), 'Cancel').click();
     await vi.waitFor(() => expect(rows()[3][0]).toBe('sudo — not checked'));
     await fixture.whenStable();
-    expect(rows()[3][2]).toBe('sudo usermod -aG sudo anna');
+    expect(rows()[3][1]).toContain('sudo usermod -aG wheel');
+    expect(rows()[3]).toHaveLength(2);
   });
 
   it('a request that fails: a toast, and the rest not checked', async () => {

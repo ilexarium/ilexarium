@@ -255,7 +255,7 @@
     "picture_too_large": "Das Bild ist zu groß.",
     "process_not_permitted": "Linux hat diesem Konto nicht erlaubt, den Prozess zu beenden.",
     "sudo_password_wrong": "sudo hat dieses Passwort nicht angenommen.",
-    "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden: Es ist kein Administrator. Von einem Administratorkonto aus: sudo usermod -aG sudo <Konto>, dann erneut bei Linux anmelden.",
+    "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden: Es ist kein Administrator. Füge es von einem Administratorkonto aus der Administratorgruppe hinzu – sudo usermod -aG sudo <Konto> (Debian, Ubuntu) oder sudo usermod -aG wheel <Konto> (Arch, mit in sudoers erlaubter wheel-Gruppe) – und melde dich dann erneut bei Linux an.",
     "sudo_required": "Dafür sind Administratorrechte nötig: Entsperre sudo mit dem Passwort des Linux-Kontos.",
     "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Laris ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Laris erneut.",
     "sudo_failed": "sudo hat nicht geantwortet oder ist ohne Begründung fehlgeschlagen. Versuche es erneut; bleibt es so, prüfe sudo in einem Terminal.",
@@ -1217,7 +1217,7 @@
         "title": "Benutzer-Units",
         "about": "App-Aufgaben laufen als systemd-Units deines Kontos.",
         "ok": "Das systemd deines Kontos startet Units.",
-        "failed": "Das systemd deines Kontos startet keine Units. Schalte Lingering mit dem Befehl unten ein oder installiere libpam-systemd und dbus-user-session. Bis dahin laufen App-Aufgaben über dein sudo.",
+        "failed": "Das systemd deines Kontos startet keine Units. Schalte Lingering mit dem Befehl unten ein. Hilft das nicht, läuft das systemd deines Kontos nicht (unter Debian und Ubuntu: installiere libpam-systemd und dbus-user-session). Bis dahin laufen App-Aufgaben über dein sudo.",
         "noLingering": "Units starten, solange du bei Linux angemeldet bist, aber Lingering ist aus: Die Installation oder Aktualisierung einer App würde mit dem Ende der Linux-Anmeldung abbrechen. Schalte Lingering mit dem Befehl unten ein."
       },
       "sudo": {
@@ -1225,7 +1225,7 @@
         "about": "Administratoraufgaben laufen über dein eigenes sudo, entsperrt mit deinem Passwort.",
         "ok": "Entsperrt: Administratoraufgaben funktionieren.",
         "skipped": "Nicht geprüft. Ohne sudo kann dieses Konto keine Administratoraufgaben erledigen (Sicherungen, Datenträger, Dienste).",
-        "notUnlocked": "Nicht entsperrt. Hat sudo abgelehnt, ist dieses Konto kein Administrator: Führe den Befehl unten von einem Administratorkonto aus und melde dich dann erneut bei Linux an."
+        "notUnlocked": "Nicht entsperrt. Hat sudo abgelehnt, ist dieses Konto kein Administrator: Füge es von einem Administratorkonto aus der Administratorgruppe hinzu – sudo usermod -aG sudo <Konto> (Debian, Ubuntu) oder sudo usermod -aG wheel <Konto> (Arch, mit in sudoers erlaubter wheel-Gruppe) – und melde dich dann erneut bei Linux an."
       },
       "docker": {
         "title": "Docker für Apps",

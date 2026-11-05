@@ -255,7 +255,7 @@
     "picture_too_large": "The picture is too large.",
     "process_not_permitted": "Linux didn’t allow this account to end that process.",
     "sudo_password_wrong": "sudo didn’t accept this password.",
-    "sudo_not_allowed": "This account may not use sudo on this machine: it isn’t an administrator. From an administrator’s account: sudo usermod -aG sudo <account>, then sign in to Linux again.",
+    "sudo_not_allowed": "This account may not use sudo on this machine: it isn’t an administrator. From an administrator’s account, add it to the administrators’ group — sudo usermod -aG sudo <account> (Debian, Ubuntu) or sudo usermod -aG wheel <account> (Arch, with the wheel group allowed in sudoers) — then sign in to Linux again.",
     "sudo_required": "This needs administrator rights: unlock sudo with the Linux account’s password.",
     "helper_unavailable": "Administrator actions aren’t available in this Linux session (Laris’s helper didn’t start). Sign in to Linux again; if it stays, install Laris again.",
     "sudo_failed": "sudo didn’t answer, or failed without saying why. Try again; if it stays, check sudo in a terminal.",
@@ -1217,7 +1217,7 @@
         "title": "User units",
         "about": "App tasks run as systemd units of your account.",
         "ok": "Your account’s systemd starts units.",
-        "failed": "Your account’s systemd doesn’t start units. Turn lingering on with the command below, or install libpam-systemd and dbus-user-session. Until then, app tasks run through your sudo.",
+        "failed": "Your account’s systemd doesn’t start units. Turn lingering on with the command below. If that doesn’t help, your account’s systemd isn’t running (on Debian and Ubuntu: install libpam-systemd and dbus-user-session). Until then, app tasks run through your sudo.",
         "noLingering": "Units start while you’re signed in to Linux, but lingering is off: an app’s install or update would stop when the Linux sign-in ends. Turn lingering on with the command below."
       },
       "sudo": {
@@ -1225,7 +1225,7 @@
         "about": "Administrator tasks run through your own sudo, unlocked with your password.",
         "ok": "Unlocked: administrator tasks work.",
         "skipped": "Not checked. Without sudo, this account can’t do administrator tasks (backups, disks, services).",
-        "notUnlocked": "Not unlocked. If sudo refused it, this account isn’t an administrator: run the command below from an administrator’s account, then sign in to Linux again."
+        "notUnlocked": "Not unlocked. If sudo refused it, this account isn’t an administrator: from an administrator’s account, add it to the administrators’ group — sudo usermod -aG sudo <account> (Debian, Ubuntu) or sudo usermod -aG wheel <account> (Arch, with the wheel group allowed in sudoers) — then sign in to Linux again."
       },
       "docker": {
         "title": "Docker for apps",
