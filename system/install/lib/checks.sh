@@ -81,7 +81,8 @@ check_setup() {
   effective="$(/usr/sbin/sshd -T -C "user=$person,host=localhost,addr=127.0.0.1" 2>/dev/null || true)"
   sudo_rights="$(sudo -l -U "$person" 2>/dev/null || true)"
 
-  if grep -qx 'passwordauthentication yes' <<<"$effective"; then
+  # Keys in lowercase before OpenSSH 10.6, as sshd_config writes them since.
+  if grep -qix 'passwordauthentication yes' <<<"$effective"; then
     info "✓ password logins from this machine, for $person"
   else
     problems=$((problems + 1))
