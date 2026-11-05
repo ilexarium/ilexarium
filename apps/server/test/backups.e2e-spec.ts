@@ -106,7 +106,6 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     writeFileSync(
       WRAPPER_CONFIG,
       JSON.stringify({
-        reservedPorts: [22, 3000],
         protectedPaths: [],
         dockerBin: join(dir, 'docker'),
         lockFile: join(dir, 'compose.lock'),

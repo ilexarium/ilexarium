@@ -136,6 +136,14 @@ describe('validateEnv', () => {
       expect(validateEnv({ ...base, TRUST_PROXY: value }).TRUST_PROXY).toEqual(expected);
     });
 
+    it('unset: the proxy on this machine in production, none otherwise', () => {
+      expect(validateEnv({ ...base, NODE_ENV: 'production' }).TRUST_PROXY).toEqual(['loopback']);
+      expect(validateEnv(base).TRUST_PROXY).toBe(false);
+      expect(
+        validateEnv({ ...base, NODE_ENV: 'production', TRUST_PROXY: 'false' }).TRUST_PROXY,
+      ).toBe(false);
+    });
+
     it.each(['true', 'TRUE', '*'])('rejects %j (trust every client)', (value) => {
       expect(() => validateEnv({ ...base, TRUST_PROXY: value })).toThrow(/fake their IP/);
     });

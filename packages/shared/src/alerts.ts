@@ -84,8 +84,8 @@ export type AlertChannel = z.infer<typeof alertChannelSchema>;
 
 /**
  * Why a message couldn't be sent:
- * - `addressRefused`: the address is one the app never sends to (the platform's own ports,
- *   link-local addresses, plain HTTP to the internet).
+ * - `addressRefused`: the address is one the app never sends to (link-local addresses, plain
+ *   HTTP to the internet).
  * - `notFound`: the server's name doesn't resolve.
  * - `unreachable`: no connection (refused, no route).
  * - `timedOut`: no answer within 10 seconds.

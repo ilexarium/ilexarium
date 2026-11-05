@@ -47,7 +47,6 @@ const updateConfigSchema = z.object({
   dev: z.object({ root: absolute, bin: absolute, healthUrl: z.string() }).optional(),
 });
 const programConfigSchema = z.object({
-  reservedPorts: z.array(z.number().int()),
   protectedPaths: z.array(absolute),
   dockerBin: absolute,
   lockFile: absolute.optional(),
@@ -58,8 +57,8 @@ const programConfigSchema = z.object({
 });
 
 /**
- * The root programs' config (laris-backup, laris-disk), read by the app too: the reserved ports,
- * the platform's folders, the backup and disk parts. Production: the installer writes
+ * The root programs' config (laris-backup, laris-disk), read by the app too: the platform's
+ * folders, the backup and disk parts. Production: the installer writes
  * /etc/laris/wrappers.json (root-owned, world-readable). Development: created on first start
  * under .dev/.
  */
@@ -156,7 +155,6 @@ export class ProgramConfigService implements OnModuleInit {
   private async createDevelopmentConfig(): Promise<void> {
     const dev = dirname(this.file);
     const config: ProgramConfig = {
-      reservedPorts: [...new Set([22, 53, 2375, 4200, 5432, 41641, this.port])],
       protectedPaths: [],
       dockerBin: ['/usr/bin/docker', '/usr/local/bin/docker'].find(existsSync) ?? '/usr/bin/docker',
       lockFile: resolve(dev, 'compose.lock'),

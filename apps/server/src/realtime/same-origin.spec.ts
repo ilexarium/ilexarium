@@ -2,9 +2,9 @@ import { isSameOrigin } from './same-origin.js';
 
 describe('isSameOrigin', () => {
   it('accepts an origin on the same host and port', () => {
-    expect(
-      isSameOrigin({ origin: 'https://laris.example.ts.net', host: 'laris.example.ts.net' }),
-    ).toBe(true);
+    expect(isSameOrigin({ origin: 'https://laris.home.example', host: 'laris.home.example' })).toBe(
+      true,
+    );
     expect(isSameOrigin({ origin: 'http://localhost:4200', host: 'localhost:4200' })).toBe(true);
   });
 

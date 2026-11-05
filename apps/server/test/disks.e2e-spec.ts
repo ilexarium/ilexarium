@@ -88,7 +88,6 @@ describe('disks (e2e)', () => {
     writeFileSync(
       WRAPPER_CONFIG,
       JSON.stringify({
-        reservedPorts: [22],
         protectedPaths: [],
         dockerBin: '/usr/bin/docker',
         lockFile: join(dir, 'compose.lock'),

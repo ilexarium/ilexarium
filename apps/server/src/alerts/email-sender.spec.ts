@@ -34,7 +34,7 @@ describe('EmailSender', () => {
   afterEach(() => smtp.close());
 
   it('sends a mail through a mail server on this machine (no TLS needed there)', async () => {
-    await new EmailSender(() => [22]).send(config(), MESSAGE);
+    await new EmailSender().send(config(), MESSAGE);
     expect(smtp.mails).toHaveLength(1);
     expect(smtp.mails[0]).toMatchObject({
       from: 'laris@example.com',
@@ -47,14 +47,14 @@ describe('EmailSender', () => {
 
   it('a wrong password: loginRefused', async () => {
     await expect(
-      new EmailSender(() => [22]).send(config({ password: 'wrong' }), MESSAGE),
+      new EmailSender().send(config({ password: 'wrong' }), MESSAGE),
     ).rejects.toMatchObject({
       problem: 'loginRefused',
     });
   });
 
   it('only ever creates nodemailer’s SMTP transport', async () => {
-    await new EmailSender(() => [22]).send(config(), MESSAGE);
+    await new EmailSender().send(config(), MESSAGE);
     const created = vi
       .mocked(nodemailer.createTransport)
       .mock.calls.map(([transport]) => transport);
@@ -64,7 +64,7 @@ describe('EmailSender', () => {
 
   it('requires TLS and checks the certificate against the name typed, except on this machine', async () => {
     const lan: Lookup = async () => [{ address: '192.168.1.5', family: 4 }];
-    const sender = new EmailSender(() => [22], lan);
+    const sender = new EmailSender(lan);
     // Nothing is there: the transport's options are what matter, so sending is left out.
     const offline = { sendMail: async () => ({}), close: () => undefined };
     vi.mocked(nodemailer.createTransport)
@@ -72,7 +72,7 @@ describe('EmailSender', () => {
       .mockImplementationOnce(() => offline as never);
     await sender.send(config({ host: 'mail.home.arpa', port: 587 }), MESSAGE);
     await sender.send(config({ host: 'mail.home.arpa', port: 465 }), MESSAGE);
-    await new EmailSender(() => [22]).send(config(), MESSAGE);
+    await new EmailSender().send(config(), MESSAGE);
     const options = vi
       .mocked(nodemailer.createTransport)
       .mock.calls.map(([transport]) => (transport as SMTPTransport).options);
@@ -96,12 +96,9 @@ describe('EmailSender', () => {
     }
   });
 
-  it('refuses the platform’s own ports and link-local addresses before connecting', async () => {
-    await expect(new EmailSender(() => [smtp.port]).send(config(), MESSAGE)).rejects.toMatchObject({
-      problem: 'addressRefused',
-    });
+  it('refuses link-local addresses before connecting', async () => {
     await expect(
-      new EmailSender(() => [22]).send(config({ host: '169.254.169.254', port: 25 }), MESSAGE),
+      new EmailSender().send(config({ host: '169.254.169.254', port: 25 }), MESSAGE),
     ).rejects.toMatchObject({ problem: 'addressRefused' });
     expect(nodemailer.createTransport).not.toHaveBeenCalled();
   });
@@ -109,7 +106,7 @@ describe('EmailSender', () => {
   it('no user name: no login', async () => {
     const open = await new FakeSmtp().listen();
     try {
-      await new EmailSender(() => [22]).send(
+      await new EmailSender().send(
         config({ port: open.port, username: '', password: null }),
         MESSAGE,
       );

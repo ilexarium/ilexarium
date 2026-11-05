@@ -18,14 +18,10 @@ type EmailConfig = Extract<ChannelConfig, { kind: 'email' }>;
 export class EmailSender implements ChannelSender<EmailConfig> {
   readonly channel = 'email';
 
-  constructor(
-    private readonly reservedPorts: () => readonly number[],
-    private readonly lookup?: Lookup,
-  ) {}
+  constructor(private readonly lookup?: Lookup) {}
 
   async send(config: EmailConfig, message: AlertMessage): Promise<void> {
-    const target = await checkTarget(config.host, config.port, {
-      reservedPorts: this.reservedPorts(),
+    const target = await checkTarget(config.host, {
       plain: false,
       lookup: this.lookup,
     });

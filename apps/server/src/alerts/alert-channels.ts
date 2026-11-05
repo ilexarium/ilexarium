@@ -14,7 +14,6 @@ import {
 import { hostname } from 'node:os';
 import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
-import { ProgramConfigService } from '../root-programs/program-config.js';
 import type { AlertChannel as ChannelRow } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SecretsService } from '../secrets/secrets.service.js';
@@ -22,7 +21,7 @@ import { DeliveryError } from './alerts.model.js';
 import type { AlertMessage, ChannelConfig, ChannelSender } from './alerts.model.js';
 import { EmailSender } from './email-sender.js';
 import { NtfySender } from './ntfy-sender.js';
-import { checkTarget, type Lookup } from './safe-address.js';
+import { checkTarget } from './safe-address.js';
 
 /** Who changes the settings, for the audit log. */
 export interface ChannelActor {
@@ -70,9 +69,7 @@ function failure(code: AlertErrorCode, message: string, field?: string): HttpExc
 export class AlertChannels {
   private readonly logger = new Logger(AlertChannels.name);
   private readonly changed = new Subject<void>();
-  private reservedPorts: () => readonly number[];
-  private lookup: Lookup | undefined;
-  private senders: { email: EmailSender; ntfy: NtfySender };
+  private readonly senders = { email: new EmailSender(), ntfy: new NtfySender() };
 
   /** Settings changed, or a channel's last problem did. */
   readonly changes$: Observable<void> = this.changed.asObservable();
@@ -81,25 +78,7 @@ export class AlertChannels {
     private readonly prisma: PrismaService,
     private readonly secretsService: SecretsService,
     private readonly auditService: AuditService,
-    programConfigService: ProgramConfigService,
-  ) {
-    this.reservedPorts = () => programConfigService.config.reservedPorts;
-    this.senders = this.createSenders();
-  }
-
-  /** For tests: resolve names another way, other reserved ports. */
-  useNetwork(lookup: Lookup, reservedPorts: () => readonly number[]): void {
-    this.lookup = lookup;
-    this.reservedPorts = reservedPorts;
-    this.senders = this.createSenders();
-  }
-
-  private createSenders() {
-    return {
-      email: new EmailSender(this.reservedPorts, this.lookup),
-      ntfy: new NtfySender(this.reservedPorts, this.lookup),
-    };
-  }
+  ) {}
 
   async view(): Promise<AlertChannelsResponse> {
     const rows = await this.prisma.alertChannel.findMany();
@@ -140,7 +119,7 @@ export class AlertChannels {
     if (update.username && !password) {
       throw failure(ALERT_ERROR_CODES.passwordRequired, 'Enter the password', 'password');
     }
-    await this.refuseAddress(update.host, update.port, false, 'host');
+    await this.refuseAddress(update.host, false, 'host');
     const settings: EmailSettings = {
       host: update.host,
       port: update.port,
@@ -161,8 +140,7 @@ export class AlertChannels {
     }
     if (update.topicUrl) {
       const url = new URL(update.topicUrl);
-      const port = url.port ? Number(url.port) : url.protocol === 'https:' ? 443 : 80;
-      await this.refuseAddress(url.hostname, port, url.protocol === 'http:', 'topicUrl');
+      await this.refuseAddress(url.hostname, url.protocol === 'http:', 'topicUrl');
     }
     const token = update.token === undefined ? (stored?.token ?? null) : update.token;
     await this.save('ntfy', update.enabled, {}, { topicUrl, token } satisfies NtfySecrets);
@@ -247,14 +225,10 @@ export class AlertChannels {
   }
 
   /** Refuses an address the app never sends to, at once; a name that doesn't resolve (yet) is fine. */
-  private async refuseAddress(host: string, port: number, plain: boolean, field: string) {
+  private async refuseAddress(host: string, plain: boolean, field: string) {
     try {
       // The senders check again when sending (a name can point elsewhere later).
-      await checkTarget(host, port, {
-        reservedPorts: this.reservedPorts(),
-        plain,
-        lookup: this.lookup,
-      });
+      await checkTarget(host, { plain });
     } catch (error) {
       if (error instanceof DeliveryError && error.problem === 'addressRefused') {
         throw failure(ALERT_ERROR_CODES.addressRefused, 'The app never sends there', field);
