@@ -62,7 +62,7 @@ describe('AppTasks.read', () => {
     startedAt: '2026-10-28T12:00:00.000Z',
   };
 
-  function reading(log: string, active: string) {
+  function reading(log: string, active: string | Record<string, unknown>) {
     const bytes = Buffer.from(log);
     const sftp = {
       readText: async () => JSON.stringify(record),
@@ -72,7 +72,7 @@ describe('AppTasks.read', () => {
     } as unknown as Sftp;
     const linuxSessions = {
       account: () => ({ username: 'anna' }),
-      ask: async () => ({ ok: true, active }),
+      ask: async () => (typeof active === 'string' ? { ok: true, active } : active),
     } as unknown as LinuxSessions;
     const tasks = new AppTasks(linuxSessions, new ChangesUnderway());
     return () => tasks.read('s1', sftp, FOLDER);
@@ -89,6 +89,13 @@ describe('AppTasks.read', () => {
       state: 'interrupted',
       output: ['pulling a', 'failed: no such image'],
     });
+  });
+
+  it('a state check that timed out: still running, not interrupted', async () => {
+    const running = reading('Extracting 14B\n', { ok: false, error: 'timed_out' });
+    expect(await running()).toMatchObject({ state: 'running', output: ['Extracting 14B'] });
+    const gone = reading('pulling a\n', { ok: false, error: 'ended' });
+    expect(await gone()).toMatchObject({ state: 'interrupted' });
   });
 
   it('a long log: its end (the reason it failed), from a line start, up to the result', async () => {
