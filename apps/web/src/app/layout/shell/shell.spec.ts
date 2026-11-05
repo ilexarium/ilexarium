@@ -95,21 +95,24 @@ describe('Shell (app layout)', () => {
     const order = [...nav.querySelectorAll('a')].map((a) => a.textContent!.trim());
     expect(order).toEqual([
       'Dashboard',
-      'Containers',
       'Apps',
       'Backups',
       'Alerts',
       'Disks',
-      'Processes',
       'Services',
+      'Containers',
+      'Processes',
       'Logs',
       'Files',
       'Terminal',
       'Notifications',
-      'Machine check',
       'Updates',
+      'Machine check',
     ]);
-    expect(nav.textContent).toContain('Storage');
+    const groups = [...nav.querySelectorAll('[hlmSidebarGroupLabel]')].map((label) =>
+      label.textContent!.trim(),
+    );
+    expect(groups).toEqual(['Machine', 'Tools', 'Settings']);
   });
 
   it('marks only the current page, also for the dashboard at "/"', async () => {
