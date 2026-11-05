@@ -52,12 +52,14 @@ LIB="$RELEASE/system/install/lib"
 . "$LIB/platform.sh"
 
 check_machine
+hold_lock
 check_version
 ensure_packages
 marker phase checked
 ensure_user
 ensure_folders
-if [[ -n "$OLD_VERSION" ]]; then
+# The same version again (a repair) keeps the older one as the way back.
+if [[ -n "$OLD_VERSION" && "$OLD_VERSION" != "$NEW_VERSION" ]]; then
   keep_previous
   marker phase saved
 fi
@@ -76,11 +78,13 @@ ensure_app_settings
 migrate_database
 marker phase migrated
 install_release
+# Right away: a run that stops after this is installed as this version — a second run mustn't
+# keep these files as the old one.
+printf '%s\n' "$NEW_VERSION" | write_file "$ETC/version" root:root 0644
 marker phase installed
 setup_ssh_login
 enable_lingering
 start_app
 marker phase started
 check_setup
-printf '%s\n' "$NEW_VERSION" | write_file "$ETC/version" root:root 0644
 print_result
