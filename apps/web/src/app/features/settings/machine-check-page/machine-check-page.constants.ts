@@ -35,5 +35,8 @@ export const COMMANDS: Record<string, (account: string) => string> = {
   'helper.wrong_account': () => 'sudo ./install.sh',
   'userUnits.failed': (account) => `sudo loginctl enable-linger ${account}`,
   'userUnits.noLingering': (account) => `sudo loginctl enable-linger ${account}`,
+  // The administrators' group is the system's: the app doesn't know which one it runs on.
+  'sudo.notUnlocked': (account) =>
+    `sudo usermod -aG sudo ${account}    # Debian, Ubuntu\nsudo usermod -aG wheel ${account}   # Arch`,
   'docker.system_units': (account) => `sudo usermod -aG docker ${account}`,
 };

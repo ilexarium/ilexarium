@@ -1225,7 +1225,7 @@
         "about": "Administratoraufgaben laufen über dein eigenes sudo, entsperrt mit deinem Passwort.",
         "ok": "Entsperrt: Administratoraufgaben funktionieren.",
         "skipped": "Nicht geprüft. Ohne sudo kann dieses Konto keine Administratoraufgaben erledigen (Sicherungen, Datenträger, Dienste).",
-        "notUnlocked": "Nicht entsperrt. Hat sudo abgelehnt, ist dieses Konto kein Administrator: Füge es von einem Administratorkonto aus der Administratorgruppe hinzu – sudo usermod -aG sudo <Konto> (Debian, Ubuntu) oder sudo usermod -aG wheel <Konto> (Arch, mit in sudoers erlaubter wheel-Gruppe) – und melde dich dann erneut bei Linux an."
+        "notUnlocked": "Nicht entsperrt. Hat sudo abgelehnt, ist dieses Konto kein Administrator: Führe den Befehl für dein System unten von einem Administratorkonto aus (unter Arch muss sudoers außerdem die wheel-Gruppe erlauben: sudo visudo) und melde dich dann erneut bei Linux an."
       },
       "docker": {
         "title": "Docker für Apps",

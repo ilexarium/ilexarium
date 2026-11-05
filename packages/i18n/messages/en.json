@@ -1225,7 +1225,7 @@
         "about": "Administrator tasks run through your own sudo, unlocked with your password.",
         "ok": "Unlocked: administrator tasks work.",
         "skipped": "Not checked. Without sudo, this account can’t do administrator tasks (backups, disks, services).",
-        "notUnlocked": "Not unlocked. If sudo refused it, this account isn’t an administrator: from an administrator’s account, add it to the administrators’ group — sudo usermod -aG sudo <account> (Debian, Ubuntu) or sudo usermod -aG wheel <account> (Arch, with the wheel group allowed in sudoers) — then sign in to Linux again."
+        "notUnlocked": "Not unlocked. If sudo refused it, this account isn’t an administrator: run the command for your system below from an administrator’s account (on Arch, sudoers must also allow the wheel group: sudo visudo), then sign in to Linux again."
       },
       "docker": {
         "title": "Docker for apps",
