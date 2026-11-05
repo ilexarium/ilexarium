@@ -39,7 +39,8 @@ const EVERY_ADDRESS = HOST === '' || HOST === '0.0.0.0' || HOST === '::';
 const PORT = appSetting('PORT') || '3000';
 const ADDRESS = EVERY_ADDRESS ? '127.0.0.1' : HOST.includes(':') ? `[${HOST}]` : HOST;
 // The machine's SSH server unit (the installer found it) and its administrators' group.
-const SSH_UNIT = JSON.parse(readFileSync('/etc/laris/wrappers.json', 'utf8')).update.sshUnit;
+const SSH_UNIT =
+  JSON.parse(readFileSync('/etc/laris/wrappers.json', 'utf8')).update.sshUnit ?? 'ssh.service';
 const ADMINS = existsSync('/etc/arch-release') ? 'wheel' : 'sudo';
 const BASE = `http://${ADDRESS}:${PORT}`;
 const ORIGIN = BASE;
