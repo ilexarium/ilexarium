@@ -27,7 +27,7 @@ while (($# > 0)); do
   case "$1" in
     --container) MODE=container ;;
     --vm) MODE=vm ;;
-    --os) OS="${2:-}"; shift ;;
+    --os) (($# >= 2)) || usage; OS="$2"; shift ;;
     --keep) KEEP=1 ;;
     *) usage ;;
   esac
