@@ -31,6 +31,7 @@ import {
   exhaustMap,
   firstValueFrom,
   forkJoin,
+  from,
   lastValueFrom,
   merge,
   mergeMap,
@@ -468,12 +469,17 @@ export const BackupsPageStore = signalStore(
           ),
         ),
 
-        /** The folder picker: the starting places, or inside a folder; the latest click wins. */
+        /**
+         * The folder picker: the starting places, or inside a folder; the latest click wins. Read
+         * as the signed-in Linux account: its sign-in asked for first (closed: nothing changes).
+         */
         browse: rxMethod<string | undefined>(
           pipe(
             switchMap((path) =>
-              backupsApi.folders(path).pipe(
-                tap((folders) => patchState(store, { folders })),
+              from(linuxSessionStore.asPerson(() => firstValueFrom(backupsApi.folders(path)))).pipe(
+                tap((folders) => {
+                  if (folders) patchState(store, { folders });
+                }),
                 catchError((error: unknown) => {
                   failed('backups.folders.failed', error);
                   return EMPTY;

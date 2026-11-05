@@ -921,7 +921,7 @@
       "text": "Jeder Ordner außer denen des Systems kann gesichert werden.",
       "up": "Nach oben",
       "empty": "Keine Ordner darin.",
-      "unreadable": "Diese App darf nicht hineinschauen, der Ordner kann aber trotzdem gesichert werden.",
+      "unreadable": "Dein Linux-Konto darf nicht hineinschauen, der Ordner kann aber trotzdem gesichert werden.",
       "choose": "Diesen Ordner wählen",
       "cancel": "Abbrechen",
       "failed": "Der Ordner konnte nicht geöffnet werden"

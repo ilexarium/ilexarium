@@ -921,7 +921,7 @@
       "text": "Any folder but the system's own can be backed up.",
       "up": "Up",
       "empty": "No folders inside.",
-      "unreadable": "This app may not look inside, but the folder can still be backed up.",
+      "unreadable": "Your Linux account may not look inside, but the folder can still be backed up.",
       "choose": "Choose this folder",
       "cancel": "Cancel",
       "failed": "Couldn't open the folder"

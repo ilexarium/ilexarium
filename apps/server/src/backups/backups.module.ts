@@ -3,6 +3,7 @@ import { AppsModule } from '../apps/apps.module.js';
 import { AuditModule } from '../audit/audit.module.js';
 import { DockerModule } from '../docker/docker.module.js';
 import { HostModule } from '../host/host.module.js';
+import { LinuxSessionsModule } from '../linux-sessions/linux-sessions.module.js';
 import { RealtimeModule } from '../realtime/realtime.module.js';
 import { RootProgramsModule } from '../root-programs/root-programs.module.js';
 import { BackupChecks } from './backup-checks.js';
@@ -19,7 +20,15 @@ import { BackupsTopic } from './backups-topic.js';
  * backup program's files. The health alerts read the status and follow its changes.
  */
 @Module({
-  imports: [AppsModule, AuditModule, DockerModule, HostModule, RealtimeModule, RootProgramsModule],
+  imports: [
+    AppsModule,
+    AuditModule,
+    DockerModule,
+    HostModule,
+    LinuxSessionsModule,
+    RealtimeModule,
+    RootProgramsModule,
+  ],
   controllers: [BackupsController],
   providers: [
     BackupChecks,
