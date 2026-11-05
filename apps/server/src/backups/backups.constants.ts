@@ -8,6 +8,8 @@ export const PASSPHRASE_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 export const DESTINATION_SOURCE = /^\/dev\//;
 /** Where the folder picker starts, besides the home folders and the disks. */
 export const FOLDER_PLACES = ['/srv', '/opt', '/data'];
+/** Folders the picker lists in one folder at most. */
+export const SUBFOLDERS_MAX = 500;
 /** The production places of the wrapper's files (development: under the config's dev folder). */
 export const STATE_DIR = '/var/lib/laris/backups';
 export const MOUNT_INFO = '/proc/self/mountinfo';

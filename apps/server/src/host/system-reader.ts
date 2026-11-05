@@ -41,7 +41,6 @@ import type {
   Pressure,
   RawProcess,
   Space,
-  Subfolder,
   TemperatureSensor,
 } from './host.model.js';
 
@@ -163,24 +162,6 @@ export class SystemReader {
   async device(path: string): Promise<number | null> {
     try {
       return (await stat(join(this.root, path))).dev;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * The folders directly inside `path` (not symlinks), by name, at most `limit`; null when the
-   * app's user may not look (another user's home) or it isn't a folder.
-   */
-  async subfolders(path: string, limit = 500): Promise<Subfolder[] | null> {
-    try {
-      const entries = await readdir(join(this.root, path), { withFileTypes: true });
-      return entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-        .sort((a, b) => a.localeCompare(b))
-        .slice(0, limit)
-        .map((name) => ({ name, path: path === '/' ? `/${name}` : `${path}/${name}` }));
     } catch {
       return null;
     }

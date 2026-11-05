@@ -78,8 +78,11 @@ export class BackupsController {
   }
 
   @Get('folders')
-  folders(@Query() { path }: BackupFoldersQueryDto): Promise<BackupFoldersResponse> {
-    return this.backupChecks.folders(path);
+  folders(
+    @Query() { path }: BackupFoldersQueryDto,
+    @CurrentSession() session: { id: string },
+  ): Promise<BackupFoldersResponse> {
+    return this.backupChecks.folders(session.id, path);
   }
 
   @Get('plan')

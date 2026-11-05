@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { constants } from 'node:fs';
 import { dirname } from 'node:path';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import {
@@ -13,6 +14,8 @@ import {
 } from '@laris/shared';
 import { DockerService } from '../docker/docker.service.js';
 import { SystemReader } from '../host/system-reader.js';
+import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
+import type { Sftp } from '../linux-sessions/sftp.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ProgramConfigService } from '../root-programs/program-config.js';
 import { SYSTEM_MOUNTS } from '../disks/disks.constants.js';
@@ -24,7 +27,7 @@ import {
   mountInfoFile,
   repositoryPath,
 } from './backup-paths.js';
-import { DESTINATION_SOURCE, FOLDER_PLACES } from './backups.constants.js';
+import { DESTINATION_SOURCE, FOLDER_PLACES, SUBFOLDERS_MAX } from './backups.constants.js';
 
 /**
  * Where backups can go and what can be backed up: the disk and folder pickers, and the app's
@@ -38,6 +41,7 @@ export class BackupChecks {
     private readonly programConfigService: ProgramConfigService,
     private readonly systemReader: SystemReader,
     private readonly dockerService: DockerService,
+    private readonly linuxSessions: LinuxSessions,
   ) {}
 
   /**
@@ -82,21 +86,26 @@ export class BackupChecks {
     return destinations.sort((a, b) => a.mountPoint.localeCompare(b.mountPoint));
   }
 
-  /** The folder picker: the starting places (homes, /srv, the disks), or the folders inside one. */
-  async folders(path?: string): Promise<BackupFoldersResponse> {
+  /**
+   * The folder picker: the starting places (homes, /srv, the disks), or the folders inside one —
+   * read as the signed-in Linux account (its SFTP), so it shows what that account may see: its own
+   * private home too. Without a Linux session: 403 `linux_session_required` (the page signs in).
+   */
+  async folders(appSessionId: string, path?: string): Promise<BackupFoldersResponse> {
     const config = this.programConfigService.config;
+    const { sftp } = this.linuxSessions.sftp(appSessionId);
     const entry = (p: string, name: string) => ({
       name,
       path: p,
       allowed: isAllowedFolder(config, p),
     });
     if (path === undefined) {
-      const homes = (await this.systemReader.subfolders('/home')) ?? [];
+      const homes = (await subfolders(sftp, '/home')) ?? [];
       const disks = (await this.destinations()).map((d) => d.mountPoint);
       const places = [...homes.map((home) => home.path), ...FOLDER_PLACES, ...disks];
       const existing = await Promise.all(
         [...new Set(places)].map(async (p) =>
-          (await this.systemReader.folder(p)) === 'missing' ? null : p,
+          (await sftp.statOrNull(p).catch(() => null)) ? p : null,
         ),
       );
       return {
@@ -112,7 +121,7 @@ export class BackupChecks {
       );
     }
     const parent = dirname(path);
-    const children = await this.systemReader.subfolders(path);
+    const children = await subfolders(sftp, path);
     return {
       path,
       parent: isAllowedFolder(config, parent) ? parent : null,
@@ -275,6 +284,23 @@ export class BackupChecks {
     if (state === 'missing' || state === 'other') {
       return { code: BACKUP_ERROR_CODES.pathNotFound, message: 'No such folder' };
     }
+    return null;
+  }
+}
+
+/** The folders in `path` (not links), sorted, at most SUBFOLDERS_MAX; null when it can't be read. */
+async function subfolders(
+  sftp: Sftp,
+  path: string,
+): Promise<{ name: string; path: string }[] | null> {
+  try {
+    return (await sftp.entries(path))
+      .filter(({ attrs }) => (attrs.mode & constants.S_IFMT) === constants.S_IFDIR)
+      .map(({ filename }) => filename)
+      .sort((a, b) => a.localeCompare(b))
+      .slice(0, SUBFOLDERS_MAX)
+      .map((name) => ({ name, path: path === '/' ? `/${name}` : `${path}/${name}` }));
+  } catch {
     return null;
   }
 }

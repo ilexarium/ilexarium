@@ -45,12 +45,6 @@ export interface Space {
   freeBytes: number;
 }
 
-/** A folder inside another, for the folder picker. */
-export interface Subfolder {
-  name: string;
-  path: string;
-}
-
 /** What is at a path: a folder, something else, nothing — or the app may not look (another user's). */
 export type FolderState = 'folder' | 'other' | 'missing' | 'unreadable';
 

@@ -2,8 +2,14 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import type { BackupDestination, BackupPlan, BackupsStatus, Container } from '@laris/shared';
-import { defer, of, throwError } from 'rxjs';
+import type {
+  BackupDestination,
+  BackupFoldersResponse,
+  BackupPlan,
+  BackupsStatus,
+  Container,
+} from '@laris/shared';
+import { defer, type Observable, of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -118,7 +124,9 @@ async function render(start: BackupPlan | null, url = '/backups') {
     ),
     runs: vi.fn(() => of({ runs: [] })),
     restores: vi.fn(() => of({ restores: [] })),
-    folders: vi.fn(() => of({ path: null, parent: null, readable: true, folders: [] })),
+    folders: vi.fn((_path?: string): Observable<BackupFoldersResponse> =>
+      of({ path: null, parent: null, readable: true, folders: [] }),
+    ),
     setup: vi.fn(() =>
       defer(() => {
         current = plan();
@@ -497,5 +505,28 @@ describe('BackupsPage with a plan', () => {
     await fixture.whenStable();
     expect(api.passphrase).not.toHaveBeenCalled();
     expect(el.textContent).not.toContain('dolphin');
+  });
+
+  it('the folder picker reads as the Linux account: its sign-in first; closed, nothing changes', async () => {
+    const { api, asPerson, store, fixture } = await render(plan());
+    const anna = {
+      path: '/home/anna',
+      parent: '/home',
+      readable: true,
+      folders: [{ name: 'Photos', path: '/home/anna/Photos', allowed: true }],
+    };
+    api.folders.mockReturnValue(of(anna));
+    asPerson.mockClear();
+    store.browse('/home/anna');
+    await fixture.whenStable();
+    expect(asPerson).toHaveBeenCalledTimes(1);
+    expect(api.folders).toHaveBeenLastCalledWith('/home/anna');
+    expect(store.folders()).toEqual(anna);
+
+    // The sign-in closed: the listing stays as it was.
+    asPerson.mockResolvedValueOnce(null);
+    store.browse('/home/anna/Photos');
+    await fixture.whenStable();
+    expect(store.folders()).toEqual(anna);
   });
 });
