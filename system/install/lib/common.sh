@@ -60,6 +60,43 @@ replace_tree() {
   rm -rf "$dest.old"
 }
 
+# The root programs' lock, as lib/lock.mts takes it: a file holding its owner's pid, linked into
+# place — one privileged operation at a time (a backup, a restore, a disk change, an install).
+ROOT_LOCK=/run/laris/compose.lock
+
+# The pid holding lock $1, or nothing when it's free or its owner is gone. One without a pid (an
+# older writer) counts for a minute, as in lock.mts.
+lock_owner() {
+  local pid
+  pid="$(cat "$1" 2>/dev/null || true)"
+  if [[ "$pid" =~ ^[1-9][0-9]*$ ]]; then
+    if kill -0 "$pid" 2>/dev/null; then printf '%s' "$pid"; fi
+  elif [[ -e "$1" ]] && (($(date +%s) - $(stat -c %Y "$1") < 60)); then
+    printf unknown
+  fi
+}
+
+# Takes lock $1 until this script ends, or fails while a living owner holds it.
+take_lock() {
+  local lock="$1" own="$1.$$" ino
+  mkdir -p "$(dirname "$lock")"
+  printf '%s' "$$" >"$own"
+  for _ in 1 2; do
+    if ln "$own" "$lock" 2>/dev/null; then
+      rm -f "$own"
+      LOCK_TAKEN="$lock"
+      trap 'rm -f "$LOCK_TAKEN"' EXIT
+      return 0
+    fi
+    ino="$(stat -c %i "$lock" 2>/dev/null || true)"
+    if [[ -n "$(lock_owner "$lock")" ]]; then break; fi
+    # Its owner died: taken over — only the lock judged dead, never one taken meanwhile.
+    if [[ "$(stat -c %i "$lock" 2>/dev/null || true)" == "$ino" ]]; then rm -f "$lock"; fi
+  done
+  rm -f "$own"
+  return 1
+}
+
 # Random letters and digits (hex), for passwords: safe in URLs and SQL without quoting.
 random_hex() { od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'; }
 

@@ -3,6 +3,7 @@
 # Sourced by install.sh.
 
 POSTGRES_CONTAINER=laris-postgres-1
+DUMPS_KEPT=3
 
 # SQL as the database owner, inside the container (local socket: no password, no network).
 # Statements come on stdin — never in arguments, which every user can see in `ps`.
@@ -41,8 +42,18 @@ backup_database() {
   fi
   mv -f "$tmp" "$dump"
   DATABASE_BACKUP="$dump"
+  prune_dumps "$VAR/install-backups"
   info "$DATABASE_BACKUP"
   marker dump "$DATABASE_BACKUP"
+}
+
+# The newest DUMPS_KEPT dumps in folder $1 stay (this update's among them), older ones go.
+prune_dumps() {
+  local old
+  while IFS= read -r old; do rm -f -- "$1/$old"; done < <(
+    find "$1" -maxdepth 1 -type f -name 'laris-*.dump' -printf '%T@ %f\n' |
+      sort -rn | tail -n +"$((DUMPS_KEPT + 1))" | cut -d' ' -f2-
+  )
 }
 
 # The app's own role may only read and write data: no tables made or dropped, no migrations.
@@ -53,8 +64,11 @@ migrate_database() {
   if ! (cd "$RELEASE/app/apps/server" &&
     DATABASE_URL="$OWNER_DATABASE_URL" /usr/bin/node ../../node_modules/prisma/build/index.js migrate deploy >/dev/null); then
     if [[ -n "${DATABASE_BACKUP:-}" ]]; then
+      # Into an empty schema, as laris-update's rollback does: --clean drops only what the dump
+      # holds, and tables of the migrations that did run would stay (the next try fails on them).
       die "A migration failed; the old version is still installed. Put the database back first:
-    docker exec -i $POSTGRES_CONTAINER pg_restore --clean --if-exists -U laris_owner -d laris <$DATABASE_BACKUP
+    docker exec $POSTGRES_CONTAINER psql -U laris_owner -d laris -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+    docker exec -i $POSTGRES_CONTAINER pg_restore --exit-on-error -U laris_owner -d laris <$DATABASE_BACKUP
     then: systemctl start laris"
     fi
     die 'A migration failed'

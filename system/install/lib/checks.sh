@@ -42,6 +42,18 @@ cpu_arch() {
 # Is version $1 at least $2 (1.4.0 ≥ 1.4; 2.0.0b1 ≥ 2)?
 version_ge() { [[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" == "$2" ]]; }
 
+# Not while a backup, restore or disk change runs: the installer stops the app and restarts the
+# database. An update from the app runs under laris-update, which holds the lock for it.
+hold_lock() {
+  if [[ "$UPDATE" == 1 ]]; then
+    [[ "$(lock_owner "$ROOT_LOCK")" == "$PPID" ]] ||
+      die '--update runs only from laris-update (which holds the lock)'
+    return
+  fi
+  take_lock "$ROOT_LOCK" ||
+    die 'A backup, restore or disk change is running — run this again when it’s done'
+}
+
 # A first install, or an update of an older one — never back to an older version.
 check_version() {
   NEW_VERSION="$(cat "$RELEASE/VERSION")"
