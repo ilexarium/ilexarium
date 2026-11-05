@@ -1,6 +1,8 @@
 export interface Config {
   update: {
     appGid?: number;
+    /** The machine's SSH server: `ssh.service` (Debian, Ubuntu) or `sshd.service` (Arch). */
+    sshUnit?: string;
     // Development only (tests): a pretend machine under `root`, programs from `bin`.
     dev?: { root: string; bin: string; healthUrl: string };
   };

@@ -84,15 +84,20 @@ beforeEach(() => {
     chmodSync(path, 0o755);
   }
   for (const name of ['tar', 'bash', 'cp']) symlinkSync(`/usr/bin/${name}`, join(dir, 'bin', name));
+  setUpdateConfig({});
+});
+
+function setUpdateConfig(extra: Record<string, unknown>) {
   writeFileSync(
     join(dir, 'wrappers.json'),
     JSON.stringify({
       update: {
         dev: { root, bin: join(dir, 'bin'), healthUrl: `http://127.0.0.1:${port}/api/health` },
+        ...extra,
       },
     }),
   );
-});
+}
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -256,6 +261,13 @@ describe('laris-update start', () => {
     expect(existsSync(stale)).toBe(false);
   });
 
+  it('takes only an SSH server unit it knows', async () => {
+    setUpdateConfig({ sshUnit: 'evil.service' });
+    expect((await start({ updateId: randomUUID(), version: '0.2.0' })).out).toContain(
+      '@@error code=setup',
+    );
+  });
+
   it('needs an update source', async () => {
     rmSync(join(root, 'etc/laris/release.pub'));
     expect((await start({ updateId: randomUUID(), version: '0.2.0' })).out).toContain(
@@ -383,6 +395,18 @@ describe('laris-update run', { timeout: 30_000 }, () => {
       ['restart', 'laris-platform.service'],
       ['reload-or-restart', 'ssh.service'],
       ['start', 'laris.service'],
+    ]);
+  });
+
+  it('rolls back with the machine’s own SSH server unit (sshd.service on Arch)', async () => {
+    setUpdateConfig({ sshUnit: 'sshd.service' });
+    publish();
+    writeFileSync(join(root, 'fail-install'), '');
+    const { done } = await update();
+    expect(done).toMatchObject({ outcome: 'rolled_back' });
+    expect(calls('systemctl').map((c) => c.args)).toContainEqual([
+      'reload-or-restart',
+      'sshd.service',
     ]);
   });
 

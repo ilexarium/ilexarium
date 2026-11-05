@@ -13,6 +13,8 @@ export const ROOT_CONFIG = '/etc/laris/wrappers.json';
 /** The machine's settings for the app (the person's: where it listens), never changed by an update. */
 const APP_SETTINGS = '/etc/laris/app.env';
 
+const SSH_UNITS = ['ssh.service', 'sshd.service'];
+
 const absolute = (p: unknown): p is string => typeof p === 'string' && isPlainAbsolutePath(p);
 
 export function loadConfig(): Config {
@@ -25,6 +27,7 @@ export function loadConfig(): Config {
   const valid =
     typeof update === 'object' &&
     update !== null &&
+    (update.sshUnit === undefined || SSH_UNITS.includes(update.sshUnit)) &&
     (isRoot
       ? Number.isInteger(update.appGid)
       : typeof dev === 'object' &&
