@@ -767,7 +767,7 @@
     },
     "pihole": {
       "description": "Blockiert Werbung und Tracker für jedes Gerät, das es als DNS-Server nutzt.",
-      "note": "Pi-hole braucht Port 53, den viele Rechner schon für systemd-resolved nutzen (Ubuntu, Fedora, Arch): Der Start scheitert dann mit „address already in use“. Schalte zuerst dessen Stub-Listener ab (Pi-holes Docker-Dokumentation: „Disable systemd-resolved port 53“). Trage danach die Adresse dieses Rechners als DNS-Server in deinem Router oder auf deinen Geräten ein. Mach Port 53 nicht aus dem Internet erreichbar.",
+      "note": "Pi-hole braucht Port 53, den viele Rechner schon für systemd-resolved nutzen (Ubuntu, Fedora, Arch): Auf allen Adressen scheitert der Start dann mit „address already in use“. Trage als Lauschadresse eine Adresse dieses Rechners ein (im Heimnetz oder VPN) oder schalte den Stub-Listener von resolved ab (Pi-holes Docker-Dokumentation: „Disable systemd-resolved port 53“). Docker-Ports umgehen die Firewall: Auf einem Rechner, der aus dem Internet erreichbar ist, trage immer eine Adresse ein. Trage danach diese Adresse als DNS-Server in deinem Router oder auf deinen Geräten ein.",
       "fields": {
         "WEB_PORT": {
           "label": "Web-Port",
@@ -780,6 +780,10 @@
         "DNS_PORT": {
           "label": "DNS-Port",
           "help": "Geräte fragen auf 53: ein anderer Port nur zum Ausprobieren."
+        },
+        "LISTEN_ADDRESS": {
+          "label": "Lauschadresse",
+          "help": "Seine Ports nur auf dieser Adresse des Rechners, z. B. 192.168.1.10. 0.0.0.0: alle Adressen."
         },
         "DATA_DIR": {
           "label": "Datenordner",
