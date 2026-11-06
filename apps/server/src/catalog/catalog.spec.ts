@@ -101,6 +101,7 @@ describe('the catalog', () => {
       'navidrome',
       'ollama',
       'open-webui',
+      'pihole',
     ]);
   });
 

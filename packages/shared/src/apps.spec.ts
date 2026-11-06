@@ -32,7 +32,7 @@ describe('appsFromContainers', () => {
         container({ name: 'laris-postgres-1', composeProject: 'laris', protected: true }),
         container({ name: 'loose' }),
       ],
-      (id) => (id === 'navidrome' ? 4533 : null),
+      (id) => (id === 'navidrome' ? { port: 4533, path: '/' } : null),
     );
     expect(apps).toEqual([
       {
@@ -43,6 +43,7 @@ describe('appsFromContainers', () => {
         state: 'partial',
         containers: ['db', 'navidrome-1'],
         webPort: 4600,
+        webPath: '/',
       },
     ]);
   });

@@ -5,7 +5,7 @@ App **templates**: starting points, used once. After setup, the app's folder (`~
 ```
 catalog/<id>/
 ├── compose.yml     plain Compose: ${VARIABLES}, data in ./folders, the laris.template label
-├── template.json   what each variable is, the backup preset, the web port (templateSchema)
+├── template.json   what each variable is, the backup preset, the web page (port, path) (templateSchema)
 └── icon.svg        shown on the card (only ever used in <img>)
 ```
 

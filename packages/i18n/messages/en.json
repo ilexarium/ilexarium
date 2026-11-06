@@ -764,6 +764,36 @@
           "help": "The user and group both run as (yours by default)."
         }
       }
+    },
+    "pihole": {
+      "description": "Blocks ads and trackers for every device that uses it as its DNS server.",
+      "note": "Pi-hole needs port 53, which many machines already use for systemd-resolved (Ubuntu, Fedora, Arch): starting then fails with “address already in use”. Turn off its stub listener first (Pi-hole’s Docker documentation: “Disable systemd-resolved port 53”). Then set this machine’s address as the DNS server in your router or on your devices. Don’t make port 53 reachable from the internet.",
+      "fields": {
+        "WEB_PORT": {
+          "label": "Web port",
+          "help": "The port Pi-hole’s page opens on (at /admin/)."
+        },
+        "WEB_PASSWORD": {
+          "label": "Password",
+          "help": "For Pi-hole’s page. Change it here, in the app’s settings: Pi-hole’s page can’t."
+        },
+        "DNS_PORT": {
+          "label": "DNS port",
+          "help": "Devices ask on 53: another port only for trying it out."
+        },
+        "DATA_DIR": {
+          "label": "Data folder",
+          "help": "Pi-hole’s settings, block lists and query history."
+        },
+        "PIHOLE_VERSION": {
+          "label": "Version",
+          "help": "Pi-hole publishes exact versions only."
+        },
+        "TZ": {
+          "label": "Time zone",
+          "help": "For dates in the logs and statistics, e.g. Europe/Berlin."
+        }
+      }
     }
   },
   "backups": {

@@ -35,8 +35,13 @@ export const AppsStore = signalStore(
       const snapshot = monitoringStore.containers();
       if (!snapshot) return null;
       if (!snapshot.dockerAvailable) return [];
-      const ports = new Map((store.templates() ?? []).map((t) => [t.id, t.webPort]));
-      return appsFromContainers(snapshot.containers, (id) => ports.get(id) ?? null);
+      const pages = new Map(
+        (store.templates() ?? []).map((t) => [
+          t.id,
+          t.webPort === null ? null : { port: t.webPort, path: t.webPath },
+        ]),
+      );
+      return appsFromContainers(snapshot.containers, (id) => pages.get(id) ?? null);
     }),
     dockerAvailable: computed(() => monitoringStore.containers()?.dockerAvailable ?? true),
     templatesById: computed(() => new Map((store.templates() ?? []).map((t) => [t.id, t]))),

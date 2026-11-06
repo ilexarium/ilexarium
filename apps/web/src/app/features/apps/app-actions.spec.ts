@@ -12,6 +12,9 @@ describe('app actions', () => {
 
   it('opens its port on this machine, only while it has containers', () => {
     expect(openUrl(testApp('music', { webPort: 4533 }), 'box')).toBe('http://box:4533/');
+    expect(openUrl(testApp('dns', { webPort: 8080, webPath: '/admin/' }), 'box')).toBe(
+      'http://box:8080/admin/',
+    );
     expect(openUrl(testApp('music', { webPort: null }), 'box')).toBeNull();
     expect(openUrl(testApp('music', { webPort: 4533, state: 'none' }), 'box')).toBeNull();
     expect(openUrl(null, 'box')).toBeNull();

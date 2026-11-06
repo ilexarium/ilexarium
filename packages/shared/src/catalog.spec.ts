@@ -41,12 +41,30 @@ describe('templateSchema', () => {
     expect(templateSchema.safeParse(plain).success).toBe(true);
   });
 
+  it('accepts a web page below a path', () => {
+    for (const path of ['/', '/admin/', '/app', '/a/b.c/']) {
+      expect(templateSchema.safeParse({ ...template, web: { port: 80, path } }).success).toBe(true);
+    }
+  });
+
   it.each([
     ['an id that could leave a folder', (t: Record<string, unknown>) => (t['id'] = '../x')],
     ['an uppercase id', (t: Record<string, unknown>) => (t['id'] = 'Demo')],
     ['an http website', (t: Record<string, unknown>) => (t['website'] = 'http://example.org')],
     ['an unknown property', (t: Record<string, unknown>) => (t['extra'] = true)],
     ['a web port out of range', (t: Record<string, unknown>) => (t['web'] = { port: 70000 })],
+    [
+      'a web path that is no plain path',
+      (t: Record<string, unknown>) => (t['web'] = { port: 80, path: '//evil.example' }),
+    ],
+    [
+      'a web path going up',
+      (t: Record<string, unknown>) => (t['web'] = { port: 80, path: '/../x' }),
+    ],
+    [
+      'a web path with a query',
+      (t: Record<string, unknown>) => (t['web'] = { port: 80, path: '/?a' }),
+    ],
     ['a version that is not a number', (t: Record<string, unknown>) => (t['version'] = 'v1')],
     [
       'duplicate keys',

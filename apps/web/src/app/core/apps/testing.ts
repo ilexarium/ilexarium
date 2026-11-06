@@ -15,6 +15,7 @@ export const testApp = (name: string, change: Partial<AppSummary> = {}): AppSumm
   state: 'running',
   containers: [`${name}-server-1`],
   webPort: null,
+  webPath: '/',
   ...change,
 });
 
@@ -55,6 +56,7 @@ export const testTemplate = (
   category: 'media',
   website: `https://example.com/${id}`,
   webPort: null,
+  webPath: '/',
   backupRestoreNote: false,
   ...change,
 });

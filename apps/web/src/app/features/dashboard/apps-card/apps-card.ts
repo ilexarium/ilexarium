@@ -48,7 +48,9 @@ export class AppsCard {
       app,
       iconUrl: app.app.template ? catalogIconPath(app.app.template.id) : null,
       openUrl:
-        app.app.webPort !== null ? `http://${this.location.hostname}:${app.app.webPort}/` : null,
+        app.app.webPort !== null
+          ? `http://${this.location.hostname}:${app.app.webPort}${app.app.webPath}`
+          : null,
       state: appState(app),
       canStart:
         (app.app.state === 'stopped' || app.app.state === 'partial') && app.stopped.length > 0,
