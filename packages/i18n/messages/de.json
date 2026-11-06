@@ -764,6 +764,36 @@
           "help": "Benutzer und Gruppe, als die beide laufen (standardmäßig deine)."
         }
       }
+    },
+    "pihole": {
+      "description": "Blockiert Werbung und Tracker für jedes Gerät, das es als DNS-Server nutzt.",
+      "note": "Pi-hole braucht Port 53, den viele Rechner schon für systemd-resolved nutzen (Ubuntu, Fedora, Arch): Der Start scheitert dann mit „address already in use“. Schalte zuerst dessen Stub-Listener ab (Pi-holes Docker-Dokumentation: „Disable systemd-resolved port 53“). Trage danach die Adresse dieses Rechners als DNS-Server in deinem Router oder auf deinen Geräten ein. Mach Port 53 nicht aus dem Internet erreichbar.",
+      "fields": {
+        "WEB_PORT": {
+          "label": "Web-Port",
+          "help": "Der Port, auf dem sich die Seite von Pi-hole öffnet (unter /admin/)."
+        },
+        "WEB_PASSWORD": {
+          "label": "Passwort",
+          "help": "Für die Seite von Pi-hole. Ändere es hier, in den Einstellungen der App: Die Seite von Pi-hole kann es nicht."
+        },
+        "DNS_PORT": {
+          "label": "DNS-Port",
+          "help": "Geräte fragen auf 53: ein anderer Port nur zum Ausprobieren."
+        },
+        "DATA_DIR": {
+          "label": "Datenordner",
+          "help": "Einstellungen, Blocklisten und Abfrageverlauf von Pi-hole."
+        },
+        "PIHOLE_VERSION": {
+          "label": "Version",
+          "help": "Pi-hole veröffentlicht nur genaue Versionen."
+        },
+        "TZ": {
+          "label": "Zeitzone",
+          "help": "Für Zeitangaben in den Logs und Statistiken, z. B. Europe/Berlin."
+        }
+      }
     }
   },
   "backups": {

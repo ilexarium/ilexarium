@@ -83,7 +83,7 @@ export class AppManager {
   /** The apps Docker knows, and with a Linux session those in `~/apps` that don't run. */
   async list(appSessionId: string): Promise<AppSummary[]> {
     const containers = await this.dockerService.listContainers().catch(() => []);
-    const apps = appsFromContainers(containers, (id) => this.catalogService.webPort(id));
+    const apps = appsFromContainers(containers, (id) => this.catalogService.webPage(id));
     const session = this.linuxSessions.current(appSessionId);
     if (!session) return apps;
     const sftp = this.sftp(appSessionId);
@@ -100,6 +100,7 @@ export class AppManager {
         state: 'none',
         containers: [],
         webPort: null,
+        webPath: '/',
       });
     }
     return apps.sort((a, b) => a.name.localeCompare(b.name));
@@ -446,7 +447,7 @@ export class AppManager {
     hint?: string,
   ): Promise<{ folder: string; summary: AppSummary }> {
     const containers = await this.dockerService.listContainers().catch(() => []);
-    const known = appsFromContainers(containers, (id) => this.catalogService.webPort(id)).find(
+    const known = appsFromContainers(containers, (id) => this.catalogService.webPage(id)).find(
       (app) => app.name === name,
     );
     const home = this.linuxSessions.account(appSessionId).home;
@@ -459,6 +460,7 @@ export class AppManager {
       state: 'none',
       containers: [],
       webPort: null,
+      webPath: '/',
     };
     return { folder, summary };
   }

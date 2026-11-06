@@ -57,6 +57,8 @@ export const appSummarySchema = z.object({
   containers: z.array(z.string()),
   /** The published port of its web page (the "Open" link). */
   webPort: z.number().int().nullable(),
+  /** The path of its web page (`/` unless its template says). */
+  webPath: z.string(),
 });
 export type AppSummary = z.infer<typeof appSummarySchema>;
 
@@ -264,7 +266,7 @@ export function appState(containers: readonly Pick<Container, 'state' | 'health'
  */
 export function appsFromContainers(
   containers: readonly Omit<Container, 'stats'>[],
-  webPorts: (templateId: string) => number | null = () => null,
+  webPages: (templateId: string) => { port: number; path: string } | null = () => null,
 ): AppSummary[] {
   const projects = new Map<string, Omit<Container, 'stats'>[]>();
   for (const container of containers) {
@@ -280,10 +282,10 @@ export function appsFromContainers(
     const label = own.map((c) => TEMPLATE_LABEL_PATTERN.exec(c.template ?? '')).find(Boolean);
     const template = label ? { id: label[1], version: label[2] } : null;
     const published = own.flatMap((c) => c.ports).filter((p) => p.publicPort !== undefined);
-    const wanted = template ? webPorts(template.id) : null;
+    const wanted = template ? webPages(template.id) : null;
     const web =
       wanted !== null
-        ? published.find((p) => p.privatePort === wanted)
+        ? published.find((p) => p.privatePort === wanted.port)
         : published.find((p) => p.protocol === 'tcp' && p.ip !== '127.0.0.1' && p.ip !== '::1');
     apps.push({
       name,
@@ -293,6 +295,7 @@ export function appsFromContainers(
       state: appState(own),
       containers: own.map((c) => c.name).sort(),
       webPort: web?.publicPort ?? null,
+      webPath: wanted?.path ?? '/',
     });
   }
   return apps.sort((a, b) => a.name.localeCompare(b.name));

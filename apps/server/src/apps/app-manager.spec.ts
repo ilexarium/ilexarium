@@ -123,7 +123,7 @@ function manager(): AppManager {
   } as unknown as LinuxSessions;
   const docker = { listContainers: async () => containers } as unknown as DockerService;
   const catalog = {
-    webPort: () => null,
+    webPage: () => null,
     get: (id: string) => (id === 'demo' ? entry : undefined),
     require: (id: string) => {
       if (id !== 'demo') throw new Error('no such template');

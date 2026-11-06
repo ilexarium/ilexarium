@@ -7,6 +7,8 @@ import { z } from 'zod';
  */
 
 export const CATALOG_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/;
+/** Where a template's web page is, below its port: `/`, `/admin/`. */
+export const WEB_PATH_PATTERN = /^\/(?:[A-Za-z0-9_~-][A-Za-z0-9._~-]*\/?)*$/;
 /** A template's variable: also its `${KEY}` in compose.yml and its line in `.env`. */
 export const FIELD_KEY_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 
@@ -106,8 +108,14 @@ export const templateSchema = z
     name: z.string().min(1).max(40),
     category: catalogCategorySchema,
     website: z.url({ protocol: /^https$/ }),
-    /** The port its web page listens on inside the container (the "Open" link); none for an app without one (Ollama). */
-    web: z.strictObject({ port: z.number().int().min(1).max(65535) }).optional(),
+    /** Its web page inside the container (the "Open" link); none for an app without one (Ollama). */
+    web: z
+      .strictObject({
+        port: z.number().int().min(1).max(65535),
+        /** When it isn't at `/` (Pi-hole's `/admin/`, which `/` doesn't lead to by address). */
+        path: z.string().max(200).regex(WEB_PATH_PATTERN).optional(),
+      })
+      .optional(),
     fields: z.array(templateFieldSchema).min(1).max(CATALOG_LIMITS.maxFields),
     backup: templateBackupSchema.optional(),
     /** `catalog.<id>.note`: what to know or copy at setup (shown on the setup form). */
@@ -136,6 +144,8 @@ export const templateSummarySchema = z.object({
   website: z.string(),
   /** Its web page's port inside the container (the "Open" link), or null. */
   webPort: z.number().int().nullable(),
+  /** Its web page's path (`/` unless the template says). */
+  webPath: z.string(),
   /** After a restore, show `catalog.<id>.backup.restoreNote`. */
   backupRestoreNote: z.boolean(),
 });

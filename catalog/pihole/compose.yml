@@ -1,0 +1,32 @@
+# Pi-hole, from the Laris template (catalog/pihole): blocks ads and trackers for every device that
+# uses it as its DNS server. This folder is yours: change anything.
+# Differences from Pi-hole's own Compose file (github.com/pi-hole/docker-pi-hole), on purpose:
+# - Its web page on WEB_PORT instead of 80, and no 443: its certificate is self-signed. The page
+#   is at /admin/.
+# - No DHCP (67) or NTP (123) port and no added capabilities: only DHCP needs NET_ADMIN, and DHCP
+#   works best with the host's network. To use Pi-hole as your DHCP server, follow Pi-hole's
+#   documentation.
+# - No container_name: Compose names it after this folder.
+# The password comes from WEB_PASSWORD and can't be changed in Pi-hole's page (settings set here
+# are read-only there): change it in .env and start the app again.
+services:
+  pihole:
+    image: pihole/pihole:${PIHOLE_VERSION}
+    ports:
+      - '${DNS_PORT}:53/tcp'
+      - '${DNS_PORT}:53/udp'
+      - '${WEB_PORT}:80/tcp'
+    environment:
+      TZ: ${TZ}
+      FTLCONF_webserver_api_password: ${WEB_PASSWORD}
+      # Answers every network: needed on Docker's own network, where queries don't come from the
+      # local one.
+      FTLCONF_dns_listeningMode: ALL
+    volumes:
+      - ${DATA_DIR}:/etc/pihole
+    labels:
+      laris.template: pihole@1
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }

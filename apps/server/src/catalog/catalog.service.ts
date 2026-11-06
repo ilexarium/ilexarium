@@ -30,6 +30,7 @@ export class CatalogService implements OnModuleInit {
       category: template.category,
       website: template.website,
       webPort: template.web?.port ?? null,
+      webPath: template.web?.path ?? '/',
       backupRestoreNote: template.backup?.restoreNote === true,
     }));
   }
@@ -54,8 +55,9 @@ export class CatalogService implements OnModuleInit {
     return { template, compose };
   }
 
-  /** The port inside the container its web page listens on, for the "Open" link. */
-  webPort(id: string): number | null {
-    return this.entries.get(id)?.template.web?.port ?? null;
+  /** Its web page inside the container, for the "Open" link. */
+  webPage(id: string): { port: number; path: string } | null {
+    const web = this.entries.get(id)?.template.web;
+    return web ? { port: web.port, path: web.path ?? '/' } : null;
   }
 }

@@ -29,6 +29,7 @@ const app = (name: string, change: Partial<AppSummary> = {}): AppSummary => ({
   state: 'running',
   containers: [`${name}-server-1`],
   webPort: 8080,
+  webPath: '/',
   ...change,
 });
 

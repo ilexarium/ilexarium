@@ -1,0 +1,21 @@
+{
+  "id": "pihole",
+  "version": "1",
+  "name": "Pi-hole",
+  "category": "network",
+  "website": "https://pi-hole.net",
+  "web": { "port": 80, "path": "/admin/" },
+  "fields": [
+    { "key": "WEB_PORT", "kind": "port", "default": 8053 },
+    { "key": "WEB_PASSWORD", "kind": "secret" },
+    { "key": "DNS_PORT", "kind": "port", "default": 53 },
+    { "key": "DATA_DIR", "kind": "folder", "default": "./data", "advanced": true },
+    { "key": "PIHOLE_VERSION", "kind": "version", "default": "2026.10.1" },
+    { "key": "TZ", "kind": "text", "default": "@timezone", "advanced": true }
+  ],
+  "backup": {
+    "mode": "live",
+    "skip": ["data/pihole-FTL.db*", "data/listsCache", "data/gravity_old.db"]
+  },
+  "note": true
+}
