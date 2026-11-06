@@ -1,6 +1,6 @@
 {
   "id": "pihole",
-  "version": "1",
+  "version": "2",
   "name": "Pi-hole",
   "category": "network",
   "website": "https://pi-hole.net",
@@ -9,6 +9,7 @@
     { "key": "WEB_PORT", "kind": "port", "default": 8053 },
     { "key": "WEB_PASSWORD", "kind": "secret" },
     { "key": "DNS_PORT", "kind": "port", "default": 53 },
+    { "key": "LISTEN_ADDRESS", "kind": "text", "default": "0.0.0.0" },
     { "key": "DATA_DIR", "kind": "folder", "default": "./data", "advanced": true },
     { "key": "PIHOLE_VERSION", "kind": "version", "default": "2026.10.1" },
     { "key": "TZ", "kind": "text", "default": "@timezone", "advanced": true }
