@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -23,11 +23,15 @@ describe('SystemReader (this machine)', () => {
     expect(counters.has('lo')).toBe(false);
   });
 
-  it('reads at least the root filesystem, in the shared shape', async () => {
-    const disks = await reader.disks();
-    expect(disks.map((disk) => disk.mount)).toContain('/');
-    for (const disk of disks) expect(diskUsageSchema.parse(disk)).toEqual(disk);
-  });
+  // In a container (dev/server/) `/` is an overlay, which the disk list leaves out.
+  it.skipIf(existsSync('/.dockerenv'))(
+    'reads at least the root filesystem, in the shared shape',
+    async () => {
+      const disks = await reader.disks();
+      expect(disks.map((disk) => disk.mount)).toContain('/');
+      for (const disk of disks) expect(diskUsageSchema.parse(disk)).toEqual(disk);
+    },
+  );
 
   it('reads host info in the shared shape', async () => {
     const host = await reader.hostInfo();
