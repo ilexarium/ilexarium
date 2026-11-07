@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
@@ -35,7 +36,10 @@ describe('system topic (e2e)', () => {
     expect(snapshot.event).toBe('system:snapshot');
     if (snapshot.event !== 'system:snapshot') return;
     expect(snapshot.data.host.cpuCores).toBeGreaterThan(0);
-    expect(snapshot.data.disks.map((disk) => disk.mount)).toContain('/');
+    // In a container (dev/server/) `/` is an overlay, which the disk list leaves out.
+    if (!existsSync('/.dockerenv')) {
+      expect(snapshot.data.disks.map((disk) => disk.mount)).toContain('/');
+    }
     expect(snapshot.data.history).toHaveLength(1);
 
     const [, update] = await client.received(2, 4000); // one sample interval (2 s) later

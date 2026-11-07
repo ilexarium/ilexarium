@@ -1,5 +1,5 @@
 # Local development only. Production Postgres is provisioned by the install script.
-# Start with `npm run db:up` (it passes DOCKER_GID, the group of the Docker socket on this machine).
+# Start with `npm run db:up` (through dev/compose.sh, which passes DOCKER_GID and the rest).
 # Creates `laris` (dev) and `laris_test` (tests); init scripts run only on a fresh volume.
 name: laris-dev
 
@@ -32,7 +32,7 @@ services:
     image: haproxy:3.4-alpine@sha256:7af8255207ee9964ccb4eec8ce4b7a40b777769665e3ae83897fb01b24d8a43a
     group_add:
       # The host's docker group, inside this container only: lets the proxy open the socket.
-      - '${DOCKER_GID:?run via npm run db:up, which sets DOCKER_GID}'
+      - '${DOCKER_GID:?run through dev/compose.sh (npm run db:up), which sets DOCKER_GID}'
     volumes:
       - ../system/docker-socket-proxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       # :ro does not make the socket read-only (connecting is not a write) — the allow-list does.
@@ -73,5 +73,38 @@ services:
     network_mode: none
     restart: 'no'
 
+  # The server and its tests on Linux, for working from a Mac (dev/server/): `npm run server:up`,
+  # then `npm run srv -- <command>`. The host's network and PIDs (on a Mac, Docker's VM): it
+  # reaches the services above on 127.0.0.1 like a server run directly, and the process list
+  # matches what sshd ends.
+  server:
+    profiles: [server]
+    build: ./server
+    network_mode: host
+    pid: host
+    environment:
+      LARIS_REPO: ${LARIS_REPO:?run through dev/compose.sh}
+      HOST_UID: ${HOST_UID:?run through dev/compose.sh}
+      HOST_GID: ${HOST_GID:?run through dev/compose.sh}
+      DOCKER_GID: ${DOCKER_GID:?run through dev/compose.sh}
+    working_dir: ${LARIS_REPO}
+    volumes:
+      - ..:${LARIS_REPO}
+      # The backup program (run directly in development) dumps the database with docker exec.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - server-modules:${LARIS_REPO}/node_modules
+      - server-modules-server:${LARIS_REPO}/apps/server/node_modules
+      - server-modules-web:${LARIS_REPO}/apps/web/node_modules
+      - server-modules-shared:${LARIS_REPO}/packages/shared/node_modules
+      - server-modules-i18n:${LARIS_REPO}/packages/i18n/node_modules
+      - server-home:/home/dev
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  server-modules:
+  server-modules-server:
+  server-modules-web:
+  server-modules-shared:
+  server-modules-i18n:
+  server-home:
