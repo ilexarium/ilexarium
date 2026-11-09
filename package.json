@@ -18,6 +18,7 @@
     "db:down": "dev/compose.sh --profile server down",
     "server:up": "dev/compose.sh --profile server up -d --build server",
     "srv": "dev/compose.sh exec -u dev server",
+    "dev:srv": "npm run db:up && npm run server:up && npm run srv -- npm run dev:server",
     "test": "npm run build:shared && npm test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present && npm run lint:programs",
     "lint:programs": "tsc -p system/programs",
