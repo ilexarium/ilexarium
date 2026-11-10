@@ -8,7 +8,7 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import type { ActivityItem, BackupRun } from '@laris/shared';
+import type { ActivityItem, BackupRun } from '@ilex/shared';
 import {
   catchError,
   debounce,
@@ -130,7 +130,7 @@ export const DashboardPageStore = signalStore(
         /** Some unit doesn't know yet: the sentence waits instead of saying all is well. */
         checking: computed(() => units().some((unit) => unit.text.key === LOADING_KEY)),
         alertCount: computed(() => alertsStore.open().length),
-        /** A newer Laris to update to: one line under the headline, not an alert. */
+        /** A newer Ilexarium to update to: one line under the headline, not an alert. */
         updateAvailable: computed(() => updatesStore.available()?.version ?? null),
         live: computed(() => realtimeService.status() === 'live'),
         appsLoaded: computed(() => apps() !== null),

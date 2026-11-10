@@ -1,4 +1,4 @@
-import type { AppState, AppSummary } from '@laris/shared';
+import type { AppState, AppSummary } from '@ilex/shared';
 
 /** Something of it is stopped. */
 export const canStart = (state: AppState) => state === 'stopped' || state === 'partial';

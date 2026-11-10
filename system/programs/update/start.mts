@@ -1,5 +1,5 @@
 // `start`: checks the request, writes it to a root-only file and has systemd start the update as
-// its own unit, laris-update@<updateId>.service — it outlives the app and laris-root, which end
+// its own unit, ilex-update@<updateId>.service — it outlives the app and ilex-root, which end
 // when the installer stops the app. Returns at once; the app follows the job file.
 
 import { spawn } from 'node:child_process';
@@ -71,7 +71,7 @@ export async function start(
     const code = await runProgram(programs.systemctl, [
       'start',
       '--no-block',
-      `laris-update@${updateId}.service`,
+      `ilex-update@${updateId}.service`,
     ]);
     if (code !== 0) {
       rmSync(requestFile(paths, updateId), { force: true });
@@ -87,7 +87,7 @@ export async function start(
 // Development (no systemd): the same run, detached — its own session, its output in a file.
 function startDetached(paths: Paths, updateId: string): void {
   const entry = process.argv[1];
-  const configFile = process.env['LARIS_WRAPPER_CONFIG'];
+  const configFile = process.env['ILEX_WRAPPER_CONFIG'];
   if (!entry || !isAbsolute(entry) || !configFile)
     throw new Refusal('setup', 'cannot start the run', 6);
   const out = openSync(join(paths.state, `${updateId}.log`), 'w', 0o640);
@@ -95,7 +95,7 @@ function startDetached(paths: Paths, updateId: string): void {
     spawn(process.execPath, [entry, 'run', updateId], {
       detached: true,
       stdio: ['ignore', out, out],
-      env: { PATH: SAFE_PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: configFile },
+      env: { PATH: SAFE_PATH, LANG: 'C.UTF-8', ILEX_WRAPPER_CONFIG: configFile },
       cwd: '/',
       shell: false,
     }).unref();

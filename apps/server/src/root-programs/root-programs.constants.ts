@@ -6,7 +6,7 @@ import {
   type DiskErrorCode,
   UPDATE_ERROR_CODES,
   type UpdateErrorCode,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { ProgramKind } from './root-programs.model.js';
 
 /** Deleting an item's archives can take long. */
@@ -15,7 +15,7 @@ export const BACKUP_LONG_TIMEOUT_MS = 30 * 60_000;
 export const BACKUP_TASK_TIMEOUT_MS = 5 * 60_000;
 /** Mounting waits for systemd; a slow USB disk takes seconds. */
 export const DISK_TIMEOUT_MS = 2 * 60_000;
-/** laris-update's `start` checks and starts a unit: quick. */
+/** ilex-update's `start` checks and starts a unit: quick. */
 export const UPDATE_START_TIMEOUT_MS = 60_000;
 /** The helper's answer comes a little after the program's own limit. */
 export const ANSWER_MARGIN_MS = 10_000;
@@ -27,12 +27,12 @@ const repo = (file: string) =>
 
 /** In this repository: run directly in development (`ROOT_PROGRAMS=direct`), never in production. */
 export const PROGRAM_FILES = {
-  backup: repo('laris-backup.mts'),
-  disk: repo('laris-disk.mts'),
-  update: repo('laris-update.mts'),
+  backup: repo('ilex-backup.mts'),
+  disk: repo('ilex-disk.mts'),
+  update: repo('ilex-update.mts'),
 } as const;
 
-/** laris-backup's `@@error` codes → ours (most are the same words). */
+/** ilex-backup's `@@error` codes → ours (most are the same words). */
 const BACKUP_CODES: Record<string, BackupErrorCode> = {
   destination_unavailable: BACKUP_ERROR_CODES.destinationUnavailable,
   destination_not_allowed: BACKUP_ERROR_CODES.destinationNotAllowed,
@@ -57,7 +57,7 @@ const BACKUP_CODES: Record<string, BackupErrorCode> = {
   invalid_plan: BACKUP_ERROR_CODES.invalidPlan,
 };
 
-/** laris-disk's `@@error` codes → ours (the same words). */
+/** ilex-disk's `@@error` codes → ours (the same words). */
 const DISK_CODES: Record<string, DiskErrorCode> = Object.fromEntries(
   Object.values(DISK_ERROR_CODES).map((code) => [code, code]),
 );
@@ -70,7 +70,7 @@ export const BACKUP: ProgramKind<BackupErrorCode> = {
   timedOut: BACKUP_ERROR_CODES.timedOut,
 };
 
-/** laris-update's `start` refusals → ours; anything else is a setup problem. */
+/** ilex-update's `start` refusals → ours; anything else is a setup problem. */
 const UPDATE_CODES: Record<string, UpdateErrorCode> = {
   not_configured: UPDATE_ERROR_CODES.notConfigured,
   not_newer: UPDATE_ERROR_CODES.notAvailable,

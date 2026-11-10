@@ -7,7 +7,7 @@ import {
   type SystemSnapshot,
   type SystemUpdate,
   toSystemHistoryPoint,
-} from '@laris/shared';
+} from '@ilex/shared';
 import {
   catchError,
   concatMap,

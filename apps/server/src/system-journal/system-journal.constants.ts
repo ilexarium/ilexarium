@@ -1,5 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
-import { FILES_ERROR_CODES, type FilesErrorCode, JOURNAL_ERROR_CODES } from '@laris/shared';
+import { FILES_ERROR_CODES, type FilesErrorCode, JOURNAL_ERROR_CODES } from '@ilex/shared';
 import { z } from 'zod';
 
 /** Above the helper's own 30 s for journalctl. */

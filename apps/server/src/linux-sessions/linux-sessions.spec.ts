@@ -15,7 +15,7 @@ let refuse = false;
 /** What the server allows after "none" is refused. */
 let serverMethods = ['publickey', 'password'];
 const clients: FakeClient[] = [];
-const HELPER = '/opt/laris/libexec/laris-helper.mts';
+const HELPER = '/opt/ilex/libexec/ilex-helper.mts';
 /** How the fake helper behaves: answers, not installed, refusing to start, or never answering. */
 let helperMode: 'answers' | 'missing' | 'refuses' | 'silent' = 'answers';
 /** Its answers, by action. */
@@ -91,13 +91,13 @@ class FakeClient extends EventEmitter {
     helperChannel = channel;
     setImmediate(() => {
       if (helperMode === 'missing') {
-        channel.emit('data', Buffer.from('bash: laris-helper.mts: No such file or directory\n'));
+        channel.emit('data', Buffer.from('bash: ilex-helper.mts: No such file or directory\n'));
         channel.emit('close');
         return;
       }
       channel.emit('data', Buffer.from('Welcome to the box!\n'));
       const ready =
-        helperMode === 'refuses' ? { 'laris-helper': 1, error: 'setup' } : { 'laris-helper': 1 };
+        helperMode === 'refuses' ? { 'ilex-helper': 1, error: 'setup' } : { 'ilex-helper': 1 };
       channel.emit('data', Buffer.from(`${JSON.stringify(ready)}\n`));
     });
   }
@@ -237,7 +237,7 @@ describe('LinuxSessions', () => {
     expect(await answer).toEqual({ ok: false, error: 'timed_out' });
   });
 
-  it('unlocks sudo with the password, audited without it; the time left follows laris-root’s answers', async () => {
+  it('unlocks sudo with the password, audited without it; the time left follows ilex-root’s answers', async () => {
     await signIn();
     const unlocked = await sessions.unlockSudo('s1', 'pw', ACTOR);
     expect(asked.at(-1)).toEqual({ id: 2, action: 'sudo.unlock', password: 'pw' });
@@ -247,7 +247,7 @@ describe('LinuxSessions', () => {
     );
     expect(JSON.stringify(audit.tryRecord.mock.calls)).not.toContain('pw"');
 
-    // A use starts laris-root's idle time again; `sudo_required`: it isn't running.
+    // A use starts ilex-root's idle time again; `sudo_required`: it isn't running.
     const signal = {
       action: 'process.signal',
       pid: 7,
@@ -263,7 +263,7 @@ describe('LinuxSessions', () => {
     expect(sessions.current('s1')?.sudoUntil).toBeNull();
   });
 
-  it('locked after 15 minutes without use, as laris-root ends; at once when the helper says it ended', async () => {
+  it('locked after 15 minutes without use, as ilex-root ends; at once when the helper says it ended', async () => {
     await signIn();
     await sessions.unlockSudo('s1', 'pw', ACTOR);
     sessions.sftp('s1');
@@ -367,7 +367,7 @@ describe('LinuxSessions', () => {
     expect(answer).toEqual({ ok: false, error: 'ended' });
   });
 
-  it('“Lock now” is a new helper (laris-root ends with the old one); the Linux session stays', async () => {
+  it('“Lock now” is a new helper (ilex-root ends with the old one); the Linux session stays', async () => {
     await signIn();
     await sessions.unlockSudo('s1', 'pw', ACTOR);
     expect(await sessions.lockSudo('s1', ACTOR)).toEqual(SESSION);

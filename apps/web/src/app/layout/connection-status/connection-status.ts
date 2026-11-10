@@ -11,7 +11,7 @@ import { RealtimeService } from '../../core/realtime/realtime-service';
  * extra, and on the dashboard too).
  */
 @Component({
-  selector: 'laris-connection-status',
+  selector: 'ilex-connection-status',
   host: {
     role: 'status',
     class: 'flex items-center gap-2 text-sm text-muted-foreground',

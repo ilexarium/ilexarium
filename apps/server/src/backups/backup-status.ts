@@ -4,7 +4,7 @@ import {
   BACKUP_WARNINGS,
   type BackupSchedule,
   type BackupWarning,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { LOW_SPACE_SHARE } from './backups.constants.js';
 import type { WarningInput } from './backups.model.js';
 

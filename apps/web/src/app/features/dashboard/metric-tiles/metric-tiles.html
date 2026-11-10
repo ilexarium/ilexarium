@@ -19,7 +19,7 @@
       {{ 'dashboard.tiles.cpu.load' | translate: { values: cpu().load } }}
     </p>
   </div>
-  <laris-sparkline class="mt-auto h-14" [series]="cpu().series" [max]="100" />
+  <ilex-sparkline class="mt-auto h-14" [series]="cpu().series" [max]="100" />
 </section>
 
 <section
@@ -46,7 +46,7 @@
       {{ 'dashboard.tiles.memory.of' | translate: { size: memory().total } }}
     </p>
   </div>
-  <laris-sparkline class="mt-auto h-14" [series]="memory().series" [max]="memory().max" />
+  <ilex-sparkline class="mt-auto h-14" [series]="memory().series" [max]="memory().max" />
 </section>
 
 <section
@@ -78,7 +78,7 @@
     </p>
     <p class="text-xs text-muted-foreground">{{ 'dashboard.tiles.network.lines' | translate }}</p>
   </div>
-  <laris-sparkline class="mt-auto h-14" [series]="network().series" />
+  <ilex-sparkline class="mt-auto h-14" [series]="network().series" />
 </section>
 
 @if (temperature(); as temperature) {
@@ -108,7 +108,7 @@
         {{ 'dashboard.tiles.temperature.processor' | translate }}
       </p>
     </div>
-    <laris-sparkline
+    <ilex-sparkline
       class="mt-auto h-14"
       [series]="temperature.series"
       [min]="20"

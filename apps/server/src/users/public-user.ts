@@ -1,4 +1,4 @@
-import { PROFILE_AVATAR_PATH, type PublicUser, userLanguageSchema } from '@laris/shared';
+import { PROFILE_AVATAR_PATH, type PublicUser, userLanguageSchema } from '@ilex/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 
 /** Prisma `select` for the public user fields. The only shape that may leave the server. */

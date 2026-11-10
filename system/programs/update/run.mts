@@ -1,4 +1,4 @@
-// `run <updateId>` (laris-update@.service): the update itself, holding the root programs' lock.
+// `run <updateId>` (ilex-update@.service): the update itself, holding the root programs' lock.
 // Everything it fetches is checked against this machine's installed key before it's used; the
 // install goes back to the kept version if the new one doesn't come up.
 
@@ -173,7 +173,7 @@ async function download(
   if ((await runProgram(programs.tar, ['-xzf', archive, '-C', work])) !== 0) {
     throw new Refusal('unpack_failed', 'the archive could not be unpacked', 5);
   }
-  const unpacked = join(work, `laris-${version}`);
+  const unpacked = join(work, `ilex-${version}`);
   let shipped = '';
   try {
     shipped = readFileSync(join(unpacked, 'VERSION'), 'utf8').trim();

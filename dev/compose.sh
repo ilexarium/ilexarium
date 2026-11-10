@@ -2,7 +2,7 @@
 # `docker compose` for dev/compose.dev.yml, with what it needs from this machine (Linux or macOS).
 set -eu
 repo=$(cd "$(dirname "$0")/.." && pwd)
-export LARIS_REPO="$repo"
+export ILEX_REPO="$repo"
 HOST_UID=$(id -u)
 HOST_GID=$(id -g)
 export HOST_UID HOST_GID

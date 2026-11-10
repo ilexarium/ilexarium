@@ -9,11 +9,7 @@ import {
   untracked,
 } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
-import {
-  type ChangePasswordForm,
-  changePasswordFormSchema,
-  VALIDATION_LIMITS,
-} from '@laris/shared';
+import { type ChangePasswordForm, changePasswordFormSchema, VALIDATION_LIMITS } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmDialogImports } from '@ui/dialog';
@@ -33,7 +29,7 @@ const EMPTY: ChangePasswordForm = { currentPassword: '', newPassword: '', confir
  * through the page's store; empty again each time it opens.
  */
 @Component({
-  selector: 'laris-password-dialog',
+  selector: 'ilex-password-dialog',
   imports: [
     FieldErrors,
     FormErrors,

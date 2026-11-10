@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import type { LinuxSession, PublicUser } from '@laris/shared';
+import type { LinuxSession, PublicUser } from '@ilex/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { SystemReader } from '../host/system-reader.js';
 import type { RawProcess } from '../host/host.model.js';

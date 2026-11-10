@@ -1,5 +1,5 @@
 import { Component, inject, output, signal, viewChild } from '@angular/core';
-import type { UnusedVolume } from '@laris/shared';
+import type { UnusedVolume } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { Formatter } from '../../../shared/format/formatter';
@@ -10,7 +10,7 @@ import { Formatter } from '../../../shared/format/formatter';
  * `confirm`.
  */
 @Component({
-  selector: 'laris-volume-dialog',
+  selector: 'ilex-volume-dialog',
   imports: [HlmAlertDialogImports, TranslatePipe],
   templateUrl: './volume-dialog.html',
 })

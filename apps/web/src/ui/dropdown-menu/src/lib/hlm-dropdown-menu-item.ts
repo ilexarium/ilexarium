@@ -34,7 +34,7 @@ export class HlmDropdownMenuItem {
   });
 
   constructor() {
-    // Laris: on hover and focus, descendants that set their own colour (a severity icon and its
+    // Ilexarium: on hover and focus, descendants that set their own colour (a severity icon and its
     // SVG, quieter secondary text) keep it; the rest take the accent's.
     classes(
       () =>

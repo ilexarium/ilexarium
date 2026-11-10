@@ -28,7 +28,7 @@ import { BackupsPageStore } from './backups-page-store';
  * names the items, keeps the tab in the URL and chooses what to show.
  */
 @Component({
-  selector: 'laris-backups-page',
+  selector: 'ilex-backups-page',
   imports: [
     BackupHeader,
     BackupHistory,

@@ -6,7 +6,7 @@
     </a>
   </div>
 
-  <laris-app-header
+  <ilex-app-header
     [name]="appPageStore.name()"
     [iconUrl]="iconUrl()"
     [templateName]="appPageStore.template()?.name ?? null"
@@ -29,7 +29,7 @@
       [attr.aria-label]="'apps.task.title' | translate"
       data-task-banner
     >
-      <laris-task-output [task]="task" />
+      <ilex-task-output [task]="task" />
     </section>
   }
 
@@ -41,7 +41,7 @@
 
     <div hlmTabsContent="overview" class="pt-2">
       <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <laris-app-overview
+        <ilex-app-overview
           [stats]="appPageStore.stats()"
           [containers]="appPageStore.containerStats()"
         />
@@ -144,7 +144,7 @@
       } @else if (appPageStore.details(); as details) {
         <div class="grid gap-6">
           <p class="text-sm text-muted-foreground">{{ 'apps.settings.text' | translate }}</p>
-          <laris-app-settings
+          <ilex-app-settings
             [templateId]="
               details.template && details.fields.length > 0 ? details.template.id : null
             "
@@ -158,7 +158,7 @@
             (envChanged)="appPageStore.setEnv($event)"
           />
           @if (appPageStore.changed() || appPageStore.conflict()) {
-            <laris-save-bar
+            <ilex-save-bar
               saveLabel="apps.save.action"
               [actions]="!appPageStore.conflict()"
               [busy]="appPageStore.busy() || appPageStore.running()"
@@ -183,7 +183,7 @@
                   </div>
                 </div>
               }
-            </laris-save-bar>
+            </ilex-save-bar>
           }
         </div>
       } @else {
@@ -224,7 +224,7 @@
   </div>
 </ng-template>
 
-<laris-remove-dialog
+<ilex-remove-dialog
   [name]="appPageStore.name()"
   [items]="appPageStore.removal()"
   (remove)="remove($event)"

@@ -13,7 +13,7 @@ import { PasswordDialog } from './password-dialog';
 @Component({
   imports: [PasswordDialog],
   providers: [ProfilePageStore],
-  template: `<laris-password-dialog
+  template: `<ilex-password-dialog
     [open]="open()"
     (closed)="open.set(false); closings = closings + 1"
   />`,

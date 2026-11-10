@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { Container } from '@laris/shared';
+import type { Container } from '@ilex/shared';
 import { of } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { testApp, testContainer } from '../../../core/apps/testing';
@@ -72,13 +72,13 @@ describe('AppsPage', () => {
             composeProject: 'music',
             composeWorkingDir: '/home/anna/apps/music',
           }),
-          container('laris-postgres-1', { composeProject: 'laris', protected: true }),
+          container('ilex-postgres-1', { composeProject: 'ilex', protected: true }),
           container('loose'),
         ],
         history: {},
       },
     });
-    const cards = [...el.querySelectorAll('laris-app-card')].map((c) => c.textContent!);
+    const cards = [...el.querySelectorAll('ilex-app-card')].map((c) => c.textContent!);
     expect(cards).toHaveLength(2);
     expect(cards[0]).toContain('music');
     expect(cards[1]).toContain('notes');
@@ -128,7 +128,7 @@ describe('AppsPage', () => {
         history: {},
       },
     });
-    const card = el.querySelector('laris-app-card')!;
+    const card = el.querySelector('ilex-app-card')!;
     expect(card.textContent).toContain('4%');
     expect(card.textContent).toContain('100 MB');
     expect(card.textContent).toContain('Not backed up');

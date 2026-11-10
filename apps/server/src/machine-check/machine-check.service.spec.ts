@@ -1,4 +1,4 @@
-import type { LinuxSession } from '@laris/shared';
+import type { LinuxSession } from '@ilex/shared';
 import type { SystemReader } from '../host/system-reader.js';
 import type { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import { linuxError, linuxSessionRequired } from '../linux-sessions/linux-session-errors.js';

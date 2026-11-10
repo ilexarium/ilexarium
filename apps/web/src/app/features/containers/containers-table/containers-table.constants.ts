@@ -1,4 +1,4 @@
-import type { ContainerHealth, ContainerState } from '@laris/shared';
+import type { ContainerHealth, ContainerState } from '@ilex/shared';
 import type { StatusTone } from '../../../shared/status-badge/status-badge.model';
 import type { DotTone } from '../../../shared/status-dot/status-dot.model';
 

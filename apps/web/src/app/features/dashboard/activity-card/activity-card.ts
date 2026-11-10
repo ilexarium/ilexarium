@@ -1,5 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
-import type { ActivityItem } from '@laris/shared';
+import type { ActivityItem } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideCircleAlert,
@@ -28,7 +28,7 @@ type Tone = keyof typeof ACTIVITY_TONE_CLASSES;
 
 /** What happened lately — what people did, backups, alerts — newest first, in plain words. */
 @Component({
-  selector: 'laris-activity-card',
+  selector: 'ilex-activity-card',
   imports: [HlmCardImports, HlmSkeleton, NgIcon, TranslatePipe],
   providers: [
     provideIcons({

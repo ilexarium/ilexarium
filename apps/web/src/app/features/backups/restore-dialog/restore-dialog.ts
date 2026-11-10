@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
-import { type BackupArchive, isBackupFolder } from '@laris/shared';
+import { type BackupArchive, isBackupFolder } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmSkeleton } from '@ui/skeleton';
@@ -15,7 +15,7 @@ import type { ItemLabel, ItemRow, RestoreChoice } from '../backups.model';
  * opens it (`open`) and loads the archives; the choice goes out through `restore`.
  */
 @Component({
-  selector: 'laris-restore-dialog',
+  selector: 'ilex-restore-dialog',
   imports: [HlmAlertDialogImports, HlmSkeleton, TranslatePipe],
   templateUrl: './restore-dialog.html',
 })

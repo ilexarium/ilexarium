@@ -5,7 +5,7 @@ const ID = '3b241101-e2bb-4255-8caf-4136c566a962';
 const lines = (...events: object[]) => events.map((e) => JSON.stringify(e)).join('\n');
 const now = Date.parse('2026-11-04T12:00:00Z');
 
-describe('readJob (laris-update’s job file)', () => {
+describe('readJob (ilex-update’s job file)', () => {
   it('follows an update: phases, the download, the installer’s lines, its end', () => {
     const text = lines(
       { type: 'start', from: '0.1.0', to: '0.2.0', at: '2026-11-04T11:59:00Z' },

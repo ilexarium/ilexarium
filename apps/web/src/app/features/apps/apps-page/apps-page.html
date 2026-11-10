@@ -18,14 +18,14 @@
   }
   @if (appsPageStore.apps(); as apps) {
     @if (apps.length === 0) {
-      <laris-empty-state icon="lucidePackage" [text]="'apps.none' | translate">
+      <ilex-empty-state icon="lucidePackage" [text]="'apps.none' | translate">
         <a hlmBtn variant="outline" routerLink="/apps/new">{{ 'apps.add' | translate }}</a>
-      </laris-empty-state>
+      </ilex-empty-state>
     } @else {
       <ul class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @for (app of apps; track app.name) {
           <li>
-            <laris-app-card
+            <ilex-app-card
               class="h-full"
               [app]="app"
               [template]="

@@ -4,7 +4,7 @@ import {
   APP_ERROR_CODES,
   type AppErrorCode,
   FILES_ERROR_CODES,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import type { HelperAnswer } from '../linux-sessions/linux-sessions.model.js';
 import { SUDO_ERRORS } from '../linux-sessions/linux-sessions.constants.js';

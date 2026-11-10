@@ -32,8 +32,8 @@ const trustProxySchema = z
   )
   .pipe(z.union([z.literal(false), z.array(trustedProxySchema).min(1)]));
 
-/** The proxy's socket in production: one plain file name under /run/laris/, no `..`. */
-export const PROXY_SOCKET = /^unix:\/\/\/run\/laris\/(?:[a-z0-9-]+\/)?[a-z0-9-]+\.sock$/;
+/** The proxy's socket in production: one plain file name under /run/ilex/, no `..`. */
+export const PROXY_SOCKET = /^unix:\/\/\/run\/ilex\/(?:[a-z0-9-]+\/)?[a-z0-9-]+\.sock$/;
 
 function isProxyUrl(value: string): boolean {
   try {
@@ -62,7 +62,7 @@ export const envSchema = z
     HOST: z.union([z.ipv4(), z.ipv6()]).optional(),
     /**
      * The Docker API: always the socket proxy, never Docker's own socket — tcp:// or http://
-     * (development), or the proxy's Unix socket under /run/laris/ (production: only the app's
+     * (development), or the proxy's Unix socket under /run/ilex/ (production: only the app's
      * group can reach it). Any other unix:// path is refused.
      */
     DOCKER_HOST: z
@@ -71,7 +71,7 @@ export const envSchema = z
       .default('tcp://127.0.0.1:2375')
       .refine((value) => PROXY_SOCKET.test(value) || isProxyUrl(value), {
         error:
-          'Must be a tcp:// or http:// URL of the Docker socket proxy, or unix:///run/laris/<name>.sock',
+          'Must be a tcp:// or http:// URL of the Docker socket proxy, or unix:///run/ilex/<name>.sock',
       }),
     /**
      * The built web app (its index.html and files), served by the app on the same origin as the
@@ -85,10 +85,10 @@ export const envSchema = z
      * two never disagree.
      */
     WRAPPER_CONFIG_FILE: z.string().trim().min(1).optional(),
-    /** The app templates (catalog/): installed with Laris, the repository's own in development. */
+    /** The app templates (catalog/): installed with Ilexarium, the repository's own in development. */
     CATALOG_DIR: z.string().trim().startsWith('/').optional(),
     /**
-     * How the root programs (laris-backup, laris-disk) are started: `sudo` — through the signed-in
+     * How the root programs (ilex-backup, ilex-disk) are started: `sudo` — through the signed-in
      * person's own sudo, by their helper (production) — or `direct`: the repository's program as
      * the developer, without sudo (development and tests only).
      */
@@ -115,24 +115,23 @@ export const envSchema = z
       .string()
       .regex(/^(?:\/[\w.-]+)+$/, 'An absolute path of letters, digits, "_", "." and "-"')
       .refine((path) => !path.split('/').includes('..'), 'No ".." in the path')
-      .default('/opt/laris/libexec/laris-helper.mts'),
+      .default('/opt/ilex/libexec/ilex-helper.mts'),
   })
   .transform((env) => {
     const production = env.NODE_ENV === 'production';
     return {
       ...env,
       SETUP_TOKEN_FILE:
-        env.SETUP_TOKEN_FILE ??
-        (production ? '/var/lib/laris/app/setup-token' : '.dev/setup-token'),
+        env.SETUP_TOKEN_FILE ?? (production ? '/var/lib/ilex/app/setup-token' : '.dev/setup-token'),
       MASTER_KEY_FILE:
-        env.MASTER_KEY_FILE ?? (production ? '/etc/laris/master.key' : '.dev/master.key'),
+        env.MASTER_KEY_FILE ?? (production ? '/etc/ilex/master.key' : '.dev/master.key'),
       WRAPPER_CONFIG_FILE:
-        env.WRAPPER_CONFIG_FILE ?? (production ? '/etc/laris/wrappers.json' : '.dev/wrappers.json'),
+        env.WRAPPER_CONFIG_FILE ?? (production ? '/etc/ilex/wrappers.json' : '.dev/wrappers.json'),
       ROOT_PROGRAMS: env.ROOT_PROGRAMS ?? (production ? 'sudo' : 'direct'),
       CATALOG_DIR:
         env.CATALOG_DIR ??
         (production
-          ? '/opt/laris/catalog'
+          ? '/opt/ilex/catalog'
           : fileURLToPath(new URL('../../../../catalog', import.meta.url))),
       HOST: env.HOST ?? (production ? '127.0.0.1' : undefined),
       TRUST_PROXY: env.TRUST_PROXY ?? (production ? ['loopback'] : false),

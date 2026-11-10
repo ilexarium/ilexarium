@@ -6,7 +6,7 @@ import {
   type ContainerActionErrorCode,
   type ContainerActionParams,
   PROTECTED_ACTIONS,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { type Observable, Subject } from 'rxjs';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditEntry } from '../audit/audit.model.js';

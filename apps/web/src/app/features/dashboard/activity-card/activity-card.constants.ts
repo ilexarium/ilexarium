@@ -1,4 +1,4 @@
-import type { ActivityAction } from '@laris/shared';
+import type { ActivityAction } from '@ilex/shared';
 
 /** Each action's words (`dashboard.activity.action.<key>`), its icon, and whether its subject is machine text. */
 export const ACTION_WORDS: Record<ActivityAction, { key: string; icon: string; machine: boolean }> =

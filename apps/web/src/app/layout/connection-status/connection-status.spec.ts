@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { HostInfo } from '@laris/shared';
+import type { HostInfo } from '@ilex/shared';
 import { MonitoringStore } from '../../core/monitoring/monitoring-store';
 import { RealtimeService } from '../../core/realtime/realtime-service';
 import { ConnectionStatus } from './connection-status';

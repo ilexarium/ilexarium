@@ -15,7 +15,7 @@ function checkStartup(): string[] {
   const args = process.argv.slice(2);
   const valid =
     (args.length === 1 && args[0] === 'start') || (args.length === 2 && args[0] === 'run');
-  if (!valid) throw new Refusal('invalid_request', 'usage: laris-update start | run <updateId>');
+  if (!valid) throw new Refusal('invalid_request', 'usage: ilex-update start | run <updateId>');
   return args;
 }
 

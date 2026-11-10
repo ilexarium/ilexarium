@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import type { ProfileForm, ProfileUpdate } from '@laris/shared';
+import type { ProfileForm, ProfileUpdate } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../core/auth/auth-store';

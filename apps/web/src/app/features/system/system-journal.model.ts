@@ -1,4 +1,4 @@
-import type { JournalPriority } from '@laris/shared';
+import type { JournalPriority } from '@ilex/shared';
 
 /** What the Logs page shows: one unit or all, how urgent, which boot. */
 export interface JournalFilters {

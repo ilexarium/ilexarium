@@ -1,7 +1,7 @@
 import { Controller, HttpCode, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { CurrentSession } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { PersonCheck } from '@laris/shared';
+import type { PersonCheck } from '@ilex/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { CHECK_LIMIT } from './machine-check.constants.js';
 import { MachineCheckService } from './machine-check.service.js';

@@ -1,11 +1,11 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { AppState } from '@laris/shared';
+import type { AppState } from '@ilex/shared';
 import { AppHeader } from './app-header';
 
 @Component({
   imports: [AppHeader],
-  template: `<laris-app-header
+  template: `<ilex-app-header
     name="music"
     templateName="Navidrome"
     owner="anna"

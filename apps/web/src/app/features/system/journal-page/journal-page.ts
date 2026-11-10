@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { type JournalPriority, systemServiceNameSchema } from '@laris/shared';
+import { type JournalPriority, systemServiceNameSchema } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideListFilter } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -24,7 +24,7 @@ import { JournalPageStore } from './journal-page-store';
  * Fills the screen height below the top bar, so the log box scrolls, not the page.
  */
 @Component({
-  selector: 'laris-journal-page',
+  selector: 'ilex-journal-page',
   imports: [
     EmptyState,
     HlmAlertImports,

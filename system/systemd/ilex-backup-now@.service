@@ -1,0 +1,31 @@
+# /etc/systemd/system/ilex-backup-now@.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# "Back up now": started by `ilex-backup start` (through the app) with the instance
+# <runId> or <runId>_<itemId> — two uuids, checked again by the wrapper. Its own unit, not a
+# child of the app: it goes on if the app stops or restarts. Its progress and results go to
+# its job file, /var/lib/ilex/backups/jobs/<runId>.jsonl, like a scheduled run's (ilex-backup.service,
+# whose settings this mirrors). Design: docs/plans/backups.md.
+
+[Unit]
+Description=Ilexarium backup run (Back up now)
+After=docker.service local-fs.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/ilex/libexec/ilex-backup.mts run-requested %i
+# Backups yield to everything else.
+Nice=10
+IOSchedulingClass=idle
+# A first backup of a big photo library takes long; stopping it starts stopped services again.
+TimeoutStartSec=24h
+TimeoutStopSec=5min
+KillMode=mixed
+# It reads everything (it's a backup) but writes only its state, the lock and the backup disk.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes

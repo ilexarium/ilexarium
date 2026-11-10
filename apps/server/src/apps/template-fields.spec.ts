@@ -1,4 +1,4 @@
-import type { Template } from '@laris/shared';
+import type { Template } from '@ilex/shared';
 import { templateFields } from './template-fields.js';
 
 const context = { account: '1500:1500', timezone: 'Europe/Berlin' };

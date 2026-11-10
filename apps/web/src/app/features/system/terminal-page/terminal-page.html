@@ -6,7 +6,7 @@
   <div class="grid flex-1 place-items-center py-8">
     @let reason = terminalPageStore.closedReason();
     @if (!terminalPageStore.session()) {
-      <laris-empty-state
+      <ilex-empty-state
         class="w-full max-w-md"
         icon="lucideSquareTerminal"
         [text]="'terminal.signIn.title' | translate"
@@ -15,9 +15,9 @@
         <button #signInButton hlmBtn (click)="signInOpen.set(true)">
           {{ 'files.signIn.button' | translate }}
         </button>
-      </laris-empty-state>
+      </ilex-empty-state>
     } @else if (terminalPageStore.phase() === 'closed') {
-      <laris-empty-state
+      <ilex-empty-state
         class="w-full max-w-md"
         icon="lucideSquareTerminal"
         [text]="'terminal.closed.title' | translate"
@@ -26,9 +26,9 @@
         <button #signInButton hlmBtn (click)="signInOpen.set(true)">
           {{ 'terminal.openAgain' | translate }}
         </button>
-      </laris-empty-state>
+      </ilex-empty-state>
     } @else {
-      <laris-empty-state
+      <ilex-empty-state
         class="w-full max-w-md"
         icon="lucideSquareTerminal"
         [text]="'terminal.signIn.title' | translate"
@@ -40,7 +40,7 @@
         <button #signInButton hlmBtn (click)="signInOpen.set(true)">
           {{ 'terminal.unlock.submit' | translate }}
         </button>
-      </laris-empty-state>
+      </ilex-empty-state>
     }
   </div>
 } @else {
@@ -58,7 +58,7 @@
         {{ 'terminal.close' | translate }}
       </button>
     </div>
-    <laris-terminal-view
+    <ilex-terminal-view
       #view
       [dark]="themeService.dark()"
       (ready)="connect($event)"
@@ -68,7 +68,7 @@
   </div>
 }
 
-<laris-sign-in-dialog
+<ilex-sign-in-dialog
   title="terminal.signIn.title"
   text="terminal.signIn.text"
   [step]="terminalPageStore.session() ? 'app' : 'linux'"

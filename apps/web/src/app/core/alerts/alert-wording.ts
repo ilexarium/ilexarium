@@ -1,4 +1,4 @@
-import type { Alert } from '@laris/shared';
+import type { Alert } from '@ilex/shared';
 import type { Formatter } from '../../shared/format/formatter';
 
 /** A translation key and its params. */

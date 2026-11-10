@@ -1,4 +1,4 @@
-import type { Container, LogLine, LogsEndReason } from '@laris/shared';
+import type { Container, LogLine, LogsEndReason } from '@ilex/shared';
 
 /** A log line; `id` is unique per stream. */
 export type LogEntry = { id: number } & LogLine;

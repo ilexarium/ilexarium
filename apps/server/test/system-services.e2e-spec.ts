@@ -10,7 +10,7 @@ import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
 
 // System services end to end, through the helper on the development SSH server (dev/sshd): its
 // fake systemctl has sample units (no systemd in a container), and changes them only as root —
-// laris-root, through anna's sudo once unlocked. Skipped when the SSH server isn't running
+// ilex-root, through anna's sudo once unlocked. Skipped when the SSH server isn't running
 // (npm run db:up starts it).
 
 const ANNA = { username: 'anna', password: 'anna-dev-password' };
@@ -72,7 +72,7 @@ describe.skipIf(!sshdUp)('system services (e2e)', () => {
       (body.services as { name: string }[]).map((s) => [s.name, s]),
     );
     expect(byName['proton.VPN.service']).toMatchObject({ active: 'failed', protection: null });
-    expect(byName['laris.service']).toMatchObject({ protection: 'laris' });
+    expect(byName['ilex.service']).toMatchObject({ protection: 'ilex' });
     expect(byName['ssh.service']).toMatchObject({ protection: 'essential', enabled: 'enabled' });
 
     const details = await get('/system/services/proton.VPN.service').expect(200);
@@ -100,7 +100,7 @@ describe.skipIf(!sshdUp)('system services (e2e)', () => {
     await post('/system/services/backup-sync.service/stop').expect(204);
     expect((await get('/system/services/backup-sync.service')).body.active).toBe('inactive');
 
-    const own = await post('/system/services/laris.service/restart');
+    const own = await post('/system/services/ilex.service/restart');
     expect([own.status, own.body.code]).toEqual([403, 'service_protected']);
     const needed = await post('/system/services/ssh.service/stop');
     expect([needed.status, needed.body.code]).toEqual([403, 'service_protected']);

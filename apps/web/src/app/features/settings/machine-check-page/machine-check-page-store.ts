@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type { PersonCheck } from '@laris/shared';
+import type { PersonCheck } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { firstValueFrom } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
@@ -115,7 +115,7 @@ export const MachineCheckPageStore = signalStore(
             patchState(store, { sudo: 'skipped' });
             return;
           }
-          // Unlocked as the server sees it (laris-root may have ended meanwhile); otherwise the
+          // Unlocked as the server sees it (ilex-root may have ended meanwhile); otherwise the
           // prompt, which says what sudo answered.
           await linuxSessionStore.refresh();
           const unlocked =

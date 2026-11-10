@@ -18,7 +18,7 @@ import { PluralPipe } from '../../core/i18n/plural-pipe';
  * it), or closes the session. Shown only while signed in to Linux; UI only.
  */
 @Component({
-  selector: 'laris-linux-status',
+  selector: 'ilex-linux-status',
   imports: [HlmButton, HlmDropdownMenuImports, NgIcon, PluralPipe, TranslatePipe],
   providers: [provideIcons({ lucideLock, lucideLogOut, lucideShieldCheck, lucideSquareTerminal })],
   templateUrl: './linux-status.html',

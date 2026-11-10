@@ -1,6 +1,6 @@
 import { Controller, Get, Header, Query } from '@nestjs/common';
 import { CurrentSession } from '@nestjs/authentication';
-import type { JournalBootsResponse, JournalResponse } from '@laris/shared';
+import type { JournalBootsResponse, JournalResponse } from '@ilex/shared';
 import { JournalBootsQueryDto, JournalQueryDto } from './system-journal.dto.js';
 import { SystemJournalService } from './system-journal.service.js';
 

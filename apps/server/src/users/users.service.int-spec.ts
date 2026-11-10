@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { publicUserSchema } from '@laris/shared';
+import { publicUserSchema } from '@ilex/shared';
 import { resetDatabase } from '../../test/database.js';
 import { ConfigModule } from '../config/config.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';

@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { DisksStatus } from '@laris/shared';
+import type { DisksStatus } from '@ilex/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -15,7 +15,7 @@ import { resetDatabase } from './database.js';
 import { testHasher } from './realtime-client.js';
 
 // Disks end to end: the app, the executor in direct mode and the real disk wrapper
-// (system/programs/laris-disk.mts) — against a pretend host (its /sys, udev database,
+// (system/programs/ilex-disk.mts) — against a pretend host (its /sys, udev database,
 // /dev/disk/by-uuid and mountinfo), the wrapper pretending its mounts (no systemd).
 
 const WRAPPER_CONFIG = resolve('.dev/wrappers.test.json');

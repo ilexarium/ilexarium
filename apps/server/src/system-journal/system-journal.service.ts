@@ -6,7 +6,7 @@ import {
   type JournalLine,
   type JournalQuery,
   type JournalResponse,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { HelperAnswer } from '../linux-sessions/linux-sessions.model.js';

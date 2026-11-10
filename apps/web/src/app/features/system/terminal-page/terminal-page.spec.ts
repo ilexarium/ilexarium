@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { LinuxSession } from '@laris/shared';
+import type { LinuxSession } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -26,7 +26,7 @@ const submit = () =>
   signInDialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
 
 /** xterm needs a canvas jsdom lacks: a stand-in with the same inputs and outputs. */
-@Component({ selector: 'laris-terminal-view', template: '<div data-terminal></div>' })
+@Component({ selector: 'ilex-terminal-view', template: '<div data-terminal></div>' })
 class FakeTerminalView {
   static last: FakeTerminalView | null = null;
   readonly dark = input(false);

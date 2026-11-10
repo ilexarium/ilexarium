@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { BackupItem } from '@laris/shared';
+import type { BackupItem } from '@ilex/shared';
 import { testAppItem } from '../../../core/backups/testing';
 import { formatBytes } from '../../../shared/format/format';
 import type { ItemRow } from '../backups.model';
@@ -19,7 +19,7 @@ const result = (status: 'ok' | 'failed'): BackupItem['lastResult'] => ({
 
 @Component({
   imports: [ItemCard],
-  template: `<laris-item-card
+  template: `<ilex-item-card
     [row]="row()"
     [label]="{ text: 'immich', ltr: false }"
     [backingUp]="backingUp()"
@@ -54,7 +54,7 @@ describe('ItemCard', () => {
     const { el } = await render();
     expect(el.querySelector('img')!.getAttribute('src')).toBe('/catalog/immich/icon.svg');
     expect(el.querySelector('h3')!.textContent!.trim()).toBe('immich');
-    expect(el.querySelector('laris-status-dot')!.textContent!.trim()).toBe('OK');
+    expect(el.querySelector('ilex-status-dot')!.textContent!.trim()).toBe('OK');
     expect(el.textContent).toContain('Backed up 3 hours ago');
     expect(el.textContent).toContain(formatBytes(718e3));
   });
@@ -63,14 +63,14 @@ describe('ItemCard', () => {
     const { fixture, el } = await render();
     fixture.componentInstance.backingUp.set(true);
     await fixture.whenStable();
-    expect(el.querySelector('laris-status-dot')!.textContent!.trim()).toBe('Running');
+    expect(el.querySelector('ilex-status-dot')!.textContent!.trim()).toBe('Running');
     fixture.componentInstance.backingUp.set(false);
     fixture.componentInstance.row.update((r) => ({
       ...r,
       item: { ...r.item, lastResult: result('failed') },
     }));
     await fixture.whenStable();
-    expect(el.querySelector('laris-status-dot')!.textContent!.trim()).toBe('Failed');
+    expect(el.querySelector('ilex-status-dot')!.textContent!.trim()).toBe('Failed');
     expect(el.textContent).toContain('A folder to back up is missing.');
   });
 

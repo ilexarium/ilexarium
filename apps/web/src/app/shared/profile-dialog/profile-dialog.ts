@@ -9,7 +9,7 @@ import {
   untracked,
 } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
-import { type ProfileForm, profileFormSchema, VALIDATION_LIMITS } from '@laris/shared';
+import { type ProfileForm, profileFormSchema, VALIDATION_LIMITS } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmDialogImports } from '@ui/dialog';
@@ -27,7 +27,7 @@ import { ProfileEditStore } from './profile-edit-store';
  * menu and from the profile page; starts from the saved profile each time it opens.
  */
 @Component({
-  selector: 'laris-profile-dialog',
+  selector: 'ilex-profile-dialog',
   imports: [
     AvatarPicker,
     FieldErrors,

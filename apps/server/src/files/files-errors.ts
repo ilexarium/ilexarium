@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import { FILES_ERROR_CODES } from '@laris/shared';
+import { FILES_ERROR_CODES } from '@ilex/shared';
 import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import {
   SFTP_CONNECTION_LOST,

@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import type { FileEntry } from '@laris/shared';
+import type { FileEntry } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideDownload,
@@ -49,7 +49,7 @@ interface Row {
  * rename and delete go out through `action` (the page asks). Presentational.
  */
 @Component({
-  selector: 'laris-file-list',
+  selector: 'ilex-file-list',
   imports: [
     HlmButton,
     HlmDropdownMenuImports,

@@ -1,4 +1,4 @@
-import type { Alert, AlertsStatus } from '@laris/shared';
+import type { Alert, AlertsStatus } from '@ilex/shared';
 
 let next = 0;
 

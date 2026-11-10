@@ -1,4 +1,4 @@
-import type { BackupsStatus } from '@laris/shared';
+import type { BackupsStatus } from '@ilex/shared';
 import { Subject } from 'rxjs';
 import { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';

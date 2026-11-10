@@ -1,6 +1,6 @@
 // Copies a signed release (release/v<version>/, from release:sign) into a release folder laid
 // out like GitHub's (docs/plans/install_and_update.md), and points latest/ at it when it's newer:
-//   <folder>/download/v<version>/…   <folder>/latest/download/latest.json(.minisig)   <folder>/get-laris.sh
+//   <folder>/download/v<version>/…   <folder>/latest/download/latest.json(.minisig)   <folder>/get-ilex.sh
 // Old versions keep their own files. Usage: npm run release:publish -- <folder> [<version>]
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, copyFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -46,8 +46,8 @@ if (newer(version, current)) {
   copyFileSync(join(target, 'manifest.json'), join(latest, 'latest.json.tmp'));
   renameSync(join(latest, 'latest.json.minisig.tmp'), join(latest, 'latest.json.minisig'));
   renameSync(join(latest, 'latest.json.tmp'), join(latest, 'latest.json'));
-  const getLaris = join(ROOT, 'release', 'get-laris.sh');
-  if (existsSync(getLaris)) copyFileSync(getLaris, join(resolve(folder), 'get-laris.sh'));
+  const getIlex = join(ROOT, 'release', 'get-ilex.sh');
+  if (existsSync(getIlex)) copyFileSync(getIlex, join(resolve(folder), 'get-ilex.sh'));
   console.log(`Published ${version} as the latest`);
 } else {
   console.log(`Published ${version} (the latest stays ${current})`);

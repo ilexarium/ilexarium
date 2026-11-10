@@ -1,5 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
-import { containerSchema, logLineSchema, type LogLine } from '@laris/shared';
+import { containerSchema, logLineSchema, type LogLine } from '@ilex/shared';
 import type { Env } from '../src/config/env.schema.js';
 import { ContainerLogsError, DockerService } from '../src/docker/docker.service.js';
 import { proxyReachable } from './docker-proxy.js';
@@ -15,7 +15,7 @@ describe.skipIf(!reachable)('DockerService (e2e, real Docker through the proxy)'
 
   it('lists the containers in the shared shape', async () => {
     const containers = await docker.listContainers();
-    const postgres = containers.find((c) => c.name === 'laris-dev-postgres-1');
+    const postgres = containers.find((c) => c.name === 'ilex-dev-postgres-1');
     expect(postgres).toMatchObject({ state: 'running', health: 'healthy' });
     expect(postgres!.startedAt).not.toBeNull();
     for (const container of containers) {
@@ -48,7 +48,7 @@ describe.skipIf(!reachable)('DockerService (e2e, real Docker through the proxy)'
   });
 
   describe('logs of the dev Postgres', () => {
-    const name = 'laris-dev-postgres-1';
+    const name = 'ilex-dev-postgres-1';
 
     /** The first `count` lines, then aborts — and checks the stream really ends. */
     async function first(options: { tail?: number; since?: string }, count: number) {
@@ -88,11 +88,7 @@ describe.skipIf(!reachable)('DockerService (e2e, real Docker through the proxy)'
     });
 
     it('reports an unknown container as not found', async () => {
-      const logs = docker.containerLogs(
-        'laris-no-such-container',
-        {},
-        new AbortController().signal,
-      );
+      const logs = docker.containerLogs('ilex-no-such-container', {}, new AbortController().signal);
       await expect(logs.next()).rejects.toEqual(new ContainerLogsError('not_found'));
     });
   });

@@ -1,5 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
-import type { AppField } from '@laris/shared';
+import type { AppField } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmLabel } from '@ui/label';
 import { HlmSkeleton } from '@ui/skeleton';
@@ -9,7 +9,7 @@ import type { FieldChange } from '../apps.model';
 
 /** The files are folded when there's a form: an app without a template has only its files. */
 @Component({
-  selector: 'laris-app-settings',
+  selector: 'ilex-app-settings',
   imports: [AppFields, HlmLabel, HlmSkeleton, HlmTextarea, TranslatePipe],
   host: { class: 'grid gap-6' },
   templateUrl: './app-settings.html',

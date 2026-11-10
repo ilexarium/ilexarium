@@ -1,4 +1,4 @@
-import { FILES_ERROR_CODES } from '@laris/shared';
+import { FILES_ERROR_CODES } from '@ilex/shared';
 import { posix } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 import type { SFTPWrapper, Stats } from 'ssh2';
@@ -95,7 +95,7 @@ export class Sftp {
   async writeText(path: string, text: string, mode: number): Promise<void> {
     const temporary = posix.join(
       posix.dirname(path),
-      `.${posix.basename(path)}.laris-${process.pid}`,
+      `.${posix.basename(path)}.ilex-${process.pid}`,
     );
     await call<void>((done) =>
       this.sftp.writeFile(temporary, text, { mode, flag: 'w' }, (error) => done(error)),

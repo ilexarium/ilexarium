@@ -4,12 +4,12 @@ import { SaveBar } from './save-bar';
 
 @Component({
   imports: [SaveBar],
-  template: `<laris-save-bar
+  template: `<ilex-save-bar
     saveLabel="apps.save.action"
     [actions]="actions()"
     (discard)="discarded = discarded + 1"
     (save)="saved = saved + 1"
-    ><p>Changed on disk</p></laris-save-bar
+    ><p>Changed on disk</p></ilex-save-bar
   >`,
 })
 class Host {

@@ -10,7 +10,7 @@ import { NotificationsPageStore } from './notifications-page-store';
  * switched on or off, with a test button each and the last delivery problem.
  */
 @Component({
-  selector: 'laris-notifications-page',
+  selector: 'ilex-notifications-page',
   imports: [EmailForm, HlmSkeleton, NtfyForm, TranslatePipe],
   providers: [NotificationsPageStore],
   templateUrl: './notifications-page.html',

@@ -1,5 +1,5 @@
 // Release signatures in minisign's format: written by the release scripts (scripts/lib/), checked
-// by the programs (lib/minisign.mts), the app (updates/release-signature.ts) and get-laris.sh
+// by the programs (lib/minisign.mts), the app (updates/release-signature.ts) and get-ilex.sh
 // (openssl). Run by the server's unit tests.
 import { execFileSync } from 'node:child_process';
 import { generateKeyPairSync, sign, type KeyObject } from 'node:crypto';
@@ -10,7 +10,7 @@ import { publicKeyFile, signatureFile } from '../../scripts/lib/minisign.mjs';
 import { parseReleaseKey, verifyRelease } from '../../apps/server/src/updates/release-signature.ts';
 import { parsePublicKey, verifySignature } from './lib/minisign.mts';
 
-const GET_LARIS = join(import.meta.dirname, '../install/get-laris.sh');
+const GET_ILEX = join(import.meta.dirname, '../install/get-ilex.sh');
 const DATA = Buffer.from('{\n  "version": "1.2.3"\n}\n');
 
 function keys(): { privateKey: KeyObject; pub: string } {
@@ -83,14 +83,14 @@ describe.each([
   });
 });
 
-describe('release signatures (get-laris.sh)', () => {
+describe('release signatures (get-ilex.sh)', () => {
   let dir: string;
   beforeAll(() => {
-    dir = mkdtempSync(join(tmpdir(), 'laris-minisign-'));
+    dir = mkdtempSync(join(tmpdir(), 'ilex-minisign-'));
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  // get-laris.sh's own verify(), run on its own: the script's other steps download.
+  // get-ilex.sh's own verify(), run on its own: the script's other steps download.
   function check(signature: string, data: Buffer, publicKey = pub): boolean {
     writeFileSync(join(dir, 'file'), data);
     writeFileSync(join(dir, 'file.minisig'), signature);
@@ -101,7 +101,7 @@ describe('release signatures (get-laris.sh)', () => {
       if verify "$2" "$3"; then echo yes; else echo no; fi`;
     const out = execFileSync(
       'bash',
-      ['-c', script, 'bash', GET_LARIS, join(dir, 'file'), join(dir, 'file.minisig')],
+      ['-c', script, 'bash', GET_ILEX, join(dir, 'file'), join(dir, 'file.minisig')],
       {
         env: { PATH: process.env['PATH'], PUBLIC_KEY: publicKey.split('\n')[1] },
         encoding: 'utf8',

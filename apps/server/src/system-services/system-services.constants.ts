@@ -5,7 +5,7 @@ import {
   SYSTEM_SERVICE_ERROR_CODES,
   type SystemServiceAction,
   type SystemServiceErrorCode,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { z } from 'zod';
 
 type ApiCode = SystemServiceErrorCode | FilesErrorCode;

@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import type { BackupRun } from '@laris/shared';
+import type { BackupRun } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Sparkline } from '../../../shared/charts/sparkline/sparkline';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
@@ -12,7 +12,7 @@ import { RunRow } from '../run-row/run-row';
  * run asks for its output through `openOutput`.
  */
 @Component({
-  selector: 'laris-backup-history',
+  selector: 'ilex-backup-history',
   imports: [EmptyState, RunRow, Sparkline, TranslatePipe],
   host: { class: 'grid gap-4' },
   templateUrl: './backup-history.html',

@@ -3,9 +3,9 @@
     <ng-icon name="lucideLoaderCircle" class="size-4 animate-spin" aria-hidden="true" />
   }
   <span class="font-medium">{{ 'apps.task.action.' + task().action | translate }}</span>
-  <laris-status-badge [tone]="tones[task().state]">{{
+  <ilex-status-badge [tone]="tones[task().state]">{{
     'apps.task.state.' + task().state | translate
-  }}</laris-status-badge>
+  }}</ilex-status-badge>
   @if (task().system) {
     <span class="text-muted-foreground">{{ 'apps.task.system' | translate }}</span>
   }

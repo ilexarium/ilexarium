@@ -5,7 +5,7 @@ import {
   type Language,
   preferredLanguage,
   RTL_LANGUAGES,
-} from '@laris/i18n';
+} from '@ilex/i18n';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { AVAILABLE_LANGUAGES } from './i18n-loader';

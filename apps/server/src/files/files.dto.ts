@@ -5,7 +5,7 @@ import {
   linuxSignInRequestSchema,
   linuxSudoRequestSchema,
   newFolderRequestSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class LinuxSignInDto extends zodDto(linuxSignInRequestSchema) {}

@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { DISK_MOUNT_ROOT, type DiskMountRequest, type DisksStatus } from '@laris/shared';
+import { DISK_MOUNT_ROOT, type DiskMountRequest, type DisksStatus } from '@ilex/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';

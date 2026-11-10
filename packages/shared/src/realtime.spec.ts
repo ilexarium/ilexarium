@@ -33,7 +33,7 @@ const systemUpdate = {
 const systemSnapshot = {
   ...systemUpdate,
   host: {
-    hostname: 'laris',
+    hostname: 'ilex',
     os: 'Debian GNU/Linux 13',
     kernel: '6.12.0',
     arch: 'arm64',

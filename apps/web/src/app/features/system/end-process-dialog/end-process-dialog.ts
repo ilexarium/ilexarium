@@ -11,7 +11,7 @@ import type { EndRequest } from '../processes.model';
  * the page opens it; the choice goes out through `confirm`.
  */
 @Component({
-  selector: 'laris-end-process-dialog',
+  selector: 'ilex-end-process-dialog',
   imports: [HlmAlertDialogImports, TranslatePipe],
   templateUrl: './end-process-dialog.html',
 })

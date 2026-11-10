@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import type { BackupsStatus } from '@laris/shared';
+import type { BackupsStatus } from '@ilex/shared';
 import { BackupHeader } from './backup-header';
 
 const status: BackupsStatus = {

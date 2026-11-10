@@ -1,17 +1,17 @@
 @import '@xterm/xterm/css/xterm.css';
 
 /* The terminal fills its box (the box has the padding, in the terminal's own colour). */
-laris-terminal-view .terminal-box .xterm {
+ilex-terminal-view .terminal-box .xterm {
   height: 100%;
 }
 
 /* Below the last row: the box's colour, not xterm's black. */
-laris-terminal-view .terminal-box .xterm-viewport {
+ilex-terminal-view .terminal-box .xterm-viewport {
   background-color: transparent !important;
 }
 
 /* No ligatures: in a terminal every character is its own cell (JetBrains Mono has them on). */
-laris-terminal-view .terminal-box .xterm {
+ilex-terminal-view .terminal-box .xterm {
   font-variant-ligatures: none;
   font-feature-settings:
     'calt' 0,

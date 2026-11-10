@@ -39,9 +39,9 @@
                 disk.mount
               }}</span>
               @if (disk.level) {
-                <laris-status-badge [tone]="disk.level === 'full' ? 'failed' : 'warning'">{{
+                <ilex-status-badge [tone]="disk.level === 'full' ? 'failed' : 'warning'">{{
                   'dashboard.storage.' + disk.level | translate
-                }}</laris-status-badge>
+                }}</ilex-status-badge>
               }
               <span class="ms-auto text-sm text-muted-foreground tabular-nums">{{
                 'dashboard.storage.free' | translate: { size: disk.free }

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { AlertsStatus } from '@laris/shared';
+import type { AlertsStatus } from '@ilex/shared';
 import { auditTime, interval, merge, type Observable, switchMap } from 'rxjs';
 import { safely } from '../common/safely.js';
 import { RealtimeSubscriptions } from '../realtime/realtime-subscriptions.js';

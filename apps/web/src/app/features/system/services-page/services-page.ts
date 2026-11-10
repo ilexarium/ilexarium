@@ -19,7 +19,7 @@ import { ServicesPageStore } from './services-page-store';
  * the signed-in Linux account's sudo.
  */
 @Component({
-  selector: 'laris-services-page',
+  selector: 'ilex-services-page',
   imports: [
     EmptyState,
     HlmAlertImports,

@@ -7,7 +7,7 @@ import {
   backupSettingsFormSchema,
   DEFAULT_BACKUP_RETENTION,
   DEFAULT_BACKUP_SCHEDULE,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideFolderPlus, lucideHardDrive, lucideServer, lucideTrash2 } from '@ng-icons/lucide';
 import { NgTemplateOutlet } from '@angular/common';
@@ -22,7 +22,7 @@ import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { Formatter } from '../../../shared/format/formatter';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
-import type { AppSummary } from '@laris/shared';
+import type { AppSummary } from '@ilex/shared';
 import { FolderPicker } from '../folder-picker/folder-picker';
 import { RetentionFields } from '../retention-fields/retention-fields';
 import { ScheduleFields } from '../schedule-fields/schedule-fields';
@@ -35,7 +35,7 @@ import { ScheduleFields } from '../schedule-fields/schedule-fields';
  * repository; its passphrase is shown next. Submits through the page store.
  */
 @Component({
-  selector: 'laris-backup-setup',
+  selector: 'ilex-backup-setup',
   imports: [
     ErrorTextPipe,
     FolderPicker,

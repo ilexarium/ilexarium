@@ -1,4 +1,4 @@
-import type { AppSummary, BackupRunStatus, DiskUsage } from '@laris/shared';
+import type { AppSummary, BackupRunStatus, DiskUsage } from '@ilex/shared';
 
 /** A text to translate: a key with its params, and a count when it has plural forms. */
 export interface Text {

@@ -4,7 +4,7 @@ import { LinuxSessionsModule } from '../linux-sessions/linux-sessions.module.js'
 import { ProgramConfigService } from './program-config.js';
 import { RootPrograms } from './root-programs.js';
 
-/** The root programs (laris-backup, laris-disk), through the signed-in person's sudo. */
+/** The root programs (ilex-backup, ilex-disk), through the signed-in person's sudo. */
 @Module({
   imports: [AuditModule, LinuxSessionsModule],
   providers: [RootPrograms, ProgramConfigService],

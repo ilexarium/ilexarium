@@ -6,7 +6,7 @@ import {
   type DockerCleanupErrorCode,
   type DockerPruneResult,
   type VolumeSizes,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditEntry } from '../audit/audit.model.js';
 import { CleanupError, DockerControl } from '../docker/docker-control.js';

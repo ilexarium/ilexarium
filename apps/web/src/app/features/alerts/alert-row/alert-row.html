@@ -2,11 +2,11 @@
   class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm"
   [attr.aria-labelledby]="'alert-' + alert().id"
 >
-  <laris-status-dot tone="ok" class="min-w-0 flex-1 basis-60 text-foreground">
+  <ilex-status-dot tone="ok" class="min-w-0 flex-1 basis-60 text-foreground">
     <span [id]="'alert-' + alert().id" class="min-w-0 break-words">{{
       title()[0] | translate: title()[1]
     }}</span>
-  </laris-status-dot>
+  </ilex-status-dot>
   <span class="text-muted-foreground">
     {{
       'alerts.lasted'

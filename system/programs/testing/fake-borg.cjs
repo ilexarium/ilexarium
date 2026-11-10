@@ -1,4 +1,4 @@
-// A fake `borg` for laris-backup.spec.ts (copied beside the test's files, with a shebang).
+// A fake `borg` for ilex-backup.spec.ts (copied beside the test's files, with a shebang).
 // Records every call (args, environment, folder) in borg-calls.jsonl; keeps "archives" in
 // archives.json (name → its create command line); behaviour per command from files:
 // exit-<command>.txt (exit code), logs-<command>.jsonl (stderr log lines), repo-id.txt.

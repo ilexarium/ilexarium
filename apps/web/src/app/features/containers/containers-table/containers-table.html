@@ -20,9 +20,9 @@
       </div>
     } @else if (shownGroups().length === 0) {
       <!-- The next action is the page's: it projects it (emptyAction). -->
-      <laris-empty-state icon="lucideBox" [text]="'containers.none' | translate">
+      <ilex-empty-state icon="lucideBox" [text]="'containers.none' | translate">
         <ng-content select="[emptyAction]" />
-      </laris-empty-state>
+      </ilex-empty-state>
     } @else {
       <!-- Extra-large screens: a table. -->
       <div hlmTableContainer class="hidden xl:block">
@@ -110,7 +110,7 @@
                     </span>
                   </td>
                   <td hlmTd class="text-end">
-                    <laris-container-actions
+                    <ilex-container-actions
                       [name]="row.name"
                       [state]="row.state"
                       [protected]="row.protected"
@@ -145,7 +145,7 @@
                     </span>
                     <span class="flex items-center gap-1">
                       <ng-container *ngTemplateOutlet="state; context: { $implicit: row }" />
-                      <laris-container-actions
+                      <ilex-container-actions
                         [name]="row.name"
                         [state]="row.state"
                         [protected]="row.protected"
@@ -236,12 +236,10 @@
         {{ row.pendingLabel }}
       </span>
     } @else {
-      <laris-status-dot class="text-sm" [tone]="row.stateDot"
-        >{{ row.stateLabel }}
-      </laris-status-dot>
+      <ilex-status-dot class="text-sm" [tone]="row.stateDot">{{ row.stateLabel }} </ilex-status-dot>
     }
     @if (row.health; as health) {
-      <laris-status-badge [tone]="health.tone">{{ health.label }}</laris-status-badge>
+      <ilex-status-badge [tone]="health.tone">{{ health.label }}</ilex-status-badge>
     }
   </span>
 </ng-template>
@@ -302,7 +300,7 @@
 <!-- Decorative: the value beside it says it in words. -->
 <ng-template #cpuTrend let-row>
   @if (row.cpuTrend; as trend) {
-    <laris-sparkline
+    <ilex-sparkline
       class="h-6 w-8 shrink-0 max-xl:mt-1 max-xl:w-20"
       [series]="trend.series"
       [max]="trend.max"
@@ -312,6 +310,6 @@
 
 <ng-template #memoryTrend let-row>
   @if (row.memoryTrend; as series) {
-    <laris-sparkline class="h-6 w-8 shrink-0 max-xl:mt-1 max-xl:w-20" [series]="series" />
+    <ilex-sparkline class="h-6 w-8 shrink-0 max-xl:mt-1 max-xl:w-20" [series]="series" />
   }
 </ng-template>

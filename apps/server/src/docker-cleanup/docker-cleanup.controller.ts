@@ -1,7 +1,7 @@
 import { Controller, Delete, Get, HttpCode, Ip, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { DockerCleanup, DockerPruneResult, PublicUser, VolumeSizes } from '@laris/shared';
+import type { DockerCleanup, DockerPruneResult, PublicUser, VolumeSizes } from '@ilex/shared';
 import { VolumeParamsDto } from './docker-cleanup.dto.js';
 import { CLEANUP_LIMIT } from './docker-cleanup.constants.js';
 import { DockerCleanupService } from './docker-cleanup.service.js';

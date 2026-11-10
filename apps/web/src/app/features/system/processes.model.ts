@@ -1,4 +1,4 @@
-import type { Process, ProcessSignal } from '@laris/shared';
+import type { Process, ProcessSignal } from '@ilex/shared';
 
 /** The table's columns that sort, htop's: PID USER PRI NI VIRT RES SHR S CPU% MEM% TIME+ Command. */
 export const PROCESS_SORTS = [

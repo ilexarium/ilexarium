@@ -242,7 +242,7 @@
     "signal_failed": "Das Signal konnte nicht gesendet werden.",
     "linux_session_required": "Melde dich erneut als Linux-Benutzer an (die Sitzung ist beendet).",
     "linux_login_refused": "Falscher Benutzername oder falsches Passwort, oder dieses Konto kann sich nicht anmelden.",
-    "linux_password_logins_off": "Der SSH-Server dieses Rechners erlaubt Laris keine Anmeldung mit Passwort. Führe das Installationsprogramm erneut aus (sudo ./install.sh) oder entferne die Einstellung, die sie abschaltet (oft /etc/ssh/sshd_config.d/50-cloud-init.conf).",
+    "linux_password_logins_off": "Der SSH-Server dieses Rechners erlaubt Ilexarium keine Anmeldung mit Passwort. Führe das Installationsprogramm erneut aus (sudo ./install.sh) oder entferne die Einstellung, die sie abschaltet (oft /etc/ssh/sshd_config.d/50-cloud-init.conf).",
     "linux_root_refused": "root kann sich hier nicht anmelden. Nimm dein eigenes Konto.",
     "ssh_unavailable": "Der SSH-Server dieses Rechners antwortet nicht.",
     "file_not_found": "Das ist nicht mehr da.",
@@ -257,7 +257,7 @@
     "sudo_password_wrong": "sudo hat dieses Passwort nicht angenommen.",
     "sudo_not_allowed": "Dieses Konto darf sudo auf diesem Rechner nicht verwenden: Es ist kein Administrator. Füge es von einem Administratorkonto aus der Administratorgruppe hinzu – sudo usermod -aG sudo <Konto> (Debian, Ubuntu) oder sudo usermod -aG wheel <Konto> (Arch, mit in sudoers erlaubter wheel-Gruppe) – und melde dich dann erneut bei Linux an.",
     "sudo_required": "Dafür sind Administratorrechte nötig: Entsperre sudo mit dem Passwort des Linux-Kontos.",
-    "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Laris ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Laris erneut.",
+    "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Ilexarium ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Ilexarium erneut.",
     "sudo_failed": "sudo hat nicht geantwortet oder ist ohne Begründung fehlgeschlagen. Versuche es erneut; bleibt es so, prüfe sudo in einem Terminal.",
     "app_not_found": "Im Ordner dieser App ist keine Compose-Datei.",
     "app_name_taken": "Eine App mit diesem Namen gibt es schon.",
@@ -272,13 +272,13 @@
     "target_not_empty": "In diesem Ordner ist schon etwas.",
     "mount_point_in_use": "Dieser Ordner wird benutzt, oder sein übergeordneter Ordner fehlt.",
     "service_not_found": "systemd kennt diesen Dienst nicht.",
-    "service_protected": "Dieser Dienst ist geschützt: Laris braucht ihn.",
+    "service_protected": "Dieser Dienst ist geschützt: Ilexarium braucht ihn.",
     "service_action_failed": "systemd konnte es nicht ausführen. Der Zustand des Dienstes und sein Protokoll sagen, warum.",
     "service_timed_out": "Es läuft noch. Sieh dir den Zustand des Dienstes gleich noch einmal an.",
     "services_unavailable": "systemd konnte nicht nach den Diensten gefragt werden.",
     "journal_unavailable": "Das Journal kann gerade nicht gelesen werden. Versuche es gleich noch einmal.",
     "changes_underway": "Gerade werden Apps geändert (ein Backup, eine Wiederherstellung oder eine App-Aufgabe). Versuche es in ein paar Minuten erneut.",
-    "volume_protected": "Dieses Volume gehört zu Laris selbst und kann hier nicht gelöscht werden.",
+    "volume_protected": "Dieses Volume gehört zu Ilexarium selbst und kann hier nicht gelöscht werden.",
     "volume_in_use": "Ein Container nutzt dieses Volume. Entferne zuerst den Container.",
     "volume_not_found": "Dieses Volume gibt es nicht mehr.",
     "cleanup_failed": "Docker konnte den Speicher nicht freigeben. Versuche es später erneut.",
@@ -304,7 +304,7 @@
       "attention_other": "{{count}} Dinge brauchen deine Aufmerksamkeit",
       "alerts_one": "{{count}} offene Warnung",
       "alerts_other": "{{count}} offene Warnungen",
-      "update": "Laris {{version}} ist verfügbar"
+      "update": "Ilexarium {{version}} ist verfügbar"
     },
     "rack": {
       "title": "Status",
@@ -1218,7 +1218,7 @@
     "lastFailure": "Die letzte Nachricht konnte nicht gesendet werden ({{time}}). {{problem}}"
   },
   "machineCheck": {
-    "description": "Ob dieser Rechner so eingerichtet ist, wie Laris es braucht – geprüft als dein Linux-Konto: Alles, was Laris für dich ändert, läuft als dieses Konto.",
+    "description": "Ob dieser Rechner so eingerichtet ist, wie Ilexarium es braucht – geprüft als dein Linux-Konto: Alles, was Ilexarium für dich ändert, läuft als dieses Konto.",
     "check": "Rechner prüfen",
     "checkAgain": "Erneut prüfen",
     "checkWithoutSudo": "Ohne sudo prüfen",
@@ -1241,8 +1241,8 @@
         "notSignedIn": "Nicht angemeldet. Wurde die Anmeldung abgelehnt, stand dort, warum und was zu tun ist."
       },
       "helper": {
-        "title": "Laris’ Helfer",
-        "about": "Das Programm, das Laris für jede Änderung als dein Konto ausführt.",
+        "title": "Ilexarium’ Helfer",
+        "about": "Das Programm, das Ilexarium für jede Änderung als dein Konto ausführt.",
         "ok": "Er antwortet, als dein Konto.",
         "unavailable": "Er ist nicht gestartet oder antwortet nicht. Führe das Installationsprogramm erneut aus (der Befehl unten, im Ordner der Version) und melde dich dann erneut bei Linux an.",
         "wrong_account": "Er antwortet als ein anderes Konto. Führe das Installationsprogramm erneut aus (der Befehl unten, im Ordner der Version)."
@@ -1527,7 +1527,7 @@
     },
     "sudo": {
       "title": "Administratorrechte",
-      "text": "Dafür ist sudo von {{account}} nötig. Gib das Linux-Passwort dieses Kontos ein: sudo bleibt eine Weile entsperrt, und Laris speichert das Passwort nicht.",
+      "text": "Dafür ist sudo von {{account}} nötig. Gib das Linux-Passwort dieses Kontos ein: sudo bleibt eine Weile entsperrt, und Ilexarium speichert das Passwort nicht.",
       "password": "Passwort für sudo",
       "submit": "Entsperren",
       "submitting": "Wird entsperrt…",
@@ -1536,7 +1536,7 @@
     },
     "asPerson": {
       "title": "Als Linux-Benutzer anmelden",
-      "text": "Laris tut das als dein Linux-Konto, mit dessen Rechten.",
+      "text": "Ilexarium tut das als dein Linux-Konto, mit dessen Rechten.",
       "submit": "Anmelden und weiter"
     }
   },
@@ -1806,10 +1806,10 @@
       "actions": "Aktionen"
     },
     "protected": {
-      "laris": "(geschützt: Laris läuft darauf)",
-      "essential": "(Laris braucht ihn)",
-      "larisHelp": "Laris selbst oder etwas, worauf es läuft (Docker, der Systembus, die eigenen Dienste einer Person): Es wird hier nicht gestartet, gestoppt oder neu gestartet.",
-      "essentialHelp": "Laris braucht diesen Dienst: Er kann hier neu gestartet, aber nie gestoppt werden."
+      "ilex": "(geschützt: Ilexarium läuft darauf)",
+      "essential": "(Ilexarium braucht ihn)",
+      "ilexHelp": "Ilexarium selbst oder etwas, worauf es läuft (Docker, der Systembus, die eigenen Dienste einer Person): Es wird hier nicht gestartet, gestoppt oder neu gestartet.",
+      "essentialHelp": "Ilexarium braucht diesen Dienst: Er kann hier neu gestartet, aber nie gestoppt werden."
     },
     "working": "Wird ausgeführt…",
     "actionsFor": "Aktionen für {{name}}",
@@ -1828,7 +1828,7 @@
         "title": "{{name}} neu starten?",
         "text": "Er stoppt und startet wieder; was er tut, wird kurz unterbrochen."
       },
-      "essential": "Laris braucht diesen Dienst: Während er neu startet, antwortet Laris vielleicht kurz nicht.",
+      "essential": "Ilexarium braucht diesen Dienst: Während er neu startet, antwortet Ilexarium vielleicht kurz nicht.",
       "cancel": "Abbrechen"
     },
     "done": {
@@ -1897,13 +1897,13 @@
     }
   },
   "updates": {
-    "installed": "Laris {{version}} ist installiert",
+    "installed": "Ilexarium {{version}} ist installiert",
     "newestPublished": "zuletzt veröffentlicht: {{date}}",
     "notConfigured": "Diese Installation weiß nicht, woher ihre Updates kommen (sie wurde ohne Release-Adresse gebaut). Aktualisiere sie von Hand.",
-    "available": "Laris {{version}} ist verfügbar",
+    "available": "Ilexarium {{version}} ist verfügbar",
     "published": "Veröffentlicht am {{date}}",
     "update": "Auf {{version}} aktualisieren",
-    "upToDate": "Laris ist auf dem neuesten Stand.",
+    "upToDate": "Ilexarium ist auf dem neuesten Stand.",
     "checkNow": "Jetzt prüfen",
     "checkedAt": "Zuletzt geprüft {{when}}",
     "checkAutomatically": "Automatisch nach Updates suchen",
@@ -1913,13 +1913,13 @@
     "startFailed": "Das Update konnte nicht gestartet werden",
     "started": "Aktualisiere auf {{version}} …",
     "updating": "Aktualisiere auf {{version}}",
-    "restarting": "Laris startet neu. Diese Seite macht weiter, sobald es wieder antwortet.",
+    "restarting": "Ilexarium startet neu. Diese Seite macht weiter, sobald es wieder antwortet.",
     "output": "Ausgabe des Installers",
     "loading": "Wird geladen …",
     "loadFailed": "Der Update-Status konnte nicht geladen werden.",
     "checkError": {
       "unreachable": "Der Release-Server war nicht erreichbar.",
-      "bad_signature": "Die Release-Informationen sind nicht mit dem Laris-Release-Schlüssel signiert. Sie wurden ignoriert.",
+      "bad_signature": "Die Release-Informationen sind nicht mit dem Ilexarium-Release-Schlüssel signiert. Sie wurden ignoriert.",
       "bad_manifest": "Die Release-Informationen sind fehlerhaft. Sie wurden ignoriert."
     },
     "phase": {
@@ -1930,18 +1930,18 @@
       "install": "Wird installiert …",
       "checked": "Rechner geprüft",
       "saved": "Installierte Version aufbewahrt (der Weg zurück)",
-      "stopped": "Laris angehalten",
+      "stopped": "Ilexarium angehalten",
       "migrated": "Datenbank aktualisiert",
       "installed": "Neue Version installiert",
-      "started": "Laris wird gestartet …",
-      "health": "Warte auf Antwort von Laris …",
+      "started": "Ilexarium wird gestartet …",
+      "health": "Warte auf Antwort von Ilexarium …",
       "rollback": "Zurück zur installierten Version …"
     },
     "outcome": {
       "updated": "Auf {{version}} aktualisiert",
       "failed": "Das Update auf {{to}} ist fehlgeschlagen. Es wurde nichts geändert.",
-      "rolled_back": "Das Update auf {{to}} ist fehlgeschlagen. Laris läuft wieder mit {{version}}.",
-      "rollback_failed": "Das Update auf {{to}} ist fehlgeschlagen, und Laris konnte nicht von selbst zurück. Siehe die Ausgabe des Installers."
+      "rolled_back": "Das Update auf {{to}} ist fehlgeschlagen. Ilexarium läuft wieder mit {{version}}.",
+      "rollback_failed": "Das Update auf {{to}} ist fehlgeschlagen, und Ilexarium konnte nicht von selbst zurück. Siehe die Ausgabe des Installers."
     },
     "error": {
       "busy": "Eine andere Aktion lief gerade.",
@@ -1951,19 +1951,19 @@
       "too_large": "Der Download war größer als seine signierte Größe.",
       "wrong_size": "Der Download hatte die falsche Größe.",
       "wrong_checksum": "Der Download passte nicht zu seinem signierten Fingerabdruck.",
-      "bad_signature": "Das Release ist nicht mit dem Laris-Release-Schlüssel signiert.",
+      "bad_signature": "Das Release ist nicht mit dem Ilexarium-Release-Schlüssel signiert.",
       "bad_manifest": "Die Release-Informationen sind fehlerhaft.",
       "unpack_failed": "Das Release konnte nicht entpackt werden.",
       "install_failed": "Der Installer brach mit einem Fehler ab.",
       "not_answering": "Die neue Version hat nicht innerhalb einer Minute geantwortet.",
       "interrupted": "Der Rechner ist während des Updates ausgegangen.",
       "internal": "Etwas Unerwartetes ist schiefgegangen.",
-      "setup": "Die Update-Einrichtung dieses Rechners hat ein Problem (siehe die Dateien des Installers in /etc/laris).",
+      "setup": "Die Update-Einrichtung dieses Rechners hat ein Problem (siehe die Dateien des Installers in /etc/ilex).",
       "invalid_request": "Die Update-Anfrage wurde abgelehnt."
     },
     "confirm": {
-      "title": "Auf Laris {{version}} aktualisieren?",
-      "text": "Laris startet neu und ist etwa eine Minute offline; Linux-Anmeldungen und Terminals werden beendet. Die Datenbank wird vorher gesichert, und wenn die neue Version nicht startet, kommt die installierte von selbst zurück.",
+      "title": "Auf Ilexarium {{version}} aktualisieren?",
+      "text": "Ilexarium startet neu und ist etwa eine Minute offline; Linux-Anmeldungen und Terminals werden beendet. Die Datenbank wird vorher gesichert, und wenn die neue Version nicht startet, kommt die installierte von selbst zurück.",
       "cancel": "Abbrechen",
       "confirm": "Aktualisieren"
     }

@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import type { ProcessesSummary } from '@laris/shared';
+import type { ProcessesSummary } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideBox, lucideCpu, lucidePackage, lucideServer, lucideUser } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -18,7 +18,7 @@ import { GROUP_ICONS, PRESSURE_RESOURCES, SWAP_HIGH_PERCENT } from './process-su
  * Presentational: a group or "needs attention" chosen goes out (the page filters by it).
  */
 @Component({
-  selector: 'laris-process-summary',
+  selector: 'ilex-process-summary',
   imports: [HlmProgressImports, NgIcon, PluralPipe, TranslatePipe],
   providers: [provideIcons({ lucideBox, lucideCpu, lucidePackage, lucideServer, lucideUser })],
   templateUrl: './process-summary.html',

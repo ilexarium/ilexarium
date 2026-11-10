@@ -10,7 +10,7 @@
 //   node smoke.mjs update    after a restart or running the installer again: everything is
 //                            still there (--installed-again: and the installed version kept)
 //   node smoke.mjs self-update <version> <outcome>
-//                            an update by laris-update from the test's release folder: its
+//                            an update by ilex-update from the test's release folder: its
 //                            outcome (updated, rolled_back), the version answering, and then
 //                            everything still there
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
@@ -26,7 +26,7 @@ const execFileAsync = promisify(execFile);
 // another port before updating), read like the installer's app_url.
 function appSetting(name) {
   const value =
-    readFileSync('/etc/laris/app.env', 'utf8')
+    readFileSync('/etc/ilex/app.env', 'utf8')
       .split('\n')
       .map((line) => line.trim())
       .findLast((line) => line.startsWith(`${name}=`))
@@ -40,13 +40,13 @@ const PORT = appSetting('PORT') || '3000';
 const ADDRESS = EVERY_ADDRESS ? '127.0.0.1' : HOST.includes(':') ? `[${HOST}]` : HOST;
 // The machine's SSH server unit (the installer found it) and its administrators' group.
 const SSH_UNIT =
-  JSON.parse(readFileSync('/etc/laris/wrappers.json', 'utf8')).update.sshUnit ?? 'ssh.service';
+  JSON.parse(readFileSync('/etc/ilex/wrappers.json', 'utf8')).update.sshUnit ?? 'ssh.service';
 const ADMINS = existsSync('/etc/arch-release') ? 'wheel' : 'sudo';
 const BASE = `http://${ADDRESS}:${PORT}`;
 const ORIGIN = BASE;
 const USER = 'owner';
 const PASSWORD = 'correct horse battery staple';
-const { default: WebSocket } = await import('/opt/laris/app/node_modules/ws/index.js');
+const { default: WebSocket } = await import('/opt/ilex/app/node_modules/ws/index.js');
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -146,53 +146,53 @@ async function signIn() {
 
 async function securitySetup() {
   console.log('\nThe security setup');
-  const app = uidOf('laris');
-  const appGroup = gidOf('laris');
-  expect('/etc/laris/master.key', { mode: '0400', uid: app });
-  expect('/etc/laris/app.env', { mode: '0640', uid: 0, gid: appGroup });
-  expect('/etc/laris/database.env', { mode: '0600', uid: 0 });
-  expect('/etc/laris/wrappers.json', { mode: '0644', uid: 0 });
-  expect('/opt/laris/libexec', { mode: '0755', uid: 0 });
-  expect('/etc/laris/release.env', { mode: '0644', uid: 0 });
-  expect('/etc/laris/release.pub', { mode: '0644', uid: 0 });
-  const release = readFileSync('/etc/laris/release.env', 'utf8');
+  const app = uidOf('ilex');
+  const appGroup = gidOf('ilex');
+  expect('/etc/ilex/master.key', { mode: '0400', uid: app });
+  expect('/etc/ilex/app.env', { mode: '0640', uid: 0, gid: appGroup });
+  expect('/etc/ilex/database.env', { mode: '0600', uid: 0 });
+  expect('/etc/ilex/wrappers.json', { mode: '0644', uid: 0 });
+  expect('/opt/ilex/libexec', { mode: '0755', uid: 0 });
+  expect('/etc/ilex/release.env', { mode: '0644', uid: 0 });
+  expect('/etc/ilex/release.pub', { mode: '0644', uid: 0 });
+  const release = readFileSync('/etc/ilex/release.env', 'utf8');
   check(
     'release.env: where updates come from, nothing about how the machine is reached',
     release === 'RELEASE_URL=https://localhost:8443/releases\n',
     release,
   );
-  const appSettings = readFileSync('/etc/laris/app.env', 'utf8');
+  const appSettings = readFileSync('/etc/ilex/app.env', 'utf8');
   check(
     'app.env: the machine’s settings only (where the app listens, its database)',
     /^HOST=/m.test(appSettings) &&
       /^DATABASE_URL=/m.test(appSettings) &&
       !/^(NODE_ENV|DOCKER_HOST|WEB_ROOT|SETUP_TOKEN_FILE|TRUST_PROXY)=/m.test(appSettings),
   );
-  const environment = sh('systemctl', ['show', '-p', 'Environment', '--value', 'laris']);
+  const environment = sh('systemctl', ['show', '-p', 'Environment', '--value', 'ilex']);
   check(
-    'laris.service: the release’s settings',
-    ['NODE_ENV=production', 'DOCKER_HOST=unix:///run/laris/proxy/docker.sock'].every((setting) =>
+    'ilex.service: the release’s settings',
+    ['NODE_ENV=production', 'DOCKER_HOST=unix:///run/ilex/proxy/docker.sock'].every((setting) =>
       environment.includes(setting),
     ),
     environment,
   );
-  check('no sudoers drop-in for the app', !existsSync('/etc/sudoers.d/laris'));
+  check('no sudoers drop-in for the app', !existsSync('/etc/sudoers.d/ilex'));
   check(
     'the deploy and process wrappers are gone (an update removes them)',
-    !existsSync('/opt/laris/libexec/laris-process.mts') &&
-      !existsSync('/opt/laris/libexec/laris-compose.mts'),
+    !existsSync('/opt/ilex/libexec/ilex-process.mts') &&
+      !existsSync('/opt/ilex/libexec/ilex-compose.mts'),
   );
-  expect('/etc/systemd/system/laris-restore@.service', { mode: '0644', uid: 0 });
-  expect('/var/lib/laris', { mode: '0755', uid: 0 });
-  expect('/var/lib/laris/app', { mode: '0700', uid: app });
-  expect('/var/lib/laris/backups', { mode: '0750', uid: 0, gid: appGroup });
-  expect('/run/laris/proxy', { mode: '0750', uid: 99, gid: appGroup });
+  expect('/etc/systemd/system/ilex-restore@.service', { mode: '0644', uid: 0 });
+  expect('/var/lib/ilex', { mode: '0755', uid: 0 });
+  expect('/var/lib/ilex/app', { mode: '0700', uid: app });
+  expect('/var/lib/ilex/backups', { mode: '0750', uid: 0, gid: appGroup });
+  expect('/run/ilex/proxy', { mode: '0750', uid: 99, gid: appGroup });
   check(
     'the app’s user is not in the docker group',
-    !sh('id', ['-nG', 'laris']).split(/\s+/).includes('docker'),
+    !sh('id', ['-nG', 'ilex']).split(/\s+/).includes('docker'),
   );
-  const appProcess = sh('systemctl', ['show', '-p', 'MainPID', '--value', 'laris']).trim();
-  check('the app runs as laris', mode(`/proc/${appProcess}`).uid === app);
+  const appProcess = sh('systemctl', ['show', '-p', 'MainPID', '--value', 'ilex']).trim();
+  check('the app runs as ilex', mode(`/proc/${appProcess}`).uid === app);
   check(
     'the app listens only where app.env says, not on every address',
     EVERY_ADDRESS ||
@@ -204,29 +204,29 @@ async function securitySetup() {
   );
   check('the proxy has no TCP port', !/:2375\b/.test(sh('ss', ['-ltnH'])));
   // The app holds no root: no sudo rule at all.
-  const sudo = sh('sudo', ['-l', '-U', 'laris']);
+  const sudo = sh('sudo', ['-l', '-U', 'ilex']);
   check('sudo: the app may run nothing', !/NOPASSWD|\(root\)|\(ALL/.test(sudo), sudo.trim());
   check(
     'sudo: not even a root program',
     fails('runuser', [
       '-u',
-      'laris',
+      'ilex',
       '--',
       'sudo',
       '-n',
-      '/opt/laris/libexec/laris-backup.mts',
+      '/opt/ilex/libexec/ilex-backup.mts',
       'passphrase',
     ]),
   );
   check(
     'the app can’t read the database owner’s password',
-    fails('runuser', ['-u', 'laris', '--', 'cat', '/etc/laris/database.env']),
+    fails('runuser', ['-u', 'ilex', '--', 'cat', '/etc/ilex/database.env']),
   );
   check(
     'the app can’t open Docker’s socket',
     fails('runuser', [
       '-u',
-      'laris',
+      'ilex',
       '--',
       'curl',
       '-sf',
@@ -239,12 +239,12 @@ async function securitySetup() {
     'the app reaches the proxy’s socket',
     !fails('runuser', [
       '-u',
-      'laris',
+      'ilex',
       '--',
       'curl',
       '-sf',
       '--unix-socket',
-      '/run/laris/proxy/docker.sock',
+      '/run/ilex/proxy/docker.sock',
       'http://d/_ping',
     ]),
   );
@@ -258,7 +258,7 @@ async function securitySetup() {
       'curl',
       '-sf',
       '--unix-socket',
-      '/run/laris/proxy/docker.sock',
+      '/run/ilex/proxy/docker.sock',
       'http://d/_ping',
     ]),
   );
@@ -266,7 +266,7 @@ async function securitySetup() {
     'the proxy still refuses what isn’t allowed',
     sh('runuser', [
       '-u',
-      'laris',
+      'ilex',
       '--',
       'curl',
       '-s',
@@ -275,7 +275,7 @@ async function securitySetup() {
       '-w',
       '%{http_code}',
       '--unix-socket',
-      '/run/laris/proxy/docker.sock',
+      '/run/ilex/proxy/docker.sock',
       '-X',
       'POST',
       'http://d/containers/create',
@@ -284,15 +284,15 @@ async function securitySetup() {
   // The database: the app's role may read and write data, nothing more.
   const role = sh('docker', [
     'exec',
-    'laris-postgres-1',
+    'ilex-postgres-1',
     'psql',
     '-tA',
     '-U',
-    'laris_owner',
+    'ilex_owner',
     '-d',
-    'laris',
+    'ilex',
     '-c',
-    "SELECT rolsuper, rolcreatedb, rolcreaterole, has_table_privilege('laris', '\"User\"', 'SELECT'), has_table_privilege('laris', '_prisma_migrations', 'SELECT'), has_schema_privilege('laris', 'public', 'CREATE') FROM pg_roles WHERE rolname = 'laris'",
+    "SELECT rolsuper, rolcreatedb, rolcreaterole, has_table_privilege('ilex', '\"User\"', 'SELECT'), has_table_privilege('ilex', '_prisma_migrations', 'SELECT'), has_schema_privilege('ilex', 'public', 'CREATE') FROM pg_roles WHERE rolname = 'ilex'",
   ]).trim();
   check(
     'the app’s database role reads data, can’t migrate or create',
@@ -371,9 +371,9 @@ async function files() {
 }
 
 /** A sleep of `user`, by PID and start time (as the process list names it). */
-/** laris-root runs (root's, started by her sudo). */
-const larisRootRunning = () =>
-  !fails('pgrep', ['-u', 'root', '-f', '^/usr/bin/node /opt/laris/libexec/laris-root.mts']);
+/** ilex-root runs (root's, started by her sudo). */
+const ilexRootRunning = () =>
+  !fails('pgrep', ['-u', 'root', '-f', '^/usr/bin/node /opt/ilex/libexec/ilex-root.mts']);
 
 async function sleeper(user) {
   const child = spawn(
@@ -399,22 +399,22 @@ async function sleeper(user) {
 
 /**
  * Ending processes as anna through her Linux session's helper: her own; root's only through her
- * own sudo, unlocked with her password — laris-root, started by it, runs for the unlock; "Lock
+ * own sudo, unlocked with her password — ilex-root, started by it, runs for the unlock; "Lock
  * now" ends it, and so does its own end (idle). No root path of the app's.
  */
 async function processes() {
   console.log('\nEnding processes and sudo (as anna, through her helper)');
-  const helper = mode('/opt/laris/libexec/laris-helper.mts');
+  const helper = mode('/opt/ilex/libexec/ilex-helper.mts');
   check(
     'the helper is installed root-owned, runnable, writable by root only',
     helper.uid === 0 && helper.mode === '0755',
     helper.mode,
   );
-  const larisRoot = mode('/opt/laris/libexec/laris-root.mts');
+  const ilexRoot = mode('/opt/ilex/libexec/ilex-root.mts');
   check(
-    'laris-root is installed root-owned, runnable, writable by root only',
-    larisRoot.uid === 0 && larisRoot.mode === '0755',
-    larisRoot.mode,
+    'ilex-root is installed root-owned, runnable, writable by root only',
+    ilexRoot.uid === 0 && ilexRoot.mode === '0755',
+    ilexRoot.mode,
   );
   const own = await sleeper('anna');
   const end = await api('POST', '/processes/signal', { ...own.request, signal: 'TERM' });
@@ -449,7 +449,7 @@ async function processes() {
     unlocked.status === 200 && Date.parse(unlocked.json?.sudoUntil) > Date.now(),
     `${unlocked.status} ${unlocked.text}`,
   );
-  check('laris-root runs as root while unlocked', larisRootRunning());
+  check('ilex-root runs as root while unlocked', ilexRootRunning());
   const admin = await api('POST', '/processes/signal', { ...roots.request, signal: 'TERM' });
   check(
     'root’s process ended through her sudo',
@@ -469,7 +469,7 @@ async function processes() {
     `${lock.status} ${after.text}`,
   );
   await sleep(500);
-  check('laris-root ended at “Lock now”', !larisRootRunning());
+  check('ilex-root ended at “Lock now”', !ilexRootRunning());
   const wrongAfterLock = await api('POST', '/files/session/sudo', { password: 'wrong' });
   check(
     'after “Lock now”, a wrong password is refused (sudo’s own cache never unlocks)',
@@ -483,12 +483,12 @@ async function processes() {
     again.status === 403 && again.json?.code === 'sudo_required',
     `${again.status} ${again.text}`,
   );
-  // laris-root ending on its own (as after 15 minutes idle): the app sees it locked at once.
+  // ilex-root ending on its own (as after 15 minutes idle): the app sees it locked at once.
   await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
-  sh('pkill', ['-u', 'root', '-f', '^/usr/bin/node /opt/laris/libexec/laris-root.mts']);
+  sh('pkill', ['-u', 'root', '-f', '^/usr/bin/node /opt/ilex/libexec/ilex-root.mts']);
   await sleep(500);
   const ended = await api('GET', '/files/session');
-  check('laris-root ended on its own: locked', ended.json?.session?.sudoUntil === null, ended.text);
+  check('ilex-root ended on its own: locked', ended.json?.session?.sudoUntil === null, ended.text);
   const third = await api('POST', '/processes/signal', { ...roots2.request, signal: 'TERM' });
   check(
     'and its actions need her sudo again',
@@ -504,13 +504,13 @@ async function processes() {
 /**
  * The Services page against the real systemd (docs/plans/system_services.md): systemctl's JSON
  * and unix timestamps on this release, a harmless unit of its own started, restarted and stopped
- * through anna's sudo, Laris's own refused.
+ * through anna's sudo, Ilexarium's own refused.
  */
 async function systemServices() {
   console.log('\nSystem services (as anna; changes through her sudo)');
   writeFileSync(
     '/etc/systemd/system/smoke-sleeper.service',
-    '[Unit]\nDescription=Laris smoke test\n[Service]\nExecStart=/usr/bin/sleep infinity\n',
+    '[Unit]\nDescription=Ilexarium smoke test\n[Service]\nExecStart=/usr/bin/sleep infinity\n',
   );
   sh('systemctl', ['daemon-reload']);
   const list = await api('GET', '/system/services');
@@ -521,9 +521,9 @@ async function systemServices() {
     `${list.status} ${list.text.slice(0, 300)}`,
   );
   check(
-    'laris.service is there, protected',
-    byName['laris.service']?.active === 'active' && byName['laris.service']?.protection === 'laris',
-    JSON.stringify(byName['laris.service']),
+    'ilex.service is there, protected',
+    byName['ilex.service']?.active === 'active' && byName['ilex.service']?.protection === 'ilex',
+    JSON.stringify(byName['ilex.service']),
   );
   check('the test unit is there, inactive', byName['smoke-sleeper.service']?.active === 'inactive');
   const ssh = await api('GET', `/system/services/${SSH_UNIT}`);
@@ -587,9 +587,9 @@ async function systemServices() {
     stop.status === 204 && isActive() === 'inactive',
     `${stop.status} ${stop.text}`,
   );
-  const own = await api('POST', '/system/services/laris.service/restart');
+  const own = await api('POST', '/system/services/ilex.service/restart');
   check(
-    'Laris’s own refused',
+    'Ilexarium’s own refused',
     own.status === 403 && own.json?.code === 'service_protected',
     `${own.status}`,
   );
@@ -727,7 +727,7 @@ async function install() {
   check('the app answers', (await api('GET', '/health')).status === 200);
   const status = await api('GET', '/auth/status');
   check('needs setup', status.json?.needsSetup === true, status.text);
-  const token = readFileSync('/var/lib/laris/app/setup-token', 'utf8').trim();
+  const token = readFileSync('/var/lib/ilex/app/setup-token', 'utf8').trim();
   const setup = await api('POST', '/auth/setup', {
     setupToken: token,
     username: USER,
@@ -740,7 +740,7 @@ async function install() {
   );
   await signIn();
   const page = await fetch(`${BASE}/backups`);
-  check('the web app is served on the same origin', (await page.text()).includes('<laris-root'));
+  check('the web app is served on the same origin', (await page.text()).includes('<ilex-root'));
   const csp = page.headers.get('content-security-policy') ?? '';
   check(
     'the page has its Content Security Policy (scripts only its own)',
@@ -760,13 +760,13 @@ async function install() {
   );
   check(
     'the platform’s containers, protected',
-    ['laris-postgres-1', 'laris-docker-proxy-1'].every(
+    ['ilex-postgres-1', 'ilex-docker-proxy-1'].every(
       (n) => containers.containers?.find((c) => c.name === n)?.protected,
     ),
     names.join(', '),
   );
 
-  // Before any app task: Laris refuses cleanup for a while after one (an image just pulled for
+  // Before any app task: Ilexarium refuses cleanup for a while after one (an image just pulled for
   // an install looks unused).
   await dockerCleanup();
 
@@ -818,7 +818,7 @@ async function install() {
   );
 
   console.log('\nBacking up, through anna’s sudo');
-  // Unlocked again: the installs above may have taken longer than laris-root's 15 idle minutes.
+  // Unlocked again: the installs above may have taken longer than ilex-root's 15 idle minutes.
   await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
   const plan = await api('POST', '/backups/plan', {
     destination: '/mnt/backup',
@@ -985,8 +985,8 @@ async function install() {
 
 /** The installer's own checks (check_setup) for a person, as the installer prints them. */
 async function installerChecks(person) {
-  const version = readFileSync('/etc/laris/version', 'utf8').trim();
-  const lib = `/root/laris-${version}/system/install/lib`;
+  const version = readFileSync('/etc/ilex/version', 'utf8').trim();
+  const lib = `/root/ilex-${version}/system/install/lib`;
   // Not synchronous: it takes seconds, and a blocked script finds the app's kept-alive
   // connection closed (its 5 s keep-alive) at the next request.
   const { stdout } = await execFileAsync(
@@ -1034,7 +1034,7 @@ async function machineCheck() {
   out = await installerChecks('anna');
   check('the installer: anna may use sudo', out.includes('✓ anna may use sudo'), out);
 
-  // A Match block read before laris.conf's turns password logins off.
+  // A Match block read before ilex.conf's turns password logins off.
   // Alongside, a global "no" (as cloud-init writes): harmless here, so never named.
   const dropin = '/etc/ssh/sshd_config.d/10-smoke-off.conf';
   const harmless = '/etc/ssh/sshd_config.d/05-smoke-global.conf';
@@ -1097,13 +1097,13 @@ async function update() {
   );
   const chatTables = sh('docker', [
     'exec',
-    'laris-postgres-1',
+    'ilex-postgres-1',
     'psql',
     '-tA',
     '-U',
-    'laris_owner',
+    'ilex_owner',
     '-d',
-    'laris',
+    'ilex',
     '-c',
     "SELECT count(*) FROM information_schema.tables WHERE table_name IN ('Chat', 'ChatMessage')",
   ]).trim();
@@ -1111,19 +1111,19 @@ async function update() {
   check('backups still set up', (await api('GET', '/backups/status')).json?.configured === true);
   check(
     'a database backup was made before migrating',
-    sh('ls', ['/var/lib/laris/install-backups']).trim().length > 0,
+    sh('ls', ['/var/lib/ilex/install-backups']).trim().length > 0,
   );
-  check('the version recorded', existsSync('/etc/laris/version'));
+  check('the version recorded', existsSync('/etc/ilex/version'));
   if (process.argv[3] === '--installed-again') {
-    const version = readFileSync('/etc/laris/version', 'utf8');
-    expect('/opt/laris/previous', { mode: '0700', uid: 0 });
+    const version = readFileSync('/etc/ilex/version', 'utf8');
+    expect('/opt/ilex/previous', { mode: '0700', uid: 0 });
     check(
       'the installed version kept before it was replaced (the way back)',
-      readFileSync('/opt/laris/previous/VERSION', 'utf8') === version &&
-        existsSync('/opt/laris/previous/app/apps/server/dist/main.js') &&
-        existsSync('/opt/laris/previous/libexec/laris-root.mts') &&
-        existsSync('/opt/laris/previous/files/etc/laris/app.env') &&
-        existsSync('/opt/laris/previous/files/etc/systemd/system/laris.service'),
+      readFileSync('/opt/ilex/previous/VERSION', 'utf8') === version &&
+        existsSync('/opt/ilex/previous/app/apps/server/dist/main.js') &&
+        existsSync('/opt/ilex/previous/libexec/ilex-root.mts') &&
+        existsSync('/opt/ilex/previous/files/etc/ilex/app.env') &&
+        existsSync('/opt/ilex/previous/files/etc/systemd/system/ilex.service'),
     );
   }
   await securitySetup();
@@ -1133,14 +1133,14 @@ async function update() {
 }
 
 async function selfUpdate(version, expected) {
-  console.log(`An update to ${version} by laris-update (expected: ${expected})`);
-  const before = readFileSync('/etc/laris/version', 'utf8').trim();
+  console.log(`An update to ${version} by ilex-update (expected: ${expected})`);
+  const before = readFileSync('/etc/ilex/version', 'utf8').trim();
   const id = randomUUID();
-  const out = sh('/opt/laris/libexec/laris-update.mts', ['start'], {
+  const out = sh('/opt/ilex/libexec/ilex-update.mts', ['start'], {
     input: JSON.stringify({ updateId: id, version }),
   });
-  check('laris-update start: its unit started', out.includes('@@result'), out);
-  const job = `/var/lib/laris/updates/${id}.jsonl`;
+  check('ilex-update start: its unit started', out.includes('@@result'), out);
+  const job = `/var/lib/ilex/updates/${id}.jsonl`;
   const end = await until(
     'the update ended',
     async () => {
@@ -1160,11 +1160,11 @@ async function selfUpdate(version, expected) {
   const health = await api('GET', '/health');
   check(
     `${want} installed and answering`,
-    readFileSync('/etc/laris/version', 'utf8').trim() === want && health.json?.version === want,
-    `${readFileSync('/etc/laris/version', 'utf8').trim()} ${health.text}`,
+    readFileSync('/etc/ilex/version', 'utf8').trim() === want && health.json?.version === want,
+    `${readFileSync('/etc/ilex/version', 'utf8').trim()} ${health.text}`,
   );
-  expect(job, { mode: '0640', uid: 0, gid: gidOf('laris') });
-  check('its download folder is gone', !existsSync(`/var/lib/laris/updates/${id}`));
+  expect(job, { mode: '0640', uid: 0, gid: gidOf('ilex') });
+  check('its download folder is gone', !existsSync(`/var/lib/ilex/updates/${id}`));
   await update();
 }
 
@@ -1199,7 +1199,7 @@ async function dockerCleanup() {
     'inspect',
     '-f',
     '{{.Config.Image}}',
-    'laris-docker-proxy-1',
+    'ilex-docker-proxy-1',
   ]).trim();
   sh('docker', ['volume', 'create', 'smoke_used']);
   sh('docker', ['create', '--name', 'smoke-holder', '-v', 'smoke_used:/x', proxyImage]);
@@ -1207,7 +1207,7 @@ async function dockerCleanup() {
     'volume',
     'create',
     '--label',
-    'com.docker.compose.project=laris',
+    'com.docker.compose.project=ilex',
     'smoke_platform',
   ]);
   sh('docker', ['volume', 'create', 'smoke_unused']);

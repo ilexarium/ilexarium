@@ -29,9 +29,9 @@ export const DENIED_PATHS = [
   '/sys',
   '/usr',
   '/var/lib/docker',
-  '/var/lib/laris',
+  '/var/lib/ilex',
   '/var/run',
-  '/opt/laris',
+  '/opt/ilex',
 ];
 
 export function isPlainAbsolutePath(path: string): boolean {

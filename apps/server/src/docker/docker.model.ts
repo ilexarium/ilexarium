@@ -1,4 +1,4 @@
-import type { Container, UnusedImage } from '@laris/shared';
+import type { Container, UnusedImage } from '@ilex/shared';
 
 /** A container without its live stats. */
 export type DockerContainer = Omit<Container, 'stats'>;

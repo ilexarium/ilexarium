@@ -1,4 +1,4 @@
-import { ALERT_LIMITS, type AlertSeverity, type BackupWarning } from '@laris/shared';
+import { ALERT_LIMITS, type AlertSeverity, type BackupWarning } from '@ilex/shared';
 import type { AlertMessage } from './alerts.model.js';
 
 export const HOUR_MS = 3_600_000;

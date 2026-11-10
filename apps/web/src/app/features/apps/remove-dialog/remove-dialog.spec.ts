@@ -1,6 +1,6 @@
 import { Component, signal, viewChild } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { AppRemovalItem } from '@laris/shared';
+import type { AppRemovalItem } from '@ilex/shared';
 import { RemoveDialog } from './remove-dialog';
 
 const FOLDER = '/home/anna/apps/music';
@@ -13,7 +13,7 @@ const ITEMS: AppRemovalItem[] = [
 
 @Component({
   imports: [RemoveDialog],
-  template: `<laris-remove-dialog name="music" [items]="items()" (remove)="chosen.set($event)" />`,
+  template: `<ilex-remove-dialog name="music" [items]="items()" (remove)="chosen.set($event)" />`,
 })
 class Host {
   readonly dialog = viewChild.required(RemoveDialog);

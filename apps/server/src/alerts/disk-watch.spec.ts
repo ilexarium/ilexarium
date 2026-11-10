@@ -1,4 +1,4 @@
-import type { DiskUsage } from '@laris/shared';
+import type { DiskUsage } from '@ilex/shared';
 import { DiskWatch, usedPercent } from './disk-watch.js';
 
 const MINUTE = 60_000;

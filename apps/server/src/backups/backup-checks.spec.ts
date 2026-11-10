@@ -1,4 +1,4 @@
-import { BACKUP_ERROR_CODES, FILES_ERROR_CODES } from '@laris/shared';
+import { BACKUP_ERROR_CODES, FILES_ERROR_CODES } from '@ilex/shared';
 import { constants } from 'node:fs';
 import type { DockerService } from '../docker/docker.service.js';
 import type { SystemReader } from '../host/system-reader.js';
@@ -21,7 +21,7 @@ function checksWith(
     backupItem: { findMany: vi.fn(async () => active) },
   } as unknown as PrismaService;
   const config = {
-    config: { protectedPaths: ['/var/lib/laris'] },
+    config: { protectedPaths: ['/var/lib/ilex'] },
   } as unknown as ProgramConfigService;
   const reader = { folder: vi.fn(async () => 'folder') } as unknown as SystemReader;
   const docker = {
@@ -68,8 +68,8 @@ describe('BackupChecks.checkNewItems', () => {
         { ...APP, project: 'immich' },
         { ...APP, project: 'missing' },
         { kind: 'folder', path: '/etc' },
-        { kind: 'folder', path: '/srv/laris/docs' },
-        { kind: 'folder', path: '/srv/laris/docs' },
+        { kind: 'folder', path: '/srv/ilex/docs' },
+        { kind: 'folder', path: '/srv/ilex/docs' },
       ]),
     );
     expect(response.errors).toEqual([
@@ -92,7 +92,7 @@ describe('BackupChecks.checkNewItems', () => {
         project: 'music',
         skip: ['/home/anna/apps/music/cache'],
       },
-      { kind: 'folder', path: '/srv/laris/docs' },
+      { kind: 'folder', path: '/srv/ilex/docs' },
     ]);
     expect(rows).toEqual([
       {
@@ -104,7 +104,7 @@ describe('BackupChecks.checkNewItems', () => {
         skip: ['/home/anna/apps/music/cache'],
         mode: 'stop',
       },
-      { id: expect.any(String), kind: 'folder', path: '/srv/laris/docs' },
+      { id: expect.any(String), kind: 'folder', path: '/srv/ilex/docs' },
     ]);
   });
 });
@@ -146,7 +146,7 @@ describe('BackupChecks.folders (as the signed-in Linux account)', () => {
 
   it('a system folder: refused before anything is read', async () => {
     const checks = checksWith([], tree);
-    expect((await problems(checks.folders('s1', '/var/lib/laris'))).code).toBe(
+    expect((await problems(checks.folders('s1', '/var/lib/ilex'))).code).toBe(
       BACKUP_ERROR_CODES.pathNotAllowed,
     );
   });

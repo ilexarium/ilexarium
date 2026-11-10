@@ -1,7 +1,7 @@
 import { CdkMenuTrigger } from '@angular/cdk/menu';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { LANGUAGE_NAMES } from '@laris/i18n';
+import { LANGUAGE_NAMES } from '@ilex/i18n';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideChevronDown,
@@ -34,7 +34,7 @@ import { ThemeMenu } from '../theme-menu/theme-menu';
  * alerts), the theme switch and the user menu (edit profile, the profile page, language, sign out).
  */
 @Component({
-  selector: 'laris-top-bar',
+  selector: 'ilex-top-bar',
   imports: [
     AlertsMenu,
     ConnectionStatus,

@@ -1,4 +1,4 @@
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 
 /** Who frees the space, for the audit log. */
 export interface CleanupActor {

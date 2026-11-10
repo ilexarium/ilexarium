@@ -1,8 +1,8 @@
 #!/usr/bin/node
 // Development and tests only: `systemctl` for the dev SSH server, which has no systemd
-// (docs/plans/system_services.md). A few sample service units — a failed one, Laris's own and one
+// (docs/plans/system_services.md). A few sample service units — a failed one, Ilexarium's own and one
 // it needs among them — answered the way systemd does (JSON lists, `key=value` for `show`).
-// Start, stop and restart need root (laris-root, through anna's sudo) and change the units' state,
+// Start, stop and restart need root (ilex-root, through anna's sudo) and change the units' state,
 // kept in /tmp for the container's life. Anything else: unknown, like a command it doesn't have.
 const fs = require('node:fs');
 
@@ -11,7 +11,7 @@ const SAMPLES = {
   'nginx.service': ['A high performance web server', 'active', 'running', 'enabled'],
   'proton.VPN.service': ['Proton VPN Daemon', 'failed', 'failed', 'enabled'],
   'backup-sync.service': ['Copies the photos to the NAS', 'inactive', 'dead', 'disabled'],
-  'laris.service': ['Laris', 'active', 'running', 'enabled'],
+  'ilex.service': ['Ilexarium', 'active', 'running', 'enabled'],
   'ssh.service': ['OpenBSD Secure Shell server', 'active', 'running', 'enabled'],
   'docker.service': ['Docker Application Container Engine', 'active', 'running', 'enabled'],
   'getty@tty1.service': ['Getty on tty1', 'active', 'running', null],

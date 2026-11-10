@@ -1,4 +1,4 @@
-import { systemServiceActionParamsSchema, systemServiceParamsSchema } from '@laris/shared';
+import { systemServiceActionParamsSchema, systemServiceParamsSchema } from '@ilex/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class SystemServiceParamsDto extends zodDto(systemServiceParamsSchema) {}

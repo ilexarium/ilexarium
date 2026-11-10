@@ -1,6 +1,6 @@
 import { HttpException } from '@nestjs/common';
-import { UPDATE_ERROR_CODES } from '@laris/shared';
-import { LARIS_VERSION } from '../common/laris-version.js';
+import { UPDATE_ERROR_CODES } from '@ilex/shared';
+import { ILEX_VERSION } from '../common/ilex-version.js';
 import type { ChangesUnderway } from '../jobs/changes-underway.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { RootPrograms } from '../root-programs/root-programs.js';
@@ -9,7 +9,7 @@ import type { ReleaseCheck } from './release-check.js';
 import type { UpdateJobs } from './update-jobs.js';
 import { UpdatesService } from './updates.service.js';
 
-const [major, minor] = LARIS_VERSION.split('.').map(Number);
+const [major, minor] = ILEX_VERSION.split('.').map(Number);
 const NEWER = `${major}.${minor! + 1}.0`;
 const actor = {
   user: { id: 'u1', username: 'owner' },
@@ -66,7 +66,7 @@ describe('UpdatesService.start', () => {
     expect(prisma.updateRun.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         id,
-        fromVersion: LARIS_VERSION,
+        fromVersion: ILEX_VERSION,
         toVersion: NEWER,
         userId: 'u1',
       }),
@@ -90,7 +90,7 @@ describe('UpdatesService.start', () => {
     expect(rootPrograms.updateStart).not.toHaveBeenCalled();
   });
 
-  it('forgets the run when laris-update refuses (a backup holds the lock)', async () => {
+  it('forgets the run when ilex-update refuses (a backup holds the lock)', async () => {
     const { service, prisma } = setup({ started: { ok: false, code: UPDATE_ERROR_CODES.busy } });
     expect(await refusal(service.start(NEWER, actor))).toEqual([409, UPDATE_ERROR_CODES.busy]);
     expect(prisma.updateRun.delete).toHaveBeenCalled();
@@ -100,6 +100,6 @@ describe('UpdatesService.start', () => {
 describe('UpdatesService.status', () => {
   it('shows a found release only while it’s newer than the installed one', async () => {
     expect((await setup().service.status()).available?.version).toBe(NEWER);
-    expect((await setup({ available: LARIS_VERSION }).service.status()).available).toBeNull();
+    expect((await setup({ available: ILEX_VERSION }).service.status()).available).toBeNull();
   });
 });

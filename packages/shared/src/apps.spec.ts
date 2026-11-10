@@ -29,7 +29,7 @@ describe('appsFromContainers', () => {
           ports: [{ privatePort: 4533, publicPort: 4600, ip: '0.0.0.0', protocol: 'tcp' }],
         }),
         container({ name: 'db', composeProject: 'music', state: 'exited' }),
-        container({ name: 'laris-postgres-1', composeProject: 'laris', protected: true }),
+        container({ name: 'ilex-postgres-1', composeProject: 'ilex', protected: true }),
         container({ name: 'loose' }),
       ],
       (id) => (id === 'navidrome' ? { port: 4533, path: '/' } : null),

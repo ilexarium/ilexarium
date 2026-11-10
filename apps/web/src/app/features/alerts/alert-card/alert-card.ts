@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Alert } from '@laris/shared';
+import type { Alert } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCircleAlert, lucideTriangleAlert } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -18,7 +18,7 @@ import { SEVERITY_DOTS } from '../alerts.constants';
 
 /** An open alert: what happened, for how long, where to look; it can be acknowledged. */
 @Component({
-  selector: 'laris-alert-card',
+  selector: 'ilex-alert-card',
   imports: [HlmButton, NgIcon, RouterLink, StatusDot, TranslatePipe],
   providers: [provideIcons({ lucideCircleAlert, lucideTriangleAlert })],
   host: { class: 'block' },

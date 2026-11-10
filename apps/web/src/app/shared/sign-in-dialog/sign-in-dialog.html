@@ -20,7 +20,7 @@
             <p hlmAlertDescription>{{ notice | translate }}</p>
           </div>
         }
-        <laris-form-errors [form]="linuxForm" />
+        <ilex-form-errors [form]="linuxForm" />
         <div hlmField>
           <label hlmFieldLabel for="linux-username">{{
             'files.signIn.username' | translate
@@ -35,7 +35,7 @@
             spellcheck="false"
             [formField]="linuxForm.username"
           />
-          <laris-field-errors [field]="linuxForm.username" />
+          <ilex-field-errors [field]="linuxForm.username" />
         </div>
         <div hlmField>
           <label hlmFieldLabel for="linux-password">{{
@@ -51,9 +51,9 @@
               [type]="showPassword() ? 'text' : 'password'"
               [formField]="linuxForm.password"
             />
-            <laris-password-toggle [(visible)]="showPassword" />
+            <ilex-password-toggle [(visible)]="showPassword" />
           </div>
-          <laris-field-errors [field]="linuxForm.password" />
+          <ilex-field-errors [field]="linuxForm.password" />
         </div>
       </form>
     } @else {
@@ -62,7 +62,7 @@
         <p hlmDialogDescription>{{ 'terminal.unlock.text' | translate }}</p>
       </hlm-dialog-header>
       <form id="sign-in-form" [formRoot]="appForm" class="grid gap-5">
-        <laris-form-errors [form]="appForm" />
+        <ilex-form-errors [form]="appForm" />
         <div hlmField>
           <label hlmFieldLabel for="terminal-password">{{
             'terminal.unlock.password' | translate
@@ -78,9 +78,9 @@
               [type]="showPassword() ? 'text' : 'password'"
               [formField]="appForm.password"
             />
-            <laris-password-toggle [(visible)]="showPassword" />
+            <ilex-password-toggle [(visible)]="showPassword" />
           </div>
-          <laris-field-errors [field]="appForm.password" />
+          <ilex-field-errors [field]="appForm.password" />
         </div>
       </form>
     }

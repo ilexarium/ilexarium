@@ -76,7 +76,7 @@ export function parseManifest(text: string): Manifest | null {
     PUBLISHED.test(published) &&
     !Number.isNaN(Date.parse(published)) &&
     // A file name beside the manifest, never an address: the base comes from this machine.
-    archive === `laris-${version}.tar.gz` &&
+    archive === `ilex-${version}.tar.gz` &&
     typeof sha256 === 'string' &&
     SHA256.test(sha256) &&
     Number.isSafeInteger(size) &&

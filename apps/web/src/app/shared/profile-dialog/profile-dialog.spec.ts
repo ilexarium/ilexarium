@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { ProfileUpdate, PublicUser } from '@laris/shared';
+import type { ProfileUpdate, PublicUser } from '@ilex/shared';
 import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../core/auth/testing';
@@ -13,7 +13,7 @@ import { SOURCE_MAX_BYTES } from './profile-dialog.constants';
 
 @Component({
   imports: [ProfileDialog],
-  template: `<laris-profile-dialog
+  template: `<ilex-profile-dialog
     [open]="open()"
     (closed)="open.set(false); closings = closings + 1"
   />`,

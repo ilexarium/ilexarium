@@ -1,5 +1,5 @@
 // Builds a release archive for the installer (docs/plans/installer.md):
-//   release/laris-<version>.tar.gz and its .sha256
+//   release/ilex-<version>.tar.gz and its .sha256
 // holding the built server and web app, their production packages (one archive for amd64 and
 // arm64: no native modules, and Prisma's migration engine for both), the migrations, the catalog
 // and system/ (the installer, the root programs and the helper, units).
@@ -8,7 +8,7 @@
 //
 // RELEASE_URL is where this release's updates come from (docs/plans/install_and_update.md); with
 // it, the public key (RELEASE_PUB, by default system/install/release.pub) goes into the release
-// and release/get-laris.sh is written for that address. Without both, the release can't update
+// and release/get-ilex.sh is written for that address. Without both, the release can't update
 // itself (tests).
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Version ${version} isn't x.y.z`);
-const NAME = `laris-${version}`;
+const NAME = `ilex-${version}`;
 const OUT = join(ROOT, 'release');
 const STAGE = join(OUT, NAME);
 const APP = join(STAGE, 'app');
@@ -61,11 +61,11 @@ console.log(`Building ${NAME}`);
 run('npm', ['run', 'build:shared']);
 // The templates' rules are checked by their tests, not at startup: a bad template never ships.
 run('npx', ['vitest', 'run', 'src/catalog/catalog.spec.ts'], join(ROOT, 'apps/server'));
-run('npm', ['run', 'build', '-w', '@laris/server']);
-run('npm', ['run', 'build', '-w', '@laris/web']);
+run('npm', ['run', 'build', '-w', '@ilex/server']);
+run('npm', ['run', 'build', '-w', '@ilex/web']);
 
 rmSync(STAGE, { recursive: true, force: true });
-rmSync(join(OUT, 'get-laris.sh'), { force: true });
+rmSync(join(OUT, 'get-ilex.sh'), { force: true });
 mkdirSync(APP, { recursive: true });
 
 // The app, laid out like the repository (the workspace links in node_modules point at packages/).
@@ -104,11 +104,11 @@ run(
     '--no-audit',
     '--no-fund',
     '-w',
-    '@laris/server',
+    '@ilex/server',
     '-w',
-    '@laris/shared',
+    '@ilex/shared',
     '-w',
-    '@laris/i18n',
+    '@ilex/i18n',
   ],
   APP,
 );
@@ -134,7 +134,7 @@ for (const target of ENGINE_TARGETS) {
 function* files(dir) {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
-    // Links (the workspaces' in node_modules/@laris) aren't followed: their targets are walked
+    // Links (the workspaces' in node_modules/@ilex) aren't followed: their targets are walked
     // where they are.
     const stat = lstatSync(path);
     if (stat.isDirectory()) yield* files(path);
@@ -153,17 +153,17 @@ copy('catalog', join(STAGE, 'catalog'));
 copy(
   'system',
   join(STAGE, 'system'),
-  (src) => !/\.spec\.ts$|\/testing(\/|$)|tsconfig\.json$|get-laris\.sh$|release\.pub$/.test(src),
+  (src) => !/\.spec\.ts$|\/testing(\/|$)|tsconfig\.json$|get-ilex\.sh$|release\.pub$/.test(src),
 );
 copy('system/install/install.sh', join(STAGE, 'install.sh'));
 writeFileSync(join(STAGE, 'VERSION'), `${version}\n`);
 if (releaseUrl) {
   writeFileSync(join(STAGE, 'release.env'), `RELEASE_URL=${releaseUrl}\n`);
   cpSync(releasePub, join(STAGE, 'release.pub'));
-  const getLaris = readFileSync(join(ROOT, 'system/install/get-laris.sh'), 'utf8')
+  const getIlex = readFileSync(join(ROOT, 'system/install/get-ilex.sh'), 'utf8')
     .replace("RELEASE_URL='@RELEASE_URL@'", `RELEASE_URL='${releaseUrl}'`)
     .replace("PUBLIC_KEY='@PUBLIC_KEY@'", `PUBLIC_KEY='${publicKeyLine}'`);
-  writeFileSync(join(OUT, 'get-laris.sh'), getLaris, { mode: 0o755 });
+  writeFileSync(join(OUT, 'get-ilex.sh'), getIlex, { mode: 0o755 });
 } else {
   console.warn('No RELEASE_URL: this release will not find updates by itself.');
 }

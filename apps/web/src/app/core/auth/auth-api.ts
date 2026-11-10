@@ -7,7 +7,7 @@ import type {
   MeResponse,
   SetupRequest,
   UserResponse,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 @Service()

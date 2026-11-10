@@ -14,7 +14,7 @@ import {
   type ServerMessage,
   serverMessageSchema,
   WS_CLOSE_CODES,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { firstValueFrom } from 'rxjs';
 import { AuthApi } from '../auth/auth-api';
 import { AuthStore } from '../auth/auth-store';

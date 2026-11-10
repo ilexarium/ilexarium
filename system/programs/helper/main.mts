@@ -84,6 +84,6 @@ export function serve(
 }
 
 export function start(): void {
-  // The session ended, or "Lock now": laris-root too (after what it's doing), never left without it.
-  serve('laris-helper', handle, { onEnd: endRoot });
+  // The session ended, or "Lock now": ilex-root too (after what it's doing), never left without it.
+  serve('ilex-helper', handle, { onEnd: endRoot });
 }

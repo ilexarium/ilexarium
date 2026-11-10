@@ -8,7 +8,7 @@ import type { EmptyIcon } from './empty-state.model';
  * `detail` below), and the next action as content (a link or a button), if there is one.
  */
 @Component({
-  selector: 'laris-empty-state',
+  selector: 'ilex-empty-state',
   imports: [NgIcon],
   providers: [provideIcons(EMPTY_ICONS)],
   host: {

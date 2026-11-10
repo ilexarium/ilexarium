@@ -7,7 +7,7 @@ import {
   type ContainerStats,
   HISTORY_WINDOW_MS,
   toContainerHistoryPoint,
-} from '@laris/shared';
+} from '@ilex/shared';
 import {
   auditTime,
   defer,

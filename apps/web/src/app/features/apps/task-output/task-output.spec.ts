@@ -1,12 +1,12 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { AppTask } from '@laris/shared';
+import type { AppTask } from '@ilex/shared';
 import { testTask } from '../../../core/apps/testing';
 import { TaskOutput } from './task-output';
 
 @Component({
   imports: [TaskOutput],
-  template: `<laris-task-output [task]="task()" />`,
+  template: `<ilex-task-output [task]="task()" />`,
 })
 class Host {
   readonly task = signal<AppTask>(testTask());

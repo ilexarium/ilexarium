@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Alert } from '@laris/shared';
+import type { Alert } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
@@ -18,7 +18,7 @@ import type { AlertsMenuRow } from './alerts-menu.model';
  * alerts come in through inputs.
  */
 @Component({
-  selector: 'laris-alerts-menu',
+  selector: 'ilex-alerts-menu',
   imports: [HlmButton, HlmDropdownMenuImports, NgIcon, PluralPipe, RouterLink, TranslatePipe],
   providers: [provideIcons(ALERTS_MENU_ICONS)],
   templateUrl: './alerts-menu.html',

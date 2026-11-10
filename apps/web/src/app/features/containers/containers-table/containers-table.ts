@@ -9,7 +9,7 @@ import {
   type ContainersSnapshot,
   type ContainerState,
   type ContainerActionParams,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideBox, lucideBoxes, lucideLoaderCircle } from '@ng-icons/lucide';
 import { HlmCardImports } from '@ui/card';
@@ -76,7 +76,7 @@ interface Group {
  * a list of cards below, so nothing scrolls sideways on phones and tablets.
  */
 @Component({
-  selector: 'laris-containers-table',
+  selector: 'ilex-containers-table',
   imports: [
     EmptyState,
     ContainerActions,

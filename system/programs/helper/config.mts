@@ -2,7 +2,7 @@ import { join } from 'node:path';
 
 // Tests start it with `node` and a folder of fake programs; installed, the shebang's `env -i`
 // empties the environment, so this is never set.
-export const FAKE_BIN = process.env['LARIS_HELPER_FAKE_BIN'];
+export const FAKE_BIN = process.env['ILEX_HELPER_FAKE_BIN'];
 const program = (path: string) => (FAKE_BIN ? join(FAKE_BIN, path.split('/').pop()!) : path);
 
 export const PROGRAMS = {
@@ -15,7 +15,7 @@ export const PROGRAMS = {
   rm: program('/usr/bin/rm'),
   du: program('/usr/bin/du'),
   id: program('/usr/bin/id'),
-  root: program('/opt/laris/libexec/laris-root.mts'),
+  root: program('/opt/ilex/libexec/ilex-root.mts'),
 };
 
 /** Run by systemd at a task's end, so its result is in its log (never a shell). */
@@ -27,15 +27,15 @@ export const TASK_END = {
 /** The root programs it may start through the account's sudo, and their actions. */
 export const ROOT_PROGRAMS: Record<string, { path: string; actions: readonly string[] }> = {
   backup: {
-    path: program('/opt/laris/libexec/laris-backup.mts'),
+    path: program('/opt/ilex/libexec/ilex-backup.mts'),
     actions: ['configure', 'init', 'start', 'restore-start', 'discard', 'forget', 'passphrase'],
   },
   disk: {
-    path: program('/opt/laris/libexec/laris-disk.mts'),
+    path: program('/opt/ilex/libexec/ilex-disk.mts'),
     actions: ['mount', 'unmount'],
   },
   update: {
-    path: program('/opt/laris/libexec/laris-update.mts'),
+    path: program('/opt/ilex/libexec/ilex-update.mts'),
     actions: ['start'],
   },
 };
@@ -53,17 +53,17 @@ export const COMPOSE_ANSWER_MAX = 128 * 1024;
 /** What is passed on of a program's words (the server keeps 4000 characters of a message). */
 export const MESSAGE_MAX = 4000;
 /** The label naming an app's template (`<id>@<version>`). */
-export const TEMPLATE_LABEL = 'laris.template';
+export const TEMPLATE_LABEL = 'ilex.template';
 /** What is kept of a root program's output: its result line can be longer. */
 export const ROOT_OUTPUT_MAX = 48 * 1024;
 /** sudo waits a few seconds after a wrong password (PAM's delay). */
 export const SUDO_TIMEOUT_MS = 20_000;
-/** laris-root ends this long after its last request (FILES_LIMITS.sudoIdleMinutes in the app). */
+/** ilex-root ends this long after its last request (FILES_LIMITS.sudoIdleMinutes in the app). */
 export const ROOT_IDLE_MS =
-  FAKE_BIN && process.env['LARIS_ROOT_IDLE_MS']
-    ? Number(process.env['LARIS_ROOT_IDLE_MS'])
+  FAKE_BIN && process.env['ILEX_ROOT_IDLE_MS']
+    ? Number(process.env['ILEX_ROOT_IDLE_MS'])
     : 15 * 60_000;
-/** What is read of laris-root's answer lines (a root program's output is the longest). */
+/** What is read of ilex-root's answer lines (a root program's output is the longest). */
 export const ROOT_ANSWER_MAX = 256 * 1024;
 export const KILL_TIMEOUT_MS = 10_000;
 /** Starting a unit, asking for its state, checking a Compose file: quick. */
@@ -82,8 +82,8 @@ export const PASSWORD_MAX = 1024;
 export const PROJECT_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/;
 /** A named volume (Docker's own rule). */
 export const VOLUME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/;
-/** The units it starts: laris-app-<project>-<action>-<time>. */
-export const UNIT_PATTERN = /^laris-app-[a-z0-9][a-z0-9_-]{0,62}-(up|update|down)-\d{8}T\d{6}$/;
+/** The units it starts: ilex-app-<project>-<action>-<time>. */
+export const UNIT_PATTERN = /^ilex-app-[a-z0-9][a-z0-9_-]{0,62}-(up|update|down)-\d{8}T\d{6}$/;
 export const TASK_ACTIONS = {
   up: ['up', '--detach', '--remove-orphans'],
   update: ['up', '--detach', '--pull', 'always', '--remove-orphans'],
@@ -175,14 +175,14 @@ export const NEVER_REMOVED_BELOW = [
   '/lib',
   '/lib32',
   '/lib64',
-  '/opt/laris',
+  '/opt/ilex',
   '/proc',
   '/run',
   '/sbin',
   '/sys',
   '/usr',
   '/var/lib/docker',
-  '/var/lib/laris',
+  '/var/lib/ilex',
 ];
 /** How many paths one request measures or deletes. */
 export const PATHS_MAX = 50;

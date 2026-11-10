@@ -1,4 +1,4 @@
-import { ALERT_LIMITS, type DiskUsage } from '@laris/shared';
+import { ALERT_LIMITS, type DiskUsage } from '@ilex/shared';
 import type { AlertCondition, OpenAlert } from './alerts.model.js';
 import { FULL_FOR_MS } from './alerts.constants.js';
 

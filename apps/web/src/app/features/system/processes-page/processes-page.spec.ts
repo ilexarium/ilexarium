@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { LinuxSession, Process, ProcessesSummary, ProcessesUpdate } from '@laris/shared';
+import type { LinuxSession, Process, ProcessesSummary, ProcessesUpdate } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -215,7 +215,7 @@ describe('ProcessesPage', () => {
   it('the header: CPU with the load in words, memory and swap, waiting, where it goes', async () => {
     const { el, push } = await render();
     await push(update([PYTHON, IMMICH, SSHD]));
-    const header = el.querySelector('laris-process-summary')!.textContent!;
+    const header = el.querySelector('ilex-process-summary')!.textContent!;
     expect(header).toContain('Load 3.20 on 4 cores');
     expect(el.querySelector('[data-load-level]')!.textContent).toBe('busy');
     expect(header).toContain('6.0 GB of 8.0 GB in use');
@@ -223,7 +223,7 @@ describe('ProcessesPage', () => {
     expect(header).toContain('For the disk');
     expect(header).toContain('13%');
     // By CPU, as a share of the machine (per-core sum over 4 cores): anna 37%, immich 3%.
-    const groups = [...el.querySelectorAll('laris-process-summary li')].map((li) =>
+    const groups = [...el.querySelectorAll('ilex-process-summary li')].map((li) =>
       li.textContent!.replace(/\s+/g, ' ').trim(),
     );
     expect(groups[0]).toMatch(/^anna\s*37%/);
@@ -431,7 +431,7 @@ describe('ProcessesPage', () => {
     const { el, push, fixture } = await render();
     await push(update([PYTHON, IMMICH]));
     expect(el.querySelector('table')).toBeNull();
-    const rows = el.querySelectorAll<HTMLElement>('laris-process-list ul > li');
+    const rows = el.querySelectorAll<HTMLElement>('ilex-process-list ul > li');
     expect(rows).toHaveLength(2);
     expect(rows[0].textContent).toContain('python3');
     expect(rows[0].textContent).toContain('anna');

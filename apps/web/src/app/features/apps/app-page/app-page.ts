@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { type AppRemovalItem, catalogIconPath, FILES_ERROR_CODES } from '@laris/shared';
+import { type AppRemovalItem, catalogIconPath, FILES_ERROR_CODES } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowLeft, lucideRefreshCw } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -31,7 +31,7 @@ import { AppPageStore } from './app-page-store';
 
 /** One app: its band, a running task, then Overview (stats, containers, backup, update) | Settings. */
 @Component({
-  selector: 'laris-app-page',
+  selector: 'ilex-app-page',
   imports: [
     AppHeader,
     AppOverview,

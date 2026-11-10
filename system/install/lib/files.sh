@@ -1,21 +1,21 @@
 # system/install/lib/files.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
 # The app's user, the release's files, the settings. Sourced by install.sh.
 
-APP_USER=laris
-OPT=/opt/laris
-ETC=/etc/laris
-VAR=/var/lib/laris
+APP_USER=ilex
+OPT=/opt/ilex
+ETC=/etc/ilex
+VAR=/var/lib/ilex
 PREVIOUS=$OPT/previous
 
 # A system user without a login shell. Its home, the only folder it may write, is
-# /var/lib/laris/app: /var/lib/laris itself is root's, so the app can't swap the backups'
+# /var/lib/ilex/app: /var/lib/ilex itself is root's, so the app can't swap the backups'
 # state folder (written as root) for something else.
 ensure_user() {
   log 'The app’s user'
   if ! getent group "$APP_USER" >/dev/null; then groupadd --system "$APP_USER"; fi
   if ! id -u "$APP_USER" >/dev/null 2>&1; then
     useradd --system --gid "$APP_USER" --home-dir "$VAR/app" --no-create-home \
-      --shell /usr/sbin/nologin --comment 'Laris platform' "$APP_USER"
+      --shell /usr/sbin/nologin --comment 'Ilexarium platform' "$APP_USER"
   fi
   check_not_in_docker_group
   APP_UID="$(id -u "$APP_USER")"
@@ -34,7 +34,7 @@ ensure_folders() {
 }
 
 # The platform's own files — needed before the database starts: its compose file and the
-# proxy's config, the units, the /run/laris folders.
+# proxy's config, the units, the /run/ilex folders.
 install_platform_files() {
   log 'The platform’s files'
   ensure_dir "$OPT/platform" root:root 0755
@@ -44,8 +44,8 @@ install_platform_files() {
   for unit in "$RELEASE"/system/systemd/*.service "$RELEASE"/system/systemd/*.timer; do
     install -o root -g root -m 0644 "$unit" "/etc/systemd/system/$(basename "$unit")"
   done
-  install -o root -g root -m 0644 "$RELEASE/system/install/tmpfiles.conf" /etc/tmpfiles.d/laris.conf
-  systemd-tmpfiles --create /etc/tmpfiles.d/laris.conf
+  install -o root -g root -m 0644 "$RELEASE/system/install/tmpfiles.conf" /etc/tmpfiles.d/ilex.conf
+  systemd-tmpfiles --create /etc/tmpfiles.d/ilex.conf
   info "$OPT/platform, the units"
 }
 
@@ -61,16 +61,16 @@ install_release() {
   local staged
   staged="$(mktemp -d)"
   cp -a "$RELEASE/system/programs/." "$staged/"
-  chmod 0755 "$staged"/laris-*.mts
+  chmod 0755 "$staged"/ilex-*.mts
   replace_tree "$staged" "$OPT/libexec"
   rm -rf "$staged"
-  install -o root -g root -m 0755 "$RELEASE/system/install/laris-setup-code" /usr/local/bin/laris-setup-code
+  install -o root -g root -m 0755 "$RELEASE/system/install/ilex-setup-code" /usr/local/bin/ilex-setup-code
   info "$OPT"
 }
 
 # User units (an app's install or update as the person, with the docker group) need the
 # person's systemd to keep running while they're logged out: lingering, for the account that
-# installs Laris. Other accounts: `loginctl enable-linger` (or Laris uses system units through
+# installs Ilexarium. Other accounts: `loginctl enable-linger` (or Ilexarium uses system units through
 # their sudo).
 enable_lingering() {
   local person="${SUDO_USER:-}"
@@ -83,7 +83,7 @@ enable_lingering() {
 }
 
 # Where updates come from and the key they're checked with: the release's own, written on every
-# install and update (a release built without them can't update itself). laris-update checks a new
+# install and update (a release built without them can't update itself). ilex-update checks a new
 # release with the installed key, so a new key only arrives signed by the old one.
 write_release_settings() {
   local url=''
@@ -97,7 +97,7 @@ write_release_settings() {
 }
 
 # Before an update changes anything: the installed version as it is — the way back
-# (laris-update puts it back if the new one doesn't start). The release's folders whole, the
+# (ilex-update puts it back if the new one doesn't start). The release's folders whole, the
 # files it writes elsewhere with their paths; VERSION last, so a kept copy without it is unfinished.
 keep_previous() {
   log "Keeping $OLD_VERSION (the way back)"
@@ -107,10 +107,10 @@ keep_previous() {
   for dir in app libexec catalog platform; do
     if [[ -d "$OPT/$dir" ]]; then cp -a "$OPT/$dir" "$kept/$dir"; fi
   done
-  for file in /etc/systemd/system/laris*.service /etc/systemd/system/laris*.timer \
+  for file in /etc/systemd/system/ilex*.service /etc/systemd/system/ilex*.timer \
     "$ETC"/{version,app.env,platform.env,wrappers.json,release.env,release.pub} \
-    "$OPT/backup-recovery.md" /etc/tmpfiles.d/laris.conf /etc/ssh/sshd_config.d/laris.conf \
-    /usr/local/bin/laris-setup-code; do
+    "$OPT/backup-recovery.md" /etc/tmpfiles.d/ilex.conf /etc/ssh/sshd_config.d/ilex.conf \
+    /usr/local/bin/ilex-setup-code; do
     if [[ -f "$file" ]]; then cp -a --parents "$file" "$kept/files/"; fi
   done
   printf '%s\n' "$OLD_VERSION" >"$kept/VERSION"
@@ -128,12 +128,12 @@ write_settings() {
   local owner_password docker_gid borg_bin
   owner_password="$(read_setting "$ETC/database.env" POSTGRES_PASSWORD)"
   [[ -n "$owner_password" ]] || owner_password="$(random_hex 24)"
-  OWNER_DATABASE_URL="postgresql://laris_owner:$owner_password@127.0.0.1:5432/laris"
+  OWNER_DATABASE_URL="postgresql://ilex_owner:$owner_password@127.0.0.1:5432/ilex"
 
   write_file "$ETC/database.env" root:root 0600 <<CONF
-POSTGRES_USER=laris_owner
+POSTGRES_USER=ilex_owner
 POSTGRES_PASSWORD=$owner_password
-POSTGRES_DB=laris
+POSTGRES_DB=ilex
 CONF
 
   docker_gid="$(getent group docker | cut -d: -f3 || true)"
@@ -145,7 +145,7 @@ CONF
   borg_bin="$(command -v borg)"
   APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" SSH_UNIT="$SSH_UNIT" node --input-type=module -e '
     const config = {
-      protectedPaths: ["/opt/laris", "/etc/laris", "/var/lib/laris"],
+      protectedPaths: ["/opt/ilex", "/etc/ilex", "/var/lib/ilex"],
       dockerBin: "/usr/bin/docker",
       disk: { systemctlBin: "/usr/bin/systemctl" },
       update: { appGid: Number(process.env.APP_GID), sshUnit: process.env.SSH_UNIT },
@@ -155,15 +155,15 @@ CONF
         appUid: Number(process.env.APP_UID),
         appGid: Number(process.env.APP_GID),
         platform: {
-          container: "laris-postgres-1",
-          database: "laris",
-          user: "laris_owner",
+          container: "ilex-postgres-1",
+          database: "ilex",
+          user: "ilex_owner",
           files: [
-            "/etc/laris/master.key",
-            "/etc/laris/wrappers.json",
-            "/etc/laris/backup.json",
-            "/etc/laris/backup-repository.json",
-            "/etc/systemd/system/laris-backup.timer.d/schedule.conf",
+            "/etc/ilex/master.key",
+            "/etc/ilex/wrappers.json",
+            "/etc/ilex/backup.json",
+            "/etc/ilex/backup-repository.json",
+            "/etc/systemd/system/ilex-backup.timer.d/schedule.conf",
           ],
         },
       },
@@ -181,7 +181,7 @@ CONF
   info "$ETC"
 }
 
-# The machine's settings for the app (/etc/laris/app.env, read by laris.service): where it listens
+# The machine's settings for the app (/etc/ilex/app.env, read by ilex.service): where it listens
 # and its database role's password — made with the role at the first install, then the person's.
 # An update never changes them; only a database without the role (made again, recovered) gets a
 # new password, in DATABASE_URL alone. Needs the database running.
@@ -189,25 +189,25 @@ ensure_app_settings() {
   log 'The app’s settings'
   local role password
   role="$(owner_sql -tA <<'SQL'
-SELECT count(*) FROM pg_roles WHERE rolname = 'laris';
+SELECT count(*) FROM pg_roles WHERE rolname = 'ilex';
 SQL
 )"
   if [[ "$role" == 1 && -f "$ETC/app.env" ]]; then
     owner_sql <<'SQL'
-ALTER ROLE laris WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+ALTER ROLE ilex WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 SQL
     info "$ETC/app.env (kept as it is)"
     return
   fi
   password="$(random_hex 24)"
   owner_sql <<SQL
-SELECT 'CREATE ROLE laris LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'laris')
+SELECT 'CREATE ROLE ilex LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ilex')
 \gexec
-ALTER ROLE laris WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '$password';
+ALTER ROLE ilex WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '$password';
 SQL
   if [[ -f "$ETC/app.env" ]]; then
     { grep -v '^DATABASE_URL=' "$ETC/app.env" || true
-      printf 'DATABASE_URL=postgresql://laris:%s@127.0.0.1:5432/laris\n' "$password"
+      printf 'DATABASE_URL=postgresql://ilex:%s@127.0.0.1:5432/ilex\n' "$password"
     } | write_file "$ETC/app.env" "root:$APP_USER" 0640
     info "$ETC/app.env: a new database password (the database had no role for the app)"
     return
@@ -215,13 +215,13 @@ SQL
   write_file "$ETC/app.env" "root:$APP_USER" 0640 <<CONF
 HOST=127.0.0.1
 PORT=3000
-DATABASE_URL=postgresql://laris:$password@127.0.0.1:5432/laris
+DATABASE_URL=postgresql://ilex:$password@127.0.0.1:5432/ilex
 CONF
   info "$ETC/app.env"
 }
 
 # A setting of the app's, as systemd reads it: the last one, spaces around it and one pair of quotes
-# taken off. The same rule as laris-update's healthUrlOf (laris-update.spec.ts compares them).
+# taken off. The same rule as ilex-update's healthUrlOf (ilex-update.spec.ts compares them).
 app_setting() {
   local value
   value="$(sed -n "s/^[[:space:]]*$1=//p" "$ETC/app.env" 2>/dev/null | tail -n1 | tr -d '\r')"

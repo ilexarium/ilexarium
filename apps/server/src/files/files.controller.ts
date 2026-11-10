@@ -21,7 +21,7 @@ import type {
   LinuxSession,
   LinuxSessionAnswer,
   PublicUser,
-} from '@laris/shared';
+} from '@ilex/shared';
 import contentDisposition from 'content-disposition';
 import type { Request, Response } from 'express';
 import { pipeline } from 'node:stream/promises';
@@ -80,7 +80,7 @@ export class FilesController {
     return this.linuxSessions.signOut(session.id, { user, ip });
   }
 
-  /** Unlocks the account's sudo with its password (the same as its sign-in): laris-root runs. */
+  /** Unlocks the account's sudo with its password (the same as its sign-in): ilex-root runs. */
   @Post('session/sudo')
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
@@ -94,7 +94,7 @@ export class FilesController {
     return this.linuxSessions.unlockSudo(session.id, body.password, { user, ip });
   }
 
-  /** "Lock now": sudo locked (laris-root ends); the Linux session stays. */
+  /** "Lock now": sudo locked (ilex-root ends); the Linux session stays. */
   @Delete('session/sudo')
   @HttpCode(200)
   async lockSudo(

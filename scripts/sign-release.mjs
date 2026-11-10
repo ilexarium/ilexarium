@@ -35,7 +35,7 @@ if (!values.key) {
 }
 const version =
   values.version ?? JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
-const archiveName = `laris-${version}.tar.gz`;
+const archiveName = `ilex-${version}.tar.gz`;
 const archive = join(ROOT, 'release', archiveName);
 if (!existsSync(archive)) {
   console.error(`${relative(ROOT, archive)} not found (npm run release builds it)`);
@@ -49,7 +49,7 @@ const privateKey = createPrivateKey({
 const publicFile = publicKeyFile(privateKey);
 // The release carries the key machines will trust from now on: normally this very key. A new one
 // arrives only signed by the old (key rotation) — on purpose, never by mistake.
-const shipped = execFileSync('tar', ['-xzOf', archive, `laris-${version}/release.pub`], {
+const shipped = execFileSync('tar', ['-xzOf', archive, `ilex-${version}/release.pub`], {
   encoding: 'utf8',
 });
 if (shipped !== publicFile && !values['allow-key-change']) {

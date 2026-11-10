@@ -43,7 +43,7 @@ cpu_arch() {
 version_ge() { [[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" == "$2" ]]; }
 
 # Not while a backup, restore or disk change runs: the installer stops the app and restarts the
-# database. An update from the app runs under laris-update, which holds the lock for it.
+# database. An update from the app runs under ilex-update, which holds the lock for it.
 hold_lock() {
   if [[ "$UPDATE" == 1 && "$(lock_owner "$ROOT_LOCK")" == "$PPID" ]]; then return; fi
   take_lock "$ROOT_LOCK" ||
@@ -54,9 +54,9 @@ hold_lock() {
 check_version() {
   NEW_VERSION="$(cat "$RELEASE/VERSION")"
   OLD_VERSION=''
-  if [[ -f /etc/laris/version ]]; then OLD_VERSION="$(cat /etc/laris/version)"; fi
+  if [[ -f /etc/ilex/version ]]; then OLD_VERSION="$(cat /etc/ilex/version)"; fi
   if [[ -z "$OLD_VERSION" && "$UPDATE" == 1 ]]; then
-    die '--update is for an installed Laris'
+    die '--update is for an installed Ilexarium'
   elif [[ -z "$OLD_VERSION" ]]; then
     info "Installing $NEW_VERSION"
   elif ! version_ge "$NEW_VERSION" "$OLD_VERSION"; then
@@ -73,8 +73,8 @@ check_not_in_docker_group() {
   fi
 }
 
-# After the install: is the installing account set up the way Laris acts as it
-# (docs/plans/machine_check.md)? Not fatal — each problem with what to do; Laris → Settings →
+# After the install: is the installing account set up the way Ilexarium acts as it
+# (docs/plans/machine_check.md)? Not fatal — each problem with what to do; Ilexarium → Settings →
 # Machine check checks again, as the person.
 check_setup() {
   log 'Checking the setup for your account'
@@ -94,13 +94,13 @@ check_setup() {
     info "✓ password logins from this machine, for $person"
   else
     problems=$((problems + 1))
-    # A global "no" never wins over laris.conf's Match block: only a Match block read before it
+    # A global "no" never wins over ilex.conf's Match block: only a Match block read before it
     # does — a drop-in sorted earlier (the main file includes them at its top).
     local turned_off
     turned_off="$(awk 'FNR == 1 { in_match = 0 }
       tolower($1) == "match" { in_match = 1 }
       in_match && tolower($1) == "passwordauthentication" && tolower($2) == "no" { print FILENAME }' \
-      /etc/ssh/sshd_config.d/*.conf 2>/dev/null | grep -vx /etc/ssh/sshd_config.d/laris.conf | sort -u | paste -sd ' ' || true)"
+      /etc/ssh/sshd_config.d/*.conf 2>/dev/null | grep -vx /etc/ssh/sshd_config.d/ilex.conf | sort -u | paste -sd ' ' || true)"
     info "✗ password logins from this machine are off for $person: the Linux sign-in won't work"
     if [[ -n "$turned_off" ]]; then
       info "  look in: $turned_off — a setting there turns them off; then: sudo systemctl reload $SSH_UNIT"
@@ -140,5 +140,5 @@ check_setup() {
   fi
 
   if ((problems > 0)); then info 'Fix these, then check again:'; fi
-  info 'Laris → Settings → Machine check checks again, as you (running this installer again does too)'
+  info 'Ilexarium → Settings → Machine check checks again, as you (running this installer again does too)'
 }

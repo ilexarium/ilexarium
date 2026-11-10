@@ -94,13 +94,13 @@
     </div>
 
     @if (store.rows().length > 0) {
-      <laris-service-list
+      <ilex-service-list
         [rows]="store.rows()"
         (action)="store.act($event)"
         (open)="store.open($event)"
       />
     } @else {
-      <laris-empty-state icon="lucideSearchX" [text]="'systemServices.none' | translate" />
+      <ilex-empty-state icon="lucideSearchX" [text]="'systemServices.none' | translate" />
     }
   } @else if (store.loadError(); as code) {
     <div hlmAlert variant="destructive" role="alert">
@@ -120,7 +120,7 @@
   }
 </div>
 
-<laris-service-sheet
+<ilex-service-sheet
   [row]="store.selectedRow()"
   [details]="store.details()"
   [error]="store.detailsError()"

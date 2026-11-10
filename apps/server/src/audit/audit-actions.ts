@@ -41,8 +41,8 @@ export const AUDIT_ACTIONS = [
   'terminal.close',
   'profile.update',
   'profile.avatar',
-  'laris.update',
-  'laris.update_result',
+  'ilex.update',
+  'ilex.update_result',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

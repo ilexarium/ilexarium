@@ -25,7 +25,7 @@ const exists = (path: string) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'laris-setup-'));
+  dir = await mkdtemp(join(tmpdir(), 'ilex-setup-'));
   tokenFile = join(dir, 'nested', 'setup-token');
   logged = [];
   for (const level of ['log', 'warn', 'error', 'debug'] as const) {

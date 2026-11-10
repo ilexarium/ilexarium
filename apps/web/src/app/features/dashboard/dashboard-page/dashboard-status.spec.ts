@@ -1,4 +1,4 @@
-import type { AppSummary, BackupRun, BackupsStatus, Container, DiskUsage } from '@laris/shared';
+import type { AppSummary, BackupRun, BackupsStatus, Container, DiskUsage } from '@ilex/shared';
 import { testAlert } from '../../../core/alerts/testing';
 import {
   appTiles,
@@ -279,7 +279,7 @@ describe('appTiles and otherContainers', () => {
     container('immich-server-1', { composeProject: 'immich' }),
     container('immich-ml-1', { composeProject: 'immich', state: 'exited' }),
     container('ollama-ollama-1', { composeProject: 'ollama' }),
-    container('laris-postgres-1', { protected: true }),
+    container('ilex-postgres-1', { protected: true }),
     container('my-own-thing'),
   ];
 

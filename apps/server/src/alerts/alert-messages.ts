@@ -1,4 +1,4 @@
-import type { BackupWarning } from '@laris/shared';
+import type { BackupWarning } from '@ilex/shared';
 import type { AlertEvent, AlertMessage, OpenAlert } from './alerts.model.js';
 import { BACKUP_TITLES } from './alerts.constants.js';
 

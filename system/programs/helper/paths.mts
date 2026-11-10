@@ -1,5 +1,5 @@
 // Folders: their sizes (the removal dialog) and deleting them (a removal's ticked folders) — as
-// this account, or by laris-root for what containers wrote as another user.
+// this account, or by ilex-root for what containers wrote as another user.
 
 import { realpathSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -69,7 +69,7 @@ function realLocation(path: string): string {
   }
 }
 
-/** Deletes folders (`rm -r --one-file-system`) — as this account, or by laris-root for `administrator`. */
+/** Deletes folders (`rm -r --one-file-system`) — as this account, or by ilex-root for `administrator`. */
 export async function removePaths(request: Request): Promise<Answer> {
   const list = paths(request);
   const administrator = request['administrator'];

@@ -5,7 +5,7 @@ import {
   type DockerPruneResult,
   type VolumeSizes,
   volumePath,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 /** Docker's unused data, and freeing it (docs/plans/docker_cleanup.md). */

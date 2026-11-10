@@ -1,6 +1,6 @@
 import { Component, signal, viewChild } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { BackupArchive, BackupItem } from '@laris/shared';
+import type { BackupArchive, BackupItem } from '@ilex/shared';
 import { testAppItem, testItem } from '../../../core/backups/testing';
 import type { ItemLabel, ItemRow, RestoreChoice } from '../backups.model';
 import { RestoreDialog } from './restore-dialog';
@@ -18,7 +18,7 @@ const row = (kind: BackupItem['kind'], appRemoved = false): ItemRow => ({
 
 @Component({
   imports: [RestoreDialog],
-  template: `<laris-restore-dialog
+  template: `<ilex-restore-dialog
     [archives]="archives()"
     [labels]="labels"
     (restore)="chosen.set($event)"

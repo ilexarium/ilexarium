@@ -12,7 +12,7 @@ import { StatusRack } from '../status-rack/status-rack';
 import { DashboardPageStore } from './dashboard-page-store';
 
 @Component({
-  selector: 'laris-dashboard-page',
+  selector: 'ilex-dashboard-page',
   imports: [
     ActivityCard,
     AppsCard,

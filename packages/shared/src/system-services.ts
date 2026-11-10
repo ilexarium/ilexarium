@@ -14,21 +14,21 @@ export const SYSTEM_SERVICE_NAME_PATTERN = /^(?!-)[A-Za-z0-9:_.\\@-]{1,240}\.ser
 export const systemServiceNameSchema = z.string().regex(SYSTEM_SERVICE_NAME_PATTERN);
 
 /**
- * Laris's own, and what it runs on — restarting Docker restarts Laris's platform and then Laris
+ * Ilexarium's own, and what it runs on — restarting Docker restarts Ilexarium's platform and then Ilexarium
  * (their `Requires=`), the system bus and a person's own units (apps run as them) take others
- * down: never started, stopped or restarted from here (like `laris.protected` containers).
+ * down: never started, stopped or restarted from here (like `ilex.protected` containers).
  */
-const LARIS_UNITS = /^(?:laris(?:-[^/]+)?|docker|containerd|dbus|dbus-broker|user@[^/]+)\.service$/;
-/** What Laris needs to sign in to the machine (SSH, systemd's own): never stopped. */
+const ILEX_UNITS = /^(?:ilex(?:-[^/]+)?|docker|containerd|dbus|dbus-broker|user@[^/]+)\.service$/;
+/** What Ilexarium needs to sign in to the machine (SSH, systemd's own): never stopped. */
 const ESSENTIAL_UNITS = /^(?:ssh|sshd|systemd-[^/]+)\.service$/;
 
-export const SYSTEM_SERVICE_PROTECTIONS = ['laris', 'essential'] as const;
+export const SYSTEM_SERVICE_PROTECTIONS = ['ilex', 'essential'] as const;
 export const systemServiceProtectionSchema = z.enum(SYSTEM_SERVICE_PROTECTIONS);
 export type SystemServiceProtection = z.infer<typeof systemServiceProtectionSchema>;
 
 /** How a unit is protected, by any of its names (an alias protects like its unit). */
 export function systemServiceProtection(names: string[]): SystemServiceProtection | null {
-  if (names.some((name) => LARIS_UNITS.test(name))) return 'laris';
+  if (names.some((name) => ILEX_UNITS.test(name))) return 'ilex';
   if (names.some((name) => ESSENTIAL_UNITS.test(name))) return 'essential';
   return null;
 }
@@ -42,7 +42,7 @@ export function systemServiceActionAllowed(
   protection: SystemServiceProtection | null,
   action: SystemServiceAction,
 ): boolean {
-  if (protection === 'laris') return false;
+  if (protection === 'ilex') return false;
   if (protection === 'essential') return action !== 'stop';
   return true;
 }
@@ -103,7 +103,7 @@ export const systemServicePath = (name: string) =>
 
 export const SYSTEM_SERVICE_ERROR_CODES = {
   notFound: 'service_not_found',
-  /** Laris's own, or one it needs (stop): not from here. */
+  /** Ilexarium's own, or one it needs (stop): not from here. */
   protected: 'service_protected',
   /** systemctl said no (the unit failed to start, or the job was refused). */
   actionFailed: 'service_action_failed',

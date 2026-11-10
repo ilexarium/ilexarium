@@ -1,4 +1,4 @@
-import type { BackupItem, BackupItemUpdate } from '@laris/shared';
+import type { BackupItem, BackupItemUpdate } from '@ilex/shared';
 
 /** An item as the page shows it: what it is called. */
 export interface ItemRow {

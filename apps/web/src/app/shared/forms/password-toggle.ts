@@ -6,7 +6,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 
 /** Show/hide button for password fields. Place inside a `relative` wrapper around the input. */
 @Component({
-  selector: 'laris-password-toggle',
+  selector: 'ilex-password-toggle',
   imports: [HlmButton, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideEye, lucideEyeOff })],
   templateUrl: './password-toggle.html',

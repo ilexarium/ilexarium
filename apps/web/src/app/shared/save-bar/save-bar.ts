@@ -8,7 +8,7 @@ import { HlmButton } from '@ui/button';
  * instead of it, with `actions` off — e.g. a conflict to settle first).
  */
 @Component({
-  selector: 'laris-save-bar',
+  selector: 'ilex-save-bar',
   imports: [HlmButton, TranslatePipe],
   host: {
     class:

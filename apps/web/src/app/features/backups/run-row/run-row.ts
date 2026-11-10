@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import type { BackupRun } from '@laris/shared';
+import type { BackupRun } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Formatter } from '../../../shared/format/formatter';
 import { StatusDot } from '../../../shared/status-dot/status-dot';
@@ -12,7 +12,7 @@ import type { ItemLabel } from '../backups.model';
  * — opened, each item's part and the output. UI only: opening asks for the output (`opened`).
  */
 @Component({
-  selector: 'laris-run-row',
+  selector: 'ilex-run-row',
   imports: [StatusDot, TranslatePipe],
   host: { class: 'block' },
   templateUrl: './run-row.html',

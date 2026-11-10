@@ -1,4 +1,4 @@
-// A fake `kill` for laris-helper.spec.ts (copied into the test's bin folder as `kill`). Records
+// A fake `kill` for ilex-helper.spec.ts (copied into the test's bin folder as `kill`). Records
 // every call (args, the environment it got) in kill-calls.jsonl. PID 404: no such process, 403: not
 // permitted, 500: some other failure; any other PID succeeds.
 const fs = require('node:fs');

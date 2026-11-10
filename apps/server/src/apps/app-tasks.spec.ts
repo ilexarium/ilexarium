@@ -6,15 +6,15 @@ import { TASK_TAIL_BYTES } from './apps.constants.js';
 
 describe('a task’s log', () => {
   it('its result: the marker, then SERVICE_RESULT', () => {
-    expect(taskResult('pulling\nstarted\n@@laris-result\nsuccess\nexited\n0\n')).toEqual({
+    expect(taskResult('pulling\nstarted\n@@ilex-result\nsuccess\nexited\n0\n')).toEqual({
       succeeded: true,
     });
-    expect(taskResult('…\n@@laris-result\nexit-code\nexited\n1\n')).toEqual({ succeeded: false });
+    expect(taskResult('…\n@@ilex-result\nexit-code\nexited\n1\n')).toEqual({ succeeded: false });
     expect(taskResult('still going\n')).toBeNull();
   });
 
   it('its lines: colours and carriage returns out, the result lines left out', () => {
-    expect(taskLines('\u001b[32mStarted\u001b[0m\r\nok\n@@laris-result\nsuccess\n')).toEqual([
+    expect(taskLines('\u001b[32mStarted\u001b[0m\r\nok\n@@ilex-result\nsuccess\n')).toEqual([
       'Started',
       'ok',
     ]);
@@ -55,7 +55,7 @@ describe('composeFacts', () => {
 describe('AppTasks.read', () => {
   const FOLDER = '/home/anna/apps/music';
   const record = {
-    unit: 'laris-app-music-up-1',
+    unit: 'ilex-app-music-up-1',
     system: false,
     action: 'up',
     log: '1-up.log',
@@ -101,7 +101,7 @@ describe('AppTasks.read', () => {
   it('a long log: its end (the reason it failed), from a line start, up to the result', async () => {
     const long = `${'x'.repeat(99)}\n`.repeat(TASK_TAIL_BYTES / 50);
     const read = reading(
-      `${long}Error: pull access denied\n@@laris-result\nexit-code\nexited\n1\n`,
+      `${long}Error: pull access denied\n@@ilex-result\nexit-code\nexited\n1\n`,
       '',
     );
     const task = (await read())!;

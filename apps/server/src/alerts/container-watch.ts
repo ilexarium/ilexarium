@@ -1,4 +1,4 @@
-import { ALERT_LIMITS, type ContainerHealth } from '@laris/shared';
+import { ALERT_LIMITS, type ContainerHealth } from '@ilex/shared';
 import type { AlertCondition, OpenAlert, WatchedContainer } from './alerts.model.js';
 import {
   DOWN_AFTER_MS,

@@ -8,7 +8,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import type { FileEntry, LinuxSignInRequest } from '@laris/shared';
+import type { FileEntry, LinuxSignInRequest } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowUp,
@@ -40,7 +40,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
  * before replacing a file.
  */
 @Component({
-  selector: 'laris-files-page',
+  selector: 'ilex-files-page',
   imports: [
     EmptyState,
     FileDeleteDialog,

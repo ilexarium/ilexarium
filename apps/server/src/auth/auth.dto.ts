@@ -1,4 +1,4 @@
-import { changePasswordRequestSchema, loginRequestSchema, setupRequestSchema } from '@laris/shared';
+import { changePasswordRequestSchema, loginRequestSchema, setupRequestSchema } from '@ilex/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class LoginDto extends zodDto(loginRequestSchema) {}

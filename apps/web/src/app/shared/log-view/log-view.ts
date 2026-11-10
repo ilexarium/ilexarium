@@ -43,7 +43,7 @@ import { Translator } from '../../core/i18n/translator';
  *   alone); "Load older" above the first line when there's more.
  */
 @Component({
-  selector: 'laris-log-view',
+  selector: 'ilex-log-view',
   imports: [HlmButton, HlmInput, LogTimePipe, NgIcon, TranslatePipe],
   providers: [
     provideIcons({

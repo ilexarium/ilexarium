@@ -1,4 +1,4 @@
-# Navidrome, from the Laris template (catalog/navidrome). This folder is yours: change anything.
+# Navidrome, from the Ilexarium template (catalog/navidrome). This folder is yours: change anything.
 services:
   navidrome:
     image: deluan/navidrome:${NAVIDROME_VERSION}
@@ -13,7 +13,7 @@ services:
       - ${MUSIC_DIR}:/music:ro
       - ${DATA_DIR}:/data
     labels:
-      laris.template: navidrome@2
+      ilex.template: navidrome@2
     restart: unless-stopped
     logging:
       driver: json-file

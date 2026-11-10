@@ -1,4 +1,4 @@
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { AuditEntry } from '../audit/audit.model.js';
 import { CleanupError, type DockerControl } from '../docker/docker-control.js';
@@ -19,7 +19,7 @@ const ACTOR = { user: USER, ip: '127.0.0.1' };
 
 const IMAGE = { id: 'aaaaaaaaaaaa', tags: ['debian:13'], bytes: 300, created: null };
 const VOLUMES = [
-  { name: 'laris_cache', composeProject: 'laris', anonymous: false, created: null },
+  { name: 'ilex_cache', composeProject: 'ilex', anonymous: false, created: null },
   { name: 'music_cache', composeProject: 'music', anonymous: false, created: null },
   { name: 'f'.repeat(64), composeProject: null, anonymous: true, created: null },
 ];
@@ -31,11 +31,11 @@ function setup({ changing = false } = {}) {
   const docker = {
     diskUsage: vi.fn(async () => ({ images: [IMAGE], imagesBytes: 300, buildCacheBytes: 15 })),
     unusedVolumes: vi.fn(async () => VOLUMES),
-    protectedProjects: vi.fn(async () => new Set(['laris'])),
+    protectedProjects: vi.fn(async () => new Set(['ilex'])),
     volumeSizes: vi.fn(
       async () =>
         new Map<string, number | null>([
-          ['laris_cache', 1],
+          ['ilex_cache', 1],
           ['music_cache', 2100],
           ['in_use', 5],
         ]),
@@ -210,13 +210,13 @@ describe('DockerCleanupService', () => {
 
     it('refuses the platform’s own volumes', async () => {
       const { service, control, calls, entries } = setup();
-      await expect(service.removeVolume('laris_cache', ACTOR)).rejects.toMatchObject({
+      await expect(service.removeVolume('ilex_cache', ACTOR)).rejects.toMatchObject({
         status: 403,
         response: { code: 'volume_protected' },
       });
       expect(control.removeVolume).not.toHaveBeenCalled();
       expect(calls).toEqual(['audit failure']);
-      expect(entries[0].details).toEqual({ volume: 'laris_cache', reason: 'volume_protected' });
+      expect(entries[0].details).toEqual({ volume: 'ilex_cache', reason: 'volume_protected' });
     });
 
     it('refuses while apps are being changed', async () => {

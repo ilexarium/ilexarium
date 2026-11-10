@@ -1,7 +1,7 @@
 import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto';
 
 // minisign's format, prehashed Ed25519 (the signature covers the file's BLAKE2b-512) — the app's
-// own copy; laris-update has its own (system/programs/lib/minisign.mts), get-laris.sh uses openssl.
+// own copy; ilex-update has its own (system/programs/lib/minisign.mts), get-ilex.sh uses openssl.
 
 const PUBLIC_KEY_BYTES = 42;
 const SIGNATURE_BYTES = 74;

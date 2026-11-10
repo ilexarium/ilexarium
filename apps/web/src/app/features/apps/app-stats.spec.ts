@@ -1,4 +1,4 @@
-import type { Container, ContainerHistoryPoint } from '@laris/shared';
+import type { Container, ContainerHistoryPoint } from '@ilex/shared';
 import { appStats, appTrends, shortFolder } from './app-stats';
 
 const container = (id: string, change: Partial<Container> = {}): Container => ({

@@ -7,15 +7,15 @@ describe('browser storage', () => {
 
   it('reads back what was written', () => {
     stub = stubLocalStorage();
-    writeStored(window, 'laris.test', 'dark');
-    expect(readStored(window, 'laris.test')).toBe('dark');
-    expect(readStored(window, 'laris.missing')).toBeNull();
+    writeStored(window, 'ilex.test', 'dark');
+    expect(readStored(window, 'ilex.test')).toBe('dark');
+    expect(readStored(window, 'ilex.missing')).toBeNull();
   });
 
   it('never throws when reading or writing is refused', () => {
     stub = stubLocalStorage({ blocked: true });
-    expect(readStored(window, 'laris.test')).toBeNull();
-    expect(() => writeStored(window, 'laris.test', 'dark')).not.toThrow();
+    expect(readStored(window, 'ilex.test')).toBeNull();
+    expect(() => writeStored(window, 'ilex.test', 'dark')).not.toThrow();
   });
 
   it('never throws when storage itself is refused', () => {
@@ -24,12 +24,12 @@ describe('browser storage', () => {
         throw new DOMException('denied', 'SecurityError');
       },
     } as unknown as Window;
-    expect(readStored(blocked, 'laris.test')).toBeNull();
-    expect(() => writeStored(blocked, 'laris.test', 'dark')).not.toThrow();
+    expect(readStored(blocked, 'ilex.test')).toBeNull();
+    expect(() => writeStored(blocked, 'ilex.test', 'dark')).not.toThrow();
   });
 
   it('does nothing without a window', () => {
-    expect(readStored(null, 'laris.test')).toBeNull();
-    expect(() => writeStored(null, 'laris.test', 'dark')).not.toThrow();
+    expect(readStored(null, 'ilex.test')).toBeNull();
+    expect(() => writeStored(null, 'ilex.test', 'dark')).not.toThrow();
   });
 });

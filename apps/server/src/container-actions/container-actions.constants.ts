@@ -1,5 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
-import { CONTAINER_ACTION_ERROR_CODES, type ContainerActionErrorCode } from '@laris/shared';
+import { CONTAINER_ACTION_ERROR_CODES, type ContainerActionErrorCode } from '@ilex/shared';
 import type { ContainerActionFailure } from '../docker/docker.model.js';
 
 /** Per IP: plenty for clicking through the menu, not for a script stopping everything in a loop. */

@@ -13,7 +13,7 @@ import {
   WsAuthenticator,
 } from '@nestjs/authentication';
 import { filter, type Subscription } from 'rxjs';
-import { WS_CLOSE_CODES } from '@laris/shared';
+import { WS_CLOSE_CODES } from '@ilex/shared';
 import { WebSocket } from 'ws';
 import { MessageRateLimiter } from './message-rate-limiter.js';
 import { INTERNAL_ERROR, POLICY_VIOLATION, REALTIME_OPTIONS } from './realtime.constants.js';

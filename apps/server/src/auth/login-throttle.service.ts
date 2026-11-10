@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { AUTH_ERROR_CODES, type ApiErrorResponse } from '@laris/shared';
+import { AUTH_ERROR_CODES, type ApiErrorResponse } from '@ilex/shared';
 
 const FIRST_DELAY_MS = 1_000;
 const MAX_DELAY_MS = 60_000;

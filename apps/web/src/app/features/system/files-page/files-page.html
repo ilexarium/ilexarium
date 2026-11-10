@@ -5,7 +5,7 @@
   </div>
 } @else if (!filesPageStore.session()) {
   <div class="grid min-h-[calc(100dvh-7rem)] place-items-center py-8">
-    <laris-empty-state
+    <ilex-empty-state
       class="w-full max-w-md"
       icon="lucideFolderLock"
       [text]="'files.signIn.title' | translate"
@@ -14,7 +14,7 @@
       <button #signInButton hlmBtn (click)="signInOpen.set(true)">
         {{ 'files.signIn.button' | translate }}
       </button>
-    </laris-empty-state>
+    </ilex-empty-state>
   </div>
 } @else {
   <div
@@ -122,7 +122,7 @@
 
     @if (filesPageStore.list(); as list) {
       @if (list.entries.length) {
-        <laris-file-list
+        <ilex-file-list
           [entries]="list.entries"
           [urlFor]="urlFor"
           [busy]="busy()"
@@ -130,7 +130,7 @@
           (action)="act($event)"
         />
       } @else {
-        <laris-empty-state icon="lucideFolderOpen" [text]="'files.empty' | translate" />
+        <ilex-empty-state icon="lucideFolderOpen" [text]="'files.empty' | translate" />
       }
     } @else if (filesPageStore.loading()) {
       <div class="grid gap-2" role="status" [attr.aria-label]="'files.loading' | translate">
@@ -150,8 +150,8 @@
   </div>
 }
 
-<laris-file-name-dialog />
-<laris-file-delete-dialog (confirm)="filesPageStore.delete($event)" />
+<ilex-file-name-dialog />
+<ilex-file-delete-dialog (confirm)="filesPageStore.delete($event)" />
 
 <hlm-alert-dialog #replaceDialog>
   <hlm-alert-dialog-content *hlmAlertDialogPortal>
@@ -193,7 +193,7 @@
   </hlm-alert-dialog-content>
 </hlm-alert-dialog>
 
-<laris-sign-in-dialog
+<ilex-sign-in-dialog
   title="files.signIn.title"
   text="files.signIn.text"
   [open]="signInOpen()"

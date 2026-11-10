@@ -1,9 +1,9 @@
-<laris-auth-frame
+<ilex-auth-frame
   [heading]="'pages.login' | translate"
   [description]="'auth.login.description' | translate"
 >
   @if (!secure) {
-    <laris-insecure-context-notice />
+    <ilex-insecure-context-notice />
   } @else {
     <form [formRoot]="form" class="grid gap-5">
       @if (expired) {
@@ -12,7 +12,7 @@
           <p hlmAlertDescription>{{ 'auth.login.expiredText' | translate }}</p>
         </div>
       }
-      <laris-form-errors [form]="form" />
+      <ilex-form-errors [form]="form" />
 
       <div hlmField>
         <label hlmFieldLabel for="username">{{ 'auth.username' | translate }}</label>
@@ -25,7 +25,7 @@
           autocapitalize="none"
           spellcheck="false"
         />
-        <laris-field-errors [field]="form.username" />
+        <ilex-field-errors [field]="form.username" />
       </div>
 
       <div hlmField>
@@ -40,9 +40,9 @@
             [formField]="form.password"
             autocomplete="current-password"
           />
-          <laris-password-toggle [(visible)]="showPassword" />
+          <ilex-password-toggle [(visible)]="showPassword" />
         </div>
-        <laris-field-errors [field]="form.password" />
+        <ilex-field-errors [field]="form.password" />
       </div>
 
       <button hlmBtn type="submit" class="w-full" [disabled]="form().submitting()">
@@ -50,4 +50,4 @@
       </button>
     </form>
   }
-</laris-auth-frame>
+</ilex-auth-frame>

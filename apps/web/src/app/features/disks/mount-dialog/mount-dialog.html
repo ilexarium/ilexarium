@@ -7,7 +7,7 @@
       <p hlmAlertDialogDescription>{{ 'disks.mountDialog.text' | translate }}</p>
     </hlm-alert-dialog-header>
     <form [formRoot]="form" class="grid gap-4">
-      <laris-form-errors [form]="form" />
+      <ilex-form-errors [form]="form" />
       <div hlmField>
         <label hlmFieldLabel for="mount-point">{{
           'disks.mountDialog.mountPoint' | translate
@@ -20,7 +20,7 @@
           spellcheck="false"
           [formField]="form.mountPoint"
         />
-        <laris-field-errors [field]="form.mountPoint" />
+        <ilex-field-errors [field]="form.mountPoint" />
         <p class="text-sm text-muted-foreground">
           {{ 'disks.mountDialog.mountPointHelp' | translate }}
         </p>

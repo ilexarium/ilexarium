@@ -1,4 +1,4 @@
-import type { AppState, AppTaskState } from '@laris/shared';
+import type { AppState, AppTaskState } from '@ilex/shared';
 import type { StatusTone } from '../../shared/status-badge/status-badge.model';
 import type { DotTone } from '../../shared/status-dot/status-dot.model';
 

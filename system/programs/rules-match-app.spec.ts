@@ -28,7 +28,7 @@ import {
   SYSTEM_SERVICE_NAME_PATTERN,
   TEMPLATE_LABEL,
   VOLUME_NAME_PATTERN,
-} from '@laris/shared';
+} from '@ilex/shared';
 import {
   HELPER_ANSWER_MAX,
   HELPER_MESSAGE_MAX,
@@ -105,7 +105,7 @@ describe('the app and the root programs check the same rules', () => {
       '/var/x',
       '/srv/../etc',
       'x',
-      '/opt/laris/y',
+      '/opt/ilex/y',
       '/a b',
     ]) {
       let program = true;
@@ -173,7 +173,7 @@ describe('the app and the root programs check the same rules', () => {
     const good = {
       version: '0.2.0',
       published: '2026-11-20T10:00:00Z',
-      archive: 'laris-0.2.0.tar.gz',
+      archive: 'ilex-0.2.0.tar.gz',
       sha256: 'a'.repeat(64),
       size: 1000,
     };
@@ -181,9 +181,9 @@ describe('the app and the root programs check the same rules', () => {
       good,
       { ...good, notes: 'NOTES.md' },
       { ...good, notes: 'https://elsewhere/notes' },
-      { ...good, archive: 'https://elsewhere/laris-0.2.0.tar.gz' },
-      { ...good, archive: '../laris-0.2.0.tar.gz' },
-      { ...good, archive: 'laris-0.3.0.tar.gz' },
+      { ...good, archive: 'https://elsewhere/ilex-0.2.0.tar.gz' },
+      { ...good, archive: '../ilex-0.2.0.tar.gz' },
+      { ...good, archive: 'ilex-0.3.0.tar.gz' },
       { ...good, version: '0.2' },
       { ...good, version: '01.2.0' },
       { ...good, published: '2026-11-20' },

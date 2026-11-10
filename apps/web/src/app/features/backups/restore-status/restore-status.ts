@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import type { BackupRestore } from '@laris/shared';
+import type { BackupRestore } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideLoaderCircle } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -16,7 +16,7 @@ import type { ItemLabel } from '../backups.model';
  * `apply` offers its restored files (compose file, versions). UI only: the clicks go out.
  */
 @Component({
-  selector: 'laris-restore-status',
+  selector: 'ilex-restore-status',
   imports: [HlmAlertImports, HlmButton, HlmCardImports, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideLoaderCircle })],
   templateUrl: './restore-status.html',

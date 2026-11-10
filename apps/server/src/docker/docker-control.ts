@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { containerNameSchema, volumeNameSchema } from '@laris/shared';
+import { containerNameSchema, volumeNameSchema } from '@ilex/shared';
 import type Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
 import { ACTION_TIMEOUT_MS, PRUNE_TIMEOUT_MS } from './docker-control.constants.js';

@@ -1,6 +1,6 @@
-import { flattenMessages } from '@laris/i18n';
+import { flattenMessages } from '@ilex/i18n';
 import { describe, expect, it } from 'vitest';
-import en from '@laris/i18n/en.json' with { type: 'json' };
+import en from '@ilex/i18n/en.json' with { type: 'json' };
 import {
   emailChannelFormSchema,
   emailChannelUpdateSchema,
@@ -15,7 +15,7 @@ const email = {
   port: 587,
   username: 'alerts',
   password: 'pw',
-  from: 'laris@example.com',
+  from: 'ilex@example.com',
   to: 'me@example.com',
 };
 
@@ -37,7 +37,7 @@ describe('alert channel settings', () => {
   });
 
   it('takes a topic URL: http(s), a topic name, no login, query or fragment', () => {
-    for (const url of ['https://ntfy.sh/laris-7f3k9q2m', 'http://192.168.1.20:8080/ntfy/alerts']) {
+    for (const url of ['https://ntfy.sh/ilex-7f3k9q2m', 'http://192.168.1.20:8080/ntfy/alerts']) {
       expect(ntfyTopicUrlSchema.safeParse(url).success, url).toBe(true);
     }
     for (const url of [

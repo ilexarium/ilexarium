@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { AppField } from '@laris/shared';
+import type { AppField } from '@ilex/shared';
 import { AppFields } from './app-fields';
 
 const field = (key: string, kind: AppField['kind'], value = '', advanced = false): AppField => ({
@@ -14,7 +14,7 @@ const field = (key: string, kind: AppField['kind'], value = '', advanced = false
 
 @Component({
   imports: [AppFields],
-  template: `<laris-app-fields
+  template: `<ilex-app-fields
     [fields]="fields()"
     [values]="values"
     templateId="immich"

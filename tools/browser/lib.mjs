@@ -32,8 +32,8 @@ export async function openPage({ lang = 'en', theme = 'light', size = 'desktop' 
   await context.addInitScript(
     ([l, t]) => {
       // The app's keys: LANGUAGE_STORAGE_KEY and THEME_STORAGE_KEY (apps/web/src/app/core/…).
-      localStorage.setItem('laris.language', l);
-      localStorage.setItem('laris.theme', t);
+      localStorage.setItem('ilex.language', l);
+      localStorage.setItem('ilex.theme', t);
     },
     [lang, theme],
   );

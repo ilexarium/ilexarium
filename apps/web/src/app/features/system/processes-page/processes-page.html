@@ -1,6 +1,6 @@
 <div class="grid gap-4">
   @if (store.summary(); as summary) {
-    <laris-process-summary
+    <ilex-process-summary
       [summary]="summary"
       [loadLevel]="store.loadLevel()"
       [groups]="store.groups()"
@@ -94,7 +94,7 @@
         </button>
       }
     </div>
-    <laris-process-list
+    <ilex-process-list
       [processes]="store.shownRows()"
       [sort]="store.sort()"
       [descending]="store.descending()"
@@ -121,11 +121,11 @@
   }
 </div>
 
-<laris-end-process-dialog
+<ilex-end-process-dialog
   [account]="store.linux()?.username ?? null"
   (confirm)="store.end($event)"
 />
-<laris-sign-in-dialog
+<ilex-sign-in-dialog
   [open]="signInOpen()"
   title="processes.signIn.title"
   text="processes.signIn.text"

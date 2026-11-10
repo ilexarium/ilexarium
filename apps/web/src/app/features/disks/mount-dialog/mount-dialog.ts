@@ -5,7 +5,7 @@ import {
   type DiskMountRequest,
   diskMountRequestSchema,
   suggestDiskName,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
@@ -25,7 +25,7 @@ import type { MountTarget } from '../disks.model';
  * the page store, as the person (their sudo).
  */
 @Component({
-  selector: 'laris-mount-dialog',
+  selector: 'ilex-mount-dialog',
   imports: [
     FieldErrors,
     FormErrors,

@@ -11,7 +11,7 @@ import {
   backupRunIdParamsSchema,
   backupRunRequestSchema,
   backupSetupRequestSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class BackupSetupDto extends zodDto(backupSetupRequestSchema) {}

@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { LinuxSession, PersonCheck } from '@laris/shared';
+import type { LinuxSession, PersonCheck } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -89,7 +89,7 @@ describe('MachineCheckPage', () => {
     const { rows, api } = await render();
     expect(rows().map(([title]) => title)).toEqual([
       'Signing in to Linux — not run yet',
-      'Laris’s helper — not run yet',
+      'Ilexarium’s helper — not run yet',
       'User units — not run yet',
       'sudo — not run yet',
       'Docker for apps — not run yet',
@@ -106,7 +106,7 @@ describe('MachineCheckPage', () => {
     expect(api.person).toHaveBeenCalledTimes(1);
     expect(rows()).toEqual([
       ['Signing in to Linux — passed', 'Signed in as anna.'],
-      ['Laris’s helper — passed', 'It answers, as your account.'],
+      ['Ilexarium’s helper — passed', 'It answers, as your account.'],
       ['User units — passed', 'Your account’s systemd starts units.'],
       ['sudo — passed', 'Unlocked: administrator tasks work.'],
       ['Docker for apps — information', 'Your apps run as your own units, with the docker group.'],
@@ -137,7 +137,7 @@ describe('MachineCheckPage', () => {
       docker: null,
     });
     buttonIn(el, 'Check this machine').click();
-    await vi.waitFor(() => expect(rows()[1][0]).toBe('Laris’s helper — failed'));
+    await vi.waitFor(() => expect(rows()[1][0]).toBe('Ilexarium’s helper — failed'));
     await fixture.whenStable();
     expect(rows()[1][2]).toBe('sudo ./install.sh');
     expect(el.querySelector('code')!.getAttribute('dir')).toBe('ltr');
@@ -197,12 +197,12 @@ describe('MachineCheckPage', () => {
     await fixture.whenStable();
     expect(error.mock.calls[0][0]).toBe('The check couldn’t be run');
     expect(rows()[0][0]).toBe('Signing in to Linux — passed');
-    expect(rows()[1][0]).toBe('Laris’s helper — not checked');
+    expect(rows()[1][0]).toBe('Ilexarium’s helper — not checked');
   });
 
   it('sudo ended on the server though this page thought it unlocked: the prompt again', async () => {
     const { el, rows, filesApi, unlock, fixture } = await render(unlocked());
-    // laris-root ended meanwhile (another tab's "Lock now", its idle end).
+    // ilex-root ended meanwhile (another tab's "Lock now", its idle end).
     filesApi.session.mockReturnValue(of({ session: ANNA }));
     buttonIn(el, 'Check this machine').click();
     await unlock();

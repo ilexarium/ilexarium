@@ -1,5 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
-import type { SystemSnapshot } from '@laris/shared';
+import type { SystemSnapshot } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowDown,
@@ -21,7 +21,7 @@ import type { Tone } from './metric-tiles.model';
 
 /** CPU, memory, network and temperature: each a value, a word and its recent line. */
 @Component({
-  selector: 'laris-metric-tiles',
+  selector: 'ilex-metric-tiles',
   imports: [NgIcon, Sparkline, TextPipe, TranslatePipe],
   providers: [
     provideIcons({

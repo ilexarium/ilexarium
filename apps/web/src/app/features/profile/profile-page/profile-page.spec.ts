@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import { of } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';

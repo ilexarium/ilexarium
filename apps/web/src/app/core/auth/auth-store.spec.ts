@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { Language } from '@laris/i18n';
+import type { Language } from '@ilex/i18n';
 import { of, throwError } from 'rxjs';
 import { LanguageService } from '../i18n/language';
 import { provideRouter, Router } from '@angular/router';

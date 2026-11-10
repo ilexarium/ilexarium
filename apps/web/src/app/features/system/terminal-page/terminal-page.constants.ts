@@ -1,4 +1,4 @@
-import { TERMINAL_CLOSE_CODES } from '@laris/shared';
+import { TERMINAL_CLOSE_CODES } from '@ilex/shared';
 import type { TerminalClosedReason } from '../terminal.model';
 
 /** `WebSocket.OPEN`, without needing the global (tests use a fake socket). */

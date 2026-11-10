@@ -6,7 +6,7 @@ import {
   type FileList,
   type FileSummary,
   type FileType,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { randomBytes } from 'node:crypto';
 import { posix } from 'node:path';
 import { Transform, type Readable } from 'node:stream';
@@ -178,7 +178,7 @@ export class FilesService {
     }
     const temporary = posix.join(
       folder,
-      `.${target.name}.laris-upload-${randomBytes(6).toString('hex')}`,
+      `.${target.name}.ilex-upload-${randomBytes(6).toString('hex')}`,
     );
     let written = 0;
     const counter = new Transform({

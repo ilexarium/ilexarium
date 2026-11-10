@@ -5,7 +5,7 @@ import type { WithErrors } from './forms.model';
 
 /** The errors that belong to no single field (a wrong password, the server unreachable). */
 @Component({
-  selector: 'laris-form-errors',
+  selector: 'ilex-form-errors',
   imports: [HlmAlertImports, ErrorTextPipe],
   host: { class: 'contents' },
   templateUrl: './form-errors.html',

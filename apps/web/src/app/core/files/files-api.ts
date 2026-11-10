@@ -7,7 +7,7 @@ import type {
   LinuxSessionAnswer,
   LinuxSignInRequest,
   LinuxSudoRequest,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { filter, map, type Observable } from 'rxjs';
 import { STRICT_QUERY_CODEC } from '../http/strict-query.constants';
 

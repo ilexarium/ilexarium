@@ -5,7 +5,7 @@ import type { DotTone } from './status-dot.model';
 
 @Component({
   imports: [StatusDot],
-  template: `<laris-status-dot [tone]="tone()">Running</laris-status-dot>`,
+  template: `<ilex-status-dot [tone]="tone()">Running</ilex-status-dot>`,
 })
 class Host {
   readonly tone = signal<DotTone>('live');

@@ -5,12 +5,12 @@ export interface FieldContext {
   timezone: string;
 }
 
-/** `.laris/task.json`: the app's latest task, written by the helper as it starts it. */
+/** `.ilex/task.json`: the app's latest task, written by the helper as it starts it. */
 export interface TaskRecord {
   unit: string;
   system: boolean;
   action: 'up' | 'update' | 'down';
-  /** Its log's name in `.laris/tasks/`. */
+  /** Its log's name in `.ilex/tasks/`. */
   log: string;
   startedAt: string;
 }

@@ -8,7 +8,7 @@ import { AlertsStore } from '../../core/alerts/alerts-store';
 import { BackupsStore } from '../../core/backups/backups-store';
 import { LanguageService } from '../../core/i18n/language';
 import { APP_NAME } from '../../core/page-title/page-title';
-import { LarisMark } from '../../shared/brand/laris-mark';
+import { IlexMark } from '../../shared/brand/ilex-mark';
 import { NAV_ICONS, NAVIGATION } from '../navigation';
 
 /**
@@ -16,8 +16,8 @@ import { NAV_ICONS, NAVIGATION } from '../navigation';
  * a slide-out sheet on phones, closed again when a page is chosen.
  */
 @Component({
-  selector: 'laris-sidebar',
-  imports: [HlmSidebarImports, LarisMark, NgIcon, RouterLink, RouterLinkActive, TranslatePipe],
+  selector: 'ilex-sidebar',
+  imports: [HlmSidebarImports, IlexMark, NgIcon, RouterLink, RouterLinkActive, TranslatePipe],
   providers: [provideIcons(NAV_ICONS)],
   templateUrl: './app-sidebar.html',
 })

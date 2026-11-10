@@ -1,11 +1,11 @@
 import { Component, input } from '@angular/core';
 import { HlmCardImports } from '@ui/card';
 import { APP_NAME } from '../../../core/page-title/page-title';
-import { LarisMark } from '../../../shared/brand/laris-mark';
+import { IlexMark } from '../../../shared/brand/ilex-mark';
 
 @Component({
-  selector: 'laris-auth-frame',
-  imports: [HlmCardImports, LarisMark],
+  selector: 'ilex-auth-frame',
+  imports: [HlmCardImports, IlexMark],
   host: { class: 'flex min-h-svh flex-col items-center justify-center gap-6 bg-muted/40 p-4' },
   templateUrl: './auth-frame.html',
 })

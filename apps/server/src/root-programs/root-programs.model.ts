@@ -6,7 +6,7 @@ import type {
   DiskErrorCode,
   PublicUser,
   UpdateErrorCode,
-} from '@laris/shared';
+} from '@ilex/shared';
 
 /** The root programs' config file (the same one they read, as root, in production). */
 export interface ProgramConfig {
@@ -56,7 +56,7 @@ export interface RootActor {
   appSessionId: string;
 }
 
-// Backups (laris-backup, docs/plans/backups.md and acting_as_you.md).
+// Backups (ilex-backup, docs/plans/backups.md and acting_as_you.md).
 
 /** The plan as `configure` takes it (it checks all of it again). */
 export interface ProgramBackupPlan {

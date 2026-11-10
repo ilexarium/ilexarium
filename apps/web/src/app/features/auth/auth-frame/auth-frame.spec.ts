@@ -4,8 +4,8 @@ import { AuthFrame } from './auth-frame';
 
 @Component({
   imports: [AuthFrame],
-  template: `<laris-auth-frame heading="Sign in" description="With your account"
-    >form</laris-auth-frame
+  template: `<ilex-auth-frame heading="Sign in" description="With your account"
+    >form</ilex-auth-frame
   >`,
 })
 class Host {}
@@ -15,8 +15,8 @@ describe('AuthFrame', () => {
     const fixture = TestBed.createComponent(Host);
     await fixture.whenStable();
     const el: HTMLElement = fixture.nativeElement;
-    expect(el.querySelector('laris-mark svg path')).toBeTruthy();
-    expect(el.textContent).toContain('Laris');
+    expect(el.querySelector('ilex-mark svg path')).toBeTruthy();
+    expect(el.textContent).toContain('Ilexarium');
     expect(el.querySelector('h1')?.textContent).toBe('Sign in');
     expect(el.querySelector('main')?.textContent).toContain('form');
   });

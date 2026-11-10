@@ -5,7 +5,7 @@ import {
   type DiskPartition,
   type DiskPartitionState,
   type DisksStatus,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { inside } from '../host/folders.js';
 import type { BlockDevice, MountPoint } from '../host/host.model.js';
 import { MEMBER_TYPES, SYSTEM_MOUNTS, VIRTUAL } from './disks.constants.js';

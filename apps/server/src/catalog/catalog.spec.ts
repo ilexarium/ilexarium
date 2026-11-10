@@ -2,9 +2,9 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import en from '@laris/i18n/en.json' with { type: 'json' };
-import { TEMPLATE_LABEL, type Template, templatePlaceholders } from '@laris/shared';
-import { flattenMessages } from '@laris/i18n';
+import en from '@ilex/i18n/en.json' with { type: 'json' };
+import { TEMPLATE_LABEL, type Template, templatePlaceholders } from '@ilex/shared';
+import { flattenMessages } from '@ilex/i18n';
 import { parse } from 'yaml';
 import { CatalogError, loadCatalog } from './catalog-loader.js';
 import type { CatalogEntry } from './catalog.model.js';
@@ -88,10 +88,10 @@ const compose = `services:
     ports: ['\${WEB_PORT}:80']
     volumes: ['\${DATA_DIR}:/data']
     labels:
-      laris.template: demo@1
+      ilex.template: demo@1
   db:
     image: postgres:18
-    labels: ['laris.template=demo@1']
+    labels: ['ilex.template=demo@1']
 `;
 
 describe('the catalog', () => {
@@ -206,8 +206,8 @@ describe('the rules’ check', () => {
     expect(checkTemplate(template, compose.replace('postgres:18', 'postgres'))).toEqual([
       'db: the image has no tag',
     ]);
-    expect(checkTemplate(template, compose.replace("['laris.template=demo@1']", '[]'))).toEqual([
-      'db: needs the label laris.template: demo@1',
+    expect(checkTemplate(template, compose.replace("['ilex.template=demo@1']", '[]'))).toEqual([
+      'db: needs the label ilex.template: demo@1',
     ]);
     const moving = {
       ...template,

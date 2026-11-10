@@ -1,4 +1,4 @@
-// A fake `systemctl` for laris-disk.spec.ts (copied beside the test's files, with a shebang).
+// A fake `systemctl` for ilex-disk.spec.ts (copied beside the test's files, with a shebang).
 // Records every call in systemctl-calls.jsonl. `enable --now` mounts (adds the unit's folder to the
 // pretend mountinfo), `disable --now` unmounts; fail-enable / busy (files) make them fail; other
 // calls (daemon-reload, enable alone) only succeed.

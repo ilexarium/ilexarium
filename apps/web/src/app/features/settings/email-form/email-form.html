@@ -10,7 +10,7 @@
       </div>
     }
     <form [formRoot]="form" class="grid gap-5">
-      <laris-form-errors [form]="form" />
+      <ilex-form-errors [form]="form" />
 
       <label class="flex items-center gap-3 text-sm font-medium">
         <input type="checkbox" class="size-4" [formField]="form.enabled" />
@@ -28,7 +28,7 @@
             placeholder="mail.example.com"
             [formField]="form.host"
           />
-          <laris-field-errors [field]="form.host" />
+          <ilex-field-errors [field]="form.host" />
         </div>
         <div hlmField>
           <label hlmFieldLabel for="email-port">{{ 'notifications.email.port' | translate }}</label>
@@ -40,7 +40,7 @@
             dir="ltr"
             [formField]="form.port"
           />
-          <laris-field-errors [field]="form.port" />
+          <ilex-field-errors [field]="form.port" />
         </div>
         <p hlmFieldDescription class="sm:col-span-2 sm:-mt-3">
           {{ 'notifications.email.portHelp' | translate }}
@@ -60,7 +60,7 @@
             [formField]="form.username"
           />
           <p hlmFieldDescription>{{ 'notifications.email.usernameHelp' | translate }}</p>
-          <laris-field-errors [field]="form.username" />
+          <ilex-field-errors [field]="form.username" />
         </div>
         <div hlmField>
           <label hlmFieldLabel for="email-password">{{
@@ -76,12 +76,12 @@
               [type]="showPassword() ? 'text' : 'password'"
               [formField]="form.password"
             />
-            <laris-password-toggle [(visible)]="showPassword" />
+            <ilex-password-toggle [(visible)]="showPassword" />
           </div>
           @if (settings()?.passwordSet) {
             <p hlmFieldDescription>{{ 'notifications.email.passwordSet' | translate }}</p>
           }
-          <laris-field-errors [field]="form.password" />
+          <ilex-field-errors [field]="form.password" />
         </div>
       </div>
 
@@ -94,10 +94,10 @@
             type="email"
             dir="ltr"
             autocomplete="off"
-            placeholder="laris@example.com"
+            placeholder="ilex@example.com"
             [formField]="form.from"
           />
-          <laris-field-errors [field]="form.from" />
+          <ilex-field-errors [field]="form.from" />
         </div>
         <div hlmField>
           <label hlmFieldLabel for="email-to">{{ 'notifications.email.to' | translate }}</label>
@@ -109,7 +109,7 @@
             autocomplete="email"
             [formField]="form.to"
           />
-          <laris-field-errors [field]="form.to" />
+          <ilex-field-errors [field]="form.to" />
         </div>
       </div>
 

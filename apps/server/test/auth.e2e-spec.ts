@@ -6,7 +6,7 @@ import {
   authStatusResponseSchema,
   meResponseSchema,
   userResponseSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -14,7 +14,7 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 import { UsersService } from '../src/users/users.service.js';
 import { resetDatabase } from './database.js';
 
-const HOST = 'laris.test';
+const HOST = 'ilex.test';
 const SAME_ORIGIN = `http://${HOST}`;
 const PASSWORD = 'correct horse battery';
 const NEW_PASSWORD = 'staple battery horse correct';

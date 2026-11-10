@@ -1,15 +1,15 @@
 # Local development only. Production Postgres is provisioned by the install script.
 # Start with `npm run db:up` (through dev/compose.sh, which passes DOCKER_GID and the rest).
-# Creates `laris` (dev) and `laris_test` (tests); init scripts run only on a fresh volume.
-name: laris-dev
+# Creates `ilex` (dev) and `ilex_test` (tests); init scripts run only on a fresh volume.
+name: ilex-dev
 
 services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: laris
-      POSTGRES_PASSWORD: laris-dev
-      POSTGRES_DB: laris
+      POSTGRES_USER: ilex
+      POSTGRES_PASSWORD: ilex-dev
+      POSTGRES_DB: ilex
     ports:
       - '127.0.0.1:5432:5432'
     volumes:
@@ -17,9 +17,9 @@ services:
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     labels:
       # The app refuses to stop or restart it (its own database).
-      laris.protected: 'true'
+      ilex.protected: 'true'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U laris -d laris']
+      test: ['CMD-SHELL', 'pg_isready -U ilex -d ilex']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -40,7 +40,7 @@ services:
     ports:
       - '127.0.0.1:2375:2375'
     labels:
-      laris.protected: 'true'
+      ilex.protected: 'true'
     read_only: true
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
@@ -50,7 +50,7 @@ services:
   # explorer sign in to it (anna / anna-dev-password). Its host key is shared with the app in
   # apps/server/.dev/sshd, which pins it.
   # The host's PIDs, so ending a process over it ends the one the process list (the host's /proc)
-  # shows. Development only: anna's laris-root is root in here, and may signal this machine's
+  # shows. Development only: anna's ilex-root is root in here, and may signal this machine's
   # processes — as the real sudo would on the real machine.
   sshd:
     build: ./sshd
@@ -59,7 +59,7 @@ services:
       - '127.0.0.1:2222:22'
     volumes:
       - ../apps/server/.dev/sshd:/keys
-      - ../system/programs:/opt/laris/libexec:ro
+      - ../system/programs:/opt/ilex/libexec:ro
     restart: unless-stopped
 
   # Something to start, stop and restart: the container actions' e2e tests and trying the menu.
@@ -83,20 +83,20 @@ services:
     network_mode: host
     pid: host
     environment:
-      LARIS_REPO: ${LARIS_REPO:?run through dev/compose.sh}
+      ILEX_REPO: ${ILEX_REPO:?run through dev/compose.sh}
       HOST_UID: ${HOST_UID:?run through dev/compose.sh}
       HOST_GID: ${HOST_GID:?run through dev/compose.sh}
       DOCKER_GID: ${DOCKER_GID:?run through dev/compose.sh}
-    working_dir: ${LARIS_REPO}
+    working_dir: ${ILEX_REPO}
     volumes:
-      - ..:${LARIS_REPO}
+      - ..:${ILEX_REPO}
       # The backup program (run directly in development) dumps the database with docker exec.
       - /var/run/docker.sock:/var/run/docker.sock
-      - server-modules:${LARIS_REPO}/node_modules
-      - server-modules-server:${LARIS_REPO}/apps/server/node_modules
-      - server-modules-web:${LARIS_REPO}/apps/web/node_modules
-      - server-modules-shared:${LARIS_REPO}/packages/shared/node_modules
-      - server-modules-i18n:${LARIS_REPO}/packages/i18n/node_modules
+      - server-modules:${ILEX_REPO}/node_modules
+      - server-modules-server:${ILEX_REPO}/apps/server/node_modules
+      - server-modules-web:${ILEX_REPO}/apps/web/node_modules
+      - server-modules-shared:${ILEX_REPO}/packages/shared/node_modules
+      - server-modules-i18n:${ILEX_REPO}/packages/i18n/node_modules
       - server-home:/home/dev
     restart: unless-stopped
 

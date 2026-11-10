@@ -14,7 +14,7 @@ import {
   FILES_LIMITS,
   type LinuxSession,
   type LinuxSignInRequest,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
 import { apiErrorCode, apiErrorText } from '../../shared/forms/submission-errors';
@@ -48,7 +48,7 @@ const initialState: LinuxSessionState = {
 
 /**
  * The Linux session of this browser session (docs/plans/acting_as_you.md), shared by Files, the
- * terminal, Processes and the top bar: the account, and whether its sudo is unlocked (laris-root
+ * terminal, Processes and the top bar: the account, and whether its sudo is unlocked (ilex-root
  * runs, until its idle limit; the server's `sudo_required` is the truth when it ended sooner). Actions that need sudo run
  * through `withSudo`, which asks for the password (the shell's prompt) and carries on. The
  * password goes to the server once, for sudo, and isn't kept here. Reset on sign-out.
@@ -204,7 +204,7 @@ export const LinuxSessionStore = signalStore(
           if (!(await requestSudo())) return null;
           result = await action();
         }
-        // Each use starts laris-root's idle time again (the server counts the same).
+        // Each use starts ilex-root's idle time again (the server counts the same).
         setSudoUntil(Date.now() + FILES_LIMITS.sudoIdleMinutes * 60_000);
         return result;
       },

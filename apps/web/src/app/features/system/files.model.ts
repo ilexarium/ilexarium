@@ -1,4 +1,4 @@
-import type { FileEntry } from '@laris/shared';
+import type { FileEntry } from '@ilex/shared';
 
 /** An upload in progress or finished. */
 export interface Upload {

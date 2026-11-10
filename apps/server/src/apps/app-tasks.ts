@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type AppTask, type AppTaskAction, TEMPLATE_LABEL_PATTERN } from '@laris/shared';
+import { type AppTask, type AppTaskAction, TEMPLATE_LABEL_PATTERN } from '@ilex/shared';
 import { posix } from 'node:path';
 import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';

@@ -1,4 +1,4 @@
-# Pi-hole, from the Laris template (catalog/pihole): blocks ads and trackers for every device that
+# Pi-hole, from the Ilexarium template (catalog/pihole): blocks ads and trackers for every device that
 # uses it as its DNS server. This folder is yours: change anything.
 # Differences from Pi-hole's own Compose file (github.com/pi-hole/docker-pi-hole), on purpose:
 # - Its web page on WEB_PORT instead of 80, and no 443: its certificate is self-signed. The page
@@ -29,7 +29,7 @@ services:
     volumes:
       - ${DATA_DIR}:/etc/pihole
     labels:
-      laris.template: pihole@2
+      ilex.template: pihole@2
     restart: unless-stopped
     logging:
       driver: json-file

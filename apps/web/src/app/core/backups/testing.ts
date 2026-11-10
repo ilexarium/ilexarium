@@ -1,4 +1,4 @@
-import type { BackupItem } from '@laris/shared';
+import type { BackupItem } from '@ilex/shared';
 
 /** A backup item as the server sends it: a folder unless changed. */
 export const testItem = (change: Partial<BackupItem> = {}): BackupItem => ({

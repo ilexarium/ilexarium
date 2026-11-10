@@ -12,7 +12,7 @@ import {
   type LoginRequest,
   type PublicUser,
   type SetupRequest,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { AuditService } from '../audit/audit.service.js';
 import { UsersService } from '../users/users.service.js';
 import { LoginThrottleService } from './login-throttle.service.js';

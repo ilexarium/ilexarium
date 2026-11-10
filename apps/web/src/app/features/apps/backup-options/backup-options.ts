@@ -9,7 +9,7 @@ import type { BackupChoice } from '../apps.model';
 
 /** A new app's backup: included or not, stopped or kept running meanwhile, the subfolders skipped. */
 @Component({
-  selector: 'laris-backup-options',
+  selector: 'ilex-backup-options',
   imports: [HlmButton, HlmInput, HlmLabel, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideX })],
   host: { class: 'grid gap-3' },

@@ -16,7 +16,7 @@ import {
   type BackupRetention,
   type BackupSchedule,
   type BackupSetupRequest,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { Observable, Subject } from 'rxjs';
 import type { BackupItem as BackupItemRow, Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';

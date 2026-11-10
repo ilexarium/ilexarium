@@ -77,7 +77,7 @@ describe.skipIf(!dockerReachable)('containers topic with real Docker (e2e)', () 
     if (snapshot.event !== 'containers:snapshot' || !snapshot.data.dockerAvailable) {
       throw new Error(`Expected containers, got ${JSON.stringify(snapshot)}`);
     }
-    const postgres = snapshot.data.containers.find((c) => c.name === 'laris-dev-postgres-1');
+    const postgres = snapshot.data.containers.find((c) => c.name === 'ilex-dev-postgres-1');
     expect(postgres).toMatchObject({ state: 'running', health: 'healthy' });
 
     // Stats frames arrive about once a second; the first update after that carries them.
@@ -86,7 +86,7 @@ describe.skipIf(!dockerReachable)('containers topic with real Docker (e2e)', () 
     if (update.event !== 'containers:update' || !update.data.dockerAvailable) {
       throw new Error(`Expected an update, got ${JSON.stringify(update)}`);
     }
-    const live = update.data.containers.find((c) => c.name === 'laris-dev-postgres-1');
+    const live = update.data.containers.find((c) => c.name === 'ilex-dev-postgres-1');
     expect(live!.stats!.memoryUsedBytes).toBeGreaterThan(0);
 
     const containers = app.get(ContainersService);

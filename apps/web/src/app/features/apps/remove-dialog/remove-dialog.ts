@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
-import type { AppRemovalItem } from '@laris/shared';
+import type { AppRemovalItem } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmSkeleton } from '@ui/skeleton';
@@ -12,7 +12,7 @@ import { Formatter } from '../../../shared/format/formatter';
  * elsewhere), each named volume. Backups stay. UI only: the page opens it and loads the list.
  */
 @Component({
-  selector: 'laris-remove-dialog',
+  selector: 'ilex-remove-dialog',
   imports: [HlmAlertDialogImports, HlmSkeleton, PluralPipe, TranslatePipe],
   templateUrl: './remove-dialog.html',
 })

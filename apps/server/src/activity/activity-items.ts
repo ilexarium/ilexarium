@@ -1,4 +1,4 @@
-import { type ActivityItem, activityActionSchema } from '@laris/shared';
+import { type ActivityItem, activityActionSchema } from '@ilex/shared';
 import type { Alert as AlertRow, AuditEvent, BackupRun } from '../generated/prisma/client.js';
 import { toAlertView } from '../alerts/alert-records.js';
 import { ACTIVITY_SUBJECTS } from './activity.constants.js';

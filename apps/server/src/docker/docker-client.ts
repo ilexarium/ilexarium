@@ -4,7 +4,7 @@ import type { Env } from '../config/env.schema.js';
 
 /**
  * A Dockerode client for the socket proxy at `DOCKER_HOST`: plain HTTP over TCP (development) or
- * the proxy's own Unix socket under /run/laris/ (production) — never Docker's socket.
+ * the proxy's own Unix socket under /run/ilex/ (production) — never Docker's socket.
  */
 export function createDockerClient(config: ConfigService<Env, true>): Dockerode {
   const host = config.get('DOCKER_HOST', { infer: true });

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FILES_ERROR_CODES } from '@laris/shared';
+import { FILES_ERROR_CODES } from '@ilex/shared';
 import { spawn } from 'node:child_process';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuditAction } from '../audit/audit-actions.js';
@@ -49,8 +49,8 @@ type Result<Code extends string, T> =
   { ok: true; value: T } | { ok: false; code: Code; value: T | null };
 
 /**
- * The root programs (laris-backup, laris-disk, laris-update; docs/plans/acting_as_you.md): started through the
- * signed-in person's own sudo, by their helper — Laris holds no root. Every call records the
+ * The root programs (ilex-backup, ilex-disk, ilex-update; docs/plans/acting_as_you.md): started through the
+ * signed-in person's own sudo, by their helper — Ilexarium holds no root. Every call records the
  * request in the audit log first (no record, no run), then runs the program (values on stdin)
  * and records the outcome. A locked sudo is a 403 `sudo_required`: the web app asks for the
  * password and carries on. Development (`ROOT_PROGRAMS=direct`, refused in production) runs the
@@ -109,7 +109,7 @@ export class RootPrograms {
     });
   }
 
-  /** A restore: systemd starts it as its own unit (`laris-restore@<id>`); returns at once. */
+  /** A restore: systemd starts it as its own unit (`ilex-restore@<id>`); returns at once. */
   backupRestoreStart(input: ProgramRestoreInput, actor: RootActor): Promise<BackupOutcome<null>> {
     return this.backup('restore-start', actor, 'backup.restore', input, {
       audit: {
@@ -180,7 +180,7 @@ export class RootPrograms {
   }
 
   /**
-   * Starts an update to `version` as its own unit (laris-update@<updateId>), which outlives the
+   * Starts an update to `version` as its own unit (ilex-update@<updateId>), which outlives the
    * app: only the version goes in — the program fetches and checks everything itself.
    */
   async updateStart(
@@ -189,7 +189,7 @@ export class RootPrograms {
     actor: RootActor,
   ): Promise<UpdateStartOutcome> {
     const result = await this.run(UPDATE, 'start', { updateId, version }, actor, {
-      audit: { action: 'laris.update', details: { version } },
+      audit: { action: 'ilex.update', details: { version } },
       timeoutMs: UPDATE_START_TIMEOUT_MS,
       read: (r) => (typeof r?.['to'] === 'string' ? true : undefined),
     });
@@ -302,14 +302,14 @@ export class RootPrograms {
         ? kind.codes[raw.lastError]
         : undefined;
       if (!known) {
-        this.logger.error(`laris-${kind.name} refused: ${raw.lastError} (${raw.lastInfo ?? ''})`);
+        this.logger.error(`ilex-${kind.name} refused: ${raw.lastError} (${raw.lastInfo ?? ''})`);
       }
       return fail(known ?? kind.unavailable);
     }
     return fail(kind.failed);
   }
 
-  /** Through the person's helper and their unlocked laris-root: `<program> <command>`, the input on its stdin. */
+  /** Through the person's helper and their unlocked ilex-root: `<program> <command>`, the input on its stdin. */
   private async throughSudo(
     program: ProgramKind<string>['name'],
     command: string,
@@ -368,7 +368,7 @@ export class RootPrograms {
         resolve(raw);
       };
       const child = spawn(process.execPath, [PROGRAM_FILES[program], command], {
-        env: { PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: this.programConfig.file },
+        env: { PATH, LANG: 'C.UTF-8', ILEX_WRAPPER_CONFIG: this.programConfig.file },
         shell: false,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
@@ -384,7 +384,7 @@ export class RootPrograms {
         stream.on('end', () => splitter.end().forEach((line) => this.read(raw, line)));
       }
       child.on('error', (error) => {
-        this.logger.error(`Could not start laris-${program}: ${error.message}`);
+        this.logger.error(`Could not start ilex-${program}: ${error.message}`);
         raw.notStarted = true;
         finish();
       });

@@ -1,4 +1,4 @@
-# Open WebUI, from the Laris template (catalog/open-webui): chat with language models on this
+# Open WebUI, from the Ilexarium template (catalog/open-webui): chat with language models on this
 # server. This folder is yours: change anything.
 # Differences from Open WebUI's own Compose file, on purpose:
 # - Ollama comes with it and publishes no port: only Open WebUI reaches it, over this app's own
@@ -31,7 +31,7 @@ services:
     depends_on:
       - ollama
     labels:
-      laris.template: open-webui@1
+      ilex.template: open-webui@1
     restart: unless-stopped
     logging:
       driver: json-file
@@ -45,7 +45,7 @@ services:
     volumes:
       - ${MODELS_DIR}:/data
     labels:
-      laris.template: open-webui@1
+      ilex.template: open-webui@1
     restart: unless-stopped
     logging:
       driver: json-file

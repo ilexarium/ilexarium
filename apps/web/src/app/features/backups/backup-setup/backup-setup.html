@@ -6,7 +6,7 @@
       </p>
       <p class="text-sm text-muted-foreground">{{ 'backups.setup.text' | translate }}</p>
     </div>
-    <laris-form-errors [form]="form" />
+    <ilex-form-errors [form]="form" />
 
     <fieldset class="grid gap-3 rounded-xl border bg-card p-4">
       <legend class="float-start mb-1 font-semibold">{{ 'backups.setup.disk' | translate }}</legend>
@@ -124,7 +124,7 @@
     <fieldset class="grid gap-4 rounded-xl border bg-card p-4">
       <legend class="float-start mb-1 font-semibold">{{ 'backups.setup.when' | translate }}</legend>
       <div class="flex flex-wrap gap-4">
-        <laris-schedule-fields [schedule]="form.schedule" idPrefix="setup" />
+        <ilex-schedule-fields [schedule]="form.schedule" idPrefix="setup" />
       </div>
       <p class="text-sm text-muted-foreground">
         {{ 'backups.retention.summary' | translate: form.retention().value() }}
@@ -134,7 +134,7 @@
           {{ 'backups.retention.advanced' | translate }}
         </summary>
         <div class="mt-4 flex flex-wrap gap-4">
-          <laris-retention-fields [retention]="form.retention" idPrefix="setup" />
+          <ilex-retention-fields [retention]="form.retention" idPrefix="setup" />
         </div>
       </details>
     </fieldset>
@@ -206,7 +206,7 @@
   </button>
 </ng-template>
 
-<laris-folder-picker
+<ilex-folder-picker
   [open]="pickerOpen()"
   [listing]="folderListing()"
   (browse)="browse.emit($event)"

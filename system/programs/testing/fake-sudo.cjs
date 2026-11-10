@@ -1,4 +1,4 @@
-// A fake `sudo` for laris-helper.spec.ts (copied into the test's bin folder as `sudo`, with a
+// A fake `sudo` for ilex-helper.spec.ts (copied into the test's bin folder as `sudo`, with a
 // shebang). Like the real ones (sudo and sudo-rs, checked), `[-k] -S -p '' -- <program>` reads one
 // line per try — "right" is the password, three tries — then runs the program, which reads the
 // rest of stdin. Like them without a terminal, a success is cached (the file `cached`): without

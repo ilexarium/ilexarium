@@ -3,9 +3,9 @@
     class="grid min-h-11 cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-3 py-2 text-sm select-none sm:grid-cols-[12rem_minmax(0,1fr)_auto_auto]"
   >
     <span class="font-medium">{{ formatter.dateTime(run().startedAt) }}</span>
-    <laris-status-dot class="justify-self-end sm:order-last" [tone]="dots[run().status]">{{
+    <ilex-status-dot class="justify-self-end sm:order-last" [tone]="dots[run().status]">{{
       'backups.status.' + run().status | translate
-    }}</laris-status-dot>
+    }}</ilex-status-dot>
     <span class="text-muted-foreground">{{ 'backups.history.' + run().trigger | translate }}</span>
     <span class="justify-self-end text-muted-foreground tabular-nums">
       @if (run().items.length > 0) {

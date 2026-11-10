@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CATALOG_ID_PATTERN, templateSchema } from '@laris/shared';
+import { CATALOG_ID_PATTERN, templateSchema } from '@ilex/shared';
 import { MAX_FILE_BYTES } from './catalog-loader.constants.js';
 import type { CatalogEntry } from './catalog.model.js';
 

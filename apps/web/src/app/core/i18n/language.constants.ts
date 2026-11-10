@@ -1,1 +1,1 @@
-export const LANGUAGE_STORAGE_KEY = 'laris.language';
+export const LANGUAGE_STORAGE_KEY = 'ilex.language';

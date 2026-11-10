@@ -6,7 +6,7 @@ import type {
   JournalLine,
   JournalResponse,
   LinuxSession,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';

@@ -1,5 +1,5 @@
 {
-  "protectedPaths": ["/opt/laris", "/etc/laris", "/var/lib/laris"],
+  "protectedPaths": ["/opt/ilex", "/etc/ilex", "/var/lib/ilex"],
   "dockerBin": "/usr/bin/docker",
   "disk": {
     "systemctlBin": "/usr/bin/systemctl"
@@ -10,15 +10,15 @@
     "appUid": 990,
     "appGid": 990,
     "platform": {
-      "container": "laris-postgres-1",
-      "database": "laris",
-      "user": "laris_owner",
+      "container": "ilex-postgres-1",
+      "database": "ilex",
+      "user": "ilex_owner",
       "files": [
-        "/etc/laris/master.key",
-        "/etc/laris/wrappers.json",
-        "/etc/laris/backup.json",
-        "/etc/laris/backup-repository.json",
-        "/etc/systemd/system/laris-backup.timer.d/schedule.conf"
+        "/etc/ilex/master.key",
+        "/etc/ilex/wrappers.json",
+        "/etc/ilex/backup.json",
+        "/etc/ilex/backup-repository.json",
+        "/etc/systemd/system/ilex-backup.timer.d/schedule.conf"
       ]
     }
   }

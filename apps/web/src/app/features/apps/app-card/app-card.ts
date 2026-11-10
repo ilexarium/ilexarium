@@ -5,7 +5,7 @@ import {
   type BackupsStatus,
   catalogIconPath,
   type TemplateSummary,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideBox, lucideExternalLink, lucidePlay, lucideSquare } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -20,7 +20,7 @@ import type { AppStats } from '../apps.model';
 
 /** One app on the Apps page. */
 @Component({
-  selector: 'laris-app-card',
+  selector: 'ilex-app-card',
   imports: [HlmButton, NgIcon, RouterLink, Sparkline, StatusDot, TranslatePipe],
   providers: [provideIcons({ lucideBox, lucideExternalLink, lucidePlay, lucideSquare })],
   host: { class: 'block' },

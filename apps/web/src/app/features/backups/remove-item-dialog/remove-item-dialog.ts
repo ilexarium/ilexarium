@@ -9,7 +9,7 @@ import type { ItemLabel, ItemRemoval, ItemRow } from '../backups.model';
  * confirmed choice goes out through `remove`.
  */
 @Component({
-  selector: 'laris-remove-item-dialog',
+  selector: 'ilex-remove-item-dialog',
   imports: [HlmAlertDialogImports, TranslatePipe],
   templateUrl: './remove-item-dialog.html',
 })

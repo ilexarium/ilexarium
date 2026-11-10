@@ -1,6 +1,6 @@
 import { validateEnv } from './env.schema.js';
 
-const base = { DATABASE_URL: 'postgresql://laris:secret-pw@127.0.0.1:5432/laris' };
+const base = { DATABASE_URL: 'postgresql://ilex:secret-pw@127.0.0.1:5432/ilex' };
 
 describe('validateEnv', () => {
   it('applies defaults', () => {
@@ -15,12 +15,12 @@ describe('validateEnv', () => {
     });
   });
 
-  it('accepts the Docker proxy over tcp:// or http://, or its own socket under /run/laris/', () => {
+  it('accepts the Docker proxy over tcp:// or http://, or its own socket under /run/ilex/', () => {
     for (const url of [
       'tcp://127.0.0.1:2375',
       'http://docker-proxy:2375',
-      'unix:///run/laris/proxy/docker.sock',
-      'unix:///run/laris/docker-proxy.sock',
+      'unix:///run/ilex/proxy/docker.sock',
+      'unix:///run/ilex/docker-proxy.sock',
     ]) {
       expect(validateEnv({ ...base, DOCKER_HOST: url }).DOCKER_HOST, url).toBe(url);
     }
@@ -30,11 +30,11 @@ describe('validateEnv', () => {
     for (const url of [
       'unix:///var/run/docker.sock',
       'unix:///run/docker.sock',
-      'unix:///run/laris/../docker.sock',
-      'unix:///run/laris/proxy/../../docker.sock',
-      'unix:///run/laris/a/b/docker.sock',
-      'unix:///run/laris/docker.sock/../x.sock',
-      'unix://run/laris/docker.sock',
+      'unix:///run/ilex/../docker.sock',
+      'unix:///run/ilex/proxy/../../docker.sock',
+      'unix:///run/ilex/a/b/docker.sock',
+      'unix:///run/ilex/docker.sock/../x.sock',
+      'unix://run/ilex/docker.sock',
       '/var/run/docker.sock',
       'ssh://host',
       'npipe:////./pipe/docker_engine',
@@ -44,15 +44,15 @@ describe('validateEnv', () => {
   });
 
   it('starts the installed helper, or one at another plain absolute path', () => {
-    expect(validateEnv(base).LINUX_HELPER).toBe('/opt/laris/libexec/laris-helper.mts');
-    const path = '/home/dev/laris/system/programs/laris-helper.mts';
+    expect(validateEnv(base).LINUX_HELPER).toBe('/opt/ilex/libexec/ilex-helper.mts');
+    const path = '/home/dev/ilex/system/programs/ilex-helper.mts';
     expect(validateEnv({ ...base, LINUX_HELPER: path }).LINUX_HELPER).toBe(path);
   });
 
   it('never a helper path SSH would read as more than one (spaces, quotes, “;”, “..”)', () => {
     for (const path of [
-      'laris-helper.mts',
-      '/opt/laris helper.mts',
+      'ilex-helper.mts',
+      '/opt/ilex helper.mts',
       '/opt/x;id',
       "/opt/x'y",
       '/opt/$(id)',
@@ -65,7 +65,7 @@ describe('validateEnv', () => {
 
   it('uses the production setup-token path in production', () => {
     expect(validateEnv({ ...base, NODE_ENV: 'production' }).SETUP_TOKEN_FILE).toBe(
-      '/var/lib/laris/app/setup-token',
+      '/var/lib/ilex/app/setup-token',
     );
   });
 
@@ -86,8 +86,8 @@ describe('validateEnv', () => {
 
   it('uses the installed files and sudo in production', () => {
     expect(validateEnv({ ...base, NODE_ENV: 'production' })).toMatchObject({
-      MASTER_KEY_FILE: '/etc/laris/master.key',
-      WRAPPER_CONFIG_FILE: '/etc/laris/wrappers.json',
+      MASTER_KEY_FILE: '/etc/ilex/master.key',
+      WRAPPER_CONFIG_FILE: '/etc/ilex/wrappers.json',
       ROOT_PROGRAMS: 'sudo',
       SSH_PORT: 22,
       SSH_HOST_KEYS: '/etc/ssh',

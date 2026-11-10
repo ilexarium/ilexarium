@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { JournalBootsResponse, JournalResponse } from '@laris/shared';
+import type { JournalBootsResponse, JournalResponse } from '@ilex/shared';
 import type { Observable } from 'rxjs';
 import type { JournalRequest } from './system-journal.model';
 

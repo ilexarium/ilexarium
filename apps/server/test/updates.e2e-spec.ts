@@ -4,11 +4,11 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
-import { LARIS_VERSION } from '../src/common/laris-version.js';
+import { ILEX_VERSION } from '../src/common/ilex-version.js';
 import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
 
-// Laris's own updates without an update source (development has no release.env): the status,
-// the switch, and the refusals. The update itself is laris-update's (its spec, the install test).
+// Ilexarium's own updates without an update source (development has no release.env): the status,
+// the switch, and the refusals. The update itself is ilex-update's (its spec, the install test).
 describe('updates (e2e)', () => {
   let app: NestExpressApplication;
   let client: Client;
@@ -39,7 +39,7 @@ describe('updates (e2e)', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       configured: false,
-      installed: LARIS_VERSION,
+      installed: ILEX_VERSION,
       available: null,
     });
   });

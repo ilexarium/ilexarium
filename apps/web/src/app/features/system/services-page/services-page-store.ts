@@ -14,7 +14,7 @@ import {
   type SystemService,
   type SystemServiceDetails,
   type SystemServicesResponse,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';

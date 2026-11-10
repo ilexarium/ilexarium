@@ -5,7 +5,7 @@
     </p>
   }
   @if (store.cleanup(); as cleanup) {
-    <laris-free-space
+    <ilex-free-space
       [cleanup]="cleanup"
       [volumeSizes]="store.volumeSizes()"
       [volumeSizesFailed]="store.volumeSizesFailed()"
@@ -15,7 +15,7 @@
       (removeVolume)="store.removeVolume($event)"
     />
   }
-  <laris-containers-table
+  <ilex-containers-table
     [containers]="store.containers()"
     [groups]="store.groups()"
     [pending]="store.pending()"
@@ -24,5 +24,5 @@
     <a emptyAction hlmBtn variant="outline" size="sm" routerLink="/apps/new">{{
       'containers.noneAction' | translate
     }}</a>
-  </laris-containers-table>
+  </ilex-containers-table>
 </div>

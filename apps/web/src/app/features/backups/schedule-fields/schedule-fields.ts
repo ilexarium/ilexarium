@@ -1,6 +1,6 @@
 import { Component, inject, input } from '@angular/core';
 import { type FieldTree, FormField } from '@angular/forms/signals';
-import { BACKUP_FREQUENCIES, type BackupSchedule } from '@laris/shared';
+import { BACKUP_FREQUENCIES, type BackupSchedule } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
@@ -10,7 +10,7 @@ import { FieldErrors } from '../../../shared/forms/field-errors';
 
 /** When backups run: the frequency and the time, as the parent's own flex items. */
 @Component({
-  selector: 'laris-schedule-fields',
+  selector: 'ilex-schedule-fields',
   imports: [FieldErrors, FormField, HlmFieldImports, HlmInput, HlmSelectImports, TranslatePipe],
   host: { class: 'contents' },
   templateUrl: './schedule-fields.html',

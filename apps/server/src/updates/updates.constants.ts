@@ -1,10 +1,10 @@
 import { HttpStatus } from '@nestjs/common';
-import { UPDATE_ERROR_CODES, type UpdateErrorCode } from '@laris/shared';
+import { UPDATE_ERROR_CODES, type UpdateErrorCode } from '@ilex/shared';
 
-/** What laris-update downloads at most (its own ARCHIVE_MAX_BYTES; compared in rules-match-app). */
+/** What ilex-update downloads at most (its own ARCHIVE_MAX_BYTES; compared in rules-match-app). */
 export const ARCHIVE_MAX_BYTES = 1024 * 1024 * 1024;
 export const MANIFEST_MAX_BYTES = 4096;
-/** A plain https:// address (laris-update's own, compared in rules-match-app). */
+/** A plain https:// address (ilex-update's own, compared in rules-match-app). */
 export const RELEASE_URL = /^https:\/\/[A-Za-z0-9.-]+(:\d+)?(\/[A-Za-z0-9._~-]+)*$/;
 /** Development (tests) also serves releases from this machine over plain HTTP. */
 export const DEV_RELEASE_URL = /^http:\/\/127\.0\.0\.1:\d+(\/[A-Za-z0-9._~-]+)*$/;
@@ -23,10 +23,10 @@ export const UPDATE_FILES_POLL_MS = 2000;
 export const JOB_READ_MS = 200;
 /** The installer's last lines shown. */
 export const OUTPUT_LINES_KEPT = 40;
-/** The installation's own places (laris-update's; development: under the program config's pretend root). */
-export const RELEASE_SETTINGS_DIR = '/etc/laris';
-export const UPDATES_DIR = '/var/lib/laris/updates';
-/** An update without an end past laris-update's own time limit (its unit's 1 h, and the stop's). */
+/** The installation's own places (ilex-update's; development: under the program config's pretend root). */
+export const RELEASE_SETTINGS_DIR = '/etc/ilex';
+export const UPDATES_DIR = '/var/lib/ilex/updates';
+/** An update without an end past ilex-update's own time limit (its unit's 1 h, and the stop's). */
 export const JOB_STALE_MS = 2 * 60 * 60_000;
 /** A running update's progress comes line by line: at most one message this often. */
 export const UPDATES_PUBLISH_MS = 300;

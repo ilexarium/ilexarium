@@ -8,7 +8,7 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import type { ContainerActionParams, DockerCleanup } from '@laris/shared';
+import type { ContainerActionParams, DockerCleanup } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';

@@ -32,7 +32,7 @@ export class HlmFieldError implements OnDestroy {
   private static _id = 0;
 
   private readonly _field = inject(BrnField, { optional: true });
-  // Laris: no `host: true`, so the field is found through a wrapper (`laris-field-errors`) too.
+  // Ilexarium: no `host: true`, so the field is found through a wrapper (`ilex-field-errors`) too.
   private readonly _a11y = inject(BrnFieldA11yService, { optional: true });
 
   private _registeredId?: string | undefined;

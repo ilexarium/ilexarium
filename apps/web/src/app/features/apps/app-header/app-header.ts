@@ -1,5 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
-import type { AppState } from '@laris/shared';
+import type { AppState } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideBox,
@@ -22,7 +22,7 @@ import { APP_STATE_DOTS } from '../apps.constants';
  * An app's band at the top of its page (and while it installs): icon, name, template, its state; Open, Start or Stop and "⋯" (Remove) at the end; whose, where and its containers below.
  */
 @Component({
-  selector: 'laris-app-header',
+  selector: 'ilex-app-header',
   imports: [HlmButton, HlmDropdownMenuImports, NgIcon, PluralPipe, StatusDot, TranslatePipe],
   providers: [
     provideIcons({

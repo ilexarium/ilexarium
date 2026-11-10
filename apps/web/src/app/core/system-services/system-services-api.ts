@@ -5,7 +5,7 @@ import {
   type SystemServiceDetails,
   systemServicePath,
   type SystemServicesResponse,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 /**

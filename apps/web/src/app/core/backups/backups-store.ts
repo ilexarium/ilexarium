@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type { BackupsStatus } from '@laris/shared';
+import type { BackupsStatus } from '@ilex/shared';
 import { AuthStore } from '../auth/auth-store';
 import { RealtimeService } from '../realtime/realtime-service';
 

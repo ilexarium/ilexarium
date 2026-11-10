@@ -1,7 +1,7 @@
 import { Controller, Get, HttpCode, Ip, Param, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { PublicUser, SystemServiceDetails, SystemServicesResponse } from '@laris/shared';
+import type { PublicUser, SystemServiceDetails, SystemServicesResponse } from '@ilex/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { ACTION_LIMIT } from './system-services.constants.js';
 import { SystemServiceActionParamsDto, SystemServiceParamsDto } from './system-services.dto.js';

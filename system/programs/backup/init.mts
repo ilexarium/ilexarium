@@ -21,7 +21,7 @@ import { Refusal, emit } from '../lib/output.mts';
 import { assertRootOwned } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
-/** Beside the entry (laris-backup.mts), root-owned like it. */
+/** Beside the entry (ilex-backup.mts), root-owned like it. */
 export const WORDLIST = fileURLToPath(new URL('../eff_large_wordlist.txt', import.meta.url));
 
 export const PASSPHRASE_WORDS = 6;

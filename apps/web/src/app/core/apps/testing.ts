@@ -5,7 +5,7 @@ import type {
   AppTask,
   Container,
   TemplateSummary,
-} from '@laris/shared';
+} from '@ilex/shared';
 
 export const testApp = (name: string, change: Partial<AppSummary> = {}): AppSummary => ({
   name,

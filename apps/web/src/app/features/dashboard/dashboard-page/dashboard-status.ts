@@ -5,7 +5,7 @@ import type {
   BackupsStatus,
   Container,
   DiskUsage,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { Wording } from '../../../core/alerts/alert-wording';
 import { percentOf } from '../../../shared/format/format';
 import {

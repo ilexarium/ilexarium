@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { Public } from '@nestjs/authentication';
-import type { HealthResponse } from '@laris/shared';
-import { LARIS_VERSION } from '../common/laris-version.js';
+import type { HealthResponse } from '@ilex/shared';
+import { ILEX_VERSION } from '../common/ilex-version.js';
 
 @Public()
 @Controller('health')
@@ -11,7 +11,7 @@ export class HealthController {
     return {
       status: 'ok',
       // An update waits for the new one; the web app reloads when it changes.
-      version: LARIS_VERSION,
+      version: ILEX_VERSION,
       uptimeSeconds: Math.floor(process.uptime()),
     };
   }

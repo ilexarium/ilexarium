@@ -2,13 +2,13 @@ import type { ProgramConfig } from '../root-programs/root-programs.model.js';
 import { archiveTime, destinationRoots, isAllowedFolder, stateDir } from './backup-paths.js';
 
 const config = {
-  protectedPaths: ['/opt/laris', '/etc/laris', '/var/lib/laris'],
+  protectedPaths: ['/opt/ilex', '/etc/ilex', '/var/lib/ilex'],
 } as ProgramConfig;
 
 describe('backup paths', () => {
   it('allows any folder but the system’s and the platform’s', () => {
     for (const path of [
-      '/srv/laris/docs',
+      '/srv/ilex/docs',
       '/home/alice',
       '/home/alice/Photos',
       '/data',
@@ -23,12 +23,12 @@ describe('backup paths', () => {
       '/',
       '/etc',
       '/root/x',
-      '/var/lib/laris',
+      '/var/lib/ilex',
       '/var/lib/docker/volumes',
       '/opt',
       '/srv/../etc',
-      'srv/laris/docs',
-      '/srv/laris/docs/',
+      'srv/ilex/docs',
+      '/srv/ilex/docs/',
     ]) {
       expect(isAllowedFolder(config, path), path).toBe(false);
     }
@@ -42,7 +42,7 @@ describe('backup paths', () => {
     };
     expect(destinationRoots(dev as ProgramConfig)).toEqual(['/d/mnt']);
     expect(stateDir(dev as ProgramConfig)).toBe('/d/state');
-    expect(stateDir(config)).toBe('/var/lib/laris/backups');
+    expect(stateDir(config)).toBe('/var/lib/ilex/backups');
   });
 
   it('reads an archive’s time from its name', () => {

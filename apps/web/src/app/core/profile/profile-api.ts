@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import { PROFILE_AVATAR_PATH, type ProfileUpdate, type UserResponse } from '@laris/shared';
+import { PROFILE_AVATAR_PATH, type ProfileUpdate, type UserResponse } from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 /** Changes to the signed-in person's profile (`/api/profile`); reading it is `AuthApi.me()`. */

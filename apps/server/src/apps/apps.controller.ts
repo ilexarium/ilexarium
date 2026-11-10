@@ -21,7 +21,7 @@ import type {
   AppTask,
   AppsList,
   PublicUser,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { AppManager } from './app-manager.js';
 import {
   AppDeleteDto,

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { StartUpdateResponse, UpdatesStatus } from '@laris/shared';
+import type { StartUpdateResponse, UpdatesStatus } from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 /** The server's update endpoints. A running update's progress arrives through the `updates` topic. */

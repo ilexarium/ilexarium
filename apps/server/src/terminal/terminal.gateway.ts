@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 import { type OnGatewayConnection, WebSocketGateway } from '@nestjs/websockets';
-import { TERMINAL_LIMITS, TERMINAL_PATH } from '@laris/shared';
+import { TERMINAL_LIMITS, TERMINAL_PATH } from '@ilex/shared';
 import type { WebSocket } from 'ws';
 import { Terminals } from './terminals.js';
 

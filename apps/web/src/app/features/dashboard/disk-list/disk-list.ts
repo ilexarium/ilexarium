@@ -14,7 +14,7 @@ import { TextPipe } from '../text-pipe';
 
 /** The disks worth showing: how full each is, in words as well as a bar. */
 @Component({
-  selector: 'laris-disk-list',
+  selector: 'ilex-disk-list',
   imports: [
     HlmCardImports,
     HlmProgressImports,

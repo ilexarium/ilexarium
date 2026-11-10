@@ -1,4 +1,4 @@
-import { REALTIME_ERROR_CODES, type RealtimeError, type ServerMessage } from '@laris/shared';
+import { REALTIME_ERROR_CODES, type RealtimeError, type ServerMessage } from '@ilex/shared';
 import { WebSocket } from 'ws';
 import { MAX_BUFFERED_BYTES } from './realtime.constants.js';
 import type { RealtimeClient } from './realtime.model.js';

@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AlertsStatus } from '@laris/shared';
+import type { AlertsStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { NEVER, of, throwError } from 'rxjs';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
@@ -61,7 +61,7 @@ describe('AlertsPage', () => {
       }),
     );
     const open = section('alerts-open');
-    const cards = open.querySelectorAll('laris-alert-card');
+    const cards = open.querySelectorAll('ilex-alert-card');
     expect(cards).toHaveLength(2);
     expect(cards[0].textContent).toContain('immich has stopped');
     expect(cards[0].textContent).toContain('Critical');
@@ -114,7 +114,7 @@ describe('AlertsPage', () => {
         ],
       }),
     );
-    const meta = [...el.querySelectorAll('laris-alert-card')].map(
+    const meta = [...el.querySelectorAll('ilex-alert-card')].map(
       (c) => c.querySelectorAll('p')[1].textContent!,
     );
     expect(meta[0]).toContain('hl-immich-server-1');
@@ -129,7 +129,7 @@ describe('AlertsPage', () => {
         open: [testAlert(), testAlert({ kind: 'diskFull', subject: '/', app: null, percent: 93 })],
       }),
     );
-    const links = [...el.querySelectorAll('laris-alert-card')].map((card) =>
+    const links = [...el.querySelectorAll('ilex-alert-card')].map((card) =>
       [...card.querySelectorAll('a')].map((a) => a.getAttribute('href')),
     );
     expect(links[0]).toEqual([expect.stringContaining('/logs')]);
@@ -150,10 +150,10 @@ describe('AlertsPage', () => {
         ],
       }),
     );
-    const row = section('alerts-closed').querySelector('laris-alert-row')!;
+    const row = section('alerts-closed').querySelector('ilex-alert-row')!;
     expect(row.textContent).toContain('hl-navidrome-1 keeps restarting');
     expect(row.textContent).toContain('Lasted 20 minutes · ended');
-    expect(row.querySelector('laris-alert-card, a, button')).toBeNull();
+    expect(row.querySelector('ilex-alert-card, a, button')).toBeNull();
   });
 
   it('says so when all is well', async () => {
@@ -168,7 +168,7 @@ describe('AlertsPage', () => {
     const { fixture, el, api } = await render(alertsStatus({ open: [alert, other] }));
     api.status.mockClear();
     const card = (name: string) =>
-      [...el.querySelectorAll('laris-alert-card')].find((c) => c.textContent!.includes(name))!;
+      [...el.querySelectorAll('ilex-alert-card')].find((c) => c.textContent!.includes(name))!;
     card('immich has')
       .querySelectorAll('button')
       .forEach((b) => b.textContent!.includes('Acknowledge') && b.click());

@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { parseEnv } from '@laris/shared';
+import { parseEnv } from '@ilex/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { CatalogService } from '../catalog/catalog.service.js';
 import type { DockerService } from '../docker/docker.service.js';
@@ -56,9 +56,7 @@ async function helper(request: HelperRequest) {
       // What Compose says of the file below: its folders resolved, its volume by Docker's name.
       const { folder, project } = request;
       const env = parseEnv(readFileSync(join(folder, '.env'), 'utf8'));
-      const label = /laris\.template: (\S+)/.exec(
-        readFileSync(join(folder, 'compose.yml'), 'utf8'),
-      );
+      const label = /ilex\.template: (\S+)/.exec(readFileSync(join(folder, 'compose.yml'), 'utf8'));
       return {
         ok: true,
         mounts: [
@@ -74,18 +72,18 @@ async function helper(request: HelperRequest) {
       } as const;
     }
     case 'app.task': {
-      const tasks = join(request.folder, '.laris', 'tasks');
+      const tasks = join(request.folder, '.ilex', 'tasks');
       mkdirSync(tasks, { recursive: true });
       const log = `20261028T120000-${request.task}.log`;
       writeFileSync(join(tasks, log), taskResult ?? '');
       const record = {
-        unit: `laris-app-${request.project}-${request.task}-20261028T120000`,
+        unit: `ilex-app-${request.project}-${request.task}-20261028T120000`,
         system: request.system,
         action: request.task,
         log,
         startedAt: '2026-10-28T12:00:00.000Z',
       };
-      writeFileSync(join(request.folder, '.laris', 'task.json'), JSON.stringify(record));
+      writeFileSync(join(request.folder, '.ilex', 'task.json'), JSON.stringify(record));
       return { ok: true, ...record } as const;
     }
     case 'app.taskState':
@@ -160,7 +158,7 @@ const entry = {
       { key: 'USER_ID', kind: 'text', default: '@account', advanced: true },
     ],
   },
-  compose: `services:\n  web:\n    image: example/web:2\n    ports: ['\${PORT}:80']\n    environment: [ "S=\${NEW_SECRET}" ]\n    volumes: [ "\${MEDIA}:/media" ]\n    labels:\n      laris.template: demo@3\n`,
+  compose: `services:\n  web:\n    image: example/web:2\n    ports: ['\${PORT}:80']\n    environment: [ "S=\${NEW_SECRET}" ]\n    volumes: [ "\${MEDIA}:/media" ]\n    labels:\n      ilex.template: demo@3\n`,
 };
 
 beforeEach(() => {
@@ -253,8 +251,8 @@ describe('AppManager: reading and saving', () => {
     await expect(save(false)).rejects.toMatchObject({ response: { code: 'changed_on_disk' } });
     // The task before succeeded: a new one may start.
     writeFileSync(
-      join(folder, '.laris', 'tasks', '20261028T120000-up.log'),
-      'ok\n@@laris-result\nsuccess\n',
+      join(folder, '.ilex', 'tasks', '20261028T120000-up.log'),
+      'ok\n@@ilex-result\nsuccess\n',
     );
     await expect(save(true)).resolves.toMatchObject({ task: { action: 'up' } });
     expect(readFileSync(join(folder, '.env'), 'utf8')).toBe('PORT=1\n');
@@ -265,8 +263,8 @@ describe('AppManager: a change that doesn’t start changes nothing', () => {
   const folder = () => join(home, 'apps', 'music');
   const finished = () =>
     writeFileSync(
-      join(folder(), '.laris', 'tasks', '20261028T120000-up.log'),
-      'ok\n@@laris-result\nsuccess\n',
+      join(folder(), '.ilex', 'tasks', '20261028T120000-up.log'),
+      'ok\n@@ilex-result\nsuccess\n',
     );
 
   it('a save Compose refuses: the files as they were, so trying again isn’t “changed on disk”', async () => {
@@ -321,7 +319,7 @@ describe('AppManager: a change that doesn’t start changes nothing', () => {
     await expect(manager().update(SESSION, 'music', folder(), ACTOR)).resolves.toMatchObject({
       task: { action: 'update' },
     });
-    expect(readdirSync(join(folder(), '.laris')).sort()).toEqual(['task.json', 'tasks']);
+    expect(readdirSync(join(folder(), '.ilex')).sort()).toEqual(['task.json', 'tasks']);
   });
 
   it('apply (after a restore): its files as they are, brought up', async () => {
@@ -359,7 +357,7 @@ describe('AppManager: removing', () => {
     await expect(manager().delete(SESSION, 'music', request, ACTOR)).rejects.toMatchObject({
       response: { code: 'app_task_running' },
     });
-    taskResult = 'removed\n@@laris-result\nsuccess\nexited\n0\n';
+    taskResult = 'removed\n@@ilex-result\nsuccess\nexited\n0\n';
     await manager().remove(SESSION, 'music', folder, ACTOR);
     await manager().delete(
       SESSION,
@@ -381,7 +379,7 @@ describe('AppManager: removing', () => {
   it('a container’s files need sudo, locked: the app’s files stay, so the retry after unlocking works', async () => {
     await install();
     const folder = join(home, 'apps', 'music');
-    taskResult = '@@laris-result\nsuccess\n';
+    taskResult = '@@ilex-result\nsuccess\n';
     await manager().remove(SESSION, 'music', folder, ACTOR);
     foreign = join(folder, 'data');
     sudoLocked = true;
@@ -406,7 +404,7 @@ describe('AppManager: removing', () => {
   it('only the settings: the files, never the data', async () => {
     await install();
     const folder = join(home, 'apps', 'music');
-    taskResult = '@@laris-result\nsuccess\n';
+    taskResult = '@@ilex-result\nsuccess\n';
     await manager().remove(SESSION, 'music', folder, ACTOR);
     await manager().delete(
       SESSION,
@@ -424,7 +422,7 @@ describe('AppManager.details of a template’s app that doesn’t run', () => {
     await install(
       'PORT=9000\nMEDIA=./media\n',
       'music',
-      compose.replace('    ports:', '    labels: { laris.template: demo@3 }\n    ports:'),
+      compose.replace('    ports:', '    labels: { ilex.template: demo@3 }\n    ports:'),
     );
     const details = await manager().details(SESSION, 'music', join(home, 'apps', 'music'));
     expect(details.template).toEqual({ id: 'demo', version: '3' });

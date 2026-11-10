@@ -88,14 +88,14 @@
       {{ 'systemServices.working' | translate }}
     </span>
   } @else {
-    <laris-status-dot class="text-sm" [tone]="row.dot"
-      ><span dir="ltr">{{ row.state }}</span></laris-status-dot
+    <ilex-status-dot class="text-sm" [tone]="row.dot"
+      ><span dir="ltr">{{ row.state }}</span></ilex-status-dot
     >
   }
 </ng-template>
 
 <ng-template #menu let-row>
-  <laris-service-actions
+  <ilex-service-actions
     [name]="row.service.name"
     [group]="row.group"
     [protection]="row.service.protection"

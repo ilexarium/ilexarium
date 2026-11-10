@@ -7,7 +7,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import type { LinuxSignInRequest, Process } from '@laris/shared';
+import type { LinuxSignInRequest, Process } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucidePause, lucidePlay, lucideSearch, lucideX } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -31,7 +31,7 @@ import { PHONE_SORTS } from './processes-page.constants';
  * comes first when there is no Linux session yet.
  */
 @Component({
-  selector: 'laris-processes-page',
+  selector: 'ilex-processes-page',
   imports: [
     EndProcessDialog,
     HlmAlertImports,

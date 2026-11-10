@@ -1,4 +1,4 @@
-import { PROCESS_LIMITS, type Process, processKey } from '@laris/shared';
+import { PROCESS_LIMITS, type Process, processKey } from '@ilex/shared';
 import { isKernelThread } from '../host/process-parsers.js';
 import type { RawProcess } from '../host/host.model.js';
 import { STATES, TICKS_PER_SECOND } from './processes.constants.js';

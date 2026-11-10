@@ -7,7 +7,7 @@ import type {
   AlertTestResponse,
   EmailChannelUpdate,
   NtfyChannelUpdate,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 /** The server's alert endpoints. Open alerts arrive through the `alerts` topic. */

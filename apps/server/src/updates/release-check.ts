@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getCACertificates } from 'node:tls';
-import type { UpdateCheckError } from '@laris/shared';
+import type { UpdateCheckError } from '@ilex/shared';
 import { Agent, fetch } from 'undici';
 import { parseReleaseKey, type ReleaseKey, verifyRelease } from './release-signature.js';
 import { parseManifest } from './release-manifest.js';
@@ -57,7 +57,7 @@ export class ReleaseCheck {
   }
 
   async newest(source: ReleaseSource): Promise<CheckResult> {
-    // The machine's own trusted certificates too (like laris-update): a release folder behind the
+    // The machine's own trusted certificates too (like ilex-update): a release folder behind the
     // owner's own certificate authority works like one with a public certificate.
     const dispatcher = new Agent({
       connect: { ca: [...getCACertificates('bundled'), ...getCACertificates('system')] },

@@ -1,4 +1,4 @@
-// A fake `systemctl` for laris-backup.spec.ts (copied beside the test's files, with a shebang).
+// A fake `systemctl` for ilex-backup.spec.ts (copied beside the test's files, with a shebang).
 // Records every call in systemctl-calls.jsonl; exit-systemctl.txt sets its exit code.
 const fs = require('node:fs');
 const path = require('node:path');

@@ -8,7 +8,7 @@ import type {
   BackupPlan,
   BackupsStatus,
   Container,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { defer, type Observable, of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
@@ -322,7 +322,7 @@ describe('BackupsPage with a plan', () => {
       '/home/alice/Documents',
     ]);
     expect(names.map((n) => n.getAttribute('dir'))).toEqual([null, 'ltr', 'ltr']);
-    const cards = el.querySelector('laris-backup-items > ul')!;
+    const cards = el.querySelector('ilex-backup-items > ul')!;
     expect(cards.textContent).toContain('A folder to back up is missing.');
     expect(cards.textContent).toContain(formatBytes(2e9));
   });
@@ -383,15 +383,15 @@ describe('BackupsPage with a plan', () => {
         .filter((p) => !p.hidden && p.childElementCount > 0)
         .map(
           (p) =>
-            p.querySelector('laris-backup-items, laris-backup-history, laris-backup-settings')
+            p.querySelector('ilex-backup-items, ilex-backup-history, ilex-backup-settings')
               ?.tagName,
         );
-    expect(shown()).toEqual(['LARIS-BACKUP-HISTORY']);
+    expect(shown()).toEqual(['ILEX-BACKUP-HISTORY']);
     expect(el.textContent).toContain('No backups have run yet.');
     button('Settings').click();
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/backups?tab=settings'));
     await fixture.whenStable();
-    expect(shown()).toEqual(['LARIS-BACKUP-SETTINGS']);
+    expect(shown()).toEqual(['ILEX-BACKUP-SETTINGS']);
     button('What’s backed up').click();
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/backups'));
   });

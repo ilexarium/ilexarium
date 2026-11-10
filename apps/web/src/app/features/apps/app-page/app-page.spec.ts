@@ -86,7 +86,7 @@ const panel = (el: HTMLElement) => el.querySelector<HTMLElement>('[role="tabpane
 describe('AppPage', () => {
   it('opens on Overview: its header, its own containers with a link to their logs', async () => {
     const { el } = await setup();
-    expect(el.querySelector('laris-app-header h2')!.textContent).toContain('music');
+    expect(el.querySelector('ilex-app-header h2')!.textContent).toContain('music');
     expect(trigger(el, 'Overview').getAttribute('aria-selected')).toBe('true');
     const overview = panel(el)!;
     expect(overview.textContent).toContain('music-web-1');
@@ -130,9 +130,9 @@ describe('AppPage', () => {
 
   it('without a Linux sign-in: the header and the containers still, the sign-in where the files are needed', async () => {
     const { el, settle } = await setup({ signedIn: false });
-    expect(el.querySelector('laris-app-header h2')!.textContent).toContain('music');
+    expect(el.querySelector('ilex-app-header h2')!.textContent).toContain('music');
     // Its folder from Docker's labels.
-    expect(el.querySelector('laris-app-header')!.textContent).toContain('~/apps/music');
+    expect(el.querySelector('ilex-app-header')!.textContent).toContain('~/apps/music');
     expect(panel(el)!.textContent).toContain('music-web-1');
     expect(panel(el)!.querySelector('[role="alert"]')!.textContent).toContain('Sign in');
     trigger(el, 'Settings').click();
