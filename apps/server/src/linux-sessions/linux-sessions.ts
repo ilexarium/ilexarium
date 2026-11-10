@@ -282,6 +282,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
             : 'The SSH server is not available',
       );
     }
+    let rootRefused = false;
     try {
       const sftp = await new Promise<SFTPWrapper>((ok, fail) =>
         client.sftp((error, channel) => (error ? fail(error) : ok(channel))),
@@ -295,6 +296,11 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       const hello = helper ? await helper.request({ action: 'hello' }, HELPER_QUICK_MS) : null;
       const uid = hello?.ok && Number.isSafeInteger(hello['uid']) ? (hello['uid'] as number) : null;
       const gid = hello?.ok && Number.isSafeInteger(hello['gid']) ? (hello['gid'] as number) : null;
+      // Root under another name (a second uid-0 account) is root too.
+      if (uid === 0) {
+        rootRefused = true;
+        throw new Error('uid 0');
+      }
       // Closes this session only — never a newer one of the same app session.
       const idle = setTimeout(() => {
         if (this.sessions.get(appSessionId) === session) this.close(appSessionId, 'idle');
@@ -324,8 +330,12 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       await this.auditService.tryRecord(entry('success'));
       return this.view(session);
     } catch (error) {
-      // Signed in, but no file access (no SFTP for this account).
       client.end();
+      if (rootRefused) {
+        await this.auditService.tryRecord(entry('failure', FILES_ERROR_CODES.linuxRootRefused));
+        throw linuxError(FILES_ERROR_CODES.linuxRootRefused, 'root never signs in here');
+      }
+      // Signed in, but no file access (no SFTP for this account).
       this.logger.warn(`SFTP refused for ${request.username}: ${(error as Error).message}`);
       await this.auditService.tryRecord(entry('failure', FILES_ERROR_CODES.linuxLoginRefused));
       throw linuxError(FILES_ERROR_CODES.linuxLoginRefused, 'This account can’t open its files');

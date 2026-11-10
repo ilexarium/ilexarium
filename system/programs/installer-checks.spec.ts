@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ROOT_LOCK } from './lib/lock.mts';
+import { ROOT_LOCK, startTime } from './lib/lock.mts';
 
 const CHECKS = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/checks.sh');
 const PACKAGES = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/packages.sh');
@@ -108,7 +108,7 @@ describe('the installer’s lock (the root programs’ own)', () => {
   it('is taken while the install runs, and released when it ends', () => {
     const run = script('take_lock "$LOCK" && cat "$LOCK" && printf " %s" "$$"', { LOCK: lock });
     expect(run.status).toBe(0);
-    const [held, self] = run.stdout.split(' ');
+    const [held, , self] = run.stdout.split(' ');
     expect(held).toBe(self);
     expect(existsSync(lock)).toBe(false);
     expect(readdirSync(join(dir, 'run'))).toEqual([]);
@@ -131,6 +131,27 @@ describe('the installer’s lock (the root programs’ own)', () => {
       LOCK: lock,
       OWNER: sleeper.stdout.trim(),
     });
+    expect(script('take_lock "$LOCK"', { LOCK: lock }).status).toBe(0);
+  });
+
+  it('writes its start time beside its pid, as lock.mts does', () => {
+    const run = script('take_lock "$LOCK" && cat "$LOCK"', { LOCK: lock });
+    const [pid, start] = run.stdout.split(' ');
+    expect(pid).toMatch(/^[1-9]\d*$/);
+    expect(start).toMatch(/^\d+$/);
+  });
+
+  it('takes over a lock whose pid now belongs to another process (its start time differs)', () => {
+    const owner = living();
+    const start = startTime(owner)!;
+    const hold = (text: string) =>
+      script('mkdir -p "$(dirname "$LOCK")"; printf %s "$TEXT" >"$LOCK"', {
+        LOCK: lock,
+        TEXT: text,
+      });
+    hold(`${owner} ${start}`);
+    expect(script('take_lock "$LOCK"', { LOCK: lock }).status).toBe(1);
+    hold(`${owner} ${Number(start) + 1}`);
     expect(script('take_lock "$LOCK"', { LOCK: lock }).status).toBe(0);
   });
 
