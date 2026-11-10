@@ -19,6 +19,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startTime } from './lib/lock.mts';
 
 const WRAPPER = fileURLToPath(new URL('./ilex-backup.mts', import.meta.url));
 const WORDLIST = fileURLToPath(new URL('./eff_large_wordlist.txt', import.meta.url));
@@ -802,6 +803,17 @@ describe('ilex-backup run', () => {
     rmSync(join(dir, 'run', 'compose.lock'));
     expect((await waiting).code).toBe(0);
     expect(results()[0].items.map((i: any) => i.itemId)).toEqual([PLATFORM, SERVICE, LIVE]);
+  });
+
+  it('takes over a lock whose pid now belongs to another process (its start time differs)', async () => {
+    mkdirSync(join(dir, 'run'), { recursive: true });
+    const lock = join(dir, 'run', 'compose.lock');
+    const start = startTime(process.pid);
+    expect(start).toMatch(/^\d+$/);
+    writeFileSync(lock, `${process.pid} ${start}`);
+    expectRefused(await runNow({ runId: RUN }), 'busy', 3);
+    writeFileSync(lock, `${process.pid} ${Number(start) + 1}`);
+    expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
   });
 
   it('never takes over a lock being written, only one long dead', async () => {

@@ -469,6 +469,23 @@ describe('LinuxSessions', () => {
     expect(clients).toHaveLength(0);
   });
 
+  it('refuses root under another name (uid 0), audited so, and leaves no connection', async () => {
+    helperAnswers['hello'] = { ok: true, uid: 0, user: 'toor', home: '/root' };
+    await expect(signIn()).rejects.toMatchObject({
+      response: { code: 'linux_root_refused' },
+      status: 403,
+    });
+    expect(sessions.current('s1')).toBeNull();
+    expect(clients[0].ended).toBe(true);
+    expect(audit.tryRecord).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: 'linux.signin',
+        outcome: 'failure',
+        details: expect.objectContaining({ reason: 'linux_root_refused' }),
+      }),
+    );
+  });
+
   it('closes after 30 minutes without use; using it starts the time again', async () => {
     await signIn();
     vi.advanceTimersByTime(20 * 60_000);

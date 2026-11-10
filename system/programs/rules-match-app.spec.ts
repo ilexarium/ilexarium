@@ -41,6 +41,7 @@ import * as appUpdates from '../../apps/server/src/updates/updates.constants.ts'
 import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
+import * as wrapperBackupInput from './backup/input.mts';
 import * as wrapperPlan from './backup/plan.mts';
 import * as wrapperDiskConfig from './disk/config.mts';
 import * as wrapperDiskDevices from './disk/devices.mts';
@@ -134,6 +135,16 @@ describe('the app and the root programs check the same rules', () => {
     expect(String(helperConfig.CURSOR_PATTERN)).toBe(String(JOURNAL_CURSOR_PATTERN));
     expect(String(helperConfig.BOOT_ID_PATTERN)).toBe(String(JOURNAL_BOOT_ID_PATTERN));
     expect(helperConfig.JOURNAL_LINES_MAX).toBe(JOURNAL_LIMITS.linesPerRead);
+    // The largest input a root program takes still fits in one request line, escaped at its worst.
+    const largest = JSON.stringify({
+      id: Number.MAX_SAFE_INTEGER,
+      action: 'root.run',
+      program: 'backup',
+      command: 'configure',
+      input: '"'.repeat(wrapperBackupInput.MAX_INPUT_BYTES),
+      timeoutMs: helperConfig.ROOT_TIMEOUT_MAX_MS,
+    });
+    expect(Buffer.byteLength(largest)).toBeLessThan(helperConfig.LINE_MAX);
     expect(helperConfig.JOURNAL_MESSAGE_MAX).toBe(JOURNAL_LIMITS.maxMessageBytes);
     expect(helperConfig.JOURNAL_ANSWER_MAX).toBeLessThan(HELPER_ANSWER_MAX);
     expect(Math.max(...Object.values(JOURNAL_PRIORITIES))).toBe(7);

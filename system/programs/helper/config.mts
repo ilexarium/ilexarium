@@ -42,8 +42,9 @@ export const ROOT_PROGRAMS: Record<string, { path: string; actions: readonly str
 
 export const PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
-/** One request line; anything longer is refused unread. */
-export const LINE_MAX = 64 * 1024;
+/** One request line; anything longer is refused unread. Room for the largest root program input
+ * (ilex-backup's 256 KB plan) even with every character escaped, inside its JSON request. */
+export const LINE_MAX = 1024 * 1024;
 /** What is kept of a program's output (its first lines say what happened). */
 export const OUTPUT_MAX = 16 * 1024;
 /** What is read of Compose's filled-in file (`config --format json`): all of it, or nothing. */
