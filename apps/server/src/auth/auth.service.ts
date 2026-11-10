@@ -136,6 +136,12 @@ export class AuthService {
       ip,
     );
     await this.users.updatePasswordHash(user.id, await this.hasher.hash(newPassword));
+    // One by one: `revoke` announces each sign-out, so their sockets, log streams and Linux
+    // sessions end too (`revokeAll` only deletes rows); then whatever was already dead.
+    for (const session of await this.sessions.list(user.id)) {
+      if (session.id !== currentSessionId)
+        await this.sessions.revoke(session.id, { userId: user.id });
+    }
     await this.sessions.revokeAll(user.id, { except: currentSessionId });
     await this.signIn.rotateSession();
     await this.audit.tryRecord({

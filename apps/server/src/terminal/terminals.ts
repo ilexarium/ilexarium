@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
-import { type AuthenticationResult, WsAuthenticator } from '@nestjs/authentication';
+import { type AuthenticationResult, SessionService, WsAuthenticator } from '@nestjs/authentication';
 import { TERMINAL_CLOSE_CODES, terminalControlSchema, terminalOpenQuerySchema } from '@ilex/shared';
 import { WebSocket, type RawData } from 'ws';
 import { AuditService } from '../audit/audit.service.js';
@@ -32,8 +32,9 @@ interface OpenTerminal {
  *   pauses the shell, a slow shell pauses the socket.
  * - **One per app session** — a new one replaces the old.
  * - **Closing** — together with the shell (`exit`), the Linux session (idle, closed, the app's
- *   sign-out: then 4401) and the app session (re-checked every 30 s). Audited when it opens and
- *   closes; never what is typed or shown.
+ *   sign-out: then 4401) and the app session (re-checked every 30 s, reading only: an open terminal
+ *   is no activity of the app session). Audited when it opens and closes; never what is typed or
+ *   shown.
  */
 @Injectable()
 export class Terminals implements OnModuleDestroy {
@@ -42,6 +43,7 @@ export class Terminals implements OnModuleDestroy {
 
   constructor(
     private readonly wsAuthenticator: WsAuthenticator,
+    private readonly sessionService: SessionService,
     private readonly linuxSessions: LinuxSessions,
     private readonly terminalTickets: TerminalTickets,
     private readonly auditService: AuditService,
@@ -162,11 +164,12 @@ export class Terminals implements OnModuleDestroy {
     const recheck = setInterval(() => {
       if (rechecking) return;
       rechecking = true;
-      this.authenticate(client)
+      // `list`, not `validate`: a re-check must not count as activity of the app session.
+      this.sessionService
+        .list(auth.user.id)
         .then(
-          (result) => {
-            // As at admission: the app session it was opened with, still there.
-            if (result?.session?.id !== appSessionId) {
+          (sessions) => {
+            if (!sessions.some((session) => session.id === appSessionId)) {
               end(TERMINAL_CLOSE_CODES.sessionEnded, 'session-ended');
             }
           },
@@ -190,7 +193,7 @@ export class Terminals implements OnModuleDestroy {
   /** `required: false`: the closing is ours, with our codes. */
   private async authenticate(
     client: WebSocket,
-    request?: IncomingMessage,
+    request: IncomingMessage,
   ): Promise<AuthenticationResult | null> {
     const result = await this.wsAuthenticator.authenticateConnection(client, request, {
       required: false,

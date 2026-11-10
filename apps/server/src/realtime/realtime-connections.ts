@@ -10,6 +10,7 @@ import {
   AuthenticationEvents,
   type AuthenticationResult,
   type AuthenticationSignOutEvent,
+  SessionService,
   WsAuthenticator,
 } from '@nestjs/authentication';
 import { filter, type Subscription } from 'rxjs';
@@ -29,8 +30,9 @@ import type { Connection, RealtimeOptions } from './realtime.model.js';
  * - **Sign-out** — a session signed out (or every session of a user, "everywhere") closes its
  *   sockets at once with `4401`, so nothing more reaches them — log lines can hold secrets.
  * - **Re-check** — every open socket's session again every `sessionRecheckMs`; ended → closed with
- *   `4401`. This catches sessions that end without a sign-out event (expiry, revoked with the
- *   password change). (Every message is also checked by the global authentication guard.)
+ *   `4401`. This catches sessions that end without a sign-out event (expiry). It only reads: an
+ *   open tab is no activity, so a session left open still idles out. (Every message is also checked
+ *   by the global authentication guard.)
  *
  * Nest starts delivering messages before the async connection hook finishes, so message handling
  * waits for {@link admitted} — otherwise a cross-site page could subscribe in that gap.
@@ -47,6 +49,7 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly wsAuthenticator: WsAuthenticator,
+    private readonly sessionService: SessionService,
     private readonly authenticationEvents: AuthenticationEvents,
     @Inject(REALTIME_OPTIONS) private readonly realtimeOptions: RealtimeOptions,
   ) {}
@@ -142,27 +145,30 @@ export class RealtimeConnections implements OnModuleInit, OnModuleDestroy {
   private recheckAll(): void {
     if (this.rechecking) return;
     this.rechecking = true;
-    void Promise.all([...this.connections.keys()].map((client) => this.recheck(client))).finally(
+    const userIds = new Set([...this.connections.values()].map((c) => c.userId));
+    void Promise.all([...userIds].map((userId) => this.recheck(userId))).finally(
       () => (this.rechecking = false),
     );
   }
 
-  private async recheck(client: WebSocket): Promise<void> {
+  /** `list`, not `validate`: a re-check must not count as activity (it would keep idle tabs alive). */
+  private async recheck(userId: string): Promise<void> {
     try {
-      const result = await this.authenticate(client);
-      const connection = this.connections.get(client);
-      if (!connection) return; // closed meanwhile
-      // As at admission: the session it was admitted with, still there.
-      if (result?.session?.id !== connection.sessionId) this.closeForEndedSession(client);
+      const live = new Set((await this.sessionService.list(userId)).map((session) => session.id));
+      for (const [client, connection] of this.connections) {
+        if (connection.userId === userId && !live.has(connection.sessionId)) {
+          this.closeForEndedSession(client);
+        }
+      }
     } catch (error) {
       this.logger.error('Re-checking a WebSocket session failed', (error as Error).stack);
     }
   }
 
-  /** `required: false`: the closing is ours, with our codes. The request is kept on the client. */
+  /** `required: false`: the closing is ours, with our codes. */
   private async authenticate(
     client: WebSocket,
-    request?: IncomingMessage,
+    request: IncomingMessage,
   ): Promise<AuthenticationResult | null> {
     const result = await this.wsAuthenticator.authenticateConnection(client, request, {
       required: false,

@@ -1,4 +1,9 @@
-import { PasswordHasher } from '@nestjs/authentication';
+import { createHash } from 'node:crypto';
+import {
+  AuthenticationEvents,
+  type AuthenticationEvent,
+  PasswordHasher,
+} from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import {
@@ -269,8 +274,16 @@ describe('auth endpoints (e2e)', () => {
       await createOwner();
       const other = await loginCookie();
       const mine = await loginCookie();
+      const signOuts: AuthenticationEvent[] = [];
+      const following = app
+        .get(AuthenticationEvents)
+        .events$.subscribe((event) => event.type === 'sign-out' && signOuts.push(event));
       const res = await change(mine, { currentPassword: PASSWORD, newPassword: NEW_PASSWORD });
+      following.unsubscribe();
       expect(res.status).toBe(204);
+      // A sign-out event for the other session, so its log streams and Linux session end too.
+      const otherId = createHash('sha256').update(other.split('=')[1]).digest('base64url');
+      expect(signOuts).toEqual([expect.objectContaining({ type: 'sign-out', sessionId: otherId })]);
 
       const rotated = sessionCookie(res);
       expect(rotated).toBeDefined();
