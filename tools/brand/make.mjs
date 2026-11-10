@@ -30,11 +30,12 @@ const MARK_D =
   SCREEN + PROMPT + unit(12, 35, 40, 9, [46.5, 39.5]) + unit(12, 47, 40, 9, [46.5, 51.5]);
 const markPath = (fill) => `<path fill-rule="evenodd" fill="${fill}" d="${MARK_D}"/>`;
 
-// The small-size version, drawn on the 16-pixel grid because the full mark blurs at 16 px: the cut
-// corner kept, the prompt as a one-pixel chevron and underscore, each light a one-pixel notch.
+// The small-size version, drawn on the 16-pixel grid because the full mark blurs at 16 px, filling
+// it (no tile, like other sites' tab icons): the cut corner kept, the prompt as a one-pixel chevron
+// and underscore, each light a notch.
 const SMALL_D =
-  'M3 2H10L13 5V8H3ZM4 3h1v1H4zM5 4h1v1H5zM4 5h1v1H4zM6 6h3v1H6z' +
-  'M3 9h8v2H3zM12 9h1v2h-1zM3 12h8v2H3zM12 12h1v2h-1z';
+  'M1 1H11L15 5V9H1ZM3 3h1v1H3zM4 4h1v1H4zM3 5h1v1H3zM6 6h3v1H6z' +
+  'M1 10h11v2H1zM13 10h2v2h-2zM1 13h11v2H1zM13 13h2v2h-2z';
 
 const svg = (viewBox, body, title) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" role="img" aria-label="${title}">\n<title>${title}</title>\n${body}\n</svg>\n`;
@@ -72,7 +73,8 @@ const centred = (scale) =>
 const appIcon = tile() + `<g transform="${centred(0.8)}">${markPath(COLOR.onPrimary)}</g>`;
 // Maskable (Android): a full square; the mark stays inside the central safe zone (80 %).
 const maskable = `<rect width="64" height="64" fill="${COLOR.primary}"/><g transform="${centred(0.68)}">${markPath(COLOR.onPrimary)}</g>`;
-const favicon = `<rect width="16" height="16" rx="3.5" fill="${COLOR.primary}"/><path fill-rule="evenodd" fill="${COLOR.onPrimary}" d="${SMALL_D}"/>`;
+// Lavender where the browser is dark, so the mark stays visible on a dark tab bar.
+const favicon = `<style>path{fill:${COLOR.primary}}@media (prefers-color-scheme:dark){path{fill:${COLOR.primaryDark}}}</style><path fill-rule="evenodd" d="${SMALL_D}"/>`;
 
 const files = {
   'ilexarium-logo.svg': lockup(COLOR.primary, COLOR.text, 'Ilexarium'),
@@ -110,10 +112,10 @@ await png(iconSvg, 512, 'icon-512.png');
 await png(svg('0 0 64 64', maskable, 'Ilexarium'), 512, 'icon-maskable-512.png');
 await png(iconSvg, 500, 'ilexarium-avatar.png');
 
-// favicon.ico: 16 and 32 from the small-size version (exactly 1× and 2× its grid), 48 from the app icon.
+// favicon.ico: the small-size version at exactly 1×, 2× and 3× its grid (the ICO has no dark mode: violet).
 const ico16 = await png(files['favicon.svg'], 16);
 const ico32 = await png(files['favicon.svg'], 32);
-const ico48 = await png(iconSvg, 48);
+const ico48 = await png(files['favicon.svg'], 48);
 await browser.close();
 
 // An ICO file holding PNG images: a 6-byte header, a 16-byte entry per image, then the images.
