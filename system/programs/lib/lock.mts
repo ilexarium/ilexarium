@@ -20,9 +20,11 @@ export const ROOT_LOCK = '/run/ilex/compose.lock';
 export function tryLock(path: string): (() => void) | null {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   // Created whole: the pid written to a file of our own, then linked into place — the lock never
-  // exists empty, so nobody can mistake a lock being taken for a dead one.
+  // exists empty, so nobody can mistake a lock being taken for a dead one. With the pid its start
+  // time: a pid the kernel gave to another process since isn't taken for the holder.
   const own = `${path}.${process.pid}`;
-  writeFileSync(own, String(process.pid), { mode: 0o600 });
+  const start = startTime(process.pid);
+  writeFileSync(own, start ? `${process.pid} ${start}` : String(process.pid), { mode: 0o600 });
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -52,7 +54,10 @@ export function tryLock(path: string): (() => void) | null {
   }
 }
 
-/** Whether a lock's owner lives (one without a pid — an older writer — counts for a minute). */
+/**
+ * Whether a lock's owner lives: its pid, and its start time when the lock has one (one with only a
+ * pid is an older writer's). One without a pid counts for a minute.
+ */
 export function lockHolder(path: string): { alive: boolean; ino: number } {
   let stat;
   let text;
@@ -62,8 +67,17 @@ export function lockHolder(path: string): { alive: boolean; ino: number } {
   } catch {
     return { alive: false, ino: -1 };
   }
-  const pid = Number(text);
-  if (Number.isInteger(pid) && pid > 0) return { alive: alive(pid), ino: stat.ino };
+  const [pidText, start, ...rest] = text.split(' ');
+  const pid = Number(pidText);
+  if (
+    Number.isInteger(pid) &&
+    pid > 0 &&
+    rest.length === 0 &&
+    (start === undefined || /^\d+$/.test(start))
+  ) {
+    const same = start === undefined || startTime(pid) === start;
+    return { alive: same && alive(pid), ino: stat.ino };
+  }
   return { alive: Date.now() - stat.mtimeMs < 60_000, ino: stat.ino };
 }
 
@@ -73,5 +87,17 @@ export function alive(pid: number): boolean {
     return true;
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/** A process's start time (clock ticks since boot, /proc/<pid>/stat's 22nd field), or null. */
+export function startTime(pid: number): string | null {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    // The name in parentheses may hold spaces and parentheses: the fields after its last one.
+    const field = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+    return field && /^\d+$/.test(field) ? field : null;
+  } catch {
+    return null;
   }
 }

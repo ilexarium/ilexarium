@@ -60,16 +60,28 @@ replace_tree() {
   rm -rf "$dest.old"
 }
 
-# The root programs' lock, as lib/lock.mts takes it: a file holding its owner's pid, linked into
-# place — one privileged operation at a time (a backup, a restore, a disk change, an install).
+# The root programs' lock, as lib/lock.mts takes it: a file holding its owner's pid and start time,
+# linked into place — one privileged operation at a time (a backup, a restore, a disk change, an
+# install). The start time tells a pid the kernel gave to another process since from the holder.
 ROOT_LOCK=/run/ilex/compose.lock
 
-# The pid holding lock $1, or nothing when it's free or its owner is gone. One without a pid (an
-# older writer) counts for a minute, as in lock.mts.
+# Process $1's start time (clock ticks since boot, /proc/<pid>/stat's 22nd field), or nothing.
+start_time() {
+  local stat fields
+  stat="$(cat "/proc/$1/stat" 2>/dev/null)" || return 0
+  # The name in parentheses may hold spaces: the fields after its last ')'.
+  read -ra fields <<<"${stat##*) }"
+  printf '%s' "${fields[19]:-}"
+}
+
+# The pid holding lock $1, or nothing when it's free or its owner is gone (a pid without its start
+# time is an older writer's). One without a pid counts for a minute, as in lock.mts.
 lock_owner() {
-  local pid
-  pid="$(cat "$1" 2>/dev/null || true)"
-  if [[ "$pid" =~ ^[1-9][0-9]*$ ]]; then
+  local text pid start
+  text="$(cat "$1" 2>/dev/null || true)"
+  if [[ "$text" =~ ^([1-9][0-9]*)( ([0-9]+))?$ ]]; then
+    pid="${BASH_REMATCH[1]}" start="${BASH_REMATCH[3]}"
+    if [[ -n "$start" && "$(start_time "$pid")" != "$start" ]]; then return 0; fi
     if kill -0 "$pid" 2>/dev/null; then printf '%s' "$pid"; fi
   elif [[ -e "$1" ]] && (($(date +%s) - $(stat -c %Y "$1") < 60)); then
     printf unknown
@@ -80,7 +92,9 @@ lock_owner() {
 take_lock() {
   local lock="$1" own="$1.$$" ino
   mkdir -p "$(dirname "$lock")"
-  printf '%s' "$$" >"$own"
+  local start
+  start="$(start_time $$)"
+  printf '%s' "$$${start:+ $start}" >"$own"
   for _ in 1 2; do
     if ln "$own" "$lock" 2>/dev/null; then
       rm -f "$own"

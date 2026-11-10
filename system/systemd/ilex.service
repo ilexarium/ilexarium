@@ -4,10 +4,10 @@
 # machine's, /etc/ilex/app.env (root:ilex 0640: where it listens, the database password),
 # written once by the installer and never by an update. Design: docs/plans/installer.md.
 #
-# Deliberately without NoNewPrivileges, ProtectSystem, PrivateTmp and the like: they apply to
-# everything the app starts too, and the app's privileged work happens in its root wrappers,
-# started through sudo (which needs new privileges) — they write /etc, /mnt and /srv. The
-# wrappers check everything themselves; the app gets no rights beyond sudo to them.
+# No NoNewPrivileges, ProtectSystem, PrivateTmp and the like yet. The app starts nothing privileged
+# any more: root work runs in the signed-in person's SSH session, through their own sudo
+# (docs/plans/acting_as_you.md). They would only narrow what a compromised app can do on the host
+# itself, and go in once the install test checks what the app still reads and writes (docs/todo.md).
 
 [Unit]
 Description=Ilexarium
