@@ -1061,10 +1061,16 @@ async function machineCheck() {
   sh('systemctl', ['reload', SSH_UNIT]);
 
   // Lingering off: named by both, with its fix (user units still start: on demand, in session).
-  const signedIn = await api('POST', '/files/session', {
-    username: 'bob',
-    password: 'bob-smoke-password',
-  });
+  // Right after the reload sshd may not answer yet (a 503): ask again for a few seconds.
+  let signedIn;
+  for (let tries = 0; tries < 10; tries++) {
+    signedIn = await api('POST', '/files/session', {
+      username: 'bob',
+      password: 'bob-smoke-password',
+    });
+    if (signedIn.status !== 503) break;
+    await sleep(500);
+  }
   sh('loginctl', ['disable-linger', 'bob']);
   const noLinger = await api('POST', '/machine-check/person');
   check(
