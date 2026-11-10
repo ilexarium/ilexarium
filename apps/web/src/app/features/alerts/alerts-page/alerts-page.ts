@@ -21,7 +21,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
  * those resolved in the last 7 days as quiet rows.
  */
 @Component({
-  selector: 'laris-alerts-page',
+  selector: 'ilex-alerts-page',
   imports: [
     AlertCard,
     AlertRow,

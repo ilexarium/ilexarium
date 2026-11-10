@@ -1,10 +1,10 @@
-import de from '@laris/i18n/de.json';
-import en from '@laris/i18n/en.json';
+import de from '@ilex/i18n/de.json';
+import en from '@ilex/i18n/en.json';
 import { firstValueFrom } from 'rxjs';
 import { AVAILABLE_LANGUAGES, I18nLoader } from './i18n-loader';
 
 describe('I18nLoader', () => {
-  it('loads a language file from @laris/i18n', async () => {
+  it('loads a language file from @ilex/i18n', async () => {
     expect(await firstValueFrom(new I18nLoader().getTranslation('en'))).toEqual(en);
     expect(await firstValueFrom(new I18nLoader().getTranslation('de'))).toEqual(de);
   });

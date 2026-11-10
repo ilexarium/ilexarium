@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { signalStore, withMethods } from '@ngrx/signals';
-import type { ChangePasswordRequest } from '@laris/shared';
+import type { ChangePasswordRequest } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { firstValueFrom } from 'rxjs';
 import { AuthApi } from '../../../core/auth/auth-api';

@@ -6,7 +6,7 @@ import {
   type FilesErrorCode,
   type LinuxSession,
   type LinuxSignInRequest,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { filter, type Subscription } from 'rxjs';
@@ -46,9 +46,9 @@ import { Sftp } from './sftp.js';
  * `SSH_HOST_KEYS`): nothing else can pretend to be `sshd`.
  *
  * Each session runs the helper (`LINUX_HELPER`, docs/plans/acting_as_you.md) as the account, for
- * what Laris does as that person: ending processes, and sudo — unlocked with the same password,
- * which starts laris-root through the account's own sudo (docs/plans/laris_root.md); the password
- * is never kept here. Unlocked means laris-root runs: it ends 15 minutes after its last action
+ * what Ilexarium does as that person: ending processes, and sudo — unlocked with the same password,
+ * which starts ilex-root through the account's own sudo (docs/plans/ilex_root.md); the password
+ * is never kept here. Unlocked means ilex-root runs: it ends 15 minutes after its last action
  * (the helper says so), at "Lock now", and with the session.
  */
 @Injectable()
@@ -158,7 +158,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Asks the session's helper (counts as use). With `sudo`, the action is laris-root's: an answer
+   * Asks the session's helper (counts as use). With `sudo`, the action is ilex-root's: an answer
    * starts its idle time again; `sudo_required`: it isn't running (locked).
    */
   async ask(
@@ -180,7 +180,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     return answer;
   }
 
-  /** Unlocks the account's sudo with its password: the helper starts laris-root through it. */
+  /** Unlocks the account's sudo with its password: the helper starts ilex-root through it. */
   async unlockSudo(
     appSessionId: string,
     password: string,
@@ -225,7 +225,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * "Lock now": a new helper. laris-root ends with the old one (after what it's doing; an answer
+   * "Lock now": a new helper. ilex-root ends with the old one (after what it's doing; an answer
    * still awaited is `ended`); the Linux session stays.
    */
   async lockSudo(appSessionId: string, actor: LinuxActor): Promise<LinuxSession | null> {
@@ -355,7 +355,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** laris-root ended on its own (idle): locked at once. */
+  /** ilex-root ended on its own (idle): locked at once. */
   private follow(session: OpenLinuxSession): void {
     if (!session.helper) return;
     session.helper.onEvent = (event) => {

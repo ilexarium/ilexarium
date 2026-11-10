@@ -1,5 +1,5 @@
 {
-  "name": "@laris/shared",
+  "name": "@ilex/shared",
   "version": "0.0.0",
   "private": true,
   "description": "Contracts shared by server and web: API/WS types and Zod schemas.",
@@ -22,7 +22,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@laris/i18n": "^0.0.0",
+    "@ilex/i18n": "^0.0.0",
     "typescript": "~6.0.2",
     "vitest": "^4.1.2"
   }

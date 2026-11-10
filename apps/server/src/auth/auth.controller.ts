@@ -8,7 +8,7 @@ import {
   SignInService,
 } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { AuthStatusResponse, MeResponse, PublicUser, UserResponse } from '@laris/shared';
+import type { AuthStatusResponse, MeResponse, PublicUser, UserResponse } from '@ilex/shared';
 import { UsersService } from '../users/users.service.js';
 import { ChangePasswordDto, LoginDto, SetupDto } from './auth.dto.js';
 import { AuthService } from './auth.service.js';

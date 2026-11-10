@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { signalStore, withMethods } from '@ngrx/signals';
-import type { SetupRequest } from '@laris/shared';
+import type { SetupRequest } from '@ilex/shared';
 import { firstValueFrom } from 'rxjs';
 import { AuthApi } from '../../../core/auth/auth-api';
 import { AuthStore } from '../../../core/auth/auth-store';

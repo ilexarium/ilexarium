@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { SystemServiceDetails } from '@laris/shared';
+import type { SystemServiceDetails } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideScrollText } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -14,7 +14,7 @@ import type { ServiceRow } from '../system-services.model';
 
 /** A service's details in a side sheet, open while `row` is set. UI only: `closed` when it closes. */
 @Component({
-  selector: 'laris-service-sheet',
+  selector: 'ilex-service-sheet',
   imports: [HlmButton, HlmSheetImports, HlmSkeleton, NgIcon, RouterLink, StatusDot, TranslatePipe],
   providers: [provideIcons({ lucideScrollText })],
   templateUrl: './service-sheet.html',

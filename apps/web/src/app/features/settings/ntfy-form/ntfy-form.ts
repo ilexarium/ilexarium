@@ -10,7 +10,7 @@ import {
   type AlertChannelsResponse,
   type NtfyChannelForm,
   ntfyChannelFormSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -29,7 +29,7 @@ const TOPIC_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
 /** A long random topic name to suggest: on ntfy.sh the name is the password. */
 function randomTopic(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
-  return `laris-${Array.from(bytes, (b) => TOPIC_ALPHABET[b % TOPIC_ALPHABET.length]).join('')}`;
+  return `ilex-${Array.from(bytes, (b) => TOPIC_ALPHABET[b % TOPIC_ALPHABET.length]).join('')}`;
 }
 
 /**
@@ -37,7 +37,7 @@ function randomTopic(): string {
  * secrets: they never come back from the server ("saved"), and empty fields keep them.
  */
 @Component({
-  selector: 'laris-ntfy-form',
+  selector: 'ilex-ntfy-form',
   imports: [
     FieldErrors,
     FormErrors,

@@ -19,7 +19,7 @@ const immich = (): ItemRow => ({
 
 @Component({
   imports: [ItemSheet],
-  template: `<laris-item-sheet
+  template: `<ilex-item-sheet
     [row]="row()"
     [label]="{ text: 'immich', ltr: false }"
     (change)="changes.push($event)"

@@ -1,4 +1,4 @@
-import type { Process } from '@laris/shared';
+import type { Process } from '@ilex/shared';
 import type { LoadLevel, ProcessSort } from '../processes.model';
 
 /** Rows shown at first (the busiest, as sorted): a long list is slow and endless on a phone. */

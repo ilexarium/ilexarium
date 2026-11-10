@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import type { BackupDestination, BackupsStatus } from '@laris/shared';
+import type { BackupDestination, BackupsStatus } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideCircleCheck,
@@ -25,7 +25,7 @@ import type { BackupsHeadline } from '../backups.model';
  * again), the disk tile, and the warnings as a band. UI only: the clicks go out.
  */
 @Component({
-  selector: 'laris-backup-header',
+  selector: 'ilex-backup-header',
   imports: [
     HlmButton,
     HlmDropdownMenuImports,

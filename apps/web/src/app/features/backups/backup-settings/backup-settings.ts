@@ -5,7 +5,7 @@ import {
   type BackupPlan,
   type BackupSettingsForm,
   backupSettingsFormSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmFieldImports } from '@ui/field';
 import { HlmSelectImports } from '@ui/select';
@@ -22,7 +22,7 @@ import { ScheduleFields } from '../schedule-fields/schedule-fields';
  * set of backups). A save bar while something changed; submits through the page store.
  */
 @Component({
-  selector: 'laris-backup-settings',
+  selector: 'ilex-backup-settings',
   imports: [
     FieldErrors,
     FormErrors,

@@ -20,7 +20,7 @@ import {
   type BackupItemUpdate,
   type BackupSetupRequest,
   catalogIconPath,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
 import {

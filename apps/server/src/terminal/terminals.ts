@@ -1,11 +1,7 @@
 import type { IncomingMessage } from 'node:http';
 import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import { type AuthenticationResult, WsAuthenticator } from '@nestjs/authentication';
-import {
-  TERMINAL_CLOSE_CODES,
-  terminalControlSchema,
-  terminalOpenQuerySchema,
-} from '@laris/shared';
+import { TERMINAL_CLOSE_CODES, terminalControlSchema, terminalOpenQuerySchema } from '@ilex/shared';
 import { WebSocket, type RawData } from 'ws';
 import { AuditService } from '../audit/audit.service.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';

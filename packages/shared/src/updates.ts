@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
 /**
- * Laris's own updates (docs/plans/install_and_update.md): the app checks the release folder for a
- * newer signed release; the person updates with one click and their sudo, laris-update does it
+ * Ilexarium's own updates (docs/plans/install_and_update.md): the app checks the release folder for a
+ * newer signed release; the person updates with one click and their sudo, ilex-update does it
  * as its own unit and goes back to the installed version if the new one doesn't come up.
  */
 
-/** x.y.z, as the release scripts, the installer and laris-update write it. */
+/** x.y.z, as the release scripts, the installer and ilex-update write it. */
 export const RELEASE_VERSION_PATTERN = /^(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,5})$/;
 
-/** laris-update's steps as its job file names them, then the installer's (install.sh --update). */
+/** ilex-update's steps as its job file names them, then the installer's (install.sh --update). */
 export const UPDATE_PHASES = [
   'check',
   'download',

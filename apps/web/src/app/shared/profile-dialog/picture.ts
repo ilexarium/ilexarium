@@ -1,5 +1,5 @@
 import { DOCUMENT, inject, InjectionToken } from '@angular/core';
-import { PROFILE_LIMITS } from '@laris/shared';
+import { PROFILE_LIMITS } from '@ilex/shared';
 import { PICTURE_QUALITY } from './profile-dialog.constants';
 import type { PictureEncoder, PictureTools } from './profile-dialog.model';
 

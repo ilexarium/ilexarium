@@ -1,7 +1,7 @@
 // Apps (docs/plans/acting_as_you.md, "Apps"): Compose folders run as this account. Long work runs
-// as a systemd unit — a user unit with the docker group, a system unit by laris-root without it —
-// so it goes on when the session or Laris ends. Its output goes to a file in the app's folder,
-// and systemd adds its result at the end (`@@laris-result`, then SERVICE_RESULT, EXIT_CODE,
+// as a systemd unit — a user unit with the docker group, a system unit by ilex-root without it —
+// so it goes on when the session or Ilexarium ends. Its output goes to a file in the app's folder,
+// and systemd adds its result at the end (`@@ilex-result`, then SERVICE_RESULT, EXIT_CODE,
 // EXIT_STATUS): what happened is in the file, whatever happens to the unit afterwards.
 
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -71,7 +71,7 @@ function folder(request: Request): string | null {
 
 const stamp = (date = new Date()) => date.toISOString().slice(0, 19).replace(/[-:]/g, '');
 
-/** `systemd-run` for a task: a user unit, or a system unit (`system`, run by laris-root). */
+/** `systemd-run` for a task: a user unit, or a system unit (`system`, run by ilex-root). */
 function unitArgs(
   system: boolean,
   unit: string,
@@ -88,7 +88,7 @@ function unitArgs(
     `--working-directory=${dir}`,
     `--property=StandardOutput=append:${log}`,
     `--property=StandardError=append:${log}`,
-    `--property=ExecStopPost=${TASK_END.echo} @@laris-result`,
+    `--property=ExecStopPost=${TASK_END.echo} @@ilex-result`,
     `--property=ExecStopPost=${TASK_END.printenv} SERVICE_RESULT EXIT_CODE EXIT_STATUS`,
     '--',
     PROGRAMS.docker,
@@ -108,8 +108,8 @@ function task(request: Request): TaskAction | null {
 
 /**
  * Starts a task (`up`, `update`, `down`) in the app's folder: `docker compose -p <project> …` as
- * a unit, its output appended to `.laris/tasks/<time>-<action>.log`, recorded in
- * `.laris/task.json`. `system`: a system unit, started by laris-root (the files stay this
+ * a unit, its output appended to `.ilex/tasks/<time>-<action>.log`, recorded in
+ * `.ilex/task.json`. `system`: a system unit, started by ilex-root (the files stay this
  * account's).
  */
 export async function startTask(request: Request): Promise<Answer> {
@@ -119,9 +119,9 @@ export async function startTask(request: Request): Promise<Answer> {
   const system = request['system'];
   if (!name || !dir || !action || typeof system !== 'boolean') return BAD_REQUEST;
   const time = stamp();
-  const unit = `laris-app-${name}-${action}-${time}`;
+  const unit = `ilex-app-${name}-${action}-${time}`;
   if (!UNIT_PATTERN.test(unit)) return BAD_REQUEST;
-  const tasks = join(dir, '.laris', 'tasks');
+  const tasks = join(dir, '.ilex', 'tasks');
   const logName = `${time}-${action}.log`;
   const log = join(tasks, logName);
   try {
@@ -140,7 +140,7 @@ export async function startTask(request: Request): Promise<Answer> {
     return started;
   }
   const record = { unit, system, action, log: logName, startedAt: new Date().toISOString() };
-  writeFileSync(join(dir, '.laris', 'task.json'), `${JSON.stringify(record)}\n`, { mode: 0o600 });
+  writeFileSync(join(dir, '.ilex', 'task.json'), `${JSON.stringify(record)}\n`, { mode: 0o600 });
   return ok(record);
 }
 
@@ -152,7 +152,7 @@ async function runUnit(args: string[]): Promise<Answer> {
 }
 
 /**
- * laris-root's half of a system task: the unit, for a log the account made beforehand — the
+ * ilex-root's half of a system task: the unit, for a log the account made beforehand — the
  * unit's name and the log's path as `startTask` builds them.
  */
 export async function startSystemTask(request: Request): Promise<Answer> {
@@ -163,11 +163,11 @@ export async function startSystemTask(request: Request): Promise<Answer> {
   if (!name || !dir || !action || typeof unit !== 'string' || typeof log !== 'string') {
     return BAD_REQUEST;
   }
-  const time = /^laris-app-.+-(\d{8}T\d{6})$/.exec(unit)?.[1];
-  if (!time || unit !== `laris-app-${name}-${action}-${time}` || !UNIT_PATTERN.test(unit)) {
+  const time = /^ilex-app-.+-(\d{8}T\d{6})$/.exec(unit)?.[1];
+  if (!time || unit !== `ilex-app-${name}-${action}-${time}` || !UNIT_PATTERN.test(unit)) {
     return BAD_REQUEST;
   }
-  if (log !== join(dir, '.laris', 'tasks', `${time}-${action}.log`) || !existsSync(log)) {
+  if (log !== join(dir, '.ilex', 'tasks', `${time}-${action}.log`) || !existsSync(log)) {
     return BAD_REQUEST;
   }
   return runUnit(unitArgs(true, unit, dir, log, name, action));
@@ -189,7 +189,7 @@ export async function taskState(request: Request): Promise<Answer> {
   return ok({ active: result.stdout.trim().split('\n')[0] ?? 'unknown' });
 }
 
-/** How Docker is run for a quick command: `direct` (the docker group) or `sudo` (laris-root). */
+/** How Docker is run for a quick command: `direct` (the docker group) or `sudo` (ilex-root). */
 function docker(request: Request): boolean | null {
   const how = request['docker'];
   return how === 'sudo' ? true : how === 'direct' ? false : null;

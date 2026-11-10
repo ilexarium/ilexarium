@@ -12,7 +12,7 @@ import {
   type UpdateJob,
   type UpdateOutcome,
   type UpdatePhase,
-} from '@laris/shared';
+} from '@ilex/shared';
 import {
   auditTime,
   exhaustMap,
@@ -112,7 +112,7 @@ export function readJob(
 }
 
 /**
- * laris-update's job files (/var/lib/laris/updates/<id>.jsonl, readable by the app's group): the
+ * ilex-update's job files (/var/lib/ilex/updates/<id>.jsonl, readable by the app's group): the
  * running update or the last one's result. An update's end is written while the app restarts —
  * it's recorded (the run's row and the audit log) whenever it's first read, also after the restart.
  */
@@ -204,7 +204,7 @@ export class UpdateJobs implements OnApplicationBootstrap, OnModuleDestroy {
     const run = await this.prisma.updateRun.findUnique({ where: { id: job.id } });
     if (!run) return;
     await this.auditService.tryRecord({
-      action: 'laris.update_result',
+      action: 'ilex.update_result',
       userId: run.userId,
       username: run.username,
       ip: run.ip ?? undefined,

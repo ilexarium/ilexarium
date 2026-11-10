@@ -88,7 +88,7 @@ const script = (body: string, env: Record<string, string> = {}) =>
   );
 
 describe('the installer’s lock (the root programs’ own)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'laris-install-lock-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ilex-install-lock-'));
   const lock = join(dir, 'run', 'compose.lock');
   const sleepers: ReturnType<typeof spawn>[] = [];
   const living = () => {
@@ -142,7 +142,7 @@ describe('the installer’s lock (the root programs’ own)', () => {
     expect(script('take_lock "$LOCK"', { LOCK: lock }).status).toBe(0);
   });
 
-  it('--update under laris-update uses its lock; run by hand, takes it like any install', () => {
+  it('--update under ilex-update uses its lock; run by hand, takes it like any install', () => {
     const update = (owner: string) => {
       script('mkdir -p "$(dirname "$LOCK")"; printf %s "$OWNER" >"$LOCK"', {
         LOCK: lock,
@@ -150,7 +150,7 @@ describe('the installer’s lock (the root programs’ own)', () => {
       });
       return script('UPDATE=1; ROOT_LOCK="$LOCK"; hold_lock', { LOCK: lock });
     };
-    // The test's own process starts bash, as laris-update starts install.sh: its lock stays.
+    // The test's own process starts bash, as ilex-update starts install.sh: its lock stays.
     expect(update(String(process.pid)).status).toBe(0);
     expect(readFileSync(lock, 'utf8')).toBe(String(process.pid));
     const busy = update(String(living()));
@@ -174,8 +174,8 @@ describe('the installer’s lock (the root programs’ own)', () => {
 
 describe('the installer’s database dumps', () => {
   it('keeps the newest three', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'laris-install-dumps-'));
-    const names = [1, 2, 3, 4, 5].map((n) => `laris-0.1.${n}-20261105-12000${n}.dump`);
+    const dir = mkdtempSync(join(tmpdir(), 'ilex-install-dumps-'));
+    const names = [1, 2, 3, 4, 5].map((n) => `ilex-0.1.${n}-20261105-12000${n}.dump`);
     names.forEach((name, i) => {
       writeFileSync(join(dir, name), 'dump');
       const at = new Date(Date.now() - (10 - i) * 60_000);

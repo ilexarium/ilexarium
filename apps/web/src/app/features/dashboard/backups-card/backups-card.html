@@ -2,7 +2,7 @@
   <div hlmCardHeader class="flex flex-row flex-wrap items-center justify-between gap-3">
     <h2 hlmCardTitle id="backups-title">{{ 'dashboard.backups.title' | translate }}</h2>
     @if (badge(); as badge) {
-      <laris-status-badge [tone]="badge.tone">{{ badge.key | translate }}</laris-status-badge>
+      <ilex-status-badge [tone]="badge.tone">{{ badge.key | translate }}</ilex-status-badge>
     }
   </div>
   <div hlmCardContent class="grid flex-1 content-start gap-4">

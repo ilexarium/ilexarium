@@ -5,12 +5,12 @@ import { type RouterStateSnapshot, TitleStrategy } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { merge } from 'rxjs';
 
-export const APP_NAME = 'Laris';
+export const APP_NAME = 'Ilexarium';
 
 /**
  * Page titles come from each route's `title`, a translation key (`pages.containers`), filled in
  * with the route's parameters (`pages.logs`: "Logs · {{name}}"). Shown in the top bar
- * (`pageTitle`) and as the browser tab title ("Containers · Laris"); both follow a language
+ * (`pageTitle`) and as the browser tab title ("Containers · Ilexarium"); both follow a language
  * switch.
  */
 @Service()

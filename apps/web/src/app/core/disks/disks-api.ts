@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { DiskMountedResponse, DiskMountRequest, DisksStatus } from '@laris/shared';
+import type { DiskMountedResponse, DiskMountRequest, DisksStatus } from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 /** The server's disk endpoints. Live changes arrive through the `disks` topic. */

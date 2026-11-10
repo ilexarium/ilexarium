@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output, viewChild } from '@angular/core';
-import type { DockerCleanup, UnusedImage, UnusedVolume } from '@laris/shared';
+import type { DockerCleanup, UnusedImage, UnusedVolume } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
@@ -15,7 +15,7 @@ import { VolumeDialog } from '../volume-dialog/volume-dialog';
  * the confirmed choice out.
  */
 @Component({
-  selector: 'laris-free-space',
+  selector: 'ilex-free-space',
   imports: [
     HlmAlertDialogImports,
     HlmButton,

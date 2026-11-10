@@ -1,17 +1,17 @@
 <button hlmSidebarTrigger [srOnlyText]="'nav.toggle' | translate" class="-ms-1"></button>
 <hlm-separator orientation="vertical" class="me-2" />
 <h1 class="truncate text-base font-semibold">{{ pageTitle() }}</h1>
-<laris-connection-status class="ms-auto" />
+<ilex-connection-status class="ms-auto" />
 @if (linuxSessionStore.session(); as linux) {
-  <laris-linux-status
+  <ilex-linux-status
     [username]="linux.username"
     [sudoMinutes]="linuxSessionStore.sudoMinutes()"
     (lock)="linuxSessionStore.lockNow()"
     (close)="linuxSessionStore.signOut()"
   />
 }
-<laris-alerts-menu [open]="alerts.open()" [resolved]="alerts.closed()" />
-<laris-theme-menu />
+<ilex-alerts-menu [open]="alerts.open()" [resolved]="alerts.closed()" />
+<ilex-theme-menu />
 <button
   hlmBtn
   variant="ghost"
@@ -20,7 +20,7 @@
   align="end"
   [attr.aria-label]="'userMenu.open' | translate"
 >
-  <laris-user-avatar class="size-8 text-xs" [user]="auth.user()" />
+  <ilex-user-avatar class="size-8 text-xs" [user]="auth.user()" />
   <span dir="auto" class="hidden max-w-40 truncate text-sm sm:inline">{{ name() }}</span>
   <span class="hidden text-muted-foreground sm:inline-flex" aria-hidden="true">
     <ng-icon name="lucideChevronDown" />
@@ -92,4 +92,4 @@
     }
   </hlm-dropdown-menu-sub>
 </ng-template>
-<laris-profile-dialog [open]="editing()" (closed)="editing.set(false)" />
+<ilex-profile-dialog [open]="editing()" (closed)="editing.set(false)" />

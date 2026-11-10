@@ -1,5 +1,5 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { ALERT_LIMITS, type Alert, type AlertKind, type BackupWarning } from '@laris/shared';
+import { ALERT_LIMITS, type Alert, type AlertKind, type BackupWarning } from '@ilex/shared';
 import { type Observable, Subject } from 'rxjs';
 import type { Alert as AlertRow } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';

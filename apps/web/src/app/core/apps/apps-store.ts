@@ -8,7 +8,7 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { type AppSummary, appsFromContainers, type TemplateSummary } from '@laris/shared';
+import { type AppSummary, appsFromContainers, type TemplateSummary } from '@ilex/shared';
 import { catchError, EMPTY, exhaustMap, pipe, tap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { MonitoringStore } from '../monitoring/monitoring-store';

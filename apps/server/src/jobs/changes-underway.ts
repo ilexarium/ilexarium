@@ -3,7 +3,7 @@ import { type Observable, Subject } from 'rxjs';
 import { APP_QUIET_MS } from './jobs.constants.js';
 
 /**
- * What Laris knows is changing apps on purpose right now — a backup run or a restore (followed
+ * What Ilexarium knows is changing apps on purpose right now — a backup run or a restore (followed
  * from the root program's files) and the app tasks it started — so a container stopping then
  * isn't an alert. Nothing waits on it: one operation at a time is the root programs' lock.
  */

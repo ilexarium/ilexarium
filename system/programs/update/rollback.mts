@@ -12,12 +12,12 @@ import { runProgram } from './programs.mts';
 import { emit } from '../lib/output.mts';
 
 const TREES = ['app', 'libexec', 'catalog', 'platform'];
-const POSTGRES = 'laris-postgres-1';
-const INSTALL_BACKUPS = '/var/lib/laris/install-backups';
-const DUMP_NAME = /^laris-\d+\.\d+\.\d+-\d{8}-\d{6}\.dump$/;
+const POSTGRES = 'ilex-postgres-1';
+const INSTALL_BACKUPS = '/var/lib/ilex/install-backups';
+const DUMP_NAME = /^ilex-\d+\.\d+\.\d+-\d{8}-\d{6}\.dump$/;
 const READY_TIMEOUT_MS = 90_000;
 const START_TIMEOUT_MS = 90_000;
-const unitName = /^laris[\w@.-]*\.(service|timer)$/;
+const unitName = /^ilex[\w@.-]*\.(service|timer)$/;
 
 export type RollbackResult = 'nothing_changed' | 'rolled_back' | 'rollback_failed';
 
@@ -38,7 +38,7 @@ export async function rollBack(
 
   // Nothing kept means nothing changed yet: the app (maybe never stopped) runs again.
   if (!progress.phases.has('saved')) {
-    await run(programs.systemctl, ['start', 'laris.service']);
+    await run(programs.systemctl, ['start', 'ilex.service']);
     return 'nothing_changed';
   }
   job.event({ type: 'phase', phase: 'rollback' });
@@ -53,7 +53,7 @@ export async function rollBack(
   }
 
   let ok = true;
-  await run(programs.systemctl, ['stop', 'laris.service']);
+  await run(programs.systemctl, ['stop', 'ilex.service']);
 
   for (const tree of TREES) {
     const source = join(previous, tree);
@@ -88,8 +88,8 @@ export async function rollBack(
   }
 
   await run(programs.systemctl, ['daemon-reload']);
-  await run(programs.tmpfiles, ['--create', '/etc/tmpfiles.d/laris.conf']);
-  if ((await run(programs.systemctl, ['restart', 'laris-platform.service'])) !== 0) {
+  await run(programs.tmpfiles, ['--create', '/etc/tmpfiles.d/ilex.conf']);
+  if ((await run(programs.systemctl, ['restart', 'ilex-platform.service'])) !== 0) {
     say('The platform’s containers did not start');
     ok = false;
   }
@@ -105,7 +105,7 @@ export async function rollBack(
   }
 
   await run(programs.systemctl, ['reload-or-restart', sshUnit]);
-  await run(programs.systemctl, ['start', 'laris.service']);
+  await run(programs.systemctl, ['start', 'ilex.service']);
   if (!(await answersAs(paths.healthUrl, from, START_TIMEOUT_MS))) {
     say(`${from} did not answer after it was put back`);
     ok = false;
@@ -138,9 +138,9 @@ async function restoreDatabase(programs: Programs, dump: string, run: Run): Prom
       'pg_isready',
       '-q',
       '-U',
-      'laris_owner',
+      'ilex_owner',
       '-d',
-      'laris',
+      'ilex',
     ])) !== 0
   ) {
     if (Date.now() > end) return false;
@@ -156,9 +156,9 @@ async function restoreDatabase(programs: Programs, dump: string, run: Run): Prom
     '-q',
     '-X',
     '-U',
-    'laris_owner',
+    'ilex_owner',
     '-d',
-    'laris',
+    'ilex',
   ];
   if (
     (await run(
@@ -177,9 +177,9 @@ async function restoreDatabase(programs: Programs, dump: string, run: Run): Prom
     'pg_restore',
     '--exit-on-error',
     '-U',
-    'laris_owner',
+    'ilex_owner',
     '-d',
-    'laris',
+    'ilex',
   ];
   return (await run(programs.docker, restore, dump)) === 0;
 }

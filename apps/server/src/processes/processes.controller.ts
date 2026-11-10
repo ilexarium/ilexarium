@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, Ip, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { ProcessSignalDto } from './processes.dto.js';
 import { CHANGE_LIMIT } from './processes.constants.js';

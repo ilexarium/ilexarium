@@ -1,5 +1,5 @@
 // The machine's journal (docs/plans/system_logs.md), read as this account — journald decides what
-// it sees — or by laris-root for `administrator`. Only journalctl's JSON, a fixed set of fields
+// it sees — or by ilex-root for `administrator`. Only journalctl's JSON, a fixed set of fields
 // from each entry; every value it's given checked and passed as one argument.
 
 import { Buffer } from 'node:buffer';

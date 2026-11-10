@@ -1,8 +1,8 @@
 <div class="grid max-w-2xl gap-6">
   <p class="text-sm text-muted-foreground">{{ 'notifications.description' | translate }}</p>
   @if (notificationsPageStore.channels(); as channels) {
-    <laris-ntfy-form [settings]="channels.ntfy" />
-    <laris-email-form [settings]="channels.email" />
+    <ilex-ntfy-form [settings]="channels.ntfy" />
+    <ilex-email-form [settings]="channels.email" />
   } @else if (notificationsPageStore.failed()) {
     <p role="alert" class="text-sm text-destructive">
       {{ 'notifications.loadFailed' | translate }}

@@ -1,4 +1,4 @@
-import type { Process } from '@laris/shared';
+import type { Process } from '@ilex/shared';
 import type { ProcessSort } from '../processes.model';
 
 /** Where the table starts (Tailwind's `lg`): below it, two lines a process. */

@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
 import type { Env } from '../config/env.schema.js';
 import { withDevelopmentDisks } from './development-disks.js';
-import { LARIS_VERSION } from '../common/laris-version.js';
+import { ILEX_VERSION } from '../common/ilex-version.js';
 import type {
   ProgramBackupConfig,
   ProgramConfig,
@@ -57,9 +57,9 @@ const programConfigSchema = z.object({
 });
 
 /**
- * The root programs' config (laris-backup, laris-disk), read by the app too: the platform's
+ * The root programs' config (ilex-backup, ilex-disk), read by the app too: the platform's
  * folders, the backup and disk parts. Production: the installer writes
- * /etc/laris/wrappers.json (root-owned, world-readable). Development: created on first start
+ * /etc/ilex/wrappers.json (root-owned, world-readable). Development: created on first start
  * under .dev/.
  */
 @Injectable()
@@ -109,17 +109,17 @@ export class ProgramConfigService implements OnModuleInit {
   }
 
   /**
-   * Development updates: laris-update against a pretend machine under .dev/update — its
-   * etc/laris holds the installed version, and release.env and release.pub once a developer puts
+   * Development updates: ilex-update against a pretend machine under .dev/update — its
+   * etc/ilex holds the installed version, and release.env and release.pub once a developer puts
    * a test release folder there. Its programs folder is empty on purpose: an update gets as far
    * as unpacking, then fails without touching this machine.
    */
   private async developmentUpdateConfig(): Promise<ProgramUpdateConfig> {
     const root = resolve(dirname(this.file), 'update');
     const bin = resolve(root, 'bin');
-    await mkdir(resolve(root, 'etc/laris'), { recursive: true, mode: 0o700 });
+    await mkdir(resolve(root, 'etc/ilex'), { recursive: true, mode: 0o700 });
     await mkdir(bin, { recursive: true, mode: 0o700 });
-    await writeFile(resolve(root, 'etc/laris/version'), `${LARIS_VERSION}\n`);
+    await writeFile(resolve(root, 'etc/ilex/version'), `${ILEX_VERSION}\n`);
     return { dev: { root, bin, healthUrl: `http://127.0.0.1:${this.port}/api/health` } };
   }
 
@@ -143,9 +143,9 @@ export class ProgramConfigService implements OnModuleInit {
     return {
       borgBin: ['/usr/bin/borg', '/usr/local/bin/borg'].find(existsSync) ?? '/usr/bin/borg',
       platform: {
-        container: 'laris-dev-postgres-1',
-        database: 'laris',
-        user: 'laris',
+        container: 'ilex-dev-postgres-1',
+        database: 'ilex',
+        user: 'ilex',
         files: [this.file],
       },
       dev: { dir: backupDir, destinationRoots: [mnt], mountInfo },

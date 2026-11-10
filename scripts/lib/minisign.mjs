@@ -29,7 +29,7 @@ export function signatureFile(privateKey, data, fileName) {
   const global = sign(null, Buffer.concat([signature, Buffer.from(trusted)]), privateKey);
   const raw = Buffer.concat([Buffer.from('ED'), keyId, signature]);
   return [
-    `untrusted comment: signature from Laris release key ${shownId(keyId)}`,
+    `untrusted comment: signature from Ilexarium release key ${shownId(keyId)}`,
     raw.toString('base64'),
     `trusted comment: ${trusted}`,
     global.toString('base64'),

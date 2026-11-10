@@ -7,7 +7,7 @@ import {
   type SystemSnapshot,
   type SystemUpdate,
   WS_CLOSE_CODES,
-} from '@laris/shared';
+} from '@ilex/shared';
 import request from 'supertest';
 import { WebSocket } from 'ws';
 import { Client } from './realtime-client.js';
@@ -59,7 +59,7 @@ const update: SystemUpdate = {
 const snapshot: SystemSnapshot = {
   ...update,
   host: {
-    hostname: 'laris',
+    hostname: 'ilex',
     os: 'Debian GNU/Linux 13',
     kernel: '6.12.0',
     arch: 'arm64',

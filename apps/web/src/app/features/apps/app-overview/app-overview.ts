@@ -15,7 +15,7 @@ import type { AppStats, ContainerWithStats } from '../apps.model';
 
 /** The app's CPU and memory, then each of its containers with its own lines and its logs. */
 @Component({
-  selector: 'laris-app-overview',
+  selector: 'ilex-app-overview',
   imports: [NgIcon, RouterLink, Sparkline, StatusDot, TranslatePipe],
   providers: [provideIcons({ lucideCpu, lucideMemoryStick, lucideScrollText })],
   host: { class: 'grid content-start gap-4' },

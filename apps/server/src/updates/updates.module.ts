@@ -11,8 +11,8 @@ import { UpdatesService } from './updates.service.js';
 import { UpdatesTopic } from './updates-topic.js';
 
 /**
- * Laris's own updates (docs/plans/install_and_update.md): the daily check of the signed release
- * folder, starting an update through the person's sudo, following laris-update's job files.
+ * Ilexarium's own updates (docs/plans/install_and_update.md): the daily check of the signed release
+ * folder, starting an update through the person's sudo, following ilex-update's job files.
  */
 @Module({
   imports: [AuditModule, JobsModule, RealtimeModule, RootProgramsModule],

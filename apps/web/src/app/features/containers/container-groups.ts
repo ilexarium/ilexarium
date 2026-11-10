@@ -1,4 +1,4 @@
-import { appsFromContainers, type Container } from '@laris/shared';
+import { appsFromContainers, type Container } from '@ilex/shared';
 import type { ContainerGroup } from './containers.model';
 
 /** A plain stop isn't trouble here: unexpected stops are the alerts' job. */

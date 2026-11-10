@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import type { ActivityResponse } from '@laris/shared';
+import type { ActivityResponse } from '@ilex/shared';
 import { ActivityService } from './activity.service.js';
 
 @Controller('activity')

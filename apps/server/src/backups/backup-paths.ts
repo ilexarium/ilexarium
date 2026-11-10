@@ -1,11 +1,11 @@
-import { BACKUP_REPOSITORY_FOLDER, isBackupFolder } from '@laris/shared';
+import { BACKUP_REPOSITORY_FOLDER, isBackupFolder } from '@ilex/shared';
 import { notSystem } from '../host/folders.js';
 import type { ProgramConfig } from '../root-programs/root-programs.model.js';
 import { ARCHIVE_TIME_LENGTH, MOUNT_INFO, STATE_DIR } from './backups.constants.js';
 
 /**
  * Where things may be, as the app checks them — friendly errors before anything runs. The backup
- * program checks all of it again, with its own code (system/programs/laris-backup.mts).
+ * program checks all of it again, with its own code (system/programs/ilex-backup.mts).
  */
 
 /** A folder that may be backed up or restored into: anywhere but a system or platform folder. */

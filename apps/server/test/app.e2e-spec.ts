@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
-import { healthResponseSchema } from '@laris/shared';
+import { healthResponseSchema } from '@ilex/shared';
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 

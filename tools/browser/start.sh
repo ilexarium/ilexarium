@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Starts a separate copy of the app to look at in headless Chromium — never the dev servers or
 # the dev database. Server on :3100 (built into run/root, outside the repo), the production web
-# build on :4400 (served by serve.mjs, /api proxied), the test database (laris_test), pretend
+# build on :4400 (served by serve.mjs, /api proxied), the test database (ilex_test), pretend
 # backup disks under run/state/mnt. Usage: ./start.sh [--reset]   (--reset: empty test database,
 # fresh state — the next sign-in goes through setup). Stop with ./stop.sh.
 set -euo pipefail
@@ -18,15 +18,15 @@ mkdir -p "$R"
 rm -rf "$R/root" && mkdir -p "$R/root/apps/server"
 for d in catalog system node_modules; do ln -s "$P/$d" "$R/root/$d"; done
 cp "$P/apps/server/package.json" "$R/root/apps/server/"
-# Laris's version is the root package's (the server reads it, like an installed release).
+# Ilexarium's version is the root package's (the server reads it, like an installed release).
 cp "$P/package.json" "$R/root/"
-(cd "$P" && npm run build:shared >/dev/null && npm run prisma:generate -w @laris/server >/dev/null)
-# The test database's schema up to date (only ever laris_test here — never the dev database).
-(cd "$P/apps/server" && DATABASE_URL='postgresql://laris:laris-dev@127.0.0.1:5432/laris_test' npx prisma migrate deploy >/dev/null)
+(cd "$P" && npm run build:shared >/dev/null && npm run prisma:generate -w @ilex/server >/dev/null)
+# The test database's schema up to date (only ever ilex_test here — never the dev database).
+(cd "$P/apps/server" && DATABASE_URL='postgresql://ilex:ilex-dev@127.0.0.1:5432/ilex_test' npx prisma migrate deploy >/dev/null)
 if [[ "${1:-}" == "--reset" ]]; then
   rm -rf "$S"
   # Every table emptied (whatever features added), the migration record kept.
-  docker exec laris-dev-postgres-1 psql -U laris -d laris_test -qc "DO \$\$ DECLARE t text; BEGIN
+  docker exec ilex-dev-postgres-1 psql -U ilex -d ilex_test -qc "DO \$\$ DECLARE t text; BEGIN
     FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'
     LOOP EXECUTE format('TRUNCATE TABLE %I CASCADE', t); END LOOP; END \$\$;"
 fi
@@ -41,13 +41,13 @@ printf '900 1 0:99 / %s rw - ext4 /dev/sdz1 rw\n901 1 0:98 / %s rw - ext4 /dev/s
   "$S/mnt/usb" "$S/mnt/usb2" >"$S/backup/mountinfo"
 cat >"$S/wrappers.json" <<JSON
 {"protectedPaths":[],"dockerBin":"/usr/bin/docker","lockFile":"$S/compose.lock","home":"$HOME",
-"backup":{"borgBin":"/usr/bin/borg","platform":{"container":"laris-dev-postgres-1","database":"laris_test","user":"laris","files":["$S/wrappers.json"]},
+"backup":{"borgBin":"/usr/bin/borg","platform":{"container":"ilex-dev-postgres-1","database":"ilex_test","user":"ilex","files":["$S/wrappers.json"]},
 "dev":{"dir":"$S/backup","destinationRoots":["$S/mnt"],"mountInfo":"$S/backup/mountinfo"}}}
 JSON
 
 # Detached (own session, no inherited input or output): this script returns once they answer.
 (cd "$R/root/apps/server" && NODE_ENV=development PORT=3100 \
-  DATABASE_URL='postgresql://laris:laris-dev@127.0.0.1:5432/laris_test' \
+  DATABASE_URL='postgresql://ilex:ilex-dev@127.0.0.1:5432/ilex_test' \
   SETUP_TOKEN_FILE="$S/setup-token" MASTER_KEY_FILE="$S/master.key" \
   WRAPPER_CONFIG_FILE="$S/wrappers.json" ROOT_PROGRAMS=direct \
   SSH_HOST_KEYS="$P/apps/server/.dev/sshd" \

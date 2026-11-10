@@ -12,7 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { type Process, processKey } from '@laris/shared';
+import { type Process, processKey } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowDown,
@@ -68,7 +68,7 @@ interface Row {
  * is rendered. Presentational: rows in; sorting, ending, search and pause out.
  */
 @Component({
-  selector: 'laris-process-list',
+  selector: 'ilex-process-list',
   imports: [
     EmptyState,
     HlmButton,

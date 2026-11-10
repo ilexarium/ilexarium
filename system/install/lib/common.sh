@@ -12,7 +12,7 @@ die() {
 # Asks before changing the system outside our own files (installing packages); --yes answers.
 # An update from the app installs nothing: it stops before anything changed.
 confirm() {
-  if [[ "$UPDATE" == 1 ]]; then die "Needed first: $1 — an update from Laris installs no programs; update by hand (get-laris.sh) or install it, then update again"; fi
+  if [[ "$UPDATE" == 1 ]]; then die "Needed first: $1 — an update from Ilexarium installs no programs; update by hand (get-ilex.sh) or install it, then update again"; fi
   if [[ "$ASSUME_YES" == 1 ]]; then return 0; fi
   if [[ ! -t 0 ]]; then die "$1 — run again with --yes to agree without being asked"; fi
   local answer
@@ -20,7 +20,7 @@ confirm() {
   [[ "$answer" == y || "$answer" == Y ]]
 }
 
-# Progress for laris-update (an update from the app), which reads the @@ lines.
+# Progress for ilex-update (an update from the app), which reads the @@ lines.
 marker() {
   if [[ "$UPDATE" == 1 ]]; then printf '@@%s\n' "$*"; fi
 }
@@ -29,7 +29,7 @@ marker() {
 # renamed into place — never a moment with the content readable by the wrong user.
 write_file() {
   local dest="$1" owner="$2" mode="$3" tmp
-  tmp="$(mktemp "$(dirname "$dest")/.laris-install.XXXXXX")"
+  tmp="$(mktemp "$(dirname "$dest")/.ilex-install.XXXXXX")"
   chown "$owner" "$tmp"
   chmod "$mode" "$tmp"
   cat >"$tmp"
@@ -62,7 +62,7 @@ replace_tree() {
 
 # The root programs' lock, as lib/lock.mts takes it: a file holding its owner's pid, linked into
 # place — one privileged operation at a time (a backup, a restore, a disk change, an install).
-ROOT_LOCK=/run/laris/compose.lock
+ROOT_LOCK=/run/ilex/compose.lock
 
 # The pid holding lock $1, or nothing when it's free or its owner is gone. One without a pid (an
 # older writer) counts for a minute, as in lock.mts.

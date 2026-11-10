@@ -9,7 +9,7 @@ import {
   type SystemServiceDetails,
   type SystemServiceErrorCode,
   type SystemServicesResponse,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { AuditService } from '../audit/audit.service.js';
 import { linuxError, linuxSessionRequired } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
@@ -63,7 +63,7 @@ function bytes(value: string | undefined): number | null {
 /**
  * The host's systemd services (docs/plans/system_services.md): read as the signed-in Linux
  * account through its helper — systemd lets anyone read them —, changed through the account's
- * unlocked sudo (laris-root). Laris's own units and those it needs are protected here; changes are
+ * unlocked sudo (ilex-root). Ilexarium's own units and those it needs are protected here; changes are
  * recorded first (no record, no change).
  */
 @Injectable()

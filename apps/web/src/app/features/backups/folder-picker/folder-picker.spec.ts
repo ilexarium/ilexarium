@@ -1,18 +1,18 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { BackupFoldersResponse } from '@laris/shared';
+import type { BackupFoldersResponse } from '@ilex/shared';
 import { FolderPicker } from './folder-picker';
 
 const listing: BackupFoldersResponse = {
-  path: '/srv/laris',
+  path: '/srv/ilex',
   parent: null,
   readable: true,
-  folders: [{ name: 'docs', path: '/srv/laris/docs', allowed: true }],
+  folders: [{ name: 'docs', path: '/srv/ilex/docs', allowed: true }],
 };
 
 @Component({
   imports: [FolderPicker],
-  template: `<laris-folder-picker
+  template: `<ilex-folder-picker
     [open]="open()"
     [listing]="listing"
     (choose)="chosen.push($event); open.set(false)"
@@ -62,7 +62,7 @@ describe('FolderPicker', () => {
     const fixture = await render();
     button('Choose this folder').click();
     await vi.waitFor(() => expect(dialog()).toBeNull());
-    expect(fixture.componentInstance.chosen).toEqual(['/srv/laris']);
+    expect(fixture.componentInstance.chosen).toEqual(['/srv/ilex']);
     expect(fixture.componentInstance.cancelled).toBe(0);
   });
 });

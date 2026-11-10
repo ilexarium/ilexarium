@@ -5,7 +5,7 @@ import type {
   ContainerAction,
   ContainersSnapshot,
   ContainerActionParams,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { groupByApp } from '../container-groups';
 import { ContainersTable } from './containers-table';
 
@@ -301,7 +301,7 @@ describe('ContainersTable', () => {
 
   it('flags an unhealthy container in words', async () => {
     const { el } = await render(snapshot(sick));
-    const badge = el.querySelector('tbody laris-status-badge')!;
+    const badge = el.querySelector('tbody ilex-status-badge')!;
     expect(badge.textContent!.trim()).toBe('Unhealthy');
     expect(badge.getAttribute('data-tone')).toBe('failed');
   });
@@ -354,16 +354,16 @@ describe('ContainersTable', () => {
   it('draws recent CPU and memory beside the values of running containers only', async () => {
     const { el, cards } = await render(withHistory(web, stopped));
     const [running, idle] = el.querySelectorAll('tbody tr:not(:has([scope="rowgroup"]))');
-    expect(running.querySelectorAll('laris-sparkline')).toHaveLength(2);
-    expect(idle.querySelectorAll('laris-sparkline')).toHaveLength(0);
-    expect(cards()[0].querySelectorAll('laris-sparkline')).toHaveLength(2);
-    expect(running.querySelector('laris-sparkline')!.getAttribute('aria-hidden')).toBe('true');
+    expect(running.querySelectorAll('ilex-sparkline')).toHaveLength(2);
+    expect(idle.querySelectorAll('ilex-sparkline')).toHaveLength(0);
+    expect(cards()[0].querySelectorAll('ilex-sparkline')).toHaveLength(2);
+    expect(running.querySelector('ilex-sparkline')!.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('draws no line from a single point', async () => {
     const one = withHistory(web);
     const { el } = await render({ ...one, history: { a1: one.history['a1'].slice(1) } });
-    expect(el.querySelector('laris-sparkline')).toBeNull();
+    expect(el.querySelector('ilex-sparkline')).toBeNull();
   });
 
   it('pulses the dot of a running container (with motion allowed), not a stopped or unhealthy one', async () => {

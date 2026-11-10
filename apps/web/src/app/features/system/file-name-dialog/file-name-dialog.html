@@ -29,7 +29,7 @@
               {{ 'files.nameDialog.renameHelp' | translate: { name: $any(request()).entry.name } }}
             </p>
           }
-          <laris-field-errors [field]="form.name" />
+          <ilex-field-errors [field]="form.name" />
         </div>
         <hlm-alert-dialog-footer>
           <button hlmBtn type="button" variant="outline" (click)="close()">

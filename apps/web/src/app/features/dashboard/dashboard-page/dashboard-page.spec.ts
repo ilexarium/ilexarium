@@ -6,7 +6,7 @@ import type {
   Container,
   SystemSnapshot,
   SystemUpdate,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of } from 'rxjs';
 import { ActivityApi } from '../../../core/activity/activity-api';
@@ -46,7 +46,7 @@ const update: SystemUpdate = {
 const snapshot: SystemSnapshot = {
   ...update,
   host: {
-    hostname: 'laris',
+    hostname: 'ilex',
     os: 'Debian GNU/Linux 13',
     kernel: '6.12.0',
     arch: 'arm64',
@@ -143,7 +143,7 @@ async function render() {
     containersApi,
     activityApi,
     headline: () => el.querySelector('p[role="status"]')!.textContent!.trim(),
-    unit: (light: string) => el.querySelectorAll(`laris-status-rack [data-light="${light}"]`),
+    unit: (light: string) => el.querySelectorAll(`ilex-status-rack [data-light="${light}"]`),
     tile: (name: string) => el.querySelector(`[data-tile="${name}"]`),
     card: (title: string) => el.querySelector(`[aria-labelledby="${title}-title"]`)!,
   };
@@ -188,11 +188,11 @@ describe('DashboardPage', () => {
 
     expect(headline()).toBe('Everything is running fine');
     expect(unit('ok')).toHaveLength(3);
-    const rack = el.querySelector('laris-status-rack')!.textContent!;
+    const rack = el.querySelector('ilex-status-rack')!.textContent!;
     expect(rack).toContain('1 app running');
     expect(rack).toContain('Last backup 3 hours ago');
     expect(rack).toContain('System disk: 54 GB free');
-    expect(rack).toContain('laris');
+    expect(rack).toContain('ilex');
     expect(rack).toContain('Debian GNU/Linux 13 · arm64 · 4 cores · 8.0 GB memory');
     expect(rack).toContain('Up 3 days, 4 hours');
 

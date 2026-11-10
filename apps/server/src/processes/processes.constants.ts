@@ -4,7 +4,7 @@ import {
   PROCESS_ERROR_CODES,
   type ProcessErrorCode,
   type ProcessState,
-} from '@laris/shared';
+} from '@ilex/shared';
 
 type ApiCode = ProcessErrorCode | FilesErrorCode;
 

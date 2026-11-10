@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, linkedSignal, output } from '@angular/core';
-import { backupItemSkipSchema, RELATIVE_PATH_PATTERN } from '@laris/shared';
+import { backupItemSkipSchema, RELATIVE_PATH_PATTERN } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArchiveRestore, lucidePlay, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -17,7 +17,7 @@ import type { ItemChange, ItemLabel, ItemRow } from '../backups.model';
  * now, Restore…, Remove. UI only: changes and actions go out, `closed` when it closes itself.
  */
 @Component({
-  selector: 'laris-item-sheet',
+  selector: 'ilex-item-sheet',
   imports: [HlmButton, HlmInput, HlmSheetImports, NgIcon, PluralPipe, TranslatePipe],
   providers: [provideIcons({ lucideArchiveRestore, lucidePlay, lucideTrash2 })],
   templateUrl: './item-sheet.html',

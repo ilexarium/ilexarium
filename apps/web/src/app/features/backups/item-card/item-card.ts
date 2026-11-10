@@ -23,7 +23,7 @@ import type { ItemLabel, ItemRow } from '../backups.model';
  * how big; "⋯" for Back up now, Restore…, Remove. The card opens its side sheet (`open`).
  */
 @Component({
-  selector: 'laris-item-card',
+  selector: 'ilex-item-card',
   imports: [HlmButton, HlmDropdownMenuImports, NgIcon, StatusDot, TranslatePipe],
   providers: [
     provideIcons({

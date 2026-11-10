@@ -1,5 +1,5 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { ALERT_LIMITS } from '@laris/shared';
+import { ALERT_LIMITS } from '@ilex/shared';
 import { hostname } from 'node:os';
 import { concatMap, exhaustMap, interval, type Subscription } from 'rxjs';
 import { safely } from '../common/safely.js';

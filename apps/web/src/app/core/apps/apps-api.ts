@@ -26,7 +26,7 @@ import {
   catalogEntryPath,
   type TemplateDetails,
   type TemplateSummary,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 /** Apps and their templates (docs/plans/acting_as_you.md). Changes are done as the signed-in Linux account. */

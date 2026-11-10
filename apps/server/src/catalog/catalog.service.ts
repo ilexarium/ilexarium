@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { APP_ERROR_CODES, type TemplateDetails, type TemplateSummary } from '@laris/shared';
+import { APP_ERROR_CODES, type TemplateDetails, type TemplateSummary } from '@ilex/shared';
 import type { Env } from '../config/env.schema.js';
 import { loadCatalog } from './catalog-loader.js';
 import type { CatalogEntry } from './catalog.model.js';

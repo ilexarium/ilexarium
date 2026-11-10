@@ -9,9 +9,9 @@ export interface Config {
 }
 
 export interface Paths {
-  /** /etc/laris: release.env, release.pub, version. */
+  /** /etc/ilex: release.env, release.pub, version. */
   etc: string;
-  /** /opt/laris: the install, and previous/ — the way back. */
+  /** /opt/ilex: the install, and previous/ — the way back. */
   opt: string;
   /** Job files and each update's download folder. */
   state: string;

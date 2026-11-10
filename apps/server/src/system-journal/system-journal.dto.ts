@@ -1,4 +1,4 @@
-import { journalBootsQuerySchema, journalQuerySchema } from '@laris/shared';
+import { journalBootsQuerySchema, journalQuerySchema } from '@ilex/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class JournalQueryDto extends zodDto(journalQuerySchema) {}

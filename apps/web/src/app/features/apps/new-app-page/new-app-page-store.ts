@@ -16,7 +16,7 @@ import {
   parseEnv,
   setEnvValues,
   type Template,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';

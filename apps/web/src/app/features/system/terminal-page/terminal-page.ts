@@ -8,7 +8,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import type { LinuxSignInRequest } from '@laris/shared';
+import type { LinuxSignInRequest } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideX } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -28,7 +28,7 @@ import { TerminalPageStore } from './terminal-page-store';
  * docs/plans/sign_in_dialogs.md), then the terminal; why it closed, and opening it again.
  */
 @Component({
-  selector: 'laris-terminal-page',
+  selector: 'ilex-terminal-page',
   imports: [EmptyState, HlmButton, HlmSkeleton, NgIcon, SignInDialog, TerminalView, TranslatePipe],
   providers: [TerminalPageStore, provideIcons({ lucideX })],
   templateUrl: './terminal-page.html',

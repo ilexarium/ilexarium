@@ -1,5 +1,5 @@
 // The install test's other versions of a built release (tools/vm/test-install.sh): the same
-// archive under a new version, written beside it as release/laris-<version>.tar.gz —
+// archive under a new version, written beside it as release/ilex-<version>.tar.gz —
 //   node repack-release.mjs <archive> <version> [--broken]
 // --broken: an app that never starts (the update must roll back).
 import { execFileSync } from 'node:child_process';
@@ -12,11 +12,11 @@ if (!archive || !/^\d+\.\d+\.\d+$/.test(version ?? '')) {
   console.error('usage: node repack-release.mjs <archive> <version> [--broken]');
   process.exit(2);
 }
-const work = mkdtempSync(join(tmpdir(), 'laris-repack-'));
+const work = mkdtempSync(join(tmpdir(), 'ilex-repack-'));
 try {
   execFileSync('tar', ['-xzf', archive, '-C', work]);
   const old = basename(archive).replace(/\.tar\.gz$/, '');
-  const stage = join(work, `laris-${version}`);
+  const stage = join(work, `ilex-${version}`);
   renameSync(join(work, old), stage);
   writeFileSync(join(stage, 'VERSION'), `${version}\n`);
   const pkg = join(stage, 'app/package.json');
@@ -27,7 +27,7 @@ try {
   if (flag === '--broken') {
     writeFileSync(join(stage, 'app/apps/server/dist/main.js'), 'process.exit(1);\n');
   }
-  const out = join(dirname(archive), `laris-${version}.tar.gz`);
+  const out = join(dirname(archive), `ilex-${version}.tar.gz`);
   execFileSync('tar', [
     '--owner=0',
     '--group=0',
@@ -36,7 +36,7 @@ try {
     out,
     '-C',
     work,
-    `laris-${version}`,
+    `ilex-${version}`,
   ]);
   console.log(out);
 } finally {

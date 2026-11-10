@@ -10,7 +10,7 @@ import {
   type AlertChannelsResponse,
   type EmailChannelForm,
   emailChannelFormSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -33,7 +33,7 @@ const DEFAULT_PORT = 587;
  * password never comes back from the server: "saved", and an empty field keeps it.
  */
 @Component({
-  selector: 'laris-email-form',
+  selector: 'ilex-email-form',
   imports: [
     FieldErrors,
     FormErrors,

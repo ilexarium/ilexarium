@@ -1,8 +1,8 @@
-import type { ProcessSignal, PublicUser, SystemServiceAction } from '@laris/shared';
+import type { ProcessSignal, PublicUser, SystemServiceAction } from '@ilex/shared';
 import type { ClientChannel, Client, SFTPWrapper } from 'ssh2';
 import type { LinuxHelper } from './linux-helper.js';
 
-/** What the helper is asked (system/programs/laris-helper.mts lists the same). */
+/** What the helper is asked (system/programs/ilex-helper.mts lists the same). */
 export type HelperRequest =
   | { action: 'hello' }
   | { action: 'sudo.unlock'; password: string }
@@ -68,7 +68,7 @@ export interface OpenLinuxSession {
   gid: number | null;
   /** Its helper; null when it didn't start (Files and the terminal still work). */
   helper: LinuxHelper | null;
-  /** Until when laris-root runs (ms): its idle limit after the last action; null: locked. */
+  /** Until when ilex-root runs (ms): its idle limit after the last action; null: locked. */
   sudoUntil: number | null;
   /** The app user who opened it (an "everywhere" sign-out closes all of theirs). */
   userId: string;

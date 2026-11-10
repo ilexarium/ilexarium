@@ -32,7 +32,7 @@ import type {
   BackupRunStartedResponse,
   BackupsStatus,
   PublicUser,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { BackupChecks } from './backup-checks.js';
 import { BackupPlanManager } from './backup-plan-manager.js';

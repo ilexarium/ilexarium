@@ -5,7 +5,7 @@ import {
   type BackupRestore,
   type BackupRestorePhase,
   type BackupRestoreRequest,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { Observable, Subject } from 'rxjs';
 import type { BackupRestore as BackupRestoreRow } from '../generated/prisma/client.js';
 import { AppManager } from '../apps/app-manager.js';
@@ -20,7 +20,7 @@ import { RESTORES_SHOWN } from './backups.constants.js';
 
 /**
  * Restores: started through the person's sudo, run by systemd as their own unit
- * (`laris-restore@<id>`) — they go on if the app stops. Their phases, output and result come back
+ * (`ilex-restore@<id>`) — they go on if the app stops. Their phases, output and result come back
  * through the program's job file (`BackupJobs`, which saves the result: the folders set aside are
  * the way back). The history, and "Delete previous version".
  */

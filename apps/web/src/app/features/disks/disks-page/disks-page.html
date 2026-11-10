@@ -2,7 +2,7 @@
   <div class="grid grid-cols-1 gap-4 md:gap-6">
     <p class="text-sm text-muted-foreground">{{ 'disks.intro' | translate }}</p>
     @for (disk of status.disks; track disk.device) {
-      <laris-disk-card
+      <ilex-disk-card
         [disk]="disk"
         [pending]="disksPageStore.pending()"
         (mount)="openMount($event)"
@@ -49,5 +49,5 @@
   </div>
 }
 
-<laris-mount-dialog />
-<laris-unmount-dialog (confirm)="unmount($event)" />
+<ilex-mount-dialog />
+<ilex-unmount-dialog (confirm)="unmount($event)" />

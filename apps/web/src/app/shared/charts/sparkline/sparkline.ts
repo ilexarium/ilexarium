@@ -8,7 +8,7 @@ import type { SparklineSeries } from './sparkline.model';
  * Drawn left to right in every language: time runs that way on charts.
  */
 @Component({
-  selector: 'laris-sparkline',
+  selector: 'ilex-sparkline',
   host: { class: 'block', 'aria-hidden': 'true' },
   templateUrl: './sparkline.html',
 })

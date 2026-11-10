@@ -1,7 +1,7 @@
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { apiErrorResponseSchema, userResponseSchema } from '@laris/shared';
+import { apiErrorResponseSchema, userResponseSchema } from '@ilex/shared';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import request from 'supertest';
@@ -10,7 +10,7 @@ import { configureApp } from '../src/app.setup.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { resetDatabaseBeforeStart } from './database.js';
 
-const HOST = 'laris.test';
+const HOST = 'ilex.test';
 const SAME_ORIGIN = `http://${HOST}`;
 const PASSWORD = 'correct horse battery';
 const tokenFile = resolve(process.env.SETUP_TOKEN_FILE!);

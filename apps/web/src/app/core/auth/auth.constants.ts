@@ -1,1 +1,1 @@
-export const SIGN_OUT_CHANNEL_NAME = 'laris-sign-out';
+export const SIGN_OUT_CHANNEL_NAME = 'ilex-sign-out';

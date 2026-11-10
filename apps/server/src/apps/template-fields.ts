@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { type AppField, CATALOG_LIMITS, parseEnv, type Template } from '@laris/shared';
+import { type AppField, CATALOG_LIMITS, parseEnv, type Template } from '@ilex/shared';
 import type { FieldContext } from './apps.model.js';
 
 /** A random secret (letters, digits, "-" and "_": written bare in `.env`). */

@@ -8,9 +8,9 @@ import { proxy, proxyReachable } from './docker-proxy.js';
 // (in use, or missing). The prunes are never run here: they'd delete the developer's own unused
 // images — the install test runs them (tools/vm/smoke.mjs).
 
-const SANDBOX = 'laris-dev-sandbox-1';
+const SANDBOX = 'ilex-dev-sandbox-1';
 /** The dev Postgres's volume: always in use, so Docker itself refuses to delete it. */
-const VOLUME_IN_USE = 'laris-dev_pgdata';
+const VOLUME_IN_USE = 'ilex-dev_pgdata';
 const IMAGE_PRUNE_QUERY = `filters=${encodeURIComponent('{"dangling":["false"]}')}`;
 
 const reachable = await proxyReachable();
@@ -229,8 +229,8 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
 
   it('passes a volume delete to Docker, which refuses one in use and a missing one', async () => {
     expect(await status(`/volumes/${VOLUME_IN_USE}`, 'DELETE')).toBe(409);
-    expect(await status('/volumes/laris-test-no-such-volume', 'DELETE')).toBe(404);
-    expect(await status('/v1.40/volumes/laris-test-no-such-volume', 'DELETE')).toBe(404);
+    expect(await status('/volumes/ilex-test-no-such-volume', 'DELETE')).toBe(404);
+    expect(await status('/v1.40/volumes/ilex-test-no-such-volume', 'DELETE')).toBe(404);
   });
 
   it('refuses a forced volume delete, a body, and every other delete', async () => {

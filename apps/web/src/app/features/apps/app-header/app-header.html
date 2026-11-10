@@ -17,13 +17,13 @@
             <span>{{ template }}</span>
           }
           @if (installing()) {
-            <laris-status-dot class="text-foreground" tone="busy">{{
+            <ilex-status-dot class="text-foreground" tone="busy">{{
               'apps.installing' | translate
-            }}</laris-status-dot>
+            }}</ilex-status-dot>
           } @else if (state(); as state) {
-            <laris-status-dot class="text-foreground" [tone]="dots[state]">{{
+            <ilex-status-dot class="text-foreground" [tone]="dots[state]">{{
               'apps.state.' + state | translate
-            }}</laris-status-dot>
+            }}</ilex-status-dot>
           }
         </p>
       </div>

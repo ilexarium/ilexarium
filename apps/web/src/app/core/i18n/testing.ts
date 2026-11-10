@@ -1,4 +1,4 @@
-import en from '@laris/i18n/en.json';
+import en from '@ilex/i18n/en.json';
 import {
   MissingTranslationHandler,
   type MissingTranslationHandlerParams,

@@ -31,7 +31,7 @@ describe('diskMountRequestSchema', () => {
       '/usr/local/x',
       '/mnt/../etc',
       'mnt/x',
-      '/opt/laris',
+      '/opt/ilex',
     ]) {
       const result = diskMountRequestSchema.safeParse({ ...mount, mountPoint });
       expect(result.error?.issues[0].message, mountPoint).toBe('validation.mountPointInvalid');

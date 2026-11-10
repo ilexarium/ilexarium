@@ -1,4 +1,4 @@
-// A fake `docker` for laris-backup.spec.ts (copied beside the test's files, with a shebang).
+// A fake `docker` for ilex-backup.spec.ts (copied beside the test's files, with a shebang).
 // Records every call in docker-calls.jsonl. `exec` prints a fake dump. `compose -p <project>`:
 // `ps -q` prints a container id while <project> is in running.txt; `stop`, `start` and `up` change
 // that; exit-<command>.txt sets an exit code; start-fails.txt makes the next N starts fail.

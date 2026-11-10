@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { AppDetails, AppFields, AppRemoval, TemplateSummary } from '@laris/shared';
+import type { AppDetails, AppFields, AppRemoval, TemplateSummary } from '@ilex/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -83,7 +83,7 @@ describe('apps and templates (e2e)', () => {
     expect(list.find((t) => t.id === 'pihole')?.webPath).toBe('/admin/');
     expect(list.find((t) => t.id === 'navidrome')?.webPath).toBe('/');
     const navidrome = (await api().get('/catalog/navidrome').expect(200)).body;
-    expect(navidrome.compose).toContain('laris.template: navidrome@2');
+    expect(navidrome.compose).toContain('ilex.template: navidrome@2');
     const icon = await api().get('/catalog/navidrome/icon').expect(200);
     expect(icon.headers['content-type']).toMatch(/^image\/svg\+xml/);
     expect(icon.headers['content-security-policy']).toContain('sandbox');
@@ -170,7 +170,7 @@ describe('apps and templates (e2e)', () => {
       const folderOf = (name: string) => `/home/anna/apps/${name}`;
       const makeFolder = (parent: string, name: string) =>
         api().post('/files/folder', { parent, name });
-      /** An app folder of hers, made through Files (as if made outside Laris). */
+      /** An app folder of hers, made through Files (as if made outside Ilexarium). */
       async function appFolder(name: string, compose: string, env = '') {
         await makeFolder('/home/anna', 'apps');
         await makeFolder('/home/anna/apps', name);
@@ -285,15 +285,15 @@ describe('apps and templates (e2e)', () => {
         const early = await api().post(`/apps/${name}/delete`, request).expect(409);
         expect(early.body.code).toBe('app_task_running');
         // Its `down` finished (what the helper and systemd would have left).
-        await makeFolder(folder, '.laris');
-        await makeFolder(`${folder}/.laris`, 'tasks');
+        await makeFolder(folder, '.ilex');
+        await makeFolder(`${folder}/.ilex`, 'tasks');
         await makeFolder(folder, 'data');
         await makeFolder(folder, 'extra');
         await upload(
-          `${folder}/.laris`,
+          `${folder}/.ilex`,
           'task.json',
           JSON.stringify({
-            unit: `laris-app-${name}-down-20261030T120000`,
+            unit: `ilex-app-${name}-down-20261030T120000`,
             system: false,
             action: 'down',
             log: '20261030T120000-down.log',
@@ -301,9 +301,9 @@ describe('apps and templates (e2e)', () => {
           }),
         );
         await upload(
-          `${folder}/.laris/tasks`,
+          `${folder}/.ilex/tasks`,
           '20261030T120000-down.log',
-          'Removed\n@@laris-result\nsuccess\nexited\n0\n',
+          'Removed\n@@ilex-result\nsuccess\nexited\n0\n',
         );
         await api()
           .post(`/apps/${name}/delete`, { ...request, folders: [...request.folders, '/home/anna'] })

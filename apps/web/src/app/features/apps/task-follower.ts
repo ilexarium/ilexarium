@@ -1,4 +1,4 @@
-import { APP_LIMITS, type AppTask } from '@laris/shared';
+import { APP_LIMITS, type AppTask } from '@ilex/shared';
 import { catchError, EMPTY, exhaustMap, Observable, takeWhile, timer } from 'rxjs';
 import type { AppsApi } from '../../core/apps/apps-api';
 

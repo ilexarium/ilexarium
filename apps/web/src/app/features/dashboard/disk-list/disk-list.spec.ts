@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { DiskUsage } from '@laris/shared';
+import type { DiskUsage } from '@ilex/shared';
 import { shownDisks } from '../dashboard-page/dashboard-status';
 import { DiskList } from './disk-list';
 
@@ -47,10 +47,10 @@ describe('DiskList', () => {
     const [root, filling, full] = items();
     expect(root.hasAttribute('data-level')).toBe(false);
     expect(filling.textContent).toContain('Filling up');
-    expect(filling.querySelector('laris-status-badge')!.getAttribute('data-tone')).toBe('warning');
+    expect(filling.querySelector('ilex-status-badge')!.getAttribute('data-tone')).toBe('warning');
     expect(filling.querySelector('hlm-progress-indicator')!.className).toContain('bg-warning');
     expect(full.textContent).toContain('Almost full');
-    expect(full.querySelector('laris-status-badge')!.getAttribute('data-tone')).toBe('failed');
+    expect(full.querySelector('ilex-status-badge')!.getAttribute('data-tone')).toBe('failed');
     expect(full.querySelector('hlm-progress-indicator')!.className).toContain('bg-destructive');
   });
 

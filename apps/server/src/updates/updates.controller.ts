@@ -11,13 +11,13 @@ import {
 } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { PublicUser, StartUpdateResponse, UpdatesStatus } from '@laris/shared';
+import type { PublicUser, StartUpdateResponse, UpdatesStatus } from '@ilex/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { UPDATE_CHANGE_LIMIT } from './updates.constants.js';
 import { StartUpdateDto, UpdateSettingsDto } from './updates.dto.js';
 import { UpdatesService } from './updates.service.js';
 
-/** Laris's own updates (docs/plans/install_and_update.md). Every route needs a session. */
+/** Ilexarium's own updates (docs/plans/install_and_update.md). Every route needs a session. */
 @Controller('updates')
 @UseFilters(TooManyAttemptsFilter)
 export class UpdatesController {
@@ -44,7 +44,7 @@ export class UpdatesController {
     return this.updatesService.setCheckAutomatically(checkAutomatically);
   }
 
-  /** Starts the update through the person's sudo; it runs on as its own unit while Laris restarts. */
+  /** Starts the update through the person's sudo; it runs on as its own unit while Ilexarium restarts. */
   @Post()
   @HttpCode(202)
   @UseGuards(ThrottlerGuard)

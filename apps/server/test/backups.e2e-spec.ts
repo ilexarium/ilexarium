@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { BackupItem, BackupPlan, BackupRestore, BackupRun } from '@laris/shared';
+import type { BackupItem, BackupPlan, BackupRestore, BackupRun } from '@ilex/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -26,7 +26,7 @@ import { resetDatabase } from './database.js';
 import { testHasher } from './realtime-client.js';
 
 // Backups end to end: the app, the executor in direct mode, the real backup wrapper
-// (system/programs/laris-backup.mts) and the real Borg — with a fake `docker` (the platform's
+// (system/programs/ilex-backup.mts) and the real Borg — with a fake `docker` (the platform's
 // dump, a service stopped and started) and a pretend disk (a folder listed in a mount table).
 
 const FAKE_DOCKER = fileURLToPath(
@@ -113,9 +113,9 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
         backup: {
           borgBin: BORG,
           platform: {
-            container: 'laris-postgres-1',
-            database: 'laris',
-            user: 'laris',
+            container: 'ilex-postgres-1',
+            database: 'ilex',
+            user: 'ilex',
             files: [WRAPPER_CONFIG],
           },
           dev: {
@@ -215,7 +215,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     });
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     expect(res.body.passphrase.split(' ')).toHaveLength(6);
-    expect(existsSync(join(disk, 'laris-backups', 'config'))).toBe(true);
+    expect(existsSync(join(disk, 'ilex-backups', 'config'))).toBe(true);
     const current = await plan();
     expect(current.items.map((i) => i.kind)).toEqual(['platform', 'app', 'folder']);
     expect(current.items[1]).toMatchObject({
@@ -368,7 +368,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     const before = (await plan()).items.map((i) => [i.id, i.removed]);
     const app = (await plan()).items.find((i) => i.kind === 'app')!;
     const refused = await api()
-      .patch(`/backups/items/${app.id}`, { folders: ['/var/lib/laris/x'] })
+      .patch(`/backups/items/${app.id}`, { folders: ['/var/lib/ilex/x'] })
       .expect(400);
     expect(refused.body.errors?.[0]?.code ?? refused.body.code).toBeTruthy();
     expect((await plan()).items.map((i) => [i.id, i.removed])).toEqual(before);
@@ -383,7 +383,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
       .expect(200);
     expect(updated.body.schedule).toEqual({ frequency: 'every6h', time: '01:30' });
     const dropIn = readFileSync(
-      join(dir, 'backup', 'systemd', 'laris-backup.timer.d', 'schedule.conf'),
+      join(dir, 'backup', 'systemd', 'ilex-backup.timer.d', 'schedule.conf'),
       'utf8',
     );
     expect(dropIn).toContain('OnCalendar=*-*-* 01,07,13,19:30:00');

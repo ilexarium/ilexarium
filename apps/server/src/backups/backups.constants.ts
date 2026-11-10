@@ -11,7 +11,7 @@ export const FOLDER_PLACES = ['/srv', '/opt', '/data'];
 /** Folders the picker lists in one folder at most. */
 export const SUBFOLDERS_MAX = 500;
 /** The production places of the wrapper's files (development: under the config's dev folder). */
-export const STATE_DIR = '/var/lib/laris/backups';
+export const STATE_DIR = '/var/lib/ilex/backups';
 export const MOUNT_INFO = '/proc/self/mountinfo';
 
 /** The time at the end of an archive's name: `YYYY-MM-DDTHH:MM:SS`, UTC. */

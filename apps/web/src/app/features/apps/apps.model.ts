@@ -1,4 +1,4 @@
-import type { AppTask, BackupMode, Container } from '@laris/shared';
+import type { AppTask, BackupMode, Container } from '@ilex/shared';
 import type { SparklineSeries } from '../../shared/charts/sparkline/sparkline.model';
 
 /** A field's change in the form. */

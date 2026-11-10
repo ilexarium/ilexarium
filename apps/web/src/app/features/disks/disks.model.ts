@@ -1,4 +1,4 @@
-import type { DiskPartition } from '@laris/shared';
+import type { DiskPartition } from '@ilex/shared';
 
 /** A partition the mount dialog is open for, with the disk it's on (for its name). */
 export interface MountTarget {

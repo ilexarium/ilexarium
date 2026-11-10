@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { DockerCleanup } from '@laris/shared';
+import type { DockerCleanup } from '@ilex/shared';
 import { stubScreenWidth } from '../../../layout/testing';
 import { FreeSpace } from './free-space';
 
@@ -25,7 +25,7 @@ const CLEANUP: DockerCleanup = {
 
 @Component({
   imports: [FreeSpace],
-  template: `<laris-free-space
+  template: `<ilex-free-space
     [cleanup]="cleanup()"
     [volumeSizes]="sizes()"
     [pruning]="pruning()"

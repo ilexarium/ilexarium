@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { AppSummary, BackupItem } from '@laris/shared';
+import type { AppSummary, BackupItem } from '@ilex/shared';
 import { testAppItem, testItem } from '../../../core/backups/testing';
 import type { ItemLabel, ItemRow } from '../backups.model';
 import { BackupItems } from './backup-items';
@@ -12,7 +12,7 @@ const row = (item: BackupItem): ItemRow => ({ item, name: item.project, icon: nu
 
 @Component({
   imports: [BackupItems],
-  template: `<laris-backup-items
+  template: `<ilex-backup-items
     [active]="active()"
     [removed]="removed()"
     [addable]="addable"
@@ -48,7 +48,7 @@ const menuItems = () => [...document.querySelectorAll<HTMLButtonElement>('[role=
 describe('BackupItems', () => {
   it('shows a card per item; a card opens its sheet', async () => {
     const { fixture, el } = await render();
-    const cards = [...el.querySelectorAll('laris-item-card')];
+    const cards = [...el.querySelectorAll('ilex-item-card')];
     expect(cards.map((c) => c.querySelector('h3')!.textContent!.trim())).toEqual([
       'immich',
       '/srv/docs',

@@ -9,16 +9,16 @@ import { Refusal } from '../lib/output.mts';
 import { assertRootOwned, isPlainAbsolutePath } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
-export const ROOT_CONFIG = '/etc/laris/wrappers.json';
+export const ROOT_CONFIG = '/etc/ilex/wrappers.json';
 /** The machine's settings for the app (the person's: where it listens), never changed by an update. */
-const APP_SETTINGS = '/etc/laris/app.env';
+const APP_SETTINGS = '/etc/ilex/app.env';
 
 const SSH_UNITS = ['ssh.service', 'sshd.service'];
 
 const absolute = (p: unknown): p is string => typeof p === 'string' && isPlainAbsolutePath(p);
 
 export function loadConfig(): Config {
-  const path = isRoot ? ROOT_CONFIG : process.env['LARIS_WRAPPER_CONFIG'];
+  const path = isRoot ? ROOT_CONFIG : process.env['ILEX_WRAPPER_CONFIG'];
   if (!path) throw new Refusal('setup', 'no configuration', 6);
   if (isRoot) assertRootOwned(path);
   const config = JSON.parse(readFileSync(path, 'utf8')) as Partial<Config>;
@@ -43,10 +43,10 @@ export function pathsFor(config: Config): Paths {
   const dev = config.update.dev;
   const under = (path: string) => (isRoot || !dev ? path : join(dev.root, path));
   return {
-    etc: under('/etc/laris'),
-    opt: under('/opt/laris'),
-    state: under('/var/lib/laris/updates'),
-    installBackups: under('/var/lib/laris/install-backups'),
+    etc: under('/etc/ilex'),
+    opt: under('/opt/ilex'),
+    state: under('/var/lib/ilex/updates'),
+    installBackups: under('/var/lib/ilex/install-backups'),
     units: under('/etc/systemd/system'),
     host: isRoot || !dev ? '/' : dev.root,
     lock: isRoot || !dev ? ROOT_LOCK : join(dev.root, 'root.lock'),

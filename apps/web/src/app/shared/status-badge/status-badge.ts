@@ -6,10 +6,10 @@ import type { StatusTone } from './status-badge.model';
 
 /**
  * The one status badge every page uses: the text (the content) with the tone's icon and colours,
- * so a status is never told by colour alone. `<laris-status-badge tone="failed">Failed</…>`.
+ * so a status is never told by colour alone. `<ilex-status-badge tone="failed">Failed</…>`.
  */
 @Component({
-  selector: 'laris-status-badge',
+  selector: 'ilex-status-badge',
   imports: [NgIcon],
   providers: [provideIcons(STATUS_ICONS)],
   host: { '[class]': 'classes()', '[attr.data-tone]': 'tone()' },

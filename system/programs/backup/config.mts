@@ -10,14 +10,14 @@ import { Refusal } from '../lib/output.mts';
 import { assertRootOwned, isPlainAbsolutePath } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
-export const ROOT_CONFIG = '/etc/laris/wrappers.json';
+export const ROOT_CONFIG = '/etc/ilex/wrappers.json';
 
 export const ROOT_PATHS = {
-  plan: '/etc/laris/backup.json',
-  repository: '/etc/laris/backup-repository.json',
-  passphrase: '/etc/laris/backup.passphrase',
-  state: '/var/lib/laris/backups',
-  timerDropIn: '/etc/systemd/system/laris-backup.timer.d/schedule.conf',
+  plan: '/etc/ilex/backup.json',
+  repository: '/etc/ilex/backup-repository.json',
+  passphrase: '/etc/ilex/backup.passphrase',
+  state: '/var/lib/ilex/backups',
+  timerDropIn: '/etc/systemd/system/ilex-backup.timer.d/schedule.conf',
   mountInfo: '/proc/self/mountinfo',
 };
 
@@ -38,7 +38,7 @@ export const absolute = (p: unknown): p is string =>
   typeof p === 'string' && isPlainAbsolutePath(p);
 
 export function loadConfig(): Config {
-  const path = isRoot ? ROOT_CONFIG : process.env['LARIS_WRAPPER_CONFIG'];
+  const path = isRoot ? ROOT_CONFIG : process.env['ILEX_WRAPPER_CONFIG'];
   if (!path) throw new Refusal('setup', 'no configuration', 6);
   if (isRoot) assertRootOwned(path);
   const config = JSON.parse(readFileSync(path, 'utf8')) as Config;
@@ -89,7 +89,7 @@ export function pathsFor(config: Config): Paths {
     repository: join(dev.dir, 'backup-repository.json'),
     passphrase: join(dev.dir, 'backup.passphrase'),
     state: join(dev.dir, 'state'),
-    timerDropIn: join(dev.dir, 'systemd', 'laris-backup.timer.d', 'schedule.conf'),
+    timerDropIn: join(dev.dir, 'systemd', 'ilex-backup.timer.d', 'schedule.conf'),
     mountInfo: dev.mountInfo,
     lock: config.lockFile ?? join(dev.dir, 'compose.lock'),
     destinationRoots: dev.destinationRoots,

@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowLeft } from '@ng-icons/lucide';
-import { containerNameSchema, type LogsEndReason } from '@laris/shared';
+import { containerNameSchema, type LogsEndReason } from '@ilex/shared';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
@@ -25,7 +25,7 @@ interface Notice {
 
 /** Fills the screen height below the top bar, so the log box scrolls, not the page. */
 @Component({
-  selector: 'laris-logs-page',
+  selector: 'ilex-logs-page',
   imports: [
     EmptyState,
     HlmAlertImports,

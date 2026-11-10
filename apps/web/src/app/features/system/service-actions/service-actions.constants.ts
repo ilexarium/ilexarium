@@ -1,4 +1,4 @@
-import type { SystemServiceAction } from '@laris/shared';
+import type { SystemServiceAction } from '@ilex/shared';
 
 export const ICONS: Record<SystemServiceAction, string> = {
   start: 'lucidePlay',

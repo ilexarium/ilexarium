@@ -1,4 +1,4 @@
-import type { Container } from '@laris/shared';
+import type { Container } from '@ilex/shared';
 import { groupByApp, needsAttention } from './container-groups';
 
 const container = (name: string, more: Partial<Container> = {}): Container => ({
@@ -60,11 +60,11 @@ describe('groupByApp', () => {
 
   it("counts the platform's own Compose project as no app, like the Apps page", () => {
     const result = groups([
-      container('laris-postgres', { composeProject: 'laris', protected: true }),
-      container('laris-proxy', { composeProject: 'laris' }),
+      container('ilex-postgres', { composeProject: 'ilex', protected: true }),
+      container('ilex-proxy', { composeProject: 'ilex' }),
     ]);
     expect(result).toEqual([
-      { app: null, containers: ['laris-postgres', 'laris-proxy'], running: 2 },
+      { app: null, containers: ['ilex-postgres', 'ilex-proxy'], running: 2 },
     ]);
   });
 

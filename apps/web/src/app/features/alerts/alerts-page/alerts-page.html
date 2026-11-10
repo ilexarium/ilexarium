@@ -47,13 +47,13 @@
     <section class="grid gap-3" aria-labelledby="alerts-open">
       <h2 id="alerts-open" class="text-lg font-semibold">{{ 'alerts.open' | translate }}</h2>
       @for (alert of alertsStore.open(); track alert.id) {
-        <laris-alert-card
+        <ilex-alert-card
           [alert]="alert"
           [pending]="alertsPageStore.pending().includes(alert.id)"
           (acknowledge)="alertsPageStore.acknowledge($event)"
         />
       } @empty {
-        <laris-empty-state icon="lucideCircleCheck" [text]="'alerts.noneOpen' | translate" />
+        <ilex-empty-state icon="lucideCircleCheck" [text]="'alerts.noneOpen' | translate" />
       }
     </section>
 
@@ -64,7 +64,7 @@
       @if (alertsStore.closed().length > 0) {
         <ul class="divide-y rounded-xl border bg-card">
           @for (alert of alertsStore.closed(); track alert.id) {
-            <li><laris-alert-row [alert]="alert" /></li>
+            <li><ilex-alert-row [alert]="alert" /></li>
           }
         </ul>
       } @else {

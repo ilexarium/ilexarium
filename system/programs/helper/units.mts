@@ -1,5 +1,5 @@
 // The machine's service units (docs/plans/system_services.md). Read as this account — systemd lets
-// anyone read them —, started, stopped and restarted by laris-root. Only systemd's machine output:
+// anyone read them —, started, stopped and restarted by ilex-root. Only systemd's machine output:
 // JSON for the lists, `key=value` for one unit's fixed properties.
 
 import { Buffer } from 'node:buffer';
@@ -136,7 +136,7 @@ export async function showUnit(request: Request): Promise<Answer> {
 }
 
 /**
- * Starts, stops or restarts a unit — laris-root's (as the account, systemctl would ask polkit).
+ * Starts, stops or restarts a unit — ilex-root's (as the account, systemctl would ask polkit).
  * It waits for systemd's job; past the wait the job goes on, and its state says how it went.
  */
 export async function controlUnit(request: Request): Promise<Answer> {

@@ -1,6 +1,6 @@
 import type { ConfigService } from '@nestjs/config';
 import type { HttpException } from '@nestjs/common';
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { AuditEntry } from '../audit/audit.model.js';
 import type { Env } from '../config/env.schema.js';
@@ -54,7 +54,7 @@ beforeEach(() => {
 });
 
 describe('RootPrograms (through the person’s sudo)', () => {
-  it('asks their helper (laris-root) for `<program> <action>`, the input on stdin, audited before and after', async () => {
+  it('asks their helper (ilex-root) for `<program> <action>`, the input on stdin, audited before and after', async () => {
     const outcome = await programs().backupInit('/mnt/usb', ACTOR);
     expect(outcome).toEqual({ ok: true, result: { repositoryId: 'abc', created: true } });
     expect(asked[0].request).toEqual({

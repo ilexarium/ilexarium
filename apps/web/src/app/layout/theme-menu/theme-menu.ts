@@ -17,7 +17,7 @@ const OPTIONS: { value: ThemeChoice; label: string }[] = [
 
 /** The top-bar theme switch: Light, Dark or System (follow the device). */
 @Component({
-  selector: 'laris-theme-menu',
+  selector: 'ilex-theme-menu',
   imports: [HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideMoon, lucideSun })],
   templateUrl: './theme-menu.html',

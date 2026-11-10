@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
-import { type LinuxSudoRequest, linuxSudoRequestSchema } from '@laris/shared';
+import { type LinuxSudoRequest, linuxSudoRequestSchema } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmDialogImports } from '@ui/dialog';
@@ -19,7 +19,7 @@ import { toSubmissionErrors } from '../../shared/forms/submission-errors';
  * for a while; the password isn't kept, not even in the form.
  */
 @Component({
-  selector: 'laris-sudo-dialog',
+  selector: 'ilex-sudo-dialog',
   imports: [
     FieldErrors,
     FormErrors,

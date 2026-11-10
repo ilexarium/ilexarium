@@ -26,15 +26,15 @@
   </div>
 
   @if (store.system(); as system) {
-    <laris-status-rack
+    <ilex-status-rack
       [units]="store.units()"
       [host]="system.host"
       [uptimeSeconds]="system.uptimeSeconds"
       [memoryBytes]="system.sample.memory.totalBytes"
       [live]="store.live()"
     >
-      <laris-metric-tiles [system]="system" />
-    </laris-status-rack>
+      <ilex-metric-tiles [system]="system" />
+    </ilex-status-rack>
   } @else {
     <div class="grid gap-2.5" role="status" [attr.aria-label]="'dashboard.loading' | translate">
       <div class="flex flex-wrap gap-x-5 gap-y-2.5">
@@ -46,14 +46,14 @@
   }
 
   <div class="flex flex-wrap items-stretch gap-5">
-    <laris-apps-card
+    <ilex-apps-card
       class="min-w-0 flex-[999_1_32rem]"
       [apps]="store.apps()"
       [loaded]="store.appsLoaded()"
       [otherContainers]="store.otherContainers()"
       (start)="store.start($event)"
     />
-    <laris-backups-card
+    <ilex-backups-card
       class="min-w-0 flex-[1_1_20rem]"
       [status]="store.backups()"
       [days]="store.backupDays()"
@@ -64,11 +64,11 @@
 
   <div class="flex flex-wrap items-stretch gap-5">
     @if (store.disks(); as disks) {
-      <laris-disk-list class="min-w-0 flex-[999_1_32rem]" [disks]="disks" />
+      <ilex-disk-list class="min-w-0 flex-[999_1_32rem]" [disks]="disks" />
     } @else {
       <hlm-skeleton class="h-48 min-w-0 flex-[999_1_32rem] rounded-xl" />
     }
-    <laris-activity-card
+    <ilex-activity-card
       class="min-w-0 flex-[1_1_20rem]"
       [items]="store.activity()"
       [now]="store.now()"

@@ -16,7 +16,7 @@
       </p>
     </hlm-dialog-header>
     <form id="sudo-form" [formRoot]="form" class="grid gap-5">
-      <laris-form-errors [form]="form" />
+      <ilex-form-errors [form]="form" />
       <!-- Lets password managers tie the password to the Linux account. -->
       <input
         type="text"
@@ -37,9 +37,9 @@
             [type]="showPassword() ? 'text' : 'password'"
             [formField]="form.password"
           />
-          <laris-password-toggle [(visible)]="showPassword" />
+          <ilex-password-toggle [(visible)]="showPassword" />
         </div>
-        <laris-field-errors [field]="form.password" />
+        <ilex-field-errors [field]="form.password" />
       </div>
     </form>
     <hlm-dialog-footer>

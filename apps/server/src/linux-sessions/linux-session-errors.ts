@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { type ApiErrorResponse, FILES_ERROR_CODES, type FilesErrorCode } from '@laris/shared';
+import { type ApiErrorResponse, FILES_ERROR_CODES, type FilesErrorCode } from '@ilex/shared';
 
 /**
  * Never 401 for the Linux side: in this app a 401 means the *app* session is missing, and the web

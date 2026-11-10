@@ -6,7 +6,7 @@ import type {
   SystemService,
   SystemServiceDetails,
   SystemServicesResponse,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -32,7 +32,7 @@ const unit = (name: string, change: Partial<SystemService> = {}): SystemService 
 const NGINX = unit('nginx.service', { description: 'A web server' });
 const VPN = unit('vpn.service', { active: 'failed', sub: 'failed' });
 const SYNC = unit('sync.service', { active: 'inactive', sub: 'dead', enabled: 'disabled' });
-const LARIS = unit('laris.service', { protection: 'laris' });
+const ILEX = unit('ilex.service', { protection: 'ilex' });
 const SSH = unit('ssh.service', { protection: 'essential' });
 
 const DETAILS: SystemServiceDetails = {
@@ -61,7 +61,7 @@ const fill = (input: HTMLInputElement, value: string) => {
 };
 
 async function render(
-  services: SystemService[] = [NGINX, VPN, SYNC, LARIS, SSH],
+  services: SystemService[] = [NGINX, VPN, SYNC, ILEX, SSH],
   linux: LinuxSession | null = ANNA,
 ) {
   const auth = fakeAuthApi({ user: OWNER });
@@ -122,7 +122,7 @@ describe('ServicesPage', () => {
 
   it('lists the services, failed first, inactive ones hidden until asked for', async () => {
     const { el, names, fixture } = await render();
-    expect(names()).toEqual(['vpn.service', 'laris.service', 'nginx.service', 'ssh.service']);
+    expect(names()).toEqual(['vpn.service', 'ilex.service', 'nginx.service', 'ssh.service']);
     expect(el.textContent).toContain('active (running)');
     expect(el.textContent).toContain('failed (failed)');
     const summary = [...el.querySelectorAll('[data-group]')].map((b) =>
@@ -152,9 +152,9 @@ describe('ServicesPage', () => {
     expect(names()).toEqual(['nginx.service']);
   });
 
-  it('protected services: Laris’s own offer nothing, those it needs no stop', async () => {
+  it('protected services: Ilexarium’s own offer nothing, those it needs no stop', async () => {
     const { menu } = await render();
-    expect(await menu('laris.service', '')).toEqual(['Details']);
+    expect(await menu('ilex.service', '')).toEqual(['Details']);
     expect(await menu('ssh.service', '')).toEqual(['Details', 'Restart']);
     expect(await menu('nginx.service', '')).toEqual(['Details', 'Stop', 'Restart']);
     expect(await menu('vpn.service', '')).toEqual(['Details', 'Start']);
@@ -178,7 +178,7 @@ describe('ServicesPage', () => {
     await fixture.whenStable();
   });
 
-  it('a service Laris needs: the restart says what happens to Laris', async () => {
+  it('a service Ilexarium needs: the restart says what happens to Ilexarium', async () => {
     const { menu } = await render();
     await menu('ssh.service', 'Restart');
     expect(alertDialog()!.querySelector('[data-essential-warning]')).not.toBeNull();

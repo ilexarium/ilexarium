@@ -1,4 +1,4 @@
-// Root through this account's own sudo (docs/plans/laris_root.md): unlocking starts laris-root
+// Root through this account's own sudo (docs/plans/ilex_root.md): unlocking starts ilex-root
 // with `sudo -k -S`, the password the one line sudo reads; it runs until it's idle for 15 minutes
 // or this helper ends (its stdin closes) — "Lock now" is a new helper. Unlocked means it runs.
 // Every privileged action is forwarded to it; while it isn't running, they answer sudo_required.
@@ -26,7 +26,7 @@ let root: Root | null = null;
 
 const testSettings = () =>
   Object.fromEntries(
-    ['LARIS_HELPER_FAKE_BIN', 'LARIS_ROOT_IDLE_MS'].flatMap((name) =>
+    ['ILEX_HELPER_FAKE_BIN', 'ILEX_ROOT_IDLE_MS'].flatMap((name) =>
       process.env[name] ? [[name, process.env[name]]] : [],
     ),
   );
@@ -60,7 +60,7 @@ function answered(started: Root, line: string): void {
   resolve(answer as Answer);
 }
 
-/** Waits for laris-root's ready line, or what sudo says instead; sudo gets no second try. */
+/** Waits for ilex-root's ready line, or what sudo says instead; sudo gets no second try. */
 function ready(started: Root, password: string): Promise<Answer> {
   const { child } = started;
   return new Promise((resolve) => {
@@ -91,7 +91,7 @@ function ready(started: Root, password: string): Promise<Answer> {
     });
     child.on('close', () => settle(refused(said() ?? 'failed')));
     let first = true;
-    // An answer this long isn't laris-root speaking: its stdin closes, and it ends.
+    // An answer this long isn't ilex-root speaking: its stdin closes, and it ends.
     readLines(
       child.stdout,
       ROOT_ANSWER_MAX,
@@ -105,9 +105,9 @@ function ready(started: Root, password: string): Promise<Answer> {
         try {
           hello = JSON.parse(line) as Record<string, unknown>;
         } catch {
-          // not laris-root speaking
+          // not ilex-root speaking
         }
-        settle(hello?.['laris-root'] === 1 && !hello['error'] ? ok() : refused('failed'));
+        settle(hello?.['ilex-root'] === 1 && !hello['error'] ? ok() : refused('failed'));
       },
       () => child.stdin.end(),
     );
@@ -121,9 +121,9 @@ export async function unlock(request: Request): Promise<Answer> {
   // Already unlocked: its idle time starts again.
   if (root) return forward({ action: 'touch' });
   // -k: sudo's own cache (tied to this process, without a terminal) is never used — sudo always
-  // reads the password and checks it, and never takes it for a request to laris-root.
+  // reads the password and checks it, and never takes it for a request to ilex-root.
   const child = spawn(PROGRAMS.sudo, ['-k', '-S', '-p', '', '--', PROGRAMS.root], {
-    // Tests: their fake programs reach laris-root (the real sudo resets the environment anyway).
+    // Tests: their fake programs reach ilex-root (the real sudo resets the environment anyway).
     env: FAKE_BIN ? { ...ENVIRONMENT, ...testSettings() } : ENVIRONMENT,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -147,14 +147,14 @@ export async function unlock(request: Request): Promise<Answer> {
   return ok();
 }
 
-/** The helper ends: laris-root's stdin closes, and it ends once what it's doing is done. */
+/** The helper ends: ilex-root's stdin closes, and it ends once what it's doing is done. */
 export function endRoot(): void {
   const current = root;
   root = null;
   current?.child.stdin.end();
 }
 
-/** A privileged request, done by laris-root; sudo_required while it isn't running. */
+/** A privileged request, done by ilex-root; sudo_required while it isn't running. */
 export function forward(request: Request): Promise<Answer> {
   const current = root;
   if (!current) return Promise.resolve(refused('sudo_required'));

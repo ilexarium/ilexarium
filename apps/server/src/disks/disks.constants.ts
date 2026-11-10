@@ -3,7 +3,7 @@ import {
   DISK_MOUNT_ROOT,
   type DiskErrorCode,
   type DiskPartitionState,
-} from '@laris/shared';
+} from '@ilex/shared';
 
 /** Production places; development reads and writes under the config's pretend host. */
 export const ROOT_PLACES = {

@@ -1,9 +1,9 @@
-import { RELEASE_VERSION_PATTERN } from '@laris/shared';
+import { RELEASE_VERSION_PATTERN } from '@ilex/shared';
 import { z } from 'zod';
 import type { ReleaseManifest } from './updates.model.js';
 import { ARCHIVE_MAX_BYTES } from './updates.constants.js';
 
-// The app's own copy of laris-update's manifest rules (rules-match-app.spec.ts compares them).
+// The app's own copy of ilex-update's manifest rules (rules-match-app.spec.ts compares them).
 const manifestSchema = z.strictObject({
   version: z.string().regex(RELEASE_VERSION_PATTERN),
   published: z
@@ -25,7 +25,7 @@ export function parseManifest(text: string): ReleaseManifest | null {
   }
   const parsed = manifestSchema.safeParse(value);
   // A file name beside the manifest, never an address: the base is this machine's own setting.
-  if (!parsed.success || parsed.data.archive !== `laris-${parsed.data.version}.tar.gz`) return null;
+  if (!parsed.success || parsed.data.archive !== `ilex-${parsed.data.version}.tar.gz`) return null;
   return parsed.data;
 }
 

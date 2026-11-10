@@ -1,11 +1,11 @@
 import { HttpException, Injectable } from '@nestjs/common';
-import { FILES_ERROR_CODES, type MachineCheckDocker, type PersonCheck } from '@laris/shared';
+import { FILES_ERROR_CODES, type MachineCheckDocker, type PersonCheck } from '@ilex/shared';
 import { SystemReader } from '../host/system-reader.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import { CHECK_TIMEOUT_MS, NOT_CHECKED } from './machine-check.constants.js';
 
 /**
- * Is this machine set up the way Laris needs (docs/plans/machine_check.md)? The steps done as the
+ * Is this machine set up the way Ilexarium needs (docs/plans/machine_check.md)? The steps done as the
  * signed-in person through their helper — nothing new of its own: `hello` and `docker.access`.
  * Lingering is read from the host: in the session the user manager runs anyway, so a user unit
  * starting there doesn't say it keeps running after the Linux sign-in ends.

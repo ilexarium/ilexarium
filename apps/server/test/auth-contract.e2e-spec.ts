@@ -6,7 +6,7 @@ import {
   authStatusResponseSchema,
   meResponseSchema,
   userResponseSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import request from 'supertest';
@@ -20,7 +20,7 @@ import { resetDatabaseBeforeStart } from './database.js';
  * response.
  */
 
-const HOST = 'laris.test';
+const HOST = 'ilex.test';
 const SAME_ORIGIN = `http://${HOST}`;
 const PASSWORD = 'correct horse battery';
 const NEW_PASSWORD = 'staple battery horse correct';

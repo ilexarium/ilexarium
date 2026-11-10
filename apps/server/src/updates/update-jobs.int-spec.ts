@@ -72,7 +72,7 @@ describe('UpdateJobs (database)', () => {
     const run = await prisma.updateRun.findUniqueOrThrow({ where: { id: ID } });
     expect(run).toMatchObject({ outcome: 'rolled_back', error: 'install_failed' });
     expect(run.finishedAt).not.toBeNull();
-    const audit = await prisma.auditEvent.findMany({ where: { action: 'laris.update_result' } });
+    const audit = await prisma.auditEvent.findMany({ where: { action: 'ilex.update_result' } });
     expect(audit).toHaveLength(1);
     expect(audit[0]).toMatchObject({
       outcome: 'failure',

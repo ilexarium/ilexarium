@@ -25,7 +25,7 @@ function serve(manifest: object, signedBy: KeyObject = key.privateKey, notes?: s
 const manifest = {
   version: '0.2.0',
   published: '2026-11-20T10:00:00Z',
-  archive: 'laris-0.2.0.tar.gz',
+  archive: 'ilex-0.2.0.tar.gz',
   sha256: 'a'.repeat(64),
   size: 1000,
 };
@@ -78,7 +78,7 @@ describe('ReleaseCheck', () => {
   });
 
   it('refuses a signed manifest that names an address', async () => {
-    serve({ ...manifest, archive: 'https://elsewhere/laris-0.2.0.tar.gz' });
+    serve({ ...manifest, archive: 'https://elsewhere/ilex-0.2.0.tar.gz' });
     expect(await newest()).toEqual({ ok: false, error: 'bad_manifest' });
   });
 

@@ -1,4 +1,4 @@
-import type { BackupProgress, BackupRestorePhase } from '@laris/shared';
+import type { BackupProgress, BackupRestorePhase } from '@ilex/shared';
 import type { JobDone, JobStart } from './backup-jobs.constants.js';
 
 /** A job as its file tells it so far. */

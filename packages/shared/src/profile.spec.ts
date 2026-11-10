@@ -1,5 +1,5 @@
-import { flattenMessages, LANGUAGES, placeholders } from '@laris/i18n';
-import en from '@laris/i18n/en.json' with { type: 'json' };
+import { flattenMessages, LANGUAGES, placeholders } from '@ilex/i18n';
+import en from '@ilex/i18n/en.json' with { type: 'json' };
 import { describe, expect, it } from 'vitest';
 import { USER_LANGUAGES, VALIDATION_LIMITS } from './auth.js';
 import { PROFILE_LIMITS, profileFormSchema, profileUpdateSchema } from './profile.js';

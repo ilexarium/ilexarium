@@ -54,8 +54,8 @@ import {
  * always-open Docker events stream and a few polls — and hands what they see to `AlertRecords`.
  * No privileges: nothing here changes the system.
  *
- * Not counted as an app stopping: a stop or restart from Laris (`ContainerActionsService`), an
- * app's containers for a while after Laris started one of its tasks, anything while a backup or
+ * Not counted as an app stopping: a stop or restart from Ilexarium (`ContainerActionsService`), an
+ * app's containers for a while after Ilexarium started one of its tasks, anything while a backup or
  * restore runs (`ChangesUnderway`).
  */
 @Injectable()

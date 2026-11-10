@@ -12,7 +12,7 @@ import {
   type SystemUpdate,
   toContainerHistoryPoint,
   toSystemHistoryPoint,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { catchError, EMPTY, filter, pipe, switchMap, tap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { RealtimeService } from '../realtime/realtime-service';

@@ -1,9 +1,9 @@
-/** Files Laris keeps in an app's folder. */
-export const LARIS_DIR = '.laris';
-export const TASK_FILE = '.laris/task.json';
-export const TASKS_DIR = '.laris/tasks';
+/** Files Ilexarium keeps in an app's folder. */
+export const ILEX_DIR = '.ilex';
+export const TASK_FILE = '.ilex/task.json';
+export const TASKS_DIR = '.ilex/tasks';
 export const COMPOSE_FILE = 'compose.yml';
-/** Other names Compose reads, in its own order (an app made outside Laris may use them). */
+/** Other names Compose reads, in its own order (an app made outside Ilexarium may use them). */
 export const COMPOSE_FILES = [
   'compose.yaml',
   'compose.yml',
@@ -12,8 +12,8 @@ export const COMPOSE_FILES = [
 ];
 export const ENV_FILE = '.env';
 
-/** `@@laris-result`, then SERVICE_RESULT, EXIT_CODE and EXIT_STATUS: added by systemd at a task's end. */
-export const TASK_RESULT_MARKER = '@@laris-result';
+/** `@@ilex-result`, then SERVICE_RESULT, EXIT_CODE and EXIT_STATUS: added by systemd at a task's end. */
+export const TASK_RESULT_MARKER = '@@ilex-result';
 
 /** Starting a unit, asking about it, a Compose check: the helper's own limit is 30 s. */
 export const QUICK_MS = 35_000;

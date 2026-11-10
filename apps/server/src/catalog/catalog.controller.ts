@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
-import type { TemplateDetails, TemplateSummary } from '@laris/shared';
+import type { TemplateDetails, TemplateSummary } from '@ilex/shared';
 import type { Response } from 'express';
 import { CatalogIdParamsDto } from './catalog.dto.js';
 import { CatalogService } from './catalog.service.js';

@@ -1,4 +1,4 @@
-import type { UserLanguage } from '@laris/shared';
+import type { UserLanguage } from '@ilex/shared';
 
 /** What login and password change need to verify a password. Never returned by the API. */
 export interface UserCredentials {

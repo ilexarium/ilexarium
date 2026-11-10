@@ -30,8 +30,8 @@ export const BACKUP_LIMITS = {
   progressLines: 50,
 } as const;
 
-/** The repository's folder on the chosen disk: `<mount point>/laris-backups`. */
-export const BACKUP_REPOSITORY_FOLDER = 'laris-backups';
+/** The repository's folder on the chosen disk: `<mount point>/ilex-backups`. */
+export const BACKUP_REPOSITORY_FOLDER = 'ilex-backups';
 /** Disk formats a repository may be on. */
 export const BACKUP_FILESYSTEMS = ['ext4', 'btrfs', 'xfs', 'exfat'] as const;
 
@@ -54,9 +54,9 @@ export const BACKUP_SYSTEM_FOLDERS = [
   '/sys',
   '/usr',
   '/var/lib/docker',
-  '/var/lib/laris',
+  '/var/lib/ilex',
   '/var/run',
-  '/opt/laris',
+  '/opt/ilex',
 ] as const;
 
 /** Neither inside a system folder nor holding one (never `/`). */
@@ -179,7 +179,7 @@ export const BACKUP_ERROR_CODES = {
   runNotFound: 'backup_run_not_found',
   pathNotAllowed: 'path_not_allowed',
   pathNotFound: 'path_not_found',
-  /** Setting up on a disk that already has a `laris-backups` folder that isn't ours. */
+  /** Setting up on a disk that already has a `ilex-backups` folder that isn't ours. */
   repositoryExists: 'repository_exists',
   /** Restoring into a folder that has something in it already. */
   targetNotEmpty: 'target_not_empty',
@@ -240,7 +240,7 @@ export type BackupItem = z.infer<typeof backupItemSchema>;
 // The plan.
 
 export const backupPlanSchema = z.object({
-  /** The chosen disk's mount point; the repository is `<mountPoint>/laris-backups`. */
+  /** The chosen disk's mount point; the repository is `<mountPoint>/ilex-backups`. */
   destination: z.string(),
   schedule: backupScheduleSchema,
   retention: backupRetentionSchema,

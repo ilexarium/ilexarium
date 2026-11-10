@@ -1,5 +1,5 @@
 // Restores and `discard`. `restore-start` checks the request, keeps it in a root-only file and has
-// systemd run `restore-run <id>` as its own unit (laris-restore@<id>.service), so a restore goes
+// systemd run `restore-run <id>` as its own unit (ilex-restore@<id>.service), so a restore goes
 // on if the app stops. Its phases, output and result go to its job file (<state>/jobs/<id>.jsonl),
 // which the app reads.
 //
@@ -98,7 +98,7 @@ export async function restoreStart(config: Config, paths: Paths, input: string):
   if (existsSync(requestFile(paths, request.restoreId)))
     throw new Refusal('busy', 'started already', 3);
   writeAtomic(requestFile(paths, request.restoreId), `${JSON.stringify(request)}\n`, 0o600);
-  if (await startUnit(config, `laris-restore@${request.restoreId}.service`)) return;
+  if (await startUnit(config, `ilex-restore@${request.restoreId}.service`)) return;
   startDetached(
     config,
     paths,
@@ -107,7 +107,7 @@ export async function restoreStart(config: Config, paths: Paths, input: string):
   );
 }
 
-/** `restore-run <id>` (laris-restore@<id>.service): the restore itself. */
+/** `restore-run <id>` (ilex-restore@<id>.service): the restore itself. */
 export async function restoreRun(config: Config, paths: Paths, restoreId: string): Promise<number> {
   if (!UUID.test(restoreId)) throw new Refusal('invalid_request', 'not a restore id');
   prepareState(config, paths);

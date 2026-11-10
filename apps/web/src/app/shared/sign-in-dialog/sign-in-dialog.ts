@@ -20,7 +20,7 @@ import {
   linuxSignInRequestSchema,
   type TerminalTicketRequest,
   terminalTicketRequestSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -40,7 +40,7 @@ import type { SignInStep } from './sign-in-dialog.model';
  * the parent's: a Linux session that ends while the app password is asked brings back the first.
  */
 @Component({
-  selector: 'laris-sign-in-dialog',
+  selector: 'ilex-sign-in-dialog',
   imports: [
     FieldErrors,
     FormErrors,

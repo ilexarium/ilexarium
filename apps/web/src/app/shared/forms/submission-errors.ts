@@ -14,7 +14,7 @@ import {
   APP_ERROR_CODES,
   SYSTEM_SERVICE_ERROR_CODES,
   UPDATE_ERROR_CODES,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { FormError } from './forms.model';
 
 /** Server codes with their own text (`errors.<code>` in en.json); others show the server's text. */

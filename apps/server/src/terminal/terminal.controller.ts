@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, Ip, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { PublicUser, TerminalTicket } from '@laris/shared';
+import type { PublicUser, TerminalTicket } from '@ilex/shared';
 import { AuthService } from '../auth/auth.service.js';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { linuxSessionRequired } from '../linux-sessions/linux-session-errors.js';

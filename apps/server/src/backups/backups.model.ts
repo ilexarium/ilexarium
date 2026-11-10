@@ -1,4 +1,4 @@
-import type { BackupMode, BackupStatus } from '@laris/shared';
+import type { BackupMode, BackupStatus } from '@ilex/shared';
 
 /** What the warnings shown across the app are worked out from (`backupWarnings`). */
 export interface WarningInput {

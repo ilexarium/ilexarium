@@ -1,5 +1,5 @@
 import { StringDecoder } from 'node:string_decoder';
-import { LOG_LIMITS, type LogLine, type LogStream } from '@laris/shared';
+import { LOG_LIMITS, type LogLine, type LogStream } from '@ilex/shared';
 import {
   ANSI,
   CONTROL,

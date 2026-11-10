@@ -1,6 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, input, output } from '@angular/core';
-import type { AppField } from '@laris/shared';
+import type { AppField } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmInput } from '@ui/input';
 import { HlmLabel } from '@ui/label';
@@ -8,10 +8,10 @@ import type { FieldChange } from '../apps.model';
 
 /**
  * A template's fields as a form, their texts the template's. A kind is a hint (how a field is
- * shown); plain text always works — Laris never checks a value against it.
+ * shown); plain text always works — Ilexarium never checks a value against it.
  */
 @Component({
-  selector: 'laris-app-fields',
+  selector: 'ilex-app-fields',
   imports: [HlmInput, HlmLabel, NgTemplateOutlet, TranslatePipe],
   host: { class: 'grid gap-5' },
   templateUrl: './app-fields.html',

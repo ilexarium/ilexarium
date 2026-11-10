@@ -8,7 +8,7 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import type { AppSummary, Container } from '@laris/shared';
+import type { AppSummary, Container } from '@ilex/shared';
 import { catchError, EMPTY, exhaustMap, pipe, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';

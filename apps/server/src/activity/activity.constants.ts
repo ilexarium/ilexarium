@@ -3,7 +3,7 @@ import {
   APP_NAME_PATTERN,
   containerNameSchema,
   isMountPointAllowed,
-} from '@laris/shared';
+} from '@ilex/shared';
 
 const pattern = (regex: RegExp) => (value: string) => regex.test(value);
 const containerName = (value: string) => containerNameSchema.safeParse(value).success;

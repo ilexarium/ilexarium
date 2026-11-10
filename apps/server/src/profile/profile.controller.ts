@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { PROFILE_LIMITS, type PublicUser, type UserResponse } from '@laris/shared';
+import { PROFILE_LIMITS, type PublicUser, type UserResponse } from '@ilex/shared';
 import type { Request, Response } from 'express';
 import { CHANGE_LIMIT } from './profile.constants.js';
 import { AvatarQueryDto, ProfileUpdateDto } from './profile.dto.js';

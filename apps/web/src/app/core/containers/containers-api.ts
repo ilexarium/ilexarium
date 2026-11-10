@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import { type ContainerAction, containerActionPath } from '@laris/shared';
+import { type ContainerAction, containerActionPath } from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 @Service()

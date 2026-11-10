@@ -11,7 +11,7 @@ import {
   type LogLine,
   PROTECTED_LABEL,
   TEMPLATE_LABEL,
-} from '@laris/shared';
+} from '@ilex/shared';
 import Dockerode from 'dockerode';
 import type { Env } from '../config/env.schema.js';
 import { toContainerStats } from './container-stats.js';
@@ -179,7 +179,7 @@ export class DockerService {
     }
   }
 
-  /** The Compose projects of the platform's own containers (`laris.protected`). */
+  /** The Compose projects of the platform's own containers (`ilex.protected`). */
   async protectedProjects(): Promise<Set<string>> {
     const summaries = await this.docker.listContainers({
       all: true,
@@ -293,7 +293,7 @@ export class DockerService {
   }
 
   /**
-   * Whether a container is labelled `laris.protected=true` (can't be stopped or restarted),
+   * Whether a container is labelled `ilex.protected=true` (can't be stopped or restarted),
    * by name; null if there is no such container.
    */
   async isProtected(name: string): Promise<boolean | null> {

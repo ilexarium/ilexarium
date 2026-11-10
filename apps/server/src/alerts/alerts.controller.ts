@@ -19,7 +19,7 @@ import {
   type AlertsStatus,
   type AlertTestResponse,
   type PublicUser,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { AlertChannels } from './alert-channels.js';
 import { AlertRecords } from './alert-records.js';

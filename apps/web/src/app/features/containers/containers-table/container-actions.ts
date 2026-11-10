@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import type { ContainerAction, ContainerState } from '@laris/shared';
+import type { ContainerAction, ContainerState } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideEllipsis,
@@ -25,7 +25,7 @@ type ConfirmedAction = Exclude<ContainerAction, 'start'>;
  * a link's navigation.
  */
 @Component({
-  selector: 'laris-container-actions',
+  selector: 'ilex-container-actions',
   imports: [HlmAlertDialogImports, HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],
   providers: [
     provideIcons({ lucideEllipsis, lucidePlay, lucideRotateCw, lucideScrollText, lucideSquare }),

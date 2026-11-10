@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Ip, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { CurrentSession, CurrentUser } from '@nestjs/authentication';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { DiskMountedResponse, DisksStatus, PublicUser } from '@laris/shared';
+import type { DiskMountedResponse, DisksStatus, PublicUser } from '@ilex/shared';
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { DiskManager } from './disk-manager.js';
 import { CHANGE_LIMIT } from './disks.constants.js';

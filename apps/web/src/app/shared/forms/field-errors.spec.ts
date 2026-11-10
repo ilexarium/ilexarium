@@ -17,7 +17,7 @@ function passwordForm() {
   template: `
     <div hlmField>
       <input hlmInput id="password" [formField]="form.password" />
-      <laris-field-errors [field]="form.password" />
+      <ilex-field-errors [field]="form.password" />
     </div>
   `,
 })
@@ -29,7 +29,7 @@ class FieldHost {
   imports: [FieldErrors, FormField],
   template: `
     <input [formField]="form.password" />
-    <laris-field-errors [field]="form.password" />
+    <ilex-field-errors [field]="form.password" />
   `,
 })
 class NoFieldHost {
@@ -58,7 +58,7 @@ describe('FieldErrors', () => {
 
   it('takes no room of its own: the errors are the field’s items', async () => {
     const { element } = await render(FieldHost);
-    expect(element.querySelector('laris-field-errors')!.classList).toContain('contents');
+    expect(element.querySelector('ilex-field-errors')!.classList).toContain('contents');
   });
 
   it('works outside an hlmField too', async () => {

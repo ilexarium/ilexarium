@@ -2,7 +2,7 @@ import { ENV_KEY_PATTERN } from './apps.js';
 
 /**
  * An app's `.env` (what Compose reads for `${VARIABLES}`): read, and changed line by line, so
- * comments, order and lines Laris doesn't know stay as the person wrote them.
+ * comments, order and lines Ilexarium doesn't know stay as the person wrote them.
  */
 
 const LINE = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/;

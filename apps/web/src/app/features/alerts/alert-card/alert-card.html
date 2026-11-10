@@ -10,9 +10,9 @@
       class="flex flex-wrap items-center gap-x-3 gap-y-1 font-medium"
     >
       <span class="min-w-0 break-words">{{ title()[0] | translate: title()[1] }}</span>
-      <laris-status-dot class="text-sm font-normal" [tone]="severityDots[alert().severity]">{{
+      <ilex-status-dot class="text-sm font-normal" [tone]="severityDots[alert().severity]">{{
         'alerts.severity.' + alert().severity | translate
-      }}</laris-status-dot>
+      }}</ilex-status-dot>
     </h3>
     <p class="text-sm">{{ text()[0] | translate }}</p>
     <p class="text-sm text-muted-foreground">

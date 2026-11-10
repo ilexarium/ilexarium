@@ -27,7 +27,7 @@ export const DISK_SYSTEM_FOLDERS = [
   '/lib',
   '/lib32',
   '/lib64',
-  '/opt/laris',
+  '/opt/ilex',
   '/proc',
   '/root',
   '/run',

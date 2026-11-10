@@ -1,4 +1,4 @@
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import type { SessionRecord } from '@nestjs/authentication';
 
 // Types @CurrentUser(), @CurrentSession() and SessionRecord.extra for the whole app.

@@ -1,7 +1,7 @@
 import { BadRequestException, Controller, Get, Headers, Param, Query, Res } from '@nestjs/common';
 import { CurrentSession, CurrentUser, type SessionRecord } from '@nestjs/authentication';
 import type { Response } from 'express';
-import { logTimestampSchema, type PublicUser } from '@laris/shared';
+import { logTimestampSchema, type PublicUser } from '@ilex/shared';
 import { ContainerLogsParamsDto, ContainerLogsQueryDto } from './container-logs.dto.js';
 import { ContainerLogStreams } from './container-log-streams.js';
 

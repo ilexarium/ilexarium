@@ -242,7 +242,7 @@
     "signal_failed": "The process couldn't be signalled.",
     "linux_session_required": "Sign in as a Linux user again (the session ended).",
     "linux_login_refused": "Wrong user name or password, or this account can’t sign in.",
-    "linux_password_logins_off": "This machine’s SSH server allows no password logins from Laris. Run the installer again (sudo ./install.sh), or remove the setting that turns them off (often /etc/ssh/sshd_config.d/50-cloud-init.conf).",
+    "linux_password_logins_off": "This machine’s SSH server allows no password logins from Ilexarium. Run the installer again (sudo ./install.sh), or remove the setting that turns them off (often /etc/ssh/sshd_config.d/50-cloud-init.conf).",
     "linux_root_refused": "root can’t sign in here. Use your own account.",
     "ssh_unavailable": "This machine’s SSH server doesn’t answer.",
     "file_not_found": "It isn’t there any more.",
@@ -257,7 +257,7 @@
     "sudo_password_wrong": "sudo didn’t accept this password.",
     "sudo_not_allowed": "This account may not use sudo on this machine: it isn’t an administrator. From an administrator’s account, add it to the administrators’ group — sudo usermod -aG sudo <account> (Debian, Ubuntu) or sudo usermod -aG wheel <account> (Arch, with the wheel group allowed in sudoers) — then sign in to Linux again.",
     "sudo_required": "This needs administrator rights: unlock sudo with the Linux account’s password.",
-    "helper_unavailable": "Administrator actions aren’t available in this Linux session (Laris’s helper didn’t start). Sign in to Linux again; if it stays, install Laris again.",
+    "helper_unavailable": "Administrator actions aren’t available in this Linux session (Ilexarium’s helper didn’t start). Sign in to Linux again; if it stays, install Ilexarium again.",
     "sudo_failed": "sudo didn’t answer, or failed without saying why. Try again; if it stays, check sudo in a terminal.",
     "app_not_found": "There's no Compose file in this app's folder.",
     "app_name_taken": "An app of this name exists.",
@@ -272,13 +272,13 @@
     "target_not_empty": "That folder has something in it.",
     "mount_point_in_use": "That folder is in use, or its parent is missing.",
     "service_not_found": "systemd doesn’t know this service.",
-    "service_protected": "This service is protected: Laris needs it.",
+    "service_protected": "This service is protected: Ilexarium needs it.",
     "service_action_failed": "systemd couldn’t do it. The service’s state and its log say why.",
     "service_timed_out": "It’s still in progress. Look at the service’s state in a moment.",
     "services_unavailable": "systemd couldn’t be asked for the services.",
     "journal_unavailable": "The journal can’t be read right now. Try again in a moment.",
     "changes_underway": "Apps are being changed right now (a backup, a restore or an app task). Try again in a few minutes.",
-    "volume_protected": "This volume belongs to Laris itself and can’t be deleted here.",
+    "volume_protected": "This volume belongs to Ilexarium itself and can’t be deleted here.",
     "volume_in_use": "A container uses this volume. Remove the container first.",
     "volume_not_found": "This volume doesn’t exist any more.",
     "cleanup_failed": "Docker couldn’t free the space. Try again later.",
@@ -304,7 +304,7 @@
       "attention_other": "{{count}} things need your attention",
       "alerts_one": "{{count}} open alert",
       "alerts_other": "{{count}} open alerts",
-      "update": "Laris {{version}} is available"
+      "update": "Ilexarium {{version}} is available"
     },
     "rack": {
       "title": "Status",
@@ -1218,7 +1218,7 @@
     "lastFailure": "The last message couldn't be sent ({{time}}). {{problem}}"
   },
   "machineCheck": {
-    "description": "Whether this machine is set up the way Laris needs, checked as your Linux account: everything Laris changes for you runs as it.",
+    "description": "Whether this machine is set up the way Ilexarium needs, checked as your Linux account: everything Ilexarium changes for you runs as it.",
     "check": "Check this machine",
     "checkAgain": "Check again",
     "checkWithoutSudo": "Check without sudo",
@@ -1241,8 +1241,8 @@
         "notSignedIn": "Not signed in. If the sign-in was refused, it said why and what to do."
       },
       "helper": {
-        "title": "Laris’s helper",
-        "about": "The program Laris runs as your account for every change.",
+        "title": "Ilexarium’s helper",
+        "about": "The program Ilexarium runs as your account for every change.",
         "ok": "It answers, as your account.",
         "unavailable": "It didn’t start, or doesn’t answer. Run the installer again (the command below, in the release’s folder), then sign in to Linux again.",
         "wrong_account": "It answers as another account. Run the installer again (the command below, in the release’s folder)."
@@ -1527,7 +1527,7 @@
     },
     "sudo": {
       "title": "Administrator rights",
-      "text": "This needs the sudo of {{account}}. Enter that account’s Linux password: sudo stays unlocked for a while, and Laris doesn’t keep the password.",
+      "text": "This needs the sudo of {{account}}. Enter that account’s Linux password: sudo stays unlocked for a while, and Ilexarium doesn’t keep the password.",
       "password": "Password for sudo",
       "submit": "Unlock",
       "submitting": "Unlocking…",
@@ -1536,7 +1536,7 @@
     },
     "asPerson": {
       "title": "Sign in as a Linux user",
-      "text": "Laris does this as your Linux account, with its rights.",
+      "text": "Ilexarium does this as your Linux account, with its rights.",
       "submit": "Sign in and continue"
     }
   },
@@ -1806,10 +1806,10 @@
       "actions": "Actions"
     },
     "protected": {
-      "laris": "(protected: Laris runs on it)",
-      "essential": "(Laris needs it)",
-      "larisHelp": "Laris itself, or something it runs on (Docker, the system bus, a person’s own services): it isn’t started, stopped or restarted from here.",
-      "essentialHelp": "Laris needs this service to work: it can be restarted, never stopped from here."
+      "ilex": "(protected: Ilexarium runs on it)",
+      "essential": "(Ilexarium needs it)",
+      "ilexHelp": "Ilexarium itself, or something it runs on (Docker, the system bus, a person’s own services): it isn’t started, stopped or restarted from here.",
+      "essentialHelp": "Ilexarium needs this service to work: it can be restarted, never stopped from here."
     },
     "working": "Working…",
     "actionsFor": "Actions for {{name}}",
@@ -1828,7 +1828,7 @@
         "title": "Restart {{name}}?",
         "text": "It stops and starts again; what it does is interrupted for a moment."
       },
-      "essential": "Laris needs this service: while it restarts, Laris may not answer for a moment.",
+      "essential": "Ilexarium needs this service: while it restarts, Ilexarium may not answer for a moment.",
       "cancel": "Cancel"
     },
     "done": {
@@ -1897,13 +1897,13 @@
     }
   },
   "updates": {
-    "installed": "Laris {{version}} is installed",
+    "installed": "Ilexarium {{version}} is installed",
     "newestPublished": "newest published: {{date}}",
     "notConfigured": "This install doesn't know where its updates come from (it was built without a release address). Update it by hand.",
-    "available": "Laris {{version}} is available",
+    "available": "Ilexarium {{version}} is available",
     "published": "Published {{date}}",
     "update": "Update to {{version}}",
-    "upToDate": "Laris is up to date.",
+    "upToDate": "Ilexarium is up to date.",
     "checkNow": "Check now",
     "checkedAt": "Last checked {{when}}",
     "checkAutomatically": "Check for updates automatically",
@@ -1913,13 +1913,13 @@
     "startFailed": "Couldn't start the update",
     "started": "Updating to {{version}}…",
     "updating": "Updating to {{version}}",
-    "restarting": "Laris is restarting. This page carries on once it answers again.",
+    "restarting": "Ilexarium is restarting. This page carries on once it answers again.",
     "output": "What the installer said",
     "loading": "Loading…",
     "loadFailed": "Couldn't load the update status.",
     "checkError": {
       "unreachable": "The release server couldn't be reached.",
-      "bad_signature": "The release information isn't signed by the Laris release key. It was ignored.",
+      "bad_signature": "The release information isn't signed by the Ilexarium release key. It was ignored.",
       "bad_manifest": "The release information is malformed. It was ignored."
     },
     "phase": {
@@ -1930,18 +1930,18 @@
       "install": "Installing…",
       "checked": "Machine checked",
       "saved": "The installed version kept (the way back)",
-      "stopped": "Laris stopped",
+      "stopped": "Ilexarium stopped",
       "migrated": "Database updated",
       "installed": "New version installed",
-      "started": "Starting Laris…",
-      "health": "Waiting for Laris to answer…",
+      "started": "Starting Ilexarium…",
+      "health": "Waiting for Ilexarium to answer…",
       "rollback": "Going back to the installed version…"
     },
     "outcome": {
       "updated": "Updated to {{version}}",
       "failed": "The update to {{to}} failed. Nothing was changed.",
-      "rolled_back": "The update to {{to}} failed. Laris is back on {{version}}.",
-      "rollback_failed": "The update to {{to}} failed, and Laris couldn't go back on its own. See what the installer said."
+      "rolled_back": "The update to {{to}} failed. Ilexarium is back on {{version}}.",
+      "rollback_failed": "The update to {{to}} failed, and Ilexarium couldn't go back on its own. See what the installer said."
     },
     "error": {
       "busy": "Another operation was running.",
@@ -1951,19 +1951,19 @@
       "too_large": "The download was larger than its signed size.",
       "wrong_size": "The download had the wrong size.",
       "wrong_checksum": "The download didn't match its signed fingerprint.",
-      "bad_signature": "The release isn't signed by the Laris release key.",
+      "bad_signature": "The release isn't signed by the Ilexarium release key.",
       "bad_manifest": "The release information is malformed.",
       "unpack_failed": "The release couldn't be unpacked.",
       "install_failed": "The installer stopped with an error.",
       "not_answering": "The new version didn't answer within a minute.",
       "interrupted": "The machine stopped during the update.",
       "internal": "Something unexpected went wrong.",
-      "setup": "This machine’s update setup has a problem (see the installer’s files in /etc/laris).",
+      "setup": "This machine’s update setup has a problem (see the installer’s files in /etc/ilex).",
       "invalid_request": "The update request was refused."
     },
     "confirm": {
-      "title": "Update to Laris {{version}}?",
-      "text": "Laris restarts and is offline for about a minute; Linux sign-ins and terminals end. The database is backed up first, and if the new version doesn’t start, the installed one comes back on its own.",
+      "title": "Update to Ilexarium {{version}}?",
+      "text": "Ilexarium restarts and is offline for about a minute; Linux sign-ins and terminals end. The database is backed up first, and if the new version doesn’t start, the installed one comes back on its own.",
       "cancel": "Cancel",
       "confirm": "Update"
     }

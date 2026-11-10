@@ -1,5 +1,5 @@
 import { Component, computed, input, output } from '@angular/core';
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideCamera } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -10,7 +10,7 @@ import type { PictureProblem } from '../profile-dialog.model';
 
 /** The picture in the edit dialog: the current one (or the chosen one), choose, remove. */
 @Component({
-  selector: 'laris-avatar-picker',
+  selector: 'ilex-avatar-picker',
   imports: [HlmButton, NgIcon, TranslatePipe, UserAvatar],
   providers: [provideIcons({ lucideCamera })],
   templateUrl: './avatar-picker.html',

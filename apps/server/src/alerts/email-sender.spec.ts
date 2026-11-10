@@ -22,7 +22,7 @@ describe('EmailSender', () => {
     port: smtp.port,
     username: 'alerts',
     password: 'mail-pw',
-    from: 'laris@example.com',
+    from: 'ilex@example.com',
     to: 'me@example.com',
     ...overrides,
   });
@@ -37,7 +37,7 @@ describe('EmailSender', () => {
     await new EmailSender().send(config(), MESSAGE);
     expect(smtp.mails).toHaveLength(1);
     expect(smtp.mails[0]).toMatchObject({
-      from: 'laris@example.com',
+      from: 'ilex@example.com',
       to: ['me@example.com'],
       user: 'alerts',
     });

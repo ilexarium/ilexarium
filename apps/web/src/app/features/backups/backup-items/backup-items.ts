@@ -1,5 +1,5 @@
 import { Component, input, output, signal } from '@angular/core';
-import type { AppSummary, BackupFoldersResponse } from '@laris/shared';
+import type { AppSummary, BackupFoldersResponse } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideBox, lucideFolderPlus, lucidePlus } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -15,7 +15,7 @@ import { ItemCard } from '../item-card/item-card';
  * through an output.
  */
 @Component({
-  selector: 'laris-backup-items',
+  selector: 'ilex-backup-items',
   imports: [FolderPicker, HlmButton, HlmDropdownMenuImports, ItemCard, NgIcon, TranslatePipe],
   providers: [provideIcons({ lucideBox, lucideFolderPlus, lucidePlus })],
   host: { class: 'grid gap-6' },

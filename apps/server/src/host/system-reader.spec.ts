@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { diskUsageSchema, hostInfoSchema } from '@laris/shared';
+import { diskUsageSchema, hostInfoSchema } from '@ilex/shared';
 import { SystemReader } from './system-reader.js';
 
 // Against the machine running the tests (the app only runs on Linux): proves the real files

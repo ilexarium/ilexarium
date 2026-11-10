@@ -1,14 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { LinuxSignInRequest } from '@laris/shared';
+import type { LinuxSignInRequest } from '@ilex/shared';
 import type { SignInStep } from './sign-in-dialog.model';
 import { SignInDialog } from './sign-in-dialog';
 
 /** A page's part: the step follows its session, the dialog's open state. */
 @Component({
   imports: [SignInDialog],
-  template: `<laris-sign-in-dialog
+  template: `<ilex-sign-in-dialog
     title="terminal.signIn.title"
     text="terminal.signIn.text"
     [step]="step()"

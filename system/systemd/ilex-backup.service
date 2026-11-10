@@ -1,0 +1,29 @@
+# /etc/systemd/system/ilex-backup.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# A scheduled backup run, started by ilex-backup.timer: the root wrapper directly, never
+# through the app — backups work even when the app is down. Its progress and results go to
+# its job file in /var/lib/ilex/backups/jobs/, which the app reads. Design: docs/plans/backups.md.
+
+[Unit]
+Description=Ilexarium backup run
+After=docker.service local-fs.target
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/ilex/libexec/ilex-backup.mts run-scheduled
+# Backups yield to everything else.
+Nice=10
+IOSchedulingClass=idle
+# A first backup of a big photo library takes long; stopping it starts stopped services again.
+TimeoutStartSec=24h
+TimeoutStopSec=5min
+KillMode=mixed
+# It reads everything (it's a backup) but writes only its state, the lock and the backup disk.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes

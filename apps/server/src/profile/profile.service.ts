@@ -4,7 +4,7 @@ import {
   PROFILE_LIMITS,
   type ProfileUpdate,
   type PublicUser,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { AuditService } from '../audit/audit.service.js';
 import type { ProfileFields, StoredAvatar } from '../users/users.model.js';
 import { UsersService } from '../users/users.service.js';

@@ -3,7 +3,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 // Same default as the test:db:deploy script; override both with TEST_DATABASE_URL.
 const testDatabaseUrl =
-  process.env.TEST_DATABASE_URL ?? 'postgresql://laris:laris-dev@127.0.0.1:5432/laris_test';
+  process.env.TEST_DATABASE_URL ?? 'postgresql://ilex:ilex-dev@127.0.0.1:5432/ilex_test';
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
@@ -30,7 +30,7 @@ export default defineConfig({
       SSH_PORT: '2222',
       SSH_HOST_KEYS: '.dev/sshd',
       // Where the dev SSH container has the helper (system/programs, mounted like the installer's).
-      LINUX_HELPER: '/opt/laris/libexec/laris-helper.mts',
+      LINUX_HELPER: '/opt/ilex/libexec/ilex-helper.mts',
     },
     // One shared test database: run files one after another.
     fileParallelism: false,

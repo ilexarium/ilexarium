@@ -10,7 +10,7 @@ import type { ServiceActionRequest, ServiceRow } from '../system-services.model'
 
 /** The services: a table on wide screens, cards on phones. UI only: intent goes out. */
 @Component({
-  selector: 'laris-service-list',
+  selector: 'ilex-service-list',
   imports: [HlmTableImports, NgIcon, NgTemplateOutlet, ServiceActions, StatusDot, TranslatePipe],
   providers: [provideIcons({ lucideLoaderCircle, lucideLock })],
   templateUrl: './service-list.html',

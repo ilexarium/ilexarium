@@ -3,14 +3,14 @@ import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { JOURNAL_LIMITS, type JournalLine } from '@laris/shared';
+import { JOURNAL_LIMITS, type JournalLine } from '@ilex/shared';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { type Client, connectSignedIn, testHasher } from './realtime-client.js';
 
 // The journal end to end, through the helper on the development SSH server (dev/sshd): its fake
 // journalctl has three boots of sample lines (no journald in a container), and shows anna only
-// her own unless she reads as administrator — laris-root, through her sudo once unlocked.
+// her own unless she reads as administrator — ilex-root, through her sudo once unlocked.
 // Skipped when the SSH server isn't running (npm run db:up starts it).
 
 const ANNA = { username: 'anna', password: 'anna-dev-password' };

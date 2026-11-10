@@ -18,7 +18,7 @@ export const FILES_LIMITS = {
   uploadMaxBytes: 10 * 1024 ** 3,
   /** A Linux session closes after this long without use. */
   idleMinutes: 30,
-  /** laris-root ends this long after its last action (docs/plans/laris_root.md): sudo locks. */
+  /** ilex-root ends this long after its last action (docs/plans/ilex_root.md): sudo locks. */
   sudoIdleMinutes: 15,
   /** "How much is in this folder" stops counting here. */
   summaryMaxEntries: 10_000,

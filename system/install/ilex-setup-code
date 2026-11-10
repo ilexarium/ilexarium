@@ -1,0 +1,15 @@
+#!/bin/sh
+# /usr/local/bin/ilex-setup-code — prints the one-time setup code again (until the first
+# account is made). The code is readable only by root and the app's user.
+set -eu
+TOKEN=/var/lib/ilex/app/setup-token
+if [ "$(id -u)" != 0 ]; then
+  echo 'Run it as root: sudo ilex-setup-code' >&2
+  exit 1
+fi
+if [ ! -s "$TOKEN" ]; then
+  echo 'No setup code: the platform is set up already (or the app is not running).' >&2
+  exit 1
+fi
+# Read as the app's user: the file is in its folder (root reading it could follow a link there).
+exec runuser -u ilex -- cat "$TOKEN"

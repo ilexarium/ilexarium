@@ -1,4 +1,4 @@
-import type { Template } from '@laris/shared';
+import type { Template } from '@ilex/shared';
 
 /** A loaded, checked template. */
 export interface CatalogEntry {

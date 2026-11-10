@@ -8,7 +8,7 @@ import {
   type HostInfo,
   type SystemSnapshot,
   type SystemUpdate,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
@@ -40,7 +40,7 @@ const systemUpdate = (at: number, cpu = 10): SystemUpdate => ({
 const systemSnapshot = (at: number): SystemSnapshot => ({
   ...systemUpdate(at),
   host: {
-    hostname: 'laris',
+    hostname: 'ilex',
     os: 'Debian',
     kernel: '6',
     arch: 'arm64',
@@ -89,7 +89,7 @@ describe('applySystemUpdate', () => {
   it('takes the latest values and adds a chart point', () => {
     const next = applySystemUpdate(systemSnapshot(0), systemUpdate(2000, 50));
     expect(next.sample.cpu.usagePercent).toBe(50);
-    expect(next.host.hostname).toBe('laris');
+    expect(next.host.hostname).toBe('ilex');
     expect(next.history.map((p) => [p.at, p.cpuPercent, p.rxBytesPerSec])).toEqual([
       [0, 10, 3],
       [2000, 50, 3],

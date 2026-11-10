@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { healthResponseSchema } from '@laris/shared';
+import { healthResponseSchema } from '@ilex/shared';
 import { HealthController } from './health.controller.js';
 
 describe('HealthController', () => {
@@ -8,7 +8,7 @@ describe('HealthController', () => {
     expect(healthResponseSchema.safeParse(result).success).toBe(true);
   });
 
-  it('says which Laris runs: the root package’s version', () => {
+  it('says which Ilexarium runs: the root package’s version', () => {
     const root = JSON.parse(
       readFileSync(new URL('../../../../package.json', import.meta.url), 'utf8'),
     );

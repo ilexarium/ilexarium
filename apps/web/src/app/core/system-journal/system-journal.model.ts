@@ -1,4 +1,4 @@
-import type { JournalPriority } from '@laris/shared';
+import type { JournalPriority } from '@ilex/shared';
 
 /** What is read: the filters, a direction, and whether through the account's sudo. */
 export interface JournalRequest {

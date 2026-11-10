@@ -1,4 +1,4 @@
-# Immich, from the Laris template (catalog/immich), based on Immich's own docker-compose.yml. This
+# Immich, from the Ilexarium template (catalog/immich), based on Immich's own docker-compose.yml. This
 # folder is yours: change anything. The server and machine learning share IMMICH_VERSION (they
 # must match); the database stays on its major version (upgrading it is Immich's own procedure).
 services:
@@ -17,7 +17,7 @@ services:
       - redis
       - database
     labels: &labels
-      laris.template: immich@2
+      ilex.template: immich@2
     restart: unless-stopped
     healthcheck:
       disable: false

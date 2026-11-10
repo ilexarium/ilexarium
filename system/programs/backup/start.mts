@@ -1,9 +1,9 @@
 // backup/start.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
 //
 // `start` ("Back up now"): checks the request, then has systemd start the run as its own unit,
-// laris-backup-now@<runId>[_<itemId>].service, and returns at once. The run doesn't belong to
+// ilex-backup-now@<runId>[_<itemId>].service, and returns at once. The run doesn't belong to
 // the app: it goes on if the app stops, and is followed like a scheduled run (current.jsonl,
-// runs.jsonl). The unit runs `laris-backup run-requested <instance>`.
+// runs.jsonl). The unit runs `ilex-backup run-requested <instance>`.
 
 import { openSync, closeSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -48,7 +48,7 @@ export async function start(config: Config, paths: Paths, input: string): Promis
   const instance = itemId === undefined ? runId : `${runId}_${itemId}`;
   parseInstance(instance);
 
-  if (await startUnit(config, `laris-backup-now@${instance}.service`)) return;
+  if (await startUnit(config, `ilex-backup-now@${instance}.service`)) return;
   startDetached(config, paths, ['run-requested', instance], 'requested-run.log');
 }
 
@@ -72,7 +72,7 @@ export async function startUnit(config: Config, unit: string): Promise<boolean> 
  */
 export function startDetached(config: Config, paths: Paths, args: string[], log: string): void {
   const entry = process.argv[1];
-  const configFile = process.env['LARIS_WRAPPER_CONFIG'];
+  const configFile = process.env['ILEX_WRAPPER_CONFIG'];
   if (!entry || !isAbsolute(entry) || !configFile) {
     throw new Refusal('setup', 'cannot start the run', 6);
   }
@@ -82,7 +82,7 @@ export function startDetached(config: Config, paths: Paths, args: string[], log:
     const child = spawn(process.execPath, [entry, ...args], {
       detached: true,
       stdio: ['ignore', out, out],
-      env: { PATH: SAFE_PATH, LANG: 'C.UTF-8', LARIS_WRAPPER_CONFIG: configFile },
+      env: { PATH: SAFE_PATH, LANG: 'C.UTF-8', ILEX_WRAPPER_CONFIG: configFile },
       cwd: '/',
       shell: false,
     });

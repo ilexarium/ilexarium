@@ -1,12 +1,12 @@
 import type { IncomingMessage } from 'node:http';
 import type { AuthenticationEvents, WsAuthenticator } from '@nestjs/authentication';
-import { WS_CLOSE_CODES } from '@laris/shared';
+import { WS_CLOSE_CODES } from '@ilex/shared';
 import { Subject } from 'rxjs';
 import type { WebSocket } from 'ws';
 import { RealtimeConnections } from './realtime-connections.js';
 import { DEFAULT_REALTIME_OPTIONS, POLICY_VIOLATION } from './realtime.constants.js';
 
-const HOST = 'laris.test';
+const HOST = 'ilex.test';
 const request = (origin = `https://${HOST}`) =>
   ({ headers: { origin, host: HOST } }) as unknown as IncomingMessage;
 

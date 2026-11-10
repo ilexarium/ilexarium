@@ -6,7 +6,7 @@ import { TranslatePipe } from '@ngx-translate/core';
  * stored over plain HTTP, so signing in couldn't work anyway.
  */
 @Component({
-  selector: 'laris-insecure-context-notice',
+  selector: 'ilex-insecure-context-notice',
   imports: [TranslatePipe],
   templateUrl: './insecure-context-notice.html',
 })

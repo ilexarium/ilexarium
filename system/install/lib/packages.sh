@@ -52,7 +52,7 @@ ensure_base() {
     for tool in curl sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
     [[ -x /usr/bin/kill ]] || missing+=(kill)
     if ((${#missing[@]} > 0)); then
-      confirm "Install the basics Laris needs (missing: ${missing[*]})?" || die 'They are needed'
+      confirm "Install the basics Ilexarium needs (missing: ${missing[*]})?" || die 'They are needed'
       pacman_install ca-certificates curl sudo util-linux
     fi
     # A person's own systemd and its bus are part of systemd and dbus.
@@ -68,15 +68,15 @@ ensure_base() {
       missing+=("$package")
   done
   if ((${#missing[@]} > 0)); then
-    confirm "Install the basics Laris needs (missing: ${missing[*]})?" || die 'They are needed'
+    confirm "Install the basics Ilexarium needs (missing: ${missing[*]})?" || die 'They are needed'
     apt_update
     apt_install ca-certificates curl gnupg sudo procps libpam-systemd dbus-user-session
   fi
   info 'curl, gnupg, sudo, procps, libpam-systemd, dbus-user-session'
 }
 
-# Node 24.5 or newer (laris-update trusts the machine's certificates with an API from 24.5) at
-# /usr/bin/node — that one, whatever else is on PATH: the root programs' shebang and laris.service
+# Node 24.5 or newer (ilex-update trusts the machine's certificates with an API from 24.5) at
+# /usr/bin/node — that one, whatever else is on PATH: the root programs' shebang and ilex.service
 # name that exact path.
 ensure_node() {
   local version
@@ -125,7 +125,7 @@ ensure_docker() {
 
 borg_version() { borg --version 2>/dev/null | awk '{ print $2 }' || true; }
 
-# Borg 1.4 or a later 1.x: Borg 2 changed its repositories and commands (laris-backup is written
+# Borg 1.4 or a later 1.x: Borg 2 changed its repositories and commands (ilex-backup is written
 # for 1.x).
 borg_fits() { [[ -n "$1" ]] && version_ge "$1" 1.4 && ! version_ge "$1" 2; }
 
@@ -139,7 +139,7 @@ ensure_borg() {
     return
   fi
   if [[ -n "$version" ]] && version_ge "$version" 2; then
-    die "Borg $version is installed: Laris needs Borg 1.4 (Borg 2 is not supported yet)"
+    die "Borg $version is installed: Ilexarium needs Borg 1.4 (Borg 2 is not supported yet)"
   fi
   confirm 'Install Borg 1.4 (backups)?' || die 'Borg 1.4 is needed for backups'
   case "$OS_ID $OS_VERSION" in

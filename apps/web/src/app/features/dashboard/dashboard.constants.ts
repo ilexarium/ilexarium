@@ -1,4 +1,4 @@
-import { ALERT_LIMITS, type AlertKind } from '@laris/shared';
+import { ALERT_LIMITS, type AlertKind } from '@ilex/shared';
 import type { Light, RackUnit } from './dashboard.model';
 
 /** Mounts that are part of how the machine starts, nothing to act on: left out of Storage. */

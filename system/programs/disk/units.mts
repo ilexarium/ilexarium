@@ -20,7 +20,7 @@ export const SYSTEM_FOLDERS = [
   '/lib',
   '/lib32',
   '/lib64',
-  '/opt/laris',
+  '/opt/ilex',
   '/proc',
   '/root',
   '/run',
@@ -31,7 +31,7 @@ export const SYSTEM_FOLDERS = [
 ];
 
 /** The first line of every unit this program writes: only those are ever removed. */
-export const MARKER = '# Managed by laris (laris-disk).';
+export const MARKER = '# Managed by ilex (ilex-disk).';
 
 export const FILESYSTEMS = ['ext4', 'xfs', 'btrfs', 'exfat'];
 
@@ -66,7 +66,7 @@ export function unitContent(uuid: string, fsType: string, where: string): string
     MARKER,
     '# It is not in /etc/fstab: `systemctl list-units --type=mount` lists it.',
     '[Unit]',
-    `Description=laris disk at ${where}`,
+    `Description=ilex disk at ${where}`,
     '',
     '[Mount]',
     `What=/dev/disk/by-uuid/${uuid}`,

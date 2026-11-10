@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { join } from 'node:path';
-import type { DisksStatus } from '@laris/shared';
+import type { DisksStatus } from '@ilex/shared';
 import {
   auditTime,
   catchError,

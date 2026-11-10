@@ -3,7 +3,7 @@ import { request as httpRequest } from 'node:http';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { meResponseSchema, PROFILE_LIMITS, userResponseSchema } from '@laris/shared';
+import { meResponseSchema, PROFILE_LIMITS, userResponseSchema } from '@ilex/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';

@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { HostInfo } from '@laris/shared';
+import type { HostInfo } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArchive, lucideHardDrive, lucideLayoutGrid, lucideServer } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -11,12 +11,12 @@ import type { RackUnit } from '../dashboard.model';
 import { TextPipe } from '../text-pipe';
 
 /**
- * The status rack, built like Laris's logo: three short units (apps, backups, space), each with
+ * The status rack, built like Ilexarium's logo: three short units (apps, backups, space), each with
  * its light at the end, over a long one for the server itself. What goes in the L's corner (the
  * metric tiles) is projected.
  */
 @Component({
-  selector: 'laris-status-rack',
+  selector: 'ilex-status-rack',
   imports: [NgIcon, RouterLink, TextPipe, TranslatePipe],
   providers: [provideIcons({ lucideArchive, lucideHardDrive, lucideLayoutGrid, lucideServer })],
   host: { class: 'block' },

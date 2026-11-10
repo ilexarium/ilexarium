@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import { HlmAvatarImports } from '@ui/avatar';
 
 /**
@@ -7,7 +7,7 @@ import { HlmAvatarImports } from '@ui/avatar';
  * username) while there is none or it doesn't load. Decorative: the name is always next to it.
  */
 @Component({
-  selector: 'laris-user-avatar',
+  selector: 'ilex-user-avatar',
   imports: [HlmAvatarImports],
   // The size and the initials' text size come from the place it's used (`class="size-7 text-xs"`).
   host: { class: 'inline-flex shrink-0' },

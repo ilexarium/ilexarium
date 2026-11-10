@@ -12,7 +12,7 @@ import { AppsPageStore } from './apps-page-store';
 
 /** Apps: Compose folders, run as their owner's Linux account (docs/plans/acting_as_you.md). */
 @Component({
-  selector: 'laris-apps-page',
+  selector: 'ilex-apps-page',
   imports: [
     AppCard,
     EmptyState,

@@ -161,7 +161,7 @@
           </div>
         </section>
 
-        <laris-app-settings
+        <ilex-app-settings
           [templateId]="newAppPageStore.template()?.id ?? null"
           [fields]="newAppPageStore.template() ? newAppPageStore.fields() : []"
           [values]="newAppPageStore.values()"
@@ -177,7 +177,7 @@
             <h3 id="backup-options-title" class="font-semibold">
               {{ 'apps.backup.title' | translate }}
             </h3>
-            <laris-backup-options
+            <ilex-backup-options
               [value]="newAppPageStore.backup()"
               (changed)="newAppPageStore.setBackup($event)"
             />
@@ -242,7 +242,7 @@
 
   @case ('installing') {
     <div class="grid max-w-5xl grid-cols-1 gap-5">
-      <laris-app-header
+      <ilex-app-header
         [name]="newAppPageStore.name()"
         [iconUrl]="newAppPageStore.template() ? iconPath(newAppPageStore.template()!.id) : null"
         [templateName]="newAppPageStore.template()?.name ?? null"
@@ -254,7 +254,7 @@
       <p class="text-sm text-muted-foreground">{{ 'apps.new.installingText' | translate }}</p>
       @if (newAppPageStore.task(); as task) {
         <section class="rounded-xl border bg-muted/40 p-4" data-task-banner>
-          <laris-task-output [task]="task" />
+          <ilex-task-output [task]="task" />
         </section>
         @if (task.state === 'failed' || task.state === 'interrupted') {
           <div>

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ACTIVITY_ACTIONS, ACTIVITY_LIMIT, type ActivityItem } from '@laris/shared';
+import { ACTIVITY_ACTIONS, ACTIVITY_LIMIT, type ActivityItem } from '@ilex/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { fromAlert, fromAudit, fromBackupRun, mergeActivity } from './activity-items.js';
 

@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 import { type FieldTree, FormField } from '@angular/forms/signals';
-import type { BackupRetention } from '@laris/shared';
+import type { BackupRetention } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
@@ -9,7 +9,7 @@ import { RETENTION_PARTS } from '../backups.constants';
 
 /** How many backups are kept: daily, weekly, monthly, as the parent's own flex items. */
 @Component({
-  selector: 'laris-retention-fields',
+  selector: 'ilex-retention-fields',
   imports: [FieldErrors, FormField, HlmFieldImports, HlmInput, TranslatePipe],
   host: { class: 'contents' },
   templateUrl: './retention-fields.html',

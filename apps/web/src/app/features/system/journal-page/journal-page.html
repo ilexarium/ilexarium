@@ -128,7 +128,7 @@
   }
 
   @if (store.entries().length > 0) {
-    <laris-log-view
+    <ilex-log-view
       class="min-h-0 flex-1"
       [entries]="store.entries()"
       [canLoadOlder]="store.canLoadOlder()"
@@ -136,7 +136,7 @@
       (loadOlder)="store.loadOlder()"
     />
   } @else if (store.loaded()) {
-    <laris-empty-state
+    <ilex-empty-state
       icon="lucideScrollText"
       role="status"
       [text]="'journal.empty.title' | translate"

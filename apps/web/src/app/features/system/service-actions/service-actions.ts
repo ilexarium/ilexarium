@@ -3,7 +3,7 @@ import {
   systemServiceActionAllowed,
   type SystemServiceAction,
   type SystemServiceProtection,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideEllipsis,
@@ -24,10 +24,10 @@ type ConfirmedAction = Exclude<SystemServiceAction, 'start'>;
 
 /**
  * A service's menu: its details, and what its state and protection allow. Stop and restart ask
- * first (a service Laris needs says so); start interrupts nothing.
+ * first (a service Ilexarium needs says so); start interrupts nothing.
  */
 @Component({
-  selector: 'laris-service-actions',
+  selector: 'ilex-service-actions',
   imports: [HlmAlertDialogImports, HlmButton, HlmDropdownMenuImports, NgIcon, TranslatePipe],
   providers: [
     provideIcons({ lucideEllipsis, lucideInfo, lucidePlay, lucideRotateCw, lucideSquare }),

@@ -1,4 +1,4 @@
-import type { UpdateJob, UpdatesStatus } from '@laris/shared';
+import type { UpdateJob, UpdatesStatus } from '@ilex/shared';
 
 export function updatesStatus(change: Partial<UpdatesStatus> = {}): UpdatesStatus {
   return {

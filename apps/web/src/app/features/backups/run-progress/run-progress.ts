@@ -1,12 +1,12 @@
 import { Component, computed, input } from '@angular/core';
-import type { BackupProgress } from '@laris/shared';
+import type { BackupProgress } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmProgressImports } from '@ui/progress';
 import type { ItemLabel } from '../backups.model';
 
 /** A backup running (scheduled ones too): how far, the item and its phase, the output folded. */
 @Component({
-  selector: 'laris-run-progress',
+  selector: 'ilex-run-progress',
   imports: [HlmProgressImports, TranslatePipe],
   host: { class: 'block' },
   templateUrl: './run-progress.html',

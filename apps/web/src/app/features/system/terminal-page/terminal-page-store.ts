@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { FILES_ERROR_CODES, type LinuxSignInRequest, TERMINAL_CLOSE_CODES } from '@laris/shared';
+import { FILES_ERROR_CODES, type LinuxSignInRequest, TERMINAL_CLOSE_CODES } from '@ilex/shared';
 import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';

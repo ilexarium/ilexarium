@@ -7,7 +7,7 @@ import {
   appParamsSchema,
   appSaveRequestSchema,
   appUpdateRequestSchema,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class AppParamsDto extends zodDto(appParamsSchema) {}

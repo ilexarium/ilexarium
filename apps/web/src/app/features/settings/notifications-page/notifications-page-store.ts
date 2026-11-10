@@ -5,7 +5,7 @@ import type {
   AlertChannelsResponse,
   EmailChannelUpdate,
   NtfyChannelUpdate,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';

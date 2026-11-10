@@ -8,7 +8,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import { firstValueFrom, forkJoin } from 'rxjs';
 import { LanguageService } from '../i18n/language';
 import { AuthApi } from './auth-api';
@@ -23,7 +23,7 @@ interface AuthState {
 
 /**
  * The session itself is an HttpOnly cookie: no token ever lives in JavaScript. Loaded at startup,
- * so it imports nothing of `@laris/shared` but types (a small first download).
+ * so it imports nothing of `@ilex/shared` but types (a small first download).
  *
  * Every global store resets on sign-out (following `isAuthenticated`), so nothing of the previous
  * user stays in memory.

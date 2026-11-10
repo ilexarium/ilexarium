@@ -8,7 +8,7 @@ import {
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
-import { REALTIME_PATH } from '@laris/shared';
+import { REALTIME_PATH } from '@ilex/shared';
 import type { WebSocket } from 'ws';
 import { RealtimeConnections } from './realtime-connections.js';
 import { RealtimeExceptionFilter } from './realtime-exception.filter.js';

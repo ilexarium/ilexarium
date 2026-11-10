@@ -1,10 +1,10 @@
 <form [formRoot]="form" class="grid max-w-3xl grid-cols-1 gap-6">
-  <laris-form-errors [form]="form" />
+  <ilex-form-errors [form]="form" />
 
   <section class="grid gap-3 rounded-xl border bg-card p-4" aria-labelledby="settings-when">
     <h2 id="settings-when" class="font-semibold">{{ 'backups.settings.when' | translate }}</h2>
     <div class="flex flex-wrap gap-4">
-      <laris-schedule-fields [schedule]="form.schedule" idPrefix="settings" />
+      <ilex-schedule-fields [schedule]="form.schedule" idPrefix="settings" />
     </div>
   </section>
 
@@ -14,7 +14,7 @@
       {{ 'backups.retention.summary' | translate: form.retention().value() }}
     </p>
     <div class="flex flex-wrap gap-4">
-      <laris-retention-fields [retention]="form.retention" idPrefix="settings" />
+      <ilex-retention-fields [retention]="form.retention" idPrefix="settings" />
     </div>
   </section>
 
@@ -42,12 +42,12 @@
           {{ 'backups.settings.newDisk' | translate }}
         </p>
       }
-      <laris-field-errors [field]="form.destination" />
+      <ilex-field-errors [field]="form.destination" />
     </div>
   </section>
 
   @if (changed()) {
-    <laris-save-bar
+    <ilex-save-bar
       [submit]="true"
       [busy]="form().submitting()"
       [saveLabel]="form().submitting() ? 'backups.settings.saving' : 'backups.settings.save'"

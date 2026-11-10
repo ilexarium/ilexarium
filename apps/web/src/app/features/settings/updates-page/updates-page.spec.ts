@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { LinuxSession, UpdatesStatus } from '@laris/shared';
+import type { LinuxSession, UpdatesStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -63,7 +63,7 @@ async function render(status: UpdatesStatus, start = vi.fn(() => of({ id: 'x' })
 describe('UpdatesPage', () => {
   it('shows a newer release with its notes as plain text, and updates after confirming', async () => {
     const { fixture, el, api } = await render(AVAILABLE);
-    expect(el.textContent).toContain('Laris 0.2.0 is available');
+    expect(el.textContent).toContain('Ilexarium 0.2.0 is available');
     expect(el.textContent).toContain('Faster <b>backups</b>.');
     expect(el.querySelector('b')).toBeNull();
 
@@ -108,7 +108,7 @@ describe('UpdatesPage', () => {
     expect(el.querySelector('hlm-progress')).not.toBeNull();
     store.update(updatesStatus({ job: updateJob({ phase: 'stopped' }) }));
     await fixture.whenStable();
-    expect(el.textContent).toContain('Laris is restarting');
+    expect(el.textContent).toContain('Ilexarium is restarting');
   });
 
   it('a rolled-back update says which version runs', async () => {
@@ -120,14 +120,14 @@ describe('UpdatesPage', () => {
         }),
       }),
     );
-    expect(el.textContent).toContain('The update to 0.2.0 failed. Laris is back on 0.1.0.');
+    expect(el.textContent).toContain('The update to 0.2.0 failed. Ilexarium is back on 0.1.0.');
     expect(el.textContent).toContain("didn't answer within a minute");
     expect(el.querySelector('pre')!.textContent).toContain('==> Starting the app');
   });
 
   it('up to date: the switch and checking now', async () => {
     const { fixture, el, api } = await render(updatesStatus());
-    expect(el.textContent).toContain('Laris is up to date.');
+    expect(el.textContent).toContain('Ilexarium is up to date.');
     const box = el.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     expect(box.checked).toBe(true);
     box.checked = false;

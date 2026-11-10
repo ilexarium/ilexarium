@@ -5,7 +5,7 @@ import {
   type DiskErrorCode,
   type DiskMountRequest,
   type DisksStatus,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { type Observable, Subject } from 'rxjs';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import { SystemReader } from '../host/system-reader.js';

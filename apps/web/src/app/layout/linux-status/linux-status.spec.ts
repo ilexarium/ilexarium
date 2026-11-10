@@ -4,7 +4,7 @@ import { LinuxStatus } from './linux-status';
 
 @Component({
   imports: [LinuxStatus],
-  template: `<laris-linux-status
+  template: `<ilex-linux-status
     username="anna"
     [sudoMinutes]="minutes()"
     (lock)="locked = locked + 1"

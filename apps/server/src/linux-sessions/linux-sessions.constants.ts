@@ -1,4 +1,4 @@
-import { FILES_ERROR_CODES, FILES_LIMITS, type FilesErrorCode } from '@laris/shared';
+import { FILES_ERROR_CODES, FILES_LIMITS, type FilesErrorCode } from '@ilex/shared';
 
 /** The machine's own SSH server: never another one. */
 export const SSH_HOST = '127.0.0.1';
@@ -10,8 +10,8 @@ export const KEEPALIVE_COUNT_MAX = 3;
 /** The server's host keys, in its key folder: `ssh_host_<type>_key.pub`. */
 export const HOST_KEY_FILE = /^ssh_host_\w+_key\.pub$/;
 
-/** The helper's first line (`{"laris-helper":1}`): it runs, and listens. */
-export const HELPER_READY = 'laris-helper';
+/** The helper's first line (`{"ilex-helper":1}`): it runs, and listens. */
+export const HELPER_READY = 'ilex-helper';
 /** The sign-in waits this long for it (Node starting on a slow machine). */
 export const HELPER_START_TIMEOUT_MS = 10_000;
 /** Its longest answer is a root program's output (the helper's ROOT_ANSWER_MAX, the same). */
@@ -22,7 +22,7 @@ export const HELPER_MESSAGE_MAX = 4000;
 export const HELPER_QUICK_MS = 5_000;
 /** Above the helper's own limits (sudo's delay after a wrong password: 20 s; kill: 10 s). */
 export const HELPER_TIMEOUT_MS = 25_000;
-/** laris-root's own idle limit: it ends this long after its last action. */
+/** ilex-root's own idle limit: it ends this long after its last action. */
 export const SUDO_IDLE_MS = FILES_LIMITS.sudoIdleMinutes * 60_000;
 /** The helper's sudo answers, as the API says them. */
 export const SUDO_ERRORS: Partial<Record<string, FilesErrorCode>> = {

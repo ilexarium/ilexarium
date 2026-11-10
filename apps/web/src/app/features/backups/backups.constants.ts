@@ -1,4 +1,4 @@
-import type { BackupRunStatus, BackupStatus } from '@laris/shared';
+import type { BackupRunStatus, BackupStatus } from '@ilex/shared';
 import type { DotTone } from '../../shared/status-dot/status-dot.model';
 
 /** An item's last result, as a status dot. */

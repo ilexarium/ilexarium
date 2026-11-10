@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, effect, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { catalogIconPath } from '@laris/shared';
+import { catalogIconPath } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArrowLeft, lucideFileCode, lucideSearch } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -18,7 +18,7 @@ import { NewAppPageStore } from './new-app-page-store';
 
 /** Add app: choose a template or your own Compose file, set it up, install. */
 @Component({
-  selector: 'laris-new-app-page',
+  selector: 'ilex-new-app-page',
   imports: [
     AppHeader,
     AppSettings,

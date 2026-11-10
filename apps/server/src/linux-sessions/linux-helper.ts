@@ -9,9 +9,9 @@ import {
 import type { HelperAnswer, HelperRequest } from './linux-sessions.model.js';
 
 /**
- * The helper of one Linux session (system/programs/laris-helper.mts): started as the account in a
+ * The helper of one Linux session (system/programs/ilex-helper.mts): started as the account in a
  * channel of its own (plain pipes, no terminal), for the session's life. One JSON request per
- * line, answers matched by id; `{"event":…}` lines are its own news (laris-root ended). Lines
+ * line, answers matched by id; `{"event":…}` lines are its own news (ilex-root ended). Lines
  * before its first are the account's login noise, skipped; nothing is sent before it.
  */
 export class LinuxHelper {
@@ -99,7 +99,7 @@ export class LinuxHelper {
     this.end();
   }
 
-  /** Called with each event it sends (`sudo.locked`: laris-root ended on its own). */
+  /** Called with each event it sends (`sudo.locked`: ilex-root ended on its own). */
   onEvent: (event: string) => void = () => {};
 
   private onLine: (line: string) => void = () => {};

@@ -1,4 +1,4 @@
-// The actions laris-root does: the helper's privileged branches, run here as root. Each is the
+// The actions ilex-root does: the helper's privileged branches, run here as root. Each is the
 // helper's own code for it (helper/), asked only in its privileged form — anything else is refused.
 
 import { privileged, signalProcess } from '../helper/actions.mts';
@@ -42,8 +42,8 @@ function handle(request: Request): Promise<Answer> | Answer {
 export function start(): void {
   // Started by sudo, it's root; anything else is a mistake (tests run it with fake programs).
   if (process.getuid?.() !== 0 && !FAKE_BIN) {
-    process.stdout.write(`${JSON.stringify({ 'laris-root': 1, error: 'not_root' })}\n`);
+    process.stdout.write(`${JSON.stringify({ 'ilex-root': 1, error: 'not_root' })}\n`);
     process.exit(6);
   }
-  serve('laris-root', handle, { idleMs: ROOT_IDLE_MS });
+  serve('ilex-root', handle, { idleMs: ROOT_IDLE_MS });
 }

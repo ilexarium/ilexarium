@@ -12,7 +12,7 @@
       </p>
     </div>
     @if (trends().cpu; as trend) {
-      <laris-sparkline class="mt-auto h-12" [series]="trend.series" [max]="trend.max" />
+      <ilex-sparkline class="mt-auto h-12" [series]="trend.series" [max]="trend.max" />
     } @else {
       <div class="h-12"></div>
     }
@@ -33,7 +33,7 @@
       </p>
     </div>
     @if (trends().memory; as series) {
-      <laris-sparkline class="mt-auto h-12" [series]="series" />
+      <ilex-sparkline class="mt-auto h-12" [series]="series" />
     } @else {
       <div class="h-12"></div>
     }
@@ -54,22 +54,22 @@
             <span class="truncate font-medium" dir="ltr"
               >{{ row.name }}<span class="sr-only">, </span></span
             >
-            <laris-status-dot class="shrink-0 text-xs text-muted-foreground" [tone]="row.dot">{{
+            <ilex-status-dot class="shrink-0 text-xs text-muted-foreground" [tone]="row.dot">{{
               'containers.state.' + row.state | translate
-            }}</laris-status-dot>
+            }}</ilex-status-dot>
           </span>
           <span class="flex items-center gap-4 text-xs tabular-nums">
             <span class="flex items-center gap-1.5">
               <span class="sr-only">{{ 'apps.stats.cpu' | translate }}</span>
               @if (row.trends.cpu; as trend) {
-                <laris-sparkline class="h-5 w-10" [series]="trend.series" [max]="trend.max" />
+                <ilex-sparkline class="h-5 w-10" [series]="trend.series" [max]="trend.max" />
               }
               <span class="min-w-10">{{ row.cpu ?? '—' }}</span>
             </span>
             <span class="flex items-center gap-1.5">
               <span class="sr-only">{{ 'apps.stats.memory' | translate }}</span>
               @if (row.trends.memory; as series) {
-                <laris-sparkline class="h-5 w-10" [series]="series" />
+                <ilex-sparkline class="h-5 w-10" [series]="series" />
               }
               <span class="min-w-14">{{ row.memory ?? '—' }}</span>
             </span>

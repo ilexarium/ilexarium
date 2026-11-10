@@ -1,4 +1,4 @@
-import type { SystemSample } from '@laris/shared';
+import type { SystemSample } from '@ilex/shared';
 import { CPU_HWMON_CHIPS, CPU_THERMAL_ZONES, TEMPERATURE_RANGE_C } from './host.constants.js';
 import type { TemperatureSensor } from './host.model.js';
 

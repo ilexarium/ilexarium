@@ -1,4 +1,4 @@
-import { diskMountRequestSchema, diskUnmountRequestSchema } from '@laris/shared';
+import { diskMountRequestSchema, diskUnmountRequestSchema } from '@ilex/shared';
 import { zodDto } from '../common/zod-dto.js';
 
 export class DiskMountDto extends zodDto(diskMountRequestSchema) {}

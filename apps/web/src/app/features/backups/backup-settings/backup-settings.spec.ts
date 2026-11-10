@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { BackupPlan } from '@laris/shared';
+import type { BackupPlan } from '@ilex/shared';
 import { BackupsPageStore } from '../backups-page/backups-page-store';
 import { BackupSettings } from './backup-settings';
 
@@ -16,7 +16,7 @@ const plan = (updatedAt: string, daily = 7): BackupPlan => ({
 
 @Component({
   imports: [BackupSettings],
-  template: `<laris-backup-settings [plan]="plan()" />`,
+  template: `<ilex-backup-settings [plan]="plan()" />`,
 })
 class Host {
   readonly plan = signal(plan('2026-10-20T00:00:00.000Z'));

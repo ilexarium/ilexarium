@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
-import type { PersonCheck } from '@laris/shared';
+import type { PersonCheck } from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 /** The machine check's steps done as the signed-in Linux account (docs/plans/machine_check.md). */

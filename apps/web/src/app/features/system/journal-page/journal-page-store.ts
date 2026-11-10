@@ -16,7 +16,7 @@ import {
   type JournalAccess,
   type JournalBootInfo,
   type JournalLine,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { SystemJournalApi } from '../../../core/system-journal/system-journal-api';

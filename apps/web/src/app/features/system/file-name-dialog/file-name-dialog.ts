@@ -6,7 +6,7 @@ import {
   FormRoot,
   validateStandardSchema,
 } from '@angular/forms/signals';
-import { FILES_LIMITS, fileNameSchema } from '@laris/shared';
+import { FILES_LIMITS, fileNameSchema } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
@@ -30,7 +30,7 @@ const newFolderSchema = z.object({ name: fileNameSchema });
 
 /** A new folder's name, or a new name (or path) for an entry. Submits through the page store. */
 @Component({
-  selector: 'laris-file-name-dialog',
+  selector: 'ilex-file-name-dialog',
   imports: [
     FieldErrors,
     FormField,

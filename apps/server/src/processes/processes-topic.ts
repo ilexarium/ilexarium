@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { type ProcessesUpdate, processKey } from '@laris/shared';
+import { type ProcessesUpdate, processKey } from '@ilex/shared';
 import {
   defer,
   filter,

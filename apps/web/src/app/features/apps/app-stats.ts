@@ -1,4 +1,4 @@
-import type { Container, ContainerHistoryPoint } from '@laris/shared';
+import type { Container, ContainerHistoryPoint } from '@ilex/shared';
 import {
   CPU_TREND_MIN_TOP,
   TREND_COLORS,

@@ -15,7 +15,7 @@ export const APP_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/;
 export const VOLUME_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/;
 
 /** On an app's containers: the template it came from, `<id>@<version>`. */
-export const TEMPLATE_LABEL = 'laris.template';
+export const TEMPLATE_LABEL = 'ilex.template';
 export const TEMPLATE_LABEL_PATTERN = /^([a-z0-9][a-z0-9-]{0,39})@([0-9]{1,6})$/;
 
 export const APP_LIMITS = {

@@ -9,6 +9,6 @@ if ! getent passwd dev >/dev/null; then
   useradd -u "$HOST_UID" -g "$HOST_GID" -G "$(getent group "$DOCKER_GID" | cut -d: -f1)" \
     -m -s /bin/bash dev
 fi
-cd "$LARIS_REPO"
+cd "$ILEX_REPO"
 chown dev:"$HOST_GID" /home/dev node_modules apps/*/node_modules packages/*/node_modules
 exec "$@"

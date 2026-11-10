@@ -7,7 +7,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import type { UpdatesStatus } from '@laris/shared';
+import type { UpdatesStatus } from '@ilex/shared';
 import { AuthStore } from '../auth/auth-store';
 import { RealtimeService } from '../realtime/realtime-service';
 import { PAGE_RELOAD } from './page-reload';
@@ -22,7 +22,7 @@ interface UpdatesState {
 const initialState: UpdatesState = { status: null, loadedVersion: null };
 
 /**
- * Laris's own updates (docs/plans/install_and_update.md), fed by the `updates` topic for the whole
+ * Ilexarium's own updates (docs/plans/install_and_update.md), fed by the `updates` topic for the whole
  * signed-in session (the shell watches it): the badge on Settings → Updates, the dashboard's line,
  * a running update's progress. When the server comes back as another version (after an update),
  * the page reloads: this one's files are gone. Reset on sign-out like every global store.

@@ -4,7 +4,7 @@
 >
   @for (row of active(); track row.item.id) {
     <li>
-      <laris-item-card
+      <ilex-item-card
         class="h-full"
         [row]="row"
         [label]="label(row)"
@@ -81,7 +81,7 @@
   </section>
 }
 
-<laris-folder-picker
+<ilex-folder-picker
   [open]="pickerOpen()"
   [listing]="folderListing()"
   (browse)="browse.emit($event)"

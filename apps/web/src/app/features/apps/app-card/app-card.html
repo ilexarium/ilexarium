@@ -25,9 +25,9 @@
         <p class="truncate text-sm text-muted-foreground">{{ template.name }}</p>
       }
     </div>
-    <laris-status-dot class="shrink-0 text-sm" [tone]="dots[app().state]">{{
+    <ilex-status-dot class="shrink-0 text-sm" [tone]="dots[app().state]">{{
       'apps.state.' + app().state | translate
-    }}</laris-status-dot>
+    }}</ilex-status-dot>
   </div>
 
   <dl class="grid grid-cols-2 gap-3 text-sm">
@@ -36,7 +36,7 @@
       <dd class="flex items-center gap-2 tabular-nums">
         <span class="min-w-12">{{ stats() ? formatter.percent(stats()!.cpuPercent) : '—' }}</span>
         @if (trends().cpu; as trend) {
-          <laris-sparkline class="h-6 w-16" [series]="trend.series" [max]="trend.max" />
+          <ilex-sparkline class="h-6 w-16" [series]="trend.series" [max]="trend.max" />
         }
       </dd>
     </div>
@@ -47,7 +47,7 @@
           stats() ? formatter.bytes(stats()!.memoryUsedBytes) : '—'
         }}</span>
         @if (trends().memory; as series) {
-          <laris-sparkline class="h-6 w-16" [series]="series" />
+          <ilex-sparkline class="h-6 w-16" [series]="series" />
         }
       </dd>
     </div>

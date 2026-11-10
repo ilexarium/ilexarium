@@ -8,14 +8,14 @@
 } @else if (backupsPageStore.plan(); as plan) {
   <div class="grid grid-cols-1 gap-5">
     @if (backupsPageStore.passphrase(); as passphrase) {
-      <laris-passphrase-card
+      <ilex-passphrase-card
         [passphrase]="passphrase"
         [first]="backupsPageStore.passphraseFirst()"
         (saved)="backupsPageStore.hidePassphrase()"
       />
     }
     @if (backupsPageStore.status(); as status) {
-      <laris-backup-header
+      <ilex-backup-header
         [headline]="backupsPageStore.headline()"
         [status]="status"
         [destination]="plan.destinationStatus"
@@ -25,11 +25,11 @@
         (showPassphrase)="backupsPageStore.showPassphrase()"
       />
       @if (status.running; as run) {
-        <laris-run-progress [run]="run" [labels]="labels()" />
+        <ilex-run-progress [run]="run" [labels]="labels()" />
       }
     }
     @if (restore(); as latest) {
-      <laris-restore-status
+      <ilex-restore-status
         [restore]="latest"
         [label]="labels().get(latest.itemId) ?? { text: '', ltr: false }"
         [note]="restoreNote()"
@@ -54,7 +54,7 @@
       </div>
 
       <div hlmTabsContent="items" class="pt-2">
-        <laris-backup-items
+        <ilex-backup-items
           [active]="backupsPageStore.rows().active"
           [removed]="backupsPageStore.rows().removed"
           [addable]="backupsPageStore.addable()"
@@ -75,7 +75,7 @@
       </div>
 
       <div hlmTabsContent="history" class="pt-2">
-        <laris-backup-history
+        <ilex-backup-history
           [runs]="backupsPageStore.runs()"
           [outputs]="backupsPageStore.outputs()"
           [labels]="labels()"
@@ -85,12 +85,12 @@
       </div>
 
       <div hlmTabsContent="settings" class="pt-2">
-        <laris-backup-settings [plan]="plan" [destinations]="backupsPageStore.destinations()" />
+        <ilex-backup-settings [plan]="plan" [destinations]="backupsPageStore.destinations()" />
       </div>
     </div>
   </div>
 
-  <laris-item-sheet
+  <ilex-item-sheet
     [row]="backupsPageStore.sheetRow()"
     [label]="sheetLabel()"
     [runBusy]="backupsPageStore.running() !== null"
@@ -101,14 +101,14 @@
     (remove)="fromSheet('remove')"
     (closed)="backupsPageStore.closeSheet()"
   />
-  <laris-remove-item-dialog [labels]="labels()" (remove)="backupsPageStore.removeItem($event)" />
-  <laris-restore-dialog
+  <ilex-remove-item-dialog [labels]="labels()" (remove)="backupsPageStore.removeItem($event)" />
+  <ilex-restore-dialog
     [archives]="backupsPageStore.archives()?.list ?? null"
     [labels]="labels()"
     (restore)="backupsPageStore.restore($event)"
   />
 } @else {
-  <laris-backup-setup
+  <ilex-backup-setup
     [destinations]="backupsPageStore.destinations()"
     [apps]="backupsPageStore.apps()"
     [folderListing]="backupsPageStore.folders()"

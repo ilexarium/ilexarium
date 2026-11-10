@@ -1,4 +1,4 @@
-import type { PublicUser } from '@laris/shared';
+import type { PublicUser } from '@ilex/shared';
 import { of, throwError } from 'rxjs';
 import { AuthApi } from './auth-api';
 import { SIGN_OUT_CHANNEL } from './sign-out-channel';

@@ -5,7 +5,7 @@ import type { WithErrors } from './forms.model';
 
 /** `contents`: the errors are the field's own flex items, spaced by its gap, as if written there. */
 @Component({
-  selector: 'laris-field-errors',
+  selector: 'ilex-field-errors',
   imports: [HlmFieldError, ErrorTextPipe],
   host: { class: 'contents' },
   templateUrl: './field-errors.html',

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { ProgramConfigService } from '../root-programs/program-config.js';
 import { RELEASE_SETTINGS_DIR, UPDATES_DIR } from './updates.constants.js';
 
-/** Where laris-update's settings and job files are: the machine's, or development's pretend one. */
+/** Where ilex-update's settings and job files are: the machine's, or development's pretend one. */
 @Injectable()
 export class UpdatePlaces {
   constructor(private readonly programConfigService: ProgramConfigService) {}

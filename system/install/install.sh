@@ -8,10 +8,10 @@
 #
 #   --yes            install missing programs (Node.js, Docker, Borg) without asking (on Arch
 #                    from the package database as it is — never a system upgrade)
-#   --update         an update from the app (laris-update): installs no programs, asks nothing,
+#   --update         an update from the app (ilex-update): installs no programs, asks nothing,
 #                    prints its progress as @@ lines
 #
-# How people reach the machine is theirs: Laris listens where /etc/laris/app.env says
+# How people reach the machine is theirs: Ilexarium listens where /etc/ilex/app.env says
 # (127.0.0.1:3000 at first) and needs an HTTPS proxy of their choice in front of it.
 #
 # Every step checks first and changes only what's missing or outdated: running it again is safe.
@@ -67,7 +67,7 @@ write_settings
 write_release_settings
 if [[ -n "$OLD_VERSION" ]]; then
   # The app stops first: nothing writes to the database while it's backed up and migrated.
-  systemctl stop laris.service 2>/dev/null || true
+  systemctl stop ilex.service 2>/dev/null || true
   marker phase stopped
 fi
 install_platform_files

@@ -18,7 +18,7 @@ import { TopBar } from '../top-bar/top-bar';
  * alerts for the whole session (the navigation's badge, the bell, the dashboard).
  */
 @Component({
-  selector: 'laris-shell',
+  selector: 'ilex-shell',
   imports: [RouterOutlet, HlmSidebarImports, AppSidebar, SignInPrompt, SudoDialog, TopBar],
   templateUrl: './shell.html',
 })
@@ -30,7 +30,7 @@ export class Shell {
     inject(BackupsStore).watch();
     // The open alerts: the bell in the top bar, the dashboard notice.
     inject(AlertsStore).watch();
-    // Laris's own updates: the badge, the dashboard's line, the reload after an update.
+    // Ilexarium's own updates: the badge, the dashboard's line, the reload after an update.
     inject(UpdatesStore).watch();
     // The machine's kernel, for the top bar's status.
     inject(MonitoringStore).loadHost();

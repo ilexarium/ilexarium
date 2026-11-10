@@ -1,5 +1,5 @@
 import { Component, computed, effect, type ElementRef, input, viewChild } from '@angular/core';
-import type { AppTask } from '@laris/shared';
+import type { AppTask } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideLoaderCircle } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -8,7 +8,7 @@ import { TASK_STATE_TONES } from '../apps.constants';
 
 /** A long task's live output and where it stands (it runs on as a unit, whoever watches). */
 @Component({
-  selector: 'laris-task-output',
+  selector: 'ilex-task-output',
   imports: [NgIcon, StatusBadge, TranslatePipe],
   providers: [provideIcons({ lucideLoaderCircle })],
   host: { class: 'grid gap-2' },

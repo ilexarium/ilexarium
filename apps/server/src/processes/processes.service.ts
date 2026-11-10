@@ -5,7 +5,7 @@ import {
   PROCESS_ERROR_CODES,
   type ProcessErrorCode,
   type ProcessSignalRequest,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { AuditService } from '../audit/audit.service.js';
 import { isKernelThread } from '../host/process-parsers.js';
 import { SystemReader } from '../host/system-reader.js';

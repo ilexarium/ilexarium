@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { BackupRestore } from '@laris/shared';
+import type { BackupRestore } from '@ilex/shared';
 import { RestoreStatus } from './restore-status';
 
 const restore = (change: Partial<BackupRestore> = {}): BackupRestore => ({
@@ -22,7 +22,7 @@ const restore = (change: Partial<BackupRestore> = {}): BackupRestore => ({
 
 @Component({
   imports: [RestoreStatus],
-  template: `<laris-restore-status
+  template: `<ilex-restore-status
     [restore]="restore()"
     [note]="note()"
     (discard)="discarded = discarded + 1"

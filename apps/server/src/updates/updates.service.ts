@@ -12,9 +12,9 @@ import {
   type UpdateCheckError,
   type UpdateErrorCode,
   type UpdatesStatus,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { exhaustMap, type Observable, Subject, type Subscription, timer } from 'rxjs';
-import { LARIS_VERSION } from '../common/laris-version.js';
+import { ILEX_VERSION } from '../common/ilex-version.js';
 import { safely } from '../common/safely.js';
 import { ChangesUnderway } from '../jobs/changes-underway.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -36,9 +36,9 @@ function updateError(code: UpdateErrorCode): HttpException {
 }
 
 /**
- * Laris's own updates (docs/plans/install_and_update.md): the daily check (on by default; the
+ * Ilexarium's own updates (docs/plans/install_and_update.md): the daily check (on by default; the
  * release host sees this machine's address once a day), the switch, and starting an update
- * through the person's sudo. The update itself is laris-update's, followed by UpdateJobs.
+ * through the person's sudo. The update itself is ilex-update's, followed by UpdateJobs.
  */
 @Injectable()
 export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -79,7 +79,7 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
       this.prisma.updateCheck.findUnique({ where: { id: UPDATE_CHECK_ID } }),
     ]);
     const available =
-      row?.availableVersion && isNewer(row.availableVersion, LARIS_VERSION)
+      row?.availableVersion && isNewer(row.availableVersion, ILEX_VERSION)
         ? {
             version: row.availableVersion,
             published: row.availablePublished ?? '',
@@ -88,7 +88,7 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
         : null;
     return {
       configured: source !== null,
-      installed: LARIS_VERSION,
+      installed: ILEX_VERSION,
       available,
       newestPublished: row?.newestPublished ?? null,
       checkedAt: row?.checkedAt?.toISOString() ?? null,
@@ -128,7 +128,7 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
     await this.prisma.updateRun.create({
       data: {
         id,
-        fromVersion: LARIS_VERSION,
+        fromVersion: ILEX_VERSION,
         toVersion: version,
         userId: actor.user.id,
         username: actor.user.username,
@@ -168,7 +168,7 @@ export class UpdatesService implements OnApplicationBootstrap, OnModuleDestroy {
           checkedAt,
           checkError: null,
           newestPublished: result.newest.published,
-          ...(isNewer(result.newest.version, LARIS_VERSION)
+          ...(isNewer(result.newest.version, ILEX_VERSION)
             ? {
                 availableVersion: result.newest.version,
                 availablePublished: result.newest.published,

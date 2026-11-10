@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { BackupsStatus } from '@laris/shared';
+import type { BackupsStatus } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideShieldCheck } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -16,7 +16,7 @@ import { DAY_CLASSES } from './backups-card.constants';
 
 /** The backups at a glance: the last and next run, where they go, and the last two weeks. */
 @Component({
-  selector: 'laris-backups-card',
+  selector: 'ilex-backups-card',
   imports: [HlmButton, HlmCardImports, HlmSkeleton, NgIcon, RouterLink, StatusBadge, TranslatePipe],
   providers: [provideIcons({ lucideShieldCheck })],
   host: { class: 'block' },

@@ -1,4 +1,4 @@
-import type { LogLine } from '@laris/shared';
+import type { LogLine } from '@ilex/shared';
 
 /** What the log view shows of a line: a container's (its stream), or the journal's. */
 export interface LogViewEntry {

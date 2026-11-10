@@ -20,7 +20,7 @@ import type {
   BackupRunsResponse,
   BackupRunStartedResponse,
   BackupSetupRequest,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
 const id = encodeURIComponent;

@@ -29,7 +29,7 @@
     </div>
   }
   @case ('empty') {
-    <laris-empty-state
+    <ilex-empty-state
       icon="lucideScrollText"
       role="status"
       [text]="'logs.empty.title' | translate"
@@ -37,6 +37,6 @@
     />
   }
   @case ('lines') {
-    <laris-log-view class="min-h-0 flex-1" [entries]="logsPageStore.entries()" />
+    <ilex-log-view class="min-h-0 flex-1" [entries]="logsPageStore.entries()" />
   }
 }

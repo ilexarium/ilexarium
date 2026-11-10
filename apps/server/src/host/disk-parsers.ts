@@ -106,7 +106,7 @@ export function parseSwaps(swaps: string): string[] {
 }
 
 /** The first line of every mount unit the disk wrapper writes. */
-export const DISK_UNIT_MARKER = '# Managed by laris (laris-disk).';
+export const DISK_UNIT_MARKER = '# Managed by ilex (ilex-disk).';
 
 /** A mount unit the disk wrapper wrote: its disk (by UUID) and folder; null for anyone else's. */
 export function parseDiskUnit(unit: string): { uuid: string | null; where: string } | null {

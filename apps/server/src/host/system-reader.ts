@@ -1,7 +1,7 @@
 import { readdir, readFile, stat, statfs } from 'node:fs/promises';
 import os from 'node:os';
 import { join } from 'node:path';
-import { type DiskUsage, type HostInfo, LINUX_USERNAME_PATTERN } from '@laris/shared';
+import { type DiskUsage, type HostInfo, LINUX_USERNAME_PATTERN } from '@ilex/shared';
 import {
   isShownInterface,
   parseCpuTimes,

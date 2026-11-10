@@ -1,6 +1,6 @@
 import { Component, viewChild } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { BackupItem } from '@laris/shared';
+import type { BackupItem } from '@ilex/shared';
 import { testItem } from '../../../core/backups/testing';
 import type { ItemLabel, ItemRemoval, ItemRow } from '../backups.model';
 import { RemoveItemDialog } from './remove-item-dialog';
@@ -8,18 +8,18 @@ import { RemoveItemDialog } from './remove-item-dialog';
 const ITEM = '0193a000-0000-7000-8000-000000000003';
 
 const row = (change: Partial<BackupItem> = {}): ItemRow => ({
-  item: testItem({ id: ITEM, path: '/srv/laris/docs', ...change }),
+  item: testItem({ id: ITEM, path: '/srv/ilex/docs', ...change }),
   name: null,
   icon: null,
 });
 
 @Component({
   imports: [RemoveItemDialog],
-  template: `<laris-remove-item-dialog [labels]="labels" (remove)="removals.push($event)" />`,
+  template: `<ilex-remove-item-dialog [labels]="labels" (remove)="removals.push($event)" />`,
 })
 class Host {
   readonly dialog = viewChild.required(RemoveItemDialog);
-  readonly labels = new Map<string, ItemLabel>([[ITEM, { text: '/srv/laris/docs', ltr: true }]]);
+  readonly labels = new Map<string, ItemLabel>([[ITEM, { text: '/srv/ilex/docs', ltr: true }]]);
   readonly removals: ItemRemoval[] = [];
 }
 
@@ -40,7 +40,7 @@ describe('RemoveItemDialog', () => {
 
   it('removes an item, keeping its backups unless asked', async () => {
     const fixture = await open(row());
-    expect(dialog().textContent).toContain('Stop backing up /srv/laris/docs?');
+    expect(dialog().textContent).toContain('Stop backing up /srv/ilex/docs?');
     expect(dialog().textContent).toContain('existing backups are kept');
     confirm('Remove');
     await fixture.whenStable();

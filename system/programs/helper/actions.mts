@@ -15,7 +15,7 @@ function hello(): Answer {
   return ok({ uid: me.uid, gid: me.gid, user: me.username, home: me.homedir });
 }
 
-/** Ends a process — run by whoever is asked: this account, or laris-root for `administrator`. */
+/** Ends a process — run by whoever is asked: this account, or ilex-root for `administrator`. */
 export async function signalProcess(request: Request): Promise<Answer> {
   const { pid, signal, administrator } = request;
   if (typeof pid !== 'number' || !Number.isSafeInteger(pid) || pid <= 1 || pid > PID_MAX) {
@@ -33,7 +33,7 @@ export async function signalProcess(request: Request): Promise<Answer> {
   return refused('failed');
 }
 
-/** What laris-root does for this account (docs/plans/laris_root.md): forwarded to it. */
+/** What ilex-root does for this account (docs/plans/ilex_root.md): forwarded to it. */
 export function privileged(request: Request): boolean {
   switch (request['action']) {
     case 'process.signal':

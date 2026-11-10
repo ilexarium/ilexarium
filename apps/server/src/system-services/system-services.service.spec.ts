@@ -1,4 +1,4 @@
-import type { LinuxSession, PublicUser } from '@laris/shared';
+import type { LinuxSession, PublicUser } from '@ilex/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { HelperAnswer } from '../linux-sessions/linux-sessions.model.js';
@@ -82,11 +82,11 @@ describe('SystemServicesService', () => {
           enabled: null,
         },
         {
-          unit: 'laris.service',
+          unit: 'ilex.service',
           load: 'loaded',
           active: 'active',
           sub: 'running',
-          description: 'Laris',
+          description: 'Ilexarium',
           enabled: 'enabled',
         },
         {
@@ -103,7 +103,7 @@ describe('SystemServicesService', () => {
     expect(truncated).toBe(false);
     expect(services.map((s) => [s.name, s.protection])).toEqual([
       ['vpn.service', null],
-      ['laris.service', 'laris'],
+      ['ilex.service', 'ilex'],
       ['ssh.service', 'essential'],
     ]);
     expect(services[0]).toMatchObject({ active: 'failed', sub: 'failed', description: 'VPN' });
@@ -206,10 +206,10 @@ describe('SystemServicesService', () => {
     expect(record.mock.invocationCallOrder[0]).toBeLessThan(ask.mock.invocationCallOrder.at(-1)!);
   });
 
-  it('Laris’s own units: nothing; those it needs: never stopped — an alias protects too', async () => {
-    answers['units.show'] = { ok: true, properties: properties({ Id: 'laris.service' }) };
+  it('Ilexarium’s own units: nothing; those it needs: never stopped — an alias protects too', async () => {
+    answers['units.show'] = { ok: true, properties: properties({ Id: 'ilex.service' }) };
     for (const action of ['start', 'stop', 'restart'] as const) {
-      expect(await rejection(act('laris.service', action))).toEqual([403, 'service_protected']);
+      expect(await rejection(act('ilex.service', action))).toEqual([403, 'service_protected']);
     }
     answers['units.show'] = {
       ok: true,

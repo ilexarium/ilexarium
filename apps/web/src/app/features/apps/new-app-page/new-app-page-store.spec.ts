@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AppField, AppTask, BackupsStatus, TemplateSummary } from '@laris/shared';
+import type { AppField, AppTask, BackupsStatus, TemplateSummary } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, Subject, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';

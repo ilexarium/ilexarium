@@ -4,7 +4,7 @@ App **templates**: starting points, used once. After setup, the app's folder (`~
 
 ```
 catalog/<id>/
-├── compose.yml     plain Compose: ${VARIABLES}, data in ./folders, the laris.template label
+├── compose.yml     plain Compose: ${VARIABLES}, data in ./folders, the ilex.template label
 ├── template.json   what each variable is, the backup preset, the web page (port, path) (templateSchema)
 └── icon.svg        shown on the card (only ever used in <img>)
 ```
@@ -13,8 +13,8 @@ Texts are translation keys in `packages/i18n/messages/*.json`: `catalog.<id>.des
 
 ## Rules (checked by `apps/server/src/catalog/catalog.spec.ts`, run first by `npm run release`; the server itself checks only `templateSchema` and the folder's id at startup)
 
-- `template.json` matches `templateSchema` (`@laris/shared`). Every `${VAR}` in `compose.yml` is a field and every field is used: the setup form is built from `template.json` alone.
-- Each service carries the label `laris.template: <id>@<version>`.
+- `template.json` matches `templateSchema` (`@ilex/shared`). Every `${VAR}` in `compose.yml` is a field and every field is used: the setup form is built from `template.json` alone.
+- Each service carries the label `ilex.template: <id>@<version>`.
 - `icon.svg`: a plain SVG under 64 KB (no scripts, events, links or entities).
 - Versions in `.env` (`image: …:${NAVIDROME_VERSION}`): the widest compatible line the publisher tags, else an exact version — never `latest`, `nightly`, `develop` or another moving tag. Images that must match share one variable. Databases stay on their major (a literal tag).
 - Data in folders inside the app's folder by default (`./data`), so a backup of the app takes it along. Field defaults may use `@account` (the person's `uid:gid`) and `@timezone`.

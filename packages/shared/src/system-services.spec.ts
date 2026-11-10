@@ -60,25 +60,25 @@ describe('systemServiceNameSchema', () => {
 });
 
 describe('systemServiceProtection', () => {
-  it('Laris’s own units and what it runs on: nothing from here', () => {
+  it('Ilexarium’s own units and what it runs on: nothing from here', () => {
     for (const name of [
       'docker.service',
       'containerd.service',
       'dbus.service',
       'dbus-broker.service',
       'user@1000.service',
-      'laris.service',
-      'laris-platform.service',
-      'laris-backup-now@1.service',
-      'laris-app-music-up-20261028T120000.service',
+      'ilex.service',
+      'ilex-platform.service',
+      'ilex-backup-now@1.service',
+      'ilex-app-music-up-20261028T120000.service',
     ]) {
-      expect(systemServiceProtection([name]), name).toBe('laris');
+      expect(systemServiceProtection([name]), name).toBe('ilex');
     }
-    expect(systemServiceActionAllowed('laris', 'start')).toBe(false);
-    expect(systemServiceActionAllowed('laris', 'restart')).toBe(false);
+    expect(systemServiceActionAllowed('ilex', 'start')).toBe(false);
+    expect(systemServiceActionAllowed('ilex', 'restart')).toBe(false);
   });
 
-  it('what Laris needs: restarted, never stopped', () => {
+  it('what Ilexarium needs: restarted, never stopped', () => {
     for (const name of ['ssh.service', 'sshd.service', 'systemd-journald.service']) {
       expect(systemServiceProtection([name]), name).toBe('essential');
     }
@@ -89,7 +89,7 @@ describe('systemServiceProtection', () => {
 
   it('by any of its names: an alias protects like its unit', () => {
     expect(systemServiceProtection(['openssh.service', 'sshd.service'])).toBe('essential');
-    expect(systemServiceProtection(['nginx.service', 'larissa.service'])).toBeNull();
+    expect(systemServiceProtection(['nginx.service', 'ilexsa.service'])).toBeNull();
     expect(systemServiceProtection(['sshguard.service', 'dockerd-helper.service'])).toBeNull();
     expect(systemServiceActionAllowed(null, 'stop')).toBe(true);
   });

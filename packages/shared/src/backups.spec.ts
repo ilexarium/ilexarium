@@ -37,7 +37,7 @@ describe('isBackupFolder', () => {
       '/etc',
       '/etc/ssh',
       '/var/lib/docker/x',
-      '/opt/laris',
+      '/opt/ilex',
       '/var',
       '/home/../etc',
       'relative',

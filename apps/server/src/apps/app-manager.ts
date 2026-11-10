@@ -20,7 +20,7 @@ import {
   isBackupFolder,
   parseEnv,
   setEnvValues,
-} from '@laris/shared';
+} from '@ilex/shared';
 import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
 import { AuditService } from '../audit/audit.service.js';
@@ -38,7 +38,7 @@ import {
   COMPOSE_FILE,
   COMPOSE_FILES,
   ENV_FILE,
-  LARIS_DIR,
+  ILEX_DIR,
   LONG_MS,
   QUICK_MS,
   TASKS_DIR,
@@ -177,9 +177,9 @@ export class AppManager {
       } catch (error) {
         // Nothing left behind of a setup that didn't start: the person fixes the form and tries again.
         for (const file of written) await sftp.remove(file).catch(() => undefined);
-        await sftp.remove(posix.join(folder, LARIS_DIR, 'task.json')).catch(() => undefined);
+        await sftp.remove(posix.join(folder, ILEX_DIR, 'task.json')).catch(() => undefined);
         // The helper's folders for a task that didn't start (empty: only those go).
-        for (const dir of [TASKS_DIR, LARIS_DIR]) {
+        for (const dir of [TASKS_DIR, ILEX_DIR]) {
           await sftp.removeFolder(posix.join(folder, dir)).catch(() => undefined);
         }
         for (const dir of [...created].reverse()) {
@@ -386,7 +386,7 @@ export class AppManager {
             : [
                 posix.join(folder, files.composeName),
                 posix.join(folder, ENV_FILE),
-                posix.join(folder, LARIS_DIR),
+                posix.join(folder, ILEX_DIR),
               ],
         );
       }

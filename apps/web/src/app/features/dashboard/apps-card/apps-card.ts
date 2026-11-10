@@ -1,6 +1,6 @@
 import { Component, computed, DOCUMENT, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { catalogIconPath } from '@laris/shared';
+import { catalogIconPath } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideChevronRight,
@@ -19,7 +19,7 @@ import type { AppTile, Light } from '../dashboard.model';
 
 /** Your apps: each with its state and its way in (Open, or Start when stopped). */
 @Component({
-  selector: 'laris-apps-card',
+  selector: 'ilex-apps-card',
   imports: [HlmButton, HlmCardImports, HlmSkeleton, NgIcon, PluralPipe, RouterLink, TranslatePipe],
   providers: [
     provideIcons({

@@ -17,7 +17,7 @@ import { FreeSpace } from '../free-space/free-space';
 import { ContainersPageStore } from './containers-page-store';
 
 @Component({
-  selector: 'laris-containers-page',
+  selector: 'ilex-containers-page',
   imports: [ContainersTable, FreeSpace, HlmButton, PluralPipe, RouterLink, TranslatePipe],
   providers: [ContainersPageStore],
   templateUrl: './containers-page.html',

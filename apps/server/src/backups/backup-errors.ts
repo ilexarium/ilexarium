@@ -4,7 +4,7 @@ import {
   BACKUP_ERROR_CODES,
   type BackupErrorCode,
   type FieldError,
-} from '@laris/shared';
+} from '@ilex/shared';
 import type { BackupOutcome } from '../root-programs/root-programs.model.js';
 
 export function apiError(message: string, code: BackupErrorCode): ApiErrorResponse {

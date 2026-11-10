@@ -1,9 +1,9 @@
-// A fake program for laris-helper.spec.ts (copied into the test's bin folder under the name of the
-// program it stands in for: systemd-run, systemctl, docker, du, rm, laris-backup.mts…). Records
+// A fake program for ilex-helper.spec.ts (copied into the test's bin folder under the name of the
+// program it stands in for: systemd-run, systemctl, docker, du, rm, ilex-backup.mts…). Records
 // every call (args, cwd, stdin) in <name>-calls.jsonl; prints <name>-out.txt to stdout and
 // <name>-err.txt to stderr if they exist, and exits with <name>-exit.txt (else 0) — each first as
 // <name>-<its first argument>-… (`systemctl-list-units-out.txt`), for programs asked several ways.
-// No require: copied as laris-backup.mts it runs as a module (getBuiltinModule works in both).
+// No require: copied as ilex-backup.mts it runs as a module (getBuiltinModule works in both).
 const fs = process.getBuiltinModule('node:fs');
 const path = process.getBuiltinModule('node:path');
 
