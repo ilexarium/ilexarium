@@ -196,7 +196,11 @@ async function securitySetup() {
     '{{.State.Pid}}',
     'ilex-docker-proxy-1',
   ]).trim();
-  check('the proxy runs as ilex-proxy', mode(`/proc/${proxyProcess}`).uid === proxyAccount);
+  check(
+    'the proxy runs as ilex-proxy',
+    proxyProcess !== '0' && mode(`/proc/${proxyProcess}`).uid === proxyAccount,
+    `pid ${proxyProcess}`,
+  );
   // As a bare uid, no account needed; the proxy's own uid first, so a missing setpriv can't pass.
   const refusedAs = (uid, gid) =>
     fails('setpriv', [

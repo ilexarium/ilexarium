@@ -35,6 +35,13 @@ ensure_proxy_user() {
   fi
   PROXY_UID="$(id -u "$PROXY_USER")"
   PROXY_GID="$(id -g "$PROXY_USER")"
+  # An account of that name made by someone else must not become the folder's owner.
+  local shell
+  shell="$(getent passwd "$PROXY_USER" | cut -d: -f7)"
+  if [[ "$PROXY_UID" == 0 || "$PROXY_UID" == 99 || "$PROXY_UID" == "$APP_UID" ||
+    ! "$shell" =~ /(nologin|false)$ ]]; then
+    die "The account $PROXY_USER (uid $PROXY_UID, shell $shell) isn't one the installer made: remove it, or give it a uid of its own and no login shell"
+  fi
   info "$PROXY_USER (uid $PROXY_UID)"
 }
 

@@ -458,7 +458,9 @@ describe.skipIf(!reachable)('Docker socket proxy (e2e, real Docker)', () => {
         PortBindings: Record<string, { HostIp: string; HostPort: string }[]>;
       };
     };
-    expect(details.Config.User).toBe('haproxy');
+    // A uid of its own, as in production (ilex-proxy): never root, never the image's uid 99.
+    expect(details.Config.User).toMatch(/^[1-9]\d*:[1-9]\d*$/);
+    expect(details.Config.User).not.toMatch(/^99:/);
     expect(details.Config.Image).toMatch(/^haproxy:[\w.-]+@sha256:[0-9a-f]{64}$/);
     expect(details.HostConfig.ReadonlyRootfs).toBe(true);
     expect(details.HostConfig.CapDrop).toEqual(['ALL']);
