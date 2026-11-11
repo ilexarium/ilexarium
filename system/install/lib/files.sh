@@ -2,6 +2,7 @@
 # The app's user, the release's files, the settings. Sourced by install.sh.
 
 APP_USER=ilex
+PROXY_USER=ilex-proxy
 OPT=/opt/ilex
 ETC=/etc/ilex
 VAR=/var/lib/ilex
@@ -21,6 +22,20 @@ ensure_user() {
   APP_UID="$(id -u "$APP_USER")"
   APP_GID="$(id -g "$APP_USER")"
   info "$APP_USER (uid $APP_UID)"
+  ensure_proxy_user
+}
+
+# The Docker proxy runs as an account of its own, never the image's uid: the host may already
+# have an account with that uid, and whoever owns /run/ilex/proxy reaches the Docker API.
+ensure_proxy_user() {
+  if ! getent group "$PROXY_USER" >/dev/null; then groupadd --system "$PROXY_USER"; fi
+  if ! id -u "$PROXY_USER" >/dev/null 2>&1; then
+    useradd --system --gid "$PROXY_USER" --home-dir / --no-create-home \
+      --shell /usr/sbin/nologin --comment 'Ilexarium Docker proxy' "$PROXY_USER"
+  fi
+  PROXY_UID="$(id -u "$PROXY_USER")"
+  PROXY_GID="$(id -g "$PROXY_USER")"
+  info "$PROXY_USER (uid $PROXY_UID)"
 }
 
 ensure_folders() {
@@ -140,6 +155,8 @@ CONF
   [[ -n "$docker_gid" ]] || die 'No docker group (is Docker installed?)'
   write_file "$ETC/platform.env" root:root 0644 <<CONF
 DOCKER_GID=$docker_gid
+PROXY_UID=$PROXY_UID
+PROXY_GID=$PROXY_GID
 CONF
 
   borg_bin="$(command -v borg)"
