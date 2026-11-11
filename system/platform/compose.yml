@@ -28,10 +28,14 @@ services:
 
   # The Docker API allow-list the app talks to — system/docker-socket-proxy/haproxy.cfg. No
   # network at all: it answers only on a Unix socket in /run/ilex/proxy, a folder only its own
-  # user (99) and the app's group can enter (systemd-tmpfiles: /etc/tmpfiles.d/ilex.conf).
+  # account (ilex-proxy) and the app's group can enter (systemd-tmpfiles:
+  # /etc/tmpfiles.d/ilex.conf).
   docker-proxy:
-    # Official image, pinned by digest (3.4-alpine, HAProxy 3.4.6). Runs as user haproxy (uid 99).
+    # Official image, pinned by digest (3.4-alpine, HAProxy 3.4.6).
     image: haproxy:3.4-alpine@sha256:7af8255207ee9964ccb4eec8ce4b7a40b777769665e3ae83897fb01b24d8a43a
+    # The installer's ilex-proxy account, not the image's haproxy user (uid 99): that uid may
+    # belong to someone on the host, who would then own the folder that gates the socket.
+    user: '${PROXY_UID:?set in /etc/ilex/platform.env}:${PROXY_GID:?set in /etc/ilex/platform.env}'
     group_add:
       # The host's docker group, inside this container only: lets the proxy open the socket.
       - '${DOCKER_GID:?set in /etc/ilex/platform.env}'

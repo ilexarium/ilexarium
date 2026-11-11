@@ -11,6 +11,12 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# A socket file left from before goes first: HAProxy keeps the old one aside with a hard link,
+# which Linux allows only its owner, so a proxy running as another uid than the one that made it
+# (an update from a release before the ilex-proxy account) would never start. The proxy stops
+# first, so a running one never loses its socket.
+ExecStartPre=/usr/bin/docker compose --project-directory /opt/ilex/platform --env-file /etc/ilex/platform.env stop docker-proxy
+ExecStartPre=/usr/bin/rm -f /run/ilex/proxy/docker.sock
 ExecStart=/usr/bin/docker compose --project-directory /opt/ilex/platform --env-file /etc/ilex/platform.env up -d --wait
 ExecStop=/usr/bin/docker compose --project-directory /opt/ilex/platform --env-file /etc/ilex/platform.env stop
 TimeoutStartSec=5min

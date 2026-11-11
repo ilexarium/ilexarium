@@ -186,7 +186,32 @@ async function securitySetup() {
   expect('/var/lib/ilex', { mode: '0755', uid: 0 });
   expect('/var/lib/ilex/app', { mode: '0700', uid: app });
   expect('/var/lib/ilex/backups', { mode: '0750', uid: 0, gid: appGroup });
-  expect('/run/ilex/proxy', { mode: '0750', uid: 99, gid: appGroup });
+  // The proxy's own account, never the image's uid 99, which the host may have given someone.
+  const proxyAccount = uidOf('ilex-proxy');
+  check('the proxy has an account of its own', proxyAccount !== 99 && proxyAccount !== app);
+  expect('/run/ilex/proxy', { mode: '0750', uid: proxyAccount, gid: appGroup });
+  const proxyProcess = sh('docker', [
+    'inspect',
+    '--format',
+    '{{.State.Pid}}',
+    'ilex-docker-proxy-1',
+  ]).trim();
+  check('the proxy runs as ilex-proxy', mode(`/proc/${proxyProcess}`).uid === proxyAccount);
+  // As a bare uid, no account needed; the proxy's own uid first, so a missing setpriv can't pass.
+  const refusedAs = (uid, gid) =>
+    fails('setpriv', [
+      `--reuid=${uid}`,
+      `--regid=${gid}`,
+      '--clear-groups',
+      '--',
+      'curl',
+      '-sf',
+      '--unix-socket',
+      '/run/ilex/proxy/docker.sock',
+      'http://d/_ping',
+    ]);
+  check('the proxy’s uid reaches its socket', !refusedAs(proxyAccount, gidOf('ilex-proxy')));
+  check('uid 99 can’t reach the proxy’s socket', refusedAs(99, 99));
   check(
     'the app’s user is not in the docker group',
     !sh('id', ['-nG', 'ilex']).split(/\s+/).includes('docker'),
