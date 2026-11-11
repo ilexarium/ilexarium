@@ -56,7 +56,7 @@ export interface RootActor {
   appSessionId: string;
 }
 
-// Backups (ilex-backup, docs/plans/backups.md and acting_as_you.md).
+// Backups (ilex-backup).
 
 /** The plan as `configure` takes it (it checks all of it again). */
 export interface ProgramBackupPlan {

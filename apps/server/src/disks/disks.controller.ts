@@ -7,7 +7,7 @@ import { DiskManager } from './disk-manager.js';
 import { CHANGE_LIMIT } from './disks.constants.js';
 import { DiskMountDto, DiskUnmountDto } from './disks.dto.js';
 
-/** Disks (docs/plans/disk_management.md). Every route needs a session. */
+/** Disks. Every route needs a session. */
 @Controller('disks')
 @UseFilters(TooManyAttemptsFilter)
 export class DisksController {

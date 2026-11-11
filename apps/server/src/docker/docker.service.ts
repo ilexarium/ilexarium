@@ -66,8 +66,7 @@ const CONTAINER_EVENTS = [
 /**
  * Reading from Docker, and **read-only by construction**: list, inspect, stats, events, logs and
  * disk usage — there is no method that changes anything (that's `DockerControl`'s). Docker access
- * is root-equivalent (see CLAUDE.md);
- * the socket proxy enforces the same allow-list at the network level. Only `src/docker/` may
+ * is root-equivalent; the socket proxy enforces the same allow-list at the network level. Only `src/docker/` may
  * import `dockerode` (lint rule). Returns our own types, never Dockerode's.
  */
 @Injectable()

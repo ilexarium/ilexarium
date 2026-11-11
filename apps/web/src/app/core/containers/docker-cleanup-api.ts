@@ -8,7 +8,7 @@ import {
 } from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
-/** Docker's unused data, and freeing it (docs/plans/docker_cleanup.md). */
+/** Docker's unused data, and freeing it. */
 @Service()
 export class DockerCleanupApi {
   private readonly http = inject(HttpClient);

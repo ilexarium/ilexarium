@@ -57,8 +57,8 @@ export function composeFacts(answer: ComposeCheckAnswer, project: string): Compo
 }
 
 /**
- * Long tasks of apps (install, change, update, removal) as systemd units started by the helper
- * (docs/plans/acting_as_you.md): with the docker group a user unit, without it a system unit
+ * Long tasks of apps (install, change, update, removal) as systemd units started by the helper:
+ * with the docker group a user unit, without it a system unit
  * through the account's sudo. Their output and result are read back from the app's folder.
  */
 @Injectable()

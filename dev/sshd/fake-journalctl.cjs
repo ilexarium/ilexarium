@@ -1,6 +1,6 @@
 #!/usr/bin/node
-// Development and tests only: `journalctl` for the dev SSH server, which has no journald
-// (docs/plans/system_logs.md). Three boots of sample lines — this one keeps growing, a line every
+// Development and tests only: `journalctl` for the dev SSH server, which has no journald.
+// Three boots of sample lines — this one keeps growing, a line every
 // 5 s since the container's first read — answered the way journalctl does with `--output=json`:
 // a byte array for a message that isn't UTF-8, a repeated field, the filters and cursors the
 // helper passes. As root it sees everything; as anyone else only their own lines (no journal

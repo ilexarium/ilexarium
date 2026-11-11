@@ -19,7 +19,7 @@ interface AlertsState {
 const initialState: AlertsState = { status: null };
 
 /**
- * The health alerts (docs/plans/health_alerts.md), fed by the `alerts` topic for the whole
+ * The health alerts, fed by the `alerts` topic for the whole
  * signed-in session (the shell watches it): the open alerts behind the bell and the dashboard
  * notice, recently closed ones and the last delivery problem for the Alerts page. Reset on
  * sign-out like every global store.

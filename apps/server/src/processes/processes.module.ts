@@ -8,7 +8,7 @@ import { ProcessesController } from './processes.controller.js';
 import { ProcessesService } from './processes.service.js';
 import { ProcessesTopic } from './processes-topic.js';
 
-/** The process list (docs/plans/process_list.md): the `processes` topic and ending a process. */
+/** The process list: the `processes` topic and ending a process. */
 @Module({
   imports: [AuditModule, DockerModule, HostModule, LinuxSessionsModule, RealtimeModule],
   controllers: [ProcessesController],

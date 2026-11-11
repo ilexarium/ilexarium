@@ -9,7 +9,7 @@ import { IMPLICIT_TLS_PORT, SEND_TIMEOUT_MS } from './alerts.constants.js';
 type EmailConfig = Extract<ChannelConfig, { kind: 'email' }>;
 
 /**
- * Sends by email (docs/plans/health_alerts.md) with nodemailer — **only its SMTP transport**,
+ * Sends by email with nodemailer — **only its SMTP transport**,
  * built here directly: its `sendmail` transport would start a program (against "no dependency
  * runs system commands for us") and is never created (a test pins it). TLS is required (implicit
  * on port 465, STARTTLS on any other) and the certificate checked against the name typed, except

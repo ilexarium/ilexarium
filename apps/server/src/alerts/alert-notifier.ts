@@ -10,7 +10,7 @@ import type { AlertEvent, AlertMessage, ChannelConfig } from './alerts.model.js'
 import { HOUR_MS, REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.js';
 
 /**
- * Sends the alerts' messages (docs/plans/health_alerts.md) through the channels switched on —
+ * Sends the alerts' messages through the channels switched on —
  * not crying wolf: one when an alert opens (or gets more serious), one when it closes, a daily
  * reminder of a critical one until acknowledged, and **at most 10 messages an hour** (the rest
  * held and sent as one when the hour allows). A message not delivered is tried once more after a

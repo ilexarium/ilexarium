@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { systemServiceNameSchema } from './system-services.js';
 
 /**
- * The machine's journal (docs/plans/system_logs.md): read as the signed-in Linux account through
+ * The machine's journal: read as the signed-in Linux account through
  * its helper — journald decides what it sees —, or through its unlocked sudo as administrator.
  * Read by asking with the journal's cursor: what's newer than the last line, or older than the
  * first.

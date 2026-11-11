@@ -1,7 +1,6 @@
 # /etc/systemd/system/ilex-platform.service
 # The platform's containers — its database and the Docker socket proxy
-# (/opt/ilex/platform/compose.yml) — started at boot, before the app. Design:
-# docs/plans/installer.md.
+# (/opt/ilex/platform/compose.yml) — started at boot, before the app.
 
 [Unit]
 Description=Ilexarium platform (database, Docker proxy)

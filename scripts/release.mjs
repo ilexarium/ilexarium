@@ -1,4 +1,4 @@
-// Builds a release archive for the installer (docs/plans/installer.md):
+// Builds a release archive for the installer:
 //   release/ilex-<version>.tar.gz and its .sha256
 // holding the built server and web app, their production packages (one archive for amd64 and
 // arm64: no native modules, and Prisma's migration engine for both), the migrations, the catalog
@@ -6,7 +6,7 @@
 //
 //   RELEASE_URL=https://… npm run release
 //
-// RELEASE_URL is where this release's updates come from (docs/plans/install_and_update.md); with
+// RELEASE_URL is where this release's updates come from; with
 // it, the public key (RELEASE_PUB, by default system/install/release.pub) goes into the release
 // and release/get-ilex.sh is written for that address. Without both, the release can't update
 // itself (tests).

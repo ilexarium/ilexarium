@@ -18,8 +18,7 @@
 // Backups run as root with Borg, one repository on one disk under /mnt or /media, one archive
 // per item per run. The app can only change *what* is backed up, through `configure`, which
 // checks everything; this program re-checks it all again before every run, trusting nothing the
-// app sent (its checks are its own, written independently of the app's). Design:
-// docs/plans/backups.md.
+// app sent (its checks are its own, written independently of the app's).
 //
 // Zero dependencies on purpose: only node: built-ins — any package it loaded would run as root.
 // `env -i` in the shebang empties the environment before Node starts.

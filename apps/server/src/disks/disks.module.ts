@@ -7,7 +7,7 @@ import { DiskManager } from './disk-manager.js';
 import { DisksController } from './disks.controller.js';
 import { DisksTopic } from './disks-topic.js';
 
-/** Disk management (docs/plans/disk_management.md): the disks, mounting, the `disks` topic. */
+/** Disk management: the disks, mounting, the `disks` topic. */
 @Module({
   imports: [HostModule, LinuxSessionsModule, RealtimeModule, RootProgramsModule],
   controllers: [DisksController],

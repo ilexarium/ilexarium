@@ -34,7 +34,7 @@ interface Run {
 }
 
 /**
- * The `processes` topic (docs/plans/process_list.md): every process, read from /proc every 2 s —
+ * The `processes` topic: every process, read from /proc every 2 s —
  * only while someone has the page open. CPU % is per core between two readings (0 in the
  * first), like htop; the summary's is the whole machine's. Containers are named from Docker's list, looked up
  * again every 10 s (a process in a container without a name yet shows "a container").

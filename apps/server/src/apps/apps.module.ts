@@ -7,7 +7,7 @@ import { AppManager } from './app-manager.js';
 import { AppTasks } from './app-tasks.js';
 import { AppsController } from './apps.controller.js';
 
-/** Apps: Compose folders run as the signed-in Linux account (docs/plans/acting_as_you.md). */
+/** Apps: Compose folders run as the signed-in Linux account. */
 @Module({
   imports: [AuditModule, CatalogModule, DockerModule, LinuxSessionsModule],
   controllers: [AppsController],

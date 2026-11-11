@@ -42,7 +42,7 @@ const initialState: FilesPageState = {
 let nextUpload = 0;
 
 /**
- * The Files page's data, provided by the page and gone with it (docs/plans/files_and_terminal.md):
+ * The Files page's data, provided by the page and gone with it:
  * the folder shown, uploads with their progress, and every action with its toast — in the Linux
  * session (`LinuxSessionStore`, shared with the other pages and the top bar). A Linux session
  * that ended (idle, the app's sign-out, closed elsewhere) shows the sign-in again.

@@ -1,6 +1,6 @@
 #!/usr/bin/node
-// Development and tests only: `systemctl` for the dev SSH server, which has no systemd
-// (docs/plans/system_services.md). A few sample service units — a failed one, Ilexarium's own and one
+// Development and tests only: `systemctl` for the dev SSH server, which has no systemd.
+// A few sample service units — a failed one, Ilexarium's own and one
 // it needs among them — answered the way systemd does (JSON lists, `key=value` for `show`).
 // Start, stop and restart need root (ilex-root, through anna's sudo) and change the units' state,
 // kept in /tmp for the container's life. Anything else: unknown, like a command it doesn't have.

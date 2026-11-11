@@ -33,7 +33,7 @@ export async function signalProcess(request: Request): Promise<Answer> {
   return refused('failed');
 }
 
-/** What ilex-root does for this account (docs/plans/ilex_root.md): forwarded to it. */
+/** What ilex-root does for this account: forwarded to it. */
 export function privileged(request: Request): boolean {
   switch (request['action']) {
     case 'process.signal':

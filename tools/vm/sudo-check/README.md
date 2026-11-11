@@ -1,6 +1,6 @@
 # sudo cache check
 
-Step 0 of `docs/plans/acting_as_you.md`: does a `sudo` cache made in the helper's terminal stay in that terminal, and do long tasks outlive the SSH session? A throwaway machine per run (privileged container with systemd, sshd, two users), a helper prototype (`helper.mjs`) and a driver that signs in over SSH like the server does (`driver.mjs`). Results: the plan's "Step 0 results".
+A check made before the helper was built: does a `sudo` cache made in the helper's terminal stay in that terminal, and do long tasks outlive the SSH session? A throwaway machine per run (privileged container with systemd, sshd, two users), a helper prototype (`helper.mjs`) and a driver that signs in over SSH like the server does (`driver.mjs`). Results: the plan's "Step 0 results".
 
     ./run.sh <name> <image> "<extra packages>" [--wait] [--docker] [--no-p]
 

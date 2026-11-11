@@ -29,7 +29,7 @@ import {
 } from '@ilex/shared';
 import type { Observable } from 'rxjs';
 
-/** Apps and their templates (docs/plans/acting_as_you.md). Changes are done as the signed-in Linux account. */
+/** Apps and their templates. Changes are done as the signed-in Linux account. */
 @Service()
 export class AppsApi {
   private readonly http = inject(HttpClient);

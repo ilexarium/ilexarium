@@ -25,7 +25,7 @@ import { ProcessesPageStore } from './processes-page-store';
 import { PHONE_SORTS } from './processes-page.constants';
 
 /**
- * The Processes page (docs/plans/process_list.md): what runs on the machine, live, like htop —
+ * The Processes page: what runs on the machine, live, like htop —
  * with a header of its own (how busy, who is it) — and ending a process as the signed-in Linux
  * account: its own confirmed, another's through its sudo with its password. Signing in to Linux
  * comes first when there is no Linux session yet.

@@ -55,7 +55,7 @@ import {
 } from './backups.dto.js';
 import { CHANGE_LIMIT, PASSPHRASE_LIMIT } from './backups.constants.js';
 
-/** Backups (docs/plans/backups.md). Every route needs a session. */
+/** Backups. Every route needs a session. */
 @Controller('backups')
 @UseFilters(TooManyAttemptsFilter)
 export class BackupsController {

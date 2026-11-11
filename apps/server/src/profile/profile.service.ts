@@ -12,7 +12,7 @@ import { inspectPicture } from './profile-picture.js';
 import type { ProfileActor } from './profile.model.js';
 
 /**
- * The signed-in person's profile (docs/plans/profile.md): name, address, language and picture.
+ * The signed-in person's profile: name, address, language and picture.
  * Reading is `GET /api/auth/me`; this only changes. Audited by field name — never the values (an
  * address is personal data, a picture is a picture).
  */

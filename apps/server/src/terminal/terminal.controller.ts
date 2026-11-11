@@ -10,7 +10,7 @@ import { TICKET_LIMIT } from './terminal.constants.js';
 import { TerminalTicketDto } from './terminal.dto.js';
 import { TerminalTickets } from './terminal-tickets.js';
 
-/** The web terminal's HTTP side (docs/plans/files_and_terminal.md, step 2). */
+/** The web terminal's HTTP side. */
 @Controller('terminal')
 @UseFilters(TooManyAttemptsFilter)
 export class TerminalController {

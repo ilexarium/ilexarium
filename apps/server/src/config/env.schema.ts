@@ -94,20 +94,20 @@ export const envSchema = z
      */
     ROOT_PROGRAMS: z.enum(['sudo', 'direct']).optional(),
     /**
-     * The health alerts' watcher (docs/plans/health_alerts.md) runs all the time; `off` only for
+     * The health alerts' watcher runs all the time; `off` only for
      * tests that open and close alerts themselves.
      */
     ALERTS_WATCH: z.enum(['on', 'off']).default('on'),
     /**
-     * The machine's own SSH server, for the Linux sign-in and the file explorer
-     * (docs/plans/files_and_terminal.md): always on this machine (127.0.0.1). Port 22 in
+     * The machine's own SSH server, for the Linux sign-in and the file explorer:
+     * always on this machine (127.0.0.1). Port 22 in
      * production; development uses the stand-in container (dev/sshd, 2222).
      */
     SSH_PORT: z.coerce.number().int().min(1).max(65535).optional(),
     /** The folder whose `ssh_host_*_key.pub` are pinned: only that server is trusted. */
     SSH_HOST_KEYS: z.string().trim().min(1).optional(),
     /**
-     * The helper the server starts in each Linux session (docs/plans/acting_as_you.md), as that
+     * The helper the server starts in each Linux session, as that
      * account: where the installer puts it, also in the dev SSH container. SSH runs it as one
      * command line, so a plain absolute path only.
      */

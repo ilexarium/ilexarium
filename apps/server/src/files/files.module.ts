@@ -5,7 +5,7 @@ import { LinuxSessionsModule } from '../linux-sessions/linux-sessions.module.js'
 import { FilesController } from './files.controller.js';
 import { FilesService } from './files.service.js';
 
-/** The file explorer (docs/plans/files_and_terminal.md), over the Linux sign-in. */
+/** The file explorer, over the Linux sign-in. */
 @Module({
   imports: [AuditModule, HostModule, LinuxSessionsModule],
   controllers: [FilesController],

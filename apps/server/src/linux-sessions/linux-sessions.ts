@@ -38,16 +38,16 @@ import type {
 import { Sftp } from './sftp.js';
 
 /**
- * The Linux sign-in (docs/plans/files_and_terminal.md): an SSH connection to this machine's own
+ * The Linux sign-in: an SSH connection to this machine's own
  * `sshd` as a Linux account — `sshd` checks the password, Linux decides everything after. One per
  * app session (by its id), closed after 30 minutes without use, at the app's sign-out (the auth
  * package's events) or on request. The password is used for the handshake only: never kept,
  * logged or audited. The server's host key is pinned (the `ssh_host_*_key.pub` of
  * `SSH_HOST_KEYS`): nothing else can pretend to be `sshd`.
  *
- * Each session runs the helper (`LINUX_HELPER`, docs/plans/acting_as_you.md) as the account, for
+ * Each session runs the helper (`LINUX_HELPER`) as the account, for
  * what Ilexarium does as that person: ending processes, and sudo — unlocked with the same password,
- * which starts ilex-root through the account's own sudo (docs/plans/ilex_root.md); the password
+ * which starts ilex-root through the account's own sudo; the password
  * is never kept here. Unlocked means ilex-root runs: it ends 15 minutes after its last action
  * (the helper says so), at "Lock now", and with the session.
  */

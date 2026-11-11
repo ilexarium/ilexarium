@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Tests the installer end to end on a throwaway machine (docs/plans/installer.md,
-# install_and_update.md): builds a release signed with a test key, serves it over HTTPS inside the
+# Tests the installer end to end on a throwaway machine: builds a release signed with a test key, serves it over HTTPS inside the
 # machine, installs it through get-ilex.sh (--yes; a tampered archive refused first), runs the
 # smoke test inside, moves the app to another port (the machine's settings, which updates keep),
 # runs the installer again (--update) and the smoke test again, then updates by ilex-update.

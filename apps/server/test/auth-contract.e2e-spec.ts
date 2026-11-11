@@ -15,7 +15,7 @@ import { configureApp } from '../src/app.setup.js';
 import { resetDatabaseBeforeStart } from './database.js';
 
 /**
- * The server's auth contract as the web app relies on it (docs/plans/auth.md): one complete
+ * The server's auth contract as the web app relies on it: one complete
  * journey, the status-code table, default deny across every route, and no password hash in any
  * response.
  */

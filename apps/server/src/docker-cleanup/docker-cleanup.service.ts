@@ -28,7 +28,7 @@ const codeOf = (failure: unknown): DockerCleanupErrorCode =>
     : DOCKER_CLEANUP_ERROR_CODES.failed;
 
 /**
- * What Docker keeps that nothing uses, and freeing it (docs/plans/docker_cleanup.md). Every change
+ * What Docker keeps that nothing uses, and freeing it. Every change
  * follows the privileged order: check (nothing changing apps right now; never the platform's own
  * volumes), **record the request — or don't act**, act, record the outcome.
  */

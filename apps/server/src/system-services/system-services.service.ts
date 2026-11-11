@@ -61,7 +61,7 @@ function bytes(value: string | undefined): number | null {
 }
 
 /**
- * The host's systemd services (docs/plans/system_services.md): read as the signed-in Linux
+ * The host's systemd services: read as the signed-in Linux
  * account through its helper — systemd lets anyone read them —, changed through the account's
  * unlocked sudo (ilex-root). Ilexarium's own units and those it needs are protected here; changes are
  * recorded first (no record, no change).

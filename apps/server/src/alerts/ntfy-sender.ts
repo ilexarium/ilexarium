@@ -8,7 +8,7 @@ import { NTFY_PRIORITY, NTFY_TAGS, SEND_TIMEOUT_MS } from './alerts.constants.js
 type NtfyConfig = Extract<ChannelConfig, { kind: 'ntfy' }>;
 
 /**
- * Sends to an ntfy topic (docs/plans/health_alerts.md): one JSON POST to the server
+ * Sends to an ntfy topic: one JSON POST to the server
  * (`{ topic, title, message, priority, tags }` — JSON so any text fits), the token as
  * `Authorization: Bearer`. The address is checked first and connected to as checked (undici's
  * `fetch` with a pinned lookup); redirects are never followed; 10 s at most; the answer's body is

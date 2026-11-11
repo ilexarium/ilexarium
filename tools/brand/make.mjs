@@ -1,4 +1,4 @@
-// Builds the Ilexarium logo files (SVG, PNG, ICO) into brand/ (docs/identity.md).
+// Builds the Ilexarium logo files (SVG, PNG, ICO) into brand/.
 // Run once: npm install here and in tools/browser; then: npm run build.
 import { createRequire } from 'node:module';
 import { copyFileSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';

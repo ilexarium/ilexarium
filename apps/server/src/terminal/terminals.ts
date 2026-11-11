@@ -22,7 +22,7 @@ interface OpenTerminal {
 }
 
 /**
- * The web terminal (docs/plans/files_and_terminal.md, step 2): a socket joined to a shell of the
+ * The web terminal: a socket joined to a shell of the
  * app session's Linux account.
  *
  * - **Admission** — same origin, a live app session, and a one-time ticket that session got with
