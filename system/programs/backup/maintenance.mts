@@ -1,4 +1,4 @@
-// backup/maintenance.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/maintenance.mts — runs as root.
 //
 // `forget` and `passphrase`.
 

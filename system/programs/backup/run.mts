@@ -1,4 +1,4 @@
-// backup/run.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/run.mts — runs as root.
 //
 // `run-requested` and `run-scheduled`: back up every item of the plan (or one), each into its own
 // archive.

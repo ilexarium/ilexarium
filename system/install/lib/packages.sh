@@ -1,4 +1,4 @@
-# system/install/lib/packages.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+# system/install/lib/packages.sh — runs as root.
 # The programs the platform needs, installed only after asking. Debian and Ubuntu: from their
 # makers' signed apt repositories (each key stored in /etc/apt/keyrings and named by `signed-by` —
 # trusted for that repository only). Arch: from Arch's own repositories, as the system is — never

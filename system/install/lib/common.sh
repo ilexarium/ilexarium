@@ -1,4 +1,4 @@
-# system/install/lib/common.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+# system/install/lib/common.sh — runs as root.
 # Output, questions, and writing files safely. Sourced by install.sh.
 
 log() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }

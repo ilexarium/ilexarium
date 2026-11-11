@@ -1,4 +1,4 @@
-// backup/destination.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/destination.mts — runs as root.
 //
 // The destination disk and the repositories this program set up.
 

@@ -1,4 +1,4 @@
-// backup/input.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/input.mts — runs as root.
 //
 // The input of an action: a JSON object with exactly the keys it takes (lib/input.mts, shared
 // with the disk wrapper).

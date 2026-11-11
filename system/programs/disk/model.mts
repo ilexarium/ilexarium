@@ -1,4 +1,4 @@
-// disk/model.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// disk/model.mts — runs as root.
 //
 // The shapes this program works with.
 

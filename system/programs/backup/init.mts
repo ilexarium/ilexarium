@@ -1,4 +1,4 @@
-// backup/init.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/init.mts — runs as root.
 //
 // `init`: the repository on a disk, and the passphrase.
 

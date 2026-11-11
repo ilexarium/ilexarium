@@ -25,7 +25,7 @@ services:
       retries: 10
 
   # The Docker API allow-list the app talks to (DOCKER_HOST=tcp://127.0.0.1:2375).
-  # REVIEW-REQUIRED: system/docker-socket-proxy/haproxy.cfg. In production it has no network at
+  # Its rules: system/docker-socket-proxy/haproxy.cfg. In production it has no network at
   # all and answers on a Unix socket only the app's group can reach (system/platform/compose.yml).
   docker-proxy:
     # Official image, pinned by digest (3.4-alpine, HAProxy 3.4.6). Runs as user haproxy (uid 99).

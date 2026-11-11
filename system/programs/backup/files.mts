@@ -1,4 +1,4 @@
-// backup/files.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/files.mts — runs as root.
 //
 // Files this program writes: the jobs' files, and its state.
 

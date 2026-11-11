@@ -1,4 +1,4 @@
-# /etc/systemd/system/ilex-backup-now@.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# /etc/systemd/system/ilex-backup-now@.service
 # "Back up now": started by `ilex-backup start` (through the app) with the instance
 # <runId> or <runId>_<itemId> — two uuids, checked again by the wrapper. Its own unit, not a
 # child of the app: it goes on if the app stops or restarts. Its progress and results go to

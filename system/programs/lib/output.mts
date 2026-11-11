@@ -1,4 +1,4 @@
-// lib/output.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// lib/output.mts — runs as root.
 //
 // What both wrappers print: their markers (@@phase, @@error, @@info, @@result), the programs'
 // output prefixed "> ", and the refusal behind every @@error.

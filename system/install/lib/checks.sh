@@ -1,4 +1,4 @@
-# system/install/lib/checks.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+# system/install/lib/checks.sh — runs as root.
 # What this machine must be before anything is changed. Sourced by install.sh.
 
 MIN_FREE_MB=4096
