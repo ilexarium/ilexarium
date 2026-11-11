@@ -1,5 +1,5 @@
 #!/usr/bin/env -S -i /usr/bin/node
-// ilex-disk — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root, through sudo (the app).
+// ilex-disk — runs as root, through sudo (the app).
 //
 //   ilex-disk mount     {"uuid", "name"} on stdin → mounts the disk at /mnt/<name>, kept after
 //                          a restart (its own systemd unit, mnt-<name>.mount — not /etc/fstab)

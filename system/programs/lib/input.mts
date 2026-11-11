@@ -1,4 +1,4 @@
-// lib/input.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// lib/input.mts — runs as root.
 //
 // The input of an action: a JSON object with exactly the keys it takes.
 

@@ -1,4 +1,4 @@
-// backup/plan.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/plan.mts — runs as root.
 //
 // The plan (from the app through `configure`; re-checked whenever it's read).
 

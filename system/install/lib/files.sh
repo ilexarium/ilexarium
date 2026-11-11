@@ -1,4 +1,4 @@
-# system/install/lib/files.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+# system/install/lib/files.sh — runs as root.
 # The app's user, the release's files, the settings. Sourced by install.sh.
 
 APP_USER=ilex

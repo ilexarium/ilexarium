@@ -1,4 +1,4 @@
-// disk/mount.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// disk/mount.mts — runs as root.
 //
 // `mount` and `unmount`. Everything is checked here again, from the kernel's and udev's own
 // records — nothing the app says about a disk is trusted.

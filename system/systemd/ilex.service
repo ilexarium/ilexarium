@@ -1,4 +1,4 @@
-# /etc/systemd/system/ilex.service — REVIEW-REQUIRED (system/CLAUDE.md).
+# /etc/systemd/system/ilex.service
 # The app, as its own unprivileged user. Two kinds of settings (docs/plans/no_access_knowledge.md):
 # the release's — facts about this version's files, below, replaced with every update — and the
 # machine's, /etc/ilex/app.env (root:ilex 0640: where it listens, the database password),

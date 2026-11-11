@@ -1,4 +1,4 @@
-// backup/check.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/check.mts — runs as root.
 //
 // `check`: the weekly repository check (the first one of a month also reads every chunk of
 // data).

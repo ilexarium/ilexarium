@@ -1,4 +1,4 @@
-# /etc/systemd/system/ilex-backup-check.timer — REVIEW-REQUIRED (system/CLAUDE.md).
+# /etc/systemd/system/ilex-backup-check.timer
 # Weekly repository check. Enabled by `ilex-backup configure` once a plan exists.
 
 [Unit]

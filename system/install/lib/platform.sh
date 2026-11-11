@@ -1,4 +1,4 @@
-# system/install/lib/platform.sh — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+# system/install/lib/platform.sh — runs as root.
 # The platform's containers, the database (two roles, migrations), the app's service.
 # Sourced by install.sh.
 

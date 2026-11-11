@@ -1,4 +1,4 @@
-// backup/programs.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/programs.mts — runs as root.
 //
 // Running Borg and Docker — one fixed way each, a clean environment — and the lock.
 

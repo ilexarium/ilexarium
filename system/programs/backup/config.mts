@@ -1,4 +1,4 @@
-// backup/config.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/config.mts — runs as root.
 //
 // The configuration (root-owned in root mode) and where this program keeps its files.
 

@@ -1,4 +1,4 @@
-// lib/lock.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// lib/lock.mts — runs as root.
 //
 // One privileged operation at a time: the lock both wrappers share.
 

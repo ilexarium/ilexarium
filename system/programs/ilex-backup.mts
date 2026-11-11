@@ -1,5 +1,5 @@
 #!/usr/bin/env -S -i /usr/bin/node
-// ilex-backup — REVIEW-REQUIRED (system/CLAUDE.md). Runs as root: through sudo (the app) and
+// ilex-backup — runs as root: through sudo (the app) and
 // from systemd units (scheduled runs and checks, and "Back up now" runs).
 //
 //   ilex-backup configure         the plan as JSON on stdin → /etc/ilex/backup.json + timer
