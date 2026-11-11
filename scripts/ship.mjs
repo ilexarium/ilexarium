@@ -3,7 +3,8 @@
 //   npm run ship -- <x.y.z> [--notes <file.md>]
 //
 // Where it comes from, the key and the folder: release-settings.json at the repository's top (not
-// in git) — {"releaseUrl": "https://…", "key": "<release.key>", "folder": "<release folder>"}.
+// in git) — {"releaseUrl": "https://…", "key": "<release.key>", "folder": "<release folder>"},
+// and with "upload" (scripts/upload-release.mjs) the folder is copied to the server at the end.
 // The passphrase is asked first and checked against the key, so the build runs unattended; the
 // version is committed and tagged only once the release is published.
 import { execFileSync } from 'node:child_process';
@@ -43,7 +44,7 @@ if (!existsSync(SETTINGS)) {
     `no ${SETTINGS} — {"releaseUrl": "https://…", "key": "<release.key>", "folder": "<folder>"}`,
   );
 }
-const { releaseUrl, key, folder } = JSON.parse(readFileSync(SETTINGS, 'utf8'));
+const { releaseUrl, key, folder, upload } = JSON.parse(readFileSync(SETTINGS, 'utf8'));
 if (typeof releaseUrl !== 'string' || typeof key !== 'string' || typeof folder !== 'string') {
   fail('release-settings.json needs releaseUrl, key and folder');
 }
@@ -90,6 +91,14 @@ try {
 }
 git('commit', '-q', '-m', `Release ${version}`, '--', 'package.json', 'package-lock.json');
 git('tag', `v${version}`);
-console.log(
-  `\n${version} is published and committed (tag v${version}); push with: git push --follow-tags`,
-);
+console.log(`\n${version} is published and committed (tag v${version})`);
+if (upload) {
+  // After the commit: the version is in the folder for good, and an upload that stops is run
+  // again on its own.
+  try {
+    run('npm', ['run', 'release:upload']);
+  } catch {
+    fail(`${version} isn't fully on the server: npm run release:upload, then push`);
+  }
+}
+console.log('Push with: git push --follow-tags');
