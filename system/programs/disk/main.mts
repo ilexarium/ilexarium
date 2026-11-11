@@ -1,4 +1,4 @@
-// disk/main.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// disk/main.mts — runs as root.
 //
 // The actions, and which one runs.
 

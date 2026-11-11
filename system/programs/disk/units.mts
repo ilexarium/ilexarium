@@ -1,4 +1,4 @@
-// disk/units.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// disk/units.mts — runs as root.
 //
 // The systemd mount unit that keeps a disk mounted after a restart — our own file per disk, not a
 // line in the shared /etc/fstab (written whole, removed cleanly, never touching anyone else's

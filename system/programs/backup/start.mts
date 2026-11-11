@@ -1,4 +1,4 @@
-// backup/start.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/start.mts — runs as root.
 //
 // `start` ("Back up now"): checks the request, then has systemd start the run as its own unit,
 // ilex-backup-now@<runId>[_<itemId>].service, and returns at once. The run doesn't belong to

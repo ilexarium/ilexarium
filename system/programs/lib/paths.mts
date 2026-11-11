@@ -1,4 +1,4 @@
-// lib/paths.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// lib/paths.mts — runs as root.
 //
 // Paths: their plain form, the folders never touched, and the root-owned check for files this
 // program trusts.

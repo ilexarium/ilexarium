@@ -1,4 +1,4 @@
-// backup/configure.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// backup/configure.mts — runs as root.
 //
 // `configure`: the plan for the timer, and the timer's schedule.
 

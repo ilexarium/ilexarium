@@ -1,4 +1,4 @@
-# /opt/ilex/platform/compose.yml — REVIEW-REQUIRED (system/CLAUDE.md).
+# /opt/ilex/platform/compose.yml
 # The platform's own containers, beside the app (which runs on the host as ilex.service):
 # its database and the Docker socket proxy. Started by ilex-platform.service:
 #   docker compose --project-directory /opt/ilex/platform --env-file /etc/ilex/platform.env up -d --wait

@@ -1,4 +1,4 @@
-// disk/devices.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// disk/devices.mts — runs as root.
 //
 // Block devices as the kernel and udev describe them (/sys/class/block, /run/udev/data), what's
 // mounted (mountinfo) and what's swap — read by this program itself, never taken from the app.

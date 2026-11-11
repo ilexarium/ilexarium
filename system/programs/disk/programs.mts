@@ -1,4 +1,4 @@
-// disk/programs.mts — REVIEW-REQUIRED (system/CLAUDE.md): runs as root.
+// disk/programs.mts — runs as root.
 //
 // Running systemctl — one fixed way, a clean environment, its output relayed with "> ".
 
