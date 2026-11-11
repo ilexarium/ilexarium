@@ -2,6 +2,7 @@
   "name": "@ilex/shared",
   "version": "0.0.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "description": "Contracts shared by server and web: API/WS types and Zod schemas.",
   "type": "module",
   "exports": {

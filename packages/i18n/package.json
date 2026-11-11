@@ -2,6 +2,7 @@
   "name": "@ilex/i18n",
   "version": "0.0.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "description": "Translations shared by web and server: one JSON file per language, plus helpers (languages, plural keys, consistency checks).",
   "type": "module",
   "exports": {

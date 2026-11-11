@@ -51,6 +51,11 @@ LIB="$RELEASE/system/install/lib"
 # shellcheck source=lib/platform.sh
 . "$LIB/platform.sh"
 
+# The licence's notice, before anything changes (an update from the app has seen it already).
+if [[ "$UPDATE" == 0 ]]; then
+  info 'Ilexarium comes with ABSOLUTELY NO WARRANTY. It is free software under the GNU GPL,'
+  info 'version 3 or later, and you may share it under its terms: see LICENSE.'
+fi
 check_machine
 hold_lock
 check_version

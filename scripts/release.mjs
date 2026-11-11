@@ -156,6 +156,8 @@ copy(
   (src) => !/\.spec\.ts$|\/testing(\/|$)|tsconfig\.json$|get-ilex\.sh$|release\.pub$/.test(src),
 );
 copy('system/install/install.sh', join(STAGE, 'install.sh'));
+// The GPL travels with every copy.
+copy('LICENSE', join(STAGE, 'LICENSE'));
 writeFileSync(join(STAGE, 'VERSION'), `${version}\n`);
 if (releaseUrl) {
   writeFileSync(join(STAGE, 'release.env'), `RELEASE_URL=${releaseUrl}\n`);
