@@ -4,7 +4,7 @@
 //   npm run release:upload [-- --dry-run]
 //
 // Where to: release-settings.json "upload", e.g.
-//   "upload": {"target": "deploy@ilexarium.com", "ssh": ["-p", "2222"]}
+//   "upload": {"target": "deploy@example.com", "ssh": ["-p", "2200"]}
 // The deploy user's key may only rsync into the site's folder. The versions go first, then
 // latest/ and get-ilex.sh, so latest never names files that aren't there yet. Nothing on the
 // server is deleted, and a version already there is never replaced.
