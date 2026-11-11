@@ -151,7 +151,11 @@ run_in bash -c "cd /root && sha256sum -c ilex-$VERSION.tar.gz.sha256 && tar xzf 
 
 step 'get-ilex.sh refuses a tampered archive'
 SERVED="/srv/www/releases/download/v$VERSION/ilex-$VERSION.tar.gz"
-run_in bash -c "cp $SERVED /root/served.tar.gz && printf x | dd of=$SERVED bs=1 seek=1000 conv=notrunc status=none"
+# One byte changed, size kept (a byte that was already the one written would change nothing).
+run_in bash -c "cp $SERVED /root/served.tar.gz &&
+  if [[ \$(dd if=$SERVED bs=1 skip=1000 count=1 status=none) == x ]]; then byte=y; else byte=x; fi &&
+  printf %s \$byte | dd of=$SERVED bs=1 seek=1000 conv=notrunc status=none &&
+  ! cmp -s $SERVED /root/served.tar.gz"
 if run_in bash /root/get-ilex.sh --yes >>"$LOG" 2>&1 || run_in test -e /etc/ilex/version; then
   echo 'get-ilex.sh installed a tampered archive' | tee -a "$LOG"
   exit 1
