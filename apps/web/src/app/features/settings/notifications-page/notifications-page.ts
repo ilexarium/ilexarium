@@ -6,7 +6,7 @@ import { NtfyForm } from '../ntfy-form/ntfy-form';
 import { NotificationsPageStore } from './notifications-page-store';
 
 /**
- * Settings → Notifications (docs/plans/health_alerts.md): alerts by email and by ntfy, each
+ * Settings → Notifications: alerts by email and by ntfy, each
  * switched on or off, with a test button each and the last delivery problem.
  */
 @Component({

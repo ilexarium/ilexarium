@@ -14,7 +14,7 @@ import { Formatter } from '../../../shared/format/formatter';
 import { UpdatesPageStore } from './updates-page-store';
 
 /**
- * Settings → Updates (docs/plans/install_and_update.md): the installed version, a newer signed
+ * Settings → Updates: the installed version, a newer signed
  * release with its notes, updating with one click (confirmed, then the person's sudo), the
  * update's progress through Ilexarium's restart, and the daily check's switch.
  */

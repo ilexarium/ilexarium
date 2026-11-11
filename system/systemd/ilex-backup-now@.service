@@ -3,7 +3,7 @@
 # <runId> or <runId>_<itemId> — two uuids, checked again by the wrapper. Its own unit, not a
 # child of the app: it goes on if the app stops or restarts. Its progress and results go to
 # its job file, /var/lib/ilex/backups/jobs/<runId>.jsonl, like a scheduled run's (ilex-backup.service,
-# whose settings this mirrors). Design: docs/plans/backups.md.
+# whose settings this mirrors).
 
 [Unit]
 Description=Ilexarium backup run (Back up now)

@@ -34,7 +34,7 @@ import { FilesPageStore } from './files-page-store';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 /**
- * The Files page (docs/plans/files_and_terminal.md): sign in as a Linux user, then browse,
+ * The Files page: sign in as a Linux user, then browse,
  * download, upload (button or drop), make folders, rename or move, delete — exactly what that
  * account may. The data and actions are the page store's; the page asks before deleting and
  * before replacing a file.

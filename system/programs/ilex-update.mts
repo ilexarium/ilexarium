@@ -1,6 +1,6 @@
 #!/usr/bin/env -S -i /usr/bin/node
 // ilex-update — runs as root: `start` through the person's sudo (ilex-root), `run` from its
-// unit. Design: docs/plans/install_and_update.md.
+// unit.
 //
 //   ilex-update start             {"updateId", "version"} on stdin → checks it, then starts
 //                                    ilex-update@<updateId>.service and returns at once

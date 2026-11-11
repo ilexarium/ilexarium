@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * The process list (docs/plans/process_list.md): what runs on the machine, like `htop`, read
+ * The process list: what runs on the machine, like `htop`, read
  * from /proc without privileges; ended over the person's own Linux session — Linux decides what
  * they may end, the app has no rights of its own here.
  */

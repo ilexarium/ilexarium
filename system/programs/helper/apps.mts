@@ -1,4 +1,4 @@
-// Apps (docs/plans/acting_as_you.md, "Apps"): Compose folders run as this account. Long work runs
+// Apps: Compose folders run as this account. Long work runs
 // as a systemd unit — a user unit with the docker group, a system unit by ilex-root without it —
 // so it goes on when the session or Ilexarium ends. Its output goes to a file in the app's folder,
 // and systemd adds its result at the end (`@@ilex-result`, then SERVICE_RESULT, EXIT_CODE,

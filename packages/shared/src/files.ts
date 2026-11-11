@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Linux sign-in and the file explorer (docs/plans/files_and_terminal.md): the machine's files,
+ * Linux sign-in and the file explorer: the machine's files,
  * worked with as a Linux account over SSH to the machine itself — exactly what Linux allows that
  * account, no limits of the app's own.
  */
@@ -18,7 +18,7 @@ export const FILES_LIMITS = {
   uploadMaxBytes: 10 * 1024 ** 3,
   /** A Linux session closes after this long without use. */
   idleMinutes: 30,
-  /** ilex-root ends this long after its last action (docs/plans/ilex_root.md): sudo locks. */
+  /** ilex-root ends this long after its last action: sudo locks. */
   sudoIdleMinutes: 15,
   /** "How much is in this folder" stops counting here. */
   summaryMaxEntries: 10_000,

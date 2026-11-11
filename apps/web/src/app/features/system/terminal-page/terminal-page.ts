@@ -23,9 +23,9 @@ import type { TerminalSize } from '../terminal.model';
 import { TerminalPageStore } from './terminal-page-store';
 
 /**
- * The Terminal page (docs/plans/files_and_terminal.md, step 2): a shell of your Linux account in
- * the browser — the Linux sign-in, then the app password again for each terminal (one dialog,
- * docs/plans/sign_in_dialogs.md), then the terminal; why it closed, and opening it again.
+ * The Terminal page: a shell of your Linux account in
+ * the browser — the Linux sign-in, then the app password again for each terminal (one dialog),
+ * then the terminal; why it closed, and opening it again.
  */
 @Component({
   selector: 'ilex-terminal-page',

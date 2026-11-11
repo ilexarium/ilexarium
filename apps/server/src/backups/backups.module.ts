@@ -16,7 +16,7 @@ import { BackupsController } from './backups.controller.js';
 import { BackupsTopic } from './backups-topic.js';
 
 /**
- * Automated backups (docs/plans/backups.md): changes through the person's sudo, results from the
+ * Automated backups: changes through the person's sudo, results from the
  * backup program's files. The health alerts read the status and follow its changes.
  */
 @Module({

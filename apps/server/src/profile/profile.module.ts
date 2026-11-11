@@ -4,7 +4,7 @@ import { UsersModule } from '../users/users.module.js';
 import { ProfileController } from './profile.controller.js';
 import { ProfileService } from './profile.service.js';
 
-/** The signed-in person's profile and picture (`/api/profile`), see docs/plans/profile.md. */
+/** The signed-in person's profile and picture (`/api/profile`). */
 @Module({
   imports: [UsersModule, AuditModule],
   controllers: [ProfileController],

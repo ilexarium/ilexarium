@@ -502,7 +502,7 @@ async function processes() {
 }
 
 /**
- * The Services page against the real systemd (docs/plans/system_services.md): systemctl's JSON
+ * The Services page against the real systemd: systemctl's JSON
  * and unix timestamps on this release, a harmless unit of its own started, restarted and stopped
  * through anna's sudo, Ilexarium's own refused.
  */
@@ -1007,7 +1007,7 @@ async function installerChecks(person) {
 }
 
 /**
- * The machine check (docs/plans/machine_check.md), as bob — signed in, in the docker group,
+ * The machine check, as bob — signed in, in the docker group,
  * lingering on, no sudo: the page's checks through the API and the installer's; then password
  * logins turned off by a drop-in, and lingering off, each named with what to do.
  */

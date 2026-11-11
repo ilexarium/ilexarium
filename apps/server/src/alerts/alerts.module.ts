@@ -17,7 +17,7 @@ import { AlertsController } from './alerts.controller.js';
 import { AlertsTopic } from './alerts-topic.js';
 
 /**
- * Health alerts (docs/plans/health_alerts.md): the always-on watcher, the `Alert` table, the
+ * Health alerts: the always-on watcher, the `Alert` table, the
  * messages by email and ntfy, the `alerts` topic and Settings → Notifications.
  */
 @Module({

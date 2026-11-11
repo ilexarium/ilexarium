@@ -1,4 +1,4 @@
-// Root through this account's own sudo (docs/plans/ilex_root.md): unlocking starts ilex-root
+// Root through this account's own sudo: unlocking starts ilex-root
 // with `sudo -k -S`, the password the one line sudo reads; it runs until it's idle for 15 minutes
 // or this helper ends (its stdin closes) — "Lock now" is a new helper. Unlocked means it runs.
 // Every privileged action is forwarded to it; while it isn't running, they answer sudo_required.

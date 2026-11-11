@@ -66,7 +66,7 @@ check_version() {
   fi
 }
 
-# The app's user must not reach Docker's socket: only the proxy may (docs/plans/monitoring_dashboard.md).
+# The app's user must not reach Docker's socket: only the proxy may.
 check_not_in_docker_group() {
   if id -nG "$APP_USER" 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
     die "$APP_USER is in the docker group (root-equivalent): remove it (gpasswd -d $APP_USER docker) and run this again"
@@ -74,7 +74,7 @@ check_not_in_docker_group() {
 }
 
 # After the install: is the installing account set up the way Ilexarium acts as it
-# (docs/plans/machine_check.md)? Not fatal — each problem with what to do; Ilexarium → Settings →
+#? Not fatal — each problem with what to do; Ilexarium → Settings →
 # Machine check checks again, as the person.
 check_setup() {
   log 'Checking the setup for your account'

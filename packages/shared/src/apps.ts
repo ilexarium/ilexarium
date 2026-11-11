@@ -3,7 +3,7 @@ import type { Container } from './monitoring.js';
 import { CATALOG_ID_PATTERN, fieldKindSchema, isPlainAbsolutePath } from './catalog.js';
 
 /**
- * Apps (docs/plans/acting_as_you.md, "Apps"): Compose folders, by default `~/apps/<name>/`, run as
+ * Apps: Compose folders, by default `~/apps/<name>/`, run as
  * the signed-in Linux account. Docker's labels and the files are the only record. Reading the
  * list needs no sign-in (Docker, through the read-only proxy); everything else is done as the
  * person, through their Linux session.

@@ -13,7 +13,7 @@ const FORMAT_V1 = 0x01;
 const GENERATED_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 /**
- * Encrypts services' secrets at rest (docs/plans/service_deploys.md, decision 7): AES-256-GCM
+ * Encrypts services' secrets at rest: AES-256-GCM
  * with a fresh random IV per value and the GCM tag as a tamper seal. The associated data — the
  * secret's place, e.g. `service:<id>:DB_PASSWORD` — binds a ciphertext to its row and field, so
  * one copied elsewhere won't decrypt.

@@ -7,7 +7,7 @@ import { RealtimeGuard } from './realtime.guard.js';
 import { DEFAULT_REALTIME_OPTIONS, REALTIME_OPTIONS } from './realtime.constants.js';
 
 /**
- * The WebSocket at `/api/ws` (see docs/plans/monitoring_dashboard.md). Feature modules import it
+ * The WebSocket at `/api/ws`. Feature modules import it
  * and register a `TopicSource` with `RealtimeSubscriptions`.
  */
 @Module({

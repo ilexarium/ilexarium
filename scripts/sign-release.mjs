@@ -1,4 +1,4 @@
-// Signs a built release (docs/plans/install_and_update.md): writes release/v<version>/ with the
+// Signs a built release: writes release/v<version>/ with the
 // files as they're published — the archive, manifest.json, its signature, NOTES.md.
 // Usage: npm run release:sign -- --key <release.key> [--notes <file.md>] [--allow-key-change]
 //        [--version <x.y.z>] (another than package.json's: a release repacked by the install test)

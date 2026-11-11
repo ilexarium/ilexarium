@@ -1,4 +1,4 @@
-// Builds the terminal's fallback font for icons (docs/identity.md, Typography): Symbols Nerd Font
+// Builds the terminal's fallback font for icons: Symbols Nerd Font
 // Mono from the Nerd Fonts release, cut down to the icon sets prompts use, as WOFF2 in
 // apps/web/public/fonts/. Run once: npm install here; then: npm run build (needs tar with xz).
 import { execFileSync } from 'node:child_process';

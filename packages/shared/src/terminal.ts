@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { existingPasswordSchema } from './auth.js';
 
 /**
- * The web terminal (docs/plans/files_and_terminal.md, step 2): a shell of the signed-in Linux
+ * The web terminal: a shell of the signed-in Linux
  * account over the Linux session's SSH connection, on a WebSocket of its own — raw bytes both
  * ways (binary frames), JSON control messages as text frames.
  */

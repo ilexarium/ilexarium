@@ -6,7 +6,7 @@
 # Options go to install.sh (--yes; see its --help). Before anything from the
 # download runs: the release's manifest is checked against the public key below (minisign's
 # format, checked with openssl), then the archive against the size and SHA-256 the manifest
-# carries. Design: docs/plans/install_and_update.md.
+# carries.
 set -euo pipefail
 umask 0022
 

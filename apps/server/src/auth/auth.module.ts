@@ -19,7 +19,7 @@ const sessionMetadata: SessionOptions['metadata'] = (request) => ({
   userAgent: String(request.headers['user-agent'] ?? '').slice(0, USER_AGENT_MAX_LENGTH),
 });
 
-/** docs/plans/auth.md. Its guard is global: every route needs a session unless @Public(). */
+/** Its guard is global: every route needs a session unless @Public(). */
 @Module({
   imports: [
     AuthenticationModule.forRoot({

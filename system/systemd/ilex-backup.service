@@ -1,7 +1,7 @@
 # /etc/systemd/system/ilex-backup.service
 # A scheduled backup run, started by ilex-backup.timer: the root wrapper directly, never
 # through the app — backups work even when the app is down. Its progress and results go to
-# its job file in /var/lib/ilex/backups/jobs/, which the app reads. Design: docs/plans/backups.md.
+# its job file in /var/lib/ilex/backups/jobs/, which the app reads.
 
 [Unit]
 Description=Ilexarium backup run

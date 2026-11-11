@@ -30,7 +30,7 @@ export type CheckResult =
 class Unreachable extends Error {}
 
 /**
- * The newest release in the machine's release folder (docs/plans/install_and_update.md): the
+ * The newest release in the machine's release folder: the
  * `latest` manifest and its signature, checked against the installed key — a fake notice is
  * refused. Unprivileged, read-only; the address and key are the installer's root-owned files.
  */

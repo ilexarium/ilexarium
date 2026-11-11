@@ -14,7 +14,7 @@ import { GROUPS } from './services-page.constants';
 import { ServicesPageStore } from './services-page-store';
 
 /**
- * The Services page (docs/plans/system_services.md): the host's systemd services, failed first,
+ * The Services page: the host's systemd services, failed first,
  * with a summary that filters; a service's details in a sheet; start, stop and restart through
  * the signed-in Linux account's sudo.
  */

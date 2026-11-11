@@ -3,7 +3,7 @@ import { VALIDATION_LIMITS } from './auth.js';
 import { isPlainAbsolutePath } from './catalog.js';
 
 /**
- * Disk management (docs/plans/disk_management.md, acting_as_you.md): disks and their partitions
+ * Disk management: disks and their partitions
  * as the server reads them, and mounting one at a folder of the person's choice (`/mnt/<name>` by
  * default) — kept after a restart, its own systemd unit, through the person's sudo.
  */

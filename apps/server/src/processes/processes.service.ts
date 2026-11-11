@@ -37,9 +37,9 @@ function failure(code: ProcessErrorCode | FilesErrorCode): HttpException {
 }
 
 /**
- * Ending a process (docs/plans/process_list.md) as the signed-in Linux account, through its
- * session's helper — another account's process through the account's unlocked sudo
- * (docs/plans/acting_as_you.md). Linux decides what the account may end; the app only makes sure
+ * Ending a process as the signed-in Linux account, through its
+ * session's helper — another account's process through the account's unlocked sudo.
+ * Linux decides what the account may end; the app only makes sure
  * it's the process the person saw (PID and start time), never PID 1 or a kernel thread, and
  * records it first (no record, no signal).
  */

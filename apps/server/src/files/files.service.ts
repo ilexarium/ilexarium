@@ -52,7 +52,7 @@ export function permissions(mode: number): string {
 }
 
 /**
- * The file explorer (docs/plans/files_and_terminal.md) over the Linux session's SFTP channel:
+ * The file explorer over the Linux session's SFTP channel:
  * whatever the signed-in Linux account may do, nothing more — Linux decides, the app adds no
  * limits of its own. Uploads and downloads stream (never held in memory); uploads go to a
  * temporary name beside the target first, renamed when complete. Uploads, renames and deletes

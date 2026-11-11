@@ -1,4 +1,4 @@
-// Builds, signs and publishes a new release in one go (docs/plans/install_and_update.md):
+// Builds, signs and publishes a new release in one go:
 //
 //   npm run ship -- <x.y.z> [--notes <file.md>]
 //

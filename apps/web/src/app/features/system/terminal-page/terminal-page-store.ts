@@ -30,8 +30,7 @@ const initialState: TerminalPageState = {
 };
 
 /**
- * The Terminal page's data, provided by the page and gone with it (docs/plans/
- * files_and_terminal.md, step 2): the Linux session (`LinuxSessionStore`, shared), the app
+ * The Terminal page's data, provided by the page and gone with it: the Linux session (`LinuxSessionStore`, shared), the app
  * password again (a one-time ticket), then the terminal's own socket — keystrokes out, the shell's output to the page's `sink` (bytes
  * for the terminal view: a stream, not state). Closed with the page.
  */

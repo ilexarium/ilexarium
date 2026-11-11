@@ -13,7 +13,7 @@ import { resetDatabase } from './database.js';
 import { FakeNtfy, FakeSmtp } from './fake-notifiers.js';
 import { testHasher } from './realtime-client.js';
 
-// Health alerts end to end (docs/plans/health_alerts.md): the alerts API, Settings →
+// Health alerts end to end: the alerts API, Settings →
 // Notifications with its secrets, and messages to a local fake ntfy and a fake mail server.
 // The watcher is off in e2e (vitest.config.e2e.ts): alerts are opened through AlertRecords.
 

@@ -1,13 +1,13 @@
 # /etc/systemd/system/ilex.service
-# The app, as its own unprivileged user. Two kinds of settings (docs/plans/no_access_knowledge.md):
+# The app, as its own unprivileged user. Two kinds of settings:
 # the release's — facts about this version's files, below, replaced with every update — and the
 # machine's, /etc/ilex/app.env (root:ilex 0640: where it listens, the database password),
-# written once by the installer and never by an update. Design: docs/plans/installer.md.
+# written once by the installer and never by an update.
 #
 # No NoNewPrivileges, ProtectSystem, PrivateTmp and the like yet. The app starts nothing privileged
-# any more: root work runs in the signed-in person's SSH session, through their own sudo
-# (docs/plans/acting_as_you.md). They would only narrow what a compromised app can do on the host
-# itself, and go in once the install test checks what the app still reads and writes (docs/todo.md).
+# any more: root work runs in the signed-in person's SSH session, through their own sudo.
+# They would only narrow what a compromised app can do on the host
+# itself, and go in once the install test checks what the app still reads and writes.
 
 [Unit]
 Description=Ilexarium

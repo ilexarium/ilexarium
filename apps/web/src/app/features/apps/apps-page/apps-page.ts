@@ -10,7 +10,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
 import { AppCard } from '../app-card/app-card';
 import { AppsPageStore } from './apps-page-store';
 
-/** Apps: Compose folders, run as their owner's Linux account (docs/plans/acting_as_you.md). */
+/** Apps: Compose folders, run as their owner's Linux account. */
 @Component({
   selector: 'ilex-apps-page',
   imports: [

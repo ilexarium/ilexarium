@@ -6,7 +6,7 @@ import type { JournalRequest } from './system-journal.model';
 
 /**
  * The machine's journal, read as the signed-in Linux account or as administrator through its
- * unlocked sudo (docs/plans/system_logs.md).
+ * unlocked sudo.
  */
 @Service()
 export class SystemJournalApi {

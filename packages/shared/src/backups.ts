@@ -12,8 +12,7 @@ import {
  * folders, to one disk. Runs happen in a root program (started by a systemd timer, or "Back up
  * now" through the person's sudo); the app reads their results and live progress from the
  * program's files and pushes them through the `backups` topic. Viewing needs no password; every
- * change goes through the signed-in person's sudo. Design: docs/plans/backups.md,
- * docs/plans/acting_as_you.md ("Backups").
+ * change goes through the signed-in person's sudo.
  */
 
 export const BACKUP_LIMITS = {

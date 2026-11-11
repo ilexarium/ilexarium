@@ -45,7 +45,7 @@ const initialState: ContainersPageState = {
 
 /**
  * The Containers page's data: the containers (the `containers` topic, through the monitoring
- * store), their actions, and Docker's unused data with freeing it (docs/plans/docker_cleanup.md).
+ * store), their actions, and Docker's unused data with freeing it.
  */
 export const ContainersPageStore = signalStore(
   withState<ContainersPageState>(initialState),

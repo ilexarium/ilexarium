@@ -8,7 +8,7 @@ export function usedPercent(disk: Pick<DiskUsage, 'sizeBytes' | 'usedBytes'>): n
 }
 
 /**
- * The "disk filling up" rule (docs/plans/health_alerts.md): above 90 % for 5 minutes opens it —
+ * The "disk filling up" rule: above 90 % for 5 minutes opens it —
  * critical from 97 %, a warning again below 95 % — and it closes below 85 % (so a disk at 90 %
  * doesn't open and close all day, nor one at 97 % send a message each time it crosses). A disk no longer mounted closes it (a disk mounted here has "disk missing" for that).
  */

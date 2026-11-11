@@ -3,7 +3,7 @@ import { VALIDATION_LIMITS } from './auth.js';
 import { backupWarningSchema } from './backups.js';
 
 /**
- * Health alerts (docs/plans/health_alerts.md): the platform notices when something goes wrong —
+ * Health alerts: the platform notices when something goes wrong —
  * a service stopped, a disk filling up, a backup failed — and tells the user in the app and,
  * optionally, by email and ntfy. An alert opens when its problem starts and closes by itself.
  */

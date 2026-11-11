@@ -85,7 +85,7 @@ const toEntry = (line: JournalLine): LogViewEntry => {
 };
 
 /**
- * The Logs page's data, provided by the page and gone with it (docs/plans/system_logs.md): the
+ * The Logs page's data, provided by the page and gone with it: the
  * journal's lines for the filters, read as the signed-in Linux account — or as administrator
  * through its sudo —, what's newer asked for every 2 s while the page is shown (the cursor: nothing
  * missed or doubled), older lines 500 at a time.

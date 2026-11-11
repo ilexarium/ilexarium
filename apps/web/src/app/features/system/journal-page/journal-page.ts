@@ -19,7 +19,7 @@ import { PRIORITY_CHOICES } from './journal-page.constants';
 import { JournalPageStore } from './journal-page-store';
 
 /**
- * The Logs page (docs/plans/system_logs.md): the machine's journal, newest at the bottom and
+ * The Logs page: the machine's journal, newest at the bottom and
  * following; one service (`?unit=`), a priority and a boot to choose; older lines on request.
  * Fills the screen height below the top bar, so the log box scrolls, not the page.
  */

@@ -36,7 +36,7 @@ function updateError(code: UpdateErrorCode): HttpException {
 }
 
 /**
- * Ilexarium's own updates (docs/plans/install_and_update.md): the daily check (on by default; the
+ * Ilexarium's own updates: the daily check (on by default; the
  * release host sees this machine's address once a day), the switch, and starting an update
  * through the person's sudo. The update itself is ilex-update's, followed by UpdateJobs.
  */

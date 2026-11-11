@@ -14,7 +14,7 @@ import {
 const key = (kind: string, subject: string) => `${kind}\u0000${subject}`;
 
 /**
- * The `Alert` table (docs/plans/health_alerts.md). The rules report what should be open
+ * The `Alert` table. The rules report what should be open
  * (`reconcile`); this opens what's new, closes what's gone — **one open alert per kind and
  * subject** — and tells the messages (`events$`) and the topic (`changes$`). Changes are written
  * one at a time, in order, from a copy of the open alerts kept here.

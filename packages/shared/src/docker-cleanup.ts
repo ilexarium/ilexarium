@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Freeing space from Docker's unused data (docs/plans/docker_cleanup.md): unused images and the
+ * Freeing space from Docker's unused data: unused images and the
  * build cache together, volumes no container uses one at a time — each confirmed by the person.
  */
 

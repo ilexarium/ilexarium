@@ -15,7 +15,7 @@
 # (127.0.0.1:3000 at first) and needs an HTTPS proxy of their choice in front of it.
 #
 # Every step checks first and changes only what's missing or outdated: running it again is safe.
-# It never deletes a user's data. Design: docs/plans/installer.md, install_and_update.md.
+# It never deletes a user's data.
 set -euo pipefail
 umask 0022
 

@@ -29,7 +29,7 @@ interface ContainerState {
 }
 
 /**
- * The container rules (docs/plans/health_alerts.md), without Docker or time of its own: the
+ * The container rules, without Docker or time of its own: the
  * watcher feeds it events and lists, then asks which alerts should be open.
  *
  * - **Service down**: it died by itself and hasn't run again for 30 s. Not when stopped from the

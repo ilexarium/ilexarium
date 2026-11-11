@@ -16,7 +16,7 @@ import { AlertsPageStore } from './alerts-page-store';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 /**
- * The Alerts page (docs/plans/health_alerts.md): a headline with the notification settings beside
+ * The Alerts page: a headline with the notification settings beside
  * it, a notice when a message couldn't be sent, the open alerts (each can be acknowledged), then
  * those resolved in the last 7 days as quiet rows.
  */

@@ -60,7 +60,7 @@ function failure(code: AlertErrorCode, message: string, field?: string): HttpExc
 }
 
 /**
- * Settings → Notifications (docs/plans/health_alerts.md): email and ntfy, each optional. The ntfy
+ * Settings → Notifications: email and ntfy, each optional. The ntfy
  * topic URL and token and the mail password are stored encrypted (`SecretsService`) and never go
  * back to the browser. Sends a message through every channel switched on and keeps each one's
  * last problem (cleared when one gets through).
