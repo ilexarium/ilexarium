@@ -1,6 +1,6 @@
 # catalog
 
-App **templates**: starting points, used once. After setup, the app's folder (`~/apps/<name>` by default) is the person's own Compose folder — they may change anything. Design: `docs/plans/acting_as_you.md` ("Templates").
+App **templates**: starting points, used once. After setup, the app's folder (`~/apps/<name>` by default) is the person's own Compose folder — they may change anything.
 
 ```
 catalog/<id>/

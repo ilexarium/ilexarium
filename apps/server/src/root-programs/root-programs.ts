@@ -49,7 +49,7 @@ type Result<Code extends string, T> =
   { ok: true; value: T } | { ok: false; code: Code; value: T | null };
 
 /**
- * The root programs (ilex-backup, ilex-disk, ilex-update; docs/plans/acting_as_you.md): started through the
+ * The root programs (ilex-backup, ilex-disk, ilex-update): started through the
  * signed-in person's own sudo, by their helper — Ilexarium holds no root. Every call records the
  * request in the audit log first (no record, no run), then runs the program (values on stdin)
  * and records the outcome. A locked sudo is a 403 `sudo_required`: the web app asks for the

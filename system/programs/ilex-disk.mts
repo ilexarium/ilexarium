@@ -10,7 +10,7 @@
 // RAID/LVM/encryption, or not ext4/xfs/btrfs/exFAT. Everything is read again here, from /sys,
 // udev's database and mountinfo — nothing the app sends is trusted. `nofail`: nothing in the boot
 // waits for these mounts, so a missing disk never delays the boot. A disk the backups are kept on
-// isn't unmounted. Design: docs/plans/disk_management.md.
+// isn't unmounted.
 //
 // Zero dependencies on purpose: only node: built-ins — any package it loaded would run as root.
 // `env -i` in the shebang empties the environment before Node starts.

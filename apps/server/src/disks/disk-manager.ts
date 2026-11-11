@@ -17,7 +17,7 @@ import { disksStatus } from './disk-status.js';
 import { MOUNT_REFUSED, ROOT_PLACES } from './disks.constants.js';
 
 /**
- * Disks (docs/plans/disk_management.md, acting_as_you.md): what's connected and mounted, read from
+ * Disks: what's connected and mounted, read from
  * the host without privileges; mounting one at a folder of the person's choice (kept after a
  * restart) and unmounting one mounted here — through the person's sudo and the disk program,
  * which checks everything again. The friendly checks here come first.

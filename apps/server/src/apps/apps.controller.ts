@@ -37,7 +37,7 @@ import { CHANGE_LIMIT } from './apps.constants.js';
 
 type Session = { id: string };
 
-/** docs/plans/acting_as_you.md, "Apps". Everything but the list is done as the signed-in Linux account. */
+/** Everything but the list is done as the signed-in Linux account. */
 @Controller('apps')
 export class AppsController {
   constructor(private readonly appManager: AppManager) {}

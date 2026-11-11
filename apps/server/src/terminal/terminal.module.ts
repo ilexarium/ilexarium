@@ -7,7 +7,7 @@ import { TerminalGateway } from './terminal.gateway.js';
 import { TerminalTickets } from './terminal-tickets.js';
 import { Terminals } from './terminals.js';
 
-/** The web terminal (docs/plans/files_and_terminal.md, step 2), over the Linux sign-in. */
+/** The web terminal, over the Linux sign-in. */
 @Module({
   imports: [AuditModule, AuthModule, LinuxSessionsModule],
   controllers: [TerminalController],

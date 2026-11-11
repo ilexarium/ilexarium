@@ -1,7 +1,6 @@
 #!/usr/bin/env -S -i /usr/bin/node
 // ilex-helper — runs as the signed-in person, not root: the server starts it over that person's
-// SSH session, in its own channel, for the session's life (docs/plans/acting_as_you.md, "The
-// helper").
+// SSH session, in its own channel, for the session's life.
 //
 // One JSON request per line on stdin, one JSON answer per line on stdout, matched by `id`:
 //
@@ -13,7 +12,7 @@
 // {"ilex-helper":1}: requests are sent only after it (lines before it are the login's noise).
 // {"event":"sudo.locked"}: ilex-root ended on its own (idle).
 //
-// Root is ilex-root (docs/plans/ilex_root.md), started by this account's sudo with the password
+// Root is ilex-root, started by this account's sudo with the password
 // as the one line sudo reads, running for the unlock: privileged requests are forwarded to it,
 // and answer sudo_required while it isn't running. It ends with this program ("Lock now" starts
 // a new helper). This program never keeps a password.

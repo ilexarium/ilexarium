@@ -36,7 +36,7 @@ const initialState: MachineCheckPageState = {
 };
 
 /**
- * Settings → Machine check (docs/plans/machine_check.md): the real chain as the signed-in person —
+ * Settings → Machine check: the real chain as the signed-in person —
  * the Linux sign-in and the sudo prompt are the shell's own, the rest one request.
  */
 export const MachineCheckPageStore = signalStore(

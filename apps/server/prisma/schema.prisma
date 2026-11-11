@@ -15,7 +15,7 @@ model User {
   passwordHash   String // self-describing ($scrypt$…); never leaves the server
   createdAt      DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
-  /// The profile (docs/plans/profile.md): shown instead of the username; a contact address, never a sign-in; "en" | "de" | "ar".
+  /// The profile: shown instead of the username; a contact address, never a sign-in; "en" | "de" | "ar".
   displayName    String?
   email          String?
   language       String?
@@ -79,7 +79,7 @@ enum JobStatus {
   interrupted
 }
 
-/// The backup plan (docs/plans/backups.md): one row, once set up. The app's source of truth;
+/// The backup plan: one row, once set up. The app's source of truth;
 /// every change goes to the backup wrapper's `configure`, which writes the timer's copy.
 model BackupPlan {
   id           Int      @id @default(1)
@@ -219,7 +219,7 @@ enum AlertSeverity {
   critical
 }
 
-/// A health alert (docs/plans/health_alerts.md): opened when a problem starts, closed by itself
+/// A health alert: opened when a problem starts, closed by itself
 /// when it's gone. One open alert per kind and subject (the watcher writes them one at a time).
 /// Closed alerts are kept 30 days.
 model Alert {
@@ -258,7 +258,7 @@ model AlertChannel {
   updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
 }
 
-/// Ilexarium's own updates (docs/plans/install_and_update.md): the switch and the last check — one
+/// Ilexarium's own updates: the switch and the last check — one
 /// row, id 1. The release found is kept only while it's newer than the installed version.
 model UpdateCheck {
   id                 Int       @id @default(1)

@@ -8,7 +8,7 @@ import { CHANGE_LIMIT } from './processes.constants.js';
 import { ProcessesService } from './processes.service.js';
 
 /**
- * The process list (docs/plans/process_list.md). Every route needs a session; ending a process
+ * The process list. Every route needs a session; ending a process
  * also a Linux session (403 `linux_session_required`).
  */
 @Controller('processes')

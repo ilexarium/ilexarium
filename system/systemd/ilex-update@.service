@@ -3,7 +3,6 @@
 # again by the program, which reads the version from its own root-only request file. Its own unit,
 # not a child of the app or of ilex-root: the installer stops the app (and with it the person's
 # sudo session), the update goes on. Progress and result: /var/lib/ilex/updates/<id>.jsonl.
-# Design: docs/plans/install_and_update.md.
 #
 # Without sandboxing, like the installer it runs: it replaces /opt/ilex, writes /etc, runs Docker
 # and systemctl.

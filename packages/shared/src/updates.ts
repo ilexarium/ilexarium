@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Ilexarium's own updates (docs/plans/install_and_update.md): the app checks the release folder for a
+ * Ilexarium's own updates: the app checks the release folder for a
  * newer signed release; the person updates with one click and their sudo, ilex-update does it
  * as its own unit and goes back to the installed version if the new one doesn't come up.
  */

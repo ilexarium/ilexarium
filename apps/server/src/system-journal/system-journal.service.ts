@@ -43,7 +43,7 @@ const smallInt = (value: string | null, min: number, max: number) => {
 };
 
 /**
- * The machine's journal (docs/plans/system_logs.md), read as the signed-in Linux account through
+ * The machine's journal, read as the signed-in Linux account through
  * its helper — journald decides what it sees —, or as administrator through its unlocked sudo.
  * Not audited (like container logs); messages are never logged here.
  */

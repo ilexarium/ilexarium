@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Templates (`catalog/<id>/`): a starting point for an app — `compose.yml` with `${VARIABLES}`,
  * `template.json` (what each variable is, the backup preset) and `icon.svg`. Used once: the app
- * that comes from it is the person's own folder. Design: docs/plans/acting_as_you.md, "Templates".
+ * that comes from it is the person's own folder.
  */
 
 export const CATALOG_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/;

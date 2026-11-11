@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * The host's systemd services (docs/plans/system_services.md): read as the signed-in Linux account
+ * The host's systemd services: read as the signed-in Linux account
  * (systemd lets anyone read them), started, stopped and restarted through its unlocked sudo.
  * States are systemd's own words, shown as they are.
  */

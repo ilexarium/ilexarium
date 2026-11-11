@@ -1,8 +1,7 @@
 # Development and tests only: an SSH server standing in for the machine's own sshd, for the
-# Linux sign-in, the file explorer and ending processes (docs/plans/files_and_terminal.md,
-# process_list.md). Two people:
+# Linux sign-in, the file explorer and ending processes. Two people:
 #   anna / anna-dev-password (uid 1500) — the one the tests sign in as; her sudo may start
-#     ilex-root (and nothing else), the root half of the helper (docs/plans/ilex_root.md)
+#     ilex-root (and nothing else), the root half of the helper
 #   bob  / bob-dev-password  (uid 1501) — whose home is private (permission denied for anna); no sudo
 # Its host keys are made at the first start into /keys, a folder shared with the app
 # (apps/server/.dev/sshd), which pins them like production pins /etc/ssh/ssh_host_*_key.pub.
@@ -32,9 +31,9 @@ RUN apt-get update \
  && rm -f /etc/ssh/ssh_host_*
 COPY sshd_config /etc/ssh/sshd_config
 COPY entrypoint.sh /entrypoint.sh
-# No systemd in here: sample units for the Services page (docs/plans/system_services.md).
+# No systemd in here: sample units for the Services page.
 COPY --chmod=0755 fake-systemctl.cjs /usr/bin/systemctl
-# And sample lines for the Logs page (docs/plans/system_logs.md).
+# And sample lines for the Logs page.
 COPY --chmod=0755 fake-journalctl.cjs /usr/bin/journalctl
 EXPOSE 22
 ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]

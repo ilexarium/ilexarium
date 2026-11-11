@@ -11,7 +11,7 @@ import { UpdatesService } from './updates.service.js';
 import { UpdatesTopic } from './updates-topic.js';
 
 /**
- * Ilexarium's own updates (docs/plans/install_and_update.md): the daily check of the signed release
+ * Ilexarium's own updates: the daily check of the signed release
  * folder, starting an update through the person's sudo, following ilex-update's job files.
  */
 @Module({

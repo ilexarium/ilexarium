@@ -10,7 +10,7 @@ import type { Observable } from 'rxjs';
 
 /**
  * The host's services, read as the signed-in Linux account; started, stopped and restarted
- * through its unlocked sudo (docs/plans/system_services.md).
+ * through its unlocked sudo.
  */
 @Service()
 export class SystemServicesApi {

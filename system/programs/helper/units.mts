@@ -1,4 +1,4 @@
-// The machine's service units (docs/plans/system_services.md). Read as this account — systemd lets
+// The machine's service units. Read as this account — systemd lets
 // anyone read them —, started, stopped and restarted by ilex-root. Only systemd's machine output:
 // JSON for the lists, `key=value` for one unit's fixed properties.
 

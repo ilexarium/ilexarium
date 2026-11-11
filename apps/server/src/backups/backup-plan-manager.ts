@@ -30,7 +30,7 @@ import { PLAN_CHANGE_TIMEOUT_MS } from './backups.constants.js';
 import type { NewItemRow } from './backups.model.js';
 
 /**
- * The backup plan and what's in it (docs/plans/backups.md, acting_as_you.md). The database is the
+ * The backup plan and what's in it. The database is the
  * app's truth; every change of the plan, setup included, goes to the backup program's `configure`
  * — through the person's sudo — inside the same transaction, and is kept only if it accepts it.
  */

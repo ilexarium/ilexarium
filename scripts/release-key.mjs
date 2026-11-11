@@ -1,4 +1,4 @@
-// Makes the release signing key (docs/plans/install_and_update.md):
+// Makes the release signing key:
 //   <folder>/release.key   the private key, encrypted with a passphrase — keep it offline, backed up twice
 //   <folder>/release.pub   the public key (minisign's format) — copy it to system/install/release.pub
 // Usage: npm run release:key -- <folder>

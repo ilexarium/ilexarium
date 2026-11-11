@@ -1,6 +1,6 @@
 #!/usr/bin/env -S -i /usr/bin/node
-// ilex-root — runs as root, started by the signed-in person's own sudo when they unlock it
-// (docs/plans/ilex_root.md): the helper runs `sudo -k -S -p '' -- ilex-root.mts`, the password the
+// ilex-root — runs as root, started by the signed-in person's own sudo when they unlock it:
+// the helper runs `sudo -k -S -p '' -- ilex-root.mts`, the password the
 // one line sudo reads. It does the helper's privileged actions until 15 minutes after its last
 // request, or until its stdin closes (the helper ended: the Linux session, or "Lock now").
 //

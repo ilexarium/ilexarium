@@ -48,7 +48,7 @@ import {
 } from './alerts.constants.js';
 
 /**
- * The health alerts' watcher (docs/plans/health_alerts.md): unlike the topics, it runs from
+ * The health alerts' watcher: unlike the topics, it runs from
  * bootstrap until shutdown, whether anyone is looking or not. It feeds the rules (`ContainerWatch`,
  * `DiskWatch`, the backups' warnings, disks gone missing) from what the app reads already — one
  * always-open Docker events stream and a few polls — and hands what they see to `AlertRecords`.

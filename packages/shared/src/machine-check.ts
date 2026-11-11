@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Is this machine set up the way Ilexarium needs (docs/plans/machine_check.md)? The checks done as the
+ * Is this machine set up the way Ilexarium needs? The checks done as the
  * signed-in person through their helper; signing in and sudo are checked by their own routes.
  */
 

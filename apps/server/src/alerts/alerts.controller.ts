@@ -32,7 +32,7 @@ import {
 } from './alerts.dto.js';
 import { CHANGE_LIMIT, TEST_LIMIT } from './alerts.constants.js';
 
-/** Health alerts (docs/plans/health_alerts.md). Every route needs a session. */
+/** Health alerts. Every route needs a session. */
 @Controller('alerts')
 @UseFilters(TooManyAttemptsFilter)
 export class AlertsController {

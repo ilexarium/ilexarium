@@ -39,7 +39,7 @@ import {
 import { FilesService } from './files.service.js';
 
 /**
- * Linux sign-in and the file explorer (docs/plans/files_and_terminal.md). Every route needs an
+ * Linux sign-in and the file explorer. Every route needs an
  * app session; the file routes also a Linux session (403 `linux_session_required` otherwise —
  * never 401, which means the app session is gone).
  */

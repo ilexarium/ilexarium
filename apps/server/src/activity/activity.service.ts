@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { fromAlert, fromAudit, fromBackupRun, mergeActivity } from './activity-items.js';
 
 /**
- * The dashboard's "Recent activity" (docs/plans/dashboard_v2.md): what people did (the audit
+ * The dashboard's "Recent activity": what people did (the audit
  * log's successes of a few actions), backup runs (scheduled ones too) and alerts, merged.
  */
 @Injectable()

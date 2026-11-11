@@ -8,7 +8,7 @@ import { configureApp } from '../src/app.setup.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { type SignedIn, signIn, testHasher } from './realtime-client.js';
 
-// The dashboard's "Recent activity" (docs/plans/dashboard_v2.md): the audit log's successes of a
+// The dashboard's "Recent activity": the audit log's successes of a
 // few actions, backup runs and alerts, merged — and nothing of the audit log's other details.
 describe('activity (e2e)', () => {
   let app: NestExpressApplication;

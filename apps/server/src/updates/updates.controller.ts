@@ -17,7 +17,7 @@ import { UPDATE_CHANGE_LIMIT } from './updates.constants.js';
 import { StartUpdateDto, UpdateSettingsDto } from './updates.dto.js';
 import { UpdatesService } from './updates.service.js';
 
-/** Ilexarium's own updates (docs/plans/install_and_update.md). Every route needs a session. */
+/** Ilexarium's own updates. Every route needs a session. */
 @Controller('updates')
 @UseFilters(TooManyAttemptsFilter)
 export class UpdatesController {

@@ -55,7 +55,7 @@ export function classify(address: string): 'refused' | 'loopback' | 'private' | 
 }
 
 /**
- * The address rule (docs/plans/health_alerts.md, "Where the app may send"): the app sends to an
+ * The address rule: the app sends to an
  * address the user typed, so never to link-local addresses (cloud metadata) — loopback, private
  * networks and the internet are fine. Checked **after the name is resolved**: every address the name has must pass (one
  * pointing somewhere refused is refused), and the caller connects to the address returned.

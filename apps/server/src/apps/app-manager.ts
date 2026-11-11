@@ -63,7 +63,7 @@ const deletable = (facts: ComposeFacts, home: string): ComposeFacts => ({
 const inside = (path: string, root: string) => path === root || path.startsWith(`${root}/`);
 
 /**
- * Apps (docs/plans/acting_as_you.md): Compose folders run as the signed-in Linux account. The list
+ * Apps: Compose folders run as the signed-in Linux account. The list
  * comes from Docker (no sign-in needed); everything else is read and done as the person — their
  * files over SFTP, Compose through their helper, long tasks as units. Audited as the person, by
  * name and folder, never values.

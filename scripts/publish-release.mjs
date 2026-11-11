@@ -1,5 +1,5 @@
 // Copies a signed release (release/v<version>/, from release:sign) into a release folder laid
-// out like GitHub's (docs/plans/install_and_update.md), and points latest/ at it when it's newer:
+// out like GitHub's, and points latest/ at it when it's newer:
 //   <folder>/download/v<version>/…   <folder>/latest/download/latest.json(.minisig)   <folder>/get-ilex.sh
 // Old versions keep their own files. Usage: npm run release:publish -- <folder> [<version>]
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, copyFileSync } from 'node:fs';

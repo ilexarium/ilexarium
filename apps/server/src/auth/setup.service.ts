@@ -25,7 +25,7 @@ function digest(token: string): Buffer {
   return createHash('sha256').update(normaliseSetupToken(token)).digest();
 }
 
-/** docs/plans/auth.md, decision 1. Only the token's hash stays in memory, never the token. */
+/** Only the token's hash stays in memory, never the token. */
 @Injectable()
 export class SetupService implements OnApplicationBootstrap {
   private readonly logger = new Logger(SetupService.name);

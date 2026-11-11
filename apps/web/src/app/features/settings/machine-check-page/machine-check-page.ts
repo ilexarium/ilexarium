@@ -14,7 +14,7 @@ import { STATUS_COLORS, STATUS_ICONS } from './machine-check-page.constants';
 import { MachineCheckPageStore } from './machine-check-page-store';
 
 /**
- * Settings → Machine check (docs/plans/machine_check.md): is this machine set up the way Ilexarium
+ * Settings → Machine check: is this machine set up the way Ilexarium
  * needs, checked as the signed-in Linux account — each step passed, or what's wrong and what to do.
  */
 @Component({

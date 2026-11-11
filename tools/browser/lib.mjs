@@ -62,7 +62,7 @@ async function signIn(page) {
   await page.waitForURL(`${BASE}/`);
 }
 
-/** Records it if the page scrolls sideways (a bug: see CLAUDE.md, responsive rules). */
+/** Records it if the page scrolls sideways (a bug: no page may scroll sideways). */
 export async function checkNoSideScroll(page, tag) {
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   if (wide > 1) problems.push(`[${tag}] the page scrolls sideways by ${wide}px`);
