@@ -15,6 +15,11 @@ start_platform() {
   log 'Starting the database and the Docker proxy'
   systemctl daemon-reload
   systemctl enable ilex-platform.service >/dev/null 2>&1
+  # A socket left by a proxy that ran as another uid (uid 99, before the ilex-proxy account):
+  # HAProxy hard-links the old socket aside, which Linux allows only its owner, so the new
+  # proxy would never start. /run is emptied at boot, so only an update meets one.
+  local socket=/run/ilex/proxy/docker.sock
+  if [[ -e "$socket" && "$(stat -c %u "$socket")" != "$PROXY_UID" ]]; then rm -f "$socket"; fi
   systemctl restart ilex-platform.service ||
     die 'The platform’s containers did not start (journalctl -u ilex-platform)'
   # The proxy has no health check of its own: it's ready once it answers on its socket (an old
