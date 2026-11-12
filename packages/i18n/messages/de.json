@@ -979,6 +979,7 @@
       "succeeded": "Wiederhergestellt.",
       "wentTo": "Wiederhergestellt nach",
       "setAside": "Die vorherige Version liegt hier, bis du sie löschst:",
+      "setAsideInterrupted": "Die Wiederherstellung wurde nicht fertig, die Ordner sind vielleicht unvollständig. Die Version von vor der Wiederherstellung liegt hier: Stelle sie noch einmal wieder her oder verschiebe sie selbst zurück.",
       "discard": "Vorherige Version löschen",
       "discarded": "Die vorherige Version wurde gelöscht.",
       "discardFailed": "Die vorherige Version konnte nicht gelöscht werden",

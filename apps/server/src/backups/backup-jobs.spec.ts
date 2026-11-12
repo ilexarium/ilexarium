@@ -262,6 +262,36 @@ describe('BackupJobs', () => {
       }),
     );
   });
+  it('an interrupted restore keeps the folders it set aside before it ended', async () => {
+    const { jobs, prisma } = setUp();
+    const aside = ['/srv/docs.before-restore-20261030-120000'];
+    write(RESTORE, {
+      type: 'restore',
+      restoreId: RESTORE,
+      pid: DEAD_PID,
+      startedAt: new Date().toISOString(),
+    });
+    write(RESTORE, { type: 'phase', phase: 'restoring' }, { type: 'setAside', setAside: aside });
+    await jobs.refresh();
+    expect(prisma.backupRestore.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'interrupted',
+          errorCode: 'interrupted',
+          setAside: aside,
+        }),
+      }),
+    );
+  });
+
+  it('a restore that put its folders back keeps none', () => {
+    const job = readJob(RESTORE, [
+      { type: 'restore', restoreId: RESTORE, pid: 1, startedAt: new Date().toISOString() },
+      { type: 'setAside', setAside: ['/srv/a.before-restore-20261030-120000'] },
+      { type: 'setAside', setAside: [] },
+    ] as never);
+    expect(job.setAside).toEqual([]);
+  });
 });
 
 describe('readJob', () => {

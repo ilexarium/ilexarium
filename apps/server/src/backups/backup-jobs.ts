@@ -75,7 +75,15 @@ export function parseLines<T>(
 
 /** A job from its file's events (`id`: the file's name — its start must name the same job). */
 export function readJob(id: string, events: JobEvent[]): Job {
-  const job: Job = { id, start: null, progress: null, phase: null, output: [], done: null };
+  const job: Job = {
+    id,
+    start: null,
+    progress: null,
+    phase: null,
+    output: [],
+    setAside: [],
+    done: null,
+  };
   const first = events[0];
   const ownId =
     first?.type === 'run'
@@ -125,6 +133,9 @@ export function readJob(id: string, events: JobEvent[]): Job {
       case 'line':
         job.output.push(event.text);
         if (job.output.length > lines) job.output.shift();
+        break;
+      case 'setAside':
+        job.setAside = event.setAside;
         break;
       case 'runDone':
       case 'checkDone':
@@ -392,8 +403,9 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
           status: done?.status ?? 'interrupted',
           phase: job.phase,
           errorCode: done ? done.errorCode : BACKUP_ERROR_CODES.interrupted,
-          // Folders set aside are kept even when starting the app afterwards failed: they're the way back.
-          setAside: done?.setAside ?? [],
+          // Folders set aside are kept even when starting the app afterwards failed, or the restore
+          // was killed before its end: they're the way back.
+          setAside: done?.setAside ?? job.setAside,
           appWasRunning: done?.appWasRunning ?? false,
           output: job.output.join('\n'),
           finishedAt: new Date(),

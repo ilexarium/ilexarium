@@ -11,5 +11,7 @@ export interface Job {
   /** A restore's phase. */
   phase: BackupRestorePhase | null;
   output: string[];
+  /** A restore's folders set aside so far: what's kept when it never reaches its end. */
+  setAside: string[];
   done: JobDone | null;
 }

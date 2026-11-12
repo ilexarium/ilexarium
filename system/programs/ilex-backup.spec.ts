@@ -952,6 +952,28 @@ describe('ilex-backup restore', () => {
     expect(calls('docker').map((c) => c.args[3])).toEqual(['ps', 'stop', 'start']);
   });
 
+  it('a restore killed during the extraction has already said where the previous version is', async () => {
+    writeFileSync(join(dir, 'kill-extract.txt'), '');
+    const result = await restore(restoreInput());
+    expect(result.code).not.toBe(0);
+    expect(done()).toBeUndefined();
+    const setAside = events().findLast((e) => e.type === 'setAside')!.setAside as string[];
+    expect(setAside).toHaveLength(2);
+    expect(readFileSync(join(setAside[0], 'db.sqlite'), 'utf8')).toBe('data');
+    // The same as the program's own list, which `discard` goes by.
+    const list = JSON.parse(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8'));
+    expect(list.map((e: any) => e.path)).toEqual(setAside);
+  });
+
+  it('a failed extraction says the set-aside folders went back', async () => {
+    writeFileSync(join(dir, 'exit-extract.txt'), '2');
+    await restore(restoreInput());
+    const said = events()
+      .filter((e) => e.type === 'setAside')
+      .map((e) => (e.setAside as string[]).length);
+    expect(said).toEqual([1, 2, 1, 0]);
+  });
+
   it('only the folders in the plan now: one taken out is left alone, one the backup lacks is said', async () => {
     const data = join(storage, 'demo', 'data');
     const media = join(storage, 'demo', 'media');
