@@ -215,7 +215,7 @@ async function restoreArchive(
     } finally {
       process.umask(0o077);
     }
-    return { setAside: [], appWasRunning: false };
+    return false;
   }
 
   // Back where it was: what the archive holds of the item's folders in the plan now.
