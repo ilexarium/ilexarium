@@ -1039,7 +1039,7 @@ describe('ilex-backup restore', () => {
     const target = join(dir, 'restored');
     const result = await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
     expect(result.code, result.lines.join('\n')).toBe(0);
-    expect(done()).toMatchObject({ status: 'succeeded', setAside: [] });
+    expect(done()).toMatchObject({ status: 'succeeded', setAside: [], appWasRunning: false });
     expect(existsSync(join(target, join(storage, 'docs').slice(1), 'restored.txt'))).toBe(true);
     expect(calls('borg').find((c) => c.args[0] === 'extract')!.cwd).toBe(target);
     expect(calls('docker')).toEqual([]);
