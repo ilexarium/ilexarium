@@ -6,7 +6,10 @@ import {
   appendFileSync,
   chmodSync,
   chownSync,
+  closeSync,
+  fsyncSync,
   mkdirSync,
+  openSync,
   readdirSync,
   renameSync,
   rmSync,
@@ -72,6 +75,17 @@ export class JobFile {
       this.bytes += line.length;
     }
     appendFileSync(this.file, line);
+  }
+
+  /** On the disk before going on: it must outlive a power loss (what a restore has moved). */
+  syncedEvent(event: Record<string, unknown>): void {
+    const fd = openSync(this.file, 'a');
+    try {
+      appendFileSync(fd, `${JSON.stringify(event)}\n`);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
   }
 }
 

@@ -1,7 +1,8 @@
 // A fake `borg` for ilex-backup.spec.ts (copied beside the test's files, with a shebang).
 // Records every call (args, environment, folder) in borg-calls.jsonl; keeps "archives" in
 // archives.json (name → its create command line); behaviour per command from files:
-// exit-<command>.txt (exit code), logs-<command>.jsonl (stderr log lines), repo-id.txt.
+// exit-<command>.txt (exit code), logs-<command>.jsonl (stderr log lines), repo-id.txt,
+// kill-<command>.txt (kills the program that started it: a hard kill, power loss).
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -27,6 +28,7 @@ if (!passFile || !fs.existsSync(passFile)) {
 for (const line of read(`logs-${command}.jsonl`, '').split('\n').filter(Boolean)) {
   process.stderr.write(line + '\n');
 }
+if (fs.existsSync(path.join(dir, `kill-${command}.txt`))) process.kill(process.ppid, 'SIGKILL');
 const exit = Number(read(`exit-${command}.txt`, '0'));
 const archivesFile = path.join(dir, 'archives.json');
 const archives = () => JSON.parse(read('archives.json', '{}'));

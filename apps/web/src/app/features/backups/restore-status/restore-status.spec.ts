@@ -77,6 +77,17 @@ describe('RestoreStatus', () => {
     expect(fixture.componentInstance.discarded).toBe(1);
   });
 
+  it('an interrupted restore: where the previous version is, and that the folders may be incomplete', async () => {
+    const fixture = await show({
+      status: 'interrupted',
+      phase: 'restoring',
+      setAside: ['/home/anna/apps/immich/data.before-restore'],
+    });
+    expect(text(fixture)).toContain('The restore was interrupted.');
+    expect(text(fixture)).toContain('may be incomplete');
+    expect(text(fixture)).toContain('data.before-restore');
+  });
+
   it('an app that was running: offers to apply the restored settings', async () => {
     const fixture = await show({
       status: 'succeeded',
