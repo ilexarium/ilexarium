@@ -8,6 +8,19 @@ Thanks for your interest in Ilexarium. Bug reports, ideas and questions are welc
 
 See the [README](README.md) for running it locally. The server needs Linux. On a Mac it runs in a container (`dev/server/`): `npm run db:up`, `npm run server:up`, then `npm run srv -- <command>`.
 
+| Path              | What                                                            |
+| ----------------- | --------------------------------------------------------------- |
+| `apps/web`        | Angular front end                                               |
+| `apps/server`     | Nest.js back end                                                |
+| `packages/shared` | Contracts shared by both: types + Zod schemas                   |
+| `packages/i18n`   | Translations (English, German, Arabic)                          |
+| `catalog`         | App templates (Compose file + form + icon)                      |
+| `system`          | Host-side: helper, root programs, systemd, installer (⚠ review) |
+| `dev`             | Local development: Postgres, Docker proxy, a test SSH server    |
+| `tools`           | Browser checks, the install test, logo and font builds          |
+
+`npm run dev:shared` rebuilds the shared contracts on change.
+
 Before a pull request, all of these must pass:
 
 ```sh

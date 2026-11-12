@@ -1,38 +1,60 @@
-# Ilexarium
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/ilexarium-logo-dark.svg">
+    <img src="brand/ilexarium-logo.svg" alt="Ilexarium" width="320">
+  </picture>
+</p>
 
-A friendly web UI for running self-hosted services — and the Linux host underneath — without the terminal. Installed onto an existing Linux machine with one script; it holds no root of its own and acts with the signed-in person's own Linux account.
+<p align="center">
+  Ilexarium makes running your own home server easy enough for anyone, and never gets in the way
+  of those who already know how.
+</p>
 
-## Layout
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/dashboard-dark.webp">
+    <img src=".github/readme/dashboard-light.webp" alt="The Ilexarium dashboard: the machine’s health, its apps and the last backup at a glance." width="860">
+  </picture>
+</p>
 
-| Path              | What                                                            |
-| ----------------- | --------------------------------------------------------------- |
-| `apps/web`        | Angular front end                                               |
-| `apps/server`     | Nest.js back end                                                |
-| `packages/shared` | Contracts shared by both: types + Zod schemas                   |
-| `packages/i18n`   | Translations (English, German, Arabic)                          |
-| `catalog`         | App templates (Compose file + form + icon)                      |
-| `system`          | Host-side: helper, root programs, systemd, installer (⚠ review) |
-| `dev`             | Local development: Postgres, Docker proxy, a test SSH server    |
-| `tools`           | Browser checks, the install test, logo and font builds          |
+Ilexarium installs onto an existing Linux machine and lets you run your own apps, and the machine
+itself, from the browser.
+
+- **Apps** from ready templates or your own Compose file: install, change, update, remove.
+- **Backups** with Borg to a disk of your choice, every day, encrypted, and restores from the same page.
+- **The machine:** disks, processes, files and a terminal in the browser.
+- **Health alerts** by email or ntfy when an app stops or a disk fills up.
+- **Updates** of Ilexarium itself, checked as genuine before they install.
+- **No root of its own:** it acts as you, with your own Linux account and your own `sudo`.
+- English, German and Arabic.
+
+## Install
+
+Debian 12 or 13, Ubuntu 24.04 or Arch Linux:
+
+```sh
+curl -fsSL https://ilexarium.com/get-ilex.sh -o get-ilex.sh
+less get-ilex.sh    # read it first: it checks the release's signature, then installs
+bash get-ilex.sh
+```
+
+Ilexarium listens on `127.0.0.1:3000`; you reach it through an HTTPS proxy of your choice.
+Guides: [ilexarium.com](https://ilexarium.com).
 
 ## Development
 
-Requires Node 26+, npm 12+, Docker.
+Node 26+, npm 12+, Docker:
 
 ```sh
 npm install
-npm run db:up         # Postgres on 127.0.0.1:5432
-npm run dev:server    # terminal 1 — API on :3000
-npm run dev:web       # terminal 2 — UI on :4200
-npm run dev:shared    # optional — rebuild shared contracts on change
+npm run db:up        # Postgres
+npm run dev:server   # API on :3000
+npm run dev:web      # UI on :4200
 ```
 
-`npm test`, `npm run lint`, `npm run format` run across all workspaces. The server needs Linux; on a Mac it runs in a container (`npm run server:up`, then `npm run srv -- <command>`). Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md); security problems: [`SECURITY.md`](SECURITY.md).
+How the repository is laid out and the safety rules: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Security problems: [`SECURITY.md`](SECURITY.md).
 
 ## Licence
 
-Ilexarium is free software: you can redistribute it and/or modify it under the terms of the GNU
-General Public License as published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version. It is distributed in the hope that it will be
-useful, but **without any warranty**; without even the implied warranty of merchantability or
-fitness for a particular purpose. See [`LICENSE`](LICENSE).
+Free software under the [GNU GPL, version 3 or later](LICENSE), without any warranty.
