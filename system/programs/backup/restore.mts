@@ -129,6 +129,14 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
     setAside: string[],
     appWasRunning = false,
   ) => events.event({ type: 'restoreDone', status, errorCode, setAside, appWasRunning });
+  // The folders set aside, in the job file before each is moved and after each goes back: a
+  // restore killed before its end (kill -9, power loss) still tells the app where the previous
+  // version is — at worst a folder too many, never one too few. Every end reports the same list.
+  let setAside: string[] = [];
+  const aside = (folders: string[]) => {
+    setAside = folders;
+    events.syncedEvent({ type: 'setAside', setAside });
+  };
   let release: (() => void) | null = null;
   try {
     const file = requestFile(paths, restoreId);
@@ -141,17 +149,7 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
     if (request.restoreId !== restoreId) throw new Refusal('invalid_request', 'another restore');
     // A backup run may hold the lock: a restore waits for it, like a scheduled run would.
     release = await takeLock(paths, true);
-    // Each folder set aside is in the job file as soon as it's moved: a restore killed before its
-    // end (kill -9, power loss) still tells the app where the previous version is.
-    const aside = (setAside: string[]) => events.syncedEvent({ type: 'setAside', setAside });
-    const { setAside, appWasRunning } = await restoreArchive(
-      config,
-      paths,
-      request,
-      phase,
-      line,
-      aside,
-    );
+    const appWasRunning = await restoreArchive(config, paths, request, phase, line, aside);
     phase('done');
     done('succeeded', null, setAside, appWasRunning);
     rmSync(file, { force: true });
@@ -159,21 +157,12 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
   } catch (error) {
     const refusal = error instanceof Refusal ? error : new Refusal('borg_failed', String(error), 5);
     line(oneLine(refusal.message));
-    done('failed', refusal.code, refusal instanceof SetAsideRefusal ? refusal.setAside : []);
+    done('failed', refusal.code, setAside);
     rmSync(requestFile(paths, restoreId), { force: true });
     emit(`@@error code=${refusal.code}`);
     return refusal.exitCode;
   } finally {
     release?.();
-  }
-}
-
-/** A failure after the restore itself (the app not started again): where the old folders went is still reported. */
-class SetAsideRefusal extends Refusal {
-  readonly setAside: string[];
-  constructor(code: string, message: string, setAside: string[]) {
-    super(code, message, 5);
-    this.setAside = setAside;
   }
 }
 
@@ -183,8 +172,8 @@ async function restoreArchive(
   request: RestoreRequest,
   phase: (name: string) => void,
   line: (text: string) => void,
-  aside: (setAside: string[]) => void,
-): Promise<{ setAside: string[]; appWasRunning: boolean }> {
+  aside: (folders: string[]) => void,
+): Promise<boolean> {
   const plan = loadPlan(config, paths);
   const item = plan.items.find((i) => i.id === request.itemId)!;
   const repo = openRepository(config, paths, plan);
@@ -254,6 +243,8 @@ async function restoreArchive(
     wasRunning = ps.code === 0 && ps.stdout.trim().length > 0;
   }
   const moved: { from: string; to: string }[] = [];
+  /** What the job file was told is set aside (the one being moved included). */
+  let told: string[] = [];
   /** Sources that weren't there before: on a failure, what was extracted of them goes. */
   const created: string[] = [];
   const result: ItemResult = {
@@ -287,9 +278,10 @@ async function restoreArchive(
       // Recorded before it happens: `discard` deletes only what's on this list.
       list.push({ path: to, restoreId: request.restoreId });
       writeSetAside(paths, list);
+      told = [...moved.map((m) => m.to), to];
+      aside(told);
       renameSync(source, to);
       moved.push({ from: source, to });
-      aside(moved.map((m) => m.to));
     }
     const extract = await borg(
       config,
@@ -301,18 +293,28 @@ async function restoreArchive(
     if (extract.code >= 2) throw new Refusal(borgFailure(extract.logs), 'borg extract failed', 5);
   } catch (error) {
     failure = error instanceof Refusal ? error : new Refusal('borg_failed', String(error), 5);
-    // The way back: the partly restored folders go, the set-aside ones return.
-    const returned = new Set(moved.map((m) => m.to));
+    // The way back: the partly restored folders go, the set-aside ones return. Telling the job
+    // file is best effort here: the folders going back comes first.
+    let last = told;
+    const tell = (folders: string[]) => {
+      last = folders;
+      try {
+        aside(folders);
+      } catch {
+        // The list a restore killed now would report is too long, never too short.
+      }
+    };
     while (moved.length > 0) {
       const { from, to } = moved.pop()!;
       rmSync(from, { recursive: true, force: true });
       renameSync(to, from);
-      aside(moved.map((m) => m.to));
+      tell(moved.map((m) => m.to));
     }
+    if (last.length > 0) tell([]);
     for (const path of created) rmSync(path, { recursive: true, force: true });
     writeSetAside(
       paths,
-      readSetAside(paths).filter((e) => !returned.has(e.path)),
+      readSetAside(paths).filter((e) => !told.includes(e.path)),
     );
   } finally {
     if (wasRunning) {
@@ -321,11 +323,10 @@ async function restoreArchive(
     }
   }
   if (failure) throw failure;
-  const setAside = moved.map((m) => m.to);
-  if (result.errorCode) {
-    throw new SetAsideRefusal(result.errorCode, 'the app could not be started again', setAside);
-  }
-  return { setAside, appWasRunning: wasRunning };
+  // The restore itself is done: the folders set aside are still reported.
+  if (result.errorCode)
+    throw new Refusal(result.errorCode, 'the app could not be started again', 5);
+  return wasRunning;
 }
 
 /** The folders an archive holds, from the comment its backup wrote; null without one. */

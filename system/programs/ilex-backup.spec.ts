@@ -965,6 +965,15 @@ describe('ilex-backup restore', () => {
     expect(list.map((e: any) => e.path)).toEqual(setAside);
   });
 
+  it('restored, but the app won’t start again: a failure that still reports the previous version', async () => {
+    writeFileSync(join(dir, 'exit-start.txt'), '1');
+    const result = await restore(restoreInput());
+    expect(result.code).toBe(5);
+    expect(done()).toMatchObject({ status: 'failed', errorCode: 'service_not_restarted' });
+    expect(done()!.setAside).toHaveLength(2);
+    expect(existsSync(join(storage, 'demo', 'data', 'restored.txt'))).toBe(true);
+  });
+
   it('a failed extraction says the set-aside folders went back', async () => {
     writeFileSync(join(dir, 'exit-extract.txt'), '2');
     await restore(restoreInput());
