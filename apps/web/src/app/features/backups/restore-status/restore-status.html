@@ -83,16 +83,19 @@
             </li>
           }
         </ul>
-        <button
-          hlmBtn
-          variant="outline"
-          size="sm"
-          class="justify-self-start"
-          [disabled]="pending() || restore().status === 'running'"
-          (click)="discard.emit()"
-        >
-          {{ 'backups.restore.discard' | translate }}
-        </button>
+        <!-- Interrupted: it may be the only whole copy, so it's not deleted from here. -->
+        @if (restore().status !== 'interrupted') {
+          <button
+            hlmBtn
+            variant="outline"
+            size="sm"
+            class="justify-self-start"
+            [disabled]="pending() || restore().status === 'running'"
+            (click)="discard.emit()"
+          >
+            {{ 'backups.restore.discard' | translate }}
+          </button>
+        }
       </div>
     }
   </div>

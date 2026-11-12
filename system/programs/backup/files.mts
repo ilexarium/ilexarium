@@ -74,14 +74,19 @@ export class JobFile {
       if (this.bytes + line.length > JOB_LINES_MAX_BYTES) return;
       this.bytes += line.length;
     }
-    appendFileSync(this.file, line);
+    this.append(line, false);
   }
 
   /** On the disk before going on: it must outlive a power loss (what a restore has moved). */
   syncedEvent(event: Record<string, unknown>): void {
+    this.append(`${JSON.stringify(event)}\n`, true);
+  }
+
+  private append(line: string, sync: boolean): void {
+    if (!sync) return appendFileSync(this.file, line);
     const fd = openSync(this.file, 'a');
     try {
-      appendFileSync(fd, `${JSON.stringify(event)}\n`);
+      appendFileSync(fd, line);
       fsyncSync(fd);
     } finally {
       closeSync(fd);

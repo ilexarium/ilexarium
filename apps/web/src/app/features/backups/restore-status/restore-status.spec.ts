@@ -86,6 +86,7 @@ describe('RestoreStatus', () => {
     expect(text(fixture)).toContain('The restore was interrupted.');
     expect(text(fixture)).toContain('may be incomplete');
     expect(text(fixture)).toContain('data.before-restore');
+    expect(text(fixture)).not.toContain('Delete previous version');
   });
 
   it('an app that was running: offers to apply the restored settings', async () => {
