@@ -68,7 +68,14 @@
     }
     @if (restore().setAside.length > 0 && !restore().setAsideDeleted) {
       <div class="grid gap-2 rounded-md border p-3 text-sm">
-        <p>{{ 'backups.restore.setAside' | translate }}</p>
+        <p>
+          {{
+            (restore().status === 'interrupted'
+              ? 'backups.restore.setAsideInterrupted'
+              : 'backups.restore.setAside'
+            ) | translate
+          }}
+        </p>
         <ul class="grid gap-1">
           @for (path of restore().setAside; track path) {
             <li>

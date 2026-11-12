@@ -141,7 +141,17 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
     if (request.restoreId !== restoreId) throw new Refusal('invalid_request', 'another restore');
     // A backup run may hold the lock: a restore waits for it, like a scheduled run would.
     release = await takeLock(paths, true);
-    const { setAside, appWasRunning } = await restoreArchive(config, paths, request, phase, line);
+    // Each folder set aside is in the job file as soon as it's moved: a restore killed before its
+    // end (kill -9, power loss) still tells the app where the previous version is.
+    const aside = (setAside: string[]) => events.syncedEvent({ type: 'setAside', setAside });
+    const { setAside, appWasRunning } = await restoreArchive(
+      config,
+      paths,
+      request,
+      phase,
+      line,
+      aside,
+    );
     phase('done');
     done('succeeded', null, setAside, appWasRunning);
     rmSync(file, { force: true });
@@ -173,6 +183,7 @@ async function restoreArchive(
   request: RestoreRequest,
   phase: (name: string) => void,
   line: (text: string) => void,
+  aside: (setAside: string[]) => void,
 ): Promise<{ setAside: string[]; appWasRunning: boolean }> {
   const plan = loadPlan(config, paths);
   const item = plan.items.find((i) => i.id === request.itemId)!;
@@ -278,6 +289,7 @@ async function restoreArchive(
       writeSetAside(paths, list);
       renameSync(source, to);
       moved.push({ from: source, to });
+      aside(moved.map((m) => m.to));
     }
     const extract = await borg(
       config,
@@ -290,16 +302,18 @@ async function restoreArchive(
   } catch (error) {
     failure = error instanceof Refusal ? error : new Refusal('borg_failed', String(error), 5);
     // The way back: the partly restored folders go, the set-aside ones return.
-    for (const { from, to } of moved.reverse()) {
+    const returned = new Set(moved.map((m) => m.to));
+    while (moved.length > 0) {
+      const { from, to } = moved.pop()!;
       rmSync(from, { recursive: true, force: true });
       renameSync(to, from);
+      aside(moved.map((m) => m.to));
     }
     for (const path of created) rmSync(path, { recursive: true, force: true });
     writeSetAside(
       paths,
-      readSetAside(paths).filter((e) => !moved.some((m) => m.to === e.path)),
+      readSetAside(paths).filter((e) => !returned.has(e.path)),
     );
-    moved.length = 0;
   } finally {
     if (wasRunning) {
       phase('starting');

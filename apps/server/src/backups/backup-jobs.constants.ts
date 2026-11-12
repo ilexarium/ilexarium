@@ -64,11 +64,12 @@ const checkDoneSchema = z.object({
   startedAt: time,
   finishedAt: time,
 });
+const setAside = z.array(z.string().max(4096)).max(100);
 const restoreDoneSchema = z.object({
   type: z.literal('restoreDone'),
   status: z.enum(['succeeded', 'failed']),
   errorCode,
-  setAside: z.array(z.string().max(4096)).max(100),
+  setAside,
   appWasRunning: z.boolean().default(false),
 });
 
@@ -80,6 +81,8 @@ export const jobEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('phase'), phase: backupRestorePhaseSchema }),
   z.object({ type: z.literal('line'), itemId: uuid.optional(), text: z.string().max(4000) }),
   z.object({ type: z.literal('itemDone'), result: itemResultSchema }),
+  // A restore's folders set aside so far (its end repeats them).
+  z.object({ type: z.literal('setAside'), setAside }),
   runDoneSchema,
   checkDoneSchema,
   restoreDoneSchema,

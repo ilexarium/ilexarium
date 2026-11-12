@@ -979,6 +979,7 @@
       "succeeded": "Restored.",
       "wentTo": "Restored to",
       "setAside": "The previous version is kept here until you delete it:",
+      "setAsideInterrupted": "The restore didn’t finish, so the folders may be incomplete. The version from before the restore is kept here: restore again, or move it back yourself.",
       "discard": "Delete previous version",
       "discarded": "The previous version was deleted.",
       "discardFailed": "Couldn't delete the previous version",
