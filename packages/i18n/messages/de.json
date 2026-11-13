@@ -1193,6 +1193,7 @@
       "usernameHelp": "Leer lassen, wenn der Server keine Anmeldung braucht.",
       "password": "Passwort",
       "passwordSet": "Ein Passwort ist gespeichert. Leer lassen, um es zu behalten.",
+      "passwordAgain": "Anderer Server, Port oder Benutzername: Gib das Passwort erneut ein.",
       "from": "Absender",
       "to": "Empfänger"
     },
@@ -1205,7 +1206,7 @@
       "topicSet": "Ein Topic ist gespeichert. Leer lassen, um es zu behalten.",
       "token": "Zugangstoken (optional)",
       "tokenHelp": "Für gesperrte Topics auf deinem eigenen Server oder mit einem bezahlten Konto.",
-      "tokenSet": "Ein Token ist gespeichert. Leer lassen, um es zu behalten.",
+      "tokenSet": "Ein Token ist gespeichert. Leer lassen, um es für denselben Server zu behalten; für einen anderen Server gib es erneut ein.",
       "clearToken": "Gespeichertes Token entfernen",
       "plainHttp": "Unverschlüsseltes http:// geht nur im eigenen Netzwerk, und das Token wird dort nicht verschlüsselt.",
       "ios": "iPhone mit eigenem Server: setze upstream-base-url in den Einstellungen des Servers, sonst kommen Nachrichten verspätet an."

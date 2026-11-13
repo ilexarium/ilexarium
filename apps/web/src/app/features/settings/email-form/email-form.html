@@ -78,7 +78,11 @@
             />
             <ilex-password-toggle [(visible)]="showPassword" />
           </div>
-          @if (settings()?.passwordSet) {
+          @if (passwordAgain()) {
+            <p hlmFieldDescription class="text-warning">
+              {{ 'notifications.email.passwordAgain' | translate }}
+            </p>
+          } @else if (settings()?.passwordSet) {
             <p hlmFieldDescription>{{ 'notifications.email.passwordSet' | translate }}</p>
           }
           <ilex-field-errors [field]="form.password" />
