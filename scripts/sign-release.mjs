@@ -3,20 +3,13 @@
 // Usage: npm run release:sign -- --key <release.key> [--notes <file.md>] [--allow-key-change]
 //        [--version <x.y.z>] (another than package.json's: a release repacked by the install test)
 import { execFileSync } from 'node:child_process';
-import { createPrivateKey, createHash } from 'node:crypto';
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { createPrivateKey } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { parsePublicKey, verifySignature } from '../system/programs/lib/minisign.mts';
+import { manifestFile } from './lib/manifest.mjs';
 import { publicKeyFile, signatureFile } from './lib/minisign.mjs';
 import { passphrase } from './lib/passphrase.mjs';
 
@@ -63,18 +56,12 @@ const out = join(ROOT, 'release', `v${version}`);
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 copyFileSync(archive, join(out, archiveName));
-const manifest = {
+if (values.notes) copyFileSync(values.notes, join(out, 'NOTES.md'));
+const manifestBytes = manifestFile({
   version,
-  published: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
-  archive: archiveName,
-  sha256: createHash('sha256').update(readFileSync(archive)).digest('hex'),
-  size: statSync(archive).size,
-};
-if (values.notes) {
-  copyFileSync(values.notes, join(out, 'NOTES.md'));
-  manifest.notes = 'NOTES.md';
-}
-const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
+  archive: readFileSync(archive),
+  notes: Boolean(values.notes),
+});
 const signature = signatureFile(privateKey, manifestBytes, 'manifest.json');
 if (!verifySignature(parsePublicKey(publicFile), signature, manifestBytes)) {
   throw new Error('The new signature does not check out');
