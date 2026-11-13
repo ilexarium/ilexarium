@@ -10,6 +10,7 @@ import {
   type AlertChannelsResponse,
   type EmailChannelForm,
   emailChannelFormSchema,
+  sameEmailDestination,
 } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
@@ -30,7 +31,8 @@ const DEFAULT_PORT = 587;
 
 /**
  * The mail server's settings: switched on or off, server, port, login, sender and recipient. The
- * password never comes back from the server: "saved", and an empty field keeps it.
+ * password never comes back from the server: "saved", and an empty field keeps it — for the same
+ * server, port and user name only.
  */
 @Component({
   selector: 'ilex-email-form',
@@ -64,6 +66,17 @@ export class EmailForm implements OnInit {
   protected readonly testing = computed(() =>
     this.notificationsPageStore.testing().includes('email'),
   );
+  /** The saved password goes only to the server, port and user name it was entered for. */
+  protected readonly passwordAgain = computed(() => {
+    const saved = this.settings();
+    const typed = this.model();
+    return (
+      !!saved?.passwordSet &&
+      !!typed.username.trim() &&
+      !typed.password &&
+      !sameEmailDestination(saved, typed)
+    );
+  });
   protected readonly lastFailure = computed(() => {
     const failure = this.settings()?.lastFailure;
     if (!failure) return null;

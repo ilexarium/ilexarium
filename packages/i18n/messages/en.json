@@ -1194,6 +1194,7 @@
       "usernameHelp": "Leave empty if the server needs no login.",
       "password": "Password",
       "passwordSet": "A password is saved. Leave empty to keep it.",
+      "passwordAgain": "Another server, port or user name: enter the password again.",
       "from": "Sender",
       "to": "Recipient"
     },
@@ -1206,7 +1207,7 @@
       "topicSet": "A topic is saved. Leave empty to keep it.",
       "token": "Access token (optional)",
       "tokenHelp": "For locked topics on your own server or a paid account.",
-      "tokenSet": "A token is saved. Leave empty to keep it.",
+      "tokenSet": "A token is saved. Leave empty to keep it for the same server; for another server, enter it again.",
       "clearToken": "Remove the saved token",
       "plainHttp": "Plain http:// works only on your own network, and the token isn't encrypted there.",
       "ios": "iPhone with your own server: set upstream-base-url in the server's settings, or messages arrive late."
