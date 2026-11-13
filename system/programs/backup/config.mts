@@ -67,7 +67,8 @@ export function loadConfig(): Config {
         absolute(dev.dir) &&
         absolute(dev.mountInfo) &&
         Array.isArray(dev.destinationRoots) &&
-        dev.destinationRoots.every(absolute));
+        dev.destinationRoots.every(absolute) &&
+        (dev.askedBy === undefined || (Number.isInteger(dev.askedBy) && dev.askedBy >= 0)));
   if (!valid) throw new Refusal('setup', `invalid configuration ${path}`, 6);
   return config;
 }

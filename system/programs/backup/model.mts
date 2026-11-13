@@ -26,6 +26,8 @@ export interface BackupConfig {
     mountInfo: string;
     lockWaitMs?: number;
     retryDelayMs?: number;
+    /** Who asked (a uid), instead of this account — root mode goes by whose sudo started it. */
+    askedBy?: number;
   };
 }
 
