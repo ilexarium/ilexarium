@@ -294,7 +294,7 @@ describe('alerts (e2e)', () => {
       .expect(400);
   });
 
-  it('sends a message when an alert opens and when it closes', async () => {
+  it('sends a message when an alert opens and when it closes; one not delivered doesn’t count as sent', async () => {
     await api().put('/alerts/channels/ntfy', { enabled: true, topicUrl: topicUrl() }).expect(204);
     const condition = {
       kind: 'serviceDown' as const,
@@ -314,5 +314,19 @@ describe('alerts (e2e)', () => {
     expect(ntfy.messages[1].body).toMatchObject({
       title: 'Resolved: ilex-postgres has stopped',
     });
+
+    ntfy.status = 503;
+    await records.reconcile(
+      ['diskFull'],
+      [{ kind: 'diskFull', subject: '/mnt/usb', severity: 'warning', details: { percent: 93 } }],
+    );
+    await vi.waitFor(async () =>
+      expect(
+        ((await api().get('/alerts/channels')).body as AlertChannelsResponse).ntfy!.lastFailure,
+      ).toMatchObject({ channel: 'ntfy', problem: 'failed' }),
+    );
+    expect(
+      (await prisma.alert.findFirstOrThrow({ where: { kind: 'diskFull' } })).lastSentAt,
+    ).toBeNull();
   });
 });

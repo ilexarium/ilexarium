@@ -87,7 +87,7 @@ export class AlertRecords implements OnModuleInit {
     });
   }
 
-  /** A message was sent for it (opened, or a reminder). */
+  /** A message for it reached a channel (opened, or a reminder). */
   markSent(id: string, at: Date): Promise<void> {
     return this.serially(async () => {
       await this.prisma.alert.update({ where: { id }, data: { lastSentAt: at } });
@@ -98,19 +98,19 @@ export class AlertRecords implements OnModuleInit {
   }
 
   /**
-   * Critical alerts open and not acknowledged: last sent more than a day ago (reminded once a day),
-   * or never sent and open for a while (no channel was switched on when they opened; the wait
-   * leaves the opening message time to go first).
+   * Alerts open and not acknowledged: never sent and open for a while, whatever their severity (no
+   * channel was switched on, or every channel failed; the wait leaves the opening message and its
+   * retry time to go first), or critical and last sent more than a day ago (reminded once a day).
    */
   async dueReminders(now: Date): Promise<OpenAlert[]> {
     await this.load();
     return [...this.openAlerts.values()].filter(
       (alert) =>
-        alert.severity === 'critical' &&
         !alert.acknowledgedAt &&
         (alert.lastSentAt === null
           ? now.getTime() - alert.openedAt.getTime() >= NEVER_SENT_AFTER_MS
-          : now.getTime() - alert.lastSentAt.getTime() >= 86_400_000),
+          : alert.severity === 'critical' &&
+            now.getTime() - alert.lastSentAt.getTime() >= 86_400_000),
     );
   }
 

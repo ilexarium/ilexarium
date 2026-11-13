@@ -38,7 +38,7 @@ export const CLOSED_SHOWN_DAYS = 7;
 
 export const CLOSED_SHOWN_MAX = 50;
 
-/** A critical alert never sent is sent as a reminder after this long. */
+/** An alert whose message never got through is sent again after this long, then at every reminder check until it does. */
 export const NEVER_SENT_AFTER_MS = 15 * 60_000;
 
 export const SEVERITY_RANK: Record<AlertSeverity, number> = { warning: 0, critical: 1 };
