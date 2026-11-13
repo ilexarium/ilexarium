@@ -1,7 +1,7 @@
 import { Subject } from 'rxjs';
 import type { AlertChannels } from './alert-channels.js';
 import { AlertNotifier } from './alert-notifier.js';
-import { REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.js';
+import { HOUR_MS, REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.js';
 import type { AlertRecords } from './alert-records.js';
 import type { AlertEvent, AlertMessage, ChannelConfig, OpenAlert } from './alerts.model.js';
 
@@ -42,6 +42,12 @@ describe('AlertNotifier', () => {
   let tries: ChannelConfig['kind'][];
   /** While set, a channel answers only once it resolves. */
   let answerAfter: Promise<void> | null;
+  /** Channels that take every message but answer too late: they count as timed out. */
+  let late: Set<ChannelConfig['kind']>;
+  /** When each message arrived at a channel, delivered or timed out. */
+  let arrivedAt: number[];
+  /** Messages whose title matches are refused, whatever the channel. */
+  let refuse: RegExp | null;
   let reminders: OpenAlert[];
   let notifier: AlertNotifier;
 
@@ -55,11 +61,15 @@ describe('AlertNotifier', () => {
     down = new Set();
     tries = [];
     answerAfter = null;
+    late = new Set();
+    arrivedAt = [];
+    refuse = null;
     reminders = [];
     const records = {
       events$: events.asObservable(),
       markSent: async (id: string) => void marked.push(id),
       dueReminders: async () => reminders.filter((a) => !marked.includes(a.id)),
+      open: async () => reminders,
     } as unknown as AlertRecords;
     const channels = {
       enabled: async () => enabled,
@@ -67,6 +77,12 @@ describe('AlertNotifier', () => {
         tries.push(config.kind);
         await answerAfter;
         if (down.has(config.kind)) return 'unreachable';
+        if (refuse?.test(message.title)) return 'rejected';
+        arrivedAt.push(Date.now());
+        if (late.has(config.kind)) {
+          sent.push(message);
+          return 'timedOut';
+        }
         if (failNext > 0) {
           failNext--;
           return 'unreachable';
@@ -190,6 +206,8 @@ describe('AlertNotifier', () => {
     down.clear();
     reminders = [alert('immich', { kind: 'unhealthy', severity: 'warning' })];
     await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS);
+    expect(sent).toEqual([]); // 10 minutes after its last try: not yet
+    await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS);
     // Its opening message, the one never delivered — not a reminder.
     expect(sent.map((m) => [m.title, m.severity])).toEqual([
       ['immich is unhealthy', 'warning'],
@@ -247,6 +265,7 @@ describe('AlertNotifier', () => {
       await settle();
     }
     reminders = Array.from({ length: 10 }, (_, i) => alert(`svc-${i}`));
+    // Rounds at 20 and 30 minutes try svc-0 and svc-1 once more; both fail.
     await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS * 3 + RETRY_AFTER_MS);
     expect(sent).toEqual([]);
 
@@ -254,14 +273,81 @@ describe('AlertNotifier', () => {
     events.next({ type: 'opened', alert: alert('new') });
     await settle();
     expect(sent.map((m) => m.title)).toEqual(['new has stopped']);
-    await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS);
-    // 9 more in this hour; the tenth waits for the hour.
+    // At 40 minutes svc-2 to svc-9; at 50 svc-0 (its gap is 30 minutes now): 10 in the hour.
+    await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS * 2);
     expect(sent).toHaveLength(10);
-    expect(marked).not.toContain('id-svc-9');
-    await vi.advanceTimersByTimeAsync(3_600_000);
+    // svc-1 is due at 60 minutes but the hour's 10 are used: held until the hour allows.
+    await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS);
+    expect(sent).toHaveLength(10);
+    expect(marked).not.toContain('id-svc-1');
+    await vi.advanceTimersByTimeAsync(HOUR_MS);
     expect(sent).toHaveLength(11);
-    expect(sent[10].title).toBe('svc-9 has stopped');
-    expect(marked).toContain('id-svc-9');
+    expect(sent[10].title).toBe('svc-1 has stopped');
+    expect(marked).toContain('id-svc-1');
+  });
+
+  it('a channel that takes messages but answers too late gets an alert’s message after a growing gap, at most every 4 hours', async () => {
+    late = new Set(['ntfy']);
+    events.next({ type: 'opened', alert: alert('immich') });
+    await settle();
+    reminders = [alert('immich')];
+    // Tried at 0, 20 min, 50 min, 1 h 50, 3 h 50, then every 4 hours; never again a minute later.
+    await vi.advanceTimersByTimeAsync(24 * HOUR_MS);
+    expect(sent).toHaveLength(10);
+    await vi.advanceTimersByTimeAsync(24 * HOUR_MS);
+    expect(sent).toHaveLength(16);
+    expect(marked).toEqual([]);
+  });
+
+  it('the receiving side gets at most 10 an hour, even from a channel that answers too late', async () => {
+    late = new Set(['ntfy']);
+    reminders = Array.from({ length: 25 }, (_, i) => alert(`svc-${i}`));
+    for (const each of reminders) {
+      events.next({ type: 'opened', alert: each });
+      await settle();
+    }
+    await vi.advanceTimersByTimeAsync(12 * HOUR_MS);
+    const mostInAnHour = Math.max(
+      ...arrivedAt.map((at) => arrivedAt.filter((t) => t >= at && t < at + HOUR_MS).length),
+    );
+    expect(mostInAnHour).toBe(10);
+    expect(arrivedAt.length).toBeGreaterThan(30);
+  });
+
+  it('one message no channel takes doesn’t hold up the others in the reminder round', async () => {
+    refuse = /stuck/;
+    reminders = [
+      alert('stuck'),
+      alert('jellyfin', { kind: 'unhealthy', severity: 'warning' }),
+      alert('immich', { lastSentAt: new Date(Date.now() - 86_400_000) }),
+    ];
+    // Round 1 tries the stuck one first and ends; round 2 starts with those not tried yet.
+    await vi.advanceTimersByTimeAsync(REMINDER_CHECK_MS * 2);
+    expect(sent.map((m) => m.title)).toEqual([
+      'jellyfin is unhealthy',
+      'Still: immich has stopped',
+    ]);
+    expect(marked).toEqual(['id-jellyfin', 'id-immich']);
+  });
+
+  it('the gap starts again after a message got through', async () => {
+    down = new Set(['ntfy']);
+    reminders = [alert('immich', { lastSentAt: new Date(Date.now() - 86_400_000) })];
+    // Tried at 10, 30 and 60 minutes (each with its retry a minute later), all failing.
+    await vi.advanceTimersByTimeAsync(61 * 60_000);
+    expect(tries).toHaveLength(6);
+    down.clear();
+    // Next due 60 minutes after the last try.
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(sent.map((m) => m.title)).toEqual(['Still: immich has stopped']);
+
+    // A day later its reminder fails again: tried at once, then after 15 minutes (not 2 hours),
+    // each with its retry.
+    tries = [];
+    marked = [];
+    down = new Set(['ntfy']);
+    await vi.advanceTimersByTimeAsync(30 * 60_000);
+    expect(tries).toEqual(['ntfy', 'ntfy', 'ntfy', 'ntfy']);
   });
 
   it('tries nothing more after shutdown, even for a message whose delivery was under way', async () => {
