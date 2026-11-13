@@ -181,7 +181,8 @@ async function restoreArchive(
     capture: true,
   });
   if (info.code !== 0) {
-    throw new Refusal(borgFailure(info, 'archive_not_found'), 'no such archive', 5);
+    const why = info.signal ? failedLine('borg info', info) : 'no such archive';
+    throw new Refusal(borgFailure(info, 'archive_not_found'), why, 5);
   }
 
   if (request.target !== null) {
