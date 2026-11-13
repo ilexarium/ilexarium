@@ -1,9 +1,12 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -76,16 +79,113 @@ describe('the installer’s machine checks', () => {
   });
 });
 
-// A script over the installer's own files: $1 common.sh, $2 checks.sh, $3 platform.sh.
+// A script over the installer's own files: $1 common.sh, $2 checks.sh, $3 platform.sh,
+// $4 packages.sh.
 const script = (body: string, env: Record<string, string> = {}) =>
   spawnSync(
     'bash',
-    ['-c', `source "$1"; source "$2"; source "$3"; ${body}`, '_', COMMON, CHECKS, PLATFORM],
+    [
+      '-c',
+      `source "$1"; source "$2"; source "$3"; source "$4"; ${body}`,
+      '_',
+      COMMON,
+      CHECKS,
+      PLATFORM,
+      PACKAGES,
+    ],
     {
       encoding: 'utf8',
       env: { ...process.env, ...env },
     },
   );
+
+describe('the installer’s questions', () => {
+  it('--yes answers them and keeps each question in the output', () => {
+    const run = script('UPDATE=0 ASSUME_YES=1; confirm "Install Something (from somewhere)?"');
+    expect(run.status).toBe(0);
+    expect(run.stdout).toBe('    Install Something (from somewhere)? yes (--yes)\n');
+  });
+
+  it('the question about Borg names where it comes from on each system', () => {
+    // No Borg on the machine, and no terminal: the installer stops with its question.
+    const asked = (os: string, version: string) =>
+      script('borg() { return 127; }; UPDATE=0 ASSUME_YES=0; ensure_borg', {
+        OS_ID: os,
+        OS_VERSION: version,
+      }).stderr;
+    expect(asked('ubuntu', '24.04')).toContain(
+      "Install Borg 1.4 for backups (the Borg project's own build 1.4.5 from github.com/borgbackup/borg, checked against the SHA-256 in this installer)? — run again with --yes",
+    );
+    expect(asked('debian', '13')).toContain("Install Borg 1.4 for backups (Debian's package)?");
+    expect(asked('debian', '12')).toContain(
+      "Install Borg 1.4 for backups (Debian's package from bookworm-backports)?",
+    );
+    expect(asked('arch', '')).toContain("Install Borg 1.4 for backups (Arch's package)?");
+  });
+});
+
+describe('Borg on Ubuntu 24.04: the Borg project’s own build', () => {
+  it('one exact file per CPU, with its SHA-256; none for any other CPU', () => {
+    expect(call('borg_build', 'amd64')).toBe(
+      'borg-linux-glibc231-x86_64.tgz b6cba6b5eee19d51fbf4d89c6090dd40647b856755fffe2e26417365536f2c58',
+    );
+    expect(call('borg_build', 'arm64')).toBe(
+      'borg-linux-glibc235-arm64-gh.tgz 579d977d4eafd5761aee51e4a5bd3c52a5533a4391393d465324f675d14d3bd9',
+    );
+    expect(call('borg_build', 'armhf')).toBe('');
+  });
+
+  // A build shaped like the release's (one folder, borg-dir), served by a fake curl that notes the
+  // address it was asked for; chown is a no-op (the test isn't root).
+  const dir = mkdtempSync(join(tmpdir(), 'ilex-install-borg-'));
+  mkdirSync(join(dir, 'src', 'borg-dir'), { recursive: true });
+  writeFileSync(join(dir, 'src', 'borg-dir', 'borg.exe'), '#!/bin/sh\necho borg 1.4.5\n', {
+    mode: 0o755,
+  });
+  execFileSync('tar', ['-czf', join(dir, 'build.tgz'), '-C', join(dir, 'src'), 'borg-dir']);
+  const buildSum = createHash('sha256')
+    .update(readFileSync(join(dir, 'build.tgz')))
+    .digest('hex');
+  const install = (sum: string) => {
+    spawnSync('rm', [
+      '-rf',
+      join(dir, 'lib'),
+      join(dir, 'bin'),
+      join(dir, 'tmp'),
+      join(dir, 'url'),
+    ]);
+    for (const folder of ['bin', 'lib', 'tmp']) mkdirSync(join(dir, folder));
+    // Under set -e, as install.sh runs.
+    return script(
+      'set -e; curl() { printf %s "${@: -1}" >"$DIR/url"; cp "$DIR/build.tgz" "${@: -2:1}"; }; chown() { :; }; ' +
+        'BORG_HOME="$DIR/lib/borg" BORG_LINK="$DIR/bin/borg"; ' +
+        'install_borg_build borg-linux-glibc235-arm64-gh.tgz "$SUM"',
+      { DIR: dir, SUM: sum, TMPDIR: join(dir, 'tmp') },
+    );
+  };
+
+  it('installs the build from the Borg project’s release page, linked as borg', () => {
+    const run = install(buildSum);
+    expect(run.status).toBe(0);
+    expect(readFileSync(join(dir, 'url'), 'utf8')).toBe(
+      'https://github.com/borgbackup/borg/releases/download/1.4.5/borg-linux-glibc235-arm64-gh.tgz',
+    );
+    expect(readlinkSync(join(dir, 'bin', 'borg'))).toBe(join(dir, 'lib', 'borg', 'borg.exe'));
+    expect(execFileSync(join(dir, 'bin', 'borg'), { encoding: 'utf8' })).toBe('borg 1.4.5\n');
+    expect(readdirSync(join(dir, 'tmp'))).toEqual([]);
+  });
+
+  it('refuses a download whose SHA-256 is not the one written in the installer', () => {
+    const run = install('0'.repeat(64));
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain(
+      'The downloaded borg-linux-glibc235-arm64-gh.tgz is not the Borg 1.4.5 build this installer knows (its SHA-256 differs): nothing was installed',
+    );
+    expect(existsSync(join(dir, 'lib', 'borg'))).toBe(false);
+    expect(existsSync(join(dir, 'bin', 'borg'))).toBe(false);
+    expect(readdirSync(join(dir, 'tmp'))).toEqual([]);
+  });
+});
 
 describe('the installer’s lock (the root programs’ own)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'ilex-install-lock-'));
