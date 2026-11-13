@@ -11,6 +11,10 @@ import { DENIED_PATHS, inside, isPlainAbsolutePath } from '../lib/paths.mts';
 
 export const below = (path: string, root: string) => path.startsWith(`${root}/`);
 
+/** The folders but those inside another of them, each once (whatever holds them goes with them). */
+export const outermost = (folders: string[]) =>
+  [...new Set(folders)].filter((path) => !folders.some((root) => below(path, root)));
+
 /** Not `/`, not a system or platform folder, neither inside one nor holding one. */
 export function notSystem(config: Config, path: string): boolean {
   return (

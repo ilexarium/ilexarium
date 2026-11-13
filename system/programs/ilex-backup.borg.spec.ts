@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -257,5 +258,36 @@ describe.skipIf(!BORG)('ilex-backup with the real Borg', () => {
       target: join(dir, 'restored-again'),
     });
     expect(again.out).toContain('@@error code=archive_not_found');
+  }, 60_000);
+
+  it('an app with a folder inside another: backed up once, hard links too; restored whole in place', async () => {
+    const data = join(storage, 'demo', 'data');
+    const sub = join(data, 'sub');
+    mkdirSync(sub);
+    writeFileSync(join(sub, 'photo.jpg'), 'photo 1');
+    linkSync(join(sub, 'photo.jpg'), join(sub, 'linked.jpg'));
+    const plan = JSON.parse(readFileSync(join(dev, 'backup.json'), 'utf8'));
+    plan.items[1].folders = [data, sub];
+    expect((await wrapper('configure', plan)).code).toBe(0);
+    const backup = await wrapper([
+      'run-requested',
+      `55555555-5555-4555-8555-555555555554_${SERVICE}`,
+    ]);
+    expect(backup.code, backup.out).toBe(0);
+    writeFileSync(join(sub, 'photo.jpg'), 'broken');
+
+    const id = '66666666-6666-4666-8666-666666666665';
+    const result = await restore({
+      restoreId: id,
+      itemId: SERVICE,
+      archive: runs().at(-1)!.items[0].archive,
+      target: null,
+    });
+    expect(result.code, result.out).toBe(0);
+    expect(readFileSync(join(sub, 'photo.jpg'), 'utf8')).toBe('photo 1');
+    expect(statSync(join(sub, 'linked.jpg')).ino).toBe(statSync(join(sub, 'photo.jpg')).ino);
+    const setAside = restoreDone(id).setAside as string[];
+    expect(setAside).toEqual([expect.stringMatching(/\/data\.before-restore-/)]);
+    expect(readFileSync(join(setAside[0], 'sub', 'photo.jpg'), 'utf8')).toBe('broken');
   }, 60_000);
 });

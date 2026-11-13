@@ -17,7 +17,7 @@ import type {
   Ran,
   Repository,
 } from './model.mts';
-import { allowedFolder, overlaps, resolveSource } from './places.mts';
+import { allowedFolder, outermost, overlaps, resolveSource } from './places.mts';
 import { ARCHIVE_PATTERN, loadPlan } from './plan.mts';
 import {
   borg,
@@ -313,7 +313,9 @@ export async function backupItem(
           JSON.stringify(sources),
           ...excludes,
           `${repo.path}::${name}`,
-          ...sources,
+          // A folder inside another one only once, with it: given both, Borg stores it a second
+          // time, its hard links then as links to themselves, which no extraction can restore.
+          ...outermost(sources),
         ],
         { capture: true, onLine: keep },
       );
