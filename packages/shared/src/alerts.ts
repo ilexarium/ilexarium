@@ -137,8 +137,10 @@ export const ALERT_ERROR_CODES = {
   addressRefused: 'address_refused',
   /** ntfy switched on without a topic. */
   topicRequired: 'topic_required',
-  /** A user name without a password. */
+  /** A user name without a password, or without one for another server, port or user name. */
   passwordRequired: 'password_required',
+  /** A topic URL on another server, and the stored token neither entered again nor removed. */
+  tokenRequired: 'token_required',
   auditUnavailable: 'audit_unavailable',
 } as const;
 export type AlertErrorCode = (typeof ALERT_ERROR_CODES)[keyof typeof ALERT_ERROR_CODES];
@@ -197,12 +199,30 @@ export type EmailChannelForm = z.infer<typeof emailChannelFormSchema>;
 
 /**
  * `PUT /alerts/channels/email`. Port 465 is implicit TLS, any other STARTTLS — required, except
- * to a mail server on this machine. No password: the stored one stays.
+ * to a mail server on this machine. No password: the stored one stays, but only for the same
+ * server, port and user name (`sameEmailDestination`).
  */
 export const emailChannelUpdateSchema = emailChannelFormSchema.extend({
   password: emailChannelFormSchema.shape.password.min(1, 'validation.secretInvalid').optional(),
 });
 export type EmailChannelUpdate = z.infer<typeof emailChannelUpdateSchema>;
+
+/**
+ * Whether a stored mail password may go to these settings without being entered again: they decide
+ * where it is sent (server and port — the port also decides implicit TLS or STARTTLS) and as whom.
+ * The server's name is compared without case, as DNS does; anything else, even a trailing dot,
+ * counts as another server.
+ */
+export function sameEmailDestination(
+  saved: Pick<EmailChannelForm, 'host' | 'port' | 'username'>,
+  update: Pick<EmailChannelForm, 'host' | 'port' | 'username'>,
+): boolean {
+  return (
+    saved.host.trim().toLowerCase() === update.host.trim().toLowerCase() &&
+    saved.port === update.port &&
+    saved.username.trim() === update.username.trim()
+  );
+}
 
 /** ntfy's topic names: letters, digits, `-` and `_`. */
 const NTFY_TOPIC = /\/[-_A-Za-z0-9]{1,64}$/;
@@ -239,7 +259,10 @@ export const ntfyChannelFormSchema = z.strictObject({
 });
 export type NtfyChannelForm = z.infer<typeof ntfyChannelFormSchema>;
 
-/** `PUT /alerts/channels/ntfy`. Left out: the stored value stays; `token: null` removes it. */
+/**
+ * `PUT /alerts/channels/ntfy`. Left out: the stored value stays — the token only for a topic URL on
+ * the same server (scheme, name and port); `token: null` removes it.
+ */
 export const ntfyChannelUpdateSchema = z.strictObject({
   enabled: z.boolean(),
   topicUrl: ntfyTopicUrlSchema.optional(),
