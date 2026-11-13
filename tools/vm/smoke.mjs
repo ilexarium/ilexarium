@@ -101,11 +101,11 @@ async function until(name, fn, timeoutMs) {
   done();
 }
 
-/** The first snapshot of a realtime topic. */
-function snapshot(topic) {
+/** The first snapshot of a realtime topic (asked at `address`, the app's by default). */
+function snapshot(topic, address = ADDRESS) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://${ADDRESS}:${PORT}/api/ws`, {
-      headers: { Cookie: cookie, Origin: ORIGIN },
+    const ws = new WebSocket(`ws://${address}:${PORT}/api/ws`, {
+      headers: { Cookie: cookie, Origin: `http://${address}:${PORT}` },
     });
     const timer = setTimeout(
       () => (ws.terminate(), reject(new Error(`no ${topic} snapshot`))),
@@ -327,6 +327,78 @@ async function securitySetup() {
     'the app’s database role reads data, can’t migrate or create',
     role === 'f|f|f|t|f|f',
     role,
+  );
+  await ownPort();
+}
+
+/**
+ * The app's port is systemd's (ilex.socket), on every address the app answers on: an ordinary
+ * account can't take it, not even while ilex.service is stopped, and the next request starts the
+ * app again. With 127.0.0.1 comes ::1 ("localhost"), served by the app too.
+ */
+async function ownPort() {
+  console.log('\nThe app’s port (ilex.socket)');
+  const active = (unit) => !fails('systemctl', ['is-active', '--quiet', unit]);
+  check(
+    'ilex.socket is enabled and listening',
+    active('ilex.socket') && sh('systemctl', ['is-enabled', 'ilex.socket']).trim() === 'enabled',
+  );
+  const listen = sh('systemctl', ['show', '-p', 'Listen', '--value', 'ilex.socket'])
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word !== '(Stream)');
+  // As the generator writes them: HOST (unset: 127.0.0.1), with its loopback partner.
+  const host = HOST || '127.0.0.1';
+  const own = `${host.includes(':') ? `[${host}]` : host}:${PORT}`;
+  const partner = { '127.0.0.1': '[::1]', '0.0.0.0': '[::1]', '::1': '127.0.0.1' }[host];
+  const expected = partner ? [own, `${partner}:${PORT}`] : [own];
+  check(
+    `ilex.socket listens where app.env says (${expected.join(', ')})`,
+    listen.length === expected.length && expected.every((at) => listen.includes(at)),
+    listen.join(' '),
+  );
+  const held = () => {
+    const lines = sh('ss', ['-ltnpH']).split('\n');
+    return listen.every((at) =>
+      lines.some((line) => line.split(/\s+/)[3] === at && /\("systemd",pid=1,/.test(line)),
+    );
+  };
+  check('systemd (pid 1) holds each of them', held(), sh('ss', ['-ltnpH']));
+  if (listen.includes(`[::1]:${PORT}`)) {
+    const answer = await fetch(`http://[::1]:${PORT}/api/health`).catch(() => null);
+    check('the app answers on [::1] too', answer?.status === 200, `${answer?.status}`);
+    const containers = await snapshot('containers', '[::1]').catch((error) => ({ error }));
+    check(
+      'its WebSocket too (one server for both sockets)',
+      containers.dockerAvailable === true,
+      JSON.stringify(containers).slice(0, 200),
+    );
+  }
+
+  ensurePerson();
+  sh('systemctl', ['stop', 'ilex.service'], { stdio: ['ignore', 'pipe', 'ignore'] });
+  check('ilex.service stopped, ilex.socket still listening', !active('ilex.service') && held());
+  for (const at of listen) {
+    const address = at.slice(0, at.lastIndexOf(':')).replace(/^\[|\]$/g, '');
+    for (const reusePort of [false, true]) {
+      const code = `const s = require('node:net').createServer();
+        s.on('error', (e) => console.log(e.code));
+        s.listen({ host: ${JSON.stringify(address)}, port: ${PORT}, reusePort: ${reusePort} }, () => (console.log('BOUND'), s.close()));`;
+      const got = sh('runuser', ['-u', 'anna', '--', '/usr/bin/node', '-e', code]).trim();
+      check(
+        `anna can’t take ${at} while the app is stopped${reusePort ? ' (SO_REUSEPORT)' : ''}`,
+        got === 'EADDRINUSE',
+        got,
+      );
+    }
+  }
+  const woken = await fetch(`${BASE}/api/health`, { signal: AbortSignal.timeout(90_000) }).catch(
+    (error) => ({ status: String(error) }),
+  );
+  check(
+    'a request starts the app again (it waits, no one else answers)',
+    woken.status === 200 && active('ilex.service'),
+    `${woken.status}`,
   );
 }
 
