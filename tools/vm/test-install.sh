@@ -193,11 +193,16 @@ if [[ "$MODE" == vm ]]; then
 fi
 
 # The machine's settings are the person's: on another port, every update must leave them as they
-# are (byte for byte) and find the app there.
+# are (byte for byte) and find the app there. Moved as app.env says: systemd's socket follows, the
+# old port is let go.
 step 'Moving the app to port 3300 (app.env)'
-run_in bash -c "sed -i 's/^PORT=.*/PORT=3300/' /etc/ilex/app.env && systemctl restart ilex &&
+run_in bash -c "sed -i 's/^PORT=.*/PORT=3300/' /etc/ilex/app.env &&
+  systemctl daemon-reload && systemctl restart ilex.socket &&
   sha256sum /etc/ilex/app.env >/root/app.env.sha256 &&
-  for _ in \$(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:3300/api/health && exit 0; sleep 1; done; exit 1" >>"$LOG" 2>&1
+  for _ in \$(seq 1 60); do curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:3300/api/health && break; sleep 1; done &&
+  curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:3300/api/health &&
+  ss -ltnpH 'sport = :3300' | grep -q 'pid=1,' && ! ss -ltnH 'sport = :3000' | grep -q ." >>"$LOG" 2>&1 ||
+  { echo '  FAIL the app and its socket did not move to 3300' | tee -a "$LOG"; exit 1; }
 app_settings_kept() {
   if ! run_in sha256sum --quiet -c /root/app.env.sha256 >>"$LOG" 2>&1; then
     echo "  FAIL app.env changed by $1" | tee -a "$LOG"

@@ -21,6 +21,8 @@ export interface Paths {
   /** Where previous/files/ goes back to: `/`, or the pretend machine. */
   host: string;
   lock: string;
+  /** While it's there, a request to the app's port doesn't start the app (ilex.service waits). */
+  hold: string;
   healthUrl: string;
 }
 

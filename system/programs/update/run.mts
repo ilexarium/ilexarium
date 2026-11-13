@@ -55,8 +55,11 @@ export async function run(
   let from = '';
   let unlock: (() => void) | null = null;
   // Cleaned up and unlocked before the end is written: whoever reads it may start the next thing.
+  // The rollback's hold on the app goes too, also when the rollback broke off (only this update's:
+  // with the lock — an install by hand holds it as well).
   const tidy = () => {
     rmSync(work, { recursive: true, force: true });
+    if (unlock) rmSync(paths.hold, { force: true });
     unlock?.();
     unlock = null;
   };

@@ -114,6 +114,7 @@ P="$R/opt/ilex/previous"
 mkdir -p "$P/files/etc/systemd/system" "$P/files/etc/ilex"
 cp -a "$R/opt/ilex/app" "$P/app"
 cp -a "$R/etc/systemd/system/ilex.service" "$P/files/etc/systemd/system/"
+if [[ -f "$R/etc/systemd/system/ilex.socket" ]]; then cp -a "$R/etc/systemd/system/ilex.socket" "$P/files/etc/systemd/system/"; fi
 cp -a "$R/etc/ilex/version" "$R/etc/ilex/release.env" "$R/etc/ilex/release.pub" "$P/files/etc/ilex/"
 cat "$R/kept-version" 2>/dev/null >"$P/VERSION" || echo 0.1.0 >"$P/VERSION"
 echo "@@phase saved"
@@ -122,6 +123,8 @@ echo 'the dump' >"$R${DUMP}"
 echo "@@dump ${DUMP}"
 echo 'new unit' >"$R/etc/systemd/system/ilex.service"
 echo 'added' >"$R/etc/systemd/system/ilex-added.service"
+echo 'new socket' >"$R/etc/systemd/system/ilex.socket"
+echo 'added' >"$R/etc/systemd/system/ilex-added.socket"
 echo "@@phase migrated"
 if [[ -f "$R/fail-install" ]]; then echo 'Something failed'; exit 1; fi
 echo new >"$R/opt/ilex/app/marker"
@@ -397,6 +400,36 @@ describe('ilex-update run', { timeout: 30_000 }, () => {
       ['reload-or-restart', 'ssh.service'],
       ['start', 'ilex.service'],
     ]);
+  });
+
+  it('holds the app while it puts things back: a request to its port doesn’t start it half-way', async () => {
+    // systemctl as a script that notes whether the hold is there at each call.
+    writeFileSync(
+      join(dir, 'bin/systemctl'),
+      `#!/usr/bin/env bash\nif [[ -e '${root}/updating' ]]; then s=held; else s=free; fi\necho "$* $s" >>'${dir}/systemctl.log'\n`,
+    );
+    publish();
+    writeFileSync(join(root, 'fail-install'), '');
+    const { done } = await update();
+    expect(done).toMatchObject({ outcome: 'rolled_back' });
+    expect(readFileSync(join(dir, 'systemctl.log'), 'utf8')).toBe(
+      'stop ilex.service held\n' +
+        'daemon-reload held\n' +
+        'restart ilex-platform.service held\n' +
+        'reload-or-restart ssh.service held\n' +
+        'start ilex.service free\n',
+    );
+    expect(existsSync(join(root, 'updating'))).toBe(false);
+  });
+
+  it('a socket unit the new version added goes, the kept one comes back', async () => {
+    publish();
+    writeFileSync(join(root, 'fail-install'), '');
+    writeFileSync(join(root, 'etc/systemd/system/ilex.socket'), 'old socket\n');
+    const { done } = await update();
+    expect(done).toMatchObject({ outcome: 'rolled_back' });
+    expect(existsSync(join(root, 'etc/systemd/system/ilex-added.socket'))).toBe(false);
+    expect(read('etc/systemd/system/ilex.socket')).toBe('old socket\n');
   });
 
   it('rolls back with the machine’s own SSH server unit (sshd.service on Arch)', async () => {

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import {
   APP_NAME_PATTERN,
   BACKUP_FILESYSTEMS,
@@ -38,6 +39,7 @@ import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.co
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
 import * as appManifest from '../../apps/server/src/updates/release-manifest.ts';
 import * as appUpdates from '../../apps/server/src/updates/updates.constants.ts';
+import { socketMismatch } from '../../apps/server/src/common/systemd-socket.ts';
 import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
@@ -214,5 +216,42 @@ describe('the app and the root programs check the same rules', () => {
     }
     expect(appManifest.parseManifest(JSON.stringify(good))).not.toBeNull();
     expect(appManifest.parseManifest('not json')).toBeNull();
+  });
+
+  it('where ilex.socket listens: the generator writes the addresses the app accepts for HOST', () => {
+    const generator = new URL('../systemd/ilex-socket-generator', import.meta.url).pathname;
+    const listening = (host: string, port: string, ipv6: string) =>
+      execFileSync(
+        'bash',
+        ['-c', 'source "$1"; listen_lines "${@:2}"', '_', generator, host, port, ipv6],
+        {
+          encoding: 'utf8',
+        },
+      )
+        .trim()
+        .split('\n')
+        .map((line) => {
+          const at = /^ListenStream=\[?([^\]]+?)\]?:(\d+)$/.exec(line);
+          const address = at?.[1] ?? '';
+          return {
+            address,
+            port: Number(at?.[2]),
+            family: address.includes(':') ? 'IPv6' : 'IPv4',
+          };
+        });
+    for (const host of ['127.0.0.1', '0.0.0.0', '::1', '::', '192.168.1.10', 'fd00::5']) {
+      for (const ipv6 of ['yes', 'no']) {
+        expect(
+          socketMismatch(listening(host, '3300', ipv6), host, 3300),
+          `${host} ${ipv6}`,
+        ).toBeNull();
+        expect(
+          socketMismatch(listening(host, '3300', ipv6), host, 3000),
+          `${host} ${ipv6}`,
+        ).not.toBeNull();
+      }
+    }
+    // Unset, both take the app's default.
+    expect(socketMismatch(listening('', '', 'yes'), undefined, 3000)).toBeNull();
   });
 });
