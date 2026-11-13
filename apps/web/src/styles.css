@@ -60,27 +60,28 @@
 :root.dark,
 .theme-frame {
   color-scheme: dark;
+  /* Surfaces: a faint violet (hue 295, half the brand's tint), so the dark doesn't read as navy. */
 
   --chart-1: oklch(0.78 0.12 280);
   --chart-2: oklch(0.75 0.11 185);
   --chart-3: oklch(0.82 0.14 80);
   --chart-4: oklch(0.74 0.15 350);
   --chart-5: oklch(0.75 0.1 230);
-  --background: oklch(0.165 0.018 280);
+  --background: oklch(0.165 0.009 295);
   --foreground: oklch(0.965 0.008 280);
-  --card: oklch(0.205 0.022 280);
+  --card: oklch(0.205 0.011 295);
   --card-foreground: oklch(0.965 0.008 280);
-  --popover: oklch(0.205 0.022 280);
+  --popover: oklch(0.205 0.011 295);
   --popover-foreground: oklch(0.965 0.008 280);
   --primary: oklch(0.78 0.12 280);
   --primary-foreground: oklch(0.21 0.06 280);
   --button: oklch(0.78 0.12 280);
   --button-foreground: oklch(0.21 0.06 280);
-  --secondary: oklch(0.26 0.025 280);
+  --secondary: oklch(0.26 0.0125 295);
   --secondary-foreground: oklch(0.965 0.008 280);
-  --muted: oklch(0.26 0.025 280);
+  --muted: oklch(0.26 0.0125 295);
   --muted-foreground: oklch(0.73 0.03 280);
-  --accent: oklch(0.3 0.06 280);
+  --accent: oklch(0.3 0.03 295);
   --accent-foreground: oklch(0.88 0.07 280);
   --destructive: oklch(0.66 0.19 25);
   --destructive-muted: oklch(0.26 0.06 25);
@@ -93,17 +94,25 @@
   --light-ok: oklch(0.76 0.16 150);
   --light-warn: oklch(0.82 0.14 80);
   --light-fail: oklch(0.7 0.18 25);
-  --border: oklch(0.3 0.026 280);
-  --input: oklch(0.34 0.03 280);
+  --border: oklch(0.3 0.013 295);
+  --input: oklch(0.34 0.015 295);
   --ring: oklch(0.55 0.12 280);
-  --sidebar: oklch(0.185 0.02 280);
+  --sidebar: oklch(0.185 0.01 295);
   --sidebar-foreground: oklch(0.965 0.008 280);
   --sidebar-primary: oklch(0.78 0.12 280);
   --sidebar-primary-foreground: oklch(0.21 0.06 280);
-  --sidebar-accent: oklch(0.3 0.06 280);
+  --sidebar-accent: oklch(0.3 0.03 295);
   --sidebar-accent-foreground: oklch(0.88 0.07 280);
-  --sidebar-border: oklch(0.3 0.026 280);
+  --sidebar-border: oklch(0.3 0.013 295);
   --sidebar-ring: oklch(0.55 0.12 280);
+}
+
+/* Light mode: the frame a step lighter, so it isn't harsh next to the light page. */
+:root:not(.dark) .theme-frame {
+  --sidebar: oklch(0.27 0.01 295);
+  --sidebar-border: oklch(0.35 0.013 295);
+  --sidebar-accent: oklch(0.36 0.03 295);
+  --border: oklch(0.35 0.013 295);
 }
 
 /* Status colours (Tailwind classes such as text-success, bg-warning-muted); spartan maps the rest. */
