@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { PasswordHasher } from '@nestjs/authentication';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import type { AppDetails, AppFields, AppRemoval, TemplateSummary } from '@ilex/shared';
+import type { AppDetails, AppFields, AppRemoval, FileList, TemplateSummary } from '@ilex/shared';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
@@ -180,6 +180,27 @@ describe('apps and templates (e2e)', () => {
       }
       const exists = async (path: string) =>
         (await api().get(`/files/summary?path=${encodeURIComponent(path)}`)).status === 200;
+      /** Its `down` finished: what the helper and systemd would have left. */
+      async function downFinished(name: string, folder: string) {
+        await makeFolder(folder, '.ilex');
+        await makeFolder(`${folder}/.ilex`, 'tasks');
+        await upload(
+          `${folder}/.ilex`,
+          'task.json',
+          JSON.stringify({
+            unit: `ilex-app-${name}-down-20261030T120000`,
+            system: false,
+            action: 'down',
+            log: '20261030T120000-down.log',
+            startedAt: '2026-10-30T12:00:00.000Z',
+          }),
+        );
+        await upload(
+          `${folder}/.ilex/tasks`,
+          '20261030T120000-down.log',
+          'Removed\n@@ilex-result\nsuccess\nexited\n0\n',
+        );
+      }
 
       beforeAll(async () => {
         await api().post('/files/session', ANNA).expect(200);
@@ -284,34 +305,42 @@ describe('apps and templates (e2e)', () => {
         };
         const early = await api().post(`/apps/${name}/delete`, request).expect(409);
         expect(early.body.code).toBe('app_task_running');
-        // Its `down` finished (what the helper and systemd would have left).
-        await makeFolder(folder, '.ilex');
-        await makeFolder(`${folder}/.ilex`, 'tasks');
+        await downFinished(name, folder);
         await makeFolder(folder, 'data');
         await makeFolder(folder, 'extra');
-        await upload(
-          `${folder}/.ilex`,
-          'task.json',
-          JSON.stringify({
-            unit: `ilex-app-${name}-down-20261030T120000`,
-            system: false,
-            action: 'down',
-            log: '20261030T120000-down.log',
-            startedAt: '2026-10-30T12:00:00.000Z',
-          }),
-        );
-        await upload(
-          `${folder}/.ilex/tasks`,
-          '20261030T120000-down.log',
-          'Removed\n@@ilex-result\nsuccess\nexited\n0\n',
-        );
         await api()
           .post(`/apps/${name}/delete`, { ...request, folders: [...request.folders, '/home/anna'] })
           .expect(204);
-        // Every inside folder ticked (the profiled service's too) and the settings: the whole
-        // folder went; never her home.
+        // Every inside folder ticked (the profiled service's too) and the settings: nothing else
+        // was in it, so the folder went too; never her home.
         expect(await exists(folder)).toBe(false);
         expect(await exists('/home/anna')).toBe(true);
+      });
+
+      it('delete with the settings ticked: a file Compose doesn’t list stays, and the folder with it', async () => {
+        const name = `e2e-keep-${Date.now()}`;
+        const folder = await appFolder(
+          name,
+          'services:\n  web:\n    build: .\n    volumes: [./data:/data]\n',
+          'A=1\n',
+        );
+        await upload(folder, 'Dockerfile', 'FROM nginx:1.27\n');
+        await downFinished(name, folder);
+        await makeFolder(folder, 'data');
+        await api()
+          .post(`/apps/${name}/delete`, {
+            folder,
+            settings: true,
+            folders: [`${folder}/data`],
+            volumes: [],
+          })
+          .expect(204);
+        const left = (
+          await api()
+            .get(`/files/list?path=${encodeURIComponent(folder)}`)
+            .expect(200)
+        ).body as FileList;
+        expect(left.entries.map((e) => e.name)).toEqual(['Dockerfile']);
       });
 
       it('install and save: Compose checks the files first; a task that can’t start leaves nothing changed', async () => {

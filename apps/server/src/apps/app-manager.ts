@@ -329,8 +329,8 @@ export class AppManager {
 
   /**
    * After the removal's `down`: deletes what the person ticked — as them, through their sudo for
-   * what containers wrote as another user. Every inside folder and the settings ticked: the whole
-   * app folder goes.
+   * what containers wrote as another user. The settings are the Compose file, `.env` and `.ilex`;
+   * the app's folder goes only when nothing else is left in it.
    */
   async delete(
     appSessionId: string,
@@ -354,9 +354,6 @@ export class AppManager {
       (path) => mounts.folders.includes(path) && path !== folder,
     );
     const volumes = request.volumes.filter((volume) => mounts.volumes.includes(volume));
-    const insideAll = mounts.folders
-      .filter((path) => path !== folder && inside(path, folder))
-      .every((path) => folders.includes(path));
     const details = {
       name,
       folder,
@@ -379,19 +376,31 @@ export class AppManager {
         if (!answer.ok) throw helperError(answer);
       }
       if (request.settings) {
-        await this.removePaths(
-          appSessionId,
-          insideAll
-            ? [folder]
-            : [
-                posix.join(folder, files.composeName),
-                posix.join(folder, ENV_FILE),
-                posix.join(folder, ILEX_DIR),
-              ],
-        );
+        await this.removePaths(appSessionId, [
+          posix.join(folder, files.composeName),
+          posix.join(folder, ENV_FILE),
+          posix.join(folder, ILEX_DIR),
+        ]);
+        await this.removeIfEmpty(sftp, folder, folders);
       }
       return null;
     });
+  }
+
+  /**
+   * The app's folder, and the folders between it and a deleted data folder, deepest first: each
+   * only if it is empty now. `rmdir` refuses a folder that isn't, so whatever else is there —
+   * also a file written a moment ago — stays, and the folder with it.
+   */
+  private async removeIfEmpty(sftp: Sftp, folder: string, deleted: string[]): Promise<void> {
+    const between = new Set<string>();
+    for (const path of deleted.filter((path) => inside(path, folder))) {
+      for (let up = posix.dirname(path); up !== folder; up = posix.dirname(up)) between.add(up);
+    }
+    for (const path of [...between].sort((a, b) => b.length - a.length)) {
+      await sftp.removeFolder(path).catch(() => undefined);
+    }
+    await sftp.removeFolder(folder).catch(() => undefined);
   }
 
   /** As the account first; what it may not delete (a container's files) through its sudo. */
