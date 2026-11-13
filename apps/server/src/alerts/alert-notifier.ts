@@ -29,6 +29,8 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   private flushTimer: NodeJS.Timeout | null = null;
   private readonly retries = new Set<NodeJS.Timeout>();
   private readonly subscriptions: Subscription[] = [];
+  /** Shutting down: a delivery still under way schedules no more timers. */
+  private stopped = false;
 
   constructor(
     private readonly alertRecords: AlertRecords,
@@ -62,6 +64,7 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleDestroy(): void {
+    this.stopped = true;
     for (const subscription of this.subscriptions) subscription.unsubscribe();
     if (this.flushTimer) clearTimeout(this.flushTimer);
     for (const timer of this.retries) clearTimeout(timer);
@@ -133,7 +136,7 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     const delivered = failed.length < channels.length;
     if (delivered) await this.markSent(alertIds);
     else if (!retry) this.giveBack(slot);
-    if (retry && failed.length > 0) {
+    if (retry && failed.length > 0 && !this.stopped) {
       const timer = setTimeout(() => {
         this.retries.delete(timer);
         // Delivered already: the retry only completes the other channels.
@@ -173,7 +176,7 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
 
   /** When the oldest of the hour's messages is an hour old, the held ones go as one. */
   private scheduleFlush(): void {
-    if (this.flushTimer) return;
+    if (this.flushTimer || this.stopped) return;
     const wait = Math.max(0, this.sentAt[0] + HOUR_MS - Date.now());
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
