@@ -99,6 +99,55 @@ describe('NotificationsPage', () => {
     );
   });
 
+  it('asks for the password again for another server, port or user name', async () => {
+    const { el, type } = await render(SAVED);
+    const passwordField = () => el.querySelector('#email-password')!.closest('[hlmField]')!;
+    const again = 'Another server, port or user name: enter the password again.';
+    await type('email-host', 'smtp.other.example');
+    expect(passwordField().textContent).toContain(again);
+    expect(passwordField().textContent).not.toContain('A password is saved');
+    // The same server's name in other letters keeps it.
+    await type('email-host', 'MAIL.Example.com');
+    expect(passwordField().textContent).not.toContain(again);
+    expect(passwordField().textContent).toContain('A password is saved');
+    await type('email-port', '465');
+    expect(passwordField().textContent).toContain(again);
+    await type('email-port', '587');
+    await type('email-username', 'someone-else');
+    expect(passwordField().textContent).toContain(again);
+    await type('email-password', 'the-new-password');
+    expect(passwordField().textContent).not.toContain(again);
+  });
+
+  it('puts the server’s refusal to keep a secret on the secret’s field', async () => {
+    const { el, api, card, type, click } = await render(SAVED);
+    const refusal = (field: string, code: string) =>
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 400,
+            error: { message: 'Validation failed', code, errors: [{ field, code, message: 'x' }] },
+          }),
+      );
+    api.updateEmail.mockReturnValue(refusal('password', 'password_required'));
+    await type('email-host', 'smtp.other.example');
+    await click(card('email-title'), 'Save');
+    expect(el.querySelector('#email-password')!.closest('[hlmField]')!.textContent).toContain(
+      'Enter the password.',
+    );
+
+    api.updateNtfy.mockReturnValue(refusal('token', 'token_required'));
+    await type('ntfy-topic', 'https://push.other.example/ilex-alerts');
+    await click(card('ntfy-title'), 'Save');
+    expect(api.updateNtfy).toHaveBeenCalledWith({
+      enabled: true,
+      topicUrl: 'https://push.other.example/ilex-alerts',
+    });
+    expect(el.querySelector('#ntfy-token')!.closest('[hlmField]')!.textContent).toContain(
+      'This is another server: enter the token again, or remove it.',
+    );
+  });
+
   it('checks the fields before sending', async () => {
     const { el, api, card, type, click } = await render(SAVED);
     await type('email-to', 'not an address');
