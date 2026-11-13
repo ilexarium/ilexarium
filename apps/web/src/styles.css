@@ -5,6 +5,9 @@
 
 @import '@spartan-ng/brain/hlm-tailwind-preset.css';
 
+/* The frame (sidebar, top bar) is dark in both themes: its `dark:` classes apply there too. */
+@custom-variant dark (&:is(.dark *, .theme-frame *));
+
 :root {
   color-scheme: light;
 
@@ -28,6 +31,9 @@
   --popover-foreground: oklch(0.21 0.035 280);
   --primary: oklch(0.5 0.19 280);
   --primary-foreground: oklch(0.985 0.01 280);
+  /* Buttons: midnight violet on light, lavender on dark. */
+  --button: oklch(0.35 0.12 280);
+  --button-foreground: oklch(0.985 0.01 280);
   --secondary: oklch(0.965 0.012 280);
   --secondary-foreground: oklch(0.21 0.035 280);
   --muted: oklch(0.965 0.012 280);
@@ -49,17 +55,10 @@
   --border: oklch(0.915 0.014 280);
   --input: oklch(0.915 0.014 280);
   --ring: oklch(0.7 0.12 280);
-  --sidebar: oklch(0.982 0.007 280);
-  --sidebar-foreground: oklch(0.21 0.035 280);
-  --sidebar-primary: oklch(0.5 0.19 280);
-  --sidebar-primary-foreground: oklch(0.985 0.01 280);
-  --sidebar-accent: oklch(0.95 0.03 280);
-  --sidebar-accent-foreground: oklch(0.42 0.15 280);
-  --sidebar-border: oklch(0.915 0.014 280);
-  --sidebar-ring: oklch(0.7 0.12 280);
 }
 
-:root.dark {
+:root.dark,
+.theme-frame {
   color-scheme: dark;
 
   --chart-1: oklch(0.78 0.12 280);
@@ -75,6 +74,8 @@
   --popover-foreground: oklch(0.965 0.008 280);
   --primary: oklch(0.78 0.12 280);
   --primary-foreground: oklch(0.21 0.06 280);
+  --button: oklch(0.78 0.12 280);
+  --button-foreground: oklch(0.21 0.06 280);
   --secondary: oklch(0.26 0.025 280);
   --secondary-foreground: oklch(0.965 0.008 280);
   --muted: oklch(0.26 0.025 280);
@@ -107,6 +108,8 @@
 
 /* Status colours (Tailwind classes such as text-success, bg-warning-muted); spartan maps the rest. */
 @theme inline {
+  --color-button: var(--button);
+  --color-button-foreground: var(--button-foreground);
   --color-success: var(--success);
   --color-success-muted: var(--success-muted);
   --color-warning: var(--warning);
@@ -168,5 +171,8 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  .theme-frame {
+    @apply text-foreground;
   }
 }
