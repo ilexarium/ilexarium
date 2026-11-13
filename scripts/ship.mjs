@@ -2,6 +2,7 @@
 //
 //   npm run ship -- <x.y.z> [--notes <file.md>]
 //
+// Only from a commit at which `npm run verify` passed every part (its record, .dev/verified.json).
 // Where it comes from, the key and the folder: release-settings.json at the repository's top (not
 // in git) — {"releaseUrl": "https://…", "key": "<release.key>", "folder": "<release folder>"},
 // and with "upload" (scripts/upload-release.mjs) the folder is copied to the server at the end.
@@ -14,6 +15,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { passphrase } from './lib/passphrase.mjs';
+import { readStamp, STAMP_FILE, unverified } from './lib/verified.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SETTINGS = join(ROOT, 'release-settings.json');
@@ -54,6 +56,15 @@ if (values.notes && !existsSync(values.notes)) fail(`no notes at ${values.notes}
 
 if (git('status', '--porcelain') !== '') fail('the working tree has changes: commit them first');
 if (git('rev-parse', '--abbrev-ref', 'HEAD') !== 'main') fail('releases are built from main');
+const head = git('rev-parse', 'HEAD');
+const missing = unverified(readStamp(STAMP_FILE), head);
+if (missing.length > 0) {
+  fail(
+    `the suite hasn't passed at ${head}:\n${missing
+      .map(({ part, passedAt }) => `  ${part}: ${passedAt ? `passed at ${passedAt}` : 'never ran'}`)
+      .join('\n')}\nRun npm run verify (on a Mac: npm run srv -- npm run verify)`,
+  );
+}
 const current = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const latestFile = join(folder, 'latest', 'download', 'latest.json');
 const published = existsSync(latestFile)
