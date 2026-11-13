@@ -1254,6 +1254,28 @@ describe('ilex-backup restore', () => {
       expect(said).toContain(`${demo('data/sub')}: inside ${demo('data')}, restored with it`);
       expect(said).not.toContain('left as it is');
     });
+
+    it('inside another one or not is decided as the folders really are (a link above it)', async () => {
+      symlinkSync(join(storage, 'demo'), join(storage, 'alias'));
+      mkdirSync(join(storage, 'elsewhere', 'photos'), { recursive: true });
+      symlinkSync(join(storage, 'elsewhere'), demo('data/link'));
+      const through = join(storage, 'alias', 'data', 'sub');
+      const items = plan().items.map((i: any) =>
+        i.id === SERVICE
+          ? {
+              ...i,
+              folders: [demo('data'), through, demo('data/link/photos'), demo('media')],
+              skip: [],
+            }
+          : i,
+      );
+      expect((await wrapper('configure', plan({ items }))).code).toBe(0);
+      const result = await restore(restoreInput());
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      const said = JSON.stringify(events());
+      expect(said).toContain(`${through}: inside ${demo('data')}, restored with it`);
+      expect(said).toContain(`${demo('data/link/photos')}: not in this backup, left as it is`);
+    });
   });
 
   it('an archive that doesn’t list its folders: refused back where it was, fine into a folder', async () => {

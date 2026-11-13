@@ -230,7 +230,9 @@ async function restoreArchive(
     held === folder || (existsSync(folder) && realpathSync(folder) === held);
   for (const folder of planned) {
     if (held.some((p) => same(p, folder))) continue;
-    const outer = planned.find((f) => below(folder, f) && held.some((p) => same(p, f)));
+    // Inside as it really is: a symlink above it can put it in, or out of, another folder.
+    const real = existsSync(folder) ? realpathSync(folder) : folder;
+    const outer = planned.find((f) => held.some((p) => same(p, f) && below(real, p)));
     line(
       outer
         ? `${folder}: inside ${outer}, restored with it`
