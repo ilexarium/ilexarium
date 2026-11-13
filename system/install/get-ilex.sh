@@ -66,8 +66,24 @@ verify() {
     -in "$WORK/global" -sigfile "$WORK/global.sig" >/dev/null 2>&1
 }
 
-# A field of the manifest (scripts/sign-release.mjs writes one per line).
-field() { sed -n "s/^  \"$1\": \"\{0,1\}\([^\"]*\)\"\{0,1\},\{0,1\}\$/\1/p" "$WORK/latest.json"; }
+# A field of the manifest, as the release scripts write it (scripts/lib/manifest.mjs, one per
+# line): a string's text up to its closing quote, or a number's digits, then at most the comma
+# before the next field. A line with anything else on it gives nothing.
+field() {
+  local value='"\([^"]*\)"'
+  if [[ "$2" == number ]]; then value='\([0-9]*\)'; fi
+  sed -n "s/^  \"$1\": $value,\{0,1\}\$/\1/p" "$WORK/latest.json"
+}
+
+# The manifest's fields into version, archive, sha256 and size; false unless each has its form.
+read_manifest() {
+  version="$(field version string)"
+  archive="$(field archive string)"
+  sha256="$(field sha256 string)"
+  size="$(field size number)"
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$archive" == "ilex-$version.tar.gz" &&
+    "$sha256" =~ ^[0-9a-f]{64}$ && "$size" =~ ^[1-9][0-9]*$ ]]
+}
 
 printf 'Checking the latest release at %s\n' "$RELEASE_URL"
 fetch "$RELEASE_URL/latest/download/latest.json" "$WORK/latest.json" "$MAX_MANIFEST_BYTES" ||
@@ -77,13 +93,7 @@ fetch "$RELEASE_URL/latest/download/latest.json.minisig" "$WORK/latest.json.mini
 verify "$WORK/latest.json" "$WORK/latest.json.minisig" ||
   die 'The release information is not signed by the Ilexarium release key — nothing was installed'
 
-version="$(field version)"
-archive="$(field archive)"
-sha256="$(field sha256)"
-size="$(field size)"
-[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$archive" == "ilex-$version.tar.gz" &&
-  "$sha256" =~ ^[0-9a-f]{64}$ && "$size" =~ ^[1-9][0-9]*$ ]] ||
-  die 'The release information is malformed'
+read_manifest || die 'The release information is malformed'
 
 printf 'Downloading Ilexarium %s\n' "$version"
 fetch "$RELEASE_URL/download/v$version/$archive" "$WORK/$archive" "$size" ||
