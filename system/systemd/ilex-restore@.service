@@ -15,9 +15,12 @@ ExecStart=/opt/ilex/libexec/ilex-backup.mts restore-run %i
 TimeoutStartSec=24h
 TimeoutStopSec=5min
 KillMode=mixed
-# It writes where it restores to (anywhere but the system's folders), its state and the lock.
+# It writes where it restores to (anywhere but the system's folders), its state and the lock:
+# never /etc, /usr, /boot, the programs or root's home (Borg's files are in its state).
 NoNewPrivileges=yes
 PrivateTmp=yes
+ProtectSystem=full
+ReadOnlyPaths=/opt/ilex /root
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
