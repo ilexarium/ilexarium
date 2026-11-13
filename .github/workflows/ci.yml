@@ -37,6 +37,10 @@ jobs:
         run: npm run verify -- --only lint
       - name: Format
         run: npm run verify -- --only format
+      - name: Borg (the backup program's tests against the real Borg, skipped without it)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends borgbackup
       - name: Unit tests (shared, i18n, the server with the programs and the helper, web)
         run: npm run verify -- --only unit
 
