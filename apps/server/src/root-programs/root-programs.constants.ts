@@ -50,6 +50,7 @@ const BACKUP_CODES: Record<string, BackupErrorCode> = {
   interrupted: BACKUP_ERROR_CODES.interrupted,
   archive_not_found: BACKUP_ERROR_CODES.archiveNotFound,
   path_not_allowed: BACKUP_ERROR_CODES.pathNotAllowed,
+  path_others_can_change: BACKUP_ERROR_CODES.pathOthersCanChange,
   target_not_empty: BACKUP_ERROR_CODES.targetNotEmpty,
   item_not_found: BACKUP_ERROR_CODES.itemNotFound,
   not_configured: BACKUP_ERROR_CODES.notConfigured,

@@ -27,6 +27,38 @@ const offered = {
   item: { project: 'music' },
 };
 
+describe('BackupRestores.restore', () => {
+  it('a folder another account can change: the program’s refusal at once, as 422 with its code, no row kept', async () => {
+    const remove = vi.fn(async () => undefined);
+    const prisma = {
+      backupPlan: { findUnique: vi.fn(async () => ({ id: 1 })) },
+      backupItem: { findUnique: vi.fn(async () => ({ id: 'i1', archives: ['a1'] })) },
+      backupRestore: { create: vi.fn(async () => ({ id: ID })), delete: remove },
+    } as unknown as PrismaService;
+    const rootPrograms = {
+      backupRestoreStart: vi.fn(async () => ({
+        ok: false,
+        code: 'path_others_can_change',
+        result: null,
+      })),
+    } as unknown as RootPrograms;
+    const restores = new BackupRestores(
+      prisma,
+      rootPrograms,
+      { checkRestoreTarget: () => undefined } as unknown as BackupChecks,
+      {} as BackupJobs,
+      {} as AppManager,
+    );
+    await expect(
+      restores.restore({ itemId: 'i1', archive: 'a1', target: '/home/bob/restored' }, ACTOR),
+    ).rejects.toMatchObject({
+      status: 422,
+      response: { code: 'path_others_can_change' },
+    });
+    expect(remove).toHaveBeenCalledWith({ where: { id: ID } });
+  });
+});
+
 describe('BackupRestores.apply', () => {
   it('runs the restored app’s up task as the person, then offers it no more', async () => {
     const { restores, update, apply } = setUp(offered);

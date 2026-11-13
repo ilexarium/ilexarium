@@ -178,6 +178,8 @@ export const BACKUP_ERROR_CODES = {
   runNotFound: 'backup_run_not_found',
   pathNotAllowed: 'path_not_allowed',
   pathNotFound: 'path_not_found',
+  /** A restore (or deleting what it set aside) below a folder another account can change. */
+  pathOthersCanChange: 'path_others_can_change',
   /** Setting up on a disk that already has a `ilex-backups` folder that isn't ours. */
   repositoryExists: 'repository_exists',
   /** Restoring into a folder that has something in it already. */

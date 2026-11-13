@@ -121,6 +121,19 @@ describe('RootPrograms (through the person’s sudo)', () => {
     expect(entries.filter((e) => e.outcome === 'failure')).toHaveLength(4);
   });
 
+  it('keeps a restore’s refusal of a folder another account can change, for the person to read', async () => {
+    answer = ran(
+      ['@@info /home/bob can be changed by another account', '@@error code=path_others_can_change'],
+      2,
+    );
+    const input = { restoreId: 'r1', itemId: 'i1', archive: 'a1', target: '/home/bob/restored' };
+    expect(await programs().backupRestoreStart(input, ACTOR)).toEqual({
+      ok: false,
+      code: 'path_others_can_change',
+      result: null,
+    });
+  });
+
   it('counts an action without a result as done when it exits 0', async () => {
     answer = ran(['@@phase done']);
     expect(await programs().backupStart({ runId: 'r1' }, ACTOR)).toEqual({
