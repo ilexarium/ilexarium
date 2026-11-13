@@ -513,6 +513,21 @@ describe('ilex-backup run', () => {
     expect(creates[2].args).toContain(`pp:${join(storage, 'live')}/thumbs`);
   });
 
+  it('archives a folder inside another one with it, once; the comment lists both', async () => {
+    const data = join(storage, 'demo', 'data');
+    const media = join(storage, 'demo', 'media');
+    const items = plan().items.map((i: any) =>
+      i.id === SERVICE ? { ...i, folders: [join(data, 'cache'), media, data], skip: [] } : i,
+    );
+    expect((await wrapper('configure', plan({ items }))).code).toBe(0);
+    expect((await runNow({ runId: RUN, itemId: SERVICE })).code).toBe(0);
+    const create = calls('borg').find((c) => c.args[0] === 'create')!.args;
+    expect(create[create.indexOf('--comment') + 1]).toBe(
+      JSON.stringify([join(data, 'cache'), media, data]),
+    );
+    expect(create.slice(create.findIndex((a) => a.includes('::')) + 1)).toEqual([media, data]);
+  });
+
   it('stops a `stop` service around its archive, and only that one', async () => {
     await runNow({ runId: RUN });
     const compose = calls('docker')
