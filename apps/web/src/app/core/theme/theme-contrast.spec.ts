@@ -12,6 +12,7 @@ const TEXT_PAIRS: [text: string, background: string][] = [
   ['card-foreground', 'card'],
   ['popover-foreground', 'popover'],
   ['primary-foreground', 'primary'],
+  ['button-foreground', 'button'],
   ['secondary-foreground', 'secondary'],
   ['muted-foreground', 'background'],
   ['muted-foreground', 'card'],
@@ -94,8 +95,8 @@ function contrast(a: string, b: string): number {
 describe('theme tokens: contrast', () => {
   const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8');
   const light = tokens(css, ':root');
-  // Dark overrides some tokens; the rest come from light.
-  const dark = new Map([...light, ...tokens(css, ':root.dark')]);
+  // Dark overrides some tokens; the rest come from light. The frame (sidebar, top bar) uses dark.
+  const dark = new Map([...light, ...tokens(css, ':root.dark,\n.theme-frame')]);
 
   it('knows the conversion (black on white is 21:1)', () => {
     expect(contrast('oklch(0 0 0)', 'oklch(1 0 0)')).toBeCloseTo(21, 1);
@@ -105,7 +106,12 @@ describe('theme tokens: contrast', () => {
     ['light', light],
     ['dark', dark],
   ] as const) {
-    it.each(TEXT_PAIRS)(`${theme}: %s on %s reaches AA`, (text, background) => {
+    // The sidebar is part of the frame: dark in both themes, so it's checked with dark only.
+    const pairs =
+      theme === 'light'
+        ? TEXT_PAIRS.filter((pair) => !pair.join().includes('sidebar'))
+        : TEXT_PAIRS;
+    it.each(pairs)(`${theme}: %s on %s reaches AA`, (text, background) => {
       const fg = values.get(text);
       const bg = values.get(background);
       expect(fg, `--${text}`).toBeDefined();
