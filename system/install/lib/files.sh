@@ -7,6 +7,7 @@ OPT=/opt/ilex
 ETC=/etc/ilex
 VAR=/var/lib/ilex
 PREVIOUS=$OPT/previous
+SOCKET_GENERATOR=/usr/local/lib/systemd/system-generators/ilex-socket-generator
 
 # A system user without a login shell. Its home, the only folder it may write, is
 # /var/lib/ilex/app: /var/lib/ilex itself is root's, so the app can't swap the backups'
@@ -64,6 +65,8 @@ install_platform_files() {
   install -o root -g root -m 0644 "$RELEASE/system/docker-socket-proxy/haproxy.cfg" "$OPT/platform/haproxy.cfg"
   install -o root -g root -m 0644 "$RELEASE/system/backup-recovery.md" "$OPT/backup-recovery.md"
   for unit in "$RELEASE"/system/systemd/*.service "$RELEASE"/system/systemd/*.timer; do
+    # The app's own comes with the app (start_app).
+    if [[ "$(basename "$unit")" == ilex.service ]]; then continue; fi
     install -o root -g root -m 0644 "$unit" "/etc/systemd/system/$(basename "$unit")"
   done
   install -o root -g root -m 0644 "$RELEASE/system/install/tmpfiles.conf" /etc/tmpfiles.d/ilex.conf
@@ -130,6 +133,7 @@ keep_previous() {
     if [[ -d "$OPT/$dir" ]]; then cp -a "$OPT/$dir" "$kept/$dir"; fi
   done
   for file in /etc/systemd/system/ilex*.service /etc/systemd/system/ilex*.timer \
+    /etc/systemd/system/ilex*.socket "$SOCKET_GENERATOR" \
     "$ETC"/{version,app.env,platform.env,wrappers.json,release.env,release.pub} \
     "$OPT/backup-recovery.md" /etc/tmpfiles.d/ilex.conf /etc/ssh/sshd_config.d/ilex.conf \
     /usr/local/bin/ilex-setup-code; do
@@ -237,6 +241,8 @@ SQL
     return
   fi
   write_file "$ETC/app.env" "root:$APP_USER" 0640 <<CONF
+# Where Ilexarium listens, and its database. After changing HOST or PORT:
+#   systemctl daemon-reload && systemctl restart ilex.socket
 HOST=127.0.0.1
 PORT=3000
 DATABASE_URL=postgresql://ilex:$password@127.0.0.1:5432/ilex

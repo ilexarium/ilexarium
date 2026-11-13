@@ -2,7 +2,15 @@
 // previous/ goes back in place — its folders, its units and settings, the database as it was
 // before migrating — and is started again.
 
-import { existsSync, lstatSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import type { Progress } from './install.mts';
 import { answersAs } from './install.mts';
@@ -17,7 +25,7 @@ const INSTALL_BACKUPS = '/var/lib/ilex/install-backups';
 const DUMP_NAME = /^ilex-\d+\.\d+\.\d+-\d{8}-\d{6}\.dump$/;
 const READY_TIMEOUT_MS = 90_000;
 const START_TIMEOUT_MS = 90_000;
-const unitName = /^ilex[\w@.-]*\.(service|timer)$/;
+const unitName = /^ilex[\w@.-]*\.(service|socket|timer)$/;
 
 export type RollbackResult = 'nothing_changed' | 'rolled_back' | 'rollback_failed';
 
@@ -53,6 +61,9 @@ export async function rollBack(
   }
 
   let ok = true;
+  // systemd keeps the app's port (ilex.socket): a request while the files go back would start the
+  // app half-way. It waits until the end instead.
+  writeFileSync(paths.hold, '');
   await run(programs.systemctl, ['stop', 'ilex.service']);
 
   for (const tree of TREES) {
@@ -105,6 +116,7 @@ export async function rollBack(
   }
 
   await run(programs.systemctl, ['reload-or-restart', sshUnit]);
+  rmSync(paths.hold, { force: true });
   await run(programs.systemctl, ['start', 'ilex.service']);
   if (!(await answersAs(paths.healthUrl, from, START_TIMEOUT_MS))) {
     say(`${from} did not answer after it was put back`);

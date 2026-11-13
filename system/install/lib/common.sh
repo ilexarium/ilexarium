@@ -92,6 +92,8 @@ lock_owner() {
   fi
 }
 
+release_lock() { rm -f "$LOCK_TAKEN"; }
+
 # Takes lock $1 until this script ends, or fails while a living owner holds it.
 take_lock() {
   local lock="$1" own="$1.$$" ino
@@ -103,7 +105,7 @@ take_lock() {
     if ln "$own" "$lock" 2>/dev/null; then
       rm -f "$own"
       LOCK_TAKEN="$lock"
-      trap 'rm -f "$LOCK_TAKEN"' EXIT
+      on_exit release_lock
       return 0
     fi
     ino="$(stat -c %i "$lock" 2>/dev/null || true)"
@@ -114,6 +116,21 @@ take_lock() {
   rm -f "$own"
   return 1
 }
+
+# Functions run when this script ends, however it ends — the last added first, each given the
+# exit status.
+EXIT_STEPS=()
+on_exit() {
+  EXIT_STEPS+=("$1")
+  trap 'run_exit_steps "$?"' EXIT
+}
+run_exit_steps() {
+  local i
+  for ((i = ${#EXIT_STEPS[@]} - 1; i >= 0; i--)); do "${EXIT_STEPS[i]}" "$1" || true; done
+}
+
+# Whether something takes connections on address $1, port $2 (at most 3 seconds).
+listening() { timeout 3 bash -c ': <>"/dev/tcp/$1/$2"' _ "$1" "$2" 2>/dev/null; }
 
 # Random letters and digits (hex), for passwords: safe in URLs and SQL without quoting.
 random_hex() { od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'; }

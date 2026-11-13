@@ -1,0 +1,22 @@
+# /etc/systemd/system/ilex.socket
+# The app's port, held by systemd from early boot on — while the app starts, stops, crashes or is
+# updated — so that no other program on this machine can take it and receive what the HTTPS proxy
+# in front sends. ilex.service gets it passed and answers on it.
+#
+# Where it listens is the machine's setting, HOST and PORT in /etc/ilex/app.env: the generator
+# /usr/local/lib/systemd/system-generators/ilex-socket-generator writes the addresses from there
+# at boot and at every daemon-reload. After changing them:
+#   systemctl daemon-reload && systemctl restart ilex.socket
+
+[Unit]
+Description=Ilexarium's port
+
+[Socket]
+# An address can be taken before it exists: a HOST on the network before the network is up, ::1
+# on a machine whose loopback has IPv6 turned off.
+FreeBind=yes
+# HOST=:: is every address of both kinds, as the app itself would listen.
+BindIPv6Only=both
+
+[Install]
+WantedBy=sockets.target
