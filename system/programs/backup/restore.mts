@@ -25,7 +25,7 @@ import { openRepository } from './destination.mts';
 import { folderStamp, JobFile, prepareState, writeAtomic } from './files.mts';
 import { parseInput } from './input.mts';
 import type { Config, ItemResult, Paths, SetAside } from './model.mts';
-import { allowedFolder, assertParentsSafe, overlaps } from './places.mts';
+import { allowedFolder, assertParentsSafe, below, outermost, overlaps } from './places.mts';
 import { ARCHIVE_PATTERN, UUID, loadPlan } from './plan.mts';
 import { borg, borgFailure, docker, takeLock } from './programs.mts';
 import { startAgain } from './run.mts';
@@ -226,7 +226,13 @@ async function restoreArchive(
   const same = (held: string, folder: string) =>
     held === folder || (existsSync(folder) && realpathSync(folder) === held);
   for (const folder of planned) {
-    if (!held.some((p) => same(p, folder))) line(`${folder}: not in this backup, left as it is`);
+    if (held.some((p) => same(p, folder))) continue;
+    const outer = planned.find((f) => below(folder, f) && held.some((p) => same(p, f)));
+    line(
+      outer
+        ? `${folder}: inside ${outer}, restored with it`
+        : `${folder}: not in this backup, left as it is`,
+    );
   }
   const sources = held.filter((p) => planned.some((folder) => same(p, folder)));
   if (!sources.every((p) => allowedFolder(config, p))) {
@@ -242,6 +248,10 @@ async function restoreArchive(
     const ps = await docker(config, ['compose', '-p', project, 'ps', '-q'], { capture: true });
     wasRunning = ps.code === 0 && ps.stdout.trim().length > 0;
   }
+  // A folder inside another one (or one listed twice) is set aside and restored with the one that
+  // holds it: on its own it would seem missing once that one is aside, and a failure would remove
+  // it as made by the restore after the original came back.
+  const restored = outermost(sources);
   const moved: { from: string; to: string }[] = [];
   /** What the job file was told is set aside (the one being moved included). */
   let told: string[] = [];
@@ -268,7 +278,7 @@ async function restoreArchive(
     phase('restoring');
     const suffix = `.before-restore-${folderStamp()}`;
     const list = readSetAside(paths);
-    for (const source of sources) {
+    for (const source of restored) {
       if (!existsSync(source)) {
         created.push(source);
         continue;
@@ -287,14 +297,17 @@ async function restoreArchive(
       config,
       paths,
       'extract',
-      ['--numeric-ids', `${repo.path}::${request.archive}`, ...sources.map((s) => s.slice(1))],
+      ['--numeric-ids', `${repo.path}::${request.archive}`, ...restored.map((s) => s.slice(1))],
       { cwd: '/', onLine: line },
     );
     if (extract.code >= 2) throw new Refusal(borgFailure(extract.logs), 'borg extract failed', 5);
   } catch (error) {
     failure = error instanceof Refusal ? error : new Refusal('borg_failed', String(error), 5);
-    // The way back: the partly restored folders go, the set-aside ones return. Telling the job
-    // file is best effort here: the folders going back comes first.
+    // The way back: what was extracted of folders that weren't there goes first, while every
+    // original is still aside — nothing removed here can be one; then each partly restored folder
+    // goes and its set-aside one returns. Telling the job file is best effort here: the folders
+    // going back comes first.
+    for (const path of created) rmSync(path, { recursive: true, force: true });
     let last = told;
     const tell = (folders: string[]) => {
       last = folders;
@@ -311,7 +324,6 @@ async function restoreArchive(
       tell(moved.map((m) => m.to));
     }
     if (last.length > 0) tell([]);
-    for (const path of created) rmSync(path, { recursive: true, force: true });
     writeSetAside(
       paths,
       readSetAside(paths).filter((e) => !told.includes(e.path)),

@@ -84,9 +84,15 @@ switch (command) {
   case 'extract': {
     const line = archives()[name];
     const sources = line.slice(line.findIndex((a) => a.endsWith('::' + name)) + 1);
-    const wanted = args.slice(args.indexOf(target) + 1);
-    for (const relative of wanted.length ? wanted : sources.map((s) => s.slice(1))) {
-      const folder = path.join(process.cwd(), relative);
+    // The folders it holds: those its comment lists (a folder inside another one included).
+    const at = line.indexOf('--comment');
+    const held = at >= 0 ? JSON.parse(line[at + 1]) : sources;
+    const wanted = args.slice(args.indexOf(target) + 1).map((relative) => `/${relative}`);
+    const extracted = wanted.length
+      ? held.filter((f) => wanted.some((w) => f === w || f.startsWith(`${w}/`)))
+      : held;
+    for (const absolute of extracted) {
+      const folder = path.join(process.cwd(), absolute.slice(1));
       fs.mkdirSync(folder, { recursive: true });
       fs.writeFileSync(path.join(folder, exit >= 2 ? 'partial.txt' : 'restored.txt'), name);
     }

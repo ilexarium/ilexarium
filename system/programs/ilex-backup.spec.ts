@@ -31,6 +31,7 @@ const LIVE = '33333333-3333-4333-8333-333333333333';
 const FOLDER = '44444444-4444-4444-8444-444444444444';
 const RUN = '55555555-5555-4555-8555-555555555555';
 const RESTORE = '66666666-6666-4666-8666-666666666666';
+const RUN_AGAIN = '77777777-7777-4777-8777-777777777777';
 
 let dir: string;
 let storage: string;
@@ -1030,6 +1031,129 @@ describe('ilex-backup restore', () => {
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(done()!.setAside).toHaveLength(2);
     expect(calls('borg').find((c) => c.args[0] === 'extract')!.args).toContain(data.slice(1));
+  });
+
+  describe('a folder inside another one', () => {
+    const NESTED = [
+      { folders: ['data', 'data/sub'] },
+      { folders: ['data/sub', 'data'] },
+      { folders: ['data', 'data/sub', 'data/sub/deep'] },
+      { folders: ['data/sub/deep', 'data', 'data/sub'] },
+    ];
+    const BEFORE = ['cache', 'db.sqlite', 'sub', 'sub/deep', 'sub/deep/notes.txt', 'sub/photo.jpg'];
+    const demo = (name: string) => join(storage, 'demo', name);
+    /** Every file and folder below, as relative paths. */
+    const tree = (folder: string) => (readdirSync(folder, { recursive: true }) as string[]).sort();
+
+    beforeEach(() => {
+      mkdirSync(demo('data/sub/deep'), { recursive: true });
+      writeFileSync(demo('data/sub/photo.jpg'), 'photo');
+      writeFileSync(demo('data/sub/deep/notes.txt'), 'notes');
+    });
+
+    /** The app's folders now these, backed up again: the new archive. */
+    async function backedUpWith(folders: string[]): Promise<string> {
+      const items = plan().items.map((i: any) =>
+        i.id === SERVICE ? { ...i, folders, skip: [] } : i,
+      );
+      expect((await wrapper('configure', plan({ items }))).code).toBe(0);
+      const ran = await runNow({ runId: RUN_AGAIN, itemId: SERVICE });
+      expect(ran.code, ran.lines.join('\n')).toBe(0);
+      resetCalls();
+      return job(RUN_AGAIN).find((e) => e.type === 'runDone')!.items[0].archive;
+    }
+
+    it.each(NESTED)(
+      'the extraction fails ($folders): every folder is back as it was',
+      async ({ folders }) => {
+        const archive = await backedUpWith(folders.map(demo));
+        writeFileSync(join(dir, 'exit-extract.txt'), '2');
+        const result = await restore(restoreInput({ archive }));
+        expect(result.code).toBe(5);
+        expect(done()).toMatchObject({ status: 'failed', setAside: [] });
+        expect(tree(demo('data'))).toEqual(BEFORE);
+        expect(readFileSync(demo('data/sub/photo.jpg'), 'utf8')).toBe('photo');
+        expect(readdirSync(join(storage, 'demo')).sort()).toEqual(['data', 'media']);
+        expect(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8')).toBe('[]\n');
+      },
+    );
+
+    it.each(NESTED)(
+      'restored ($folders): with the outer folder, set aside once; deleting that removes exactly it',
+      async ({ folders }) => {
+        const archive = await backedUpWith(folders.map(demo));
+        const result = await restore(restoreInput({ archive }));
+        expect(result.code, result.lines.join('\n')).toBe(0);
+        const setAside = done()!.setAside as string[];
+        expect(setAside).toEqual([
+          expect.stringMatching(new RegExp(`^${demo('data')}\\.before-restore-\\d{8}-\\d{6}$`)),
+        ]);
+        // The previous version whole, where the list says; each folder now the backup's.
+        expect(tree(setAside[0])).toEqual(BEFORE);
+        for (const folder of folders) expect(existsSync(demo(`${folder}/restored.txt`))).toBe(true);
+        expect(existsSync(demo('data/sub/photo.jpg'))).toBe(false);
+        expect(
+          calls('borg')
+            .find((c) => c.args[0] === 'extract')!
+            .args.slice(4),
+        ).toEqual([demo('data').slice(1)]);
+        const list = () => JSON.parse(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8'));
+        expect(list().map((e: any) => e.path)).toEqual(setAside);
+
+        expect((await wrapper('discard', { path: setAside[0] })).code).toBe(0);
+        expect(existsSync(setAside[0])).toBe(false);
+        expect(list()).toEqual([]);
+        expect(readdirSync(join(storage, 'demo')).sort()).toEqual(['data', 'media']);
+        expect(existsSync(demo('data/sub/restored.txt'))).toBe(true);
+      },
+    );
+
+    it('a restore killed during the extraction has said where the whole previous version is', async () => {
+      const archive = await backedUpWith(['data/sub', 'data'].map(demo));
+      writeFileSync(join(dir, 'kill-extract.txt'), '');
+      await restore(restoreInput({ archive }));
+      expect(done()).toBeUndefined();
+      const setAside = events().findLast((e) => e.type === 'setAside')!.setAside as string[];
+      expect(setAside).toEqual([expect.stringMatching(new RegExp(`^${demo('data')}\\.before`))]);
+      expect(tree(setAside[0])).toEqual(BEFORE);
+      const list = JSON.parse(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8'));
+      expect(list.map((e: any) => e.path)).toEqual(setAside);
+    });
+
+    it('the same folder twice (through a link above one of them): nothing lost when it fails', async () => {
+      symlinkSync(join(storage, 'demo'), join(storage, 'alias'));
+      const archive = await backedUpWith([demo('data'), join(storage, 'alias', 'data')]);
+      writeFileSync(join(dir, 'exit-extract.txt'), '2');
+      const result = await restore(restoreInput({ archive }));
+      expect(result.code).toBe(5);
+      expect(done()).toMatchObject({ status: 'failed', setAside: [] });
+      expect(tree(demo('data'))).toEqual(BEFORE);
+    });
+
+    it('a folder whose name only begins like another’s is a folder of its own', async () => {
+      mkdirSync(demo('media2'));
+      const archive = await backedUpWith(['media', 'media2'].map(demo));
+      const result = await restore(restoreInput({ archive }));
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      expect(done()!.setAside).toEqual([
+        expect.stringMatching(new RegExp(`^${demo('media')}\\.before`)),
+        expect.stringMatching(new RegExp(`^${demo('media2')}\\.before`)),
+      ]);
+    });
+
+    it('a folder the backup holds only inside another one is said to be restored with it', async () => {
+      const items = plan().items.map((i: any) =>
+        i.id === SERVICE
+          ? { ...i, folders: [demo('data'), demo('data/sub'), demo('media')], skip: [] }
+          : i,
+      );
+      expect((await wrapper('configure', plan({ items }))).code).toBe(0);
+      const result = await restore(restoreInput());
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      const said = JSON.stringify(events());
+      expect(said).toContain(`${demo('data/sub')}: inside ${demo('data')}, restored with it`);
+      expect(said).not.toContain('left as it is');
+    });
   });
 
   it('an archive that doesn’t list its folders: refused back where it was, fine into a folder', async () => {
