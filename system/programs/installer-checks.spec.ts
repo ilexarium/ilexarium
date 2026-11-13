@@ -305,3 +305,13 @@ describe('the installer’s database dumps', () => {
     expect(readdirSync(dir).sort()).toEqual([...names.slice(2), 'notes.txt'].sort());
   });
 });
+
+describe('what runs when the installer ends', () => {
+  it('the last added first, each given the exit status, also after a failure', () => {
+    const run = script(
+      'a() { echo "a $1"; false; }; b() { echo "b $1"; }; on_exit a; on_exit b; exit 3',
+    );
+    expect(run.status).toBe(3);
+    expect(run.stdout).toBe('b 3\na 3\n');
+  });
+});

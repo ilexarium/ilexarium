@@ -38,7 +38,8 @@ less get-ilex.sh    # read it first: it checks the release's signature, then ins
 bash get-ilex.sh
 ```
 
-Ilexarium listens on `127.0.0.1:3000`; you reach it through an HTTPS proxy of your choice.
+Ilexarium listens on `127.0.0.1:3000` (and `[::1]:3000`, so `localhost` works too); you reach it
+through an HTTPS proxy of your choice.
 Guides: [ilexarium.com](https://ilexarium.com).
 
 ## Development

@@ -3,12 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { configureApp } from './app.setup.js';
+import { MOVE_SOCKET_HINT, NO_SOCKET_MESSAGE } from './common/systemd-socket.constants.js';
 import { listenOnSockets, passedSockets, socketMismatch } from './common/systemd-socket.js';
 import type { Env } from './config/env.schema.js';
 
 async function bootstrap() {
   const sockets = passedSockets(process.env, process.pid);
   for (const name of ['LISTEN_PID', 'LISTEN_FDS', 'LISTEN_FDNAMES']) delete process.env[name];
+  // In production the port is ilex.socket's: systemd holds it while the app is down, so no other
+  // program on the machine can take it. Binding it here instead would give that up unnoticed.
+  if (sockets.length === 0 && process.env['NODE_ENV'] === 'production') {
+    throw new Error(`${NO_SOCKET_MESSAGE} ${MOVE_SOCKET_HINT}`);
+  }
   const app = configureApp(await NestFactory.create<NestExpressApplication>(AppModule));
   const config = app.get<ConfigService<Env, true>>(ConfigService);
   const port = config.get('PORT', { infer: true });

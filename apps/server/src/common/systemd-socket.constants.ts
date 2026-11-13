@@ -6,3 +6,5 @@ export const MAX_PASSED_SOCKETS = 2;
 export const MOVE_SOCKET_HINT =
   'After a change to HOST or PORT in /etc/ilex/app.env: systemctl daemon-reload && ' +
   'systemctl restart ilex.socket';
+export const NO_SOCKET_MESSAGE =
+  "systemd passed no socket: in production the port is ilex.socket's (systemctl start ilex).";

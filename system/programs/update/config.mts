@@ -13,6 +13,9 @@ export const ROOT_CONFIG = '/etc/ilex/wrappers.json';
 /** The machine's settings for the app (the person's: where it listens), never changed by an update. */
 const APP_SETTINGS = '/etc/ilex/app.env';
 
+/** The installer's hold on the app (its APP_HOLD): ilex.service doesn't start while it's there. */
+const APP_HOLD = '/run/ilex/updating';
+
 const SSH_UNITS = ['ssh.service', 'sshd.service'];
 
 const absolute = (p: unknown): p is string => typeof p === 'string' && isPlainAbsolutePath(p);
@@ -50,6 +53,7 @@ export function pathsFor(config: Config): Paths {
     units: under('/etc/systemd/system'),
     host: isRoot || !dev ? '/' : dev.root,
     lock: isRoot || !dev ? ROOT_LOCK : join(dev.root, 'root.lock'),
+    hold: isRoot || !dev ? APP_HOLD : join(dev.root, 'updating'),
     healthUrl: isRoot || !dev ? healthUrlOf(readAppSettings()) : dev.healthUrl,
   };
 }

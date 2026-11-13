@@ -73,6 +73,7 @@ write_settings
 write_release_settings
 if [[ -n "$OLD_VERSION" ]]; then
   # The app stops first: nothing writes to the database while it's backed up and migrated.
+  hold_app
   systemctl stop ilex.service 2>/dev/null || true
   marker phase stopped
 fi

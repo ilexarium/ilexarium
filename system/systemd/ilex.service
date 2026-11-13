@@ -4,6 +4,10 @@
 # machine's, /etc/ilex/app.env (root:ilex 0640: where it listens, the database password),
 # written once by the installer and never by an update.
 #
+# Its port is ilex.socket's: systemd holds it, from boot on and while the app is down, and passes
+# it to the app (which refuses to start without it). A request while the app is stopped starts
+# it; to keep it stopped, stop both: systemctl stop ilex.socket ilex.service
+#
 # No NoNewPrivileges, ProtectSystem, PrivateTmp and the like yet. The app starts nothing privileged
 # any more: root work runs in the signed-in person's SSH session, through their own sudo.
 # They would only narrow what a compromised app can do on the host
@@ -11,9 +15,12 @@
 
 [Unit]
 Description=Ilexarium
-Requires=ilex-platform.service
-After=ilex-platform.service network-online.target
+Requires=ilex-platform.service ilex.socket
+After=ilex-platform.service ilex.socket network-online.target
 Wants=network-online.target
+# systemd closes a socket whose service hit its start limit — the port would be free. Never,
+# then: a failing app starts again every RestartSec, the port stays systemd's in between.
+StartLimitIntervalSec=0
 
 [Service]
 User=ilex
@@ -23,7 +30,12 @@ Environment=DOCKER_HOST=unix:///run/ilex/proxy/docker.sock
 Environment=WEB_ROOT=/opt/ilex/app/apps/web/browser
 Environment=SETUP_TOKEN_FILE=/var/lib/ilex/app/setup-token
 EnvironmentFile=/etc/ilex/app.env
+Sockets=ilex.socket
 WorkingDirectory=/opt/ilex/app/apps/server
+# While an install, an update or its rollback has the app stopped, a request waits here instead
+# of starting it half-way (the installer and ilex-update hold that file).
+ExecStartPre=/bin/sh -c 'while [ -e /run/ilex/updating ]; do sleep 1; done'
+TimeoutStartSec=infinity
 ExecStart=/usr/bin/node dist/main.js
 Restart=on-failure
 RestartSec=5

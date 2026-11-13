@@ -110,17 +110,58 @@ setup_ssh_login() {
   info "$dropin"
 }
 
+# While an install or update has the app stopped, a request to its port (systemd holds it) mustn't
+# start it half-way: ilex.service waits while this file is there — until start_app, or the end of
+# this run. ilex-update's rollback holds it the same way.
+APP_HOLD=/run/ilex/updating
+
+hold_app() {
+  mkdir -p "$(dirname "$APP_HOLD")"
+  : >"$APP_HOLD"
+  on_exit release_app
+}
+release_app() { rm -f "$APP_HOLD"; }
+
+# An update that took the port over from an app binding it itself (a version before ilex.socket)
+# gives it back if it fails: that version's ilex-update puts it back without knowing the socket.
+give_back_port() {
+  if [[ "$1" != 0 ]]; then systemctl stop ilex.socket ilex.service 2>/dev/null; fi
+}
+
+# The app's own units come with the app, once it's installed: a run that stops before leaves an
+# older app with its own unit, runnable as it was.
 start_app() {
   log 'Starting the app'
+  local units=/etc/systemd/system url address host port
+  if [[ -n "$OLD_VERSION" ]] && ! grep -qx 'Sockets=ilex.socket' "$units/ilex.service" 2>/dev/null; then
+    on_exit give_back_port
+  fi
+  install -o root -g root -m 0644 "$RELEASE/system/systemd/ilex.socket" \
+    "$RELEASE/system/systemd/ilex.service" "$units/"
+  install -D -o root -g root -m 0755 "$RELEASE/system/systemd/ilex-socket-generator" "$SOCKET_GENERATOR"
   systemctl daemon-reload
-  systemctl enable ilex.service >/dev/null 2>&1
+  systemctl enable ilex.socket ilex.service >/dev/null 2>&1
+
+  url="$(app_url)"
+  address="${url#http://}"
+  port="${address##*:}"
+  host="${address%:*}"
+  host="${host#\[}"
+  host="${host%\]}"
+  # Nothing taking connections there: the socket isn't listening — not started yet, or a
+  # daemon-reload after a change to HOST or PORT left it without listeners until it restarts.
+  if ! systemctl is-active --quiet ilex.socket || ! listening "$host" "$port"; then
+    systemctl restart ilex.socket ||
+      die "Port $port ($host) is taken by another program (ss -ltnp shows which): stop it, then run this again"
+  fi
+  release_app
   systemctl restart ilex.service
 
-  local url
-  url="$(app_url)"
-  for _ in $(seq 1 60); do
-    if curl -fsS "$url/api/health" >/dev/null 2>&1; then
-      info 'the app answers'
+  # Each try time-limited: systemd takes the connection even while the app fails to start.
+  local end=$((SECONDS + 60))
+  while ((SECONDS < end)); do
+    if curl -fsS --max-time 3 "$url/api/health" 2>/dev/null | grep -qF "\"version\":\"$NEW_VERSION\""; then
+      info "the app answers on $url, ilex.socket holds its port"
       return
     fi
     sleep 1
