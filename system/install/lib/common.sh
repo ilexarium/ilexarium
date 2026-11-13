@@ -9,11 +9,15 @@ die() {
   exit 1
 }
 
-# Asks before changing the system outside our own files (installing packages); --yes answers.
-# An update from the app installs nothing: it stops before anything changed.
+# Asks before changing the system outside our own files (installing packages); --yes answers,
+# and the question stays in the output: what was agreed to, from where. An update from the app
+# installs nothing: it stops before anything changed.
 confirm() {
   if [[ "$UPDATE" == 1 ]]; then die "Needed first: $1 — an update from Ilexarium installs no programs; update by hand (get-ilex.sh) or install it, then update again"; fi
-  if [[ "$ASSUME_YES" == 1 ]]; then return 0; fi
+  if [[ "$ASSUME_YES" == 1 ]]; then
+    info "$1 yes (--yes)"
+    return 0
+  fi
   if [[ ! -t 0 ]]; then die "$1 — run again with --yes to agree without being asked"; fi
   local answer
   read -r -p "    $1 [y/N] " answer
