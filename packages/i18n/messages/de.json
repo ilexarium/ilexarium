@@ -237,7 +237,7 @@
     "address_refused": "An diese Adresse sendet die App nie: nicht an Link-Local-Adressen, und unverschlüsseltes http:// nur im eigenen Netzwerk.",
     "topic_required": "Gib die Topic-URL ein.",
     "password_required": "Gib das Passwort ein.",
-    "token_required": "Das ist ein anderer Server: Gib das Token erneut ein oder entferne es.",
+    "token_required": "Andere Serveradresse: Gib das Token erneut ein oder entferne es.",
     "process_not_found": "Dieser Prozess läuft nicht mehr.",
     "process_protected": "Dieser Prozess lässt sich nicht beenden: Er ist der erste Prozess des Systems oder Teil des Kernels.",
     "signal_failed": "Das Signal konnte nicht gesendet werden.",
@@ -1206,7 +1206,7 @@
       "topicSet": "Ein Topic ist gespeichert. Leer lassen, um es zu behalten.",
       "token": "Zugangstoken (optional)",
       "tokenHelp": "Für gesperrte Topics auf deinem eigenen Server oder mit einem bezahlten Konto.",
-      "tokenSet": "Ein Token ist gespeichert. Leer lassen, um es für denselben Server zu behalten; für einen anderen Server gib es erneut ein.",
+      "tokenSet": "Ein Token ist gespeichert. Leer lassen, um es für dieselbe Serveradresse (alles vor dem Topic) zu behalten; für eine andere gib es erneut ein.",
       "clearToken": "Gespeichertes Token entfernen",
       "plainHttp": "Unverschlüsseltes http:// geht nur im eigenen Netzwerk, und das Token wird dort nicht verschlüsselt.",
       "ios": "iPhone mit eigenem Server: setze upstream-base-url in den Einstellungen des Servers, sonst kommen Nachrichten verspätet an."

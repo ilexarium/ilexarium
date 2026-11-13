@@ -144,7 +144,7 @@ describe('NotificationsPage', () => {
       topicUrl: 'https://push.other.example/ilex-alerts',
     });
     expect(el.querySelector('#ntfy-token')!.closest('[hlmField]')!.textContent).toContain(
-      'This is another server: enter the token again, or remove it.',
+      'Another server address: enter the token again, or remove it.',
     );
   });
 
