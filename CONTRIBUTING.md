@@ -21,18 +21,24 @@ See the [README](README.md) for running it locally. The server needs Linux. On a
 
 `npm run dev:shared` rebuilds the shared contracts on change.
 
-Before a pull request, all of these must pass:
+Before a pull request, the whole suite must pass. One command runs it:
 
 ```sh
-npm run build:shared
-npm test                       # every workspace's unit tests, the helper and root programs included
-npm run test:e2e               # the server's integration and e2e tests (needs npm run db:up)
-npx ng test --watch=false      # in apps/web
-npm run lint
-npm run format:check
+npm run db:up                  # the services the e2e tests need: Postgres, the Docker proxy, sshd
+npm run verify                 # on a Mac: npm run srv -- npm run verify
 ```
 
-A change to the installer, `system/`, the helper, the root programs, the database or how a release is built also needs the install test: `tools/vm/test-install.sh --container`.
+It builds the shared packages, then runs, in this order (each part's name in brackets):
+
+- `[lint]` `npm run lint`: the workspaces and the type check of the root programs
+- `[format]` `npm run format:check`
+- `[unit]` every workspace's unit tests: shared, i18n, the server with the helper and the root programs, the web app
+- `[e2e]` the server's integration and e2e tests; a test skipped because a dev service or Borg (`borgbackup`) is missing counts as a failure
+- `[install]` the install test, `tools/vm/test-install.sh --container`: a release installed and updated in a throwaway Debian 13 machine (privileged Docker, several minutes)
+
+`npm run verify -- --only lint,unit` runs some parts. A change that doesn't touch the installer, `system/`, the helper, the root programs, the database or how a release is built may leave the install test to CI.
+
+GitHub runs the same parts on every pull request and every push to `main` (`.github/workflows/ci.yml`). A release (`npm run ship`) is only built from a commit at which every part passed: `npm run verify` records each part that passed with the commit in `.dev/verified.json`, and only when the tree had no uncommitted changes.
 
 ## Safety rules
 
