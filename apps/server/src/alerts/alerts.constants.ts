@@ -30,6 +30,19 @@ export const BACKUP_CRITICAL = new Set<BackupWarning>([
 /** A message not delivered is tried once more after this long. */
 export const RETRY_AFTER_MS = 60_000;
 
+/**
+ * An alert whose message reached no channel is tried again this long after, then twice as long
+ * after each failed try...
+ */
+export const TRY_AGAIN_AFTER_MS = 15 * 60_000;
+
+/**
+ * ...up to this. A channel that takes messages but answers too late (counted as failed) gets an
+ * alert's message about 10 times its first day and 6 a day after; an outage that ends is noticed
+ * within this long.
+ */
+export const TRY_AGAIN_MAX_MS = 4 * HOUR_MS;
+
 /** How often due reminders are looked for. */
 export const REMINDER_CHECK_MS = 10 * 60_000;
 

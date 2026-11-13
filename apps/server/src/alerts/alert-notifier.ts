@@ -7,7 +7,13 @@ import { alertMessage, groupedMessage } from './alert-messages.js';
 import { AlertChannels } from './alert-channels.js';
 import { AlertRecords } from './alert-records.js';
 import type { AlertEvent, AlertMessage, ChannelConfig } from './alerts.model.js';
-import { HOUR_MS, REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.js';
+import {
+  HOUR_MS,
+  REMINDER_CHECK_MS,
+  RETRY_AFTER_MS,
+  TRY_AGAIN_AFTER_MS,
+  TRY_AGAIN_MAX_MS,
+} from './alerts.constants.js';
 
 /**
  * Sends the alerts' messages through the channels switched on —
@@ -15,8 +21,8 @@ import { HOUR_MS, REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.j
  * reminder of a critical one until acknowledged, and **at most 10 messages an hour** (the rest
  * held and sent as one when the hour allows). A message that reached no channel is tried once more
  * after a minute; an open alert whose message never got through is sent again by the reminder
- * check until it does ("Resolved" messages only get the one retry). The alert shows in the app
- * either way.
+ * check until it does, after a growing gap ("Resolved" messages only get the one retry). The alert
+ * shows in the app either way.
  */
 @Injectable()
 export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
@@ -31,6 +37,11 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   private readonly subscriptions: Subscription[] = [];
   /** Shutting down: a delivery still under way schedules no more timers. */
   private stopped = false;
+  /**
+   * Alerts whose last message reached no channel: when it was tried and how many times, for the
+   * gap before the next try. Lost at a restart: each is then simply due again once.
+   */
+  private readonly tried = new Map<string, { at: number; times: number }>();
 
   constructor(
     private readonly alertRecords: AlertRecords,
@@ -69,6 +80,7 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     if (this.flushTimer) clearTimeout(this.flushTimer);
     for (const timer of this.retries) clearTimeout(timer);
     this.retries.clear();
+    this.tried.clear();
   }
 
   /** An alert opened, got more serious or closed. */
@@ -80,16 +92,34 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Open alerts never sent (no channel was switched on, or every one failed) — their opening
-   * message — and critical ones not acknowledged a day after their last message. The first message
-   * no channel takes ends the round: while the channels fail, one try every check, not one per alert.
+   * message — and critical ones not acknowledged a day after their last message. One that failed
+   * waits a growing gap, so a channel that takes messages but answers too late gets a few a day.
+   * The least recently tried go first, and the first message no channel takes ends the round:
+   * while the channels fail, one try every check, and one message that always fails can't keep
+   * the others from going.
    */
   async remind(): Promise<void> {
-    const waiting = new Set(this.held.map((h) => h.alertId));
-    for (const alert of await this.alertRecords.dueReminders(new Date())) {
-      if (waiting.has(alert.id)) continue;
+    const now = Date.now();
+    const open = await this.alertRecords.open();
+    const waitingFor = new Set(open.filter((a) => !a.acknowledgedAt).map((a) => a.id));
+    for (const id of this.tried.keys()) if (!waitingFor.has(id)) this.tried.delete(id);
+    const held = new Set(this.held.map((h) => h.alertId));
+    const lastTry = (id: string) => this.tried.get(id)?.at ?? 0;
+    const due = (await this.alertRecords.dueReminders(new Date(now)))
+      .filter((alert) => !held.has(alert.id) && this.mayTryAgain(alert.id, now))
+      .sort((a, b) => lastTry(a.id) - lastTry(b.id));
+    for (const alert of due) {
       const type = alert.lastSentAt === null ? 'opened' : 'reminder';
       if (!(await this.send(this.message({ type, alert }), alert.id))) return;
     }
+  }
+
+  /** 15 minutes after the first failed try, then twice as long each time, at most 4 hours. */
+  private mayTryAgain(alertId: string, now: number): boolean {
+    const tried = this.tried.get(alertId);
+    if (!tried) return true;
+    const gap = Math.min(TRY_AGAIN_AFTER_MS * 2 ** (tried.times - 1), TRY_AGAIN_MAX_MS);
+    return now - tried.at >= gap;
   }
 
   private message(event: AlertEvent): AlertMessage {
@@ -117,10 +147,11 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Through every channel; the ones that failed are tried once more after a minute. The alerts
-   * count as sent when one channel has the message. One that reached no channel even on the retry
-   * gives its slot back: the hour's 10 are messages delivered, so failures during an outage don't
-   * hold back the messages after it.
+   * Through every channel; the alerts count as sent when one channel has the message. A channel
+   * that timed out may have taken it (the answer can come after the message): its try keeps its
+   * slot and isn't repeated a minute later, so the receiving side gets at most 10 an hour. A
+   * message no channel can have taken gives its slot back, so failures during an outage don't hold
+   * back the messages after it; the channels that refused it are tried once more after a minute.
    */
   private async deliver(
     channels: ChannelConfig[],
@@ -132,22 +163,19 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     const problems = await Promise.all(
       channels.map((config) => this.alertChannels.sendTo(config, message)),
     );
-    const failed = channels.filter((_, i) => problems[i] !== null);
-    const delivered = failed.length < channels.length;
+    const delivered = problems.includes(null);
+    const counted = delivered || problems.includes('timedOut');
+    if (!counted) this.giveBack(slot);
     if (delivered) await this.markSent(alertIds);
-    else if (!retry) this.giveBack(slot);
-    if (retry && failed.length > 0 && !this.stopped) {
+    else if (retry) this.noteTry(alertIds);
+    const refused = channels.filter((_, i) => problems[i] !== null && problems[i] !== 'timedOut');
+    if (retry && refused.length > 0 && !this.stopped) {
       const timer = setTimeout(() => {
         this.retries.delete(timer);
         // Delivered already: the retry only completes the other channels.
-        void this.deliver(
-          failed,
-          message,
-          delivered ? [] : alertIds,
-          delivered ? null : slot,
-          false,
-        ).catch((error: unknown) =>
-          this.logger.error('Retrying an alert message failed', (error as Error).stack),
+        void this.retry(refused, message, delivered ? [] : alertIds, counted).catch(
+          (error: unknown) =>
+            this.logger.error('Retrying an alert message failed', (error as Error).stack),
         );
       }, RETRY_AFTER_MS);
       this.retries.add(timer);
@@ -155,9 +183,31 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
     return delivered;
   }
 
+  /** The first try kept its slot, or gave it back: then the retry needs one of its own. */
+  private async retry(
+    channels: ChannelConfig[],
+    message: AlertMessage,
+    alertIds: string[],
+    counted: boolean,
+  ): Promise<void> {
+    const slot = counted ? null : this.takeSlot();
+    if (!counted && slot === null) return;
+    await this.deliver(channels, message, alertIds, slot, false);
+  }
+
   private async markSent(alertIds: string[]): Promise<void> {
     const now = new Date();
-    for (const id of alertIds) await this.alertRecords.markSent(id, now);
+    for (const id of alertIds) {
+      this.tried.delete(id);
+      await this.alertRecords.markSent(id, now);
+    }
+  }
+
+  private noteTry(alertIds: string[]): void {
+    const at = Date.now();
+    for (const id of alertIds) {
+      this.tried.set(id, { at, times: (this.tried.get(id)?.times ?? 0) + 1 });
+    }
   }
 
   /** One of the hour's messages, if there's one left: when it was taken, or null. */
