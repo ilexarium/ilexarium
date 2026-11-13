@@ -60,6 +60,7 @@ fi
 check_machine
 hold_lock
 check_version
+check_port
 ensure_packages
 marker phase checked
 ensure_user

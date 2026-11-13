@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests the installer end to end on a throwaway machine: builds a release signed with a test key, serves it over HTTPS inside the
-# machine, installs it through get-ilex.sh (--yes; a tampered archive refused first), runs the
+# machine, installs it through get-ilex.sh (--yes; a tampered archive and a port another program answers on refused first), runs the
 # smoke test inside, moves the app to another port (the machine's settings, which updates keep),
 # runs the installer again (--update) and the smoke test again, then updates by ilex-update.
 #
@@ -170,6 +170,20 @@ if run_in bash /root/get-ilex.sh --yes >>"$LOG" 2>&1 || run_in test -e /etc/ilex
   exit 1
 fi
 run_in cp /root/served.tar.gz "$SERVED"
+
+# Another program on the app's port (as Grafana's 3000 would be): refused before anything changes —
+# the installer would otherwise believe that program's answer.
+step 'install.sh refuses while another program answers on the app’s port'
+run_in systemd-run --unit ilex-test-squatter \
+  openssl s_server -quiet -www -accept 127.0.0.1:3000 -cert /srv/tls/cert.pem -key /srv/tls/key.pem >>"$LOG" 2>&1
+run_in bash -c 'for _ in $(seq 1 20); do (: <>/dev/tcp/127.0.0.1/3000) 2>/dev/null && exit 0; sleep 0.5; done; exit 1'
+if run_in bash -c "cd /root/ilex-$VERSION && ./install.sh --yes" >"$HERE/run/squatter.out" 2>&1 ||
+  run_in test -e /etc/ilex/version || ! grep -q 'Another program answers on port 3000' "$HERE/run/squatter.out"; then
+  tee -a "$LOG" <"$HERE/run/squatter.out"
+  echo 'install.sh did not refuse a port another program answers on' | tee -a "$LOG"
+  exit 1
+fi
+run_in systemctl stop ilex-test-squatter
 
 step 'Installing (get-ilex.sh)'
 if ! run_in bash /root/get-ilex.sh --yes >>"$LOG" 2>&1; then

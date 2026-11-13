@@ -8,6 +8,7 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +19,7 @@ const CHECKS = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/che
 const PACKAGES = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/packages.sh');
 const COMMON = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/common.sh');
 const PLATFORM = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/platform.sh');
+const FILES = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/files.sh');
 
 // The installer's own functions, fed samples: `source` only defines them.
 const call = (fn: string, ...args: string[]) =>
@@ -313,5 +315,54 @@ describe('what runs when the installer ends', () => {
     );
     expect(run.status).toBe(3);
     expect(run.stdout).toBe('b 3\na 3\n');
+  });
+});
+
+describe('the app’s port before a first install', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ilex-install-port-'));
+  let server: Server | null = null;
+  afterEach(() => {
+    server?.close();
+    server = null;
+  });
+  const listen = (host: string) =>
+    new Promise<number>((resolve) => {
+      server = createServer().listen(0, host, () =>
+        resolve((server!.address() as { port: number }).port),
+      );
+    });
+  const checkPort = (settings: string, installed = '') => {
+    writeFileSync(join(dir, 'app.env'), settings);
+    return script('source "$FILES"; ETC="$DIR"; OLD_VERSION="$INSTALLED"; check_port', {
+      FILES,
+      DIR: dir,
+      INSTALLED: installed,
+    });
+  };
+
+  it('refuses when another program answers there, before anything changed', async () => {
+    const port = await listen('127.0.0.1');
+    const run = checkPort(`PORT=${port}\n`);
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain(`Another program answers on port ${port} (127.0.0.1;`);
+    expect(run.stderr).toContain(`PORT=<port> in ${dir}/app.env`);
+  });
+
+  it('also on ::1 and on the address HOST names', async () => {
+    if (existsSync('/proc/net/if_inet6')) {
+      const port = await listen('::1');
+      expect(checkPort(`PORT=${port}\n`).stderr).toContain(`(::1;`);
+      server?.close();
+    }
+    const port = await listen('127.0.0.2');
+    expect(checkPort(`HOST=127.0.0.2\nPORT=${port}\n`).status).toBe(1);
+  });
+
+  it('a free port passes; an update keeps its own port (the app or ilex.socket answers there)', async () => {
+    const port = await listen('127.0.0.1');
+    expect(checkPort(`PORT=${port}\n`, '0.2.2').status).toBe(0);
+    server?.close();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(checkPort(`PORT=${port}\n`).status).toBe(0);
   });
 });
