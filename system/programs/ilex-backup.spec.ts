@@ -198,6 +198,12 @@ async function setUp(change: Record<string, unknown> = {}) {
 
 const passphrase = () => readFileSync(join(dev, 'backup.passphrase'), 'utf8').trim();
 
+async function until(ready: () => boolean) {
+  const deadline = Date.now() + 10_000;
+  while (!ready() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
+  expect(ready()).toBe(true);
+}
+
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'backup-wrapper-'));
   chmodSync(dir, 0o755);
@@ -705,6 +711,43 @@ describe('ilex-backup run', () => {
     expect(results()[0].items[0]).toMatchObject({ status: 'failed', errorCode: 'disk_full' });
   });
 
+  it('a Borg killed while it archives (out of memory) fails the item: no archive, nothing pruned', async () => {
+    writeFileSync(join(dir, 'die-create.txt'), '');
+    const result = await runNow({ runId: RUN, itemId: FOLDER });
+    expect(result.code).toBe(5);
+    expect(results()[0]).toMatchObject({ status: 'failed', errorCode: null });
+    expect(results()[0].items[0]).toMatchObject({
+      status: 'failed',
+      errorCode: 'borg_failed',
+      archive: null,
+      archives: null,
+    });
+    expect(results()[0].output).toContain('borg create was ended by SIGKILL (out of memory?)');
+    expect(borgCommands()).toEqual(['create']);
+  });
+
+  it('a Borg killed while it prunes is said, as a failed prune is', async () => {
+    writeFileSync(join(dir, 'die-prune.txt'), '');
+    await runNow({ runId: RUN, itemId: FOLDER });
+    expect(results()[0].output).toContain('borg prune was ended by SIGKILL (out of memory?)');
+  });
+
+  it('a stop while Borg archives ends the run as interrupted: no archive, nothing pruned', async () => {
+    writeFileSync(join(dir, 'hang-create.txt'), '');
+    const running = runNow({ runId: RUN, itemId: FOLDER });
+    await until(() => borgCommands().includes('create'));
+    process.kill(job(RUN)[0].pid, 'SIGTERM');
+    const result = await running;
+    expect(result.code).toBe(143);
+    expect(results()[0]).toMatchObject({ status: 'failed', errorCode: 'interrupted' });
+    expect(results()[0].items[0]).toMatchObject({
+      status: 'failed',
+      errorCode: 'interrupted',
+      archive: null,
+    });
+    expect(borgCommands()).toEqual(['create']);
+  });
+
   it('writes nothing when the disk is not mounted', async () => {
     writeMounts([]);
     const result = await runNow({ runId: RUN });
@@ -983,6 +1026,59 @@ describe('ilex-backup restore', () => {
     expect(said).toEqual([1, 2, 1, 0]);
   });
 
+  it('a Borg killed during the extraction (out of memory) fails, and everything is put back', async () => {
+    writeFileSync(join(dir, 'die-extract.txt'), '');
+    const result = await restore(restoreInput());
+    expect(result.code).toBe(5);
+    expect(done()).toMatchObject({
+      status: 'failed',
+      errorCode: 'borg_failed',
+      setAside: [],
+      appWasRunning: false,
+    });
+    const data = join(storage, 'demo', 'data');
+    expect(readFileSync(join(data, 'db.sqlite'), 'utf8')).toBe('data');
+    expect(existsSync(join(data, 'partial.txt'))).toBe(false);
+    expect(readdirSync(join(storage, 'demo')).sort()).toEqual(['data', 'media']);
+    expect(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8')).toBe('[]\n');
+    expect(calls('docker').map((c) => c.args[3])).toEqual(['ps', 'stop', 'start']);
+    expect(events()).toContainEqual({
+      type: 'line',
+      text: 'borg extract was ended by SIGKILL (out of memory?)',
+    });
+  });
+
+  it('into a chosen folder: a Borg killed during the extraction fails the restore', async () => {
+    writeFileSync(join(dir, 'die-extract.txt'), '');
+    const target = join(dir, 'restored');
+    const result = await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
+    expect(result.code).toBe(5);
+    expect(done()).toMatchObject({ status: 'failed', errorCode: 'borg_failed', setAside: [] });
+  });
+
+  it('a Borg killed while it reads the backup is a failure of Borg, not a backup that is gone', async () => {
+    writeFileSync(join(dir, 'die-info.txt'), '');
+    const result = await restore(restoreInput());
+    expect(result.code).toBe(5);
+    expect(done()).toMatchObject({ status: 'failed', errorCode: 'borg_failed', setAside: [] });
+    expect(calls('docker')).toEqual([]);
+  });
+
+  it('a restore stopped during the extraction puts everything back', async () => {
+    writeFileSync(join(dir, 'hang-extract.txt'), '');
+    expect((await wrapper('restore-start', restoreInput())).code).toBe(0);
+    const running = wrapper(['restore-run', RESTORE]);
+    await until(() => borgCommands().includes('extract'));
+    process.kill(events()[0].pid, 'SIGTERM');
+    const result = await running;
+    expect(result.code).toBe(143);
+    expect(done()).toMatchObject({ status: 'failed', errorCode: 'borg_failed', setAside: [] });
+    const data = join(storage, 'demo', 'data');
+    expect(readFileSync(join(data, 'db.sqlite'), 'utf8')).toBe('data');
+    expect(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8')).toBe('[]\n');
+    expect(calls('docker').map((c) => c.args[3])).toEqual(['ps', 'stop', 'start']);
+  });
+
   it('only the folders in the plan now: one taken out is left alone, one the backup lacks is said', async () => {
     const data = join(storage, 'demo', 'data');
     const media = join(storage, 'demo', 'media');
@@ -1133,6 +1229,15 @@ describe('ilex-backup discard, forget and passphrase', () => {
     ]);
   });
 
+  it('forget reports a Borg killed while it deletes, and goes no further', async () => {
+    const items = plan().items.map((i: any) => (i.id === FOLDER ? { ...i, removed: true } : i));
+    await wrapper('configure', plan({ items }));
+    writeFileSync(join(dir, 'die-delete.txt'), '');
+    resetCalls();
+    expectRefused(await wrapper('forget', { itemId: FOLDER }), 'borg_failed', 5);
+    expect(borgCommands()).toEqual(['delete']);
+  });
+
   it('passphrase shows it (the only action that does)', async () => {
     const result = await wrapper('passphrase');
     expect(result.code).toBe(0);
@@ -1156,6 +1261,16 @@ describe('ilex-backup check-scheduled', () => {
       type: 'check',
       status: 'failed',
       errorCode: 'repository_damaged',
+    });
+  });
+
+  it('a Borg killed while it checks is a failure of Borg, not damage', async () => {
+    writeFileSync(join(dir, 'die-check.txt'), '');
+    expect((await wrapper('check-scheduled')).code).toBe(5);
+    expect(results()[0]).toMatchObject({
+      type: 'check',
+      status: 'failed',
+      errorCode: 'borg_failed',
     });
   });
 });

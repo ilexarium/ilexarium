@@ -62,7 +62,7 @@ export async function init(config: Config, paths: Paths, input: string): Promise
       writeAtomic(paths.passphrase, `${generatePassphrase()}\n`, 0o400);
     }
     const result = await borg(config, paths, 'init', ['--encryption', 'repokey-blake2', path]);
-    if (result.code !== 0) throw new Refusal(borgFailure(result.logs), 'borg init failed', 5);
+    if (result.code !== 0) throw new Refusal(borgFailure(result), 'borg init failed', 5);
     chmodSync(path, 0o700);
     const id = repositoryId(path);
     if (!id) throw new Refusal('borg_failed', 'the new repository has no id', 5);
