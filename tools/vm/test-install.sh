@@ -42,15 +42,18 @@ RELEASE_URL=https://localhost:8443/releases
 ALARM_ROOTFS=https://fl.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
 KEYS="$HERE/run/release-key"
 RELEASES="$HERE/run/releases"
+# Every release signed with notes, as public ones are: the manifest then has a field after the size.
+NOTES="$HERE/run/NOTES.md"
 export RELEASE_KEY_PASSPHRASE=test-release-key-passphrase
 
 echo '==> Building and signing the release (a test key)'
 rm -rf "$KEYS" "$RELEASES"
+printf '%s\n' "The install test's release." >"$NOTES"
 (
   cd "$ROOT" &&
     npm run release:key -- "$KEYS" &&
     RELEASE_URL="$RELEASE_URL" RELEASE_PUB="$KEYS/release.pub" npm run release &&
-    npm run release:sign -- --key "$KEYS/release.key" &&
+    npm run release:sign -- --key "$KEYS/release.key" --notes "$NOTES" &&
     npm run release:publish -- "$RELEASES"
 ) >"$HERE/run/release.log" 2>&1 || { tail -20 "$HERE/run/release.log"; exit 1; }
 VERSION="$(node -p "require('$ROOT/package.json').version")"
@@ -221,9 +224,9 @@ step "Updating to $GOOD, then to a broken $BROKEN (ilex-update)"
   cd "$ROOT" &&
     node tools/vm/repack-release.mjs "$ARCHIVE" "$GOOD" &&
     node tools/vm/repack-release.mjs "$ARCHIVE" "$BROKEN" --broken &&
-    npm run release:sign -- --key "$KEYS/release.key" --version "$GOOD" &&
+    npm run release:sign -- --key "$KEYS/release.key" --version "$GOOD" --notes "$NOTES" &&
     npm run release:publish -- "$RELEASES" "$GOOD" &&
-    npm run release:sign -- --key "$KEYS/release.key" --version "$BROKEN" &&
+    npm run release:sign -- --key "$KEYS/release.key" --version "$BROKEN" --notes "$NOTES" &&
     npm run release:publish -- "$RELEASES" "$BROKEN"
 ) >>"$HERE/run/release.log" 2>&1 || { tail -20 "$HERE/run/release.log"; exit 1; }
 run_in rm -rf /srv/www/releases
