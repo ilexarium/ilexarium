@@ -19,7 +19,16 @@ import type {
 } from './model.mts';
 import { allowedFolder, overlaps, resolveSource } from './places.mts';
 import { ARCHIVE_PATTERN, loadPlan } from './plan.mts';
-import { borg, borgFailure, docker, sleep, stopping, takeLock } from './programs.mts';
+import {
+  borg,
+  borgFailed,
+  borgFailure,
+  docker,
+  failedLine,
+  sleep,
+  stopping,
+  takeLock,
+} from './programs.mts';
 import { emit, oneLine, Refusal } from '../lib/output.mts';
 
 /** The platform's sessions are left out of its database dump (signing in again is fine). */
@@ -308,8 +317,11 @@ export async function backupItem(
         ],
         { capture: true, onLine: keep },
       );
-      if (create.code >= 2 || stopping) {
-        return fail(stopping ? 'interrupted' : borgFailure(create.logs), 'borg create failed');
+      if (borgFailed(create) || stopping) {
+        return fail(
+          stopping ? 'interrupted' : borgFailure(create),
+          failedLine('borg create', create),
+        );
       }
       result.archive = name;
       result.warnings = create.logs
@@ -354,7 +366,7 @@ export async function backupItem(
         onLine: keep,
       },
     );
-    if (prune.code >= 2) keep('borg prune failed');
+    if (borgFailed(prune)) keep(failedLine('borg prune', prune));
     result.archives = await listArchives(config, paths, repo, item.id);
     return result;
   } catch (error) {

@@ -115,9 +115,9 @@ export function runProgram(
       line(text);
     });
     child.on('error', reject);
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       current = null;
-      resolve({ code: code ?? 1, stdout, logs });
+      resolve({ code, signal, stdout, logs });
     });
   });
 }
@@ -146,8 +146,17 @@ export function docker(
   });
 }
 
-/** What a failed Borg call means, from its log messages. */
-export function borgFailure(logs: BorgLog[], fallback = 'borg_failed'): string {
+/**
+ * Borg's exit codes (legacy, the default — BORG_EXIT_CODES is never set): 0 done, 1 done with
+ * warnings, 2 or more failed. One a signal ended didn't finish either.
+ */
+export function borgFailed(ran: Ran): boolean {
+  return ran.code === null || ran.code >= 2;
+}
+
+/** What a failed Borg call means, from its log messages (and whether a signal ended it). */
+export function borgFailure(ran: Ran, fallback = 'borg_failed'): string {
+  const { logs } = ran;
   const ids = new Set(logs.map((l) => l.msgid));
   if (ids.has('PassphraseWrong')) return 'passphrase_invalid';
   if (
@@ -158,7 +167,13 @@ export function borgFailure(logs: BorgLog[], fallback = 'borg_failed'): string {
     return 'repository_mismatch';
   }
   if (logs.some((l) => /No space left on device|\[Errno 28\]/.test(l.message))) return 'disk_full';
-  return fallback;
+  return ran.signal ? 'borg_failed' : fallback;
+}
+
+/** The output line for a failed step: how it ended when a signal ended it. */
+export function failedLine(step: string, ran: Ran): string {
+  if (!ran.signal) return `${step} failed`;
+  return `${step} was ended by ${ran.signal}${ran.signal === 'SIGKILL' ? ' (out of memory?)' : ''}`;
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

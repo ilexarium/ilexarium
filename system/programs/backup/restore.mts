@@ -27,7 +27,7 @@ import { parseInput } from './input.mts';
 import type { Config, ItemResult, Paths, SetAside } from './model.mts';
 import { allowedFolder, assertParentsSafe, overlaps } from './places.mts';
 import { ARCHIVE_PATTERN, UUID, loadPlan } from './plan.mts';
-import { borg, borgFailure, docker, takeLock } from './programs.mts';
+import { borg, borgFailed, borgFailure, docker, failedLine, takeLock } from './programs.mts';
 import { startAgain } from './run.mts';
 import { startDetached, startUnit } from './start.mts';
 import { Refusal, emit, oneLine } from '../lib/output.mts';
@@ -181,7 +181,7 @@ async function restoreArchive(
     capture: true,
   });
   if (info.code !== 0) {
-    throw new Refusal(borgFailure(info.logs, 'archive_not_found'), 'no such archive', 5);
+    throw new Refusal(borgFailure(info, 'archive_not_found'), 'no such archive', 5);
   }
 
   if (request.target !== null) {
@@ -211,7 +211,9 @@ async function restoreArchive(
         ['--numeric-ids', '--umask', '0022', `${repo.path}::${request.archive}`],
         { cwd: target, onLine: line },
       );
-      if (extract.code >= 2) throw new Refusal(borgFailure(extract.logs), 'borg extract failed', 5);
+      if (borgFailed(extract)) {
+        throw new Refusal(borgFailure(extract), failedLine('borg extract', extract), 5);
+      }
     } finally {
       process.umask(0o077);
     }
@@ -290,7 +292,9 @@ async function restoreArchive(
       ['--numeric-ids', `${repo.path}::${request.archive}`, ...sources.map((s) => s.slice(1))],
       { cwd: '/', onLine: line },
     );
-    if (extract.code >= 2) throw new Refusal(borgFailure(extract.logs), 'borg extract failed', 5);
+    if (borgFailed(extract)) {
+      throw new Refusal(borgFailure(extract), failedLine('borg extract', extract), 5);
+    }
   } catch (error) {
     failure = error instanceof Refusal ? error : new Refusal('borg_failed', String(error), 5);
     // The way back: the partly restored folders go, the set-aside ones return. Telling the job

@@ -2,7 +2,10 @@
 // Records every call (args, environment, folder) in borg-calls.jsonl; keeps "archives" in
 // archives.json (name → its create command line); behaviour per command from files:
 // exit-<command>.txt (exit code), logs-<command>.jsonl (stderr log lines), repo-id.txt,
-// kill-<command>.txt (kills the program that started it: a hard kill, power loss).
+// kill-<command>.txt (kills the program that started it: a hard kill, power loss),
+// die-<command>.txt (Borg itself is killed with SIGKILL, as the out-of-memory killer does, after
+// what it got done: a partial extract, no archive), hang-<command>.txt (it works until a signal
+// ends it: a stop while it runs).
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -29,6 +32,10 @@ for (const line of read(`logs-${command}.jsonl`, '').split('\n').filter(Boolean)
   process.stderr.write(line + '\n');
 }
 if (fs.existsSync(path.join(dir, `kill-${command}.txt`))) process.kill(process.ppid, 'SIGKILL');
+if (fs.existsSync(path.join(dir, `hang-${command}.txt`))) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20_000);
+}
+const dies = fs.existsSync(path.join(dir, `die-${command}.txt`));
 const exit = Number(read(`exit-${command}.txt`, '0'));
 const archivesFile = path.join(dir, 'archives.json');
 const archives = () => JSON.parse(read('archives.json', '{}'));
@@ -47,7 +54,7 @@ switch (command) {
     break;
   }
   case 'create': {
-    if (exit >= 2) break;
+    if (exit >= 2 || dies) break;
     const all = archives();
     all[name] = ['/usr/bin/borg', ...args];
     fs.writeFileSync(archivesFile, JSON.stringify(all));
@@ -88,7 +95,7 @@ switch (command) {
     for (const relative of wanted.length ? wanted : sources.map((s) => s.slice(1))) {
       const folder = path.join(process.cwd(), relative);
       fs.mkdirSync(folder, { recursive: true });
-      fs.writeFileSync(path.join(folder, exit >= 2 ? 'partial.txt' : 'restored.txt'), name);
+      fs.writeFileSync(path.join(folder, exit >= 2 || dies ? 'partial.txt' : 'restored.txt'), name);
     }
     break;
   }
@@ -99,4 +106,5 @@ switch (command) {
     break;
   }
 }
+if (dies) process.kill(process.pid, 'SIGKILL');
 process.exit(exit);
