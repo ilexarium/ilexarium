@@ -40,6 +40,8 @@ describe('AlertNotifier', () => {
   let down: Set<ChannelConfig['kind']>;
   /** Every try, delivered or not, by channel. */
   let tries: ChannelConfig['kind'][];
+  /** While set, a channel answers only once it resolves. */
+  let answerAfter: Promise<void> | null;
   let reminders: OpenAlert[];
   let notifier: AlertNotifier;
 
@@ -52,6 +54,7 @@ describe('AlertNotifier', () => {
     failNext = 0;
     down = new Set();
     tries = [];
+    answerAfter = null;
     reminders = [];
     const records = {
       events$: events.asObservable(),
@@ -62,6 +65,7 @@ describe('AlertNotifier', () => {
       enabled: async () => enabled,
       sendTo: async (config: ChannelConfig, message: AlertMessage) => {
         tries.push(config.kind);
+        await answerAfter;
         if (down.has(config.kind)) return 'unreachable';
         if (failNext > 0) {
           failNext--;
@@ -258,6 +262,18 @@ describe('AlertNotifier', () => {
     expect(sent).toHaveLength(11);
     expect(sent[10].title).toBe('svc-9 has stopped');
     expect(marked).toContain('id-svc-9');
+  });
+
+  it('tries nothing more after shutdown, even for a message whose delivery was under way', async () => {
+    let answer = () => {};
+    answerAfter = new Promise((resolve) => (answer = resolve));
+    down = new Set(['ntfy']);
+    events.next({ type: 'opened', alert: alert('immich') });
+    await settle();
+    notifier.onModuleDestroy();
+    answer();
+    await vi.advanceTimersByTimeAsync(RETRY_AFTER_MS);
+    expect(tries).toEqual(['ntfy']);
   });
 
   it('reminds of critical alerts once a day until acknowledged', async () => {
