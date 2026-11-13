@@ -11,6 +11,7 @@
 #   --os arch                               container mode on Arch Linux instead (the official
 #                                           image on x86_64, Arch Linux ARM's root filesystem on
 #                                           aarch64)
+#   --os ubuntu                             container mode on Ubuntu 24.04 instead
 #   --keep                                  leave the machine running afterwards (to look around)
 #
 # Container mode leaves out what a container can't fake: mounting a real disk and a real restart.
@@ -21,7 +22,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 MODE=''
 OS=debian
 KEEP=0
-usage() { echo "usage: $0 --container [--os debian|arch]|--vm [--keep]" >&2; exit 2; }
+usage() { echo "usage: $0 --container [--os debian|ubuntu|arch]|--vm [--keep]" >&2; exit 2; }
 while (($# > 0)); do
   case "$1" in
     --container) MODE=container ;;
@@ -32,8 +33,8 @@ while (($# > 0)); do
   esac
   shift
 done
-[[ -n "$MODE" && ("$OS" == debian || "$OS" == arch) ]] || usage
-[[ "$OS" == debian || "$MODE" == container ]] || { echo '--os arch is for --container' >&2; exit 2; }
+[[ -n "$MODE" && ("$OS" == debian || "$OS" == ubuntu || "$OS" == arch) ]] || usage
+[[ "$OS" == debian || "$MODE" == container ]] || { echo "--os $OS is for --container" >&2; exit 2; }
 mkdir -p "$HERE/run"
 
 # Served inside the machine by openssl s_server, with a certificate the machine trusts.
@@ -78,6 +79,11 @@ if [[ "$MODE" == container ]]; then
     docker build -q -t ilex-test-machine-arch --build-arg "BASE=$base" \
       -f "$HERE/Dockerfile.machine.arch" "$HERE" >/dev/null
     IMAGE=ilex-test-machine-arch
+  elif [[ "$OS" == ubuntu ]]; then
+    echo '==> Starting the test machine (an Ubuntu 24.04 container with systemd)'
+    docker build -q -t ilex-test-machine-ubuntu --build-arg BASE=ubuntu:24.04 \
+      -f "$HERE/Dockerfile.machine" "$HERE" >/dev/null
+    IMAGE=ilex-test-machine-ubuntu
   else
     echo '==> Starting the test machine (a Debian 13 container with systemd)'
     docker build -q -t ilex-test-machine -f "$HERE/Dockerfile.machine" "$HERE" >/dev/null

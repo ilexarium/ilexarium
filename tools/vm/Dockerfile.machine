@@ -1,7 +1,9 @@
 # A throwaway "machine" for testing the installer without a VM (tools/vm/test-install.sh
-# --container): plain Debian 13 with systemd as its first process — everything else (Node,
-# Docker, Borg, …) is the installer's job. Never for anything but tests.
-FROM debian:13
+# --container): plain Debian 13 (Ubuntu 24.04 with --os ubuntu: BASE) with systemd as its first
+# process — everything else (Node, Docker, Borg, …) is the installer's job. Never for anything
+# but tests.
+ARG BASE=debian:13
+FROM ${BASE}
 ENV container=docker
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends systemd systemd-sysv dbus \
