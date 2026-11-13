@@ -24,6 +24,7 @@ const BACKUP_ERROR_STATUS: Partial<Record<BackupErrorCode, HttpStatus>> = {
   [BACKUP_ERROR_CODES.busy]: HttpStatus.CONFLICT,
   [BACKUP_ERROR_CODES.repositoryExists]: HttpStatus.CONFLICT,
   [BACKUP_ERROR_CODES.targetNotEmpty]: HttpStatus.CONFLICT,
+  [BACKUP_ERROR_CODES.pathOthersCanChange]: HttpStatus.UNPROCESSABLE_ENTITY,
   [BACKUP_ERROR_CODES.setAsideKept]: HttpStatus.CONFLICT,
   [BACKUP_ERROR_CODES.invalidPlan]: HttpStatus.UNPROCESSABLE_ENTITY,
   [BACKUP_ERROR_CODES.destinationUnavailable]: HttpStatus.UNPROCESSABLE_ENTITY,
