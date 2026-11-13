@@ -23,7 +23,7 @@
   --chart-4: oklch(0.62 0.17 350);
   --chart-5: oklch(0.62 0.12 230);
   --radius: 0.625rem;
-  --background: oklch(0.995 0.004 280);
+  --background: oklch(0.975 0.009 280);
   --foreground: oklch(0.21 0.035 280);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.035 280);
@@ -52,8 +52,8 @@
   --light-ok: oklch(0.62 0.16 150);
   --light-warn: oklch(0.66 0.15 65);
   --light-fail: oklch(0.6 0.21 27);
-  --border: oklch(0.915 0.014 280);
-  --input: oklch(0.915 0.014 280);
+  --border: oklch(0.905 0.018 280);
+  --input: oklch(0.905 0.018 280);
   --ring: oklch(0.7 0.12 280);
 }
 
