@@ -21,7 +21,7 @@ import { SecretsService } from '../secrets/secrets.service.js';
 import { DeliveryError } from './alerts.model.js';
 import type { AlertMessage, ChannelConfig, ChannelSender } from './alerts.model.js';
 import { EmailSender } from './email-sender.js';
-import { NtfySender } from './ntfy-sender.js';
+import { NtfySender, ntfyTarget } from './ntfy-sender.js';
 import { checkTarget } from './safe-address.js';
 
 /** Who changes the settings, for the audit log. */
@@ -147,10 +147,13 @@ export class AlertChannels {
     if (update.topicUrl) {
       const url = new URL(update.topicUrl);
       await this.refuseAddress(url.hostname, url.protocol === 'http:', 'topicUrl');
-      destinationChanged = !stored?.topicUrl || new URL(stored.topicUrl).origin !== url.origin;
+      destinationChanged =
+        !stored?.topicUrl ||
+        ntfyTarget(stored.topicUrl).postUrl !== ntfyTarget(update.topicUrl).postUrl;
     }
-    // The token is the server's credential: another topic on the same server may keep it, another
-    // server gets it only when it's entered again.
+    // The token goes only to the address it was entered for (on one origin a proxy may route
+    // another path to another app): another topic there may keep it, anywhere else it's entered
+    // again.
     if (destinationChanged && update.token === undefined && stored?.token) {
       throw failure(
         ALERT_ERROR_CODES.tokenRequired,
