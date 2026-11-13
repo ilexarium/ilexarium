@@ -381,7 +381,7 @@ export class AppManager {
           posix.join(folder, ENV_FILE),
           posix.join(folder, ILEX_DIR),
         ]);
-        await this.removeIfEmpty(sftp, folder, folders);
+        await this.removeIfEmpty(sftp, folder, folders, mounts.folders);
       }
       return null;
     });
@@ -390,12 +390,20 @@ export class AppManager {
   /**
    * The app's folder, and the folders between it and a deleted data folder, deepest first: each
    * only if it is empty now. `rmdir` refuses a folder that isn't, so whatever else is there —
-   * also a file written a moment ago — stays, and the folder with it.
+   * also a file written a moment ago — stays, and the folder with it. A data folder left unticked
+   * stays even when it is empty.
    */
-  private async removeIfEmpty(sftp: Sftp, folder: string, deleted: string[]): Promise<void> {
+  private async removeIfEmpty(
+    sftp: Sftp,
+    folder: string,
+    deleted: string[],
+    mounted: string[],
+  ): Promise<void> {
     const between = new Set<string>();
     for (const path of deleted.filter((path) => inside(path, folder))) {
-      for (let up = posix.dirname(path); up !== folder; up = posix.dirname(up)) between.add(up);
+      for (let up = posix.dirname(path); up !== folder; up = posix.dirname(up)) {
+        if (!mounted.includes(up)) between.add(up);
+      }
     }
     for (const path of [...between].sort((a, b) => b.length - a.length)) {
       await sftp.removeFolder(path).catch(() => undefined);

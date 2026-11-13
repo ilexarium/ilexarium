@@ -470,6 +470,27 @@ describe('AppManager: removing', () => {
     expect(existsSync(folder)).toBe(false);
   });
 
+  it('a data folder below another one left unticked: that one stays, also when it is empty', async () => {
+    const folder = join(home, 'apps', 'music');
+    homeMounts = [join(folder, 'media')];
+    await install('PORT=8080\nMEDIA=./media/music\n');
+    taskResult = '@@ilex-result\nsuccess\n';
+    await manager().remove(SESSION, 'music', folder, ACTOR);
+    await manager().delete(
+      SESSION,
+      'music',
+      {
+        folder,
+        settings: true,
+        folders: [join(folder, 'data'), join(folder, 'media', 'music')],
+        volumes: [],
+      },
+      ACTOR,
+    );
+    expect(readdirSync(folder)).toEqual(['media']);
+    expect(readdirSync(join(folder, 'media'))).toEqual([]);
+  });
+
   it('a file written into the folder while it is deleted stays, and the folder with it', async () => {
     await install();
     const folder = join(home, 'apps', 'music');
