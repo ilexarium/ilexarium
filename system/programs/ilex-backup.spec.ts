@@ -1061,6 +1061,10 @@ describe('ilex-backup restore', () => {
     const result = await restore(restoreInput());
     expect(result.code).toBe(5);
     expect(done()).toMatchObject({ status: 'failed', errorCode: 'borg_failed', setAside: [] });
+    expect(events()).toContainEqual({
+      type: 'line',
+      text: 'borg info was ended by SIGKILL (out of memory?)',
+    });
     expect(calls('docker')).toEqual([]);
   });
 
