@@ -29,6 +29,9 @@ describe('alerts (e2e)', () => {
   let records: AlertRecords;
   let ntfy: FakeNtfy;
   let smtp: FakeSmtp;
+  /** Somewhere else a stored secret must never reach. */
+  let otherNtfy: FakeNtfy;
+  let otherSmtp: FakeSmtp;
 
   const api = () => ({
     get: (path: string) => request(origin).get(`/api${path}`).set('Cookie', cookie),
@@ -52,6 +55,8 @@ describe('alerts (e2e)', () => {
   beforeAll(async () => {
     ntfy = await new FakeNtfy().listen();
     smtp = await new FakeSmtp({ user: 'alerts', pass: MAIL_PASSWORD }).listen();
+    otherNtfy = await new FakeNtfy().listen();
+    otherSmtp = await new FakeSmtp().listen();
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PasswordHasher)
       .useValue(testHasher)
@@ -70,6 +75,9 @@ describe('alerts (e2e)', () => {
     ntfy.messages.length = 0;
     ntfy.status = 200;
     smtp.mails.length = 0;
+    smtp.logins.length = 0;
+    otherNtfy.messages.length = 0;
+    otherSmtp.logins.length = 0;
     await app
       .get(UsersService)
       .create({ username: 'owner', passwordHash: await testHasher.hash(PASSWORD) });
@@ -88,6 +96,8 @@ describe('alerts (e2e)', () => {
     await app?.close();
     await ntfy?.close();
     await smtp?.close();
+    await otherNtfy?.close();
+    await otherSmtp?.close();
   });
 
   it('needs a session', async () => {
@@ -156,7 +166,9 @@ describe('alerts (e2e)', () => {
     expect(JSON.stringify(row.settings)).not.toContain('ilex-e2e-topic');
 
     const audit = await prisma.auditEvent.findMany({ where: { action: 'alerts.channel.update' } });
-    expect(audit.map((a) => a.details)).toEqual([{ channel: 'ntfy', enabled: true }]);
+    expect(audit.map((a) => a.details)).toEqual([
+      { channel: 'ntfy', enabled: true, destinationChanged: true },
+    ]);
 
     // Left out: kept. null: the token is removed.
     await api().put('/alerts/channels/ntfy', { enabled: false }).expect(204);
@@ -175,11 +187,24 @@ describe('alerts (e2e)', () => {
     });
   });
 
-  it('sends a test through ntfy, with the token', async () => {
+  it('sends a test through ntfy, with the token, never to another server', async () => {
     await api().post('/alerts/channels/ntfy/test').expect(409);
     await api()
       .put('/alerts/channels/ntfy', { enabled: true, topicUrl: topicUrl(), token: TOKEN })
       .expect(204);
+    // Another server without the token: refused, nothing saved.
+    await api()
+      .put('/alerts/channels/ntfy', {
+        enabled: true,
+        topicUrl: `http://127.0.0.1:${otherNtfy.port}/ilex-e2e-topic`,
+      })
+      .expect(400)
+      .expect((res) =>
+        expect(res.body).toMatchObject({
+          code: 'token_required',
+          errors: [{ field: 'token', code: 'token_required' }],
+        }),
+      );
     expect((await api().post('/alerts/channels/ntfy/test').expect(200)).body).toEqual({
       sent: true,
       problem: null,
@@ -191,6 +216,7 @@ describe('alerts (e2e)', () => {
         body: expect.objectContaining({ topic: 'ilex-e2e-topic', title: 'Test message' }),
       }),
     ]);
+    expect(otherNtfy.messages).toEqual([]);
     const audit = await prisma.auditEvent.findMany({ where: { action: 'alerts.channel.test' } });
     expect(audit).toEqual([
       expect.objectContaining({ outcome: 'success', details: { channel: 'ntfy' } }),
@@ -239,6 +265,16 @@ describe('alerts (e2e)', () => {
     await api()
       .put('/alerts/channels/email', emailSettings({ password: undefined }))
       .expect(204);
+    // Another server (here another port) without the password: refused, nothing saved.
+    await api()
+      .put('/alerts/channels/email', emailSettings({ port: otherSmtp.port, password: undefined }))
+      .expect(400)
+      .expect((res) =>
+        expect(res.body).toMatchObject({
+          code: 'password_required',
+          errors: [{ field: 'password', code: 'password_required' }],
+        }),
+      );
     expect((await api().post('/alerts/channels/email/test').expect(200)).body).toEqual({
       sent: true,
       problem: null,
@@ -246,6 +282,15 @@ describe('alerts (e2e)', () => {
     expect(smtp.mails).toHaveLength(1);
     expect(smtp.mails[0]).toMatchObject({ user: 'alerts', to: ['me@example.com'] });
     expect(smtp.mails[0].data).toContain('Subject: Test message');
+    expect(otherSmtp.logins).toEqual([]);
+    const audit = await prisma.auditEvent.findMany({
+      where: { action: 'alerts.channel.update' },
+      orderBy: [{ at: 'asc' }, { id: 'asc' }],
+    });
+    expect(audit.map((a) => a.details)).toEqual([
+      { channel: 'email', enabled: true, destinationChanged: true },
+      { channel: 'email', enabled: true, destinationChanged: false },
+    ]);
   });
 
   it('refuses addresses the app never sends to', async () => {

@@ -16,11 +16,12 @@ export interface ReceivedMail {
 
 /**
  * A tiny SMTP server on loopback for tests: no TLS (the app allows that only to this machine),
- * AUTH PLAIN and LOGIN checked against one user, every mail kept. Just enough of RFC 5321 for
- * nodemailer.
+ * AUTH PLAIN and LOGIN checked against one user (or any, without one), every login tried and every
+ * mail kept. Just enough of RFC 5321 for nodemailer.
  */
 export class FakeSmtp {
   readonly mails: ReceivedMail[] = [];
+  readonly logins: { user: string; pass: string }[] = [];
   private readonly server: NetServer;
   private readonly sockets = new Set<Socket>();
 
@@ -52,6 +53,7 @@ export class FakeSmtp {
     let loginUser = '';
     let buffer = '';
     const accept = (name: string, pass: string) => {
+      this.logins.push({ user: name, pass });
       if (this.account && (name !== this.account.user || pass !== this.account.pass)) {
         reply('535 5.7.8 Authentication credentials invalid');
       } else {

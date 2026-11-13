@@ -7,6 +7,7 @@ import {
   ntfyChannelFormSchema,
   ntfyChannelUpdateSchema,
   ntfyTopicUrlSchema,
+  sameEmailDestination,
 } from './alerts.js';
 
 const email = {
@@ -49,6 +50,22 @@ describe('alert channel settings', () => {
       'https://ntfy.sh/to pic',
     ]) {
       expect(ntfyTopicUrlSchema.safeParse(url).success, url).toBe(false);
+    }
+  });
+
+  it('a stored mail password belongs to one server, port and user name', () => {
+    const saved = { host: 'mail.example.com', port: 587, username: 'alerts' };
+    expect(sameEmailDestination(saved, { ...saved, host: ' MAIL.Example.com ' })).toBe(true);
+    for (const change of [
+      { host: 'mail.attacker.example' },
+      { host: 'mail.example.com.' },
+      { port: 465 },
+      { username: 'Alerts' },
+      { username: '' },
+    ]) {
+      expect(sameEmailDestination(saved, { ...saved, ...change }), JSON.stringify(change)).toBe(
+        false,
+      );
     }
   });
 

@@ -10,6 +10,7 @@ import {
   type DeliveryProblem,
   type EmailChannelUpdate,
   type NtfyChannelUpdate,
+  sameEmailDestination,
 } from '@ilex/shared';
 import { hostname } from 'node:os';
 import { type Observable, Subject } from 'rxjs';
@@ -115,7 +116,11 @@ export class AlertChannels {
   async updateEmail(update: EmailChannelUpdate, actor: ChannelActor): Promise<void> {
     const existing = await this.prisma.alertChannel.findUnique({ where: { kind: 'email' } });
     const stored = existing ? this.decrypt<EmailSecrets>(existing) : null;
-    const password = update.username ? (update.password ?? stored?.password ?? null) : null;
+    const saved = existing?.settings as EmailSettings | undefined;
+    const destinationChanged = !saved || !sameEmailDestination(saved, update);
+    // A stored password goes only where it was entered for: anywhere else it's entered again.
+    const kept = destinationChanged ? null : (stored?.password ?? null);
+    const password = update.username ? (update.password ?? kept) : null;
     if (update.username && !password) {
       throw failure(ALERT_ERROR_CODES.passwordRequired, 'Enter the password', 'password');
     }
@@ -128,7 +133,7 @@ export class AlertChannels {
       to: update.to,
     };
     await this.save('email', update.enabled, { ...settings }, { password } satisfies EmailSecrets);
-    await this.recordUpdate('email', update.enabled, actor);
+    await this.recordUpdate('email', update.enabled, destinationChanged, actor);
   }
 
   async updateNtfy(update: NtfyChannelUpdate, actor: ChannelActor): Promise<void> {
@@ -138,23 +143,39 @@ export class AlertChannels {
     if (update.enabled && !topicUrl) {
       throw failure(ALERT_ERROR_CODES.topicRequired, 'Enter the topic URL', 'topicUrl');
     }
+    let destinationChanged = false;
     if (update.topicUrl) {
       const url = new URL(update.topicUrl);
       await this.refuseAddress(url.hostname, url.protocol === 'http:', 'topicUrl');
+      destinationChanged = !stored?.topicUrl || new URL(stored.topicUrl).origin !== url.origin;
+    }
+    // The token is the server's credential: another topic on the same server may keep it, another
+    // server gets it only when it's entered again.
+    if (destinationChanged && update.token === undefined && stored?.token) {
+      throw failure(
+        ALERT_ERROR_CODES.tokenRequired,
+        'Enter the token again, or remove it',
+        'token',
+      );
     }
     const token = update.token === undefined ? (stored?.token ?? null) : update.token;
     await this.save('ntfy', update.enabled, {}, { topicUrl, token } satisfies NtfySecrets);
-    await this.recordUpdate('ntfy', update.enabled, actor);
+    await this.recordUpdate('ntfy', update.enabled, destinationChanged, actor);
   }
 
-  private recordUpdate(channel: AlertChannel, enabled: boolean, actor: ChannelActor) {
+  private recordUpdate(
+    channel: AlertChannel,
+    enabled: boolean,
+    destinationChanged: boolean,
+    actor: ChannelActor,
+  ) {
     return this.auditService.record({
       action: 'alerts.channel.update',
       outcome: 'success',
       userId: actor.user.id,
       username: actor.user.username,
       ip: actor.ip,
-      details: { channel, enabled },
+      details: { channel, enabled, destinationChanged },
     });
   }
 
