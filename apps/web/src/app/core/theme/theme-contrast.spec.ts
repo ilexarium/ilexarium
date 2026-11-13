@@ -102,9 +102,13 @@ describe('theme tokens: contrast', () => {
     expect(contrast('oklch(0 0 0)', 'oklch(1 0 0)')).toBeCloseTo(21, 1);
   });
 
+  // In light mode the frame is a step lighter than dark mode's.
+  const lightFrame = new Map([...dark, ...tokens(css, ':root:not(.dark) .theme-frame')]);
+
   for (const [theme, values] of [
     ['light', light],
     ['dark', dark],
+    ['light frame', lightFrame],
   ] as const) {
     // The sidebar is part of the frame: dark in both themes, so it's checked with dark only.
     const pairs =
