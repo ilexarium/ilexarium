@@ -8,7 +8,7 @@ import { prepareState } from './files.mts';
 import { parseInput } from './input.mts';
 import type { Config, Paths } from './model.mts';
 import { UUID, loadPlan } from './plan.mts';
-import { borg, borgFailure, takeLock } from './programs.mts';
+import { borg, borgFailed, borgFailure, failedLine, takeLock } from './programs.mts';
 import { Refusal, emit } from '../lib/output.mts';
 import { assertRootOwned } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
@@ -33,9 +33,11 @@ export async function forget(config: Config, paths: Paths, input: string): Promi
       `${itemId}-*`,
       repo.path,
     ]);
-    if (deleted.code >= 2) throw new Refusal(borgFailure(deleted.logs), 'borg delete failed', 5);
+    if (borgFailed(deleted)) {
+      throw new Refusal(borgFailure(deleted), failedLine('borg delete', deleted), 5);
+    }
     const compact = await borg(config, paths, 'compact', [repo.path]);
-    if (compact.code >= 2) emit('@@info borg compact failed');
+    if (borgFailed(compact)) emit(`@@info ${failedLine('borg compact', compact)}`);
     emit('@@phase done');
   } finally {
     release();

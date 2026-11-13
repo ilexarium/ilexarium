@@ -37,7 +37,7 @@ export async function check(config: Config, paths: Paths): Promise<number> {
       ]);
       if (result.code !== 0) {
         status = 'failed';
-        errorCode = borgFailure(result.logs, 'repository_damaged');
+        errorCode = borgFailure(result, 'repository_damaged');
       }
     } catch (error) {
       if (!(error instanceof Refusal)) throw error;

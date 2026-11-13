@@ -90,7 +90,10 @@ export interface Repository {
 }
 
 export interface Ran {
-  code: number;
+  /** Its exit code; null when a signal ended it. */
+  code: number | null;
+  /** The signal that ended it (the out-of-memory killer, kill -9, a crash), or null. */
+  signal: NodeJS.Signals | null;
   stdout: string;
   logs: BorgLog[];
 }
