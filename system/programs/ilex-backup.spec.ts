@@ -19,6 +19,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertParentsSafe, assertSafeFolder } from './backup/places.mts';
 import { startTime } from './lib/lock.mts';
 
 const WRAPPER = fileURLToPath(new URL('./ilex-backup.mts', import.meta.url));
@@ -140,6 +141,18 @@ function useSystemctl() {
   const file = join(dir, 'wrappers.json');
   const config = JSON.parse(readFileSync(file, 'utf8'));
   config.backup.systemctlBin = join(dir, 'systemctl');
+  writeFileSync(file, JSON.stringify(config));
+}
+
+const me = process.getuid!();
+/** Another account than this one (which owns every test folder) and root. */
+const OTHER = me + 1;
+
+/** Development: who the program takes for the person who asked (root mode: whose sudo started it). */
+function askedBy(uid: number) {
+  const file = join(dir, 'wrappers.json');
+  const config = JSON.parse(readFileSync(file, 'utf8'));
+  config.backup.dev.askedBy = uid;
   writeFileSync(file, JSON.stringify(config));
 }
 
@@ -954,7 +967,8 @@ describe('ilex-backup restore', () => {
     const started = await wrapper('restore-start', restoreInput());
     expect(started.code, started.lines.join('\n')).toBe(0);
     const request = join(dev, 'state', 'restore-requests', `${RESTORE}.json`);
-    expect(JSON.parse(readFileSync(request, 'utf8'))).toEqual(restoreInput());
+    // With who asked: the unit, started by systemd, goes by it.
+    expect(JSON.parse(readFileSync(request, 'utf8'))).toEqual({ ...restoreInput(), askedBy: me });
     expect(statSync(request).mode & 0o777).toBe(0o600);
     expect(calls('systemctl').map((c) => c.args)).toEqual([
       ['start', '--no-block', `ilex-restore@${RESTORE}.service`],
@@ -1306,12 +1320,96 @@ describe('ilex-backup restore', () => {
     expect(calls('docker')).toEqual([]);
   });
 
-  it('refuses a chosen folder that has something in it', async () => {
-    const target = join(storage, 'docs');
+  it('refuses a chosen folder that has something in it — at once, and again when it runs', async () => {
+    const target = join(dir, 'restored');
+    mkdirSync(target);
+    const input = restoreInput({ itemId: FOLDER, archive: folderArchive, target });
+    expect((await wrapper('restore-start', input)).code).toBe(0);
     writeFileSync(join(target, 'mine.txt'), 'x');
-    const result = await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
-    expect(result.code).toBe(2);
+    expect((await wrapper(['restore-run', RESTORE])).code).toBe(2);
     expect(done()).toMatchObject({ status: 'failed', errorCode: 'target_not_empty' });
+    expectRefused(await wrapper('restore-start', input), 'target_not_empty');
+  });
+
+  describe('only below folders nobody but root and the person who asked can change', () => {
+    const untouched = () => {
+      expect(readFileSync(join(storage, 'demo', 'data', 'db.sqlite'), 'utf8')).toBe('data');
+      expect(readdirSync(join(storage, 'demo')).sort()).toEqual(['data', 'media']);
+      expect(calls('borg').filter((c) => c.args[0] === 'extract')).toEqual([]);
+    };
+
+    it('back where it was: refused at once when a folder above belongs to another account', async () => {
+      askedBy(OTHER);
+      expectRefused(await wrapper('restore-start', restoreInput()), 'path_others_can_change');
+      expect(calls('systemctl')).toEqual([]);
+      expect(calls('docker')).toEqual([]);
+      untouched();
+    });
+
+    it('into a folder: refused at once below another account’s folder, and nothing made', async () => {
+      askedBy(OTHER);
+      const target = join(dir, 'restored');
+      expectRefused(
+        await wrapper('restore-start', restoreInput({ target })),
+        'path_others_can_change',
+      );
+      expect(existsSync(target)).toBe(false);
+      expect(calls('systemctl')).toEqual([]);
+    });
+
+    it('into a folder that is there already: refused when others may write in it', async () => {
+      const target = join(dir, 'restored');
+      mkdirSync(target);
+      chmodSync(target, 0o777);
+      expectRefused(
+        await wrapper('restore-start', restoreInput({ target })),
+        'path_others_can_change',
+      );
+      expect(calls('systemctl')).toEqual([]);
+    });
+
+    it('checked again when it runs, before anything is stopped or moved', async () => {
+      expect((await wrapper('restore-start', restoreInput())).code).toBe(0);
+      chmodSync(join(storage, 'demo'), 0o777);
+      const result = await wrapper(['restore-run', RESTORE]);
+      expect(result.code).toBe(2);
+      expect(done()).toMatchObject({
+        status: 'failed',
+        errorCode: 'path_others_can_change',
+        setAside: [],
+      });
+      expect(calls('docker')).toEqual([]);
+      untouched();
+    });
+
+    it('a folder made there after the start (that others may write in) is refused when it runs', async () => {
+      const target = join(dir, 'restored');
+      expect((await wrapper('restore-start', restoreInput({ target }))).code).toBe(0);
+      mkdirSync(target);
+      chmodSync(target, 0o777);
+      expect((await wrapper(['restore-run', RESTORE])).code).toBe(2);
+      expect(done()).toMatchObject({ status: 'failed', errorCode: 'path_others_can_change' });
+      expect(readdirSync(target)).toEqual([]);
+    });
+
+    it('goes by who asked when it was started, not by anything later', async () => {
+      expect((await wrapper('restore-start', restoreInput())).code).toBe(0);
+      askedBy(OTHER);
+      const result = await wrapper(['restore-run', RESTORE]);
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      expect(done()).toMatchObject({ status: 'succeeded' });
+    });
+
+    it('the person’s own folders: back where it was and into a folder', async () => {
+      askedBy(me);
+      const result = await restore(restoreInput());
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      rmSync(jobFile(RESTORE));
+      const target = join(dir, 'restored');
+      const into = await restore(restoreInput({ target }));
+      expect(into.code, into.lines.join('\n')).toBe(0);
+      expect(done()).toMatchObject({ status: 'succeeded' });
+    });
   });
 
   it('the platform only into a folder', async () => {
@@ -1381,6 +1479,20 @@ describe('ilex-backup discard, forget and passphrase', () => {
     expect(existsSync(join(storage, 'docs'))).toBe(true);
   });
 
+  it('discard deletes nothing below a folder another account can change', async () => {
+    const archive = results()[0].items.find((i: any) => i.itemId === SERVICE).archive;
+    useSystemctl();
+    await wrapper('restore-start', { restoreId: RESTORE, itemId: SERVICE, archive, target: null });
+    await wrapper(['restore-run', RESTORE]);
+    const [first] = job(RESTORE).find((e) => e.type === 'restoreDone')!.setAside as string[];
+    askedBy(OTHER);
+    expectRefused(await wrapper('discard', { path: first }), 'path_others_can_change');
+    expect(existsSync(first)).toBe(true);
+    askedBy(me);
+    expect((await wrapper('discard', { path: first })).code).toBe(0);
+    expect(existsSync(first)).toBe(false);
+  });
+
   it('forget deletes the archives of a removed item only', async () => {
     expectRefused(await wrapper('forget', { itemId: FOLDER }), 'invalid_request');
     expectRefused(await wrapper('forget', { itemId: PLATFORM }), 'invalid_request');
@@ -1437,6 +1549,61 @@ describe('ilex-backup check-scheduled', () => {
       status: 'failed',
       errorCode: 'borg_failed',
     });
+  });
+});
+
+describe('where root may restore and delete: folders only root and the person who asked can change', () => {
+  /** The refusal's code, or null when allowed. */
+  const refusal = (check: () => void): string | null => {
+    try {
+      check();
+      return null;
+    } catch (error) {
+      return (error as { code: string }).code;
+    }
+  };
+
+  it('below root’s own folders, whoever asked', () => {
+    expect(refusal(() => assertParentsSafe('/usr/share/restored', OTHER))).toBeNull();
+    expect(refusal(() => assertSafeFolder('/usr/share', OTHER))).toBeNull();
+  });
+
+  it('below the asking person’s folders; another account’s are refused', () => {
+    expect(refusal(() => assertParentsSafe(join(dir, 'restored'), me))).toBeNull();
+    expect(refusal(() => assertSafeFolder(dir, me))).toBeNull();
+    expect(refusal(() => assertParentsSafe(join(dir, 'restored'), OTHER))).toBe(
+      'path_others_can_change',
+    );
+    expect(refusal(() => assertSafeFolder(dir, OTHER))).toBe('path_others_can_change');
+  });
+
+  it('only the folders there count: missing ones are made by root inside the first one there', () => {
+    expect(refusal(() => assertParentsSafe(join(dir, 'new', 'deeper', 'restored'), me))).toBeNull();
+    expect(refusal(() => assertParentsSafe(join(dir, 'new', 'deeper', 'restored'), OTHER))).toBe(
+      'path_others_can_change',
+    );
+  });
+
+  it('never a folder others may write in, nor a symlink', () => {
+    mkdirSync(join(dir, 'shared'));
+    chmodSync(join(dir, 'shared'), 0o775);
+    expect(refusal(() => assertParentsSafe(join(dir, 'shared', 'restored'), me))).toBe(
+      'path_others_can_change',
+    );
+    expect(refusal(() => assertSafeFolder(join(dir, 'shared'), me))).toBe('path_others_can_change');
+    mkdirSync(join(dir, 'real'));
+    symlinkSync(join(dir, 'real'), join(dir, 'link'));
+    expect(refusal(() => assertParentsSafe(join(dir, 'link', 'restored'), me))).toBe(
+      'path_others_can_change',
+    );
+    expect(refusal(() => assertSafeFolder(join(dir, 'link'), me))).toBe('path_others_can_change');
+  });
+
+  it('a sticky folder of root’s (/tmp) only further up: others could take a name root makes in it', () => {
+    expect(statSync('/tmp').mode & 0o1777).toBe(0o1777);
+    expect(refusal(() => assertParentsSafe(join(dir, 'restored'), me))).toBeNull();
+    expect(refusal(() => assertParentsSafe('/tmp/restored', me))).toBe('path_others_can_change');
+    expect(refusal(() => assertSafeFolder('/tmp', me))).toBe('path_others_can_change');
   });
 });
 

@@ -1,13 +1,15 @@
 // backup/places.mts — runs as root.
 //
 // Which folders may be backed up, restored into or deleted — checked right before each use. Root
-// reads almost anywhere: every folder but the system's and the platform's own.
+// reads almost anywhere: every folder but the system's and the platform's own; it writes only
+// below folders nobody but root and the person who asked can change.
 
-import { existsSync, lstatSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync, type Stats } from 'node:fs';
 import { dirname } from 'node:path';
 import type { Config } from './model.mts';
 import { Refusal } from '../lib/output.mts';
 import { DENIED_PATHS, inside, isPlainAbsolutePath } from '../lib/paths.mts';
+import { isRoot } from '../lib/startup.mts';
 
 export const below = (path: string, root: string) => path.startsWith(`${root}/`);
 
@@ -43,20 +45,74 @@ export function resolveSource(path: string, allowed: (p: string) => boolean): st
 }
 
 /**
- * Every folder above `path`: not a symlink, and writable by nobody but its owner — otherwise
- * someone else could swap it for a symlink between a check and the write. (A home folder belongs
- * to its person: they could, but they could do anything with their own sudo anyway.)
+ * Who asked for this: the account whose sudo started it — the first process above this one not
+ * running as root (sudo, or the helper that ran it). The kernel says so, not the app, which only
+ * sends the helper JSON. Started by root itself, or a process above ended while read: root.
+ * Development: this account, or the config's `dev.askedBy` (the tests).
  */
-export function assertParentsSafe(path: string): void {
+export function askingAccount(config: Config): number {
+  if (!isRoot) return config.backup.dev?.askedBy ?? process.getuid?.() ?? 0;
+  const first = processesAbove();
+  // Read twice: a process above that ended (its pid free for anyone's) changed its child's parent.
+  if (JSON.stringify(first) !== JSON.stringify(processesAbove())) return 0;
+  return first.at(-1)?.uid ?? 0;
+}
+
+/** This process and the ones above it, up to the first not running as root (by its real uid). */
+function processesAbove(): { pid: number; parent: number; uid: number }[] {
+  const chain: { pid: number; parent: number; uid: number }[] = [];
+  for (let pid = process.pid; pid > 0;) {
+    let status: string;
+    try {
+      status = readFileSync(`/proc/${pid}/status`, 'utf8');
+    } catch {
+      return [];
+    }
+    const parent = Number(/^PPid:\s+(\d+)$/m.exec(status)?.[1] ?? 0);
+    const uid = Number(/^Uid:\s+(\d+)\s/m.exec(status)?.[1] ?? 0);
+    chain.push({ pid, parent, uid });
+    if (uid !== 0) break;
+    pid = parent;
+  }
+  return chain;
+}
+
+/**
+ * May root create, rename, delete or extract right below this folder: it isn't a symlink, it
+ * belongs to root or to the person who asked (who can do anything as root anyway), and nobody
+ * else may write in it. Then nobody else can swap it, or a folder in it, for a symlink between a
+ * check and the write — which is what makes checking by path enough: Borg writes by path for as
+ * long as the extract takes. A sticky folder of root's (/tmp) counts only further up (`above`):
+ * others can't rename or delete what isn't theirs in it, but could take a name root makes in it.
+ */
+function othersCanChange(stat: Stats, askedBy: number, above: boolean): boolean {
+  const sticky = above && stat.uid === 0 && (stat.mode & 0o1000) !== 0;
+  return (
+    stat.isSymbolicLink() ||
+    (stat.uid !== 0 && stat.uid !== askedBy) ||
+    ((stat.mode & 0o022) !== 0 && !sticky)
+  );
+}
+
+const othersRefusal = (path: string) =>
+  new Refusal('path_others_can_change', `${path} can be changed by another account`);
+
+/** Every folder above `path` that is there (a missing one root makes, inside the next one up). */
+export function assertParentsSafe(path: string, askedBy: number): void {
+  let above = false;
   for (let parent = dirname(path); ; parent = dirname(parent)) {
-    const stat = lstatSync(parent);
-    // A sticky folder of root's (/tmp): others can't rename or delete what isn't theirs in it.
-    const sticky = (stat.mode & 0o1000) !== 0 && stat.uid === 0;
-    if (stat.isSymbolicLink() || ((stat.mode & 0o022) !== 0 && !sticky)) {
-      throw new Refusal('path_not_allowed', `${parent} can be changed by others`);
+    const stat = lstatSync(parent, { throwIfNoEntry: false });
+    if (stat) {
+      if (othersCanChange(stat, askedBy, above)) throw othersRefusal(parent);
+      above = true;
     }
     if (parent === '/') return;
   }
+}
+
+/** A folder root writes into itself (a restore's target). */
+export function assertSafeFolder(path: string, askedBy: number): void {
+  if (othersCanChange(lstatSync(path), askedBy, false)) throw othersRefusal(path);
 }
 
 export const overlaps = (a: string, b: string) => inside(a, b) || inside(b, a);

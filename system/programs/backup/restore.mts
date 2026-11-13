@@ -25,7 +25,15 @@ import { openRepository } from './destination.mts';
 import { folderStamp, JobFile, prepareState, writeAtomic } from './files.mts';
 import { parseInput } from './input.mts';
 import type { Config, ItemResult, Paths, SetAside } from './model.mts';
-import { allowedFolder, assertParentsSafe, below, outermost, overlaps } from './places.mts';
+import {
+  allowedFolder,
+  askingAccount,
+  assertParentsSafe,
+  assertSafeFolder,
+  below,
+  outermost,
+  overlaps,
+} from './places.mts';
 import { ARCHIVE_PATTERN, UUID, loadPlan } from './plan.mts';
 import { borg, borgFailed, borgFailure, docker, failedLine, takeLock } from './programs.mts';
 import { startAgain } from './run.mts';
@@ -50,18 +58,42 @@ interface RestoreRequest {
   itemId: string;
   archive: string;
   target: string | null;
+  /** The uid of the person whose sudo started it (`askingAccount`), never from the app. */
+  askedBy: number;
 }
 
 const requestFile = (paths: Paths, id: string) =>
   join(paths.state, 'restore-requests', `${id}.json`);
 
-/** A request, from the app (`restore-start`) or the root-only file (`restore-run`): checked the same. */
+/**
+ * A target: below folders nobody but root and the person who asked can change, and missing or an
+ * empty folder that is just as safe.
+ */
+function checkTarget(target: string, askedBy: number): void {
+  assertParentsSafe(target, askedBy);
+  const stat = lstatSync(target, { throwIfNoEntry: false });
+  if (!stat) return;
+  if (stat.isSymbolicLink() || !stat.isDirectory() || readdirSync(target).length > 0) {
+    throw new Refusal('target_not_empty', 'the folder has something in it', 2);
+  }
+  assertSafeFolder(target, askedBy);
+}
+
+/**
+ * A request, from the app (`restore-start`, who asked found by this program) or the root-only
+ * file (`restore-run`): checked the same — where it writes too, so the person hears of a refusal
+ * at once; `restoreArchive` checks that again right before anything is moved.
+ */
 function checkRequest(
   config: Config,
   paths: Paths,
   given: Record<string, unknown>,
+  askedBy: unknown,
 ): RestoreRequest {
   const { restoreId, itemId, archive, target } = given;
+  if (typeof askedBy !== 'number' || !Number.isInteger(askedBy) || askedBy < 0) {
+    throw new Refusal('invalid_request', 'askedBy');
+  }
   if (typeof restoreId !== 'string' || !UUID.test(restoreId)) {
     throw new Refusal('invalid_request', 'restoreId');
   }
@@ -83,7 +115,13 @@ function checkRequest(
   if (target !== null && overlaps(target, plan.destination)) {
     throw new Refusal('path_not_allowed', 'target on the backup disk');
   }
-  return { restoreId, itemId, archive, target: target as string | null };
+  if (target !== null) checkTarget(target, askedBy);
+  else {
+    for (const folder of item.kind === 'app' ? (item.folders ?? []) : [item.path!]) {
+      assertParentsSafe(existsSync(folder) ? realpathSync(folder) : folder, askedBy);
+    }
+  }
+  return { restoreId, itemId, archive, target: target as string | null, askedBy };
 }
 
 /** `restore-start`: checks it, keeps it, has systemd run it; returns at once. */
@@ -92,6 +130,7 @@ export async function restoreStart(config: Config, paths: Paths, input: string):
     config,
     paths,
     parseInput(input, ['restoreId', 'itemId', 'archive', 'target']),
+    askingAccount(config),
   );
   prepareState(config, paths);
   mkdirSync(dirname(requestFile(paths, request.restoreId)), { recursive: true, mode: 0o700 });
@@ -141,11 +180,8 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
   try {
     const file = requestFile(paths, restoreId);
     if (!existsSync(file)) throw new Refusal('not_found', 'no such restore request');
-    const request = checkRequest(
-      config,
-      paths,
-      JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>,
-    );
+    const given = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+    const request = checkRequest(config, paths, given, given['askedBy']);
     if (request.restoreId !== restoreId) throw new Refusal('invalid_request', 'another restore');
     // A backup run may hold the lock: a restore waits for it, like a scheduled run would.
     release = await takeLock(paths, true);
@@ -188,13 +224,7 @@ async function restoreArchive(
   if (request.target !== null) {
     phase('restoring');
     const target = request.target;
-    assertParentsSafe(target);
-    if (existsSync(target)) {
-      const stat = lstatSync(target);
-      if (stat.isSymbolicLink() || !stat.isDirectory() || readdirSync(target).length > 0) {
-        throw new Refusal('target_not_empty', 'the folder has something in it', 2);
-      }
-    }
+    checkTarget(target, request.askedBy);
     // Folders made here (the target, and the ones Borg makes above the restored data) passable
     // by everyone (0755), so each person can reach their own files; the restored files and
     // folders keep their own owners and modes (Borg sets them from the archive).
@@ -205,6 +235,8 @@ async function restoreArchive(
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
     }
     try {
+      // Made by someone else between the check and mkdir (which then found it): refused too.
+      assertSafeFolder(target, request.askedBy);
       const extract = await borg(
         config,
         paths,
@@ -246,7 +278,7 @@ async function restoreArchive(
   if (sources.length === 0) {
     throw new Refusal('archive_not_found', 'none of its folders is in the plan any more', 5);
   }
-  for (const source of sources) assertParentsSafe(source);
+  for (const source of sources) assertParentsSafe(source, request.askedBy);
   const project = item.kind === 'app' ? item.project! : null;
   let wasRunning = false;
   if (project) {
@@ -377,7 +409,7 @@ export async function discard(config: Config, paths: Paths, input: string): Prom
       if (stat.isSymbolicLink() || !stat.isDirectory()) {
         throw new Refusal('path_not_allowed', 'not a folder');
       }
-      assertParentsSafe(path);
+      assertParentsSafe(path, askingAccount(config));
       // Removes links inside as links, never what they point to.
       rmSync(path, { recursive: true, force: true });
     }
