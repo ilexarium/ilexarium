@@ -907,6 +907,20 @@ async function install() {
       existsSync('/home/anna/restored/home/anna/apps/navidrome/compose.yml'),
     JSON.stringify(restored.value).slice(0, 400),
   );
+  // Root writes nowhere another account can change: not below bob's home, through anna's sudo.
+  ensurePerson('bob', 1501);
+  const intoBobs = await api('POST', '/backups/restores', {
+    itemId: item?.id,
+    archive: archives[0]?.name,
+    target: '/home/bob/restored',
+  });
+  check(
+    'a restore below another account’s folder refused at once, nothing made there',
+    intoBobs.status === 422 &&
+      intoBobs.json?.code === 'path_others_can_change' &&
+      !existsSync('/home/bob/restored'),
+    `${intoBobs.status} ${intoBobs.text}`,
+  );
 
   console.log(
     '\nRestoring back where it was: started as it was, then its settings applied (Apply)',
