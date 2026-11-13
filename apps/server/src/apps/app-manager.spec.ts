@@ -6,10 +6,11 @@ import {
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseEnv } from '@ilex/shared';
 import type { AuditService } from '../audit/audit.service.js';
 import type { CatalogService } from '../catalog/catalog.service.js';
@@ -39,6 +40,8 @@ let sudoLocked: boolean;
 let containers: Record<string, unknown>[];
 /** More folders Compose would say the file mounts (`~`). */
 let homeMounts: string[];
+/** Runs right after a deletion as the account: something written into the folder meanwhile. */
+let meanwhile: (() => void) | null;
 
 /** The helper as the person: tasks write their record and log as the real one does. */
 async function helper(request: HelperRequest) {
@@ -54,20 +57,29 @@ async function helper(request: HelperRequest) {
     case 'compose.check': {
       if (checkFails) return { ok: false, error: 'compose_invalid', message: 'bad file' } as const;
       // What Compose says of the file below: its folders resolved, its volume by Docker's name.
+      // Another file (a project made elsewhere) mounts nothing.
       const { folder, project } = request;
-      const env = parseEnv(readFileSync(join(folder, '.env'), 'utf8'));
-      const label = /ilex\.template: (\S+)/.exec(readFileSync(join(folder, 'compose.yml'), 'utf8'));
+      const read = (name: string) =>
+        existsSync(join(folder, name)) ? readFileSync(join(folder, name), 'utf8') : '';
+      const env = parseEnv(read('.env'));
+      const file = read('compose.yml') || read('docker-compose.yml');
+      const label = /ilex\.template: (\S+)/.exec(file);
+      const known = file.includes('./data');
       return {
         ok: true,
         mounts: [
-          { type: 'bind', source: join(folder, 'data') },
-          { type: 'bind', source: resolve(folder, env.get('MEDIA') ?? '') },
-          { type: 'volume', source: 'cache' },
-          { type: 'volume', source: null },
-          { type: 'bind', source: '/var/run/docker.sock' },
+          ...(known
+            ? [
+                { type: 'bind', source: join(folder, 'data') },
+                { type: 'bind', source: resolve(folder, env.get('MEDIA') ?? '') },
+                { type: 'volume', source: 'cache' },
+                { type: 'volume', source: null },
+                { type: 'bind', source: '/var/run/docker.sock' },
+              ]
+            : []),
           ...homeMounts.map((source) => ({ type: 'bind', source })),
         ],
-        volumes: [{ key: 'cache', name: `${project}_cache`, external: false }],
+        volumes: known ? [{ key: 'cache', name: `${project}_cache`, external: false }] : [],
         templates: label ? [label[1]] : [],
       } as const;
     }
@@ -103,6 +115,7 @@ async function helper(request: HelperRequest) {
       }
       if (needsSudo && sudoLocked) return { ok: false, error: 'sudo_required' } as const;
       for (const path of request.paths) rmSync(path, { recursive: true, force: true });
+      meanwhile?.();
       return { ok: true } as const;
     }
     case 'volumes.remove':
@@ -174,6 +187,7 @@ beforeEach(() => {
   sudoLocked = false;
   containers = [];
   homeMounts = [];
+  meanwhile = null;
 });
 
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -372,7 +386,11 @@ describe('AppManager: removing', () => {
     expect(removals).toEqual([
       { action: 'paths.remove', paths: [join(folder, 'data')], administrator: false },
       { action: 'volumes.remove', names: ['music_cache'], docker: 'direct' },
-      { action: 'paths.remove', paths: [folder], administrator: false },
+      {
+        action: 'paths.remove',
+        paths: [join(folder, 'compose.yml'), join(folder, '.env'), join(folder, '.ilex')],
+        administrator: false,
+      },
     ]);
   });
 
@@ -401,7 +419,7 @@ describe('AppManager: removing', () => {
     expect(asked.filter((a) => a.action === 'volumes.remove')).toHaveLength(1);
   });
 
-  it('only the settings: the files, never the data', async () => {
+  it('only the settings: the files, never the data; the folder stays with it', async () => {
     await install();
     const folder = join(home, 'apps', 'music');
     taskResult = '@@ilex-result\nsuccess\n';
@@ -412,8 +430,101 @@ describe('AppManager: removing', () => {
       { folder, settings: true, folders: [], volumes: [] },
       ACTOR,
     );
-    expect(existsSync(join(folder, 'compose.yml'))).toBe(false);
-    expect(existsSync(join(folder, 'data'))).toBe(true);
+    expect(readdirSync(folder)).toEqual(['data']);
+  });
+
+  it('other files beside the settings: only what was ticked goes, the folder stays with the rest', async () => {
+    await install();
+    const folder = join(home, 'apps', 'music');
+    writeFileSync(join(folder, 'Dockerfile'), 'FROM scratch\n');
+    mkdirSync(join(folder, '.git'));
+    writeFileSync(join(folder, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    taskResult = '@@ilex-result\nsuccess\n';
+    await manager().remove(SESSION, 'music', folder, ACTOR);
+    await manager().delete(
+      SESSION,
+      'music',
+      { folder, settings: true, folders: [join(folder, 'data')], volumes: [] },
+      ACTOR,
+    );
+    expect(readdirSync(folder).sort()).toEqual(['.git', 'Dockerfile']);
+    expect(readFileSync(join(folder, '.git', 'HEAD'), 'utf8')).toBe('ref: refs/heads/main\n');
+  });
+
+  it('a data folder below another folder: the emptied folders between go too, so the app’s folder does', async () => {
+    await install('PORT=8080\nMEDIA=./media/music\n');
+    const folder = join(home, 'apps', 'music');
+    taskResult = '@@ilex-result\nsuccess\n';
+    await manager().remove(SESSION, 'music', folder, ACTOR);
+    await manager().delete(
+      SESSION,
+      'music',
+      {
+        folder,
+        settings: true,
+        folders: [join(folder, 'data'), join(folder, 'media', 'music')],
+        volumes: [],
+      },
+      ACTOR,
+    );
+    expect(existsSync(folder)).toBe(false);
+  });
+
+  it('a file written into the folder while it is deleted stays, and the folder with it', async () => {
+    await install();
+    const folder = join(home, 'apps', 'music');
+    taskResult = '@@ilex-result\nsuccess\n';
+    await manager().remove(SESSION, 'music', folder, ACTOR);
+    meanwhile = () => writeFileSync(join(folder, 'late.txt'), 'new\n');
+    await manager().delete(
+      SESSION,
+      'music',
+      { folder, settings: true, folders: [join(folder, 'data')], volumes: [] },
+      ACTOR,
+    );
+    expect(readdirSync(folder)).toEqual(['late.txt']);
+  });
+});
+
+describe('AppManager: removing a Compose project made outside Ilexarium', () => {
+  /** Its folder with these files (a link: `-> target`), its `down` done. */
+  async function removed(files: Record<string, string>): Promise<string> {
+    const folder = join(home, 'src', 'myapp');
+    for (const [name, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(folder, name)), { recursive: true });
+      if (content.startsWith('-> ')) symlinkSync(content.slice(3), join(folder, name));
+      else writeFileSync(join(folder, name), content);
+    }
+    taskResult = '@@ilex-result\nsuccess\n';
+    await manager().remove(SESSION, 'myapp', folder, ACTOR);
+    return folder;
+  }
+  const deleteSettings = (folder: string) =>
+    manager().delete(SESSION, 'myapp', { folder, settings: true, folders: [], volumes: [] }, ACTOR);
+
+  it('nothing mounted inside, its source beside it: only its Compose file and .ilex go', async () => {
+    const elsewhere = join(dir, 'elsewhere');
+    mkdirSync(elsewhere);
+    writeFileSync(join(elsewhere, 'kept.txt'), 'kept\n');
+    const folder = await removed({
+      'docker-compose.yml': 'services:\n  web:\n    build: .\n',
+      Dockerfile: 'FROM scratch\n',
+      'src/main.go': 'package main\n',
+      shared: `-> ${elsewhere}`,
+    });
+    const { items } = await manager().removal(SESSION, 'myapp', folder);
+    expect(items).toEqual([{ kind: 'settings', path: folder, bytes: null, outside: false }]);
+    await deleteSettings(folder);
+    expect(readdirSync(folder).sort()).toEqual(['Dockerfile', 'shared', 'src']);
+    expect(readFileSync(join(folder, 'src', 'main.go'), 'utf8')).toBe('package main\n');
+    expect(readFileSync(join(elsewhere, 'kept.txt'), 'utf8')).toBe('kept\n');
+  });
+
+  it('its settings alone in the folder (no .env): the folder goes', async () => {
+    const folder = await removed({ 'docker-compose.yml': 'services:\n  web:\n    image: x\n' });
+    await deleteSettings(folder);
+    expect(existsSync(folder)).toBe(false);
+    expect(existsSync(join(home, 'src'))).toBe(true);
   });
 });
 
