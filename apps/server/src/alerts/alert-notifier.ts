@@ -13,8 +13,10 @@ import { HOUR_MS, REMINDER_CHECK_MS, RETRY_AFTER_MS } from './alerts.constants.j
  * Sends the alerts' messages through the channels switched on —
  * not crying wolf: one when an alert opens (or gets more serious), one when it closes, a daily
  * reminder of a critical one until acknowledged, and **at most 10 messages an hour** (the rest
- * held and sent as one when the hour allows). A message not delivered is tried once more after a
- * minute, then left for the next one; the alert shows in the app either way.
+ * held and sent as one when the hour allows). A message that reached no channel is tried once more
+ * after a minute; an open alert whose message never got through is sent again by the reminder
+ * check until it does ("Resolved" messages only get the one retry). The alert shows in the app
+ * either way.
  */
 @Injectable()
 export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
@@ -74,14 +76,16 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Critical alerts still open and not acknowledged a day after their last message — or never
-   * sent (no channel was switched on when they opened).
+   * Open alerts never sent (no channel was switched on, or every one failed) — their opening
+   * message — and critical ones not acknowledged a day after their last message. The first message
+   * no channel takes ends the round: while the channels fail, one try every check, not one per alert.
    */
   async remind(): Promise<void> {
     const waiting = new Set(this.held.map((h) => h.alertId));
     for (const alert of await this.alertRecords.dueReminders(new Date())) {
       if (waiting.has(alert.id)) continue;
-      await this.send(this.message({ type: 'reminder', alert }), alert.id);
+      const type = alert.lastSentAt === null ? 'opened' : 'reminder';
+      if (!(await this.send(this.message({ type, alert }), alert.id))) return;
     }
   }
 
@@ -94,40 +98,77 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Sends now, or holds it when the hour's 10 are used; nothing without a channel switched on.
-   * The alert counts as sent (`lastSentAt`) only once its message has gone out.
+   * The alert counts as sent (`lastSentAt`) only once its message has reached a channel.
+   * False when no channel took it now (none switched on, or every one failed).
    */
-  private async send(message: AlertMessage, alertId: string | null): Promise<void> {
+  private async send(message: AlertMessage, alertId: string | null): Promise<boolean> {
     const channels = await this.alertChannels.enabled();
-    if (channels.length === 0) return;
-    if (!this.takeSlot()) {
+    if (channels.length === 0) return false;
+    const slot = this.takeSlot();
+    if (slot === null) {
       this.held.push({ message, alertId });
       this.scheduleFlush();
-      return;
+      return true;
     }
-    await this.deliver(channels, message);
-    if (alertId) await this.alertRecords.markSent(alertId, new Date());
+    return this.deliver(channels, message, alertId ? [alertId] : [], slot);
   }
 
-  private async deliver(channels: ChannelConfig[], message: AlertMessage): Promise<void> {
-    await Promise.all(
-      channels.map(async (config) => {
-        if ((await this.alertChannels.sendTo(config, message)) === null) return;
-        const timer = setTimeout(() => {
-          this.retries.delete(timer);
-          void this.alertChannels.sendTo(config, message).catch(() => undefined);
-        }, RETRY_AFTER_MS);
-        this.retries.add(timer);
-      }),
+  /**
+   * Through every channel; the ones that failed are tried once more after a minute. The alerts
+   * count as sent when one channel has the message. One that reached no channel even on the retry
+   * gives its slot back: the hour's 10 are messages delivered, so failures during an outage don't
+   * hold back the messages after it.
+   */
+  private async deliver(
+    channels: ChannelConfig[],
+    message: AlertMessage,
+    alertIds: string[],
+    slot: number | null,
+    retry = true,
+  ): Promise<boolean> {
+    const problems = await Promise.all(
+      channels.map((config) => this.alertChannels.sendTo(config, message)),
     );
+    const failed = channels.filter((_, i) => problems[i] !== null);
+    const delivered = failed.length < channels.length;
+    if (delivered) await this.markSent(alertIds);
+    else if (!retry) this.giveBack(slot);
+    if (retry && failed.length > 0) {
+      const timer = setTimeout(() => {
+        this.retries.delete(timer);
+        // Delivered already: the retry only completes the other channels.
+        void this.deliver(
+          failed,
+          message,
+          delivered ? [] : alertIds,
+          delivered ? null : slot,
+          false,
+        ).catch((error: unknown) =>
+          this.logger.error('Retrying an alert message failed', (error as Error).stack),
+        );
+      }, RETRY_AFTER_MS);
+      this.retries.add(timer);
+    }
+    return delivered;
   }
 
-  /** One of the hour's messages, if there's one left. */
-  private takeSlot(): boolean {
+  private async markSent(alertIds: string[]): Promise<void> {
+    const now = new Date();
+    for (const id of alertIds) await this.alertRecords.markSent(id, now);
+  }
+
+  /** One of the hour's messages, if there's one left: when it was taken, or null. */
+  private takeSlot(): number | null {
     const now = Date.now();
     this.sentAt = this.sentAt.filter((at) => now - at < HOUR_MS);
-    if (this.sentAt.length >= ALERT_LIMITS.messagesPerHour) return false;
+    if (this.sentAt.length >= ALERT_LIMITS.messagesPerHour) return null;
     this.sentAt.push(now);
-    return true;
+    return now;
+  }
+
+  private giveBack(slot: number | null): void {
+    const index = slot === null ? -1 : this.sentAt.indexOf(slot);
+    if (index >= 0) this.sentAt.splice(index, 1);
   }
 
   /** When the oldest of the hour's messages is an hour old, the held ones go as one. */
@@ -144,21 +185,25 @@ export class AlertNotifier implements OnModuleInit, OnModuleDestroy {
 
   private async flush(): Promise<void> {
     if (this.held.length === 0) return;
-    if (!this.takeSlot()) {
+    const slot = this.takeSlot();
+    if (slot === null) {
       this.scheduleFlush();
       return;
     }
     const held = this.held;
     this.held = [];
-    // Switched off meanwhile: dropped, not counted as sent (critical ones are reminded later).
+    // Switched off meanwhile: dropped, not counted as sent (sent again by the reminder check).
     const channels = await this.alertChannels.enabled();
-    if (channels.length === 0) return;
+    if (channels.length === 0) {
+      this.giveBack(slot);
+      return;
+    }
     const messages = held.map((h) => h.message);
     await this.deliver(
       channels,
       messages.length === 1 ? messages[0] : groupedMessage(messages, this.host),
+      held.flatMap((h) => (h.alertId ? [h.alertId] : [])),
+      slot,
     );
-    const now = new Date();
-    for (const { alertId } of held) if (alertId) await this.alertRecords.markSent(alertId, now);
   }
 }

@@ -145,12 +145,29 @@ describe('AlertRecords (database)', () => {
     expect(await records.dueReminders(new Date(now.getTime() - 1_000))).toEqual([]);
   });
 
-  it('reminds of a critical alert never sent (no channel then), once it’s been open a while', async () => {
+  it('reminds of a critical alert never sent (no channel, or every one failed), once it’s been open a while', async () => {
     await records.reconcile(['serviceDown'], [down('immich')]);
     const now = new Date();
     expect(await records.dueReminders(now)).toEqual([]);
     const later = new Date(now.getTime() + NEVER_SENT_AFTER_MS);
     expect((await records.dueReminders(later)).map((a) => a.subject)).toEqual(['immich']);
+  });
+
+  it('sends again a warning whose message never got through; once it has, no daily reminder', async () => {
+    await records.reconcile(['diskFull'], [full(91)]);
+    const later = new Date(Date.now() + NEVER_SENT_AFTER_MS);
+    expect((await records.dueReminders(later)).map((a) => a.subject)).toEqual(['/mnt/usb']);
+    const [alert] = await records.open();
+    await records.markSent(alert.id, later);
+    const dayLater = new Date(later.getTime() + 2 * 86_400_000);
+    expect(await records.dueReminders(dayLater)).toEqual([]);
+  });
+
+  it('doesn’t send again an alert acknowledged before its message got through', async () => {
+    await records.reconcile(['diskFull'], [full(91)]);
+    const [alert] = await records.open();
+    await records.acknowledge(alert.id, OWNER);
+    expect(await records.dueReminders(new Date(Date.now() + NEVER_SENT_AFTER_MS))).toEqual([]);
   });
 
   it('deletes alerts closed more than 30 days ago', async () => {
