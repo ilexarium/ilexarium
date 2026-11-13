@@ -237,6 +237,7 @@
     "address_refused": "An diese Adresse sendet die App nie: nicht an Link-Local-Adressen, und unverschlüsseltes http:// nur im eigenen Netzwerk.",
     "topic_required": "Gib die Topic-URL ein.",
     "password_required": "Gib das Passwort ein.",
+    "token_required": "Das ist ein anderer Server: Gib das Token erneut ein oder entferne es.",
     "process_not_found": "Dieser Prozess läuft nicht mehr.",
     "process_protected": "Dieser Prozess lässt sich nicht beenden: Er ist der erste Prozess des Systems oder Teil des Kernels.",
     "signal_failed": "Das Signal konnte nicht gesendet werden.",
