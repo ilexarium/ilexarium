@@ -29,9 +29,7 @@ export class NtfySender implements ChannelSender<NtfyConfig> {
       plain: !secure,
       lookup: this.lookup,
     });
-    // The topic is the URL's last part; JSON is posted to the server's root (or its subpath).
-    const slash = url.pathname.lastIndexOf('/');
-    const topic = url.pathname.slice(slash + 1);
+    const { postUrl, topic } = ntfyTarget(config.topicUrl);
     const body = JSON.stringify({
       topic,
       title: message.title,
@@ -48,7 +46,7 @@ export class NtfySender implements ChannelSender<NtfyConfig> {
     const dispatcher = new Agent({ connect: { lookup: pinned } });
     let status: number;
     try {
-      const response = await fetch(url.origin + url.pathname.slice(0, slash + 1), {
+      const response = await fetch(postUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,6 +72,20 @@ export class NtfySender implements ChannelSender<NtfyConfig> {
       throw new DeliveryError('rejected', `ntfy answered ${status}`);
     throw new DeliveryError('failed', `ntfy answered ${status}`);
   }
+}
+
+/**
+ * Where a topic URL is published: its last part is the topic, and the JSON goes to the server's
+ * root (or its subpath) — the URL up to the topic, as `URL` normalises it. The stored token is
+ * bound to `postUrl`, so the sender and that check must both use this.
+ */
+export function ntfyTarget(topicUrl: string): { postUrl: string; topic: string } {
+  const url = new URL(topicUrl);
+  const slash = url.pathname.lastIndexOf('/');
+  return {
+    postUrl: url.origin + url.pathname.slice(0, slash + 1),
+    topic: url.pathname.slice(slash + 1),
+  };
 }
 
 /** `fetch` fails with a TypeError whose `cause` is the network's own error; a timeout as itself. */

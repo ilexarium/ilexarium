@@ -244,6 +244,38 @@ describe('AlertChannels: a stored secret goes only where it was entered for', ()
       expect(sent).toEqual([{ kind: 'ntfy', topicUrl: TOPIC, token: 'tk_secret' }]);
     });
 
+    it('binds the token to the address it is posted to: the URL up to the topic', async () => {
+      const proxied = 'https://home.example/ntfy/ilex-alerts';
+      await alertChannels.updateNtfy({ ...NTFY, topicUrl: proxied }, ACTOR);
+      // Another app may answer elsewhere on the same origin (a proxy routing by path).
+      for (const topicUrl of [
+        'https://home.example/ilex-alerts',
+        'https://home.example/other/ilex-alerts',
+        'https://home.example/ntfy/sub/ilex-alerts',
+        'https://home.example/ntfy//ilex-alerts',
+        'https://home.example/%6Etfy/ilex-alerts',
+      ]) {
+        expect(
+          (await refusal(alertChannels.updateNtfy({ enabled: true, topicUrl }, ACTOR))).body,
+          topicUrl,
+        ).toMatchObject({ code: 'token_required' });
+      }
+      // Another topic under the same address keeps it; dot segments are resolved as the URL is.
+      await alertChannels.updateNtfy(
+        { enabled: true, topicUrl: 'https://home.example/x/../ntfy/other-topic' },
+        ACTOR,
+      );
+      await alertChannels.test('ntfy', ACTOR);
+      expect(sent).toEqual([
+        {
+          kind: 'ntfy',
+          topicUrl: 'https://home.example/x/../ntfy/other-topic',
+          token: 'tk_secret',
+        },
+      ]);
+      expect(updates().map((details) => details?.destinationChanged)).toEqual([true, false]);
+    });
+
     it('a token saved before any topic URL is entered again with the first one', async () => {
       await alertChannels.updateNtfy({ enabled: false, token: 'tk_secret' }, ACTOR);
       expect(

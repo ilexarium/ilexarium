@@ -139,7 +139,7 @@ export const ALERT_ERROR_CODES = {
   topicRequired: 'topic_required',
   /** A user name without a password, or without one for another server, port or user name. */
   passwordRequired: 'password_required',
-  /** A topic URL on another server, and the stored token neither entered again nor removed. */
+  /** A topic URL on another server address, and the stored token neither entered again nor removed. */
   tokenRequired: 'token_required',
   auditUnavailable: 'audit_unavailable',
 } as const;
@@ -260,8 +260,8 @@ export const ntfyChannelFormSchema = z.strictObject({
 export type NtfyChannelForm = z.infer<typeof ntfyChannelFormSchema>;
 
 /**
- * `PUT /alerts/channels/ntfy`. Left out: the stored value stays — the token only for a topic URL on
- * the same server (scheme, name and port); `token: null` removes it.
+ * `PUT /alerts/channels/ntfy`. Left out: the stored value stays — the token only for a topic URL
+ * posting to the same address (everything before the topic); `token: null` removes it.
  */
 export const ntfyChannelUpdateSchema = z.strictObject({
   enabled: z.boolean(),

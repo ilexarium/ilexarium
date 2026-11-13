@@ -238,7 +238,7 @@
     "address_refused": "The app never sends to this address: not to link-local addresses, and plain http:// only on your own network.",
     "topic_required": "Enter the topic URL.",
     "password_required": "Enter the password.",
-    "token_required": "This is another server: enter the token again, or remove it.",
+    "token_required": "Another server address: enter the token again, or remove it.",
     "process_not_found": "This process isn't running any more.",
     "process_protected": "This process can’t be ended: it’s the system’s first process or part of the kernel.",
     "signal_failed": "The process couldn't be signalled.",
@@ -1207,7 +1207,7 @@
       "topicSet": "A topic is saved. Leave empty to keep it.",
       "token": "Access token (optional)",
       "tokenHelp": "For locked topics on your own server or a paid account.",
-      "tokenSet": "A token is saved. Leave empty to keep it for the same server; for another server, enter it again.",
+      "tokenSet": "A token is saved. Leave empty to keep it for the same server address (everything before the topic); for another one, enter it again.",
       "clearToken": "Remove the saved token",
       "plainHttp": "Plain http:// works only on your own network, and the token isn't encrypted there.",
       "ios": "iPhone with your own server: set upstream-base-url in the server's settings, or messages arrive late."
