@@ -1,7 +1,7 @@
 <!-- The terminal is placed inside its box, so its width never widens the page; the box sets the size. -->
 <div
   class="relative min-h-0 flex-1 overflow-hidden rounded-lg border"
-  [class]="dark() ? 'bg-[#0d0e16]' : 'bg-white'"
+  [style.background-color]="palette().background"
 >
   <div
     #box

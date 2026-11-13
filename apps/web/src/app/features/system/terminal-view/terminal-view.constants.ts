@@ -18,10 +18,10 @@ export const LIGHT: ITheme = {
   selectionBackground: '#d5daff',
 };
 export const DARK: ITheme = {
-  background: '#0d0e16',
+  background: '#0e0e12',
   foreground: '#f2f3f9',
   cursor: '#a8afff',
-  selectionBackground: '#353766',
+  selectionBackground: '#2f2b3b',
 };
 
 /** What the phone key bar's keys send. */

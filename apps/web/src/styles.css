@@ -60,8 +60,8 @@
 :root.dark,
 .theme-frame {
   color-scheme: dark;
-  /* Surfaces: a faint violet (hue 295, half the brand's tint), so the dark doesn't read as navy. */
 
+  /* Surfaces (page, cards, fills, borders, frame): a faint violet, hue 295 at half the brand's tint. */
   --chart-1: oklch(0.78 0.12 280);
   --chart-2: oklch(0.75 0.11 185);
   --chart-3: oklch(0.82 0.14 80);
@@ -115,7 +115,7 @@
   --border: oklch(0.35 0.013 295);
 }
 
-/* Status colours (Tailwind classes such as text-success, bg-warning-muted); spartan maps the rest. */
+/* Our own colours as Tailwind classes (bg-button, text-success, bg-warning-muted); spartan maps the rest. */
 @theme inline {
   --color-button: var(--button);
   --color-button-foreground: var(--button-foreground);

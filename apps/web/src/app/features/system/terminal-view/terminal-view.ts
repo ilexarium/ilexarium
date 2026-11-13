@@ -1,6 +1,7 @@
 import {
   afterNextRender,
   Component,
+  computed,
   DestroyRef,
   DOCUMENT,
   effect,
@@ -61,6 +62,7 @@ export class TerminalView {
   readonly data = output<string>();
 
   protected readonly keys = KEYS;
+  protected readonly palette = computed(() => (this.dark() ? DARK : LIGHT));
   /** The next key is sent with Ctrl (the phone key bar). */
   protected readonly ctrl = signal(false);
   private readonly box = viewChild.required<ElementRef<HTMLElement>>('box');
@@ -80,7 +82,7 @@ export class TerminalView {
         fontSize: TERMINAL_FONT_SIZE,
         fontWeightBold: 600,
         scrollback: 5000,
-        theme: this.dark() ? DARK : LIGHT,
+        theme: this.palette(),
       });
       const fit = new FitAddon();
       terminal.loadAddon(fit);
@@ -105,7 +107,7 @@ export class TerminalView {
       });
     });
     effect(() => {
-      const theme = this.dark() ? DARK : LIGHT;
+      const theme = this.palette();
       if (this.terminal) this.terminal.options.theme = theme;
     });
   }
