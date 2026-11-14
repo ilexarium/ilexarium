@@ -56,10 +56,15 @@ jobs:
         with:
           node-version: 26
       - run: npm ci
-      - name: Borg (the backup tests)
+      - name: Borg (the backup tests) and the current Docker Engine
+        # The runner image's Docker is older than the API versions the proxy test asks for; its
+        # apt sources already have Docker's repository (the one the installer uses).
         run: |
+          docker version --format 'Docker before: {{.Server.Version}} (API {{.Server.APIVersion}})'
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends borgbackup
+          sudo apt-get install -y -qq --no-install-recommends --allow-change-held-packages \
+            borgbackup docker-ce docker-ce-cli containerd.io
+          docker version --format 'Docker now: {{.Server.Version}} (API {{.Server.APIVersion}})'
       - name: Dev services (Postgres, the Docker proxy, sshd, the sandbox)
         # The keys folder made first: Docker would make it, and .dev/ above it, as root.
         run: |
@@ -80,9 +85,22 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 26
+      - name: Disk space for the test machine's Docker (toolchains this job doesn't use removed)
+        run: |
+          df -h /
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
       - run: npm ci
       - name: Install test (tools/vm/test-install.sh --container)
-        run: npm run verify -- --only install
+        # The disk's use logged meanwhile: the test machine's volumes are gone after a failure.
+        run: |
+          mkdir -p tools/vm/run
+          (while sleep 20; do echo "$(date -u +%T) $(df -h / | tail -n 1)"; done) >tools/vm/run/df.log 2>&1 &
+          npm run verify -- --only install
+      - name: Disk use during the install test
+        if: always()
+        run: cat tools/vm/run/df.log || true
       - name: Install test logs
         if: failure()
         run: tail -n 200 tools/vm/run/release.log tools/vm/run/container.log || true
