@@ -1,12 +1,10 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
-  readlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -44,6 +42,7 @@ describe('the installer’s machine checks', () => {
     expect(call('os_family', 'debian', '12', '')).toBe('apt');
     expect(call('os_family', 'debian', '13', '')).toBe('apt');
     expect(call('os_family', 'ubuntu', '24.04', 'debian')).toBe('apt');
+    expect(call('os_family', 'ubuntu', '26.04', 'debian')).toBe('apt');
     expect(call('os_family', 'arch', '', '')).toBe('pacman');
     expect(call('os_family', 'archarm', '', 'arch')).toBe('pacman');
     expect(call('os_family', 'endeavouros', '', 'arch')).toBe('pacman');
@@ -109,94 +108,80 @@ describe('the installer’s questions', () => {
   it('the question about Borg names where it comes from on each system', () => {
     // No Borg on the machine, and no terminal: the installer stops with its question.
     const asked = (os: string, version: string) =>
-      script('borg() { return 127; }; UPDATE=0 ASSUME_YES=0; ensure_borg', {
-        OS_ID: os,
-        OS_VERSION: version,
-      }).stderr;
-    expect(asked('ubuntu', '24.04')).toContain(
-      "Install Borg 1.4 for backups (the Borg project's own build 1.4.5 from github.com/borgbackup/borg, checked against the SHA-256 in this installer)? — run again with --yes",
-    );
+      script(
+        'borg() { return 127; }; BORG_BY_HAND=/nonexistent/borg UPDATE=0 ASSUME_YES=0; ensure_borg',
+        { OS_ID: os, OS_VERSION: version },
+      ).stderr;
     expect(asked('debian', '13')).toContain("Install Borg 1.4 for backups (Debian's package)?");
     expect(asked('debian', '12')).toContain(
       "Install Borg 1.4 for backups (Debian's package from bookworm-backports)?",
     );
+    expect(asked('ubuntu', '26.04')).toContain("Install Borg 1.4 for backups (Ubuntu's package)?");
     expect(asked('arch', '')).toContain("Install Borg 1.4 for backups (Arch's package)?");
   });
 });
 
-describe('Borg on Ubuntu 24.04: the Borg project’s own build', () => {
-  it('one exact file per CPU, with its SHA-256; none for any other CPU', () => {
-    expect(call('borg_build', 'amd64')).toBe(
-      'borg-linux-glibc231-x86_64.tgz b6cba6b5eee19d51fbf4d89c6090dd40647b856755fffe2e26417365536f2c58',
-    );
-    expect(call('borg_build', 'arm64')).toBe(
-      'borg-linux-glibc235-arm64-gh.tgz 579d977d4eafd5761aee51e4a5bd3c52a5533a4391393d465324f675d14d3bd9',
-    );
-    expect(call('borg_build', 'armhf')).toBe('');
-  });
-
-  // A build shaped like the release's (one folder, borg-dir), served by a fake curl that notes the
-  // address it was asked for; chown is a no-op (the test isn't root).
+describe('Borg on Ubuntu 24.04: installed by the person first', () => {
   const dir = mkdtempSync(join(tmpdir(), 'ilex-install-borg-'));
-  mkdirSync(join(dir, 'src', 'borg-dir'), { recursive: true });
-  writeFileSync(join(dir, 'src', 'borg-dir', 'borg.exe'), '#!/bin/sh\necho borg 1.4.5\n', {
-    mode: 0o755,
-  });
-  execFileSync('tar', ['-czf', join(dir, 'build.tgz'), '-C', join(dir, 'src'), 'borg-dir']);
-  const buildSum = createHash('sha256')
-    .update(readFileSync(join(dir, 'build.tgz')))
-    .digest('hex');
-  const install = (sum: string) => {
-    spawnSync('rm', [
-      '-rf',
-      join(dir, 'lib'),
-      join(dir, 'bin'),
-      join(dir, 'tmp'),
-      join(dir, 'url'),
-    ]);
-    for (const folder of ['bin', 'lib', 'tmp']) mkdirSync(join(dir, folder));
-    // Under set -e, as install.sh runs.
-    return script(
-      'set -e; curl() { printf %s "${@: -1}" >"$DIR/url"; cp "$DIR/build.tgz" "${@: -2:1}"; }; chown() { :; }; ' +
-        'BORG_HOME="$DIR/lib/borg" BORG_LINK="$DIR/bin/borg"; ' +
-        'install_borg_build borg-linux-glibc235-arm64-gh.tgz "$SUM"',
-      { DIR: dir, SUM: sum, TMPDIR: join(dir, 'tmp') },
-    );
+  const fakeBorg = (folder: string, version: string) => {
+    mkdirSync(join(dir, folder), { recursive: true });
+    writeFileSync(join(dir, folder, 'borg'), `#!/bin/sh\necho borg ${version}\n`, { mode: 0o755 });
   };
+  // As an update from the app runs it: under set -e, with a PATH that has no /usr/local/bin.
+  const ensure = (body: string, path: string, byHand = join(dir, 'missing', 'borg')) =>
+    script(`set -e; BORG_BY_HAND="$BY_HAND" OS_ID=ubuntu OS_VERSION=24.04; ${body}`, {
+      BY_HAND: byHand,
+      PATH: `${path}:/usr/sbin:/usr/bin:/sbin:/bin`,
+    });
+  fakeBorg('ubuntu-bin', '1.2.8');
+  fakeBorg('local-bin', '1.4.5');
 
-  it('installs the build from the Borg project’s release page, linked as borg', () => {
-    const run = install(buildSum);
-    expect(run.status).toBe(0);
-    expect(readFileSync(join(dir, 'url'), 'utf8')).toBe(
-      'https://github.com/borgbackup/borg/releases/download/1.4.5/borg-linux-glibc235-arm64-gh.tgz',
+  it('without Borg 1.4 the installer stops and says what to do, asking nothing', () => {
+    const run = ensure('UPDATE=0 ASSUME_YES=1; ensure_borg', join(dir, 'ubuntu-bin'));
+    expect(run.status).toBe(1);
+    expect(run.stdout).toBe('');
+    expect(run.stderr).toContain(
+      'Ubuntu 24.04 has only Borg 1.2.8: install Borg 1.4 yourself first (https://borgbackup.readthedocs.io/en/1.4-maint/installation.html), in /usr/bin or /usr/local/bin, then run this again',
     );
-    expect(readlinkSync(join(dir, 'bin', 'borg'))).toBe(join(dir, 'lib', 'borg', 'borg.exe'));
-    expect(execFileSync(join(dir, 'bin', 'borg'), { encoding: 'utf8' })).toBe('borg 1.4.5\n');
-    expect(readdirSync(join(dir, 'tmp'))).toEqual([]);
   });
 
-  it('is the Borg found on an update from the app, whose PATH has no /usr/local/bin', () => {
-    expect(install(buildSum).status).toBe(0);
-    // Ubuntu's own Borg 1.2 is the only borg on that PATH.
-    mkdirSync(join(dir, 'usr-bin'), { recursive: true });
-    writeFileSync(join(dir, 'usr-bin', 'borg'), '#!/bin/sh\necho borg 1.2.8\n', { mode: 0o755 });
-    const run = script(
-      'set -e; BORG_HOME="$DIR/lib/borg" BORG_LINK="$DIR/bin/borg" UPDATE=1; ensure_borg; borg_path',
-      { DIR: dir, PATH: `${join(dir, 'usr-bin')}:/usr/sbin:/usr/bin:/sbin:/bin` },
+  it('goes on with a Borg 1.4 the person installed', () => {
+    fakeBorg('usr-bin', '1.4.4');
+    const run = ensure('UPDATE=1; ensure_borg; borg_path', join(dir, 'usr-bin'));
+    expect(run.stderr).toBe('');
+    expect(run.stdout).toBe(`    Borg 1.4.4\n${join(dir, 'usr-bin', 'borg')}\n`);
+  });
+
+  it('finds one in /usr/local/bin on an update from the app, whose PATH has no /usr/local/bin', () => {
+    const run = ensure(
+      'root_only() { :; }; UPDATE=1; ensure_borg; borg_path',
+      join(dir, 'ubuntu-bin'),
+      join(dir, 'local-bin', 'borg'),
     );
     expect(run.stderr).toBe('');
-    expect(run.stdout).toBe(`    Borg 1.4.5\n${join(dir, 'bin', 'borg')}`);
+    expect(run.stdout).toBe(`    Borg 1.4.5\n${join(dir, 'local-bin', 'borg')}\n`);
   });
 
-  it('refuses a download whose SHA-256 is not the one written in the installer', () => {
-    const run = install('0'.repeat(64));
-    expect(run.status).toBe(1);
-    expect(run.stderr).toContain(
-      'The downloaded borg-linux-glibc235-arm64-gh.tgz is not the Borg 1.4.5 build this installer knows (its SHA-256 differs): nothing was installed',
-    );
-    expect(existsSync(join(dir, 'lib', 'borg'))).toBe(false);
-    expect(existsSync(join(dir, 'bin', 'borg'))).toBe(false);
-    expect(readdirSync(join(dir, 'tmp'))).toEqual([]);
+  it.skipIf(process.getuid?.() === 0)(
+    'refuses a Borg in /usr/local/bin that is not root’s own',
+    () => {
+      const run = ensure(
+        'UPDATE=1; ensure_borg',
+        join(dir, 'ubuntu-bin'),
+        join(dir, 'local-bin', 'borg'),
+      );
+      expect(run.status).toBe(1);
+      expect(run.stderr).toContain(
+        `${join(dir, 'local-bin', 'borg')} is not root's own (owned by someone else, or writable by others): fix it or remove it, then run again`,
+      );
+    },
+  );
+
+  it('root’s own: the file, through its links, and its folder owned by root, writable by no one else', () => {
+    expect(holds('root_only', '/bin/sh')).toBe(true);
+    if (process.getuid?.() !== 0)
+      expect(holds('root_only', join(dir, 'local-bin', 'borg'))).toBe(false);
+    expect(holds('root_only', join(dir, 'missing', 'borg'))).toBe(false);
   });
 });
 

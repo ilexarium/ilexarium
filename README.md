@@ -30,7 +30,7 @@ itself, from the browser.
 
 ## Install
 
-Debian 12 or 13, Ubuntu 24.04 or Arch Linux:
+Debian 12 or 13, Ubuntu 26.04 or Arch Linux. Ubuntu 24.04 too, with [Borg 1.4](https://borgbackup.readthedocs.io/en/1.4-maint/installation.html) installed first (Ubuntu 24.04 has only Borg 1.2):
 
 ```sh
 curl -fsSL https://ilexarium.com/get-ilex.sh -o get-ilex.sh
