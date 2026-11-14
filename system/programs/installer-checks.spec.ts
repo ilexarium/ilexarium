@@ -175,6 +175,19 @@ describe('Borg on Ubuntu 24.04: the Borg project’s own build', () => {
     expect(readdirSync(join(dir, 'tmp'))).toEqual([]);
   });
 
+  it('is the Borg found on an update from the app, whose PATH has no /usr/local/bin', () => {
+    expect(install(buildSum).status).toBe(0);
+    // Ubuntu's own Borg 1.2 is the only borg on that PATH.
+    mkdirSync(join(dir, 'usr-bin'), { recursive: true });
+    writeFileSync(join(dir, 'usr-bin', 'borg'), '#!/bin/sh\necho borg 1.2.8\n', { mode: 0o755 });
+    const run = script(
+      'set -e; BORG_HOME="$DIR/lib/borg" BORG_LINK="$DIR/bin/borg" UPDATE=1; ensure_borg; borg_path',
+      { DIR: dir, PATH: `${join(dir, 'usr-bin')}:/usr/sbin:/usr/bin:/sbin:/bin` },
+    );
+    expect(run.stderr).toBe('');
+    expect(run.stdout).toBe(`    Borg 1.4.5\n${join(dir, 'bin', 'borg')}`);
+  });
+
   it('refuses a download whose SHA-256 is not the one written in the installer', () => {
     const run = install('0'.repeat(64));
     expect(run.status).toBe(1);

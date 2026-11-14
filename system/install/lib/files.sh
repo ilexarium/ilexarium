@@ -166,7 +166,7 @@ PROXY_UID=$PROXY_UID
 PROXY_GID=$PROXY_GID
 CONF
 
-  borg_bin="$(command -v borg)"
+  borg_bin="$(borg_path)"
   APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" SSH_UNIT="$SSH_UNIT" node --input-type=module -e '
     const config = {
       protectedPaths: ["/opt/ilex", "/etc/ilex", "/var/lib/ilex"],

@@ -124,7 +124,11 @@ ensure_docker() {
   info "$(docker --version)"
 }
 
-borg_version() { borg --version 2>/dev/null | awk '{ print $2 }' || true; }
+borg_version() {
+  local bin
+  bin="$(borg_path)" || return 0
+  "$bin" --version 2>/dev/null | awk '{ print $2 }' || true
+}
 
 # Borg 1.4 or a later 1.x: Borg 2 changed its repositories and commands (ilex-backup is written
 # for 1.x).
@@ -138,6 +142,16 @@ BORG_RELEASE=1.4.5
 BORG_URL="https://github.com/borgbackup/borg/releases/download/$BORG_RELEASE"
 BORG_HOME=/usr/local/lib/borg
 BORG_LINK=/usr/local/bin/borg
+
+# The Borg the platform runs: this installer's own build wherever it is installed, whatever the
+# PATH (an update from the app runs without /usr/local/bin on it); else the one on PATH.
+borg_path() {
+  if [[ -L "$BORG_LINK" && "$(readlink "$BORG_LINK")" == "$BORG_HOME/borg.exe" ]]; then
+    printf '%s' "$BORG_LINK"
+  else
+    command -v borg
+  fi
+}
 
 # The build for CPU $1: its file name and SHA-256; nothing for any other CPU.
 borg_build() {
