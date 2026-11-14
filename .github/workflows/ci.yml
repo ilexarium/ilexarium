@@ -57,13 +57,18 @@ jobs:
           node-version: 26
       - run: npm ci
       - name: Borg (the backup tests) and the current Docker Engine
-        # The runner image's Docker is older than the API versions the proxy test asks for; its
-        # apt sources already have Docker's repository (the one the installer uses).
+        # The runner image's Docker is older than the API versions the proxy test asks for, and
+        # the image removes Docker's repository after installing it: added again, as the
+        # installer adds it.
         run: |
           docker version --format 'Docker before: {{.Server.Version}} (API {{.Server.APIVersion}})'
+          sudo install -d -m 0755 /etc/apt/keyrings
+          curl -fsSL --proto '=https' https://download.docker.com/linux/ubuntu/gpg |
+            sudo gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" |
+            sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends --allow-change-held-packages \
-            borgbackup docker-ce docker-ce-cli containerd.io
+          sudo apt-get install -y -qq --no-install-recommends borgbackup docker-ce docker-ce-cli containerd.io
           docker version --format 'Docker now: {{.Server.Version}} (API {{.Server.APIVersion}})'
       - name: Dev services (Postgres, the Docker proxy, sshd, the sandbox)
         # The keys folder made first: Docker would make it, and .dev/ above it, as root.
