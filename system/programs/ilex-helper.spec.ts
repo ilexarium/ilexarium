@@ -106,7 +106,8 @@ beforeEach(async () => {
 
 afterEach(() => {
   helper.kill();
-  rmSync(dir, { recursive: true, force: true });
+  // The fake sudo outlives the helper and may still be writing its last files ("ended").
+  rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
 });
 
 describe('ilex-helper', () => {
