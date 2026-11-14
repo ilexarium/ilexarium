@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # install.sh — runs as root, once per install or update.
 #
-# Turns a fresh Debian 12/13, Ubuntu 24.04 or Arch Linux machine (amd64, arm64) into a running platform, or
-# updates an installed one to this release. Run from the unpacked release archive:
+# Turns a fresh Debian 12/13, Ubuntu 26.04 (24.04 with Borg 1.4 installed first) or Arch Linux
+# machine (amd64, arm64) into a running platform, or updates an installed one to this release.
+# Run from the unpacked release archive:
 #
 #   sudo ./install.sh [--yes]
 #

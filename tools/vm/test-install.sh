@@ -11,7 +11,7 @@
 #   --os arch                               container mode on Arch Linux instead (the official
 #                                           image on x86_64, Arch Linux ARM's root filesystem on
 #                                           aarch64)
-#   --os ubuntu                             container mode on Ubuntu 24.04 instead
+#   --os ubuntu                             container mode on Ubuntu 26.04 instead
 #   --keep                                  leave the machine running afterwards (to look around)
 #
 # Container mode leaves out what a container can't fake: mounting a real disk and a real restart.
@@ -80,8 +80,8 @@ if [[ "$MODE" == container ]]; then
       -f "$HERE/Dockerfile.machine.arch" "$HERE" >/dev/null
     IMAGE=ilex-test-machine-arch
   elif [[ "$OS" == ubuntu ]]; then
-    echo '==> Starting the test machine (an Ubuntu 24.04 container with systemd)'
-    docker build -q -t ilex-test-machine-ubuntu --build-arg BASE=ubuntu:24.04 \
+    echo '==> Starting the test machine (an Ubuntu 26.04 container with systemd)'
+    docker build -q -t ilex-test-machine-ubuntu --build-arg BASE=ubuntu:26.04 \
       -f "$HERE/Dockerfile.machine" "$HERE" >/dev/null
     IMAGE=ilex-test-machine-ubuntu
   else

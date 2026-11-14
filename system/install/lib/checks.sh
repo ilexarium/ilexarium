@@ -13,7 +13,7 @@ check_machine() {
   OS_CODENAME="$(. /etc/os-release && printf '%s' "${VERSION_CODENAME:-}")"
   OS_FAMILY="$(os_family "$OS_ID" "$OS_VERSION" "$(. /etc/os-release && printf '%s' "${ID_LIKE:-}")")"
   [[ -n "$OS_FAMILY" ]] ||
-    die "Supported: Debian 12 and 13, Ubuntu 24.04, Arch Linux — this is $OS_ID $OS_VERSION"
+    die "Supported: Debian 12 and 13, Ubuntu 24.04 and 26.04, Arch Linux — this is $OS_ID $OS_VERSION"
   ARCH="$(cpu_arch "$(uname -m)")"
   [[ -n "$ARCH" ]] || die "Supported: amd64 and arm64 — this machine is $(uname -m)"
   local free_mb
@@ -26,7 +26,7 @@ check_machine() {
 # ID_LIKE; nothing for any other. Arch is rolling: no version.
 os_family() {
   case "$1 $2" in
-    'debian 12' | 'debian 13' | 'ubuntu 24.04') printf apt ;;
+    'debian 12' | 'debian 13' | 'ubuntu 24.04' | 'ubuntu 26.04') printf apt ;;
     *) if [[ "$1" == arch || "$1" == archarm || " $3 " == *' arch '* ]]; then printf pacman; fi ;;
   esac
 }

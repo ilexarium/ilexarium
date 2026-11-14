@@ -1,5 +1,5 @@
 # A throwaway "machine" for testing the installer without a VM (tools/vm/test-install.sh
-# --container): plain Debian 13 (Ubuntu 24.04 with --os ubuntu: BASE) with systemd as its first
+# --container): plain Debian 13 (Ubuntu 26.04 with --os ubuntu: BASE) with systemd as its first
 # process — everything else (Node, Docker, Borg, …) is the installer's job. Never for anything
 # but tests.
 ARG BASE=debian:13

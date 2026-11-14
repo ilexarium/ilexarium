@@ -1,9 +1,8 @@
 # system/install/lib/packages.sh — runs as root.
 # The programs the platform needs, installed only after asking. Debian and Ubuntu: from their
 # makers' signed apt repositories (each key stored in /etc/apt/keyrings and named by `signed-by` —
-# trusted for that repository only), except Borg on Ubuntu (see BORG_RELEASE). Arch: from Arch's
-# own repositories, as the system is — never upgraded by us (a full upgrade is the person's
-# decision; a partial one Arch doesn't support).
+# trusted for that repository only). Arch: from Arch's own repositories, as the system is — never
+# upgraded by us (a full upgrade is the person's decision; a partial one Arch doesn't support).
 # Sourced by install.sh.
 
 KEYRINGS=/etc/apt/keyrings
@@ -134,54 +133,34 @@ borg_version() {
 # for 1.x).
 borg_fits() { [[ -n "$1" ]] && version_ge "$1" 1.4 && ! version_ge "$1" 2; }
 
-# Ubuntu 24.04 has only Borg 1.2: the Borg project's own build instead, one exact file per CPU
-# from its GitHub release, trusted by the SHA-256 written here (no package source is added). The
-# amd64 build is signed by Borg's maintainer; the arm64 one, the project's only arm64 build, comes
-# from its GitHub workflow with a provenance attestation. A new version here: check both again.
-BORG_RELEASE=1.4.5
-BORG_URL="https://github.com/borgbackup/borg/releases/download/$BORG_RELEASE"
-BORG_HOME=/usr/local/lib/borg
-BORG_LINK=/usr/local/bin/borg
+# Where people put a Borg they install by hand. An update from the app runs without it on its PATH.
+BORG_BY_HAND=/usr/local/bin/borg
 
-# The Borg the platform runs: this installer's own build wherever it is installed, whatever the
-# PATH (an update from the app runs without /usr/local/bin on it); else the one on PATH.
+# Is file $1 (followed through links) and its folder owned by root and writable by no one else?
+root_only() {
+  local file
+  file="$(readlink -f "$1")" || return 1
+  (($(find "$file" "$(dirname "$file")" -maxdepth 0 -user root ! -perm /022 2>/dev/null | wc -l) == 2))
+}
+
+# The Borg the platform runs, the same whatever the PATH: one installed by hand in /usr/local/bin
+# first (it comes first on a root shell's PATH too), else the one on PATH.
 borg_path() {
-  if [[ -L "$BORG_LINK" && "$(readlink "$BORG_LINK")" == "$BORG_HOME/borg.exe" ]]; then
-    printf '%s' "$BORG_LINK"
+  if [[ -x "$BORG_BY_HAND" ]] && root_only "$BORG_BY_HAND"; then
+    printf '%s\n' "$BORG_BY_HAND"
   else
     command -v borg
   fi
 }
 
-# The build for CPU $1: its file name and SHA-256; nothing for any other CPU.
-borg_build() {
-  case "$1" in
-    amd64) printf '%s %s' borg-linux-glibc231-x86_64.tgz b6cba6b5eee19d51fbf4d89c6090dd40647b856755fffe2e26417365536f2c58 ;;
-    arm64) printf '%s %s' borg-linux-glibc235-arm64-gh.tgz 579d977d4eafd5761aee51e4a5bd3c52a5533a4391393d465324f675d14d3bd9 ;;
-  esac
-}
-
-# Downloads build $1, refuses it unless its SHA-256 is $2, and installs it root-owned in
-# $BORG_HOME, linked as $BORG_LINK. The single-folder build: the single-file one unpacks itself
-# into /tmp on every run, which fails where /tmp is mounted noexec.
-install_borg_build() {
-  local file="$1" sum="$2" tmp
-  tmp="$(mktemp -d)"
-  curl -fsSL --proto '=https' --tlsv1.2 -o "$tmp/$file" "$BORG_URL/$file"
-  if ! printf '%s  %s\n' "$sum" "$tmp/$file" | sha256sum --check --status; then
-    rm -rf "$tmp"
-    die "The downloaded $file is not the Borg $BORG_RELEASE build this installer knows (its SHA-256 differs): nothing was installed"
-  fi
-  tar -xzf "$tmp/$file" -C "$tmp" --no-same-owner
-  replace_tree "$tmp/borg-dir" "$BORG_HOME"
-  ln -sfn "$BORG_HOME/borg.exe" "$BORG_LINK"
-  rm -rf "$tmp"
-}
-
-# Borg 1.4: Debian 13 and Arch have it; Debian 12 from its official backports; Ubuntu 24.04 the
-# Borg project's own build (above).
+# Borg 1.4: Debian 13, Ubuntu 26.04 and Arch have it; Debian 12 from its official backports.
+# Ubuntu 24.04 has only Borg 1.2: there the person installs Borg 1.4 first (no package source or
+# outside build of ours).
 ensure_borg() {
-  local version from file sum
+  local version from
+  if [[ -e "$BORG_BY_HAND" ]] && ! root_only "$BORG_BY_HAND"; then
+    die "$BORG_BY_HAND is not root's own (owned by someone else, or writable by others): fix it or remove it, then run again"
+  fi
   version="$(borg_version)"
   if borg_fits "$version"; then
     info "Borg $version"
@@ -193,12 +172,15 @@ ensure_borg() {
   case "$OS_ID $OS_VERSION" in
     'debian 13') from="Debian's package" ;;
     'debian 12') from="Debian's package from bookworm-backports" ;;
-    'ubuntu 24.04') from="the Borg project's own build $BORG_RELEASE from github.com/borgbackup/borg, checked against the SHA-256 in this installer" ;;
+    'ubuntu 26.04') from="Ubuntu's package" ;;
+    'ubuntu 24.04')
+      die "Ubuntu 24.04 has only Borg ${version:-1.2}: install Borg 1.4 yourself first (https://borgbackup.readthedocs.io/en/1.4-maint/installation.html), in /usr/bin or /usr/local/bin, then run this again"
+      ;;
     *) from="Arch's package" ;;
   esac
   confirm "Install Borg 1.4 for backups ($from)?" || die 'Borg 1.4 is needed for backups'
   case "$OS_ID $OS_VERSION" in
-    'debian 13')
+    'debian 13' | 'ubuntu 26.04')
       apt_update
       apt_install borgbackup
       ;;
@@ -207,10 +189,6 @@ ensure_borg() {
         write_file /etc/apt/sources.list.d/bookworm-backports.list root:root 0644
       apt_update
       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends -t bookworm-backports borgbackup >/dev/null
-      ;;
-    'ubuntu 24.04')
-      read -r file sum <<<"$(borg_build "$ARCH")"
-      install_borg_build "$file" "$sum"
       ;;
     *) pacman_install borg ;;
   esac
