@@ -77,9 +77,10 @@ beforeEach(() => {
   mkdirSync(join(dir, 'bin'));
   for (const name of ['systemctl', 'docker', 'systemd-tmpfiles']) {
     const path = join(dir, 'bin', name);
+    // This Node by its path: the program runs them with its own PATH, where `node` may not be.
     writeFileSync(
       path,
-      `#!/usr/bin/env node\n${readFileSync(join(HERE, 'testing/fake-program.cjs'), 'utf8')}`,
+      `#!${process.execPath}\n${readFileSync(join(HERE, 'testing/fake-program.cjs'), 'utf8')}`,
     );
     chmodSync(path, 0o755);
   }
