@@ -122,8 +122,9 @@ hold_app() {
 }
 release_app() { rm -f "$APP_HOLD"; }
 
-# An update that took the port over from an app binding it itself (a version before ilex.socket)
-# gives it back if it fails: that version's ilex-update puts it back without knowing the socket.
+# An update by an ilex-update from before ilex.socket, which took the port over from an app binding
+# it itself, gives it back if it fails: that ilex-update's rollback puts the old app back without
+# knowing the socket. A run by hand has no rollback after it: the socket keeps the port.
 give_back_port() {
   if [[ "$1" != 0 ]]; then systemctl stop ilex.socket ilex.service 2>/dev/null; fi
 }
@@ -133,7 +134,7 @@ give_back_port() {
 start_app() {
   log 'Starting the app'
   local units=/etc/systemd/system url address host port
-  if [[ -n "$OLD_VERSION" ]] && ! grep -qx 'Sockets=ilex.socket' "$units/ilex.service" 2>/dev/null; then
+  if [[ "$UPDATE" == 1 ]] && ! grep -qx 'Sockets=ilex.socket' "$units/ilex.service" 2>/dev/null; then
     on_exit give_back_port
   fi
   install -o root -g root -m 0644 "$RELEASE/system/systemd/ilex.socket" \
