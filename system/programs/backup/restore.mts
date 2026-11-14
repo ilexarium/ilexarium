@@ -117,9 +117,10 @@ function checkRequest(
   }
   if (target !== null) checkTarget(target, askedBy);
   else {
-    for (const folder of item.kind === 'app' ? (item.folders ?? []) : [item.path!]) {
-      assertParentsSafe(existsSync(folder) ? realpathSync(folder) : folder, askedBy);
-    }
+    // Only what is moved aside: a folder inside another goes with it (`restoreArchive`).
+    const folders = item.kind === 'app' ? (item.folders ?? []) : [item.path!];
+    const real = folders.map((folder) => (existsSync(folder) ? realpathSync(folder) : folder));
+    for (const folder of outermost(real)) assertParentsSafe(folder, askedBy);
   }
   return { restoreId, itemId, archive, target: target as string | null, askedBy };
 }
@@ -278,17 +279,18 @@ async function restoreArchive(
   if (sources.length === 0) {
     throw new Refusal('archive_not_found', 'none of its folders is in the plan any more', 5);
   }
-  for (const source of sources) assertParentsSafe(source, request.askedBy);
+  // A folder inside another one (or one listed twice) is set aside and restored with the one that
+  // holds it: on its own it would seem missing once that one is aside, and a failure would remove
+  // it as made by the restore after the original came back. Only these are moved, so only their
+  // parents are checked (an inner folder's parent is the outer one, often a container's uid).
+  const restored = outermost(sources);
+  for (const source of restored) assertParentsSafe(source, request.askedBy);
   const project = item.kind === 'app' ? item.project! : null;
   let wasRunning = false;
   if (project) {
     const ps = await docker(config, ['compose', '-p', project, 'ps', '-q'], { capture: true });
     wasRunning = ps.code === 0 && ps.stdout.trim().length > 0;
   }
-  // A folder inside another one (or one listed twice) is set aside and restored with the one that
-  // holds it: on its own it would seem missing once that one is aside, and a failure would remove
-  // it as made by the restore after the original came back.
-  const restored = outermost(sources);
   const moved: { from: string; to: string }[] = [];
   /** What the job file was told is set aside (the one being moved included). */
   let told: string[] = [];

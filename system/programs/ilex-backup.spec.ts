@@ -1244,6 +1244,15 @@ describe('ilex-backup restore', () => {
       expect(tree(demo('data'))).toEqual(BEFORE);
     });
 
+    it('only the outer folder’s parents decide: an inner folder below one others may change is restored with it', async () => {
+      // The outer folder is replaced whole; what is inside it (often a container's uid) doesn't count.
+      const archive = await backedUpWith(['data', 'data/sub'].map(demo));
+      chmodSync(demo('data'), 0o777);
+      const result = await restore(restoreInput({ archive }));
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      expect(done()).toMatchObject({ status: 'succeeded' });
+    });
+
     it('a folder whose name only begins like another’s is a folder of its own', async () => {
       mkdirSync(demo('media2'));
       const archive = await backedUpWith(['media', 'media2'].map(demo));
