@@ -17,6 +17,7 @@
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { get } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import { promisify } from 'node:util';
 
@@ -392,13 +393,20 @@ async function ownPort() {
       );
     }
   }
-  const woken = await fetch(`${BASE}/api/health`, { signal: AbortSignal.timeout(90_000) }).catch(
-    (error) => ({ status: String(error) }),
-  );
+  // On a connection of its own: fetch would reuse one the stopped app closed while the calls
+  // above blocked the event loop.
+  const woken = await new Promise((resolve) => {
+    const request = get(`${BASE}/api/health`, { agent: false, timeout: 90_000 }, (response) => {
+      response.resume();
+      response.on('end', () => resolve(response.statusCode));
+    });
+    request.on('timeout', () => request.destroy(new Error('timed out')));
+    request.on('error', (error) => resolve(String(error)));
+  });
   check(
     'a request starts the app again (it waits, no one else answers)',
-    woken.status === 200 && active('ilex.service'),
-    `${woken.status}`,
+    woken === 200 && active('ilex.service'),
+    `${woken}`,
   );
 }
 
