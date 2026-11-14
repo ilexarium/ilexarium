@@ -86,6 +86,21 @@ describe('ilex-socket-generator', () => {
     }
   });
 
+  it('reads the settings as text: nothing in them runs, nothing but the address reaches the unit', () => {
+    const ran = join(dir, 'ran');
+    for (const settings of [
+      `HOST=$(touch ${ran})\n`,
+      `HOST=\`touch ${ran}\`\nPORT=3000\n`,
+      `HOST=127.0.0.1; touch ${ran}\n`,
+      'HOST="127.0.0.1\nListenStream=0.0.0.0:22"\n',
+      'HOST=127.0.0.1\nPORT=3000\nListenStream=0.0.0.0:22\n',
+    ]) {
+      const { dropIn } = generate(settings);
+      expect(existsSync(ran), settings).toBe(false);
+      expect(dropIn ?? '', settings).not.toContain('0.0.0.0:22');
+    }
+  });
+
   it('the address pairs: 127.0.0.1 and 0.0.0.0 with ::1, ::1 with 127.0.0.1, others alone', () => {
     const lines = (host: string, ipv6 = 'yes') => call('listen_lines', host, '3000', ipv6).stdout;
     expect(lines('')).toBe('ListenStream=127.0.0.1:3000\nListenStream=[::1]:3000\n');

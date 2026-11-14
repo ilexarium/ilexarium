@@ -39,7 +39,7 @@ echo "$PLATFORM"
 Stop the app, then restore the platform's files to where they were — the master key (it opens the services' passwords stored in the database), the backup plan and its timer, and the database dump:
 
 ```sh
-systemctl stop ilex                   # the app (its database keeps running)
+systemctl stop ilex.socket ilex       # the app and its port: a request would start it again (its database keeps running)
 cd / && borg extract --numeric-ids "$REPO::$PLATFORM"
 echo "$BORG_PASSPHRASE" > /etc/ilex/backup.passphrase
 chmod 0400 /etc/ilex/backup.passphrase
