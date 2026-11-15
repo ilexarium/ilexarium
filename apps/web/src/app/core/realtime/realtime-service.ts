@@ -216,6 +216,7 @@ export class RealtimeService {
     this.socket = null;
     socket.close(1000);
     this._status.set('reconnecting');
+    if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => {
       this.retryTimer = null;
       if (this.wanted) this.open();
