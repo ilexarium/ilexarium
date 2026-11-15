@@ -64,6 +64,9 @@ export class LinuxHelper {
           (line) => helper.onLine(line),
           () => helper.close(),
         );
+        // Unheard, a stream's error would stop the server.
+        channel.on('error', () => helper.close());
+        channel.stderr.on('error', () => helper.close());
         channel.on('close', () => {
           clearTimeout(timeout);
           helper.end();
@@ -79,7 +82,8 @@ export class LinuxHelper {
 
   /** Sends a request; resolves with its answer, or `{ ok: false, error: 'timed_out' | 'ended' }`. */
   request(request: HelperRequest, timeoutMs: number): Promise<HelperAnswer> {
-    if (this.closed) return Promise.resolve({ ok: false, error: 'ended' });
+    if (this.closed || !this.channel.writable)
+      return Promise.resolve({ ok: false, error: 'ended' });
     const id = ++this.nextId;
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
