@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { AppTask } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { testDetails, testStarted, testTask } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -50,7 +50,7 @@ async function setup() {
   const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
   TestBed.configureTestingModule({
     providers: [
-      provideRouter([]),
+      provideRouter([{ path: 'login', children: [] }]),
       auth.provider,
       sockets.provider,
       { provide: AppsApi, useValue: appsApi },
@@ -182,6 +182,35 @@ describe('AppPageStore', () => {
     });
   });
 
+  it('stays busy until the deletion after a removal is through', async () => {
+    const { store, appsApi, answers } = await setup();
+    const deleted = new Subject<undefined>();
+    appsApi.delete.mockReturnValueOnce(deleted);
+    await store.openRemoval();
+    const [settings] = store.removal()!;
+    answers.push(testTask({ action: 'down', state: 'succeeded' }));
+    await store.remove([settings]);
+    await vi.waitFor(() => expect(appsApi.delete).toHaveBeenCalled(), { timeout: 4000 });
+    expect(store.busy()).toBe(true);
+    deleted.next(undefined);
+    deleted.complete();
+    await vi.waitFor(() => expect(store.removed()).toBe(true));
+    expect(store.busy()).toBe(false);
+  });
+
+  it('deletes nothing after a sign-out, even with the page still open', async () => {
+    const { store, appsApi, answers } = await setup();
+    await store.openRemoval();
+    const [settings] = store.removal()!;
+    answers.push(testTask({ action: 'down' }));
+    await store.remove([settings]);
+    await TestBed.inject(AuthStore).logout();
+    TestBed.tick();
+    answers.push(testTask({ action: 'down', state: 'succeeded' }));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(appsApi.delete).not.toHaveBeenCalled();
+  });
+
   it('a failed down deletes nothing', async () => {
     const { store, appsApi, answers } = await setup();
     await store.openRemoval();
@@ -217,6 +246,20 @@ describe('AppPageStore', () => {
       skip: [`${FOLDER}/cache`],
       mode: 'live',
     });
+  });
+
+  it('adds nothing when the template’s preset can’t be read', async () => {
+    const { store, appsApi, backupsApi } = await setup();
+    const error = vi.spyOn(toast, 'error');
+    appsApi.details.mockReturnValueOnce(
+      of(testDetails('music', { template: { id: 'navidrome', version: '2' } })),
+    );
+    store.reload();
+    await vi.waitFor(() => expect(store.details()?.template).not.toBeNull());
+    appsApi.template.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 500 })));
+    await store.addToBackups();
+    expect(backupsApi.addItem).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalled();
   });
 
   it('adds the app to the backups as the person', async () => {

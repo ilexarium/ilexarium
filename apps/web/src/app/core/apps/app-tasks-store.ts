@@ -3,9 +3,9 @@ import { signalStore, withHooks, withMethods } from '@ngrx/signals';
 import type { AppStarted } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import {
+  catchError,
   concat,
   concatMap,
-  filter,
   finalize,
   firstValueFrom,
   from,
@@ -13,7 +13,9 @@ import {
   type Observable,
   of,
   share,
-  type Subscription,
+  Subject,
+  Subscription,
+  takeUntil,
 } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { BackupsApi } from '../backups/backups-api';
@@ -42,6 +44,8 @@ export const AppTasksStore = signalStore(
       translator = inject(Translator),
     ) => {
       const following = new Set<Subscription>();
+      // Ends every followed task, also for a page still showing one (sign-out: nobody to act as).
+      const stop$ = new Subject<void>();
 
       /** As the person; true once done, false when it failed (worded under `key`) or was dismissed. */
       const asPerson = async (key: string, name: string, action: () => Promise<unknown>) => {
@@ -87,30 +91,32 @@ export const AppTasksStore = signalStore(
          * so it runs once the task succeeds whether the page is still there or not.
          */
         follow(started: AppStarted, then?: AppFollowUp): Observable<AppFollowed> {
-          const task$ = followTask(appsApi, started.name, started.folder);
-          if (!then) return task$.pipe(map((task) => ({ task, done: task.state === 'succeeded' })));
+          const task$ = followTask(appsApi, started.name, started.folder).pipe(takeUntil(stop$));
+          if (!then) return task$.pipe(map((task) => ({ task, after: null })));
           const followed$ = task$.pipe(
             concatMap((task) =>
               task.state !== 'succeeded'
-                ? of({ task, done: false })
+                ? of<AppFollowed>({ task, after: null })
                 : concat(
-                    of({ task, done: false }),
+                    of<AppFollowed>({ task, after: 'pending' }),
                     from(followUp(started.name, then)).pipe(
-                      filter(Boolean),
-                      map(() => ({ task, done: true })),
+                      catchError(() => of(false)),
+                      map((ok): AppFollowed => ({ task, after: ok ? 'done' : 'failed' })),
                     ),
                   ),
             ),
             share(),
           );
-          const subscription = followed$
-            .pipe(finalize(() => following.delete(subscription)))
-            .subscribe();
+          const subscription = new Subscription();
           following.add(subscription);
+          subscription.add(
+            followed$.pipe(finalize(() => following.delete(subscription))).subscribe(),
+          );
           return followed$;
         },
 
         stopAll(): void {
+          stop$.next();
           for (const subscription of following) subscription.unsubscribe();
           following.clear();
         },
