@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { AppField, AppTask, BackupsStatus, TemplateSummary } from '@ilex/shared';
@@ -65,7 +66,6 @@ async function setup(templates: TemplateSummary[] = []) {
       { provide: AppsApi, useValue: appsApi },
       { provide: BackupsApi, useValue: backupsApi },
       { provide: LinuxSessionStore, useValue: { asPerson, check: vi.fn() } },
-      NewAppPageStore,
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -73,8 +73,10 @@ async function setup(templates: TemplateSummary[] = []) {
   const socket = sockets.latest();
   socket.open();
   TestBed.inject(BackupsStore).watch();
-  const store = TestBed.inject(NewAppPageStore);
-  return { store, appsApi, backupsApi, asPerson, answers, socket };
+  // Its own injector, like a page's: destroying it is leaving the page.
+  const page = createEnvironmentInjector([NewAppPageStore], TestBed.inject(EnvironmentInjector));
+  const store = page.get(NewAppPageStore);
+  return { store, page, appsApi, backupsApi, asPerson, answers, socket };
 }
 
 describe('NewAppPageStore', () => {
@@ -208,6 +210,23 @@ describe('NewAppPageStore', () => {
       skip: ['/home/anna/apps/navidrome-2/cache'],
       mode: 'live',
     });
+  });
+
+  it('still adds the app to the backups when the page is left during the install', async () => {
+    const { store, page, backupsApi, answers, socket } = await setup();
+    const success = vi.spyOn(toast, 'success');
+    socket.receive({ event: 'backups:snapshot', data: backupsStatus });
+    await store.chooseTemplate('navidrome');
+    answers.push(testTask({ output: ['pulling'] }));
+    answers.push(testTask({ state: 'succeeded' }));
+    await store.install();
+    page.destroy();
+    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('navidrome-2 is installed.'), {
+      timeout: 4000,
+    });
+    expect(backupsApi.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({ project: 'navidrome-2', mode: 'live' }),
+    );
   });
 
   it('shows what Compose said when it refused the files, staying on the form', async () => {
