@@ -1,8 +1,9 @@
 import { isIP } from 'node:net';
 
 /**
- * Whose request it is, for rate limits: an IPv4 address as it is, an IPv6 address by its /64
- * (one client has a whole /64 to pick addresses from), an IPv4-mapped IPv6 address as IPv4.
+ * Whose request it is, for rate limits: an IPv4 address as it is, a public IPv6 address
+ * (2000::/3) by its /64 (one client has a whole /64 to pick addresses from), any other IPv6
+ * address whole (a tailnet's or a LAN's devices share one /64), an IPv4-mapped one as IPv4.
  */
 export function clientKey(ip: string | undefined): string {
   if (!ip) return 'unknown';
@@ -10,7 +11,9 @@ export function clientKey(ip: string | undefined): string {
   if (isIP(address) !== 6) return address;
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address);
   if (mapped) return mapped[1];
-  return `${groups(address).slice(0, 4).join(':')}::/64`;
+  const all = groups(address);
+  const isPublic = (parseInt(all[0], 16) & 0xe000) === 0x2000;
+  return isPublic ? `${all.slice(0, 4).join(':')}::/64` : all.join(':');
 }
 
 /** The eight groups of a valid IPv6 address, written short (`2001:db8:0:0:…`). */

@@ -85,14 +85,17 @@ describe('AuthService: delays and limits', () => {
     await expect(service.login(OWNER, '192.168.1.20')).resolves.toEqual(user);
   });
 
-  it('the same address (or IPv6 /64) waits after a failure, without a password check', async () => {
+  it('the same address waits after a failure, without a password check', async () => {
     const { service, hasher } = setup({ valid: false });
     await expect(service.login(OWNER, '2001:db8::1')).rejects.toThrow(UnauthorizedException);
     hasher.verify.mockClear();
-    await expect(service.login(OWNER, '2001:db8::2')).rejects.toBeInstanceOf(
+    await expect(service.login(OWNER, '2001:db8::1')).rejects.toBeInstanceOf(
       TooManyAttemptsException,
     );
     expect(hasher.verify).not.toHaveBeenCalled();
+    // Another device on the same LAN (same /64) isn't delayed.
+    hasher.verify.mockResolvedValueOnce(true);
+    await expect(service.login(OWNER, '2001:db8::2')).resolves.toEqual(user);
   });
 
   it('failed sign-ins never block a signed-in confirmation; wrong confirmations have their own delay', async () => {

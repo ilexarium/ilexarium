@@ -190,11 +190,12 @@ describe('Terminals', () => {
     }
   });
 
-  it('a keystroke after the shell ended is dropped, even while its close waits behind output', async () => {
+  it('a keystroke after the shell ended closes it (4000), even while its close waits behind output', async () => {
     const { socket, channel } = await setup();
     channel.writable = false;
     socket.emit('message', Buffer.from('q'), true);
     expect(channel.written).toEqual([]);
+    expect(socket.closedWith).toBe(4000);
   });
 
   it('the shell’s exit closes it (4000)', async () => {

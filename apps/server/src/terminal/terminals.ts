@@ -145,7 +145,7 @@ export class Terminals implements OnModuleDestroy {
       if (isBinary) {
         this.linuxSessions.touch(appSessionId);
         // Ended by the shell, its 'close' still held back by output waiting for the browser.
-        if (!channel.writable) return;
+        if (!channel.writable) return end(TERMINAL_CLOSE_CODES.exited, 'exited');
         if (!channel.write(bytes)) {
           client.pause();
           channel.once('drain', () => client.resume());
