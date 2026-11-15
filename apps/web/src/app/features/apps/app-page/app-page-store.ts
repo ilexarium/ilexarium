@@ -20,7 +20,10 @@ import {
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
+import type { AppFollowUp } from '../../../core/apps/apps.model';
+import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import { AppsStore } from '../../../core/apps/apps-store';
+import { appBackupItem } from '../../../core/backups/app-backup-item';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
@@ -31,7 +34,6 @@ import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-err
 import { appStats } from '../app-stats';
 import { BACKUP_WAIT_MS } from '../apps.constants';
 import type { AppTab, ContainerWithStats } from '../apps.model';
-import { followTask } from '../task-follower';
 
 interface AppPageState {
   name: string;
@@ -139,6 +141,7 @@ export const AppPageStore = signalStore(
     (
       store,
       appsApi = inject(AppsApi),
+      appTasksStore = inject(AppTasksStore),
       backupsApi = inject(BackupsApi),
       backupsStore = inject(BackupsStore),
       linuxSessionStore = inject(LinuxSessionStore),
@@ -173,21 +176,24 @@ export const AppPageStore = signalStore(
         ),
       );
 
-      const follow = rxMethod<{ started: AppStarted; then?: () => Promise<void> | void }>(
+      // The follow-up (a removal's deletion) is the global store's: it runs even if the page is left.
+      const follow = rxMethod<{ started: AppStarted; then?: AppFollowUp }>(
         pipe(
           switchMap(({ started, then }) =>
-            followTask(appsApi, started.name, started.folder).pipe(map((task) => ({ task, then }))),
+            appTasksStore
+              .follow(started, then)
+              .pipe(map((followed) => ({ ...followed, removal: then?.kind === 'remove' }))),
           ),
-          tap(({ task, then }) => {
+          tap(({ task, done, removal }) => {
             patchState(store, { task });
             if (task.state === 'running') return;
-            if (task.state === 'succeeded') void then?.();
+            if (done && removal) patchState(store, { removed: true });
             if (!store.removed()) load();
           }),
         ),
       );
 
-      const started = (result: AppStarted | null, then?: () => Promise<void> | void) => {
+      const started = (result: AppStarted | null, then?: AppFollowUp) => {
         if (!result) return;
         patchState(store, { task: result.task });
         follow({ started: result, then });
@@ -300,17 +306,13 @@ export const AppPageStore = signalStore(
         },
 
         async addToBackups(): Promise<void> {
-          const mode = store.details()?.template ? undefined : 'stop';
-          const item = await asPerson('apps.backup.failed', () =>
-            firstValueFrom(
-              backupsApi.addItem({
-                kind: 'app',
-                project: store.name(),
-                folders: [],
-                skip: [],
-                mode: mode ?? 'stop',
-              }),
-            ),
+          const app = {
+            name: store.name(),
+            folder: store.folder() || null,
+            template: store.details()?.template ?? store.summary()?.template ?? null,
+          };
+          const item = await asPerson('apps.backup.failed', async () =>
+            firstValueFrom(backupsApi.addItem(await appBackupItem(appsApi, app))),
           );
           if (item) toast.success(translator.t('apps.backup.added', { name: store.name() }));
         },
@@ -331,28 +333,20 @@ export const AppPageStore = signalStore(
         /** `docker compose down`, then what was ticked deleted. */
         async remove(ticked: AppRemovalItem[]): Promise<void> {
           const folder = store.folder();
-          const remove = async () => {
-            if (ticked.length > 0) {
-              const done = await asPerson('apps.remove.deleteFailed', () =>
-                firstValueFrom(
-                  appsApi.delete(store.name(), {
-                    folder,
-                    settings: ticked.some((i) => i.kind === 'settings'),
-                    folders: ticked.filter((i) => i.kind === 'folder').map((i) => i.path),
-                    volumes: ticked.filter((i) => i.kind === 'volume').map((i) => i.path),
-                  }),
-                ).then(() => true),
-              );
-              if (!done) return;
-            }
-            toast.success(translator.t('apps.remove.done', { name: store.name() }));
-            patchState(store, { removed: true });
-          };
+          const request =
+            ticked.length > 0
+              ? {
+                  folder,
+                  settings: ticked.some((i) => i.kind === 'settings'),
+                  folders: ticked.filter((i) => i.kind === 'folder').map((i) => i.path),
+                  volumes: ticked.filter((i) => i.kind === 'volume').map((i) => i.path),
+                }
+              : null;
           started(
             await asPerson('apps.remove.failed', () =>
               firstValueFrom(appsApi.remove(store.name(), folder)),
             ),
-            remove,
+            { kind: 'remove', delete: request },
           );
         },
       };

@@ -1,6 +1,6 @@
 import { APP_LIMITS, type AppTask } from '@ilex/shared';
 import { catchError, EMPTY, exhaustMap, Observable, takeWhile, timer } from 'rxjs';
-import type { AppsApi } from '../../core/apps/apps-api';
+import type { AppsApi } from './apps-api';
 
 /**
  * A task as it goes: asked once a second (it runs as a unit on the machine — nothing pushes it),

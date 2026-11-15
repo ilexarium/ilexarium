@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { AppTask } from '@ilex/shared';
@@ -22,6 +23,12 @@ async function setup() {
   const answers: (AppTask | null)[] = [];
   const appsApi = {
     templates: vi.fn(() => of([])),
+    template: vi.fn(() =>
+      of({
+        template: { id: 'navidrome', version: '2', backup: { mode: 'live', skip: ['cache'] } },
+        compose: '',
+      }),
+    ),
     details: vi.fn(() => of(testDetails('music'))),
     task: vi.fn(() => of({ task: answers.shift() ?? null })),
     save: vi.fn(() => of(testStarted('music'))),
@@ -49,14 +56,15 @@ async function setup() {
       { provide: AppsApi, useValue: appsApi },
       { provide: BackupsApi, useValue: backupsApi },
       { provide: LinuxSessionStore, useValue: { asPerson, check: vi.fn() } },
-      AppPageStore,
     ],
   });
   await TestBed.inject(AuthStore).load();
-  const store = TestBed.inject(AppPageStore);
+  // Its own injector, like a page's: destroying it is leaving the page.
+  const page = createEnvironmentInjector([AppPageStore], TestBed.inject(EnvironmentInjector));
+  const store = page.get(AppPageStore);
   store.open('music', null);
   await vi.waitFor(() => expect(store.details()).not.toBeNull());
-  return { store, appsApi, backupsApi, asPerson, answers };
+  return { store, page, appsApi, backupsApi, asPerson, answers };
 }
 
 describe('AppPageStore', () => {
@@ -154,6 +162,26 @@ describe('AppPageStore', () => {
     expect(success).toHaveBeenCalledWith('music was removed.');
   });
 
+  it('still deletes what was ticked when the page is left during the removal', async () => {
+    const { store, page, appsApi, answers } = await setup();
+    const success = vi.spyOn(toast, 'success');
+    await store.openRemoval();
+    const [, , volume] = store.removal()!;
+    answers.push(testTask({ action: 'down' }));
+    answers.push(testTask({ action: 'down', state: 'succeeded' }));
+    await store.remove([volume]);
+    page.destroy();
+    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('music was removed.'), {
+      timeout: 4000,
+    });
+    expect(appsApi.delete).toHaveBeenCalledWith('music', {
+      folder: FOLDER,
+      settings: false,
+      folders: [],
+      volumes: ['music_cache'],
+    });
+  });
+
   it('a failed down deletes nothing', async () => {
     const { store, appsApi, answers } = await setup();
     await store.openRemoval();
@@ -171,6 +199,24 @@ describe('AppPageStore', () => {
     expect(appsApi.update).toHaveBeenCalledWith('music', FOLDER);
     await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
     expect(store.task()?.output).toContain('pulled');
+  });
+
+  it('adds a templated app with its template’s preset', async () => {
+    const { store, appsApi, backupsApi } = await setup();
+    appsApi.details.mockReturnValueOnce(
+      of(testDetails('music', { template: { id: 'navidrome', version: '2' } })),
+    );
+    store.reload();
+    await vi.waitFor(() => expect(store.details()?.template).not.toBeNull());
+    await store.addToBackups();
+    expect(appsApi.template).toHaveBeenCalledWith('navidrome');
+    expect(backupsApi.addItem).toHaveBeenCalledWith({
+      kind: 'app',
+      project: 'music',
+      folders: [],
+      skip: [`${FOLDER}/cache`],
+      mode: 'live',
+    });
   });
 
   it('adds the app to the backups as the person', async () => {
