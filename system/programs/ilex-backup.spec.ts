@@ -1572,9 +1572,10 @@ describe('where root may restore and delete: folders only root and the person wh
     }
   };
 
+  // `/`: other root folders aren't root-only everywhere (on GitHub's runners others may write in them).
   it('below root’s own folders, whoever asked', () => {
-    expect(refusal(() => assertParentsSafe('/usr/share/restored', OTHER))).toBeNull();
-    expect(refusal(() => assertSafeFolder('/usr/share', OTHER))).toBeNull();
+    expect(refusal(() => assertParentsSafe('/restored', OTHER))).toBeNull();
+    expect(refusal(() => assertSafeFolder('/', OTHER))).toBeNull();
   });
 
   it('below the asking person’s folders; another account’s are refused', () => {
