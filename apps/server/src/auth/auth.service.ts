@@ -14,8 +14,10 @@ import {
   type SetupRequest,
 } from '@ilex/shared';
 import { AuditService } from '../audit/audit.service.js';
+import { clientKey } from '../common/client-key.js';
 import { UsersService } from '../users/users.service.js';
 import { LoginThrottleService } from './login-throttle.service.js';
+import { PasswordHashSlots } from './password-hash-slots.js';
 import { SetupService } from './setup.service.js';
 
 /** Same response for an unknown username and a wrong password: no account enumeration. */
@@ -63,6 +65,7 @@ export class AuthService {
     private readonly throttle: LoginThrottleService,
     private readonly audit: AuditService,
     private readonly setupToken: SetupService,
+    private readonly hashSlots: PasswordHashSlots,
   ) {}
 
   /** Only while no user exists; `createFirstUser` makes sure two at once can't both win. */
@@ -95,12 +98,16 @@ export class AuthService {
 
   /** Success is audited through the package's sign-in event (`AuthEventsAuditBridge`). */
   async login({ username, password }: LoginRequest, ip?: string): Promise<PublicUser> {
-    this.throttle.assertAllowed(username);
-    const credentials = await this.users.findCredentials(username);
-    // Unknown user: verify against the hasher's dummy hash, so timing reveals nothing.
-    const valid = await this.hasher.verify(password, credentials?.passwordHash);
+    // Per name and address: someone failing elsewhere never delays the owner's sign-in.
+    const throttleKey = `login ${clientKey(ip)} ${username}`;
+    this.throttle.assertAllowed(throttleKey);
+    const { credentials, valid } = await this.hashSlots.run(async () => {
+      const credentials = await this.users.findCredentials(username);
+      // Unknown user: verify against the hasher's dummy hash, so timing reveals nothing.
+      return { credentials, valid: await this.hasher.verify(password, credentials?.passwordHash) };
+    });
     if (!credentials || !valid) {
-      this.throttle.recordFailure(username);
+      this.throttle.recordFailure(throttleKey);
       await this.audit.tryRecord({
         action: 'auth.login',
         outcome: 'failure',
@@ -111,7 +118,7 @@ export class AuthService {
       });
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
-    this.throttle.reset(username);
+    this.throttle.reset(throttleKey);
     if (this.hasher.needsRehash(credentials.passwordHash)) {
       await this.users.updatePasswordHash(credentials.id, await this.hasher.hash(password));
     }
@@ -158,7 +165,10 @@ export class AuthService {
     await this.checkPassword(user, password, 'auth.password_confirm', WRONG_PASSWORD, ip);
   }
 
-  /** Throttled like sign-in. Wrong: a 400 on the field, as a 401 would sign the browser out. */
+  /**
+   * Throttled like sign-in, on a counter of the user's own: failed sign-ins never block it.
+   * Wrong: a 400 on the field, as a 401 would sign the browser out.
+   */
   private async checkPassword(
     user: PublicUser,
     password: string,
@@ -166,10 +176,11 @@ export class AuthService {
     wrong: ApiErrorResponse,
     ip?: string,
   ): Promise<void> {
-    this.throttle.assertAllowed(user.username);
+    const throttleKey = `confirm ${user.id}`;
+    this.throttle.assertAllowed(throttleKey);
     const credentials = await this.users.findCredentials(user.username);
     if (!credentials || !(await this.hasher.verify(password, credentials.passwordHash))) {
-      this.throttle.recordFailure(user.username);
+      this.throttle.recordFailure(throttleKey);
       await this.audit.tryRecord({
         action,
         outcome: 'failure',
@@ -180,6 +191,6 @@ export class AuthService {
       });
       throw new BadRequestException(wrong);
     }
-    this.throttle.reset(user.username);
+    this.throttle.reset(throttleKey);
   }
 }
