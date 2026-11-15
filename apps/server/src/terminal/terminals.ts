@@ -135,12 +135,17 @@ export class Terminals implements OnModuleDestroy {
     channel.on('data', output);
     channel.stderr.on('data', output);
     channel.on('close', () => end(TERMINAL_CLOSE_CODES.exited, 'exited'));
+    // Unheard, a stream's error would stop the server (a write after the shell ended, say).
+    channel.on('error', () => end(TERMINAL_CLOSE_CODES.exited, 'channel-error'));
+    channel.stderr.on('error', () => end(TERMINAL_CLOSE_CODES.exited, 'channel-error'));
 
     client.on('message', (data: RawData, isBinary: boolean) => {
       if (ended) return;
       const bytes = Array.isArray(data) ? Buffer.concat(data) : Buffer.from(data as Buffer);
       if (isBinary) {
         this.linuxSessions.touch(appSessionId);
+        // Ended by the shell, its 'close' still held back by output waiting for the browser.
+        if (!channel.writable) return;
         if (!channel.write(bytes)) {
           client.pause();
           channel.once('drain', () => client.resume());

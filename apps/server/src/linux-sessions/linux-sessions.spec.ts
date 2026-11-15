@@ -70,6 +70,8 @@ class FakeClient extends EventEmitter {
     const done = rest.at(-1) as (error: Error | undefined, channel: unknown) => void;
     started.push({ command, options: rest.length > 1 ? rest[0] : undefined });
     const channel = Object.assign(new EventEmitter(), {
+      stderr: new EventEmitter(),
+      writable: true,
       close: () => {
         closedHelpers += 1;
         setImmediate(() => channel.emit('close'));
@@ -365,6 +367,29 @@ describe('LinuxSessions', () => {
       administrator: false,
     });
     expect(answer).toEqual({ ok: false, error: 'ended' });
+  });
+
+  it('an error on the helper’s channel ends the helper, never the server; nothing is written after its end', async () => {
+    const request = {
+      action: 'process.signal',
+      pid: 9,
+      signal: 'TERM',
+      administrator: false,
+    } as const;
+    await signIn();
+    helperMode = 'silent';
+    const waiting = sessions.ask('s1', request);
+    // Unheard, these would throw here (and stop the server).
+    helperChannel!.emit('error', new Error('write after end'));
+    (helperChannel as unknown as { stderr: EventEmitter }).stderr.emit('error', new Error('x'));
+    expect(await waiting).toEqual({ ok: false, error: 'ended' });
+
+    helperMode = 'answers';
+    await signIn();
+    (helperChannel as unknown as { writable: boolean }).writable = false;
+    const before = asked.length;
+    expect(await sessions.ask('s1', request)).toEqual({ ok: false, error: 'ended' });
+    expect(asked).toHaveLength(before);
   });
 
   it('“Lock now” is a new helper (ilex-root ends with the old one); the Linux session stays', async () => {

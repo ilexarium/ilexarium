@@ -34,6 +34,8 @@ class FakeChannel extends EventEmitter {
   paused = false;
   written: Buffer[] = [];
   writable = true;
+  /** `write` says the shell is full (wait for drain). */
+  full = false;
   window: number[] = [];
   pause() {
     this.paused = true;
@@ -43,7 +45,7 @@ class FakeChannel extends EventEmitter {
   }
   write(data: Buffer) {
     this.written.push(data);
-    return this.writable;
+    return !this.full;
   }
   setWindow(rows: number, cols: number) {
     this.window = [rows, cols];
@@ -157,7 +159,7 @@ describe('Terminals', () => {
 
   it('a slow shell pauses the socket until it drains', async () => {
     const { socket, channel } = await setup();
-    channel.writable = false;
+    channel.full = true;
     socket.emit('message', Buffer.from('a big paste'), true);
     expect(socket.paused).toBe(true);
     channel.emit('drain');
@@ -177,6 +179,22 @@ describe('Terminals', () => {
         details: { linuxUser: 'anna', reason: 'linux-idle' },
       }),
     );
+  });
+
+  it('an error on the shell’s channel closes it (4000), never the server', async () => {
+    for (const stream of ['channel', 'stderr'] as const) {
+      const { socket, channel } = await setup();
+      // Unheard, this would throw here (and stop the server).
+      (stream === 'channel' ? channel : channel.stderr).emit('error', new Error('write after end'));
+      expect(socket.closedWith).toBe(4000);
+    }
+  });
+
+  it('a keystroke after the shell ended is dropped, even while its close waits behind output', async () => {
+    const { socket, channel } = await setup();
+    channel.writable = false;
+    socket.emit('message', Buffer.from('q'), true);
+    expect(channel.written).toEqual([]);
   });
 
   it('the shell’s exit closes it (4000)', async () => {

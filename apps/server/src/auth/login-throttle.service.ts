@@ -26,44 +26,45 @@ export class TooManyAttemptsException extends HttpException {
 }
 
 /**
- * On top of the per-IP limit: the delay doubles from 1 s up to 60 s. A delay, not a lockout, so
- * nobody on the network can lock the owner out. In memory: forgotten on restart.
+ * On top of the per-IP limit: the delay doubles from 1 s up to 60 s, counted per key. A sign-in's
+ * key is the user name with the client's address, so failures from elsewhere never delay the owner;
+ * a signed-in confirmation's is the user's own. In memory: forgotten on restart.
  */
 @Injectable()
 export class LoginThrottleService {
   private readonly entries = new Map<string, Entry>();
 
-  assertAllowed(username: string): void {
-    const entry = this.live(username);
+  assertAllowed(key: string): void {
+    const entry = this.live(key);
     if (!entry) return;
     const waitMs = entry.blockedUntil - Date.now();
     if (waitMs > 0) throw new TooManyAttemptsException(Math.ceil(waitMs / 1000));
   }
 
-  recordFailure(username: string): void {
+  recordFailure(key: string): void {
     const now = Date.now();
-    const failures = (this.live(username)?.failures ?? 0) + 1;
+    const failures = (this.live(key)?.failures ?? 0) + 1;
     const delay = Math.min(FIRST_DELAY_MS * 2 ** (failures - 1), MAX_DELAY_MS);
     // Re-insert so the Map's insertion order stays least-recently-failed first.
-    this.entries.delete(username);
-    this.entries.set(username, { failures, blockedUntil: now + delay, lastFailureAt: now });
+    this.entries.delete(key);
+    this.entries.set(key, { failures, blockedUntil: now + delay, lastFailureAt: now });
     while (this.entries.size > MAX_ENTRIES) {
       this.entries.delete(this.entries.keys().next().value!);
     }
   }
 
-  reset(username: string): void {
-    this.entries.delete(username);
+  reset(key: string): void {
+    this.entries.delete(key);
   }
 
   get size(): number {
     return this.entries.size;
   }
 
-  private live(username: string): Entry | undefined {
-    const entry = this.entries.get(username);
+  private live(key: string): Entry | undefined {
+    const entry = this.entries.get(key);
     if (entry && Date.now() - entry.lastFailureAt > ENTRY_TTL_MS) {
-      this.entries.delete(username);
+      this.entries.delete(key);
       return undefined;
     }
     return entry;
