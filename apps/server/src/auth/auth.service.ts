@@ -14,7 +14,6 @@ import {
   type SetupRequest,
 } from '@ilex/shared';
 import { AuditService } from '../audit/audit.service.js';
-import { clientKey } from '../common/client-key.js';
 import { UsersService } from '../users/users.service.js';
 import { LoginThrottleService } from './login-throttle.service.js';
 import { PasswordHashSlots } from './password-hash-slots.js';
@@ -98,14 +97,15 @@ export class AuthService {
 
   /** Success is audited through the package's sign-in event (`AuthEventsAuditBridge`). */
   async login({ username, password }: LoginRequest, ip?: string): Promise<PublicUser> {
-    // Per name and address: someone failing elsewhere never delays the owner's sign-in.
-    const throttleKey = `login ${clientKey(ip)} ${username}`;
+    // Per name and exact address: someone failing elsewhere (also on the same LAN) never delays
+    // the owner's sign-in. The per-address limit counts a public IPv6 /64 as one.
+    const throttleKey = `login ${ip ?? 'unknown'} ${username}`;
     this.throttle.assertAllowed(throttleKey);
-    const { credentials, valid } = await this.hashSlots.run(async () => {
-      const credentials = await this.users.findCredentials(username);
-      // Unknown user: verify against the hasher's dummy hash, so timing reveals nothing.
-      return { credentials, valid: await this.hasher.verify(password, credentials?.passwordHash) };
-    });
+    const credentials = await this.users.findCredentials(username);
+    // Unknown user: verify against the hasher's dummy hash, so timing reveals nothing.
+    const valid = await this.hashSlots.run(() =>
+      this.hasher.verify(password, credentials?.passwordHash),
+    );
     if (!credentials || !valid) {
       this.throttle.recordFailure(throttleKey);
       await this.audit.tryRecord({

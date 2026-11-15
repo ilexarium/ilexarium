@@ -82,8 +82,12 @@ export class LinuxHelper {
 
   /** Sends a request; resolves with its answer, or `{ ok: false, error: 'timed_out' | 'ended' }`. */
   request(request: HelperRequest, timeoutMs: number): Promise<HelperAnswer> {
-    if (this.closed || !this.channel.writable)
+    if (this.closed) return Promise.resolve({ ok: false, error: 'ended' });
+    // Its input ended, its 'close' not there yet: it's gone all the same.
+    if (!this.channel.writable) {
+      this.close();
       return Promise.resolve({ ok: false, error: 'ended' });
+    }
     const id = ++this.nextId;
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
