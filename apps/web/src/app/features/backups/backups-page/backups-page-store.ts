@@ -40,11 +40,9 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
-import { appBackupItem } from '../../../core/backups/app-backup-item';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
-import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
@@ -203,7 +201,7 @@ export const BackupsPageStore = signalStore(
     (
       store,
       backupsApi = inject(BackupsApi),
-      appsApi = inject(AppsApi),
+      appsStore = inject(AppsStore),
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
@@ -243,7 +241,7 @@ export const BackupsPageStore = signalStore(
 
       const appItem = (name: string): Promise<BackupItemRequest> => {
         const app = store.apps().find((a) => a.name === name);
-        return appBackupItem(appsApi, app ?? { name, folder: null, template: null });
+        return appsStore.backupItem(app ?? { name, folder: null, template: null });
       };
 
       const plan$ = () =>
@@ -351,7 +349,13 @@ export const BackupsPageStore = signalStore(
         },
 
         async addApp(name: string): Promise<void> {
-          const item = await appItem(name);
+          let item: BackupItemRequest;
+          try {
+            item = await appItem(name);
+          } catch (error) {
+            failed('backups.items.addFailed', error);
+            return;
+          }
           if (await act(`add:${name}`, 'backups.items.addFailed', () => backupsApi.addItem(item))) {
             reload();
           }

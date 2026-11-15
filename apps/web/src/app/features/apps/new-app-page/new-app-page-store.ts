@@ -205,9 +205,9 @@ export const NewAppPageStore = signalStore(
               .follow(started, { kind: 'install', backup })
               .pipe(map((followed) => ({ ...followed, started })));
           }),
-          tap(({ task, done, started: { name, folder } }) => {
+          tap(({ task, after, started: { name, folder } }) => {
             patchState(store, { task });
-            if (done) patchState(store, { installed: { name, folder } });
+            if (after === 'done') patchState(store, { installed: { name, folder } });
           }),
         ),
       );

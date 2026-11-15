@@ -5,8 +5,11 @@ export type AppFollowUp =
   | { kind: 'remove'; delete: AppDeleteRequest | null }
   | { kind: 'install'; backup: BackupItemRequest | null };
 
-/** A followed task as it goes; `done` once it succeeded and its follow-up went through. */
+/**
+ * A followed task as it goes. `after`: its follow-up, once the task succeeded — `pending` while it
+ * runs, then `done` or `failed`; null without one (or while the task runs, or when it failed).
+ */
 export interface AppFollowed {
   task: AppTask;
-  done: boolean;
+  after: 'pending' | 'done' | 'failed' | null;
 }

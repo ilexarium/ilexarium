@@ -14,6 +14,7 @@ import {
   type AppRemovalItem,
   type AppStarted,
   type AppTask,
+  type BackupItemRequest,
   parseEnv,
   setEnvValues,
 } from '@ilex/shared';
@@ -23,7 +24,6 @@ import { AppsApi } from '../../../core/apps/apps-api';
 import type { AppFollowUp } from '../../../core/apps/apps.model';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import { AppsStore } from '../../../core/apps/apps-store';
-import { appBackupItem } from '../../../core/backups/app-backup-item';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
@@ -142,6 +142,7 @@ export const AppPageStore = signalStore(
       store,
       appsApi = inject(AppsApi),
       appTasksStore = inject(AppTasksStore),
+      appsStore = inject(AppsStore),
       backupsApi = inject(BackupsApi),
       backupsStore = inject(BackupsStore),
       linuxSessionStore = inject(LinuxSessionStore),
@@ -184,10 +185,11 @@ export const AppPageStore = signalStore(
               .follow(started, then)
               .pipe(map((followed) => ({ ...followed, removal: then?.kind === 'remove' }))),
           ),
-          tap(({ task, done, removal }) => {
-            patchState(store, { task });
-            if (task.state === 'running') return;
-            if (done && removal) patchState(store, { removed: true });
+          tap(({ task, after, removal }) => {
+            // The deletion after a removal: the page stays busy until it's through.
+            patchState(store, { task, busy: after === 'pending' });
+            if (task.state === 'running' || after === 'pending') return;
+            if (after === 'done' && removal) patchState(store, { removed: true });
             if (!store.removed()) load();
           }),
         ),
@@ -306,13 +308,19 @@ export const AppPageStore = signalStore(
         },
 
         async addToBackups(): Promise<void> {
-          const app = {
-            name: store.name(),
-            folder: store.folder() || null,
-            template: store.details()?.template ?? store.summary()?.template ?? null,
-          };
-          const item = await asPerson('apps.backup.failed', async () =>
-            firstValueFrom(backupsApi.addItem(await appBackupItem(appsApi, app))),
+          let request: BackupItemRequest;
+          try {
+            request = await appsStore.backupItem({
+              name: store.name(),
+              folder: store.folder() || null,
+              template: store.details()?.template ?? store.summary()?.template ?? null,
+            });
+          } catch (error) {
+            failed('apps.backup.failed', error);
+            return;
+          }
+          const item = await asPerson('apps.backup.failed', () =>
+            firstValueFrom(backupsApi.addItem(request)),
           );
           if (item) toast.success(translator.t('apps.backup.added', { name: store.name() }));
         },
