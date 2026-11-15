@@ -4,14 +4,9 @@
 # (the machine's settings, the only place they are kept), as a drop-in in systemd's own folder
 # for generated units. Settings that aren't an address and a port leave the socket without one:
 # systemd refuses it, and the app with it.
-#
-# Only while ilex.service takes its port from the socket: an older version, put back by a failed
-# update, binds the port itself. The socket is masked then, and systemd closes its listeners at
-# that daemon-reload.
 set -u
 
 SETTINGS=/etc/ilex/app.env
-APP_UNIT=/etc/systemd/system/ilex.service
 
 # A setting as systemd reads it: the last one, spaces around it and one pair of quotes taken off
 # (the installer's app_setting).
@@ -46,11 +41,7 @@ listen_lines() {
 }
 
 main() {
-  local normal="$1" early="$2" lines ipv6=no
-  if ! grep -qx 'Sockets=ilex.socket' "$APP_UNIT" 2>/dev/null; then
-    ln -sf /dev/null "$early/ilex.socket"
-    return 0
-  fi
+  local normal="$1" lines ipv6=no
   if [[ -e /proc/net/if_inet6 ]]; then ipv6=yes; fi
   if ! lines="$(listen_lines "$(setting HOST)" "$(setting PORT)" "$ipv6")"; then
     printf 'ilex-socket-generator: HOST or PORT in %s is not an address and a port\n' "$SETTINGS" >&2

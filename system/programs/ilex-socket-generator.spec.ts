@@ -1,15 +1,7 @@
 // ilex-socket-generator (system/systemd/), the generator that writes where ilex.socket listens
-// from the machine's settings: run as systemd runs it, against a pretend app.env and ilex.service.
+// from the machine's settings: run as systemd runs it, against a pretend app.env.
 import { execFileSync, spawnSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readlinkSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,23 +15,14 @@ let dir: string;
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'ilex-socket-'));
   for (const folder of ['normal', 'early', 'late']) mkdirSync(join(dir, folder));
-  writeFileSync(join(dir, 'ilex.service'), '[Service]\nSockets=ilex.socket\n');
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-/** The generator's function `fn`, with SETTINGS and APP_UNIT in the pretend folder. */
+/** The generator's function `fn`, with SETTINGS in the pretend folder. */
 function call(fn: string, ...args: string[]) {
   return spawnSync(
     'bash',
-    [
-      '-c',
-      'source "$1"; SETTINGS="$2/app.env"; APP_UNIT="$2/ilex.service"; "${@:3}"',
-      '_',
-      GENERATOR,
-      dir,
-      fn,
-      ...args,
-    ],
+    ['-c', 'source "$1"; SETTINGS="$2/app.env"; "${@:3}"', '_', GENERATOR, dir, fn, ...args],
     { encoding: 'utf8' },
   );
 }
@@ -58,15 +41,6 @@ describe('ilex-socket-generator', () => {
     expect(dropIn).toBe(
       `[Socket]\nListenStream=127.0.0.1:3300\n${IPV6 ? 'ListenStream=[::1]:3300\n' : ''}`,
     );
-    expect(existsSync(join(dir, 'early/ilex.socket'))).toBe(false);
-  });
-
-  it('masks the socket for an app unit that binds its port itself (an older version put back)', () => {
-    writeFileSync(join(dir, 'ilex.service'), '[Service]\nExecStart=/usr/bin/node dist/main.js\n');
-    const { dropIn, status } = generate('HOST=127.0.0.1\nPORT=3000\n');
-    expect(status).toBe(0);
-    expect(dropIn).toBeNull();
-    expect(readlinkSync(join(dir, 'early/ilex.socket'))).toBe('/dev/null');
   });
 
   it('settings that aren’t an address and a port: no address at all, and says why', () => {
