@@ -36,9 +36,9 @@ It builds the shared packages, then runs, in this order (each part's name in bra
 - `[e2e]` the server's integration and e2e tests; a test skipped because a dev service or Borg (`borgbackup`) is missing counts as a failure
 - `[install]` the install test, `tools/vm/test-install.sh --container`: a release installed and updated in a throwaway Debian 13 machine (privileged Docker, several minutes)
 
-`npm run verify -- --only lint,unit` runs some parts. A change that doesn't touch the installer, `system/`, the helper, the root programs, the database or how a release is built may leave the install test to CI.
+`npm run verify -- --only lint,unit` runs some parts. A change to the installer, `system/`, the helper, the root programs, the database or how a release is built needs the install test before it is merged: `npm run verify -- --only install`.
 
-GitHub runs the same parts on every pull request and every push to `main` (`.github/workflows/ci.yml`). A release (`npm run ship`) is only built from a commit at which every part passed: `npm run verify` records each part that passed with the commit in `.dev/verified.json`, and only when the tree had no uncommitted changes.
+GitHub runs lint, format, unit and e2e on every pull request and every push to `main` (`.github/workflows/ci.yml`). The install test runs there only when the workflow is started by hand ("Run workflow") or by a release: `npm run ship` releases only a commit pushed as `main`, starts the whole workflow for it and goes on only when every job passed.
 
 ## Safety rules
 

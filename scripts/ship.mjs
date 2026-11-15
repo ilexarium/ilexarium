@@ -2,11 +2,12 @@
 //
 //   npm run ship -- <x.y.z> [--notes <file.md>]
 //
-// Only from a commit at which `npm run verify` passed every part (its record, .dev/verified.json).
+// Only from a commit pushed as main, at which the CI workflow on GitHub passes every job, the
+// install test included: ship starts that run and waits for it (about 20 minutes).
 // Where it comes from, the key and the folder: release-settings.json at the repository's top (not
 // in git) — {"releaseUrl": "https://…", "key": "<release.key>", "folder": "<release folder>"},
 // and with "upload" (scripts/upload-release.mjs) the folder is copied to the server at the end.
-// The passphrase is asked first and checked against the key, so the build runs unattended; the
+// The passphrase is asked first and checked against the key, so CI and the build run unattended; the
 // version is committed and tagged only once the release is published.
 import { execFileSync } from 'node:child_process';
 import { createPrivateKey } from 'node:crypto';
@@ -15,7 +16,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { passphrase } from './lib/passphrase.mjs';
-import { readStamp, STAMP_FILE, unverified } from './lib/verified.mjs';
+import { passCi } from './lib/github-ci.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SETTINGS = join(ROOT, 'release-settings.json');
@@ -57,14 +58,8 @@ if (values.notes && !existsSync(values.notes)) fail(`no notes at ${values.notes}
 if (git('status', '--porcelain') !== '') fail('the working tree has changes: commit them first');
 if (git('rev-parse', '--abbrev-ref', 'HEAD') !== 'main') fail('releases are built from main');
 const head = git('rev-parse', 'HEAD');
-const missing = unverified(readStamp(STAMP_FILE), head);
-if (missing.length > 0) {
-  fail(
-    `the suite hasn't passed at ${head}:\n${missing
-      .map(({ part, passedAt }) => `  ${part}: ${passedAt ? `passed at ${passedAt}` : 'never ran'}`)
-      .join('\n')}\nRun npm run verify (on a Mac: npm run srv -- npm run verify)`,
-  );
-}
+const pushed = git('ls-remote', 'origin', 'refs/heads/main').split(/\s/)[0];
+if (pushed !== head) fail(`main on GitHub is at ${pushed || 'nothing'}, not ${head}: push first`);
 const current = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const latestFile = join(folder, 'latest', 'download', 'latest.json');
 const published = existsSync(latestFile)
@@ -82,6 +77,14 @@ try {
 } catch {
   fail('wrong passphrase');
 }
+
+const gh = (args) => execFileSync('gh', args, { cwd: ROOT, encoding: 'utf8' });
+try {
+  await passCi({ gh, sha: head, sleep: (ms) => new Promise((done) => setTimeout(done, ms)) });
+} catch (error) {
+  fail(`not released: ${error.message}`);
+}
+console.log(`CI passed at ${head}`);
 
 console.log(`\nShipping ${version} (published now: ${published})`);
 // Earlier builds and the install test's leftovers: published versions live in the folder.
