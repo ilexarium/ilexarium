@@ -53,7 +53,12 @@ const bad: [string, string, Buffer][] = [
   ['the legacy form', legacy, DATA],
   ['a changed trusted comment', withLine(2, `${trusted}x`), DATA],
   ['a missing global signature', [comment, encoded, trusted, ''].join('\n'), DATA],
-  ['a broken global signature', withLine(3, `A${global.slice(1)}`), DATA],
+  // Another first letter: the key is new each run, and its signature may start with A.
+  [
+    'a broken global signature',
+    withLine(3, `${global[0] === 'A' ? 'B' : 'A'}${global.slice(1)}`),
+    DATA,
+  ],
   ['not base64', withLine(1, `${encoded.slice(0, -4)}!!!!`), DATA],
   ['an extra line', `${good}more\n`, DATA],
   ['no comment', withLine(0, 'comment: x'), DATA],
