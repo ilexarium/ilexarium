@@ -390,6 +390,10 @@ describe('LinuxSessions', () => {
     const before = asked.length;
     expect(await sessions.ask('s1', request)).toEqual({ ok: false, error: 'ended' });
     expect(asked).toHaveLength(before);
+    // Ended now, not at a 'close' that may wait: the next request says it has no helper.
+    await expect(sessions.ask('s1', request)).rejects.toMatchObject({
+      response: { code: 'helper_unavailable' },
+    });
   });
 
   it('“Lock now” is a new helper (ilex-root ends with the old one); the Linux session stays', async () => {
