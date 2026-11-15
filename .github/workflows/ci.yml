@@ -1,18 +1,21 @@
 # The checks every pull request and every push to main must pass: the same parts as
-# `npm run verify` (scripts/verify.mjs), which a release also needs, run on a Linux machine.
-# No secrets: it reads the repository and nothing else.
+# `npm run verify` (scripts/verify.mjs), run on a Linux machine. The install test runs only when
+# the workflow is started by hand or by `npm run ship`, which releases only a commit whose run
+# passed every job. No secrets: it reads the repository and nothing else.
 name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# A run started by ship gets its own group: a push to main would cancel it while it waits.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -81,6 +84,7 @@ jobs:
 
   install:
     name: Install test (Debian 13 container)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
