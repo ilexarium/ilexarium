@@ -4,7 +4,12 @@ import type { ServerMessage, SystemUpdate } from '@ilex/shared';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { RealtimeService } from './realtime-service';
-import { FIRST_RETRY_MS, MAX_RETRY_MS } from './realtime.constants';
+import {
+  FIRST_RETRY_MS,
+  HIDDEN_GRACE_MS,
+  MAX_RETRY_MS,
+  RATE_LIMITED_RETRY_MS,
+} from './realtime.constants';
 import { fakeSockets } from './testing';
 
 const update = {
@@ -102,7 +107,7 @@ describe('RealtimeService', () => {
     realtime.subscribe('system', (m) => received.push(m));
     latest().receive('{not json');
     latest().receive({ event: 'system:update', data: { uptimeSeconds: 'soon' } });
-    latest().receive({ event: 'error', data: { code: 'rate_limited', message: 'Slow down' } });
+    latest().receive({ event: 'error', data: { code: 'invalid_message', message: 'Bad' } });
     expect(received).toEqual([]);
     expect(warn).toHaveBeenCalledTimes(3);
   });
@@ -177,7 +182,7 @@ describe('RealtimeService', () => {
     });
   });
 
-  it('unsubscribes everything while the tab is hidden, and subscribes again when visible', async () => {
+  it('unsubscribes everything after the tab was hidden for a while, and subscribes again when visible', async () => {
     const { realtime, latest } = await setup();
     realtime.connect();
     latest().open();
@@ -186,6 +191,8 @@ describe('RealtimeService', () => {
     latest().sent.length = 0;
 
     setVisibility('hidden');
+    expect(latest().sent).toEqual([]);
+    await vi.advanceTimersByTimeAsync(HIDDEN_GRACE_MS);
     expect(latest().sent).toEqual([unsubscribe('system'), unsubscribe('containers')]);
     // A page subscribing while hidden waits for the tab to be visible.
     realtime.subscribe('system', () => undefined);
@@ -193,6 +200,43 @@ describe('RealtimeService', () => {
 
     setVisibility('visible');
     expect(latest().sent.slice(2)).toEqual([subscribe('system'), subscribe('containers')]);
+  });
+
+  it('sends nothing when the tab is shown again within the grace period', async () => {
+    const { realtime, latest } = await setup();
+    realtime.connect();
+    latest().open();
+    for (const topic of ['system', 'containers', 'backups', 'alerts', 'updates'] as const)
+      realtime.subscribe(topic, () => undefined);
+    latest().sent.length = 0;
+
+    for (let i = 0; i < 5; i++) {
+      setVisibility('hidden');
+      await vi.advanceTimersByTimeAsync(HIDDEN_GRACE_MS / 2);
+      setVisibility('visible');
+    }
+    await vi.advanceTimersByTimeAsync(HIDDEN_GRACE_MS);
+    expect(latest().sent).toEqual([]);
+  });
+
+  it('replaces the socket after the server refused a message for the rate limit', async () => {
+    const { realtime, sockets, latest } = await setup();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    realtime.connect();
+    latest().open();
+    realtime.subscribe('system', () => undefined);
+    const first = latest();
+
+    first.receive({ event: 'error', data: { code: 'rate_limited', message: 'Too many messages' } });
+    expect(first.closedWith).toBe(1000);
+    expect(realtime.status()).toBe('reconnecting');
+    await vi.advanceTimersByTimeAsync(RATE_LIMITED_RETRY_MS - 1);
+    expect(sockets).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets).toHaveLength(2);
+    latest().open();
+    expect(realtime.status()).toBe('live');
+    expect(latest().sent).toEqual([subscribe('system')]);
   });
 
   it('closes the socket and stops reconnecting on sign-out', async () => {

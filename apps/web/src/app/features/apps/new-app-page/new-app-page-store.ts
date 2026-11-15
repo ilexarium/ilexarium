@@ -12,6 +12,7 @@ import {
   APP_NAME_PATTERN,
   type AppField,
   type AppNameCheck,
+  type AppStarted,
   type AppTask,
   parseEnv,
   setEnvValues,
@@ -20,15 +21,15 @@ import {
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
+import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import { AppsStore } from '../../../core/apps/apps-store';
-import { BackupsApi } from '../../../core/backups/backups-api';
+import { appItemWith } from '../../../core/backups/app-backup-item';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
 import { NAME_CHECK_MS, TEMPLATE_SEARCH_FROM } from '../apps.constants';
 import type { BackupChoice } from '../apps.model';
-import { followTask } from '../task-follower';
 
 interface NewAppState {
   step: 'choose' | 'setup' | 'installing';
@@ -118,7 +119,7 @@ export const NewAppPageStore = signalStore(
     (
       store,
       appsApi = inject(AppsApi),
-      backupsApi = inject(BackupsApi),
+      appTasksStore = inject(AppTasksStore),
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
@@ -194,41 +195,22 @@ export const NewAppPageStore = signalStore(
         ),
       );
 
-      const follow = rxMethod<{ name: string; folder: string }>(
+      // Adding it to the backups is the global store's: it runs even if the page is left.
+      const follow = rxMethod<AppStarted>(
         pipe(
-          switchMap(({ name, folder }) =>
-            followTask(appsApi, name, folder).pipe(map((task) => ({ task, name, folder }))),
-          ),
-          tap(({ task, name, folder }) => {
+          switchMap((started) => {
+            const { include, ...preset } = store.backup();
+            const backup = include ? appItemWith(started.name, started.folder, preset) : null;
+            return appTasksStore
+              .follow(started, { kind: 'install', backup })
+              .pipe(map((followed) => ({ ...followed, started })));
+          }),
+          tap(({ task, done, started: { name, folder } }) => {
             patchState(store, { task });
-            if (task.state === 'succeeded') void finished(name, folder);
+            if (done) patchState(store, { installed: { name, folder } });
           }),
         ),
       );
-
-      /** Installed: into the backups if asked (as the person, through their sudo). */
-      const finished = async (name: string, folder: string) => {
-        const { include, mode, skip } = store.backup();
-        if (include && store.backupsConfigured()) {
-          try {
-            await linuxSessionStore.asPerson(() =>
-              firstValueFrom(
-                backupsApi.addItem({
-                  kind: 'app',
-                  project: name,
-                  folders: [],
-                  skip: skip.map((s) => `${folder}/${s}`),
-                  mode,
-                }),
-              ),
-            );
-          } catch (error) {
-            failed('apps.new.backupFailed', error);
-          }
-        }
-        toast.success(translator.t('apps.new.installed', { name }));
-        patchState(store, { installed: { name, folder } });
-      };
 
       return {
         async chooseTemplate(id: string): Promise<void> {
@@ -312,7 +294,7 @@ export const NewAppPageStore = signalStore(
             );
             if (!started) return;
             patchState(store, { step: 'installing', task: started.task });
-            follow({ name: started.name, folder: started.folder });
+            follow(started);
           } catch (error) {
             const detail = (error as { error?: { detail?: unknown } }).error?.detail;
             if (typeof detail === 'string') patchState(store, { problem: detail });

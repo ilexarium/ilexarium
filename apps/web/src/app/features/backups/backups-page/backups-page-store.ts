@@ -40,6 +40,7 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
+import { appBackupItem } from '../../../core/backups/app-backup-item';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
@@ -240,17 +241,9 @@ export const BackupsPageStore = signalStore(
         }
       }
 
-      /** An app item, with its template's preset (how, and what to skip) when it has one. */
-      const appItem = async (name: string): Promise<BackupItemRequest> => {
+      const appItem = (name: string): Promise<BackupItemRequest> => {
         const app = store.apps().find((a) => a.name === name);
-        let mode: 'stop' | 'live' = 'stop';
-        let skip: string[] = [];
-        if (app?.template && app.folder) {
-          const preset = await firstValueFrom(appsApi.template(app.template.id)).catch(() => null);
-          mode = preset?.template.backup?.mode ?? mode;
-          skip = (preset?.template.backup?.skip ?? []).map((s) => `${app.folder}/${s}`);
-        }
-        return { kind: 'app', project: name, folders: [], skip, mode };
+        return appBackupItem(appsApi, app ?? { name, folder: null, template: null });
       };
 
       const plan$ = () =>
