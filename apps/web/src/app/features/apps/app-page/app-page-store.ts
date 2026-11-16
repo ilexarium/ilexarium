@@ -195,7 +195,7 @@ export const AppPageStore = signalStore(
         ),
       );
 
-      const started = (result: AppStarted | null, then?: AppFollowUp) => {
+      const followStarted = (result: AppStarted | null, then?: AppFollowUp) => {
         if (!result) return;
         patchState(store, { task: result.task });
         follow({ started: result, then });
@@ -271,7 +271,7 @@ export const AppPageStore = signalStore(
           patchState(store, { conflict: false });
           patchState(store, { busy: true });
           try {
-            started(
+            followStarted(
               await linuxSessionStore.asPerson(() =>
                 firstValueFrom(
                   appsApi.save(store.name(), {
@@ -300,7 +300,7 @@ export const AppPageStore = signalStore(
             toast.error(translator.t('apps.update.notBackedUp', { name: store.name() }));
             return;
           }
-          started(
+          followStarted(
             await asPerson('apps.update.failed', () =>
               firstValueFrom(appsApi.update(store.name(), store.folder())),
             ),
@@ -310,7 +310,7 @@ export const AppPageStore = signalStore(
         async addToBackups(): Promise<void> {
           let request: BackupItemRequest;
           try {
-            request = await appsStore.backupItem({
+            request = await appsStore.appBackupItem({
               name: store.name(),
               folder: store.folder() || null,
               template: store.details()?.template ?? store.summary()?.template ?? null,
@@ -350,7 +350,7 @@ export const AppPageStore = signalStore(
                   volumes: ticked.filter((i) => i.kind === 'volume').map((i) => i.path),
                 }
               : null;
-          started(
+          followStarted(
             await asPerson('apps.remove.failed', () =>
               firstValueFrom(appsApi.remove(store.name(), folder)),
             ),

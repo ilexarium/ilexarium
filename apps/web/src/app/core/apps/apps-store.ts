@@ -16,7 +16,7 @@ import {
 } from '@ilex/shared';
 import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
-import { appItemWith } from '../backups/app-backup-item';
+import { buildAppBackupItem } from '../backups/app-backup-item';
 import type { BackupPreset } from '../backups/backups.model';
 import { MonitoringStore } from '../monitoring/monitoring-store';
 import { AppsApi } from './apps-api';
@@ -59,7 +59,7 @@ export const AppsStore = signalStore(
      * skipped): the same wherever "Add to backups" is clicked. Rejects when the template can't be
      * read — never a plain "stop, everything" instead.
      */
-    async backupItem(
+    async appBackupItem(
       app: Pick<AppSummary, 'name' | 'folder' | 'template'>,
     ): Promise<BackupItemRequest> {
       let preset: BackupPreset = { mode: 'stop', skip: [] };
@@ -68,7 +68,7 @@ export const AppsStore = signalStore(
         if (template.backup)
           preset = { mode: template.backup.mode, skip: template.backup.skip ?? [] };
       }
-      return appItemWith(app.name, app.folder, preset);
+      return buildAppBackupItem(app.name, app.folder, preset);
     },
 
     loadTemplates: rxMethod<void>(

@@ -23,7 +23,7 @@ import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, 
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import { AppsStore } from '../../../core/apps/apps-store';
-import { appItemWith } from '../../../core/backups/app-backup-item';
+import { buildAppBackupItem } from '../../../core/backups/app-backup-item';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
@@ -200,7 +200,9 @@ export const NewAppPageStore = signalStore(
         pipe(
           switchMap((started) => {
             const { include, ...preset } = store.backup();
-            const backup = include ? appItemWith(started.name, started.folder, preset) : null;
+            const backup = include
+              ? buildAppBackupItem(started.name, started.folder, preset)
+              : null;
             return appTasksStore
               .follow(started, { kind: 'install', backup })
               .pipe(map((followed) => ({ ...followed, started })));
