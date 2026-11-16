@@ -103,21 +103,21 @@ setup_ssh_login() {
   if ! compgen -G '/etc/ssh/ssh_host_*_key' >/dev/null; then ssh-keygen -A >/dev/null || true; fi
   if ! /usr/sbin/sshd -t 2>/dev/null; then
     rm -f "$dropin"
+    if [[ "$SSH_TURN_ON" == 1 ]]; then rm -f "$SSH_LISTEN_DROPIN"; fi
     die 'sshd refused the configuration with the drop-in (removed again; nothing changed)'
   fi
-  if [[ "$SSH_TURN_ON" == 1 ]]; then
+  local socket="${SSH_UNIT%.service}.socket"
+  if [[ "$SSH_LEFT_OFF" == 1 ]]; then
+    : # switched off by its owner: stays off
+  elif [[ "$SSH_TURN_ON" == 1 ]] && systemctl is-enabled --quiet "$socket" 2>/dev/null; then
     # Ubuntu's socket takes its addresses from sshd_config, through a generator.
     systemctl daemon-reload
-    local socket="${SSH_UNIT%.service}.socket"
-    if systemctl is-enabled --quiet "$socket" 2>/dev/null; then
-      systemctl restart "$socket" || die "sshd could not be started (journalctl -u $socket)"
-    else
-      systemctl enable "$SSH_UNIT" >/dev/null 2>&1 || true
-    fi
-    systemctl reload-or-restart "$SSH_UNIT" || die "sshd could not be started (journalctl -u $SSH_UNIT)"
+    systemctl restart "$socket" || die "sshd could not be started (journalctl -u $socket)"
+    systemctl try-restart "$SSH_UNIT" || true
   else
-    # Only if it runs: one the owner switched off stays off.
-    systemctl try-reload-or-restart "$SSH_UNIT" || die "sshd could not be reloaded (journalctl -u $SSH_UNIT)"
+    if [[ "$SSH_TURN_ON" == 1 ]]; then systemctl enable "$SSH_UNIT" >/dev/null 2>&1 || true; fi
+    # Started too if it's enabled but stopped (failed, or stopped by hand).
+    systemctl reload-or-restart "$SSH_UNIT" || die "sshd could not be started (journalctl -u $SSH_UNIT)"
   fi
   info "$dropin"
 }
