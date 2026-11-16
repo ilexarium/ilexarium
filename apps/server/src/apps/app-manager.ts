@@ -467,7 +467,8 @@ export class AppManager {
     name: string,
     hint?: string,
   ): Promise<{ folder: string; summary: AppSummary }> {
-    const known = await this.knownApp(name);
+    // Docker not answering: read as not running (the files say the rest).
+    const known = await this.knownApp(name).catch(() => undefined);
     const home = this.linuxSessions.account(appSessionId).home;
     const folder = known?.folder ?? hint ?? posix.join(home, APPS_FOLDER, name);
     const summary: AppSummary = known ?? {
@@ -483,9 +484,11 @@ export class AppManager {
     return { folder, summary };
   }
 
-  /** The app of that name as Docker runs it, if it does. */
+  /** The app of that name as Docker runs it, if it does; Docker not answering: refused. */
   private async knownApp(name: string): Promise<AppSummary | undefined> {
-    const containers = await this.dockerService.listContainers().catch(() => []);
+    const containers = await this.dockerService.listContainers().catch(() => {
+      throw appError(APP_ERROR_CODES.dockerUnavailable, 'Docker did not answer');
+    });
     return appsFromContainers(containers, (id) => this.catalogService.webPage(id)).find(
       (app) => app.name === name,
     );
@@ -494,7 +497,8 @@ export class AppManager {
   /**
    * A request's folder for an app Docker runs must be the one Docker runs it from: a link or a
    * request never points a known app's actions at another folder. (One Docker doesn't know is
-   * the helper's to check: nobody else may be able to change its folder.)
+   * the helper's to check: nobody else may be able to change its folder.) Docker not answering:
+   * refused, never taken for "not known".
    */
   private async assertFolderOf(name: string, folder: string): Promise<void> {
     const known = await this.knownApp(name);

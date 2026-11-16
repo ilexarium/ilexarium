@@ -1,4 +1,15 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { Readable } from 'node:stream';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AuditService } from '../audit/audit.service.js';
@@ -85,5 +96,53 @@ describe('FilesService.delete', () => {
     await expect(files.delete('s1', '/', ACTOR)).rejects.toMatchObject({
       response: { code: 'permission_denied' },
     });
+  });
+});
+
+describe('FilesService.upload', () => {
+  let dir: string;
+  let files: FilesService;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'files-'));
+    const linuxSessions = {
+      sftp: () => ({ sftp: new Sftp(fakeSftp()), username: 'anna' }),
+    } as unknown as LinuxSessions;
+    files = new FilesService(
+      linuxSessions,
+      {} as SystemReader,
+      {
+        tryRecord: vi.fn().mockResolvedValue(undefined),
+      } as unknown as AuditService,
+    );
+  });
+
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  const upload = (name: string, content: string, replace = false) =>
+    files.upload(
+      's1',
+      { folder: dir, name, replace },
+      Readable.from([Buffer.from(content)]),
+      content.length,
+      ACTOR,
+    );
+  const mode = (name: string) => statSync(join(dir, name)).mode & 0o7777;
+
+  it('a new file: 0644 — never the 0666 ssh2 would set past the umask', async () => {
+    await upload('compose.yml', 'services: {}\n');
+    expect(mode('compose.yml')).toBe(0o644);
+    expect(readFileSync(join(dir, 'compose.yml'), 'utf8')).toBe('services: {}\n');
+  });
+
+  it('a replaced file keeps its permissions, without setuid or setgid', async () => {
+    writeFileSync(join(dir, '.env'), 'old');
+    chmodSync(join(dir, '.env'), 0o600);
+    await upload('.env', 'SECRET=x', true);
+    expect(mode('.env')).toBe(0o600);
+    writeFileSync(join(dir, 'tool'), 'old');
+    chmodSync(join(dir, 'tool'), 0o4755);
+    await upload('tool', 'new', true);
+    expect(mode('tool')).toBe(0o755);
   });
 });

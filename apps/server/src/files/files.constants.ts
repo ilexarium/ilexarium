@@ -12,3 +12,6 @@ export const SFTP_CONNECTION_LOST = 7;
 
 /** Deleting a big folder through the helper (its `rm` stops after 10 minutes). */
 export const DELETE_TIMEOUT_MS = 11 * 60_000;
+
+/** An uploaded file's permissions: the owner's to change, readable by others (like umask 022). */
+export const NEW_FILE_MODE = 0o644;

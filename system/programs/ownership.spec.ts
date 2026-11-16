@@ -1,8 +1,21 @@
 // Tests for lib/ownership.mts: who else could change a path. Run by the server's unit tests.
-import { mkdtempSync, rmSync, writeFileSync, type Stats } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+  type Stats,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { askingUid, groupHasOthers, othersCanChange } from './lib/ownership.mts';
+import {
+  askingUid,
+  changeableByOthers,
+  groupHasOthers,
+  othersCanChange,
+} from './lib/ownership.mts';
 
 let dir: string;
 let files: { passwd: string; group: string };
@@ -39,17 +52,20 @@ const stat = (fields: Partial<{ uid: number; gid: number; mode: number; link: bo
 
 describe('groupHasOthers', () => {
   it('a private group holds only its owner; a shared one, or one that is another’s own, others', () => {
-    expect(groupHasOthers(1000, 1000, files)).toBe(false);
+    expect(groupHasOthers(1000, [1000], files)).toBe(false);
     // anna is listed in bob's group: bob is in it as its own.
-    expect(groupHasOthers(1001, 1001, files)).toBe(true);
-    expect(groupHasOthers(2000, 1000, files)).toBe(true);
+    expect(groupHasOthers(1001, [1001], files)).toBe(true);
+    expect(groupHasOthers(2000, [1000], files)).toBe(true);
     // carl's own group is `users`: anyone else whose own group it is counts.
-    expect(groupHasOthers(100, 1000, files)).toBe(true);
-    expect(groupHasOthers(0, 0, files)).toBe(false);
+    expect(groupHasOthers(100, [1000], files)).toBe(true);
+    expect(groupHasOthers(0, [0], files)).toBe(false);
+    // A folder of root's that anna's own group may write: only root and anna.
+    expect(groupHasOthers(1000, [0, 1000], files)).toBe(false);
+    expect(groupHasOthers(1001, [0, 1000], files)).toBe(true);
   });
 
   it('files it can’t read: assume others', () => {
-    expect(groupHasOthers(1000, 1000, { passwd: join(dir, 'none'), group: files.group })).toBe(
+    expect(groupHasOthers(1000, [1000], { passwd: join(dir, 'none'), group: files.group })).toBe(
       true,
     );
   });
@@ -72,6 +88,38 @@ describe('othersCanChange', () => {
     expect(othersCanChange(tmp, 1000, true)).toBe(false);
     expect(othersCanChange(tmp, 1000, false)).toBe(true);
     expect(othersCanChange(stat({ uid: 1000, mode: 0o41777 }), 1000, true)).toBe(true);
+  });
+});
+
+describe('changeableByOthers', () => {
+  const me = process.getuid?.() ?? 0;
+
+  it('a link above, nobody else may change: followed, and where it leads is checked too', () => {
+    const real = join(dir, 'disk', 'apps', 'music');
+    mkdirSync(real, { recursive: true });
+    chmodSync(join(dir, 'disk'), 0o755);
+    symlinkSync(join(dir, 'disk', 'apps'), join(dir, 'apps'));
+    expect(changeableByOthers(join(dir, 'apps', 'music'), [], me)).toBeNull();
+    // Where it leads, others may write: refused, by the real folder.
+    chmodSync(join(dir, 'disk'), 0o777);
+    expect(changeableByOthers(join(dir, 'apps', 'music'), [], me)).toBe(join(dir, 'disk'));
+  });
+
+  it('a link in a folder others may write: refused (they could point it elsewhere)', () => {
+    mkdirSync(join(dir, 'mine', 'music'), { recursive: true });
+    mkdirSync(join(dir, 'shared'));
+    chmodSync(join(dir, 'shared'), 0o777);
+    symlinkSync(join(dir, 'mine'), join(dir, 'shared', 'apps'));
+    expect(changeableByOthers(join(dir, 'shared', 'apps', 'music'), [], me)).toBe(
+      join(dir, 'shared'),
+    );
+  });
+
+  it('the folder itself a link, or missing: refused', () => {
+    mkdirSync(join(dir, 'music'));
+    symlinkSync(join(dir, 'music'), join(dir, 'link'));
+    expect(changeableByOthers(join(dir, 'link'), [], me)).toBe(join(dir, 'link'));
+    expect(changeableByOthers(join(dir, 'none'), [], me)).toBe(join(dir, 'none'));
   });
 });
 
