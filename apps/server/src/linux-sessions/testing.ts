@@ -28,6 +28,13 @@ export function fakeSftp(): SFTPWrapper {
         .pipe(out);
       return out;
     },
+    // Like ssh2's: the mode set after opening, so no umask applies.
+    createWriteStream: (path: string, options?: { mode?: number }) => {
+      const mode = options?.mode ?? 0o666;
+      const out = fs.createWriteStream(path, { mode });
+      out.on('open', () => fs.chmodSync(path, mode));
+      return out;
+    },
     writeFile: (path: string, data: string, options: { mode: number }, cb: never) =>
       fs.writeFile(path, data, { mode: options.mode }, done(cb)),
     chmod: (path: string, mode: number, cb: never) => fs.chmod(path, mode, done(cb)),

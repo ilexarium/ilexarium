@@ -35,6 +35,8 @@ import {
   HELPER_MESSAGE_MAX,
 } from '../../apps/server/src/linux-sessions/linux-sessions.constants.ts';
 import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
+import { COMPOSE_FILES, ENV_FILE } from '../../apps/server/src/apps/apps.constants.ts';
+import { DELETE_TIMEOUT_MS } from '../../apps/server/src/files/files.constants.ts';
 import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
 import * as appManifest from '../../apps/server/src/updates/release-manifest.ts';
@@ -253,5 +255,11 @@ describe('the app and the root programs check the same rules', () => {
     }
     // Unset, both take the app's default.
     expect(socketMismatch(listening('', '', 'yes'), undefined, 3000)).toBeNull();
+  });
+  it('apps and Files: every file the app reads as an app’s is one the helper checks; a deletion outlasts its rm', () => {
+    for (const name of [...COMPOSE_FILES, ENV_FILE]) {
+      expect(helperConfig.COMPOSE_READS, name).toContain(name);
+    }
+    expect(DELETE_TIMEOUT_MS).toBeGreaterThan(helperConfig.LONG_TIMEOUT_MS);
   });
 });

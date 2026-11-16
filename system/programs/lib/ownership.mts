@@ -3,7 +3,7 @@
 // Who asked for this (the kernel's word, never a request's), and whether another account could
 // change a path — so whatever is read or run from it is what its owner put there.
 
-import { lstatSync, readFileSync, type Stats } from 'node:fs';
+import { lstatSync, readFileSync, realpathSync, type Stats } from 'node:fs';
 import { dirname } from 'node:path';
 
 /** This process and the ones above it, up to the first not running as root (by its real uid). */
@@ -44,23 +44,24 @@ const records = (path: string) =>
     .map((line) => line.split(':'));
 
 /**
- * Whether a group holds an account other than `uid`: a member listed in /etc/group, or an account
- * whose own group it is. A person's private group (Debian's and Ubuntu's default, with a umask of
- * 002 — so their folders are group-writable) holds only them. Unreadable: assume it does.
+ * Whether a group holds an account but `uids`' (the owner and the asker): a member listed in
+ * /etc/group, or an account whose own group it is. A person's private group (Debian's and
+ * Ubuntu's default, with a umask of 002 — so their folders are group-writable) holds only them.
+ * Unreadable: assume it does.
  */
 export function groupHasOthers(
   gid: number,
-  uid: number,
+  uids: number[],
   files = { passwd: '/etc/passwd', group: '/etc/group' },
 ): boolean {
   try {
     const users = records(files.passwd);
-    const owner = users.find((fields) => Number(fields[2]) === uid)?.[0];
+    const allowed = users.filter((fields) => uids.includes(Number(fields[2]))).map((f) => f[0]);
     const members = records(files.group)
       .filter((fields) => Number(fields[2]) === gid)
       .flatMap((fields) => (fields[3] ?? '').split(',').filter(Boolean));
     const ownGroup = users.filter((fields) => Number(fields[3]) === gid).map((f) => f[0]);
-    return [...members, ...ownGroup].some((name) => name !== owner);
+    return [...members, ...ownGroup].some((name) => !allowed.includes(name));
   } catch {
     return true;
   }
@@ -76,20 +77,32 @@ export function othersCanChange(stat: Stats, askedBy: number, above: boolean): b
   if (stat.isSymbolicLink() || (stat.uid !== 0 && stat.uid !== askedBy)) return true;
   if (above && stat.uid === 0 && (stat.mode & 0o1000) !== 0) return false;
   if ((stat.mode & 0o002) !== 0) return true;
-  return (stat.mode & 0o020) !== 0 && groupHasOthers(stat.gid, stat.uid);
+  return (stat.mode & 0o020) !== 0 && groupHasOthers(stat.gid, [stat.uid, askedBy]);
 }
 
 /**
- * The first of `path`, the folders above it and `files` in it (those that are there) another
- * account could change — or a missing `path`; null when there's none.
+ * Whether someone else could change a folder above: a symlink only through the folder holding
+ * it (nobody can change a link itself), which comes next.
+ */
+function parentChangeable(parent: string, askedBy: number): boolean {
+  const stat = lstatSync(parent, { throwIfNoEntry: false });
+  return !!stat && !stat.isSymbolicLink() && othersCanChange(stat, askedBy, true);
+}
+
+/**
+ * The first of `path` (never itself a symlink), the folders above it — as written, and where
+ * they really are once links are resolved — and `files` in it (those that are there) another
+ * account could change, or a missing `path`; null when there's none.
  */
 export function changeableByOthers(path: string, files: string[], askedBy: number): string | null {
   const own = lstatSync(path, { throwIfNoEntry: false });
   if (!own || othersCanChange(own, askedBy, false)) return path;
-  for (let parent = dirname(path); ; parent = dirname(parent)) {
-    const stat = lstatSync(parent, { throwIfNoEntry: false });
-    if (stat && othersCanChange(stat, askedBy, true)) return parent;
-    if (parent === '/') break;
+  const real = realpathSync(path);
+  for (const start of new Set([path, real])) {
+    for (let parent = dirname(start); ; parent = dirname(parent)) {
+      if (parentChangeable(parent, askedBy)) return parent;
+      if (parent === '/') break;
+    }
   }
   for (const file of files) {
     const stat = lstatSync(file, { throwIfNoEntry: false });

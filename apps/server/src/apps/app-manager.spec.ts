@@ -376,6 +376,18 @@ describe('AppManager: a change that doesn’t start changes nothing', () => {
     });
   });
 
+  it('Docker not answering: an action is refused, never taken for an app Docker doesn’t know', async () => {
+    await install();
+    finished();
+    const m = manager();
+    (m as unknown as { dockerService: { listContainers: () => Promise<never> } }).dockerService = {
+      listContainers: () => Promise.reject(new Error('proxy down')),
+    };
+    await expect(m.update(SESSION, 'music', folder(), ACTOR)).rejects.toMatchObject({
+      response: { code: 'docker_unavailable' },
+    });
+  });
+
   it('the helper’s “others could change this folder”: its own error, with the path', async () => {
     await install();
     finished();

@@ -87,8 +87,12 @@ export class Sftp {
     return this.sftp.createReadStream(path, { handle, autoClose: true });
   }
 
-  writeStream(path: string): Writable {
-    return this.sftp.createWriteStream(path) as unknown as Writable;
+  /**
+   * A new file, written as it streams. `mode` is set as it is: ssh2 sets it after opening (no
+   * umask), and its own default would be 0666 — anyone could change the file.
+   */
+  writeStream(path: string, mode: number): Writable {
+    return this.sftp.createWriteStream(path, { mode }) as unknown as Writable;
   }
 
   /** Written whole: to a new file beside it, then renamed over it (a crash never leaves half). */
