@@ -105,8 +105,20 @@ setup_ssh_login() {
     rm -f "$dropin"
     die 'sshd refused the configuration with the drop-in (removed again; nothing changed)'
   fi
-  systemctl enable "$SSH_UNIT" >/dev/null 2>&1 || true
-  systemctl reload-or-restart "$SSH_UNIT" || die "sshd could not be reloaded (journalctl -u $SSH_UNIT)"
+  if [[ "$SSH_TURN_ON" == 1 ]]; then
+    # Ubuntu's socket takes its addresses from sshd_config, through a generator.
+    systemctl daemon-reload
+    local socket="${SSH_UNIT%.service}.socket"
+    if systemctl is-enabled --quiet "$socket" 2>/dev/null; then
+      systemctl restart "$socket" || die "sshd could not be started (journalctl -u $socket)"
+    else
+      systemctl enable "$SSH_UNIT" >/dev/null 2>&1 || true
+    fi
+    systemctl reload-or-restart "$SSH_UNIT" || die "sshd could not be started (journalctl -u $SSH_UNIT)"
+  else
+    # Only if it runs: one the owner switched off stays off.
+    systemctl try-reload-or-restart "$SSH_UNIT" || die "sshd could not be reloaded (journalctl -u $SSH_UNIT)"
+  fi
   info "$dropin"
 }
 
