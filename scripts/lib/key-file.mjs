@@ -48,20 +48,21 @@ export function openKey(text, passphrase) {
   try {
     file = JSON.parse(text);
   } catch {
-    throw new Error('not a release key file (an old PEM key? npm run release:key -- rewrap)');
+    throw new Error(
+      'not a release key file (an old PEM key? npm run release:key -- rewrap <old> <new>)',
+    );
   }
   const { kdf, iv, tag, data } = file ?? {};
   const { N, r, p, salt } = kdf ?? {};
-  const whole = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
   if (
     file?.format !== FORMAT ||
     file.version !== 1 ||
     file.cipher !== 'aes-256-gcm' ||
     kdf?.name !== 'scrypt' ||
-    !whole(N, MIN_N, MAX_N) ||
+    !(Number.isInteger(N) && N >= MIN_N && N <= MAX_N) ||
     (N & (N - 1)) !== 0 ||
-    !whole(r, 1, 16) ||
-    !whole(p, 1, 16) ||
+    r !== SCRYPT_COST.r ||
+    p !== SCRYPT_COST.p ||
     ![salt, iv, tag, data].every((value) => typeof value === 'string')
   ) {
     throw new Error('not a release key file this version reads');
@@ -81,6 +82,16 @@ export function openKey(text, passphrase) {
     throw new Error('wrong passphrase');
   }
   return createPrivateKey({ key: der, format: 'der', type: 'pkcs8' });
+}
+
+// For rewrap: a key file of this format, or the passphrase-encrypted PKCS#8 PEM of earlier versions.
+export function openKeyOrPem(text, passphrase) {
+  if (!/^\s*-----BEGIN ENCRYPTED PRIVATE KEY-----/.test(text)) return openKey(text, passphrase);
+  try {
+    return createPrivateKey({ key: text, passphrase });
+  } catch {
+    throw new Error('wrong passphrase');
+  }
 }
 
 // 25 letters and digits from 31 (about 124 bits), in groups of five: typed rarely, kept in a password

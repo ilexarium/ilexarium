@@ -7,4 +7,5 @@ export function sealKey(
   cost?: { N: number; r: number; p: number },
 ): string;
 export function openKey(text: string, passphrase: string): KeyObject;
+export function openKeyOrPem(text: string, passphrase: string): KeyObject;
 export function generatePassphrase(): string;

@@ -1,6 +1,7 @@
 // The release key's file: scrypt + AES-256-GCM, the same key back with the right passphrase only.
 import { generateKeyPairSync } from 'node:crypto';
-import { generatePassphrase, openKey, sealKey, SCRYPT_COST } from './key-file.mjs';
+import { readFileSync } from 'node:fs';
+import { generatePassphrase, openKey, openKeyOrPem, sealKey, SCRYPT_COST } from './key-file.mjs';
 import { publicKeyFile } from './minisign.mjs';
 
 // The real cost takes a second and 1 GiB; the format is the same at a lower one.
@@ -29,7 +30,7 @@ describe('the release key file', () => {
 
   it('refuses a file whose settings or data were changed', () => {
     const file = JSON.parse(sealed);
-    const withCost = JSON.stringify({ ...file, kdf: { ...file.kdf, r: 9 } });
+    const withCost = JSON.stringify({ ...file, kdf: { ...file.kdf, N: 2 ** 15 } });
     expect(() => openKey(withCost, 'right')).toThrow('wrong passphrase');
     const data = Buffer.from(file.data, 'base64');
     data[0] ^= 1;
@@ -45,6 +46,8 @@ describe('the release key file', () => {
       { ...file.kdf, N: 2 ** 10 },
       { ...file.kdf, N: 2 ** 21 },
       { ...file.kdf, N: 3 * 2 ** 14 },
+      { ...file.kdf, r: 16 },
+      { ...file.kdf, p: 16 },
       { ...file.kdf, name: 'pbkdf2' },
       undefined,
     ]) {
@@ -68,6 +71,21 @@ describe('the release key file', () => {
     expect(() => openKey(pem as string, 'right')).toThrow('rewrap');
   });
 
+  it('rewrap opens an old PEM key and a key file alike, and says which part was wrong', () => {
+    const pem = privateKey.export({
+      type: 'pkcs8',
+      format: 'pem',
+      cipher: 'aes-256-cbc',
+      passphrase: 'right',
+    }) as string;
+    expect(publicKeyFile(openKeyOrPem(pem, 'right'))).toBe(publicKeyFile(privateKey));
+    expect(publicKeyFile(openKeyOrPem(`\n${pem}`, 'right'))).toBe(publicKeyFile(privateKey));
+    expect(publicKeyFile(openKeyOrPem(sealed, 'right'))).toBe(publicKeyFile(privateKey));
+    expect(() => openKeyOrPem(pem, 'wrong')).toThrow('wrong passphrase');
+    expect(() => openKeyOrPem(sealed, 'wrong')).toThrow('wrong passphrase');
+    expect(() => openKeyOrPem('{"format":"other"}', 'right')).toThrow('not a release key file');
+  });
+
   it('writes at the full cost by default', () => {
     expect(SCRYPT_COST).toEqual({ N: 2 ** 20, r: 8, p: 1 });
   });
@@ -79,5 +97,15 @@ describe('generatePassphrase', () => {
     for (const secret of made)
       expect(secret).toMatch(/^[a-hjkmnp-z2-9]{5}(-[a-hjkmnp-z2-9]{5}){4}$/);
     expect(new Set(made).size).toBe(50);
+  });
+});
+
+// The README's copy of the key, for comparing before a first install, is the one releases carry.
+describe('the README', () => {
+  it('shows the public key in system/install/release.pub', () => {
+    const root = new URL('../../', import.meta.url);
+    const key = readFileSync(new URL('system/install/release.pub', root), 'utf8').split('\n')[1];
+    const readme = readFileSync(new URL('README.md', root), 'utf8');
+    expect(readme).toContain(`PUBLIC_KEY='${key}'`);
   });
 });
