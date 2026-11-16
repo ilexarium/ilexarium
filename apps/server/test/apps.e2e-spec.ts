@@ -150,6 +150,10 @@ describe('apps and templates (e2e)', () => {
       })
       .expect(403);
     expect(installing.body.code).toBe('linux_session_required');
+    const starting = await api()
+      .post('/apps/music/start', { folder: '/home/anna/apps/music' })
+      .expect(403);
+    expect(starting.body.code).toBe('linux_session_required');
   });
 
   describe.skipIf(!sshdUp)(

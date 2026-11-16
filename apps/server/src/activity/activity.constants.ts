@@ -18,6 +18,7 @@ export const ACTIVITY_SUBJECTS: Record<
 > = {
   'app.install': { field: 'name', valid: pattern(APP_NAME_PATTERN) },
   'app.update': { field: 'name', valid: pattern(APP_NAME_PATTERN) },
+  'app.start': { field: 'name', valid: pattern(APP_NAME_PATTERN) },
   'app.remove': { field: 'name', valid: pattern(APP_NAME_PATTERN) },
   'container.start': { field: 'container', valid: containerName },
   'container.stop': { field: 'container', valid: containerName },

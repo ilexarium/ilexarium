@@ -5,6 +5,7 @@ export const ACTION_WORDS: Record<ActivityAction, { key: string; icon: string; m
   {
     'app.install': { key: 'appInstall', icon: 'lucidePackagePlus', machine: true },
     'app.update': { key: 'appUpdate', icon: 'lucideRefreshCw', machine: true },
+    'app.start': { key: 'appStart', icon: 'lucidePlay', machine: true },
     'app.remove': { key: 'appRemove', icon: 'lucidePackageMinus', machine: true },
     'container.start': { key: 'containerStart', icon: 'lucidePlay', machine: true },
     'container.stop': { key: 'containerStop', icon: 'lucideSquare', machine: true },

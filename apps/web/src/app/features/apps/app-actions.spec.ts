@@ -7,7 +7,8 @@ describe('app actions', () => {
     expect([canStart('partial'), canStop('partial')]).toEqual([true, true]);
     expect([canStart('running'), canStop('running')]).toEqual([false, true]);
     expect([canStart('unhealthy'), canStop('unhealthy')]).toEqual([false, true]);
-    expect([canStart('none'), canStop('none')]).toEqual([false, false]);
+    // No containers (down, or restored onto a new machine): started from its folder.
+    expect([canStart('none'), canStop('none')]).toEqual([true, false]);
   });
 
   it('opens its port on this machine, only while it has containers', () => {

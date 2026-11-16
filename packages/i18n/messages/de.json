@@ -443,6 +443,7 @@
         "diskUnmount": "Laufwerk {{name}} ausgehängt",
         "appInstall": "{{name}} installiert",
         "appUpdate": "{{name}} aktualisiert",
+        "appStart": "{{name}} gestartet",
         "appRemove": "{{name}} entfernt"
       },
       "backup": {
@@ -1612,6 +1613,11 @@
     "startLabel": "{{name}} starten",
     "stop": "Stoppen",
     "stopLabel": "{{name}} stoppen",
+    "starting": {
+      "failed": "{{name}} konnte nicht gestartet werden",
+      "started": "{{name}} wird gestartet…",
+      "done": "{{name}} gestartet"
+    },
     "state": {
       "running": "Läuft",
       "partial": "Läuft teilweise",

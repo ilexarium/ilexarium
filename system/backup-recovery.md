@@ -98,7 +98,7 @@ Your own account, made when the machine was set up, usually has its number alrea
 
 ## 7. Bring the apps back
 
-Their backups bring them back, through the Linux sign-in of the account each app belongs to. On the **Backups** page, for each app: **Restore…** → the newest backup → **Back where it was**: its folder comes back where it was. The app now shows on the **Apps** page (not running yet); open it and choose **Update**: it starts from its restored files, with the versions they set.
+Their backups bring them back, through the Linux sign-in of the account each app belongs to. On the **Backups** page, for each app: **Restore…** → the newest backup → **Back where it was**: its folder comes back where it was. The app now shows on the **Apps** page, not running yet: **Start** starts it from its restored files.
 
 Folders you backed up (home folders, others) come back the same way, **Back where it was**, or into a folder you choose.
 

@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import type { Container } from '@ilex/shared';
 import { of } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import { testApp, testContainer } from '../../../core/apps/testing';
+import { testApp, testContainer, testStarted, testTask } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
@@ -34,6 +34,8 @@ async function render(resting = [testApp('notes', { state: 'none', containers: [
     templates: vi.fn(() => of([])),
     // Signed in to Linux: an app in ~/apps that doesn't run.
     list: vi.fn(() => of({ apps: resting })),
+    start: vi.fn((name: string) => of(testStarted(name))),
+    task: vi.fn(() => of({ task: testTask({ action: 'up', state: 'succeeded' }) })),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -41,7 +43,14 @@ async function render(resting = [testApp('notes', { state: 'none', containers: [
       auth.provider,
       sockets.provider,
       { provide: AppsApi, useValue: appsApi },
-      { provide: LinuxSessionStore, useValue: { check: vi.fn(), session: () => null } },
+      {
+        provide: LinuxSessionStore,
+        useValue: {
+          check: vi.fn(),
+          session: () => null,
+          asPerson: <T>(action: () => Promise<T>) => action(),
+        },
+      },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -55,7 +64,7 @@ async function render(resting = [testApp('notes', { state: 'none', containers: [
     socket.receive(message);
     await fixture.whenStable();
   };
-  return { el, socket, receive };
+  return { el, socket, receive, appsApi, fixture };
 }
 
 describe('AppsPage', () => {
@@ -136,6 +145,22 @@ describe('AppsPage', () => {
     const tile = el.querySelector<HTMLAnchorElement>('a[data-add-tile]')!;
     expect(tile.getAttribute('href')).toBe('/apps/new');
     expect(tile.className).toContain('border-dashed');
+  });
+
+  it('an app without containers: Start runs up from its folder, as the person, and follows it', async () => {
+    const { el, receive, appsApi, fixture } = await render();
+    await receive({
+      event: 'containers:snapshot',
+      data: { dockerAvailable: true, containers: [], history: {} },
+    });
+    const start = el.querySelector<HTMLButtonElement>('button[aria-label="Start notes"]')!;
+    expect(start).not.toBeNull();
+    start.click();
+    await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
+    expect(appsApi.start).toHaveBeenCalledWith('notes', '/home/anna/apps/notes');
+    await vi.waitFor(() => expect(appsApi.list).toHaveBeenCalledTimes(2));
+    await fixture.whenStable();
+    expect(start.disabled).toBe(false);
   });
 
   it('Docker down: said so; adding an app still offered', async () => {

@@ -9,6 +9,7 @@ import { backupRunStatusSchema, backupTriggerSchema } from './backups.js';
 export const ACTIVITY_ACTIONS = [
   'app.install',
   'app.update',
+  'app.start',
   'app.remove',
   'container.start',
   'container.stop',

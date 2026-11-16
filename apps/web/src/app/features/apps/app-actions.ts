@@ -1,7 +1,8 @@
 import type { AppState, AppSummary } from '@ilex/shared';
 
-/** Something of it is stopped. */
-export const canStart = (state: AppState) => state === 'stopped' || state === 'partial';
+/** Something of it is stopped, or it has no containers (`up` from its folder). */
+export const canStart = (state: AppState) =>
+  state === 'stopped' || state === 'partial' || state === 'none';
 
 /** Something of it runs. */
 export const canStop = (state: AppState) =>

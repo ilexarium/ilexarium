@@ -121,6 +121,20 @@ export class AppsController {
     return this.appManager.update(session.id, name, folder, { user, ip });
   }
 
+  @Post(':name/start')
+  @HttpCode(202)
+  @UseGuards(ThrottlerGuard)
+  @Throttle(CHANGE_LIMIT)
+  start(
+    @CurrentSession() session: Session,
+    @Param() { name }: AppParamsDto,
+    @Body() { folder }: AppUpdateDto,
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<AppStarted> {
+    return this.appManager.start(session.id, name, folder, { user, ip });
+  }
+
   @Get(':name/removal')
   removal(
     @CurrentSession() session: Session,

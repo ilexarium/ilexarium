@@ -21,6 +21,7 @@ import {
   appRemovalPath,
   appRemovePath,
   appTaskPath,
+  appStartPath,
   appUpdatePath,
   CATALOG_PATH,
   catalogEntryPath,
@@ -72,6 +73,11 @@ export class AppsApi {
 
   update(name: string, folder: string): Observable<AppStarted> {
     return this.http.post<AppStarted>(appUpdatePath(name), { folder });
+  }
+
+  /** An app without containers: `up` from its folder. */
+  start(name: string, folder: string): Observable<AppStarted> {
+    return this.http.post<AppStarted>(appStartPath(name), { folder });
   }
 
   removal(name: string, folder: string): Observable<AppRemoval> {
