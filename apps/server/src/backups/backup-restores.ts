@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   type AppStarted,
   BACKUP_ERROR_CODES,
   type BackupRestore,
   type BackupRestorePhase,
   type BackupRestoreRequest,
+  previousVersionDeletable,
 } from '@ilex/shared';
 import { Observable, Subject } from 'rxjs';
 import type { BackupRestore as BackupRestoreRow } from '../generated/prisma/client.js';
@@ -93,6 +94,11 @@ export class BackupRestores {
         apiError('Nothing set aside', BACKUP_ERROR_CODES.restoreNotFound),
       );
     }
+    if (!previousVersionDeletable(row)) {
+      throw new ConflictException(
+        apiError('It may be the only whole copy', BACKUP_ERROR_CODES.setAsideKept),
+      );
+    }
     for (const path of row.setAside) {
       const outcome = await this.rootPrograms.backupDiscard(path, actor);
       // Already gone (deleted by hand): fine.
@@ -142,6 +148,7 @@ export class BackupRestores {
       setAside: row.setAside,
       setAsideDeleted: row.setAsideDeletedAt !== null,
       appWasRunning: row.appWasRunning,
+      warnings: row.warnings,
       status: row.status,
       phase: (live?.phase ?? row.phase ?? null) as BackupRestorePhase | null,
       errorCode: row.errorCode,

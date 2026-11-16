@@ -407,6 +407,7 @@ export class BackupJobs implements OnApplicationBootstrap, OnModuleDestroy {
           // was killed before its end: they're the way back.
           setAside: done?.setAside ?? job.setAside,
           appWasRunning: done?.appWasRunning ?? false,
+          warnings: done?.warnings ?? [],
           output: job.output.join('\n'),
           finishedAt: new Date(),
         },

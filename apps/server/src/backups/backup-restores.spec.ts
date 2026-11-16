@@ -78,3 +78,25 @@ describe('BackupRestores.apply', () => {
     expect(apply).not.toHaveBeenCalled();
   });
 });
+
+describe('BackupRestores.discardPrevious', () => {
+  const aside = { setAside: ['/srv/docs.before-restore-20261116-120000'], setAsideDeletedAt: null };
+
+  it.each([
+    ['interrupted', { status: 'interrupted', errorCode: 'interrupted' }],
+    ['failed while putting it back', { status: 'failed', errorCode: 'borg_failed' }],
+  ])('refuses one %s: it may be the only whole copy', async (_, outcome) => {
+    const backupDiscard = vi.fn();
+    const restores = new BackupRestores(
+      {
+        backupRestore: { findUnique: vi.fn(async () => ({ ...aside, ...outcome })) },
+      } as unknown as PrismaService,
+      { backupDiscard } as unknown as RootPrograms,
+      {} as BackupChecks,
+      {} as BackupJobs,
+      {} as AppManager,
+    );
+    await expect(restores.discardPrevious(ID, ACTOR)).rejects.toMatchObject({ status: 409 });
+    expect(backupDiscard).not.toHaveBeenCalled();
+  });
+});

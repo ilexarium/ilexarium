@@ -184,6 +184,8 @@ export const BACKUP_ERROR_CODES = {
   repositoryExists: 'repository_exists',
   /** Restoring into a folder that has something in it already. */
   targetNotEmpty: 'target_not_empty',
+  /** In place, or deleting what was set aside: a disk is mounted at the folder or inside it. */
+  mountInside: 'mount_inside',
   /** The backup wrapper refused the plan (its own checks) — nothing was changed. */
   invalidPlan: 'invalid_plan',
   /** An item's backups can't be deleted while a restore keeps a previous version of it. */
@@ -469,6 +471,11 @@ export const backupRestoreSchema = z.object({
   setAsideDeleted: z.boolean(),
   /** Back where it was, an app that was running: its restored files can be applied ("Apply"). */
   appWasRunning: z.boolean(),
+  /**
+   * Succeeded, but not everything came back as it was: Borg's warnings (a mode or owner it
+   * couldn't set, a file it couldn't write) and folders the backup didn't hold.
+   */
+  warnings: z.array(z.string()),
   status: backupRestoreStatusSchema,
   phase: backupRestorePhaseSchema.nullable(),
   errorCode: z.string().nullable(),
@@ -478,6 +485,17 @@ export const backupRestoreSchema = z.object({
   output: z.array(z.string()),
 });
 export type BackupRestore = z.infer<typeof backupRestoreSchema>;
+
+/**
+ * "Delete previous version" is offered only when the restore did its work: it succeeded, or only
+ * starting the app again failed. Interrupted, or failed while putting things back, what was set
+ * aside may be the only whole copy.
+ */
+export const previousVersionDeletable = (
+  restore: Pick<BackupRestore, 'status' | 'errorCode'>,
+): boolean =>
+  restore.status === 'succeeded' ||
+  (restore.status === 'failed' && restore.errorCode === BACKUP_ERROR_CODES.serviceNotRestarted);
 
 export const backupRestoreIdParamsSchema = z.strictObject({ id: z.uuid() });
 

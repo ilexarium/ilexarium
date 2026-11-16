@@ -7,6 +7,7 @@ import { closeSync, existsSync, mkdirSync, openSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { openRepository } from './destination.mts';
 import { JobFile, prepareState, stamp } from './files.mts';
+import { FREE_SPACE_KEPT } from './init.mts';
 import type {
   Config,
   ItemKind,
@@ -131,6 +132,7 @@ export async function run(
       output.push(error.message);
     }
     if (repo) {
+      let freed = false;
       for (const item of items) {
         if (stopping) break;
         const keep = (line: string) => {
@@ -139,17 +141,16 @@ export async function run(
           if (output.length > RESULT_OUTPUT_LINES) output.shift();
           job!.event({ type: 'line', itemId: item.id, text: line.slice(0, 2000) });
         };
-        const result = await backupItem(
-          config,
-          paths,
-          plan,
-          repo,
-          item,
-          (phase) => {
-            job!.event({ type: 'item', itemId: item.id, phase });
-          },
-          keep,
-        );
+        const phase = (name: string) => job!.event({ type: 'item', itemId: item.id, phase: name });
+        let result = await backupItem(config, paths, plan, repo, item, phase, keep);
+        // A full disk: old backups thinned with the retention as it is now, then once more.
+        if (result.errorCode === 'disk_full' && !freed && !stopping) {
+          freed = true;
+          phase('pruning');
+          if (await freeSpace(config, paths, plan, repo, keep)) {
+            result = await backupItem(config, paths, plan, repo, item, phase, keep);
+          }
+        }
         results.push(result);
         job.event({ type: 'itemDone', result: { ...result, archives: undefined } });
         if (
@@ -348,32 +349,82 @@ export async function backupItem(
     if (result.errorCode === 'service_not_restarted') return result;
 
     phase('pruning');
-    const keepArgs = [
-      '--keep-daily',
-      String(plan.retention.daily),
-      '--keep-weekly',
-      String(plan.retention.weekly),
-      '--keep-monthly',
-      String(plan.retention.monthly),
-      ...(plan.schedule.frequency === 'every6h' ? ['--keep-hourly', '4'] : []),
-    ];
-    // The item id is a checked uuid: the glob matches its archives and nothing else.
-    const glob = `${item.id}-*`;
-    const prune = await borg(
-      config,
-      paths,
-      'prune',
-      ['--glob-archives', glob, ...keepArgs, repo.path],
-      {
-        onLine: keep,
-      },
-    );
-    if (borgFailed(prune)) keep(failedLine('borg prune', prune));
+    await prune(config, paths, plan, repo, item.id, keep);
     result.archives = await listArchives(config, paths, repo, item.id);
     return result;
   } catch (error) {
     if (error instanceof Refusal) return fail(error.code, error.message);
     return fail('borg_failed', String((error as Error)?.message ?? error));
+  }
+}
+
+/** Thins an item's archives to the plan's retention. */
+async function prune(
+  config: Config,
+  paths: Paths,
+  plan: Plan,
+  repo: Repository,
+  itemId: string,
+  keep: (line: string) => void,
+): Promise<boolean> {
+  const keepArgs = [
+    '--keep-daily',
+    String(plan.retention.daily),
+    '--keep-weekly',
+    String(plan.retention.weekly),
+    '--keep-monthly',
+    String(plan.retention.monthly),
+    ...(plan.schedule.frequency === 'every6h' ? ['--keep-hourly', '4'] : []),
+  ];
+  // The item id is a checked uuid: the glob matches its archives and nothing else.
+  const pruned = await borg(
+    config,
+    paths,
+    'prune',
+    ['--glob-archives', `${itemId}-*`, ...keepArgs, repo.path],
+    { onLine: keep },
+  );
+  if (borgFailed(pruned)) keep(failedLine('borg prune', pruned));
+  return !borgFailed(pruned);
+}
+
+/**
+ * A full disk: every item still backed up thinned to the retention as it is now (lowered by the
+ * owner, say), then compacted — which is what frees the space. Borg keeps free space for its own
+ * commits (`FREE_SPACE_KEPT`), prunes included, so that's let go meanwhile and kept again after.
+ * True when the compact went through (then a backup is worth trying again).
+ */
+export async function freeSpace(
+  config: Config,
+  paths: Paths,
+  plan: Plan,
+  repo: Repository,
+  keep: (line: string) => void,
+): Promise<boolean> {
+  keep('The backup disk is full: thinning the old backups to the kept number, then trying again.');
+  const reserve = (size: string) =>
+    borg(config, paths, 'config', [repo.path, 'additional_free_space', size], { onLine: keep });
+  // The repository's own value is kept again after (an older repository's may be none).
+  const before = await borg(config, paths, 'config', [repo.path, 'additional_free_space'], {
+    capture: true,
+  });
+  const kept =
+    before.code === 0 && /^\d+[KMGT]?$/.test(before.stdout.trim())
+      ? before.stdout.trim()
+      : FREE_SPACE_KEPT;
+  await reserve('0');
+  try {
+    for (const item of plan.items) {
+      if (item.removed || stopping) continue;
+      await prune(config, paths, plan, repo, item.id, keep);
+    }
+    if (stopping) return false;
+    const compact = await borg(config, paths, 'compact', [repo.path], { onLine: keep });
+    if (borgFailed(compact)) keep(failedLine('borg compact', compact));
+    return !borgFailed(compact);
+  } finally {
+    const restored = await reserve(kept);
+    if (restored.code !== 0) keep('borg config failed: no free space kept on the disk');
   }
 }
 

@@ -14,6 +14,9 @@ import { isRoot } from '../lib/startup.mts';
 
 export const CAT = '/usr/bin/cat';
 
+/** Deletes a folder without leaving its disk (`--one-file-system`): never a disk mounted inside. */
+export const RM = '/usr/bin/rm';
+
 /** A program's output line longer than this is left out (Borg's and Docker's are short). */
 export const OUTPUT_LINE_MAX = 1024 * 1024;
 
@@ -135,6 +138,19 @@ export function borg(
   });
 }
 
+/**
+ * Deletes a folder and everything in it, staying on its disk: a disk mounted inside is left as it
+ * is (rm then fails, and the folder stays) — not a bind mount of the same disk: callers check
+ * mountinfo first. rm goes by file descriptors, so a folder in it swapped
+ * for a symlink meanwhile is never followed. False when something was left.
+ */
+export async function removeFolder(config: Config, path: string): Promise<boolean> {
+  const removed = await runProgram(RM, ['-r', '-f', '--one-file-system', '--', path], {
+    env: { PATH: SAFE_PATH, HOME: home(config), LANG: 'C.UTF-8' },
+  });
+  return removed.code === 0;
+}
+
 export function docker(
   config: Config,
   args: string[],
@@ -166,6 +182,8 @@ export function borgFailure(ran: Ran, fallback = 'borg_failed'): string {
   ) {
     return 'repository_mismatch';
   }
+  // Its own refusal before a commit, short of the free space it keeps (`additional_free_space`).
+  if (ids.has('Repository.InsufficientFreeSpaceError')) return 'disk_full';
   if (logs.some((l) => /No space left on device|\[Errno 28\]/.test(l.message))) return 'disk_full';
   return ran.signal ? 'borg_failed' : fallback;
 }

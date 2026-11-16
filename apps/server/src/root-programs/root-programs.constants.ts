@@ -52,6 +52,7 @@ const BACKUP_CODES: Record<string, BackupErrorCode> = {
   path_not_allowed: BACKUP_ERROR_CODES.pathNotAllowed,
   path_others_can_change: BACKUP_ERROR_CODES.pathOthersCanChange,
   target_not_empty: BACKUP_ERROR_CODES.targetNotEmpty,
+  mount_inside: BACKUP_ERROR_CODES.mountInside,
   item_not_found: BACKUP_ERROR_CODES.itemNotFound,
   not_configured: BACKUP_ERROR_CODES.notConfigured,
   not_found: BACKUP_ERROR_CODES.restoreNotFound,
