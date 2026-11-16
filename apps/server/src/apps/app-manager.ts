@@ -267,6 +267,16 @@ export class AppManager {
     return this.runTask(appSessionId, name, folder, actor, 'app.update', 'update');
   }
 
+  /** An app with no containers (stopped with `down`, or restored onto a new machine): `up`. */
+  start(
+    appSessionId: string,
+    name: string,
+    folder: string,
+    actor: LinuxActor,
+  ): Promise<AppStarted> {
+    return this.runTask(appSessionId, name, folder, actor, 'app.start', 'up');
+  }
+
   /** Its files as they are, applied (`up -d`) — after a restore back where it was. */
   apply(
     appSessionId: string,

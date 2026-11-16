@@ -6,7 +6,7 @@ import type { AppTask } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, Subject, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import { testDetails, testStarted, testTask } from '../../../core/apps/testing';
+import { testApp, testDetails, testStarted, testTask } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -33,6 +33,7 @@ async function setup() {
     task: vi.fn(() => of({ task: answers.shift() ?? null })),
     save: vi.fn(() => of(testStarted('music'))),
     update: vi.fn(() => of(testStarted('music', { action: 'update' }))),
+    start: vi.fn(() => of(testStarted('music', { action: 'up' }))),
     removal: vi.fn(() =>
       of({
         items: [
@@ -114,6 +115,20 @@ describe('AppPageStore', () => {
     expect(store.task()?.output).toEqual(['pulling', 'started']);
     expect(appsApi.task).toHaveBeenLastCalledWith('music', FOLDER);
     await vi.waitFor(() => expect(appsApi.details).toHaveBeenCalledTimes(2));
+  });
+
+  it('Start for an app without containers: up from its folder as the person, its task followed', async () => {
+    const { store, appsApi, asPerson, answers } = await setup();
+    appsApi.details.mockReturnValueOnce(
+      of(testDetails('music', { app: testApp('music', { state: 'none', containers: [] }) })),
+    );
+    store.reload();
+    await vi.waitFor(() => expect(store.summary()?.state).toBe('none'));
+    answers.push(testTask({ action: 'up', state: 'succeeded' }));
+    await store.act('start');
+    expect(asPerson).toHaveBeenCalled();
+    expect(appsApi.start).toHaveBeenCalledWith('music', FOLDER);
+    await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
   });
 
   it('files changed on disk meanwhile: a conflict to settle, then overwritten when asked', async () => {

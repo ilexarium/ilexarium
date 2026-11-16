@@ -336,6 +336,19 @@ describe('AppManager: a change that doesn’t start changes nothing', () => {
     expect(readdirSync(join(folder(), '.ilex')).sort()).toEqual(['task.json', 'tasks']);
   });
 
+  it('start, for an app without containers: refused while a task runs; after it, up', async () => {
+    await install();
+    taskActive = 'active';
+    await expect(manager().start(SESSION, 'music', folder(), ACTOR)).rejects.toMatchObject({
+      response: { code: 'app_task_running' },
+    });
+    taskActive = 'inactive';
+    finished();
+    await expect(manager().start(SESSION, 'music', folder(), ACTOR)).resolves.toMatchObject({
+      task: { action: 'up' },
+    });
+  });
+
   it('an app Docker runs: never acted on in another folder than Docker’s (a link’s ?folder=)', async () => {
     await install();
     finished();

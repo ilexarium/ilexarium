@@ -9,12 +9,16 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { AppSummary, Container } from '@ilex/shared';
-import { catchError, EMPTY, exhaustMap, pipe, tap } from 'rxjs';
+import { toast } from '@spartan-ng/brain/sonner';
+import { catchError, EMPTY, exhaustMap, firstValueFrom, lastValueFrom, pipe, tap } from 'rxjs';
+import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
+import { Translator } from '../../../core/i18n/translator';
+import { apiErrorText } from '../../../shared/forms/submission-errors';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { needsAttention } from '../../containers/container-groups';
 import { appStats } from '../app-stats';
@@ -25,6 +29,8 @@ import type { AppStats } from '../apps.model';
 interface AppsPageState {
   /** With a Linux session: the apps in `~/apps` that don't run (no containers). */
   resting: AppSummary[];
+  /** Apps without containers being started (`up`), by name. */
+  starting: string[];
 }
 
 /**
@@ -32,7 +38,7 @@ interface AppsPageState {
  * Linux — those in the person's `~/apps` without containers. Start and stop act on each container.
  */
 export const AppsPageStore = signalStore(
-  withState<AppsPageState>({ resting: [] }),
+  withState<AppsPageState>({ resting: [], starting: [] }),
   withComputed(
     (
       store,
@@ -97,8 +103,15 @@ export const AppsPageStore = signalStore(
     },
   ),
   withMethods(
-    (store, appsApi = inject(AppsApi), containerActionsStore = inject(ContainerActionsStore)) => ({
-      loadResting: rxMethod<void>(
+    (
+      store,
+      appsApi = inject(AppsApi),
+      appTasksStore = inject(AppTasksStore),
+      containerActionsStore = inject(ContainerActionsStore),
+      linuxSessionStore = inject(LinuxSessionStore),
+      translator = inject(Translator),
+    ) => {
+      const loadResting = rxMethod<void>(
         pipe(
           exhaustMap(() =>
             appsApi.list().pipe(
@@ -109,11 +122,42 @@ export const AppsPageStore = signalStore(
             ),
           ),
         ),
-      ),
-      async act(app: AppSummary, action: 'start' | 'stop'): Promise<void> {
-        await containerActionsStore.runAll(app.containers, action, app.name);
-      },
-    }),
+      );
+
+      /** An app without containers: `up` as the person, followed to its end. */
+      const startResting = async (name: string, folder: string): Promise<void> => {
+        patchState(store, { starting: [...store.starting(), name] });
+        try {
+          const started = await linuxSessionStore.asPerson(() =>
+            firstValueFrom(appsApi.start(name, folder)),
+          );
+          if (!started) return;
+          toast.info(translator.t('apps.starting.started', { name }));
+          const { task } = await lastValueFrom(appTasksStore.follow(started));
+          if (task.state === 'succeeded')
+            toast.success(translator.t('apps.starting.done', { name }));
+          else toast.error(translator.t('apps.starting.failed', { name }));
+        } catch (error) {
+          toast.error(translator.t('apps.starting.failed', { name }), {
+            description: translator.t(...apiErrorText(error)),
+          });
+        } finally {
+          patchState(store, { starting: store.starting().filter((n) => n !== name) });
+          loadResting();
+        }
+      };
+
+      return {
+        loadResting,
+        async act(app: AppSummary, action: 'start' | 'stop'): Promise<void> {
+          if (action === 'start' && app.state === 'none' && app.folder) {
+            await startResting(app.name, app.folder);
+            return;
+          }
+          await containerActionsStore.runAll(app.containers, action, app.name);
+        },
+      };
+    },
   ),
   withHooks(
     (

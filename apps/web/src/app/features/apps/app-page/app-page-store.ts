@@ -329,7 +329,16 @@ export const AppPageStore = signalStore(
 
         async act(action: 'start' | 'stop'): Promise<void> {
           const summary = store.summary();
-          if (summary) await containerActionsStore.runAll(summary.containers, action, store.name());
+          if (!summary) return;
+          if (action === 'start' && summary.state === 'none') {
+            followStarted(
+              await asPerson('apps.starting.failed', () =>
+                firstValueFrom(appsApi.start(store.name(), store.folder())),
+              ),
+            );
+            return;
+          }
+          await containerActionsStore.runAll(summary.containers, action, store.name());
         },
 
         async openRemoval(): Promise<void> {

@@ -479,6 +479,7 @@
         "diskUnmount": "تم فصل القرص {{name}}",
         "appInstall": "تم تثبيت {{name}}",
         "appUpdate": "تم تحديث {{name}}",
+        "appStart": "تم تشغيل {{name}}",
         "appRemove": "تمت إزالة {{name}}"
       },
       "backup": {
@@ -1736,6 +1737,11 @@
     "startLabel": "تشغيل {{name}}",
     "stop": "إيقاف",
     "stopLabel": "إيقاف {{name}}",
+    "starting": {
+      "failed": "تعذّر تشغيل {{name}}",
+      "started": "جارٍ تشغيل {{name}}…",
+      "done": "تم تشغيل {{name}}"
+    },
     "state": {
       "running": "يعمل",
       "partial": "يعمل جزئيًا",

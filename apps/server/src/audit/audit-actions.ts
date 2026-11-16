@@ -13,6 +13,7 @@ export const AUDIT_ACTIONS = [
   'app.install',
   'app.change',
   'app.update',
+  'app.start',
   'app.remove',
   'app.delete',
   'backup.configure',
