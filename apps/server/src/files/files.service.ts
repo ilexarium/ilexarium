@@ -17,7 +17,14 @@ import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { LinuxActor } from '../linux-sessions/linux-sessions.model.js';
 import { removalError, toFilesError } from './files-errors.js';
-import { DELETE_TIMEOUT_MS, S_IFDIR, S_IFLNK, S_IFMT, S_IFREG } from './files.constants.js';
+import {
+  DELETE_TIMEOUT_MS,
+  NEW_FILE_MODE,
+  S_IFDIR,
+  S_IFLNK,
+  S_IFMT,
+  S_IFREG,
+} from './files.constants.js';
 import type { Download } from './files.model.js';
 
 function typeOf(mode: number): FileType {
@@ -173,6 +180,10 @@ export class FilesService {
     }
     const path = posix.join(folder, target.name);
     const existing = await sftp.exists(path);
+    // A replaced file keeps its permissions (an .env stays private), without setuid or setgid.
+    const replaced = existing ? await sftp.statOrNull(path) : null;
+    const mode =
+      replaced && typeOf(replaced.mode) === 'file' ? replaced.mode & 0o777 : NEW_FILE_MODE;
     if (existing && !target.replace) {
       throw linuxError(FILES_ERROR_CODES.exists, 'A file of that name is there');
     }
@@ -190,7 +201,7 @@ export class FilesService {
       },
     });
     try {
-      await pipeline(body, counter, sftp.writeStream(temporary));
+      await pipeline(body, counter, sftp.writeStream(temporary, mode));
       if (size !== null && written !== size) {
         throw linuxError(FILES_ERROR_CODES.failed, 'The upload ended early');
       }
