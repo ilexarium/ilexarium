@@ -152,6 +152,7 @@ async function securitySetup() {
   expect('/etc/ilex/master.key', { mode: '0400', uid: app });
   expect('/etc/ilex/app.env', { mode: '0640', uid: 0, gid: appGroup });
   expect('/etc/ilex/database.env', { mode: '0600', uid: 0 });
+  expect('/etc/ilex/database-owner-password', { mode: '0600', uid: 0 });
   expect('/etc/ilex/wrappers.json', { mode: '0644', uid: 0 });
   expect('/opt/ilex/libexec', { mode: '0755', uid: 0 });
   expect('/etc/ilex/release.env', { mode: '0644', uid: 0 });
@@ -250,7 +251,23 @@ async function securitySetup() {
   );
   check(
     'the app can’t read the database owner’s password',
-    fails('runuser', ['-u', 'ilex', '--', 'cat', '/etc/ilex/database.env']),
+    fails('runuser', ['-u', 'ilex', '--', 'cat', '/etc/ilex/database-owner-password']),
+  );
+  const ownerPassword = readFileSync('/etc/ilex/database-owner-password', 'utf8');
+  check(
+    'the database owner’s password in neither database.env nor inspect through the proxy',
+    ownerPassword.length >= 32 &&
+      !readFileSync('/etc/ilex/database.env', 'utf8').includes(ownerPassword) &&
+      !sh('runuser', [
+        '-u',
+        'ilex',
+        '--',
+        'curl',
+        '-sf',
+        '--unix-socket',
+        '/run/ilex/proxy/docker.sock',
+        'http://d/containers/ilex-postgres-1/json',
+      ]).includes(ownerPassword),
   );
   check(
     'the app can’t open Docker’s socket',
@@ -429,6 +446,18 @@ async function files() {
     )?.[1];
   check('sshd: password logins from 127.0.0.1', effective('127.0.0.1') === 'yes');
   check('sshd: password logins from ::1', effective('::1') === 'yes');
+  // The test machine had no SSH server: the installer's listens on this machine only.
+  const listening = sh('ss', ['-Htln', 'sport = :22'])
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.trim().split(/\s+/)[3]);
+  check(
+    'sshd: an SSH server the installer installed listens on this machine only',
+    existsSync('/etc/ssh/sshd_config.d/ilex-listen.conf') &&
+      listening.length > 0 &&
+      listening.every((address) => address === '127.0.0.1:22' || address === '[::1]:22'),
+    listening.join(' '),
+  );
   sh('sed', [
     '-i',
     's/^#\\?PasswordAuthentication.*/PasswordAuthentication no/',

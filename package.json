@@ -30,6 +30,7 @@
     "verify": "node scripts/verify.mjs",
     "release": "node scripts/release.mjs",
     "release:key": "node scripts/release-key.mjs",
+    "release:engines": "node scripts/pin-prisma-engines.mjs",
     "release:sign": "node scripts/sign-release.mjs",
     "release:publish": "node scripts/publish-release.mjs",
     "release:upload": "node scripts/upload-release.mjs",

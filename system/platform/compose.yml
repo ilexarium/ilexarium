@@ -9,14 +9,19 @@ services:
   postgres:
     # Official image, pinned by digest (18-alpine; a multi-architecture index: amd64, arm64, …).
     image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
-    # POSTGRES_USER (the owner role: migrations and backups), POSTGRES_PASSWORD, POSTGRES_DB —
-    # root-only (0600). The app connects as its own role, which may only read and write data.
+    # POSTGRES_USER (the owner role: migrations and backups) and POSTGRES_DB. The app connects as
+    # its own role, which may only read and write data.
     env_file: /etc/ilex/database.env
+    # The owner's password from a root-only file (0600), never the environment: inspect, which the
+    # app may do through the proxy, shows a container's environment.
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/owner-password
     # This machine only: services' containers can't reach the host's loopback.
     ports:
       - '127.0.0.1:5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql
+      - /etc/ilex/database-owner-password:/run/secrets/owner-password:ro
     labels:
       ilex.protected: 'true'
     healthcheck:
