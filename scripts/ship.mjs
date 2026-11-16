@@ -10,11 +10,11 @@
 // The passphrase is asked first and checked against the key, so CI and the build run unattended; the
 // version is committed and tagged only once the release is published.
 import { execFileSync } from 'node:child_process';
-import { createPrivateKey } from 'node:crypto';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { openKey } from './lib/key-file.mjs';
 import { passphrase } from './lib/passphrase.mjs';
 import { passCi } from './lib/github-ci.mjs';
 
@@ -73,9 +73,9 @@ const secret = await passphrase('Passphrase of the release key: ').catch((error)
   fail(error.message),
 );
 try {
-  createPrivateKey({ key: readFileSync(key), passphrase: secret });
-} catch {
-  fail('wrong passphrase');
+  openKey(readFileSync(key, 'utf8'), secret);
+} catch (error) {
+  fail(error.message);
 }
 
 const gh = (args) => execFileSync('gh', args, { cwd: ROOT, encoding: 'utf8' });
