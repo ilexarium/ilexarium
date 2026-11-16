@@ -20,6 +20,8 @@ const STATUS: Record<AppErrorCode, HttpStatus> = {
   [APP_ERROR_CODES.dockerUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
   [APP_ERROR_CODES.templateNotFound]: HttpStatus.NOT_FOUND,
   [APP_ERROR_CODES.pathProtected]: HttpStatus.FORBIDDEN,
+  [APP_ERROR_CODES.folderUnsafe]: HttpStatus.FORBIDDEN,
+  [APP_ERROR_CODES.folderMismatch]: HttpStatus.CONFLICT,
   [APP_ERROR_CODES.failed]: HttpStatus.BAD_GATEWAY,
 };
 
@@ -43,6 +45,8 @@ export function helperError(answer: Extract<HelperAnswer, { ok: false }>): HttpE
       return appError(APP_ERROR_CODES.taskNotStarted, 'The task did not start', said);
     case 'docker_unavailable':
       return appError(APP_ERROR_CODES.dockerUnavailable, 'Docker is not installed');
+    case 'folder_unsafe':
+      return appError(APP_ERROR_CODES.folderUnsafe, 'Another account can change it', said);
     case 'path_protected':
       return appError(APP_ERROR_CODES.pathProtected, 'That folder is never deleted');
     case 'not_permitted':
