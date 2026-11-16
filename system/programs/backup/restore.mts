@@ -340,8 +340,8 @@ async function restoreArchive(
     wasRunning = ps.code === 0 && ps.stdout.trim().length > 0;
   }
   const moved: { from: string; to: string }[] = [];
-  /** What the job file was told is set aside (the one being moved included). */
-  let told: string[] = [];
+  /** The folders the job file was told are set aside (the one being moved included). */
+  let reportedAside: string[] = [];
   /** Sources that weren't there before: on a failure, what was extracted of them goes. */
   const created: string[] = [];
   const result: ItemResult = {
@@ -376,8 +376,8 @@ async function restoreArchive(
       // Recorded before it happens: `discard` deletes only what's on this list.
       list.push({ path: to, restoreId: request.restoreId });
       writeSetAside(paths, list);
-      told = [...moved.map((m) => m.to), to];
-      aside(told);
+      reportedAside = [...moved.map((m) => m.to), to];
+      aside(reportedAside);
       renameSync(source, to);
       moved.push({ from: source, to });
     }
@@ -417,12 +417,12 @@ async function restoreArchive(
         );
         warnings.push(`${from}: not in this backup's files, the current folder was put back`);
       }
-      const back = returned.map((m) => m.to);
-      told = told.filter((path) => !back.includes(path));
-      aside(told);
+      const putBack = returned.map((m) => m.to);
+      reportedAside = reportedAside.filter((path) => !putBack.includes(path));
+      aside(reportedAside);
       writeSetAside(
         paths,
-        readSetAside(paths).filter((e) => !back.includes(e.path)),
+        readSetAside(paths).filter((e) => !putBack.includes(e.path)),
       );
     }
   } catch (error) {
@@ -438,7 +438,7 @@ async function restoreArchive(
         line(`${path}: could not be removed`);
       }
     }
-    let last = told;
+    let last = reportedAside;
     const tell = (folders: string[]) => {
       last = folders;
       try {
@@ -462,7 +462,7 @@ async function restoreArchive(
     if (last.length !== kept.length) tell(kept);
     writeSetAside(
       paths,
-      readSetAside(paths).filter((e) => !told.includes(e.path) || kept.includes(e.path)),
+      readSetAside(paths).filter((e) => !reportedAside.includes(e.path) || kept.includes(e.path)),
     );
   } finally {
     if (wasRunning) {
