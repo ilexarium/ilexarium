@@ -145,6 +145,9 @@ describe.skipIf(!BORG)('ilex-backup with the real Borg', () => {
     expect((await wrapper('configure', plan)).code).toBe(0);
     const init = await wrapper('init', { destination });
     expect(init.code, init.out).toBe(0);
+    // Free space kept, so a full disk can still be pruned (the program lets it go meanwhile).
+    const config = readFileSync(join(destination, 'ilex-backups', 'config'), 'utf8');
+    expect(config).toMatch(/^additional_free_space = 2G$/m);
   }, 60_000);
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -195,14 +198,12 @@ describe.skipIf(!BORG)('ilex-backup with the real Borg', () => {
     const target = join(dir, 'restored-docs');
     const restored = join(target, join(storage, 'docs').slice(1), 'letter.txt');
     expect(readFileSync(restored, 'utf8')).toBe('Dear …');
-    // Every folder from the restore area down to the restored one can be passed through
+    // The target is private (the folders made above the data were private only through the
+    // home above them); inside it, every folder down to the restored one can be passed through
     // (0755) — the person can reach their files — while each file keeps its own mode.
     const mode = (path: string) => statSync(path).mode & 0o777;
-    for (
-      let folder = dirname(restored);
-      folder.length >= dirname(target).length;
-      folder = dirname(folder)
-    ) {
+    expect(mode(target)).toBe(0o700);
+    for (let folder = dirname(restored); folder.length > target.length; folder = dirname(folder)) {
       expect(mode(folder), folder).toBe(0o755);
     }
     expect(mode(join(dirname(restored), 'private.txt'))).toBe(0o600);

@@ -393,6 +393,8 @@ describe('ilex-backup init', () => {
     const repo = join(destination, 'ilex-backups');
     expect(calls('borg').map((c) => c.args)).toEqual([
       ['init', '--log-json', '--encryption', 'repokey-blake2', repo],
+      // Free space kept, so a full disk can still be pruned.
+      ['config', '--log-json', repo, 'additional_free_space', '2G'],
     ]);
     expect(JSON.parse(readFileSync(join(dev, 'backup-repository.json'), 'utf8'))).toEqual({
       repositories: [{ path: repo, id: 'a'.repeat(64) }],
@@ -738,6 +740,94 @@ describe('ilex-backup run', () => {
     writeFileSync(join(dir, 'exit-create.txt'), '2');
     await runNow({ runId: RUN, itemId: FOLDER });
     expect(results()[0].items[0]).toMatchObject({ status: 'failed', errorCode: 'disk_full' });
+  });
+
+  describe('a full disk', () => {
+    const full = (msgid = '', message = '[Errno 28] No space left on device') =>
+      JSON.stringify({ type: 'log_message', levelname: 'ERROR', message, msgid });
+
+    it('thins every item to the retention as it is now, compacts, and tries once more', async () => {
+      writeFileSync(join(dir, 'logs-create-once.jsonl'), full());
+      writeFileSync(join(dir, 'exit-create-once.txt'), '2');
+      const result = await runNow({ runId: RUN, itemId: FOLDER });
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      expect(results()[0].items[0]).toMatchObject({ status: 'ok', errorCode: null });
+      const repo = join(destination, 'ilex-backups');
+      const borgCalls = calls('borg').map((c) => c.args);
+      expect(borgCalls.map((a) => a[0])).toEqual([
+        'create',
+        'config',
+        'config',
+        ...plan().items.map(() => 'prune'),
+        'compact',
+        'config',
+        'create',
+        'prune',
+        'list',
+        'compact',
+      ]);
+      // Borg's own free space let go for the prunes and the compact, and kept again after.
+      const configs = borgCalls.filter((a) => a[0] === 'config');
+      expect(configs).toEqual([
+        ['config', '--log-json', repo, 'additional_free_space'],
+        ['config', '--log-json', repo, 'additional_free_space', '0'],
+        ['config', '--log-json', repo, 'additional_free_space', '2G'],
+      ]);
+      const pruned = borgCalls.filter((a) => a[0] === 'prune').slice(0, plan().items.length);
+      expect(pruned.map((a) => a[a.indexOf('--glob-archives') + 1])).toEqual(
+        plan().items.map((i: any) => `${i.id}-*`),
+      );
+      expect(pruned[0]).toContain('--keep-daily');
+    });
+
+    it('keeps the repository’s own free space again afterwards', async () => {
+      writeFileSync(join(dir, 'borg-config.txt'), '5G\n');
+      writeFileSync(join(dir, 'logs-create-once.jsonl'), full());
+      writeFileSync(join(dir, 'exit-create-once.txt'), '2');
+      await runNow({ runId: RUN, itemId: FOLDER });
+      const last = calls('borg')
+        .filter((c) => c.args[0] === 'config')
+        .at(-1)!.args;
+      expect(last.slice(-2)).toEqual(['additional_free_space', '5G']);
+    });
+
+    it('Borg’s own refusal short of its kept free space counts as full', async () => {
+      const refusal = full('Repository.InsufficientFreeSpaceError', 'Insufficient free space');
+      writeFileSync(join(dir, 'logs-create.jsonl'), refusal);
+      writeFileSync(join(dir, 'exit-create.txt'), '2');
+      await runNow({ runId: RUN, itemId: FOLDER });
+      expect(results()[0].items[0]).toMatchObject({ status: 'failed', errorCode: 'disk_full' });
+    });
+
+    it('once per run: still full, the item fails and the next is tried only once', async () => {
+      writeFileSync(join(dir, 'logs-create.jsonl'), full());
+      writeFileSync(join(dir, 'exit-create.txt'), '2');
+      const result = await runNow({ runId: RUN });
+      expect(result.code).toBe(5);
+      expect(results()[0].items.map((i: any) => i.errorCode)).toEqual(
+        plan().items.map(() => 'disk_full'),
+      );
+      // One more try in all (the first item's), never a loop.
+      expect(borgCommands().filter((c) => c === 'create')).toHaveLength(plan().items.length + 1);
+      expect(borgCommands().filter((c) => c === 'config')).toHaveLength(3);
+    });
+
+    it('a removed item’s archives are never thinned (only `forget` deletes them)', async () => {
+      await wrapper(
+        'configure',
+        plan({
+          items: plan().items.map((i: any) => (i.id === LIVE ? { ...i, removed: true } : i)),
+        }),
+      );
+      resetCalls();
+      writeFileSync(join(dir, 'logs-create-once.jsonl'), full());
+      writeFileSync(join(dir, 'exit-create-once.txt'), '2');
+      await runNow({ runId: RUN, itemId: FOLDER });
+      const globs = calls('borg')
+        .filter((c) => c.args[0] === 'prune')
+        .map((c) => c.args[c.args.indexOf('--glob-archives') + 1]);
+      expect(globs).not.toContain(`${LIVE}-*`);
+    });
   });
 
   it('a Borg killed while it archives (out of memory) fails the item: no archive, nothing pruned', async () => {
@@ -1319,6 +1409,161 @@ describe('ilex-backup restore', () => {
     expect(done()).toMatchObject({ status: 'succeeded' });
   });
 
+  describe('a disk mounted at a folder or inside it', () => {
+    const data = () => join(storage, 'demo', 'data');
+    const untouched = () => {
+      expect(readFileSync(join(data(), 'db.sqlite'), 'utf8')).toBe('data');
+      expect(readdirSync(join(storage, 'demo')).sort()).toEqual(['data', 'media']);
+    };
+
+    it('back where it was: refused at once for a mount point', async () => {
+      writeMounts([mountLine(destination), mountLine(join(storage, 'demo', 'media'))]);
+      expectRefused(await wrapper('restore-start', restoreInput()), 'mount_inside');
+      untouched();
+    });
+
+    it('back where it was: refused at once for a disk mounted inside', async () => {
+      writeMounts([mountLine(destination), mountLine(join(data(), 'cache'))]);
+      expectRefused(await wrapper('restore-start', restoreInput()), 'mount_inside');
+      untouched();
+    });
+
+    it('checked again when it runs, before anything is stopped or moved', async () => {
+      expect((await wrapper('restore-start', restoreInput())).code).toBe(0);
+      writeMounts([mountLine(destination), mountLine(join(data(), 'cache'))]);
+      expect((await wrapper(['restore-run', RESTORE])).code).toBe(2);
+      expect(done()).toMatchObject({ status: 'failed', errorCode: 'mount_inside', setAside: [] });
+      untouched();
+      expect(calls('docker')).toEqual([]);
+    });
+
+    it('a folder whose name only begins like the mount’s is not refused', async () => {
+      writeMounts([mountLine(destination), mountLine(`${data()}-disk`)]);
+      expect((await restore(restoreInput())).code).toBe(0);
+    });
+
+    it('one mounted while it extracts: a failed restore never deletes it, the previous version stays aside', async () => {
+      writeFileSync(join(dir, 'exit-extract.txt'), '2');
+      writeFileSync(
+        join(dir, 'mountinfo-after-extract.txt'),
+        `${[mountLine(destination), mountLine(join(data(), 'bound'))].join('\n')}\n`,
+      );
+      const result = await restore(restoreInput());
+      expect(result.code).toBe(5);
+      const setAside = done()!.setAside as string[];
+      expect(done()).toMatchObject({ status: 'failed' });
+      expect(setAside).toHaveLength(1);
+      expect(setAside[0]).toMatch(/demo\/data\.before-restore-/);
+      expect(readFileSync(join(setAside[0], 'db.sqlite'), 'utf8')).toBe('data');
+      expect(existsSync(join(data(), 'partial.txt'))).toBe(true);
+      const listed = JSON.parse(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8'));
+      expect(listed.map((e: any) => e.path)).toEqual(setAside);
+    });
+
+    it('into a folder: allowed (nothing is moved)', async () => {
+      writeMounts([mountLine(destination), mountLine(join(storage, 'docs'))]);
+      const target = join(dir, 'restored');
+      const input = restoreInput({ itemId: FOLDER, archive: folderArchive, target });
+      expect((await restore(input)).code).toBe(0);
+    });
+  });
+
+  describe('Borg’s warnings', () => {
+    it('a succeeded restore carries them (a mode it couldn’t set)', async () => {
+      const warning = {
+        type: 'log_message',
+        levelname: 'WARNING',
+        message: '/srv/shared: chmod: [Errno 1] Operation not permitted',
+        msgid: '',
+      };
+      writeFileSync(join(dir, 'logs-extract.jsonl'), JSON.stringify(warning));
+      writeFileSync(join(dir, 'exit-extract.txt'), '1');
+      const result = await restore(restoreInput());
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      expect(done()).toMatchObject({
+        status: 'succeeded',
+        warnings: ['/srv/shared: chmod: [Errno 1] Operation not permitted'],
+      });
+      expect(done()!.setAside).toHaveLength(2);
+    });
+
+    it('exit code 1 without a warning line is still said', async () => {
+      writeFileSync(join(dir, 'exit-extract.txt'), '1');
+      const target = join(dir, 'restored');
+      await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
+      expect(done()).toMatchObject({
+        status: 'succeeded',
+        warnings: ['Borg finished with warnings'],
+      });
+    });
+
+    it('none: an empty list', async () => {
+      await restore(restoreInput());
+      expect(done()).toMatchObject({ status: 'succeeded', warnings: [] });
+    });
+
+    it('an inner folder the backup lists but doesn’t hold: said, with where its previous version is', async () => {
+      await wrapper(
+        'configure',
+        plan({
+          items: plan().items.map((i: any) =>
+            i.id === SERVICE
+              ? { ...i, folders: [...i.folders, join(storage, 'demo', 'data', 'cache')] }
+              : i,
+          ),
+        }),
+      );
+      await runNow({ runId: RUN_AGAIN, itemId: SERVICE });
+      const again = results().at(-1)!.items[0].archive;
+      const cache = join(storage, 'demo', 'data', 'cache');
+      writeFileSync(join(dir, 'unheld.txt'), cache);
+      const result = await restore(restoreInput({ archive: again }));
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      const [dataAside] = done()!.setAside as string[];
+      expect(done()!.warnings).toEqual([
+        `${cache}: not in this backup's files, its previous version is in ${dataAside}`,
+      ]);
+    });
+
+    it('a folder the backup lists but doesn’t hold: the current one is put back, and said', async () => {
+      const media = join(storage, 'demo', 'media');
+      writeFileSync(join(media, 'photo.jpg'), 'mine');
+      writeFileSync(join(dir, 'unheld.txt'), media);
+      const result = await restore(restoreInput());
+      expect(result.code, result.lines.join('\n')).toBe(0);
+      expect(readFileSync(join(media, 'photo.jpg'), 'utf8')).toBe('mine');
+      const setAside = done()!.setAside as string[];
+      expect(setAside).toHaveLength(1);
+      expect(setAside[0]).toMatch(/demo\/data\.before-restore-/);
+      expect(done()!.warnings).toEqual([
+        `${media}: not in this backup's files, the current folder was put back`,
+      ]);
+      const listed = JSON.parse(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8'));
+      expect(listed.map((e: any) => e.path)).toEqual(setAside);
+      expect(readdirSync(join(storage, 'demo')).sort()).toEqual([
+        'data',
+        setAside[0].split('/').pop(),
+        'media',
+      ]);
+    });
+  });
+
+  it('into a chosen folder: made private to the person who asked', async () => {
+    const target = join(dir, 'restored');
+    await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
+    expect(statSync(target).mode & 0o777).toBe(0o700);
+    expect(statSync(target).uid).toBe(me);
+  });
+
+  it('into a chosen folder that is there (empty): made private too', async () => {
+    const target = join(dir, 'restored');
+    mkdirSync(target, { mode: 0o755 });
+    chmodSync(target, 0o755);
+    await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
+    expect(done()).toMatchObject({ status: 'succeeded' });
+    expect(statSync(target).mode & 0o777).toBe(0o700);
+  });
+
   it('into a chosen folder: everything with its full paths, nothing stopped', async () => {
     const target = join(dir, 'restored');
     const result = await restore(restoreInput({ itemId: FOLDER, archive: folderArchive, target }));
@@ -1498,6 +1743,20 @@ describe('ilex-backup discard, forget and passphrase', () => {
     expectRefused(await wrapper('discard', { path: first }), 'path_others_can_change');
     expect(existsSync(first)).toBe(true);
     askedBy(me);
+    expect((await wrapper('discard', { path: first })).code).toBe(0);
+    expect(existsSync(first)).toBe(false);
+  });
+
+  it('discard deletes nothing with a disk mounted inside (it would empty that disk)', async () => {
+    const archive = results()[0].items.find((i: any) => i.itemId === SERVICE).archive;
+    useSystemctl();
+    await wrapper('restore-start', { restoreId: RESTORE, itemId: SERVICE, archive, target: null });
+    await wrapper(['restore-run', RESTORE]);
+    const [first] = job(RESTORE).find((e) => e.type === 'restoreDone')!.setAside as string[];
+    writeMounts([mountLine(destination), mountLine(join(first, 'cache'))]);
+    expectRefused(await wrapper('discard', { path: first }), 'mount_inside');
+    expect(existsSync(join(first, 'db.sqlite'))).toBe(true);
+    writeMounts([mountLine(destination)]);
     expect((await wrapper('discard', { path: first })).code).toBe(0);
     expect(existsSync(first)).toBe(false);
   });

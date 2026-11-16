@@ -26,6 +26,12 @@ export const WORDLIST = fileURLToPath(new URL('../eff_large_wordlist.txt', impor
 
 export const PASSPHRASE_WORDS = 6;
 
+/**
+ * Free space Borg keeps on the disk: a backup stops short of filling it, so there's always room
+ * to prune and compact (a full disk recovers: `freeSpace` in run.mts).
+ */
+export const FREE_SPACE_KEPT = '2G';
+
 /** Six words from the EFF large word list (7776 words: ~77 bits), chosen without bias. */
 export function generatePassphrase(): string {
   if (isRoot) assertRootOwned(WORDLIST);
@@ -64,6 +70,13 @@ export async function init(config: Config, paths: Paths, input: string): Promise
     const result = await borg(config, paths, 'init', ['--encryption', 'repokey-blake2', path]);
     if (result.code !== 0) throw new Refusal(borgFailure(result), 'borg init failed', 5);
     chmodSync(path, 0o700);
+    const reserve = await borg(config, paths, 'config', [
+      path,
+      'additional_free_space',
+      FREE_SPACE_KEPT,
+    ]);
+    // Not fatal: the repository is there (failing now would leave it unknown to setup).
+    if (reserve.code !== 0) emit('@@info borg config failed: no free space kept on the disk');
     const id = repositoryId(path);
     if (!id) throw new Refusal('borg_failed', 'the new repository has no id', 5);
     saveRepository(paths, { path, id });

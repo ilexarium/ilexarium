@@ -11,6 +11,7 @@ const restore = (change: Partial<BackupRestore> = {}): BackupRestore => ({
   setAside: [],
   setAsideDeleted: false,
   appWasRunning: false,
+  warnings: [],
   status: 'running',
   phase: 'restoring',
   errorCode: null,
@@ -122,5 +123,48 @@ describe('RestoreStatus', () => {
     );
     expect(text(fixture)).toContain('borg: no such archive');
     expect(text(fixture)).not.toContain('Restored to');
+  });
+
+  it('succeeded with warnings: lists them, and asks for a check before deleting', async () => {
+    const fixture = await show({
+      status: 'succeeded',
+      phase: 'done',
+      setAside: ['/srv/data.before-restore-20261116-120000'],
+      warnings: ['/srv/data/shared: chmod: Operation not permitted'],
+    });
+    const alert = fixture.nativeElement.querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain('Restored, with warnings');
+    expect(alert.textContent).toContain('/srv/data/shared: chmod');
+    expect(text(fixture)).not.toContain('Restored.');
+    expect(text(fixture)).toContain('Check the restored folders before you delete');
+  });
+
+  it('no warnings: no check asked for before deleting', async () => {
+    const fixture = await show({
+      status: 'succeeded',
+      phase: 'done',
+      setAside: ['/srv/data.before-restore-20261116-120000'],
+    });
+    expect(text(fixture)).toContain('Restored.');
+    expect(text(fixture)).not.toContain('Check the restored folders');
+  });
+
+  it('failed while putting it back: the previous version is kept, not offered for deletion', async () => {
+    const fixture = await show({
+      status: 'failed',
+      errorCode: 'borg_failed',
+      setAside: ['/srv/data.before-restore-20261116-120000'],
+    });
+    expect(text(fixture)).toContain('/srv/data.before-restore-20261116-120000');
+    expect(text(fixture)).not.toContain('Delete previous version');
+  });
+
+  it('restored, but the app didn’t start again: the previous version can be deleted', async () => {
+    const fixture = await show({
+      status: 'failed',
+      errorCode: 'service_not_restarted',
+      setAside: ['/srv/data.before-restore-20261116-120000'],
+    });
+    expect(text(fixture)).toContain('Delete previous version');
   });
 });

@@ -1,5 +1,5 @@
-import { Component, input, output } from '@angular/core';
-import type { BackupRestore } from '@ilex/shared';
+import { Component, computed, input, output } from '@angular/core';
+import { type BackupRestore, previousVersionDeletable } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideLoaderCircle } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -27,6 +27,10 @@ export class RestoreStatus {
   /** A translation key: what to do after restoring this app. */
   readonly note = input<string | null>(null);
   readonly pending = input(false);
+  /** Running: shown, not yet clickable. */
+  readonly discardable = computed(
+    () => this.restore().status === 'running' || previousVersionDeletable(this.restore()),
+  );
 
   readonly discard = output<void>();
   readonly apply = output<void>();
