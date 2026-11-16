@@ -205,6 +205,7 @@ ensure_borg() {
 # on this machine only (ilex-listen.conf, theirs to remove), as nothing but the sign-in needs it.
 ensure_ssh_server() {
   SSH_TURN_ON=0
+  SSH_LEFT_OFF=0
   if [[ ! -x /usr/sbin/sshd ]]; then
     confirm 'Install the OpenSSH server for the Linux sign-in, listening on this machine only?' ||
       die 'The OpenSSH server is needed'
@@ -219,15 +220,24 @@ ensure_ssh_server() {
     SSH_TURN_ON=1
   fi
   SSH_UNIT="$(ssh_unit)"
+  local socket="${SSH_UNIT%.service}.socket"
   if [[ "$SSH_TURN_ON" == 0 ]] && ssh_switched_off; then
     if [[ "$UPDATE" == 1 ]]; then
       info "The SSH server is switched off and stays off: the Linux sign-in won't work"
+      SSH_LEFT_OFF=1
+    elif [[ "$(systemctl is-enabled "$SSH_UNIT" 2>/dev/null)" == masked ]]; then
+      die "The SSH server is masked ($SSH_UNIT): the Linux sign-in needs it — unmask it yourself, then run again"
     else
-      confirm 'The SSH server is switched off. Turn it on for the Linux sign-in, listening on this machine only?' ||
+      local own
+      own="$(ssh_own_listen)"
+      confirm "The SSH server is switched off. Turn it on for the Linux sign-in, listening on this machine only${own:+ (and, as your sshd_config says, on $own)}?" ||
         die 'The Linux sign-in needs the SSH server: turn it on yourself, or run again and agree'
       write_ssh_listen
       SSH_TURN_ON=1
     fi
+  elif [[ "$SSH_TURN_ON" == 0 ]] && ! systemctl is-enabled --quiet "$SSH_UNIT" 2>/dev/null &&
+    ! systemctl is-enabled --quiet "$socket" 2>/dev/null; then
+    info "The SSH server runs but doesn't start with the machine: the Linux sign-in stops after a restart (sudo systemctl enable $SSH_UNIT)"
   fi
   info "$(/usr/sbin/sshd -V 2>&1 | head -n1) ($SSH_UNIT)"
 }
@@ -240,6 +250,13 @@ ssh_switched_off() {
       return 1
     fi
   done
+}
+
+# The owner's own ListenAddress lines: sshd listens on every one, ilex-listen.conf's only add to them.
+ssh_own_listen() {
+  awk -v ours="$SSH_LISTEN_DROPIN" 'FILENAME != ours && tolower($1) == "listenaddress" { print $2 }' \
+    /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null |
+    sort -u | paste -sd ' ' || true
 }
 
 # ::1 only where the machine has it: a socket unit that can't bind an address fails as a whole.
