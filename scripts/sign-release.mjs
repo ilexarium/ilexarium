@@ -3,12 +3,12 @@
 // Usage: npm run release:sign -- --key <release.key> [--notes <file.md>] [--allow-key-change]
 //        [--version <x.y.z>] (another than package.json's: a release repacked by the install test)
 import { execFileSync } from 'node:child_process';
-import { createPrivateKey } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { parsePublicKey, verifySignature } from '../system/programs/lib/minisign.mts';
+import { openKey } from './lib/key-file.mjs';
 import { manifestFile } from './lib/manifest.mjs';
 import { publicKeyFile, signatureFile } from './lib/minisign.mjs';
 import { passphrase } from './lib/passphrase.mjs';
@@ -35,10 +35,16 @@ if (!existsSync(archive)) {
   process.exit(1);
 }
 
-const privateKey = createPrivateKey({
-  key: readFileSync(values.key),
-  passphrase: await passphrase('Passphrase of the release key: '),
-});
+let privateKey;
+try {
+  privateKey = openKey(
+    readFileSync(values.key, 'utf8'),
+    await passphrase('Passphrase of the release key: '),
+  );
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 const publicFile = publicKeyFile(privateKey);
 // The release carries the key machines will trust from now on: normally this very key. A new one
 // arrives only signed by the old (key rotation) — on purpose, never by mistake.
