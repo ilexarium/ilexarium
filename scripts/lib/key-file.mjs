@@ -17,7 +17,7 @@ const MAX_N = 2 ** 20;
 const deriveKey = (passphrase, salt, { N, r, p }) =>
   scryptSync(passphrase, salt, 32, { N, r, p, maxmem: 128 * N * r + 2 ** 24 });
 
-// The settings are the cipher's additional data: a file whose cost was lowered doesn't open.
+// The settings are the cipher's additional data: a file whose settings were changed doesn't open.
 const header = ({ N, r, p, salt }) => `${FORMAT}:1:scrypt:${N}:${r}:${p}:${salt}`;
 
 export function sealKey(privateKey, passphrase, cost = SCRYPT_COST) {
