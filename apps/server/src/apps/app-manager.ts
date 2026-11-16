@@ -231,6 +231,7 @@ export class AppManager {
   ): Promise<AppStarted> {
     const sftp = this.sftp(appSessionId);
     const folder = request.folder;
+    await this.assertFolderOf(name, folder);
     const files = await this.readFiles(sftp, folder);
     if (!request.overwrite && hashOf(files.compose, files.env) !== request.hash) {
       throw appError(APP_ERROR_CODES.changedOnDisk, 'The files changed on disk');
@@ -278,6 +279,7 @@ export class AppManager {
 
   /** What a removal may delete: the settings, each data folder, each named volume — with sizes. */
   async removal(appSessionId: string, name: string, folder: string): Promise<AppRemoval> {
+    await this.assertFolderOf(name, folder);
     await this.readFiles(this.sftp(appSessionId), folder);
     const mounts = deletable(
       await this.appTasks.check(appSessionId, folder, name),
@@ -319,6 +321,7 @@ export class AppManager {
     folder: string,
     actor: LinuxActor,
   ): Promise<AppStarted> {
+    await this.assertFolderOf(name, folder);
     const sftp = this.sftp(appSessionId);
     await this.notBusy(appSessionId, sftp, folder);
     return this.audited('app.remove', actor, { name, folder }, async () => {
@@ -340,6 +343,7 @@ export class AppManager {
   ): Promise<void> {
     const sftp = this.sftp(appSessionId);
     const { folder } = request;
+    await this.assertFolderOf(name, folder);
     const task = await this.appTasks.read(appSessionId, sftp, folder);
     if (task?.action !== 'down' || task.state !== 'succeeded') {
       throw appError(APP_ERROR_CODES.taskRunning, 'Remove the app first');
@@ -463,10 +467,7 @@ export class AppManager {
     name: string,
     hint?: string,
   ): Promise<{ folder: string; summary: AppSummary }> {
-    const containers = await this.dockerService.listContainers().catch(() => []);
-    const known = appsFromContainers(containers, (id) => this.catalogService.webPage(id)).find(
-      (app) => app.name === name,
-    );
+    const known = await this.knownApp(name);
     const home = this.linuxSessions.account(appSessionId).home;
     const folder = known?.folder ?? hint ?? posix.join(home, APPS_FOLDER, name);
     const summary: AppSummary = known ?? {
@@ -480,6 +481,26 @@ export class AppManager {
       webPath: '/',
     };
     return { folder, summary };
+  }
+
+  /** The app of that name as Docker runs it, if it does. */
+  private async knownApp(name: string): Promise<AppSummary | undefined> {
+    const containers = await this.dockerService.listContainers().catch(() => []);
+    return appsFromContainers(containers, (id) => this.catalogService.webPage(id)).find(
+      (app) => app.name === name,
+    );
+  }
+
+  /**
+   * A request's folder for an app Docker runs must be the one Docker runs it from: a link or a
+   * request never points a known app's actions at another folder. (One Docker doesn't know is
+   * the helper's to check: nobody else may be able to change its folder.)
+   */
+  private async assertFolderOf(name: string, folder: string): Promise<void> {
+    const known = await this.knownApp(name);
+    if (known?.folder && known.folder !== folder) {
+      throw appError(APP_ERROR_CODES.folderMismatch, 'Docker runs this app from another folder');
+    }
   }
 
   private async composeFileIn(sftp: Sftp, folder: string): Promise<string | null> {
@@ -522,6 +543,7 @@ export class AppManager {
     audit: AuditAction,
     action: 'update' | 'up',
   ): Promise<AppStarted> {
+    await this.assertFolderOf(name, folder);
     const sftp = this.sftp(appSessionId);
     await this.notBusy(appSessionId, sftp, folder);
     await this.sudoFirst(appSessionId);

@@ -16,8 +16,8 @@ import { SystemReader } from '../host/system-reader.js';
 import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { LinuxActor } from '../linux-sessions/linux-sessions.model.js';
-import { toFilesError } from './files-errors.js';
-import { S_IFDIR, S_IFLNK, S_IFMT, S_IFREG } from './files.constants.js';
+import { removalError, toFilesError } from './files-errors.js';
+import { DELETE_TIMEOUT_MS, S_IFDIR, S_IFLNK, S_IFMT, S_IFREG } from './files.constants.js';
 import type { Download } from './files.model.js';
 
 function typeOf(mode: number): FileType {
@@ -230,24 +230,25 @@ export class FilesService {
   }
 
   /**
-   * Deletes a file, a link (never what it points to) or a folder with everything in it — its
-   * contents first; stops at the first thing Linux refuses (what's deleted stays deleted).
+   * Deletes a file, a link (never what it points to) or a folder with everything in it. A folder
+   * goes through the helper (`rm -r --one-file-system` as the account): a walk over SFTP would
+   * enter a subfolder by a type read earlier, so someone who swapped it for a link meanwhile
+   * would have another folder emptied. What Linux refuses stays; what's deleted stays deleted.
    */
   async delete(appSessionId: string, path: string, actor: LinuxActor): Promise<void> {
     const { sftp, username } = this.linuxSessions.sftp(appSessionId);
-    const target = posix.normalize(path);
+    const target = posix.normalize(path).replace(/(.)\/+$/, '$1');
     if (target === '/') throw linuxError(FILES_ERROR_CODES.permissionDenied, 'Not /');
-    const remove = async (item: string, mode: number): Promise<void> => {
-      if (typeOf(mode) !== 'folder') {
-        await sftp.unlink(item);
-        return;
-      }
-      for (const { filename, attrs } of await sftp.entries(item)) {
-        await remove(posix.join(item, filename), attrs.mode);
-      }
-      await sftp.removeFolder(item);
-    };
-    await remove(target, (await sftp.lstat(target)).mode);
+    if (typeOf((await sftp.lstat(target)).mode) === 'folder') {
+      const answer = await this.linuxSessions.ask(
+        appSessionId,
+        { action: 'paths.remove', paths: [target], administrator: false },
+        { timeoutMs: DELETE_TIMEOUT_MS },
+      );
+      if (!answer.ok) throw removalError(answer.error);
+    } else {
+      await sftp.unlink(target);
+    }
     await this.record('files.delete', actor, username, { path: target });
   }
 

@@ -382,6 +382,49 @@ describe('ilex-helper', () => {
     );
   });
 
+  it('refuses a folder another account could change: the folder, one above it, a file Compose reads', async () => {
+    const apps = join(dir, 'apps');
+    const app = join(apps, 'music');
+    mkdirSync(app, { recursive: true, mode: 0o755 });
+    chmodSync(apps, 0o755);
+    writeFileSync(join(app, 'compose.yml'), '', { mode: 0o644 });
+    const check = { action: 'compose.check', folder: app, project: 'music' };
+    const task = { action: 'app.task', folder: app, project: 'music', task: 'up', system: false };
+    const unsafe = (path: string) => ({ ok: false, error: 'folder_unsafe', message: path });
+
+    chmodSync(app, 0o777);
+    expect(await ask(check)).toEqual(unsafe(app));
+    expect(await ask(task)).toEqual(unsafe(app));
+    chmodSync(app, 0o755);
+
+    chmodSync(apps, 0o757);
+    expect(await ask(check)).toEqual(unsafe(apps));
+    chmodSync(apps, 0o755);
+
+    chmodSync(join(app, 'compose.yml'), 0o646);
+    expect(await ask(task)).toEqual(unsafe(join(app, 'compose.yml')));
+    chmodSync(join(app, 'compose.yml'), 0o644);
+
+    writeFileSync(join(dir, 'theirs.env'), '');
+    symlinkSync(join(dir, 'theirs.env'), join(app, '.env'));
+    expect(await ask(check)).toEqual(unsafe(join(app, '.env')));
+    rmSync(join(app, '.env'));
+
+    symlinkSync(join(dir, 'theirs.yml'), join(app, 'compose.override.yml'));
+    expect(await ask(check)).toEqual(unsafe(join(app, 'compose.override.yml')));
+    rmSync(join(app, 'compose.override.yml'));
+
+    // The folder itself a link (to one that's fine): refused too — a link is someone's to swap.
+    symlinkSync(app, join(apps, 'link'));
+    expect(await ask({ ...check, folder: join(apps, 'link') })).toEqual(unsafe(join(apps, 'link')));
+
+    expect(calls('docker')).toEqual([]);
+    expect(calls('systemd-run')).toEqual([]);
+    expect(existsSync(join(app, '.ilex'))).toBe(false);
+    // Nobody else can change it: it goes ahead.
+    expect(await ask(task)).toMatchObject({ ok: true });
+  });
+
   it('ilex-root starts a system unit only for a log the account made, as the helper names it', async () => {
     const app = join(dir, 'apps', 'music');
     mkdirSync(join(app, '.ilex', 'tasks'), { recursive: true });
@@ -389,6 +432,11 @@ describe('ilex-helper', () => {
     const log = join(app, '.ilex', 'tasks', '20261029T120000-up.log');
     writeFileSync(log, '');
     const base = { action: 'app.task', project: 'music', folder: app, task: 'up', unit, log };
+    // ilex-root checks again, for whoever's sudo started it: others may write in this one.
+    const unsafeApp = join(dir, 'apps', 'shared');
+    mkdirSync(join(unsafeApp, '.ilex', 'tasks'), { recursive: true });
+    writeFileSync(join(unsafeApp, '.ilex', 'tasks', '20261029T120000-up.log'), '');
+    chmodSync(unsafeApp, 0o777);
     const root = spawn(process.execPath, [join(HERE, 'ilex-root.mts')], {
       env: { PATH: process.env['PATH'] ?? '', ILEX_HELPER_FAKE_BIN: join(dir, 'bin') },
     });
@@ -402,6 +450,11 @@ describe('ilex-helper', () => {
       { ...base, log: join(app, '.ilex', 'tasks', '20261029T120001-up.log') },
       { ...base, log: '/etc/passwd' },
       { ...base, folder: '/nowhere' },
+      {
+        ...base,
+        folder: unsafeApp,
+        log: join(unsafeApp, '.ilex', 'tasks', '20261029T120000-up.log'),
+      },
     ];
     requests.forEach((request, index) =>
       root.stdin.write(`${JSON.stringify({ id: index + 1, ...request })}\n`),
@@ -418,6 +471,7 @@ describe('ilex-helper', () => {
     expect(byId[1]).toEqual({ ok: true });
     for (const id of [2, 3, 4, 5, 6])
       expect(byId[id], String(id)).toEqual({ ok: false, error: 'bad_request' });
+    expect(byId[7]).toEqual({ ok: false, error: 'folder_unsafe', message: unsafeApp });
     expect(calls('systemd-run')).toHaveLength(1);
   });
 

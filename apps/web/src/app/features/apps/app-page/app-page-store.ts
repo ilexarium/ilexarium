@@ -131,8 +131,10 @@ export const AppPageStore = signalStore(
           const pending = containerActionsStore.pending();
           return (summary()?.containers ?? []).some((name) => pending.has(name));
         }),
+        // A link's folder only for an app neither Docker nor the list knows (one just installed
+        // elsewhere): never in place of the folder Docker runs it from.
         folder: computed(
-          () => store.details()?.folder ?? store.folderHint() ?? summary()?.folder ?? '',
+          () => store.details()?.folder ?? summary()?.folder ?? store.folderHint() ?? '',
         ),
       };
     },

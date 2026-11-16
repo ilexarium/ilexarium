@@ -9,3 +9,6 @@ export const SFTP_NO_SUCH_FILE = 2;
 export const SFTP_PERMISSION_DENIED = 3;
 export const SFTP_NO_CONNECTION = 6;
 export const SFTP_CONNECTION_LOST = 7;
+
+/** Deleting a big folder through the helper (its `rm` stops after 10 minutes). */
+export const DELETE_TIMEOUT_MS = 11 * 60_000;
