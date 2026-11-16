@@ -34,15 +34,13 @@ Debian 12 or 13, Ubuntu 26.04 or Arch Linux. Ubuntu 24.04 too, with [Borg 1.4](h
 
 ```sh
 curl -fsSL https://ilexarium.com/get-ilex.sh -o get-ilex.sh
-less get-ilex.sh    # read it first: it checks the release's signature, then installs
+less get-ilex.sh    # read it first, and check its key line is exactly the one below
 bash get-ilex.sh
 ```
 
-Before running `get-ilex.sh`, check that its `PUBLIC_KEY` line is exactly:
+The key that signs every Ilexarium release, as `get-ilex.sh` carries it:
 
-    RWTCTN0pOPdJ/mpJjRirU77qRxeSGPL7lzj5u5xSeDlZSvyd+AU+1QVg
-
-This key signs every Ilexarium release.
+    PUBLIC_KEY='RWTCTN0pOPdJ/mpJjRirU77qRxeSGPL7lzj5u5xSeDlZSvyd+AU+1QVg'
 
 Ilexarium listens on `127.0.0.1:3000` (and `[::1]:3000`, so `localhost` works too); you reach it
 through an HTTPS proxy of your choice.
