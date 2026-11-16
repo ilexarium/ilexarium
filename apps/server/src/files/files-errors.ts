@@ -34,6 +34,20 @@ export function toFilesError(error: unknown): HttpException {
   }
 }
 
+/** The helper's refusal of a folder's deletion, as ours. */
+export function removalError(error: string): HttpException {
+  switch (error) {
+    case 'not_permitted':
+      return linuxError(FILES_ERROR_CODES.permissionDenied, 'Linux refused it for this account');
+    case 'path_protected':
+      return linuxError(FILES_ERROR_CODES.permissionDenied, 'That folder is never deleted');
+    case 'ended':
+      return linuxError(FILES_ERROR_CODES.linuxSessionRequired, 'Sign in as a Linux user first');
+    default:
+      return linuxError(FILES_ERROR_CODES.failed, 'The folder was not deleted');
+  }
+}
+
 /** The code of one of our errors (in its response body), or undefined. */
 export function filesCode(error: unknown): string | undefined {
   if (!(error instanceof HttpException)) return undefined;

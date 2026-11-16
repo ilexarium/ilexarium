@@ -336,6 +336,63 @@ describe('AppManager: a change that doesn’t start changes nothing', () => {
     expect(readdirSync(join(folder(), '.ilex')).sort()).toEqual(['task.json', 'tasks']);
   });
 
+  it('an app Docker runs: never acted on in another folder than Docker’s (a link’s ?folder=)', async () => {
+    await install();
+    finished();
+    containers = [
+      {
+        name: 'music-web-1',
+        composeProject: 'music',
+        composeWorkingDir: folder(),
+        state: 'running',
+        ports: [],
+      },
+    ];
+    const elsewhere = join(dir, 'theirs');
+    mkdirSync(elsewhere);
+    writeFileSync(join(elsewhere, 'compose.yml'), compose);
+    const mismatch = { response: { code: 'app_folder_mismatch' } };
+    const m = manager();
+    const before = asked.length;
+    await expect(m.update(SESSION, 'music', elsewhere, ACTOR)).rejects.toMatchObject(mismatch);
+    await expect(m.apply(SESSION, 'music', elsewhere, ACTOR)).rejects.toMatchObject(mismatch);
+    await expect(m.removal(SESSION, 'music', elsewhere)).rejects.toMatchObject(mismatch);
+    await expect(m.remove(SESSION, 'music', elsewhere, ACTOR)).rejects.toMatchObject(mismatch);
+    await expect(
+      m.save(
+        SESSION,
+        'music',
+        { folder: elsewhere, compose, env: '', hash: 'x', overwrite: true },
+        ACTOR,
+      ),
+    ).rejects.toMatchObject(mismatch);
+    await expect(
+      m.delete(SESSION, 'music', { folder: elsewhere, folders: [], volumes: [] }, ACTOR),
+    ).rejects.toMatchObject(mismatch);
+    expect(asked.slice(before)).toEqual([]);
+    // Its own folder: as before.
+    await expect(m.update(SESSION, 'music', folder(), ACTOR)).resolves.toMatchObject({
+      task: { action: 'update' },
+    });
+  });
+
+  it('the helper’s “others could change this folder”: its own error, with the path', async () => {
+    await install();
+    finished();
+    const original = helper;
+    checkFails = false;
+    const m = manager();
+    const linux = (m as unknown as { linuxSessions: { ask: unknown } }).linuxSessions;
+    linux.ask = async (_id: string, request: HelperRequest) =>
+      request.action === 'compose.check'
+        ? { ok: false, error: 'folder_unsafe', message: folder() }
+        : original(request);
+    await expect(m.update(SESSION, 'music', folder(), ACTOR)).rejects.toMatchObject({
+      status: 403,
+      response: { code: 'app_folder_unsafe', detail: folder() },
+    });
+  });
+
   it('apply (after a restore): its files as they are, brought up', async () => {
     await install();
     taskActive = 'inactive';

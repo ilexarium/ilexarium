@@ -18,6 +18,7 @@ import {
 import {
   COMPOSE_ANSWER_MAX,
   COMPOSE_CONFIG_MAX,
+  COMPOSE_READS,
   MESSAGE_MAX,
   TEMPLATE_LABEL,
   PROGRAMS,
@@ -30,6 +31,7 @@ import {
   VOLUME_PATTERN,
   type TaskAction,
 } from './config.mts';
+import { changeableByOthers, askingUid } from '../lib/ownership.mts';
 import { run } from './run.mts';
 import { forward } from './sudo.mts';
 
@@ -68,6 +70,23 @@ function folder(request: Request): string | null {
     return null;
   }
 }
+
+/**
+ * Compose runs what the folder's files say — as root's Docker, for a system unit or the docker
+ * group. So the folder, every folder above it and the files Compose reads there must be the
+ * asking account's or root's, and nobody else may change them: otherwise another account decides
+ * what runs. `askedBy`: this account in the helper, whoever's sudo started ilex-root there.
+ */
+function othersCouldChange(dir: string, askedBy: number): Answer | null {
+  const path = changeableByOthers(
+    dir,
+    COMPOSE_READS.map((name) => join(dir, name)),
+    askedBy,
+  );
+  return path ? ({ ok: false, error: 'folder_unsafe', message: path } as Answer) : null;
+}
+
+const me = () => process.getuid?.() ?? 0;
 
 const stamp = (date = new Date()) => date.toISOString().slice(0, 19).replace(/[-:]/g, '');
 
@@ -118,6 +137,8 @@ export async function startTask(request: Request): Promise<Answer> {
   const action = task(request);
   const system = request['system'];
   if (!name || !dir || !action || typeof system !== 'boolean') return BAD_REQUEST;
+  const unsafe = othersCouldChange(dir, me());
+  if (unsafe) return unsafe;
   const time = stamp();
   const unit = `ilex-app-${name}-${action}-${time}`;
   if (!UNIT_PATTERN.test(unit)) return BAD_REQUEST;
@@ -170,6 +191,8 @@ export async function startSystemTask(request: Request): Promise<Answer> {
   if (log !== join(dir, '.ilex', 'tasks', `${time}-${action}.log`) || !existsSync(log)) {
     return BAD_REQUEST;
   }
+  const unsafe = othersCouldChange(dir, askingUid());
+  if (unsafe) return unsafe;
   return runUnit(unitArgs(true, unit, dir, log, name, action));
 }
 
@@ -220,6 +243,8 @@ export async function checkCompose(request: Request): Promise<Answer> {
   const name = project(request);
   const dir = folder(request);
   if (!name || !dir) return BAD_REQUEST;
+  const unsafe = othersCouldChange(dir, me());
+  if (unsafe) return unsafe;
   const result = await run(
     PROGRAMS.docker,
     ['compose', '--project-name', name, '--profile', '*', 'config', '--format', 'json'],

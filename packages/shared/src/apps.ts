@@ -220,6 +220,10 @@ export const APP_ERROR_CODES = {
   dockerUnavailable: 'docker_unavailable',
   templateNotFound: 'catalog_entry_not_found',
   pathProtected: 'path_protected',
+  /** Another account could change the folder, a folder above it or its Compose files. */
+  folderUnsafe: 'app_folder_unsafe',
+  /** Docker runs this app from another folder than the one asked about. */
+  folderMismatch: 'app_folder_mismatch',
   failed: 'app_failed',
 } as const;
 export type AppErrorCode = (typeof APP_ERROR_CODES)[keyof typeof APP_ERROR_CODES];

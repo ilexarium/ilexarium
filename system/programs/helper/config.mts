@@ -53,6 +53,18 @@ export const COMPOSE_CONFIG_MAX = 4 * 1024 * 1024;
 export const COMPOSE_ANSWER_MAX = 128 * 1024;
 /** What is passed on of a program's words (the server keeps 4000 characters of a message). */
 export const MESSAGE_MAX = 4000;
+/** What Compose reads from an app's folder by itself: its files, their overrides, `.env`. */
+export const COMPOSE_READS = [
+  'compose.yaml',
+  'compose.yml',
+  'compose.override.yaml',
+  'compose.override.yml',
+  'docker-compose.yaml',
+  'docker-compose.yml',
+  'docker-compose.override.yaml',
+  'docker-compose.override.yml',
+  '.env',
+];
 /** The label naming an app's template (`<id>@<version>`). */
 export const TEMPLATE_LABEL = 'ilex.template';
 /** What is kept of a root program's output: its result line can be longer. */

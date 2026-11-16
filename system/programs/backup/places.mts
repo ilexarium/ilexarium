@@ -4,10 +4,11 @@
 // reads almost anywhere: every folder but the system's and the platform's own; it writes only
 // below folders nobody but root and the person who asked can change.
 
-import { existsSync, lstatSync, readFileSync, realpathSync, type Stats } from 'node:fs';
+import { existsSync, lstatSync, realpathSync, type Stats } from 'node:fs';
 import { dirname } from 'node:path';
 import type { Config } from './model.mts';
 import { Refusal } from '../lib/output.mts';
+import { askingUid } from '../lib/ownership.mts';
 import { DENIED_PATHS, inside, isPlainAbsolutePath } from '../lib/paths.mts';
 import { isRoot } from '../lib/startup.mts';
 
@@ -52,29 +53,7 @@ export function resolveSource(path: string, allowed: (p: string) => boolean): st
  */
 export function askingAccount(config: Config): number {
   if (!isRoot) return config.backup.dev?.askedBy ?? process.getuid?.() ?? 0;
-  const first = processesAbove();
-  // Read twice: a process above that ended (its pid free for anyone's) changed its child's parent.
-  if (JSON.stringify(first) !== JSON.stringify(processesAbove())) return 0;
-  return first.at(-1)?.uid ?? 0;
-}
-
-/** This process and the ones above it, up to the first not running as root (by its real uid). */
-function processesAbove(): { pid: number; parent: number; uid: number }[] {
-  const chain: { pid: number; parent: number; uid: number }[] = [];
-  for (let pid = process.pid; pid > 0;) {
-    let status: string;
-    try {
-      status = readFileSync(`/proc/${pid}/status`, 'utf8');
-    } catch {
-      return [];
-    }
-    const parent = Number(/^PPid:\s+(\d+)$/m.exec(status)?.[1] ?? 0);
-    const uid = Number(/^Uid:\s+(\d+)\s/m.exec(status)?.[1] ?? 0);
-    chain.push({ pid, parent, uid });
-    if (uid !== 0) break;
-    pid = parent;
-  }
-  return chain;
+  return askingUid();
 }
 
 /**

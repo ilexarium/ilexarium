@@ -269,6 +269,8 @@
     "app_task_running": "A task of this app is running.",
     "app_task_not_started": "The task didn't start.",
     "path_protected": "That folder is never deleted.",
+    "app_folder_unsafe": "Another Linux account could change this app’s folder, a folder above it or its Compose files, so Ilexarium doesn’t run them. Make them yours (or root’s) with no write access for other accounts — chmod go-w — and try again.",
+    "app_folder_mismatch": "Docker runs this app from another folder. Open it from the apps list.",
     "app_failed": "It didn't work.",
     "program_unavailable": "The root program didn't run (not installed?).",
     "target_not_empty": "That folder has something in it.",
