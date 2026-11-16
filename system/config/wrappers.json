@@ -4,11 +4,15 @@
   "disk": {
     "systemctlBin": "/usr/bin/systemctl"
   },
+  "update": {
+    "appGid": null,
+    "sshUnit": null
+  },
   "backup": {
-    "borgBin": "/usr/bin/borg",
+    "borgBin": null,
     "systemctlBin": "/usr/bin/systemctl",
-    "appUid": 990,
-    "appGid": 990,
+    "appUid": null,
+    "appGid": null,
     "platform": {
       "container": "ilex-postgres-1",
       "database": "ilex",

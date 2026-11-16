@@ -173,33 +173,11 @@ PROXY_GID=$PROXY_GID
 CONF
 
   borg_bin="$(borg_path)"
-  APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" SSH_UNIT="$SSH_UNIT" node --input-type=module -e '
-    const config = {
-      protectedPaths: ["/opt/ilex", "/etc/ilex", "/var/lib/ilex"],
-      dockerBin: "/usr/bin/docker",
-      disk: { systemctlBin: "/usr/bin/systemctl" },
-      update: { appGid: Number(process.env.APP_GID), sshUnit: process.env.SSH_UNIT },
-      backup: {
-        borgBin: process.env.BORG_BIN,
-        systemctlBin: "/usr/bin/systemctl",
-        appUid: Number(process.env.APP_UID),
-        appGid: Number(process.env.APP_GID),
-        platform: {
-          container: "ilex-postgres-1",
-          database: "ilex",
-          user: "ilex_owner",
-          files: [
-            "/etc/ilex/master.key",
-            "/etc/ilex/wrappers.json",
-            "/etc/ilex/backup.json",
-            "/etc/ilex/backup-repository.json",
-            "/etc/systemd/system/ilex-backup.timer.d/schedule.conf",
-          ],
-        },
-      },
-    };
-    process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
-  ' | write_file "$ETC/wrappers.json" root:root 0644
+  local wrappers
+  wrappers="$(APP_UID="$APP_UID" APP_GID="$APP_GID" BORG_BIN="$borg_bin" SSH_UNIT="$SSH_UNIT" \
+    /usr/bin/node "$RELEASE/system/install/wrappers-config.mjs" "$RELEASE/system/config/wrappers.json")" ||
+    die 'The root programs’ configuration could not be written'
+  printf '%s\n' "$wrappers" | write_file "$ETC/wrappers.json" root:root 0644
 
   # The key that encrypts alert channels' secrets: made once, never replaced —
   # a new one would make every stored secret unreadable.
