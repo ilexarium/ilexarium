@@ -26,5 +26,6 @@ Anything that gets around Ilexarium's safety rules, for example:
 These are by design and not vulnerabilities:
 
 - A signed-in person can do what their own Linux account can do (that's what Files, the terminal and the apps are for). A person in the `docker` group effectively has root, as on any machine.
-- While someone's sudo is unlocked (up to 15 minutes after their last root action), the app can do root work for them.
+- While someone's sudo is unlocked (up to 15 minutes after their last root action), the app can do root work for them. So can any other program running as that same account: Ilexarium can't tell its requests from theirs, and each request keeps the unlock alive. A program running as a sudoer could as well wait for their next `sudo` in a terminal.
+- Signed in to Ilexarium alone (no Linux sign-in), a person can start, stop and restart containers (except Ilexarium's own), remove unused images, empty the build cache and delete Docker volumes no container uses. These are the socket proxy's only writes.
 - Signing in needs HTTPS from a proxy you choose. Ilexarium itself listens only on `127.0.0.1`.

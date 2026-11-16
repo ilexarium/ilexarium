@@ -1,6 +1,6 @@
 # Bringing everything back on a new machine
 
-When the server is lost (a dead disk, a stolen machine), the backup disk and the six-word backup passphrase bring everything back: this app with its users, settings and keys, every service's settings, and their data. A guided version of this is planned; until then, these are the steps. They need a terminal on the new machine, and take about half an hour plus the time to copy your data back.
+When the server is lost (a dead disk, a stolen machine), the backup disk and the six-word backup passphrase bring everything back: Ilexarium with its users, settings and backup plan, and your apps with their data. A guided version of this is planned; until then, these are the steps. They need a terminal on the new machine and take about half an hour, plus the time to copy your data back.
 
 You need:
 
@@ -9,74 +9,98 @@ You need:
 
 Every command below runs as root (`sudo -i` first).
 
-## 1. Install the platform
+## 1. Install Ilexarium
 
-Install it as on the first machine (the install script), but **don't open the setup page yet** — its account would be replaced anyway.
+Install it as on the first machine (`get-ilex.sh`), but **don't open the setup page**: your old account comes back in step 4.
 
 ## 2. Connect the backup disk
 
-Connect it and mount it under `/mnt` or `/media` at **the same place as before** (for example `/mnt/usb`), then set two shell variables used below:
+Mount it at **the same place as before** (for example `/mnt/usb`): the backup plan names that place. Then give this machine the passphrase and check that it opens the backups:
 
 ```sh
-REPO=/mnt/usb/ilex-backups      # where the disk is mounted, plus ilex-backups
-read -rs BORG_PASSPHRASE && export BORG_PASSPHRASE   # type the six words, then Enter
-borg list --short "$REPO" | tail -3                  # proves the passphrase opens the backups
+REPO=/mnt/usb/ilex-backups                 # where the disk is mounted, plus ilex-backups
+read -rs WORDS && printf '%s\n' "$WORDS" | install -m 0400 /dev/stdin /etc/ilex/backup.passphrase && unset WORDS
+                                           # ↑ type the six words with spaces between, then Enter
+mkdir -p -m 0700 /var/lib/ilex/backups/borg
+export BORG_BASE_DIR=/var/lib/ilex/backups/borg BORG_PASSCOMMAND='cat /etc/ilex/backup.passphrase'
+borg list --short "$REPO" | tail -3        # shows the newest backups: the passphrase is right
 ```
 
-## 3. Find the newest backup of the platform
+## 3. Put Ilexarium's files back
 
-Each backup is named `<item>-<UTC time>`. The platform's are the ones holding its database dump:
+The newest backup of Ilexarium itself is the newest one holding its database dump:
 
 ```sh
-PLATFORM=$(for a in $(borg list --short "$REPO"); do
-  borg list "$REPO::$a" var/lib/ilex/backups/platform >/dev/null 2>&1 && echo "$a"
-done | tail -1)
-echo "$PLATFORM"
+PLATFORM=$(borg list --format '{archive} {comment}{NL}' "$REPO" |
+  grep -F '"/var/lib/ilex/backups/platform"' | tail -1 | cut -d' ' -f1)
+echo "$PLATFORM"                           # one name: <id>-<date and time>
 ```
 
-## 4. Put the platform's files back
-
-Stop the app, then restore the platform's files to where they were — the master key (it opens the services' passwords stored in the database), the backup plan and its timer, and the database dump:
+Stop Ilexarium, then take back the database dump, the key that opens the secrets stored in the database, the backup plan and its schedule. Nothing else from that backup: the rest of `/etc/ilex` belongs to this machine.
 
 ```sh
-systemctl stop ilex.socket ilex       # the app and its port: a request would start it again (its database keeps running)
-cd / && borg extract --numeric-ids "$REPO::$PLATFORM"
-echo "$BORG_PASSPHRASE" > /etc/ilex/backup.passphrase
-chmod 0400 /etc/ilex/backup.passphrase
+systemctl stop ilex.socket ilex            # the app and its port (its database keeps running)
+cd / && borg extract "$REPO::$PLATFORM" \
+  var/lib/ilex/backups/platform etc/ilex/master.key etc/ilex/backup.json \
+  etc/ilex/backup-repository.json etc/systemd/system/ilex-backup.timer.d
 ```
 
-## 5. Restore the database
+## 4. Restore the database
 
-The dump replaces the fresh database (sessions aren't in it: everyone signs in again):
+The dump replaces the new, empty database, as the database's owner and into an emptied schema. Sessions aren't in it: everyone signs in again.
 
 ```sh
-docker exec -i ilex-postgres-1 pg_restore -U ilex -d ilex --clean --if-exists --no-owner \
+docker exec ilex-postgres-1 psql -v ON_ERROR_STOP=1 -q -U ilex_owner -d ilex \
+  -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+docker exec -i ilex-postgres-1 pg_restore --exit-on-error -U ilex_owner -d ilex \
   < /var/lib/ilex/backups/platform/ilex.dump
 rm -r /var/lib/ilex/backups/platform
 ```
 
-Services listed in the restored database aren't running on this machine yet. Mark them as removed — their settings and passwords stay, so "Install again" brings each back with its previous settings:
+The database lists each item's backups as they were when it was dumped, so before that night's backups were made. Read the lists from the disk instead:
 
 ```sh
-docker exec ilex-postgres-1 psql -U ilex -d ilex \
-  -c "UPDATE \"Service\" SET status = 'removed' WHERE status <> 'removed';"
+for id in $(docker exec ilex-postgres-1 psql -tA -U ilex_owner -d ilex -c 'SELECT id FROM "BackupItem"'); do
+  names=$(borg list --short --glob-archives "$id-*" "$REPO" | paste -sd, -)
+  docker exec -i ilex-postgres-1 psql -q -U ilex_owner -d ilex -v names="$names" -v id="$id" <<'SQL'
+UPDATE "BackupItem" SET archives = string_to_array(:'names', ','), "archivesAt" = NULL WHERE id = :'id';
+SQL
+done
 ```
 
-## 6. Start the app and the backup timers
+## 5. Run the installer once more
+
+Run `get-ilex.sh` again, as in step 1. It repairs what the restore can't: it brings the database up to this version, gives the app its rights in it, makes the restored key the app's own again, and starts Ilexarium. Then turn the backup schedule back on:
 
 ```sh
-systemctl start ilex
 systemctl daemon-reload
 systemctl enable --now ilex-backup.timer ilex-backup-check.timer
 ```
 
-Sign in with your old account and password.
+Sign in with your old account and password. The **Backups** page shows your plan and your backups.
 
-## 7. Bring the services' data back, then the services
+## 6. Make the Linux accounts again
 
-On the **Backups** page, for each service: **Restore…** → the newest backup → **Back in place**. Nothing runs yet, so nothing is stopped; the folders come back where they were. Then, on the **Services** page, **Install again** — its previous settings are filled in, and it starts on its restored data. (Immich: afterwards, restore its database in Immich, as the note after the restore says.)
+Restored files keep their owner's user **number**, not the name. Make each person's account again with the same name and the same number, in the same groups as before (`sudo`, or `wheel` on Arch; `docker` if they were in it). The backups show who owned what (still in the shell of step 2):
 
-Folders you backed up (home folders, others) restore **to a new folder** under `/srv/ilex/restores/`; move what you need from there.
+```sh
+for a in $(borg list --short --last 20 "$REPO"); do borg list --format '{user} {uid}{NL}' "$REPO::$a"; done | sort -u
+```
+
+Then for each person, for example anna with 1000, the account and the folder their apps live in (a restore would otherwise make that folder root's):
+
+```sh
+useradd --create-home --uid 1000 --groups sudo anna && passwd anna
+install -d -o anna -g anna /home/anna/apps
+```
+
+Your own account, made when the machine was set up, usually has its number already (check with `id`); give it its `apps` folder the same way.
+
+## 7. Bring the apps back
+
+Their backups bring them back, through the Linux sign-in of the account each app belongs to. On the **Backups** page, for each app: **Restore…** → the newest backup → **Back where it was**: its folder comes back where it was. The app now shows on the **Apps** page (not running yet); open it and choose **Update**: it starts from its restored files, with the versions they set.
+
+Folders you backed up (home folders, others) come back the same way, **Back where it was**, or into a folder you choose.
 
 ## 8. Check
 
@@ -84,4 +108,4 @@ Start a backup with **Back up now**. When it's done, everything is backed up aga
 
 ---
 
-_Tested 2026-10-14 against the development database:_ a backup made by `ilex-backup run`, the platform archive found and extracted as in steps 3–4, and the dump restored with `pg_restore` into a new database (users back, sessions empty).
+_Tested 2026-11-16 on two throwaway Debian 13 machines (`tools/vm`): the first installed and backed up by the install test (an app, navidrome, as anna); the second a fresh install with the same backup disk, brought back with these steps — the owner signs in, the backup plan and its backups are listed, navidrome restored where it was (owned by anna) and started with Update, and a new backup succeeds._
