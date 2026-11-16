@@ -23,9 +23,9 @@ import {
   lstatSync,
   writeFileSync,
 } from 'node:fs';
-import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkEngines, downloadEngines } from './lib/prisma-engines.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const { version } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
@@ -34,8 +34,6 @@ const NAME = `ilex-${version}`;
 const OUT = join(ROOT, 'release');
 const STAGE = join(OUT, NAME);
 const APP = join(STAGE, 'app');
-/** Prisma's migration engine for the CPUs the installer supports (all three distributions ship OpenSSL 3). */
-const ENGINE_TARGETS = ['debian-openssl-3.0.x', 'linux-arm64-openssl-3.0.x'];
 
 const releaseUrl = process.env.RELEASE_URL?.replace(/\/+$/, '');
 const releasePub = process.env.RELEASE_PUB ?? join(ROOT, 'system/install/release.pub');
@@ -113,22 +111,14 @@ run(
   APP,
 );
 
-// Prisma's migration engine for both CPUs, checksums checked by Prisma's own downloader.
-const require = createRequire(join(ROOT, 'apps/server/package.json'));
-const { download } = require('@prisma/fetch-engine');
-const { enginesVersion } = require('@prisma/engines-version');
+// Prisma's migration engine for both CPUs, only as pinned in scripts/prisma-engines.json.
 const engines = join(APP, 'node_modules/@prisma/engines');
-await download({
-  binaries: { 'schema-engine': engines },
-  binaryTargets: ENGINE_TARGETS,
-  version: enginesVersion,
-  showProgress: false,
-});
-for (const target of ENGINE_TARGETS) {
-  if (!existsSync(join(engines, `schema-engine-${target}`))) {
-    throw new Error(`Prisma's schema engine for ${target} is missing`);
-  }
-}
+const enginesVersion = await downloadEngines(ROOT, engines);
+checkEngines(
+  engines,
+  enginesVersion,
+  JSON.parse(readFileSync(join(ROOT, 'scripts/prisma-engines.json'), 'utf8')),
+);
 
 // One archive for both CPUs: no compiled Node modules may be in it.
 function* files(dir) {

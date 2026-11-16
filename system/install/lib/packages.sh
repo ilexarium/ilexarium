@@ -7,6 +7,7 @@
 
 KEYRINGS=/etc/apt/keyrings
 NODE_MIN=24.5.0
+SSH_LISTEN_DROPIN=/etc/ssh/sshd_config.d/ilex-listen.conf
 
 apt_install() {
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@" >/dev/null
@@ -200,18 +201,58 @@ ensure_borg() {
 }
 
 # The machine's own SSH server: the Linux sign-in connects to it (as a person, with their password).
+# One that runs is the owner's and stays as it is. One the installer installs or turns on listens
+# on this machine only (ilex-listen.conf, theirs to remove), as nothing but the sign-in needs it.
 ensure_ssh_server() {
+  SSH_TURN_ON=0
   if [[ ! -x /usr/sbin/sshd ]]; then
-    confirm 'Install the OpenSSH server (the Linux sign-in uses it)?' || die 'The OpenSSH server is needed'
+    confirm 'Install the OpenSSH server for the Linux sign-in, listening on this machine only?' ||
+      die 'The OpenSSH server is needed'
+    # Before the package: Debian's starts it at once.
+    write_ssh_listen
     if [[ "$OS_FAMILY" == pacman ]]; then
       pacman_install openssh
     else
       apt_update
       apt_install openssh-server
     fi
+    SSH_TURN_ON=1
   fi
   SSH_UNIT="$(ssh_unit)"
+  if [[ "$SSH_TURN_ON" == 0 ]] && ssh_switched_off; then
+    if [[ "$UPDATE" == 1 ]]; then
+      info "The SSH server is switched off and stays off: the Linux sign-in won't work"
+    else
+      confirm 'The SSH server is switched off. Turn it on for the Linux sign-in, listening on this machine only?' ||
+        die 'The Linux sign-in needs the SSH server: turn it on yourself, or run again and agree'
+      write_ssh_listen
+      SSH_TURN_ON=1
+    fi
+  fi
   info "$(/usr/sbin/sshd -V 2>&1 | head -n1) ($SSH_UNIT)"
+}
+
+# Neither its service nor its socket (Ubuntu's way) enabled or running.
+ssh_switched_off() {
+  local unit
+  for unit in "$SSH_UNIT" "${SSH_UNIT%.service}.socket"; do
+    if systemctl is-enabled --quiet "$unit" 2>/dev/null || systemctl is-active --quiet "$unit" 2>/dev/null; then
+      return 1
+    fi
+  done
+}
+
+# ::1 only where the machine has it: a socket unit that can't bind an address fails as a whole.
+write_ssh_listen() {
+  ensure_dir /etc/ssh/sshd_config.d root:root 0755
+  {
+    printf '%s\n' "# $SSH_LISTEN_DROPIN" \
+      '# The SSH server listens on this machine only: Ilexarium installed or turned it on for its' \
+      '# Linux sign-in, which connects from here. Remove this file to reach it from other machines.' \
+      'ListenAddress 127.0.0.1'
+    if grep -qs '^0\{31\}1 ' /proc/net/if_inet6; then printf 'ListenAddress ::1\n'; fi
+  } | write_file "$SSH_LISTEN_DROPIN" root:root 0644
+  info "$SSH_LISTEN_DROPIN: this machine only"
 }
 
 # Its unit: ssh.service on Debian and Ubuntu (sshd.service is only its alias there), sshd.service

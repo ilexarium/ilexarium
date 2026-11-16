@@ -152,13 +152,15 @@ keep_previous() {
 write_settings() {
   log 'Settings'
   local owner_password docker_gid borg_bin
-  owner_password="$(read_setting "$ETC/database.env" POSTGRES_PASSWORD)"
+  owner_password="$(cat "$ETC/database-owner-password" 2>/dev/null || true)"
+  # Earlier installs kept it in database.env.
+  [[ -n "$owner_password" ]] || owner_password="$(read_setting "$ETC/database.env" POSTGRES_PASSWORD)"
   [[ -n "$owner_password" ]] || owner_password="$(random_hex 24)"
   OWNER_DATABASE_URL="postgresql://ilex_owner:$owner_password@127.0.0.1:5432/ilex"
 
+  printf '%s' "$owner_password" | write_file "$ETC/database-owner-password" root:root 0600
   write_file "$ETC/database.env" root:root 0600 <<CONF
 POSTGRES_USER=ilex_owner
-POSTGRES_PASSWORD=$owner_password
 POSTGRES_DB=ilex
 CONF
 
