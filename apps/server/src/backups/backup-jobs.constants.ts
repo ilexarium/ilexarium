@@ -9,6 +9,8 @@ const status = z.enum(['ok', 'warning', 'failed']);
 const errorCode = z.string().max(64).nullable();
 const time = z.iso.datetime();
 
+/** Borg's warnings, as the program cuts them (with room to spare). */
+const warnings = z.array(z.string().max(1000)).max(50);
 const itemResultSchema = z.object({
   itemId: uuid,
   status,
@@ -16,7 +18,7 @@ const itemResultSchema = z.object({
   archive: z.string().max(128).nullable(),
   originalBytes: z.number().nonnegative().nullable(),
   addedBytes: z.number().nonnegative().nullable(),
-  warnings: z.array(z.string().max(1000)).max(50),
+  warnings,
   archives: z.array(z.string().max(128)).max(10_000).nullable().optional(),
 });
 export type ItemResult = z.infer<typeof itemResultSchema>;
@@ -71,6 +73,7 @@ const restoreDoneSchema = z.object({
   errorCode,
   setAside,
   appWasRunning: z.boolean().default(false),
+  warnings: warnings.default([]),
 });
 
 export const jobEventSchema = z.discriminatedUnion('type', [

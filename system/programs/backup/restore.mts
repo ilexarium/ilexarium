@@ -10,6 +10,8 @@
 // with its full paths below it.
 
 import {
+  chmodSync,
+  chownSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -21,7 +23,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { absolute } from './config.mts';
-import { openRepository } from './destination.mts';
+import { mounts, openRepository } from './destination.mts';
 import { folderStamp, JobFile, prepareState, writeAtomic } from './files.mts';
 import { parseInput } from './input.mts';
 import type { Config, ItemResult, Paths, SetAside } from './model.mts';
@@ -35,10 +37,19 @@ import {
   overlaps,
 } from './places.mts';
 import { ARCHIVE_PATTERN, UUID, loadPlan } from './plan.mts';
-import { borg, borgFailed, borgFailure, docker, failedLine, takeLock } from './programs.mts';
-import { startAgain } from './run.mts';
+import {
+  borg,
+  borgFailed,
+  borgFailure,
+  docker,
+  failedLine,
+  removeFolder,
+  takeLock,
+} from './programs.mts';
+import { MAX_WARNINGS, startAgain } from './run.mts';
 import { startDetached, startUnit } from './start.mts';
 import { Refusal, emit, oneLine } from '../lib/output.mts';
+import { isRoot } from '../lib/startup.mts';
 
 export const SET_ASIDE_PATTERN = /\.before-restore-\d{8}-\d{6}$/;
 
@@ -60,6 +71,32 @@ interface RestoreRequest {
   target: string | null;
   /** The uid of the person whose sudo started it (`askingAccount`), never from the app. */
   askedBy: number;
+}
+
+/**
+ * A disk mounted at a folder, or inside it, is refused where a folder is moved or deleted: moving
+ * it takes the disk along (its files then restored onto the disk above), and deleting what was set
+ * aside would empty that disk.
+ */
+function mountAt(paths: Paths, folder: string): string | undefined {
+  return [...mounts(paths.mountInfo).keys()].find((m) => m === folder || below(m, folder));
+}
+
+function assertNoMount(paths: Paths, folder: string): void {
+  const mount = mountAt(paths, folder);
+  if (mount === undefined) return;
+  const where = mount === folder ? 'is a mount point' : `has a disk mounted inside (${mount})`;
+  throw new Refusal('mount_inside', `${folder} ${where}`, 2);
+}
+
+/** A restore's warnings: Borg's (exit code 1), each line cut, at most `MAX_WARNINGS`. */
+function extractWarnings(ran: { code: number | null; logs: { level: string; message: string }[] }) {
+  const warnings = ran.logs
+    .filter((l) => l.level === 'WARNING')
+    .map((l) => l.message.slice(0, 500))
+    .slice(0, MAX_WARNINGS);
+  if (ran.code === 1 && warnings.length === 0) warnings.push('Borg finished with warnings');
+  return warnings;
 }
 
 const requestFile = (paths: Paths, id: string) =>
@@ -120,7 +157,10 @@ function checkRequest(
     // Only what is moved aside: a folder inside another goes with it (`restoreArchive`).
     const folders = item.kind === 'app' ? (item.folders ?? []) : [item.path!];
     const real = folders.map((folder) => (existsSync(folder) ? realpathSync(folder) : folder));
-    for (const folder of outermost(real)) assertParentsSafe(folder, askedBy);
+    for (const folder of outermost(real)) {
+      assertParentsSafe(folder, askedBy);
+      assertNoMount(paths, folder);
+    }
   }
   return { restoreId, itemId, archive, target: target as string | null, askedBy };
 }
@@ -168,7 +208,8 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
     errorCode: string | null,
     setAside: string[],
     appWasRunning = false,
-  ) => events.event({ type: 'restoreDone', status, errorCode, setAside, appWasRunning });
+    warnings: string[] = [],
+  ) => events.event({ type: 'restoreDone', status, errorCode, setAside, appWasRunning, warnings });
   // The folders set aside, in the job file before each is moved and after each goes back: a
   // restore killed before its end (kill -9, power loss) still tells the app where the previous
   // version is — at worst a folder too many, never one too few. Every end reports the same list.
@@ -186,9 +227,9 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
     if (request.restoreId !== restoreId) throw new Refusal('invalid_request', 'another restore');
     // A backup run may hold the lock: a restore waits for it, like a scheduled run would.
     release = await takeLock(paths, true);
-    const appWasRunning = await restoreArchive(config, paths, request, phase, line, aside);
+    const restored = await restoreArchive(config, paths, request, phase, line, aside);
     phase('done');
-    done('succeeded', null, setAside, appWasRunning);
+    done('succeeded', null, setAside, restored.appWasRunning, restored.warnings);
     rmSync(file, { force: true });
     return 0;
   } catch (error) {
@@ -210,7 +251,7 @@ async function restoreArchive(
   phase: (name: string) => void,
   line: (text: string) => void,
   aside: (folders: string[]) => void,
-): Promise<boolean> {
+): Promise<{ appWasRunning: boolean; warnings: string[] }> {
   const plan = loadPlan(config, paths);
   const item = plan.items.find((i) => i.id === request.itemId)!;
   const repo = openRepository(config, paths, plan);
@@ -226,18 +267,20 @@ async function restoreArchive(
     phase('restoring');
     const target = request.target;
     checkTarget(target, request.askedBy);
-    // Folders made here (the target, and the ones Borg makes above the restored data) passable
-    // by everyone (0755), so each person can reach their own files; the restored files and
-    // folders keep their own owners and modes (Borg sets them from the archive).
+    // The folders Borg makes above the restored data are new (0755): a file private only because
+    // of a home folder above it would be open to every account. So the target is private to the
+    // person who asked (root's, when root asked) — they open it up when they want to; inside it,
+    // the restored files and folders keep their own owners and modes (Borg sets them).
     process.umask(0o022);
     try {
-      mkdirSync(target, { recursive: false, mode: 0o755 });
+      mkdirSync(target, { recursive: false, mode: 0o700 });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
     }
     try {
       // Made by someone else between the check and mkdir (which then found it): refused too.
       assertSafeFolder(target, request.askedBy);
+      chmodSync(target, 0o700);
       const extract = await borg(
         config,
         paths,
@@ -248,10 +291,12 @@ async function restoreArchive(
       if (borgFailed(extract)) {
         throw new Refusal(borgFailure(extract), failedLine('borg extract', extract), 5);
       }
+      return { appWasRunning: false, warnings: extractWarnings(extract) };
     } finally {
       process.umask(0o077);
+      // Theirs only now: nobody but root changes the folders Borg makes while it extracts.
+      if (isRoot && lstatSync(target).uid === 0) chownSync(target, request.askedBy, -1);
     }
-    return false;
   }
 
   // Back where it was: what the archive holds of the item's folders in the plan now.
@@ -284,7 +329,10 @@ async function restoreArchive(
   // it as made by the restore after the original came back. Only these are moved, so only their
   // parents are checked (an inner folder's parent is the outer one, often a container's uid).
   const restored = outermost(sources);
-  for (const source of restored) assertParentsSafe(source, request.askedBy);
+  for (const source of restored) {
+    assertParentsSafe(source, request.askedBy);
+    assertNoMount(paths, source);
+  }
   const project = item.kind === 'app' ? item.project! : null;
   let wasRunning = false;
   if (project) {
@@ -307,6 +355,7 @@ async function restoreArchive(
     archives: null,
   };
   let failure: Refusal | null = null;
+  const warnings: string[] = [];
   try {
     if (wasRunning) {
       phase('stopping');
@@ -342,13 +391,53 @@ async function restoreArchive(
     if (borgFailed(extract)) {
       throw new Refusal(borgFailure(extract), failedLine('borg extract', extract), 5);
     }
+    warnings.push(...extractWarnings(extract));
+    // Listed in the archive's comment but not in its files (unreadable when it was backed up):
+    // what was there goes back rather than the folder being gone.
+    const missing = (path: string) => !lstatSync(path, { throwIfNoEntry: false });
+    for (const source of created.filter(missing)) {
+      warnings.push(`${source}: not in this backup's files`);
+    }
+    // A folder inside a moved one: its previous version is inside the one set aside.
+    for (const source of sources.filter((p) => !restored.includes(p) && missing(p))) {
+      const outer = moved.find((m) => below(source, m.from));
+      warnings.push(
+        outer
+          ? `${source}: not in this backup's files, its previous version is in ${outer.to}`
+          : `${source}: not in this backup's files`,
+      );
+    }
+    const returned = moved.filter((m) => missing(m.from));
+    if (returned.length > 0) {
+      for (const { from, to } of returned) {
+        renameSync(to, from);
+        moved.splice(
+          moved.findIndex((m) => m.to === to),
+          1,
+        );
+        warnings.push(`${from}: not in this backup's files, the current folder was put back`);
+      }
+      const back = returned.map((m) => m.to);
+      told = told.filter((path) => !back.includes(path));
+      aside(told);
+      writeSetAside(
+        paths,
+        readSetAside(paths).filter((e) => !back.includes(e.path)),
+      );
+    }
   } catch (error) {
     failure = error instanceof Refusal ? error : new Refusal('borg_failed', String(error), 5);
     // The way back: what was extracted of folders that weren't there goes first, while every
     // original is still aside — nothing removed here can be one; then each partly restored folder
     // goes and its set-aside one returns. Telling the job file is best effort here: the folders
     // going back comes first.
-    for (const path of created) rmSync(path, { recursive: true, force: true });
+    // Never leaving their disk (`removeFolder`); a folder that can't go keeps the previous
+    // version where it was set aside, still reported (and listed for `discard`).
+    for (const path of created) {
+      if (mountAt(paths, path) !== undefined || !(await removeFolder(config, path))) {
+        line(`${path}: could not be removed`);
+      }
+    }
     let last = told;
     const tell = (folders: string[]) => {
       last = folders;
@@ -358,16 +447,22 @@ async function restoreArchive(
         // The list a restore killed now would report is too long, never too short.
       }
     };
+    const kept: string[] = [];
     while (moved.length > 0) {
       const { from, to } = moved.pop()!;
-      rmSync(from, { recursive: true, force: true });
-      renameSync(to, from);
-      tell(moved.map((m) => m.to));
+      // A bind mount of the same disk is one rm would walk into: mountinfo says so first.
+      if (mountAt(paths, from) === undefined && (await removeFolder(config, from))) {
+        renameSync(to, from);
+      } else {
+        kept.push(to);
+        line(`${from}: could not be removed, the previous version stays at ${to}`);
+      }
+      tell([...moved.map((m) => m.to), ...kept]);
     }
-    if (last.length > 0) tell([]);
+    if (last.length !== kept.length) tell(kept);
     writeSetAside(
       paths,
-      readSetAside(paths).filter((e) => !told.includes(e.path)),
+      readSetAside(paths).filter((e) => !told.includes(e.path) || kept.includes(e.path)),
     );
   } finally {
     if (wasRunning) {
@@ -379,7 +474,7 @@ async function restoreArchive(
   // The restore itself is done: the folders set aside are still reported.
   if (result.errorCode)
     throw new Refusal(result.errorCode, 'the app could not be started again', 5);
-  return wasRunning;
+  return { appWasRunning: wasRunning, warnings: warnings.slice(0, MAX_WARNINGS) };
 }
 
 /** The folders an archive holds, from the comment its backup wrote; null without one. */
@@ -412,8 +507,11 @@ export async function discard(config: Config, paths: Paths, input: string): Prom
         throw new Refusal('path_not_allowed', 'not a folder');
       }
       assertParentsSafe(path, askingAccount(config));
-      // Removes links inside as links, never what they point to.
-      rmSync(path, { recursive: true, force: true });
+      assertNoMount(paths, path);
+      // Links inside go as links, never what they point to; a disk mounted meanwhile stays.
+      if (!(await removeFolder(config, path))) {
+        throw new Refusal('borg_failed', `${path} could not be removed`, 5);
+      }
     }
     writeSetAside(
       paths,

@@ -202,6 +202,8 @@ model BackupRestore {
   setAsideDeletedAt DateTime?  @db.Timestamptz(3)
   /// Back where it was, an app that was running: "Apply the restored settings" is offered until used.
   appWasRunning     Boolean    @default(false)
+  /// Succeeded with warnings: Borg's, and folders the backup didn't hold.
+  warnings          String[]   @default([])
   status            JobStatus
   phase             String?
   errorCode         String?

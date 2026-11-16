@@ -8,7 +8,18 @@
   <div hlmCardContent class="grid gap-3">
     @switch (restore().status) {
       @case ('succeeded') {
-        <p class="text-sm">{{ 'backups.restore.succeeded' | translate }}</p>
+        @if (restore().warnings.length > 0) {
+          <div hlmAlert role="alert" class="grid gap-2">
+            <p hlmAlertDescription>{{ 'backups.restore.succeededWithWarnings' | translate }}</p>
+            <ul class="grid gap-1 text-sm" dir="ltr">
+              @for (warning of restore().warnings; track $index) {
+                <li class="break-all">{{ warning }}</li>
+              }
+            </ul>
+          </div>
+        } @else {
+          <p class="text-sm">{{ 'backups.restore.succeeded' | translate }}</p>
+        }
       }
       @case ('running') {
         <p class="flex items-center gap-2 text-sm" role="status">
@@ -70,10 +81,8 @@
       <div class="grid gap-2 rounded-md border p-3 text-sm">
         <p>
           {{
-            (restore().status === 'interrupted'
-              ? 'backups.restore.setAsideInterrupted'
-              : 'backups.restore.setAside'
-            ) | translate
+            (discardable() ? 'backups.restore.setAside' : 'backups.restore.setAsideInterrupted')
+              | translate
           }}
         </p>
         <ul class="grid gap-1">
@@ -83,8 +92,11 @@
             </li>
           }
         </ul>
-        <!-- Interrupted: it may be the only whole copy, so it's not deleted from here. -->
-        @if (restore().status !== 'interrupted') {
+        <!-- Interrupted, or failed while putting it back: it may be the only whole copy. -->
+        @if (discardable()) {
+          @if (restore().warnings.length > 0) {
+            <p class="font-medium">{{ 'backups.restore.checkBeforeDiscard' | translate }}</p>
+          }
           <button
             hlmBtn
             variant="outline"

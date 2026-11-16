@@ -24,4 +24,5 @@ ReadOnlyPaths=/opt/ilex /root
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
-RestrictSUIDSGID=yes
+# No RestrictSUIDSGID: Borg sets each restored file's mode from the archive, and with it the
+# set-group-ID bit of shared folders (2775) would be refused — they'd come back private (0700).

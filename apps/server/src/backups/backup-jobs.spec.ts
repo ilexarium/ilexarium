@@ -246,6 +246,7 @@ describe('BackupJobs', () => {
       errorCode: null,
       setAside: ['/srv/docs.before-restore-20261030-120000'],
       appWasRunning: true,
+      warnings: ['/srv/docs/shared: chmod: Operation not permitted'],
     });
     await jobs.refresh();
     expect(jobs.restoreProgress(RESTORE)).toBeNull();
@@ -257,6 +258,7 @@ describe('BackupJobs', () => {
           phase: 'restoring',
           setAside: ['/srv/docs.before-restore-20261030-120000'],
           appWasRunning: true,
+          warnings: ['/srv/docs/shared: chmod: Operation not permitted'],
           output: 'x',
         }),
       }),

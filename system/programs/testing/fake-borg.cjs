@@ -5,7 +5,9 @@
 // kill-<command>.txt (kills the program that started it: a hard kill, power loss),
 // die-<command>.txt (Borg itself is killed with SIGKILL, as the out-of-memory killer does, after
 // what it got done: a partial extract, no archive), hang-<command>.txt (it works until a signal
-// ends it: a stop while it runs).
+// ends it: a stop while it runs). exit-<command>-once.txt and logs-<command>-once.jsonl count
+// for its next call only (a full disk, then room); unheld.txt lists folders an extract leaves out
+// (unreadable when backed up).
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -28,7 +30,14 @@ if (!passFile || !fs.existsSync(passFile)) {
   process.exit(2);
 }
 
-for (const line of read(`logs-${command}.jsonl`, '').split('\n').filter(Boolean)) {
+const once = (name) => {
+  const text = read(name, null);
+  if (text !== null) fs.rmSync(path.join(dir, name));
+  return text;
+};
+const onceLogs = once(`logs-${command}-once.jsonl`);
+const onceExit = once(`exit-${command}-once.txt`);
+for (const line of (onceLogs ?? read(`logs-${command}.jsonl`, '')).split('\n').filter(Boolean)) {
   process.stderr.write(line + '\n');
 }
 if (fs.existsSync(path.join(dir, `kill-${command}.txt`))) process.kill(process.ppid, 'SIGKILL');
@@ -36,7 +45,7 @@ if (fs.existsSync(path.join(dir, `hang-${command}.txt`))) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20_000);
 }
 const dies = fs.existsSync(path.join(dir, `die-${command}.txt`));
-const exit = Number(read(`exit-${command}.txt`, '0'));
+const exit = Number(onceExit ?? read(`exit-${command}.txt`, '0'));
 const archivesFile = path.join(dir, 'archives.json');
 const archives = () => JSON.parse(read('archives.json', '{}'));
 const target = args.find((a) => a.includes('::'));
@@ -89,15 +98,21 @@ switch (command) {
     break;
   }
   case 'extract': {
+    // A disk mounted while it extracts: mountinfo-after-extract.txt becomes the mountinfo.
+    const after = read('mountinfo-after-extract.txt', null);
+    if (after !== null) fs.writeFileSync(path.join(dir, 'mountinfo'), after);
     const line = archives()[name];
     const sources = line.slice(line.findIndex((a) => a.endsWith('::' + name)) + 1);
     // The folders it holds: those its comment lists (a folder inside another one included).
     const at = line.indexOf('--comment');
     const held = at >= 0 ? JSON.parse(line[at + 1]) : sources;
     const wanted = args.slice(args.indexOf(target) + 1).map((relative) => `/${relative}`);
-    const extracted = wanted.length
-      ? held.filter((f) => wanted.some((w) => f === w || f.startsWith(`${w}/`)))
-      : held;
+    const unheld = read('unheld.txt', '').split('\n').filter(Boolean);
+    const extracted = (
+      wanted.length
+        ? held.filter((f) => wanted.some((w) => f === w || f.startsWith(`${w}/`)))
+        : held
+    ).filter((f) => !unheld.includes(f));
     for (const absolute of extracted) {
       const folder = path.join(process.cwd(), absolute.slice(1));
       fs.mkdirSync(folder, { recursive: true });
@@ -105,6 +120,10 @@ switch (command) {
     }
     break;
   }
+  case 'config':
+    // Asked for a value (no value given): the one in borg-config.txt, if any.
+    if (args.length === 4) process.stdout.write(read('borg-config.txt', ''));
+    break;
   case 'delete': {
     const all = archives();
     for (const n of Object.keys(all)) if (n.startsWith(glob())) delete all[n];
