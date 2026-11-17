@@ -498,18 +498,25 @@ describe('BackupsPage with a plan', () => {
     expect(api.archives).toHaveBeenCalledWith(IMMICH_ITEM);
   });
 
-  it('Restore…: refused or the prompt closed, the saved list all the same', async () => {
+  it('Restore…: refused (said, unless a backup holds the disk) or the prompt closed, the saved list all the same', async () => {
     const { api, asPerson, store } = await render(plan());
     const toastError = vi.spyOn(toast, 'error');
     api.refreshArchives.mockReturnValueOnce(
       throwError(() => new HttpErrorResponse({ status: 409, error: { code: 'busy' } })),
     );
     store.loadArchives(IMMICH_ITEM);
-    await vi.waitFor(() => expect(store.archives()?.list).toHaveLength(1));
-    expect(toastError).toHaveBeenCalled();
-    asPerson.mockResolvedValueOnce(null);
+    await vi.waitFor(() => expect(api.archives).toHaveBeenCalledTimes(1));
+    expect(toastError).not.toHaveBeenCalled();
+    api.refreshArchives.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 502, error: { code: 'borg_failed' } })),
+    );
     store.loadArchives(IMMICH_ITEM);
     await vi.waitFor(() => expect(api.archives).toHaveBeenCalledTimes(2));
+    expect(store.archives()?.list).toHaveLength(1);
+    expect(toastError).toHaveBeenCalledTimes(1);
+    asPerson.mockResolvedValueOnce(null);
+    store.loadArchives(IMMICH_ITEM);
+    await vi.waitFor(() => expect(api.archives).toHaveBeenCalledTimes(3));
     expect(toastError).toHaveBeenCalledTimes(1);
   });
 

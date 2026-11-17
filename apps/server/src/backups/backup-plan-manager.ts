@@ -225,19 +225,21 @@ export class BackupPlanManager {
     const { archives } = await programCall(() => this.rootPrograms.backupList(actor));
     const items = await this.prisma.backupItem.findMany({ select: { id: true } });
     const now = new Date();
-    for (const { id } of items) {
-      const names = archives[id];
-      if (!names) continue;
-      await this.prisma.backupItem.update({
-        where: { id },
-        data: {
-          archives: names.filter(
-            (name) => name.startsWith(`${id}-`) && BACKUP_ARCHIVE_PATTERN.test(name),
-          ),
-          archivesAt: now,
-        },
-      });
-    }
+    await this.prisma.$transaction(
+      items
+        .filter(({ id }) => archives[id])
+        .map(({ id }) =>
+          this.prisma.backupItem.update({
+            where: { id },
+            data: {
+              archives: archives[id].filter(
+                (name) => name.startsWith(`${id}-`) && BACKUP_ARCHIVE_PATTERN.test(name),
+              ),
+              archivesAt: now,
+            },
+          }),
+        ),
+    );
   }
 
   /** "Show again": through the person's sudo; audited. */
