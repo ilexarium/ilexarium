@@ -34,11 +34,12 @@ It builds the shared packages, then runs, in this order (each part's name in bra
 - `[format]` `npm run format:check`
 - `[unit]` every workspace's unit tests: shared, i18n, the server with the helper and the root programs, the web app
 - `[e2e]` the server's integration and e2e tests; a test skipped because a dev service or Borg (`borgbackup`) is missing counts as a failure
-- `[install]` the install test, `tools/vm/test-install.sh --container`: a release installed and updated in a throwaway Debian 13 machine (privileged Docker, several minutes)
 
-`npm run verify -- --only lint,unit` runs some parts. A change to the installer, `system/`, the helper, the root programs, the database or how a release is built needs the install test before it is merged: `npm run verify -- --only install`.
+The install test (`[install]`) is left out unless asked for: it runs the installer in a privileged Docker container (or a VM), see [`tools/vm/README.md`](tools/vm/README.md).
 
-GitHub runs lint, format, unit and e2e on every pull request and every push to `main` (`.github/workflows/ci.yml`). The install test runs there only when the workflow is started by hand ("Run workflow") or by a release: `npm run ship` releases only a commit pushed as `main`, starts the whole workflow for it and goes on only when every job passed.
+`npm run verify -- --only lint,unit` runs some parts. A change to the installer, `system/`, the helper, the root programs, the database or how a release is built needs the install test before it is merged. You don't have to run it yourself: say so in the pull request and a maintainer runs it.
+
+GitHub runs lint, format, unit and e2e on every pull request and every push to `main` (`.github/workflows/ci.yml`). The install test runs there only when a maintainer starts the workflow by hand ("Run workflow", after reading the change) or by a release: `npm run ship` releases only a commit pushed as `main`, starts the whole workflow for it and goes on only when every job passed.
 
 ## Safety rules
 

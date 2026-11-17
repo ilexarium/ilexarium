@@ -5,12 +5,16 @@
 # runs the installer again (--update) and the smoke test again, then updates by ilex-update.
 #
 #   tools/vm/test-install.sh --container   a Debian 13 container with systemd (any machine with
-#                                           Docker; privileged — root-equivalent while it runs)
+#                                           Docker; privileged — root-equivalent while it runs,
+#                                           so it asks first)
 #   tools/vm/test-install.sh --vm           a QEMU VM (tools/vm/vm.sh; a machine with KVM): also
 #                                           restarts it and checks everything comes back
+#   tools/vm/test-install.sh --clean        remove what earlier runs left: the test machines,
+#                                           their volumes and images, tools/vm/run
+#   --yes                                   don't ask before starting a privileged container
 #   --os arch                               container mode on Arch Linux instead (the official
 #                                           image on x86_64, Arch Linux ARM's root filesystem on
-#                                           aarch64)
+#                                           aarch64, Apple silicon included)
 #   --os ubuntu                             container mode on Ubuntu 26.04 instead
 #   --keep                                  leave the machine running afterwards (to look around)
 #   --from <version>|<archive>|none         container mode: also install that older release (by
@@ -28,13 +32,16 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 MODE=''
 OS=debian
 KEEP=0
+YES=0
 FROM=''
 OLDEST_URL=https://ilexarium.com/releases
-usage() { echo "usage: $0 --container [--os debian|ubuntu|arch] [--from <version>|<archive>|none]|--vm [--keep]" >&2; exit 2; }
+usage() { echo "usage: $0 --container [--os debian|ubuntu|arch] [--from <version>|<archive>|none] [--yes]|--vm [--keep]|--clean" >&2; exit 2; }
 while (($# > 0)); do
   case "$1" in
     --container) MODE=container ;;
     --vm) MODE=vm ;;
+    --clean) MODE=clean ;;
+    --yes) YES=1 ;;
     --os) (($# >= 2)) || usage; OS="$2"; shift ;;
     --keep) KEEP=1 ;;
     --from) (($# >= 2)) || usage; FROM="$2"; shift ;;
@@ -46,7 +53,45 @@ done
 [[ "$OS" == debian || "$MODE" == container ]] || { echo "--os $OS is for --container" >&2; exit 2; }
 [[ -n "$FROM" ]] || FROM="$(tr -d '[:space:]' <"$HERE/oldest-release" 2>/dev/null || true)"
 [[ "$FROM" == none ]] && FROM=''
+
+# One run at a time: runs share tools/vm/run, release/ and the machines' names.
 mkdir -p "$HERE/run"
+LOCK="$HERE/run/lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  if kill -0 "$(cat "$LOCK/pid" 2>/dev/null || echo 0)" 2>/dev/null; then
+    echo "An install test is already running here (pid $(cat "$LOCK/pid")): one at a time." >&2
+    exit 1
+  fi
+  rm -rf "$LOCK" && mkdir "$LOCK"
+fi
+echo $$ >"$LOCK/pid"
+release_lock() { rm -rf "$LOCK"; }
+trap release_lock EXIT
+
+if [[ "$MODE" == clean ]]; then
+  for machine in ilex-install-test ilex-install-test-from; do
+    docker rm -f "$machine" >/dev/null 2>&1 || true
+    docker volume rm -f "$machine-docker" "$machine-containerd" "$machine-backup" >/dev/null 2>&1 || true
+  done
+  docker image rm -f ilex-test-machine ilex-test-machine-ubuntu ilex-test-machine-arch ilex-test-alarm >/dev/null 2>&1 || true
+  find "$HERE/run" -mindepth 1 -maxdepth 1 ! -name lock -exec rm -rf {} +
+  echo '==> Removed the test machines, their volumes and images, and tools/vm/run'
+  exit 0
+fi
+
+if [[ "$MODE" == container && "$YES" != 1 ]]; then
+  cat >&2 <<'EOF'
+The install test runs Ilexarium's installer in a privileged Docker container: it can reach this
+machine's devices and kernel, as root can. Nothing in the test does, but it isn't a sandbox.
+For full isolation use --vm (a machine with KVM). Afterwards: tools/vm/test-install.sh --clean.
+EOF
+  if [[ ! -t 0 ]]; then
+    echo 'No one to ask: pass --yes to start it.' >&2
+    exit 2
+  fi
+  read -r -p 'Start it? [y/N] ' answer
+  [[ "$answer" == [yY] ]] || exit 1
+fi
 
 # Served inside the machine by openssl s_server, with a certificate the machine trusts.
 RELEASE_URL=https://localhost:8443/releases
@@ -78,7 +123,8 @@ if [[ "$MODE" == container ]]; then
   if [[ "$OS" == arch ]]; then
     echo '==> Starting the test machine (an Arch Linux container with systemd)'
     base=archlinux:latest
-    if [[ "$(uname -m)" == aarch64 ]]; then
+    # Docker's own architecture, not this machine's name for it (a Mac says arm64).
+    if [[ "$(docker info --format '{{.Architecture}}')" == aarch64 ]]; then
       # No official arm64 image: Arch Linux ARM's root filesystem (an HTTPS mirror: their own site
       # has none), checked against its checksum.
       base=ilex-test-alarm
@@ -124,7 +170,7 @@ if [[ "$MODE" == container ]]; then
       done
     fi
   }
-  trap cleanup EXIT
+  trap 'cleanup; release_lock' EXIT
   for _ in $(seq 1 30); do
     state="$(run_in systemctl is-system-running 2>/dev/null || true)"
     [[ "$state" == running || "$state" == degraded ]] && break
@@ -134,7 +180,7 @@ else
   # shellcheck source=vm.sh
   . "$HERE/vm.sh"
   vm_start
-  trap vm_cleanup EXIT
+  trap 'vm_cleanup; release_lock' EXIT
 fi
 
 LOG="$HERE/run/$MODE.log"
