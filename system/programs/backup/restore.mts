@@ -21,6 +21,11 @@ import {
   renameSync,
   rmSync,
   rmdirSync,
+  openSync,
+  closeSync,
+  fchownSync,
+  fchmodSync,
+  constants,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { absolute } from './config.mts';
@@ -494,33 +499,46 @@ export function missingParents(path: string): string[] {
 
 /**
  * Borg makes the folders above an extracted one as root, 0700 (`~/apps` on a new machine): each
- * is given the restored folder's owner, 0755, so its owner reaches it. Only plain folders: root
- * made them just now, inside parents nobody else may change (`assertParentsSafe`).
+ * is given the owner of the folder above them that was there (`/home/anna`'s: anna), 0755 — never
+ * the restored folder's, which may be a container's uid. Through a handle opened without following
+ * a symlink, deepest first: only root and the person who asked (a sudoer) may change the folders
+ * above (`assertParentsSafe`), so nobody gains by swapping one meanwhile, but root still never
+ * changes anything but the folder it made.
  */
 export function giveParentsToOwner(madeAbove: Map<string, string[]>): void {
-  for (const [source, parents] of madeAbove) {
-    const owner = lstatSync(source, { throwIfNoEntry: false });
-    if (!owner) continue;
-    for (const parent of parents) {
-      const stat = lstatSync(parent, { throwIfNoEntry: false });
-      if (!stat?.isDirectory()) continue;
-      if (isRoot) chownSync(parent, owner.uid, owner.gid);
-      chmodSync(parent, 0o755);
+  for (const parents of madeAbove.values()) {
+    if (parents.length === 0) continue;
+    const owner = lstatSync(dirname(parents[0]), { throwIfNoEntry: false });
+    if (!owner?.isDirectory()) continue;
+    for (const parent of [...parents].reverse()) {
+      let fd: number;
+      try {
+        fd = openSync(parent, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+      } catch {
+        continue; // gone (a failed restore removed it), or not a plain folder
+      }
+      try {
+        if (isRoot) fchownSync(fd, owner.uid, owner.gid);
+        fchmodSync(fd, 0o755);
+      } finally {
+        closeSync(fd);
+      }
     }
   }
 }
 
-/** After a failure: the folders made above a source go again, if nothing else is in them. */
+/** After a failure: the folders made above a source go again if empty; the others become their owner's. */
 export function removeEmptyParents(madeAbove: Map<string, string[]>): void {
   for (const parents of madeAbove.values()) {
     for (const parent of [...parents].reverse()) {
       try {
         rmdirSync(parent);
       } catch {
-        // Not empty (another restored folder is in it), or already gone.
+        // Not empty (a folder that couldn't be removed is in it), or already gone.
       }
     }
   }
+  giveParentsToOwner(madeAbove);
 }
 
 /** The folders an archive holds, from the comment its backup wrote; null without one. */

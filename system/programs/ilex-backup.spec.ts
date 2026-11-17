@@ -1103,14 +1103,14 @@ describe('ilex-backup restore', () => {
     expect(existsSync(join(dev, 'state', 'restore-requests', `${RESTORE}.json`))).toBe(false);
   });
 
-  it('back where it was with the folder above gone: made again, its owner’s, 0755 (not root’s 0700)', async () => {
+  it('back where it was with the folder above gone: made again as the owner of the one above it, 0755 (not root’s 0700)', async () => {
     const demo = join(storage, 'demo');
     rmSync(demo, { recursive: true, force: true });
     const result = await restore(restoreInput());
     expect(result.code, result.lines.join('\n')).toBe(0);
     expect(existsSync(join(demo, 'data', 'restored.txt'))).toBe(true);
     expect(statSync(demo).mode & 0o777).toBe(0o755);
-    expect(statSync(demo).uid).toBe(statSync(join(demo, 'data')).uid);
+    expect(statSync(demo).uid).toBe(statSync(storage).uid);
   });
 
   it('the folder above made by a failed restore goes again', async () => {
