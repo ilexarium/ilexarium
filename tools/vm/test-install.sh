@@ -267,7 +267,7 @@ run_in node /root/smoke.mjs self-update "$GOOD" updated | tee -a "$LOG"
 app_settings_kept "the update to $GOOD"
 run_in node /root/smoke.mjs self-update "$BROKEN" rolled_back | tee -a "$LOG"
 app_settings_kept "the rolled-back update to $BROKEN"
-# Every release updates from every older one (the rules in CLAUDE.md): the oldest supported one is
+# Every release updates from every older one (the project's rule): the oldest supported one is
 # installed on a second machine, its own smoke test sets everything up, and ilex-update takes it
 # straight to this release. Its release address and key are pointed at the test's (the archive
 # carries the real ones) — the only change by hand.
