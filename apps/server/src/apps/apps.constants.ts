@@ -15,6 +15,9 @@ export const ENV_FILE = '.env';
 /** `@@ilex-result`, then SERVICE_RESULT, EXIT_CODE and EXIT_STATUS: added by systemd at a task's end. */
 export const TASK_RESULT_MARKER = '@@ilex-result';
 
+/** What `systemctl is-active` says of a unit that has ended (one that's gone, too: `inactive`). */
+export const TASK_ENDED_STATES = ['inactive', 'failed'];
+
 /** Starting a unit, asking about it, a Compose check: the helper's own limit is 30 s. */
 export const QUICK_MS = 35_000;
 /** Measuring and deleting folders: the helper's own limit is 10 minutes. */

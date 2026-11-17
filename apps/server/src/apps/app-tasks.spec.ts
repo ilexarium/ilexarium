@@ -91,11 +91,19 @@ describe('AppTasks.read', () => {
     });
   });
 
-  it('a state check that timed out: still running, not interrupted', async () => {
-    const running = reading('Extracting 14B\n', { ok: false, error: 'timed_out' });
-    expect(await running()).toMatchObject({ state: 'running', output: ['Extracting 14B'] });
-    const gone = reading('pulling a\n', { ok: false, error: 'ended' });
-    expect(await gone()).toMatchObject({ state: 'interrupted' });
+  it('a unit gone without a result (systemd: inactive): interrupted', async () => {
+    const read = reading('pulling a\n', 'inactive');
+    expect(await read()).toMatchObject({ state: 'interrupted', output: ['pulling a'] });
+  });
+
+  it.each([
+    ['timed out', { ok: false, error: 'timed_out' }],
+    ['the helper gone', { ok: false, error: 'ended' }],
+    ['an empty answer (systemctl gave up on a busy machine)', ''],
+    ['unknown', 'unknown'],
+  ])('a state check that says nothing (%s): still running, not interrupted', async (_, answer) => {
+    const read = reading('Extracting 14B\n', answer);
+    expect(await read()).toMatchObject({ state: 'running', output: ['Extracting 14B'] });
   });
 
   it('a long log: its end (the reason it failed), from a line start, up to the result', async () => {
