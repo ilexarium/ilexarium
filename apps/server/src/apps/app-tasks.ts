@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { type AppTask, type AppTaskAction, TEMPLATE_LABEL_PATTERN } from '@ilex/shared';
 import { posix } from 'node:path';
 import { ChangesUnderway } from '../jobs/changes-underway.js';
@@ -9,6 +9,7 @@ import {
   DOCKER_ACCESS_CACHE_MS,
   LOG_CONTROL,
   QUICK_MS,
+  TASK_ENDED_STATES,
   TASK_FILE,
   TASK_RESULT_MARKER,
   TASK_TAIL_BYTES,
@@ -63,6 +64,7 @@ export function composeFacts(answer: ComposeCheckAnswer, project: string): Compo
  */
 @Injectable()
 export class AppTasks {
+  private readonly logger = new Logger(AppTasks.name);
   private readonly access = new Map<string, { at: number; access: DockerAccess }>();
 
   constructor(
@@ -160,14 +162,18 @@ export class AppTasks {
         { action: 'app.taskState', unit: record.unit, system: record.system },
         { timeoutMs: QUICK_MS },
       );
-      const active = answer.ok ? String(answer['active']) : 'unknown';
-      // A check that timed out (a busy machine: an image extracting) says nothing — only a unit
-      // that ended without its result was interrupted.
-      const unanswered = !answer.ok && answer.error === 'timed_out';
-      state =
-        unanswered || ['active', 'activating', 'reloading'].includes(active)
-          ? 'running'
-          : 'interrupted';
+      const active = answer.ok ? String(answer['active']) : '';
+      // Only systemd saying the unit ended means interrupted. On a busy machine (an image
+      // extracting) the check can fail or come back empty: that says nothing, ask again next time.
+      if (TASK_ENDED_STATES.includes(active)) state = 'interrupted';
+      else {
+        state = 'running';
+        if (!['active', 'activating', 'reloading'].includes(active)) {
+          this.logger.warn(
+            `A task's state was unclear (${answer.ok ? `"${active}"` : answer.error}): still running`,
+          );
+        }
+      }
     }
     // While it runs, whole lines only (the last may be half written).
     const output = taskLines(
