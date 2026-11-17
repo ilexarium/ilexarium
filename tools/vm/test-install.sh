@@ -13,6 +13,12 @@
 #                                           aarch64)
 #   --os ubuntu                             container mode on Ubuntu 26.04 instead
 #   --keep                                  leave the machine running afterwards (to look around)
+#   --from <version>|<archive>|none         container mode: also install that older release (by
+#                                           default the one in tools/vm/oldest-release, the first
+#                                           public one), run its own smoke test (from its git tag;
+#                                           with an archive, this tree's), then update it by
+#                                           ilex-update straight to this release and check again —
+#                                           every release must update from every older one
 #
 # Container mode leaves out what a container can't fake: mounting a real disk and a real restart.
 # Output: tools/vm/run/<mode>.log.
@@ -22,19 +28,24 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 MODE=''
 OS=debian
 KEEP=0
-usage() { echo "usage: $0 --container [--os debian|ubuntu|arch]|--vm [--keep]" >&2; exit 2; }
+FROM=''
+OLDEST_URL=https://ilexarium.com/releases
+usage() { echo "usage: $0 --container [--os debian|ubuntu|arch] [--from <version>|<archive>|none]|--vm [--keep]" >&2; exit 2; }
 while (($# > 0)); do
   case "$1" in
     --container) MODE=container ;;
     --vm) MODE=vm ;;
     --os) (($# >= 2)) || usage; OS="$2"; shift ;;
     --keep) KEEP=1 ;;
+    --from) (($# >= 2)) || usage; FROM="$2"; shift ;;
     *) usage ;;
   esac
   shift
 done
 [[ -n "$MODE" && ("$OS" == debian || "$OS" == ubuntu || "$OS" == arch) ]] || usage
 [[ "$OS" == debian || "$MODE" == container ]] || { echo "--os $OS is for --container" >&2; exit 2; }
+[[ -n "$FROM" ]] || FROM="$(tr -d '[:space:]' <"$HERE/oldest-release" 2>/dev/null || true)"
+[[ "$FROM" == none ]] && FROM=''
 mkdir -p "$HERE/run"
 
 # Served inside the machine by openssl s_server, with a certificate the machine trusts.
@@ -107,8 +118,10 @@ if [[ "$MODE" == container ]]; then
     if [[ "$KEEP" == 1 ]]; then
       echo "==> Left running: docker exec -it $NAME bash   (remove: docker rm -f $NAME; docker volume rm $NAME-docker $NAME-containerd $NAME-backup)"
     else
-      docker rm -f "$NAME" >/dev/null 2>&1 || true
-      docker volume rm -f "$NAME-docker" "$NAME-containerd" "$NAME-backup" >/dev/null 2>&1 || true
+      for machine in "$NAME" "$NAME-from"; do
+        docker rm -f "$machine" >/dev/null 2>&1 || true
+        docker volume rm -f "$machine-docker" "$machine-containerd" "$machine-backup" >/dev/null 2>&1 || true
+      done
     fi
   }
   trap cleanup EXIT
@@ -254,4 +267,62 @@ run_in node /root/smoke.mjs self-update "$GOOD" updated | tee -a "$LOG"
 app_settings_kept "the update to $GOOD"
 run_in node /root/smoke.mjs self-update "$BROKEN" rolled_back | tee -a "$LOG"
 app_settings_kept "the rolled-back update to $BROKEN"
+# Every release updates from every older one (the rules in CLAUDE.md): the oldest supported one is
+# installed on a second machine, its own smoke test sets everything up, and ilex-update takes it
+# straight to this release. Its release address and key are pointed at the test's (the archive
+# carries the real ones) — the only change by hand.
+if [[ -n "$FROM" && "$MODE" == container && "$OS" != arch ]]; then
+  OLD_MACHINE="$NAME-from"
+  if [[ -f "$FROM" ]]; then
+    FROM_ARCHIVE="$FROM"
+    cp "$HERE/smoke.mjs" "$HERE/run/smoke-from.mjs"
+  else
+    FROM_ARCHIVE="$HERE/run/ilex-$FROM.tar.gz"
+    curl -fsSL --proto '=https' -o "$FROM_ARCHIVE" "$OLDEST_URL/download/v$FROM/ilex-$FROM.tar.gz"
+    git -C "$ROOT" show "v$FROM:tools/vm/smoke.mjs" >"$HERE/run/smoke-from.mjs"
+  fi
+  FROM_DIR="$(tar -tzf "$FROM_ARCHIVE" | head -1 | cut -d/ -f1)"
+  TARGET="$MAJOR.$((MINOR + 3)).0"
+  step "From ${FROM_DIR#ilex-} straight to $TARGET (this release, ilex-update)"
+  (
+    cd "$ROOT" &&
+      node tools/vm/repack-release.mjs "$ARCHIVE" "$TARGET" &&
+      npm run release:sign -- --key "$KEYS/release.key" --version "$TARGET" --notes "$NOTES" &&
+      npm run release:publish -- "$RELEASES" "$TARGET"
+  ) >>"$HERE/run/release.log" 2>&1 || { tail -20 "$HERE/run/release.log"; exit 1; }
+  old_in() { docker exec -i "$OLD_MACHINE" "$@"; }
+  docker volume rm -f "$OLD_MACHINE-docker" "$OLD_MACHINE-containerd" "$OLD_MACHINE-backup" >/dev/null 2>&1 || true
+  docker run -d --name "$OLD_MACHINE" --hostname ilex-test --privileged --cgroupns=private \
+    --tmpfs /run --tmpfs /run/lock \
+    -v "$OLD_MACHINE-docker:/var/lib/docker" -v "$OLD_MACHINE-containerd:/var/lib/containerd" \
+    -v "$OLD_MACHINE-backup:/mnt/backup" \
+    "$IMAGE" >/dev/null
+  for _ in $(seq 1 30); do
+    state="$(old_in systemctl is-system-running 2>/dev/null || true)"
+    [[ "$state" == running || "$state" == degraded ]] && break
+    sleep 1
+  done
+  old_in bash -c 'DEBIAN_FRONTEND=noninteractive apt-get update -qq && apt-get install -y -qq --no-install-recommends curl ca-certificates openssl iproute2 >/dev/null' >>"$LOG" 2>&1
+  old_in mkdir -p /srv/www /srv/tls
+  docker cp "$RELEASES" "$OLD_MACHINE:/srv/www/releases"
+  docker cp "$FROM_ARCHIVE" "$OLD_MACHINE:/root/"
+  docker cp "$HERE/run/smoke-from.mjs" "$OLD_MACHINE:/root/smoke-from.mjs"
+  docker cp "$HERE/smoke.mjs" "$OLD_MACHINE:/root/smoke.mjs"
+  docker cp "$KEYS/release.pub" "$OLD_MACHINE:/root/test-release.pub"
+  old_in bash -c "cd /root && tar xzf $(basename "$FROM_ARCHIVE") && cd $FROM_DIR && ./install.sh --yes" >>"$LOG" 2>&1 ||
+    { tail -40 "$LOG"; exit 1; }
+  old_in node /root/smoke-from.mjs install | tee -a "$LOG"
+  old_in bash -c '
+    openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 2 -subj /CN=localhost \
+      -addext subjectAltName=DNS:localhost -keyout /srv/tls/key.pem -out /srv/tls/cert.pem 2>/dev/null
+    cp /srv/tls/cert.pem /usr/local/share/ca-certificates/ilex-test-releases.crt && update-ca-certificates >/dev/null
+    systemd-run --unit ilex-test-releases --working-directory=/srv/www \
+      openssl s_server -quiet -WWW -accept 8443 -cert /srv/tls/cert.pem -key /srv/tls/key.pem
+    printf "RELEASE_URL=https://localhost:8443/releases\n" >/etc/ilex/release.env
+    install -m 0644 /root/test-release.pub /etc/ilex/release.pub
+    for _ in $(seq 1 20); do curl -fsS -o /dev/null https://localhost:8443/releases/latest/download/latest.json && exit 0; sleep 0.5; done
+    exit 1' >>"$LOG" 2>&1
+  old_in node /root/smoke.mjs self-update "$TARGET" updated | tee -a "$LOG"
+fi
+
 step "Done — log: ${LOG#"$ROOT"/}"
