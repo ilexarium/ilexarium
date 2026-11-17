@@ -3,12 +3,15 @@
 # brought up to date with systemd as its first process — everything else is the installer's job.
 # Never for anything but tests. pacman's sandbox can't switch users while the image builds (the
 # privileged machine itself can, where the installer runs).
+# Arch Linux ARM comes with OpenSSH switched on; it's removed, so both start without an SSH server
+# (the smoke test checks the one the installer installs).
 ARG BASE=archlinux:latest
 FROM ${BASE}
 ENV container=docker
 RUN pacman-key --init \
  && pacman-key --populate \
  && pacman -Syu --disable-sandbox --noconfirm --needed systemd dbus \
+ && { ! pacman -Q openssh >/dev/null 2>&1 || pacman -Rns --disable-sandbox --noconfirm openssh; } \
  && pacman -Scc --disable-sandbox --noconfirm \
  && systemctl mask getty.target console-getty.service systemd-firstboot.service \
     systemd-networkd.service systemd-resolved.service systemd-timesyncd.service
