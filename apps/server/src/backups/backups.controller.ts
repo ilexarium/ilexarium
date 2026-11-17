@@ -159,6 +159,19 @@ export class BackupsController {
     });
   }
 
+  /** Each item's archives read again from the disk, through the person's sudo ("Restore…"). */
+  @Post('archives/refresh')
+  @HttpCode(204)
+  @UseGuards(ThrottlerGuard)
+  @Throttle(CHANGE_LIMIT)
+  refreshArchives(
+    @CurrentSession() session: { id: string },
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<void> {
+    return this.backupPlanManager.refreshArchives({ user, ip, appSessionId: session.id });
+  }
+
   @Get('items/:id/archives')
   async archives(@Param() { id }: BackupItemIdParamsDto): Promise<BackupArchivesResponse> {
     return { archives: await this.backupPlanManager.archives(id) };

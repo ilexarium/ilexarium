@@ -28,7 +28,16 @@ export const TASK_END = {
 export const ROOT_PROGRAMS: Record<string, { path: string; actions: readonly string[] }> = {
   backup: {
     path: program('/opt/ilex/libexec/ilex-backup.mts'),
-    actions: ['configure', 'init', 'start', 'restore-start', 'discard', 'forget', 'passphrase'],
+    actions: [
+      'configure',
+      'init',
+      'start',
+      'restore-start',
+      'discard',
+      'forget',
+      'list',
+      'passphrase',
+    ],
   },
   disk: {
     path: program('/opt/ilex/libexec/ilex-disk.mts'),

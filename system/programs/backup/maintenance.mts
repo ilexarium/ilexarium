@@ -1,13 +1,13 @@
 // backup/maintenance.mts — runs as root.
 //
-// `forget` and `passphrase`.
+// `forget`, `list` and `passphrase`.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { openRepository } from './destination.mts';
 import { prepareState } from './files.mts';
 import { parseInput } from './input.mts';
 import type { Config, Paths } from './model.mts';
-import { UUID, loadPlan } from './plan.mts';
+import { ARCHIVE_PATTERN, UUID, loadPlan } from './plan.mts';
 import { borg, borgFailed, borgFailure, failedLine, takeLock } from './programs.mts';
 import { Refusal, emit } from '../lib/output.mts';
 import { assertRootOwned } from '../lib/paths.mts';
@@ -39,6 +39,37 @@ export async function forget(config: Config, paths: Paths, input: string): Promi
     const compact = await borg(config, paths, 'compact', [repo.path]);
     if (borgFailed(compact)) emit(`@@info ${failedLine('borg compact', compact)}`);
     emit('@@phase done');
+  } finally {
+    release();
+  }
+}
+
+/**
+ * Each plan item's archives as the repository has them now — for the Restore dialog: the app's
+ * own list is from the last run it saw (a restored database is a run behind).
+ */
+export async function list(config: Config, paths: Paths): Promise<void> {
+  const plan = loadPlan(config, paths);
+  const release = await takeLock(paths, false);
+  try {
+    prepareState(config, paths);
+    const repo = openRepository(config, paths, plan);
+    const listed = await borg(config, paths, 'list', ['--json', repo.path], { capture: true });
+    if (borgFailed(listed))
+      throw new Refusal(borgFailure(listed), failedLine('borg list', listed), 5);
+    let names: string[];
+    try {
+      const archives =
+        (JSON.parse(listed.stdout) as { archives?: { name?: unknown }[] }).archives ?? [];
+      names = archives.map((a) => String(a.name)).filter((name) => ARCHIVE_PATTERN.test(name));
+    } catch {
+      throw new Refusal('borg_failed', 'borg list gave no JSON', 5);
+    }
+    const archives: Record<string, string[]> = {};
+    for (const item of plan.items) {
+      archives[item.id] = names.filter((name) => name.startsWith(`${item.id}-`));
+    }
+    emit(`@@result ${JSON.stringify({ archives })}`);
   } finally {
     release();
   }

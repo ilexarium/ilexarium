@@ -13,6 +13,7 @@
 //   ilex-backup restore           {"restoreId", "itemId", "archive", "target"} on stdin
 //   ilex-backup discard           {"path"} on stdin → deletes a restore's set-aside folder
 //   ilex-backup forget            {"itemId"} on stdin → deletes a removed item's archives
+//   ilex-backup list              nothing on stdin → each plan item's archives, for "Restore…"
 //   ilex-backup passphrase        nothing on stdin → the passphrase, for "Show again"
 //
 // Backups run as root with Borg, one repository on one disk under /mnt or /media, one archive

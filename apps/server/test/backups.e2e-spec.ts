@@ -291,6 +291,22 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     expect(existsSync(setAside)).toBe(false);
   }, 60_000);
 
+  it('reads the lists again from the disk (a restored database is a run behind), audited', async () => {
+    const prisma = app.get(PrismaService);
+    const items = (await plan()).items;
+    const saved = await prisma.backupItem.findMany({ select: { id: true, archives: true } });
+    await prisma.backupItem.updateMany({ data: { archives: [], archivesAt: null } });
+    await api().post('/backups/archives/refresh', {}).expect(204);
+    for (const item of items) {
+      const { archives } = (await api().get(`/backups/items/${item.id}/archives`).expect(200)).body;
+      expect(archives.map((a: { name: string }) => a.name)).toEqual(
+        saved.find((s) => s.id === item.id)!.archives,
+      );
+    }
+    const audit = await prisma.auditEvent.findMany({ where: { action: 'backup.list' } });
+    expect(audit.map((e) => e.outcome)).toEqual(['requested', 'success']);
+  }, 60_000);
+
   it('refuses a restore of an archive the item does not have', async () => {
     const folder = (await plan()).items.find((i) => i.kind === 'folder')!;
     await api()

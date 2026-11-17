@@ -1103,6 +1103,24 @@ describe('ilex-backup restore', () => {
     expect(existsSync(join(dev, 'state', 'restore-requests', `${RESTORE}.json`))).toBe(false);
   });
 
+  it('back where it was with the folder above gone: made again, its owner’s, 0755 (not root’s 0700)', async () => {
+    const demo = join(storage, 'demo');
+    rmSync(demo, { recursive: true, force: true });
+    const result = await restore(restoreInput());
+    expect(result.code, result.lines.join('\n')).toBe(0);
+    expect(existsSync(join(demo, 'data', 'restored.txt'))).toBe(true);
+    expect(statSync(demo).mode & 0o777).toBe(0o755);
+    expect(statSync(demo).uid).toBe(statSync(join(demo, 'data')).uid);
+  });
+
+  it('the folder above made by a failed restore goes again', async () => {
+    const demo = join(storage, 'demo');
+    rmSync(demo, { recursive: true, force: true });
+    writeFileSync(join(dir, 'exit-extract.txt'), '2');
+    expect((await restore(restoreInput())).code).toBe(5);
+    expect(existsSync(demo)).toBe(false);
+  });
+
   it('puts everything back when the extraction fails', async () => {
     writeFileSync(join(dir, 'exit-extract.txt'), '2');
     const result = await restore(restoreInput());
@@ -1708,7 +1726,7 @@ describe('ilex-backup restore', () => {
   });
 });
 
-describe('ilex-backup discard, forget and passphrase', () => {
+describe('ilex-backup discard, forget, list and passphrase', () => {
   beforeEach(async () => {
     await setUp();
     await runNow({ runId: RUN });
@@ -1781,6 +1799,25 @@ describe('ilex-backup discard, forget and passphrase', () => {
     resetCalls();
     expectRefused(await wrapper('forget', { itemId: FOLDER }), 'borg_failed', 5);
     expect(borgCommands()).toEqual(['delete']);
+  });
+
+  it('list: each plan item’s archives as the repository has them, with one borg list', async () => {
+    const archived = Object.fromEntries(
+      results()[0].items.map((i: any) => [i.itemId, [i.archive]]),
+    );
+    resetCalls();
+    const listed = await wrapper('list');
+    expect(listed.code, listed.lines.join('\n')).toBe(0);
+    expect(listed.result).toEqual({ archives: archived });
+    expect(calls('borg').map((c) => c.args)).toEqual([
+      ['list', '--log-json', '--json', join(destination, 'ilex-backups')],
+    ]);
+    expectRefused(await wrapper('list', 'x'), 'invalid_request');
+  });
+
+  it('list: Borg failing is a failure, never an empty list', async () => {
+    writeFileSync(join(dir, 'die-list.txt'), '');
+    expectRefused(await wrapper('list'), 'borg_failed', 5);
   });
 
   it('passphrase shows it (the only action that does)', async () => {

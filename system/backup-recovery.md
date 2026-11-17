@@ -57,17 +57,6 @@ docker exec -i ilex-postgres-1 pg_restore --exit-on-error -U ilex_owner -d ilex 
 rm -r /var/lib/ilex/backups/platform
 ```
 
-The database lists each item's backups as they were when it was dumped, so before that night's backups were made. Read the lists from the disk instead:
-
-```sh
-for id in $(docker exec ilex-postgres-1 psql -tA -U ilex_owner -d ilex -c 'SELECT id FROM "BackupItem"'); do
-  names=$(borg list --short --glob-archives "$id-*" "$REPO" | paste -sd, -)
-  docker exec -i ilex-postgres-1 psql -q -U ilex_owner -d ilex -v names="$names" -v id="$id" <<'SQL'
-UPDATE "BackupItem" SET archives = string_to_array(:'names', ','), "archivesAt" = NULL WHERE id = :'id';
-SQL
-done
-```
-
 ## 5. Run the installer once more
 
 Run `get-ilex.sh` again, as in step 1. It repairs what the restore can't: it brings the database up to this version, gives the app its rights in it, makes the restored key the app's own again, and starts Ilexarium. Then turn the backup schedule back on:
@@ -87,18 +76,11 @@ Restored files keep their owner's user **number**, not the name. Make each perso
 for a in $(borg list --short --last 20 "$REPO"); do borg list --format '{user} {uid}{NL}' "$REPO::$a"; done | sort -u
 ```
 
-Then for each person, for example anna with 1000, the account and the folder their apps live in (a restore would otherwise make that folder root's):
-
-```sh
-useradd --create-home --uid 1000 --groups sudo anna && passwd anna
-install -d -o anna -g anna /home/anna/apps
-```
-
-Your own account, made when the machine was set up, usually has its number already (check with `id`); give it its `apps` folder the same way.
+Then for each person, for example anna with 1000: `useradd --create-home --uid 1000 --groups sudo anna && passwd anna`. Your own account, made when the machine was set up, usually has its number already (check with `id`).
 
 ## 7. Bring the apps back
 
-Their backups bring them back, through the Linux sign-in of the account each app belongs to. On the **Backups** page, for each app: **Restore…** → the newest backup → **Back where it was**: its folder comes back where it was. The app now shows on the **Apps** page, not running yet: **Start** starts it from its restored files.
+Their backups bring them back, through the Linux sign-in of the account each app belongs to. On the **Backups** page, for each app: **Restore…** (it reads the backups from the disk) → the newest backup → **Back where it was**: its folder comes back where it was. The app now shows on the **Apps** page, not running yet: **Start** starts it from its restored files.
 
 Folders you backed up (home folders, others) come back the same way, **Back where it was**, or into a folder you choose.
 
