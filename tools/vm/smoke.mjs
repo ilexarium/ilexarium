@@ -16,7 +16,15 @@
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { get } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import { promisify } from 'node:util';
@@ -1087,6 +1095,45 @@ async function install() {
   );
   const offered = await api('GET', `/backups/restores/${back.json?.restoreId}`);
   check('Apply offered once', offered.json?.appWasRunning === false, JSON.stringify(offered.json));
+
+  // As on a new machine: no ~/apps. Borg would make it root's, 0700 — out of her reach.
+  console.log('\nBack where it was with ~/apps gone');
+  renameSync('/home/anna/apps', '/home/anna/apps-before-smoke');
+  const refreshed = await api('POST', '/backups/archives/refresh', {});
+  check(
+    'the lists read again from the disk, through her sudo',
+    refreshed.status === 204,
+    `${refreshed.status} ${refreshed.text}`,
+  );
+  const fromDisk = (await api('GET', `/backups/items/${item?.id}/archives`)).json?.archives ?? [];
+  check(
+    'its backups as the disk has them',
+    fromDisk.length > 0 && fromDisk[0]?.name === archives[0]?.name,
+    JSON.stringify(fromDisk),
+  );
+  const anew = await api('POST', '/backups/restores', {
+    itemId: item?.id,
+    archive: fromDisk[0]?.name,
+    target: null,
+  });
+  const anewDone = await until(
+    'the restore with ~/apps gone finished',
+    async () => {
+      const r = await api('GET', `/backups/restores/${anew.json?.restoreId}`);
+      return { done: r.json?.status && r.json.status !== 'running', value: r.json };
+    },
+    10 * 60_000,
+  );
+  const appsFolder = statSync('/home/anna/apps', { throwIfNoEntry: false });
+  check(
+    'restored, ~/apps made again as hers (0755), the app back in it',
+    anewDone.value?.status === 'succeeded' &&
+      appsFolder?.uid === 1500 &&
+      (appsFolder.mode & 0o777) === 0o755 &&
+      existsSync(`${folder}/compose.yml`),
+    `${JSON.stringify(anewDone.value).slice(0, 300)} uid ${appsFolder?.uid} mode ${appsFolder && (appsFolder.mode & 0o777).toString(8)}`,
+  );
+  rmSync('/home/anna/apps-before-smoke', { recursive: true, force: true });
 
   console.log('\nApps, as bob (in the docker group: user units, no sudo)');
   ensurePerson('bob', 1501);

@@ -22,6 +22,7 @@ import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { formatBytes } from '../../../shared/format/format';
 import { BackupsPage } from './backups-page';
 import { BackupsPageStore } from './backups-page-store';
+import { toast } from '@spartan-ng/brain/sonner';
 
 const PLATFORM = '0193a000-0000-7000-8000-000000000001';
 const IMMICH_ITEM = '0193a000-0000-7000-8000-000000000002';
@@ -138,6 +139,15 @@ async function render(start: BackupPlan | null, url = '/backups') {
     // 204: no body.
     removeItem: vi.fn(() => of(null)),
     passphrase: vi.fn(() => of({ passphrase: PASSPHRASE })),
+    // 204: no body.
+    refreshArchives: vi.fn((): Observable<unknown> => of(null)),
+    archives: vi.fn(() =>
+      of({
+        archives: [
+          { name: `${IMMICH_ITEM}-2026-11-16T03:00:00`, createdAt: '2026-11-16T03:00:00Z' },
+        ],
+      }),
+    ),
     applyRestored: vi.fn(() =>
       of({ name: 'immich', folder: '/home/anna/apps/immich', task: null }),
     ),
@@ -476,6 +486,31 @@ describe('BackupsPage with a plan', () => {
     await store.removeItem({ itemId: FOLDER_ITEM, deleteArchives: false });
     expect(api.removeItem).toHaveBeenCalledWith(FOLDER_ITEM, false);
     await vi.waitFor(() => expect(api.plan.mock.calls.length).toBeGreaterThan(before));
+  });
+
+  it('Restore…: the lists read again from the disk as the person first, then this item’s', async () => {
+    const { api, asPerson, store } = await render(plan());
+    asPerson.mockClear();
+    store.loadArchives(IMMICH_ITEM);
+    await vi.waitFor(() => expect(store.archives()?.list).toHaveLength(1));
+    expect(asPerson).toHaveBeenCalledTimes(1);
+    expect(api.refreshArchives).toHaveBeenCalled();
+    expect(api.archives).toHaveBeenCalledWith(IMMICH_ITEM);
+  });
+
+  it('Restore…: refused or the prompt closed, the saved list all the same', async () => {
+    const { api, asPerson, store } = await render(plan());
+    const toastError = vi.spyOn(toast, 'error');
+    api.refreshArchives.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 409, error: { code: 'busy' } })),
+    );
+    store.loadArchives(IMMICH_ITEM);
+    await vi.waitFor(() => expect(store.archives()?.list).toHaveLength(1));
+    expect(toastError).toHaveBeenCalled();
+    asPerson.mockResolvedValueOnce(null);
+    store.loadArchives(IMMICH_ITEM);
+    await vi.waitFor(() => expect(api.archives).toHaveBeenCalledTimes(2));
+    expect(toastError).toHaveBeenCalledTimes(1);
   });
 
   it('applies a restored app’s settings as the person, in its own folder', async () => {

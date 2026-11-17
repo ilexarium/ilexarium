@@ -36,6 +36,7 @@ import {
   merge,
   mergeMap,
   type Observable,
+  of,
   pipe,
   switchMap,
   tap,
@@ -396,12 +397,23 @@ export const BackupsPageStore = signalStore(
           }
         },
 
-        /** The archives for the restore dialog; another item opened meanwhile wins. */
+        /**
+         * The archives for the restore dialog, read again from the disk first through the person's
+         * sudo (the saved lists are a run behind after a recovery); without it, the saved list.
+         * Another item opened meanwhile wins.
+         */
         loadArchives: rxMethod<string>(
           pipe(
             tap((itemId) => patchState(store, { archives: { itemId, list: null } })),
             switchMap((itemId) =>
-              backupsApi.archives(itemId).pipe(
+              from(
+                linuxSessionStore.asPerson(() => firstValueFrom(backupsApi.refreshArchives())),
+              ).pipe(
+                catchError((error: unknown) => {
+                  failed('backups.restore.refreshFailed', error);
+                  return of(null);
+                }),
+                switchMap(() => backupsApi.archives(itemId)),
                 tap(({ archives }) => patchState(store, { archives: { itemId, list: archives } })),
                 catchError(() => {
                   patchState(store, { archives: { itemId, list: [] } });

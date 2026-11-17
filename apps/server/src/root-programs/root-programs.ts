@@ -148,6 +148,26 @@ export class RootPrograms {
     );
   }
 
+  /** Each plan item's archives as the repository has them now (read only). */
+  backupList(actor: RootActor): Promise<BackupOutcome<{ archives: Record<string, string[]> }>> {
+    return this.backup('list', actor, 'backup.list', null, {
+      audit: {},
+      read: (result) => {
+        const archives = result?.['archives'];
+        if (typeof archives !== 'object' || archives === null || Array.isArray(archives)) {
+          return undefined;
+        }
+        const lists = Object.entries(archives);
+        const valid = lists.every(
+          ([, names]) => Array.isArray(names) && names.every((name) => typeof name === 'string'),
+        );
+        return valid
+          ? { archives: Object.fromEntries(lists) as Record<string, string[]> }
+          : undefined;
+      },
+    });
+  }
+
   /** The passphrase reaches the caller only: never the audit details, an output line or a log. */
   backupPassphrase(
     actor: RootActor,

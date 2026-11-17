@@ -50,7 +50,10 @@ const archivesFile = path.join(dir, 'archives.json');
 const archives = () => JSON.parse(read('archives.json', '{}'));
 const target = args.find((a) => a.includes('::'));
 const name = target ? target.split('::')[1] : '';
-const glob = () => args[args.indexOf('--glob-archives') + 1].replace(/\*$/, '');
+const glob = () =>
+  args.includes('--glob-archives')
+    ? args[args.indexOf('--glob-archives') + 1].replace(/\*$/, '')
+    : '';
 
 switch (command) {
   case 'init': {

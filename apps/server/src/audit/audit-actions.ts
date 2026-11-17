@@ -22,6 +22,7 @@ export const AUDIT_ACTIONS = [
   'backup.restore',
   'backup.discard',
   'backup.forget',
+  'backup.list',
   'backup.passphrase',
   'disk.mount',
   'disk.unmount',

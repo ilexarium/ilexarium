@@ -99,6 +99,23 @@ describe('RootPrograms (through the person’s sudo)', () => {
     expect(JSON.stringify(entries)).not.toContain('one two');
   });
 
+  it('lists each item’s archives, audited first; anything but lists of names is no result', async () => {
+    answer = ran(['@@result {"archives":{"i1":["i1-2026-11-16T03:00:00"],"i2":[]}}']);
+    expect(await programs().backupList(ACTOR)).toEqual({
+      ok: true,
+      result: { archives: { i1: ['i1-2026-11-16T03:00:00'], i2: [] } },
+    });
+    expect(asked[0].request).toMatchObject({ program: 'backup', command: 'list', input: '' });
+    expect(entries.map((e) => [e.action, e.outcome])).toEqual([
+      ['backup.list', 'requested'],
+      ['backup.list', 'success'],
+    ]);
+    for (const bad of ['{"archives":{"i1":[1]}}', '{"archives":["x"]}', '{}']) {
+      answer = ran([`@@result ${bad}`]);
+      expect(await programs().backupList(ACTOR)).toMatchObject({ ok: false });
+    }
+  });
+
   it('maps the program’s refusals; an unknown one, or none at all, is never success', async () => {
     answer = ran(['@@info another operation is running', '@@error code=busy'], 3);
     expect(await programs().backupStart({ runId: 'r1' }, ACTOR)).toEqual({
