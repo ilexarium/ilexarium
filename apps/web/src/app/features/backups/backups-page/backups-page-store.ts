@@ -47,7 +47,7 @@ import { Translator } from '../../../core/i18n/translator';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
-import { apiErrorText } from '../../../shared/forms/submission-errors';
+import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 import { runAdded } from '../backup-runs';
 import type {
   BackupsHeadline,
@@ -410,7 +410,9 @@ export const BackupsPageStore = signalStore(
                 linuxSessionStore.asPerson(() => firstValueFrom(backupsApi.refreshArchives())),
               ).pipe(
                 catchError((error: unknown) => {
-                  failed('backups.restore.refreshFailed', error);
+                  // A backup running holds the repository: its saved list is just as new.
+                  if (apiErrorCode(error) !== 'busy')
+                    failed('backups.restore.refreshFailed', error);
                   return of(null);
                 }),
                 switchMap(() => backupsApi.archives(itemId)),

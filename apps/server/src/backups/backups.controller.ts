@@ -159,7 +159,6 @@ export class BackupsController {
     });
   }
 
-  /** Each item's archives read again from the disk, through the person's sudo ("Restore…"). */
   @Post('archives/refresh')
   @HttpCode(204)
   @UseGuards(ThrottlerGuard)

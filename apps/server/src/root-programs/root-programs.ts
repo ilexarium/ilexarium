@@ -148,7 +148,6 @@ export class RootPrograms {
     );
   }
 
-  /** Each plan item's archives as the repository has them now (read only). */
   backupList(actor: RootActor): Promise<BackupOutcome<{ archives: Record<string, string[]> }>> {
     return this.backup('list', actor, 'backup.list', null, {
       audit: {},

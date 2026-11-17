@@ -65,7 +65,6 @@ export class BackupsApi {
     return this.http.delete<void>(`/api/backups/items/${id(itemId)}`, { params });
   }
 
-  /** Every item's archives read again from the disk (through the person's sudo). */
   refreshArchives(): Observable<void> {
     return this.http.post<void>('/api/backups/archives/refresh', {});
   }
