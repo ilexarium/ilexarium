@@ -5,8 +5,8 @@
 // Parts, in this order: lint (the workspaces and the programs' type check), format, unit (every
 // workspace's unit tests, the web app's, the programs' and the helper's included), e2e (the
 // server's integration and e2e tests: the dev services up, npm run db:up, and Borg installed —
-// a skipped test fails it) and install (tools/vm/test-install.sh --container). The shared packages
-// are built first. Run where the server's tests run: on Linux, or on a Mac in the dev container
+// a skipped test fails it) and install (tools/vm/test-install.sh --container: a privileged
+// container, so only when asked for: --only install). The shared packages are built first. Run where the server's tests run: on Linux, or on a Mac in the dev container
 // (npm run srv -- npm run verify).
 import { spawnSync } from 'node:child_process';
 import { readFileSync, rmSync } from 'node:fs';
@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 const PARTS = ['lint', 'format', 'unit', 'e2e', 'install'];
+const DEFAULT_PARTS = PARTS.filter((part) => part !== 'install');
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const E2E_RESULTS = join(ROOT, '.dev', 'e2e-results.json');
 
@@ -57,11 +58,11 @@ const CHECKS = {
     }
     return true;
   },
-  install: () => run('bash', ['tools/vm/test-install.sh', '--container']),
+  install: () => run('bash', ['tools/vm/test-install.sh', '--container', '--yes']),
 };
 
 const { values } = parseArgs({ options: { only: { type: 'string' } } });
-const parts = values.only ? values.only.split(',') : PARTS;
+const parts = values.only ? values.only.split(',') : DEFAULT_PARTS;
 const unknown = parts.filter((part) => !PARTS.includes(part));
 if (parts.length === 0 || unknown.length > 0) {
   fail(`usage: npm run verify [-- --only <part>,…] — parts: ${PARTS.join(', ')}`);
