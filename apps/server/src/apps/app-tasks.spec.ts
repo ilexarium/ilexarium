@@ -91,6 +91,29 @@ describe('AppTasks.read', () => {
     });
   });
 
+  it('a task that ended between reading its log and asking systemd: its result, not interrupted', async () => {
+    let log = Buffer.from('Extracting 15B\n');
+    const sftp = {
+      readText: async () => JSON.stringify(record),
+      statOrNull: async () => ({ size: log.length }),
+      read: async (_path: string, length: number, position: number) =>
+        log.subarray(position, position + length),
+    } as unknown as Sftp;
+    const linuxSessions = {
+      account: () => ({ username: 'anna' }),
+      ask: async () => {
+        // Meanwhile: done, its result written, the unit collected.
+        log = Buffer.from('Extracting 15B\nStarted\n@@ilex-result\nsuccess\nexited\n0\n');
+        return { ok: true, active: 'inactive' };
+      },
+    } as unknown as LinuxSessions;
+    const tasks = new AppTasks(linuxSessions, new ChangesUnderway());
+    expect(await tasks.read('s1', sftp, FOLDER)).toMatchObject({
+      state: 'succeeded',
+      output: ['Extracting 15B', 'Started'],
+    });
+  });
+
   it('a unit gone without a result (systemd: inactive): interrupted', async () => {
     const read = reading('pulling a\n', 'inactive');
     expect(await read()).toMatchObject({ state: 'interrupted', output: ['pulling a'] });
