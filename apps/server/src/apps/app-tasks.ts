@@ -136,6 +136,16 @@ export class AppTasks {
     return composeFacts(answer as unknown as ComposeCheckAnswer, project);
   }
 
+  /** The end of a task's log, from a line start. */
+  private async readTail(sftp: Sftp, log: string): Promise<string> {
+    const size = (await sftp.statOrNull(log))?.size ?? 0;
+    const start = Math.max(0, size - TASK_TAIL_BYTES);
+    const tail = ((await sftp.read(log, TASK_TAIL_BYTES, start)) ?? Buffer.alloc(0)).toString(
+      'utf8',
+    );
+    return start > 0 ? tail.slice(tail.indexOf('\n') + 1) : tail;
+  }
+
   /** The app's latest task, the end of its output; null when it never had one. */
   async read(appSessionId: string, sftp: Sftp, folder: string): Promise<AppTask | null> {
     const recordText = await sftp.readText(posix.join(folder, TASK_FILE), 4096).catch(() => null);
@@ -148,12 +158,8 @@ export class AppTasks {
     }
     if (!/^[\w.-]+\.log$/.test(record.log)) return null;
     const log = posix.join(folder, TASKS_DIR, record.log);
-    const size = (await sftp.statOrNull(log))?.size ?? 0;
-    const start = Math.max(0, size - TASK_TAIL_BYTES);
-    let tail = ((await sftp.read(log, TASK_TAIL_BYTES, start)) ?? Buffer.alloc(0)).toString('utf8');
-    // Cut into a line: from the next one.
-    if (start > 0) tail = tail.slice(tail.indexOf('\n') + 1);
-    const result = taskResult(tail);
+    let tail = await this.readTail(sftp, log);
+    let result = taskResult(tail);
     let state: AppTask['state'];
     if (result) state = result.succeeded ? 'succeeded' : 'failed';
     else {
@@ -165,8 +171,12 @@ export class AppTasks {
       const active = answer.ok ? String(answer['active']) : '';
       // Only systemd saying the unit ended means interrupted. On a busy machine (an image
       // extracting) the check can fail or come back empty: that says nothing, ask again next time.
-      if (TASK_ENDED_STATES.includes(active)) state = 'interrupted';
-      else {
+      if (TASK_ENDED_STATES.includes(active)) {
+        // It may have ended since the log was read: its result is written before the unit ends.
+        tail = await this.readTail(sftp, log);
+        result = taskResult(tail);
+        state = result ? (result.succeeded ? 'succeeded' : 'failed') : 'interrupted';
+      } else {
         state = 'running';
         if (!['active', 'activating', 'reloading'].includes(active)) {
           this.logger.warn(
