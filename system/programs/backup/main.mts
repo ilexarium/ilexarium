@@ -8,7 +8,7 @@ import { loadConfig, pathsFor } from './config.mts';
 import { configure } from './configure.mts';
 import { init } from './init.mts';
 import { MAX_INPUT_BYTES, requireNoInput } from './input.mts';
-import { forget, passphrase } from './maintenance.mts';
+import { forget, list, passphrase } from './maintenance.mts';
 import { stopping, stopRunning } from './programs.mts';
 import { discard, restoreRun, restoreStart } from './restore.mts';
 import { run } from './run.mts';
@@ -27,6 +27,7 @@ export const ACTIONS = new Set([
   'restore-run',
   'discard',
   'forget',
+  'list',
   'passphrase',
 ]);
 
@@ -92,6 +93,10 @@ export async function main(): Promise<number> {
       return 0;
     case 'forget':
       await forget(config, paths, input);
+      return 0;
+    case 'list':
+      requireNoInput(input);
+      await list(config, paths);
       return 0;
     case 'passphrase':
       requireNoInput(input);

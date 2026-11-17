@@ -1006,7 +1006,8 @@
       "status": {
         "failed": "Die Wiederherstellung ist fehlgeschlagen.",
         "interrupted": "Die Wiederherstellung wurde unterbrochen."
-      }
+      },
+      "refreshFailed": "Die Sicherungen konnten nicht von der Festplatte gelesen werden: Die Liste stammt vom letzten Sicherungslauf"
     },
     "history": {
       "title": "Verlauf",

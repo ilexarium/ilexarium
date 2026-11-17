@@ -20,6 +20,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  rmdirSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { absolute } from './config.mts';
@@ -344,6 +345,8 @@ async function restoreArchive(
   let reportedAside: string[] = [];
   /** Sources that weren't there before: on a failure, what was extracted of them goes. */
   const created: string[] = [];
+  /** The folders above them Borg makes (as root, 0700): each source's, outermost first. */
+  const madeAbove = new Map<string, string[]>();
   const result: ItemResult = {
     itemId: item.id,
     status: 'ok',
@@ -369,6 +372,7 @@ async function restoreArchive(
     for (const source of restored) {
       if (!existsSync(source)) {
         created.push(source);
+        madeAbove.set(source, missingParents(source));
         continue;
       }
       const to = `${source}${suffix}`;
@@ -392,6 +396,7 @@ async function restoreArchive(
       throw new Refusal(borgFailure(extract), failedLine('borg extract', extract), 5);
     }
     warnings.push(...extractWarnings(extract));
+    giveParentsToOwner(madeAbove);
     // Listed in the archive's comment but not in its files (unreadable when it was backed up):
     // what was there goes back rather than the folder being gone.
     const missing = (path: string) => !lstatSync(path, { throwIfNoEntry: false });
@@ -438,6 +443,7 @@ async function restoreArchive(
         line(`${path}: could not be removed`);
       }
     }
+    removeEmptyParents(madeAbove);
     let last = reportedAside;
     const tell = (folders: string[]) => {
       last = folders;
@@ -475,6 +481,46 @@ async function restoreArchive(
   if (result.errorCode)
     throw new Refusal(result.errorCode, 'the app could not be started again', 5);
   return { appWasRunning: wasRunning, warnings: warnings.slice(0, MAX_WARNINGS) };
+}
+
+/** The folders above `path` that aren't there, outermost first. */
+export function missingParents(path: string): string[] {
+  const missing: string[] = [];
+  for (let parent = dirname(path); !existsSync(parent); parent = dirname(parent)) {
+    missing.unshift(parent);
+  }
+  return missing;
+}
+
+/**
+ * Borg makes the folders above an extracted one as root, 0700 (`~/apps` on a new machine): each
+ * is given the restored folder's owner, 0755, so its owner reaches it. Only plain folders: root
+ * made them just now, inside parents nobody else may change (`assertParentsSafe`).
+ */
+export function giveParentsToOwner(madeAbove: Map<string, string[]>): void {
+  for (const [source, parents] of madeAbove) {
+    const owner = lstatSync(source, { throwIfNoEntry: false });
+    if (!owner) continue;
+    for (const parent of parents) {
+      const stat = lstatSync(parent, { throwIfNoEntry: false });
+      if (!stat?.isDirectory()) continue;
+      if (isRoot) chownSync(parent, owner.uid, owner.gid);
+      chmodSync(parent, 0o755);
+    }
+  }
+}
+
+/** After a failure: the folders made above a source go again, if nothing else is in them. */
+export function removeEmptyParents(madeAbove: Map<string, string[]>): void {
+  for (const parents of madeAbove.values()) {
+    for (const parent of [...parents].reverse()) {
+      try {
+        rmdirSync(parent);
+      } catch {
+        // Not empty (another restored folder is in it), or already gone.
+      }
+    }
+  }
 }
 
 /** The folders an archive holds, from the comment its backup wrote; null without one. */

@@ -1006,7 +1006,8 @@
       "status": {
         "failed": "The restore failed.",
         "interrupted": "The restore was interrupted."
-      }
+      },
+      "refreshFailed": "Couldn't read the backups from the disk: the list is from the last backup run"
     },
     "history": {
       "title": "History",

@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  BACKUP_ARCHIVE_PATTERN,
   BACKUP_ERROR_CODES,
   type BackupArchive,
   type BackupItem,
@@ -213,6 +214,30 @@ export class BackupPlanManager {
     return item.archives
       .map((name) => ({ name, createdAt: archiveTime(name) }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  /**
+   * Each item's archives read from the repository, through the person's sudo: the saved lists are
+   * from the last run the app saw, a run behind after its database was restored.
+   */
+  async refreshArchives(actor: RootActor): Promise<void> {
+    await requirePlan(this.prisma);
+    const { archives } = await programCall(() => this.rootPrograms.backupList(actor));
+    const items = await this.prisma.backupItem.findMany({ select: { id: true } });
+    const now = new Date();
+    for (const { id } of items) {
+      const names = archives[id];
+      if (!names) continue;
+      await this.prisma.backupItem.update({
+        where: { id },
+        data: {
+          archives: names.filter(
+            (name) => name.startsWith(`${id}-`) && BACKUP_ARCHIVE_PATTERN.test(name),
+          ),
+          archivesAt: now,
+        },
+      });
+    }
   }
 
   /** "Show again": through the person's sudo; audited. */
