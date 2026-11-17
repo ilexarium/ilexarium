@@ -32,7 +32,7 @@ import { absolute } from './config.mts';
 import { mounts, openRepository } from './destination.mts';
 import { folderStamp, JobFile, prepareState, writeAtomic } from './files.mts';
 import { parseInput } from './input.mts';
-import type { Config, ItemResult, Paths, SetAside } from './model.mts';
+import type { Config, ItemResult, Paths, PlanItem, Repository, SetAside } from './model.mts';
 import {
   allowedFolder,
   askingAccount,
@@ -250,6 +250,25 @@ export async function restoreRun(config: Config, paths: Paths, restoreId: string
   }
 }
 
+/** What a restore back where it was has done so far: what `rollBack` undoes. */
+interface InPlaceRestore {
+  moved: { from: string; to: string }[];
+  /** The folders the job file was told are set aside (the one being moved included). */
+  reportedAside: string[];
+  /** Sources that weren't there before: on a failure, what was extracted of them goes. */
+  created: string[];
+  /** The folders above them Borg makes (as root, 0700): each source's, outermost first. */
+  madeAbove: string[][];
+}
+
+interface RestoreReport {
+  phase: (name: string) => void;
+  line: (text: string) => void;
+  aside: (folders: string[]) => void;
+}
+
+type RestoreOutcome = { appWasRunning: boolean; warnings: string[] };
+
 async function restoreArchive(
   config: Config,
   paths: Paths,
@@ -257,7 +276,7 @@ async function restoreArchive(
   phase: (name: string) => void,
   line: (text: string) => void,
   aside: (folders: string[]) => void,
-): Promise<{ appWasRunning: boolean; warnings: string[] }> {
+): Promise<RestoreOutcome> {
   const plan = loadPlan(config, paths);
   const item = plan.items.find((i) => i.id === request.itemId)!;
   const repo = openRepository(config, paths, plan);
@@ -268,45 +287,62 @@ async function restoreArchive(
     const why = info.signal ? failedLine('borg info', info) : 'no such archive';
     throw new Refusal(borgFailure(info, 'archive_not_found'), why, 5);
   }
+  const report = { phase, line, aside };
+  return request.target !== null
+    ? restoreIntoFolder(config, paths, repo, request, request.target, report)
+    : restoreInPlace(config, paths, repo, item, request, info.stdout, report);
+}
 
-  if (request.target !== null) {
-    phase('restoring');
-    const target = request.target;
-    checkTarget(target, request.askedBy);
-    // The folders Borg makes above the restored data are new (0755): a file private only because
-    // of a home folder above it would be open to every account. So the target is private to the
-    // person who asked (root's, when root asked) — they open it up when they want to; inside it,
-    // the restored files and folders keep their own owners and modes (Borg sets them).
-    process.umask(0o022);
-    try {
-      mkdirSync(target, { recursive: false, mode: 0o700 });
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-    }
-    try {
-      // Made by someone else between the check and mkdir (which then found it): refused too.
-      assertSafeFolder(target, request.askedBy);
-      chmodSync(target, 0o700);
-      const extract = await borg(
-        config,
-        paths,
-        'extract',
-        ['--numeric-ids', '--umask', '0022', `${repo.path}::${request.archive}`],
-        { cwd: target, onLine: line },
-      );
-      if (borgFailed(extract)) {
-        throw new Refusal(borgFailure(extract), failedLine('borg extract', extract), 5);
-      }
-      return { appWasRunning: false, warnings: extractWarnings(extract) };
-    } finally {
-      process.umask(0o077);
-      // Theirs only now: nobody but root changes the folders Borg makes while it extracts.
-      if (isRoot && lstatSync(target).uid === 0) chownSync(target, request.askedBy, -1);
-    }
+async function restoreIntoFolder(
+  config: Config,
+  paths: Paths,
+  repo: Repository,
+  request: RestoreRequest,
+  target: string,
+  { phase, line }: RestoreReport,
+): Promise<RestoreOutcome> {
+  phase('restoring');
+  checkTarget(target, request.askedBy);
+  // The folders Borg makes above the restored data are new (0755): a file private only because
+  // of a home folder above it would be open to every account. So the target is private to the
+  // person who asked (root's, when root asked) — they open it up when they want to; inside it,
+  // the restored files and folders keep their own owners and modes (Borg sets them).
+  process.umask(0o022);
+  try {
+    mkdirSync(target, { recursive: false, mode: 0o700 });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
   }
+  try {
+    // Made by someone else between the check and mkdir (which then found it): refused too.
+    assertSafeFolder(target, request.askedBy);
+    chmodSync(target, 0o700);
+    const extract = await borg(
+      config,
+      paths,
+      'extract',
+      ['--numeric-ids', '--umask', '0022', `${repo.path}::${request.archive}`],
+      { cwd: target, onLine: line },
+    );
+    if (borgFailed(extract)) {
+      throw new Refusal(borgFailure(extract), failedLine('borg extract', extract), 5);
+    }
+    return { appWasRunning: false, warnings: extractWarnings(extract) };
+  } finally {
+    process.umask(0o077);
+    // Theirs only now: nobody but root changes the folders Borg makes while it extracts.
+    if (isRoot && lstatSync(target).uid === 0) chownSync(target, request.askedBy, -1);
+  }
+}
 
-  // Back where it was: what the archive holds of the item's folders in the plan now.
-  const held = archiveFolders(info.stdout);
+/** Back where it was: what the archive holds of the item's folders in the plan now. */
+function foldersToRestore(
+  config: Config,
+  item: PlanItem,
+  infoJson: string,
+  line: (text: string) => void,
+): { sources: string[]; restored: string[] } {
+  const held = archiveFolders(infoJson);
   if (!held) throw new Refusal('archive_not_found', 'the backup doesn’t list its folders', 5);
   const planned = item.kind === 'app' ? (item.folders ?? []) : [item.path!];
   // The archive lists them as they really were (any symlink above resolved).
@@ -332,9 +368,22 @@ async function restoreArchive(
   }
   // A folder inside another one (or one listed twice) is set aside and restored with the one that
   // holds it: on its own it would seem missing once that one is aside, and a failure would remove
-  // it as made by the restore after the original came back. Only these are moved, so only their
-  // parents are checked (an inner folder's parent is the outer one, often a container's uid).
-  const restored = outermost(sources);
+  // it as made by the restore after the original came back.
+  return { sources, restored: outermost(sources) };
+}
+
+async function restoreInPlace(
+  config: Config,
+  paths: Paths,
+  repo: Repository,
+  item: PlanItem,
+  request: RestoreRequest,
+  infoJson: string,
+  { phase, line, aside }: RestoreReport,
+): Promise<RestoreOutcome> {
+  const { sources, restored } = foldersToRestore(config, item, infoJson, line);
+  // Only these are moved, so only their parents are checked (an inner folder's parent is the
+  // outer one, often a container's uid).
   for (const source of restored) {
     assertParentsSafe(source, request.askedBy);
     assertNoMount(paths, source);
@@ -345,13 +394,8 @@ async function restoreArchive(
     const ps = await docker(config, ['compose', '-p', project, 'ps', '-q'], { capture: true });
     wasRunning = ps.code === 0 && ps.stdout.trim().length > 0;
   }
-  const moved: { from: string; to: string }[] = [];
-  /** The folders the job file was told are set aside (the one being moved included). */
-  let reportedAside: string[] = [];
-  /** Sources that weren't there before: on a failure, what was extracted of them goes. */
-  const created: string[] = [];
-  /** The folders above them Borg makes (as root, 0700): each source's, outermost first. */
-  const madeAbove: string[][] = [];
+  const done: InPlaceRestore = { moved: [], reportedAside: [], created: [], madeAbove: [] };
+  const { moved, created, madeAbove } = done;
   const result: ItemResult = {
     itemId: item.id,
     status: 'ok',
@@ -385,8 +429,8 @@ async function restoreArchive(
       // Recorded before it happens: `discard` deletes only what's on this list.
       list.push({ path: to, restoreId: request.restoreId });
       writeSetAside(paths, list);
-      reportedAside = [...moved.map((m) => m.to), to];
-      aside(reportedAside);
+      done.reportedAside = [...moved.map((m) => m.to), to];
+      aside(done.reportedAside);
       renameSync(source, to);
       moved.push({ from: source, to });
     }
@@ -417,9 +461,9 @@ async function restoreArchive(
           : `${source}: not in this backup's files`,
       );
     }
-    const returned = moved.filter((m) => missing(m.from));
-    if (returned.length > 0) {
-      for (const { from, to } of returned) {
+    const notInBackup = moved.filter((m) => missing(m.from));
+    if (notInBackup.length > 0) {
+      for (const { from, to } of notInBackup) {
         renameSync(to, from);
         moved.splice(
           moved.findIndex((m) => m.to === to),
@@ -427,9 +471,9 @@ async function restoreArchive(
         );
         warnings.push(`${from}: not in this backup's files, the current folder was put back`);
       }
-      const putBack = returned.map((m) => m.to);
-      reportedAside = reportedAside.filter((path) => !putBack.includes(path));
-      aside(reportedAside);
+      const putBack = notInBackup.map((m) => m.to);
+      done.reportedAside = done.reportedAside.filter((path) => !putBack.includes(path));
+      aside(done.reportedAside);
       writeSetAside(
         paths,
         readSetAside(paths).filter((e) => !putBack.includes(e.path)),
@@ -437,44 +481,7 @@ async function restoreArchive(
     }
   } catch (error) {
     failure = error instanceof Refusal ? error : new Refusal('borg_failed', String(error), 5);
-    // The way back: what was extracted of folders that weren't there goes first, while every
-    // original is still aside — nothing removed here can be one; then each partly restored folder
-    // goes and its set-aside one returns. Telling the job file is best effort here: the folders
-    // going back comes first.
-    // Never leaving their disk (`removeFolder`); a folder that can't go keeps the previous
-    // version where it was set aside, still reported (and listed for `discard`).
-    for (const path of created) {
-      if (mountAt(paths, path) !== undefined || !(await removeFolder(config, path))) {
-        line(`${path}: could not be removed`);
-      }
-    }
-    removeEmptyParents(madeAbove);
-    let last = reportedAside;
-    const tell = (folders: string[]) => {
-      last = folders;
-      try {
-        aside(folders);
-      } catch {
-        // The list a restore killed now would report is too long, never too short.
-      }
-    };
-    const kept: string[] = [];
-    while (moved.length > 0) {
-      const { from, to } = moved.pop()!;
-      // A bind mount of the same disk is one rm would walk into: mountinfo says so first.
-      if (mountAt(paths, from) === undefined && (await removeFolder(config, from))) {
-        renameSync(to, from);
-      } else {
-        kept.push(to);
-        line(`${from}: could not be removed, the previous version stays at ${to}`);
-      }
-      tell([...moved.map((m) => m.to), ...kept]);
-    }
-    if (last.length !== kept.length) tell(kept);
-    writeSetAside(
-      paths,
-      readSetAside(paths).filter((e) => !reportedAside.includes(e.path) || kept.includes(e.path)),
-    );
+    await rollBack(config, paths, done, { line, aside });
   } finally {
     if (wasRunning) {
       phase('starting');
@@ -486,6 +493,54 @@ async function restoreArchive(
   if (result.errorCode)
     throw new Refusal(result.errorCode, 'the app could not be started again', 5);
   return { appWasRunning: wasRunning, warnings: warnings.slice(0, MAX_WARNINGS) };
+}
+
+/**
+ * After a failure, the way back: what was extracted of folders that weren't there goes first,
+ * while every original is still aside — nothing removed here can be one; then each partly
+ * restored folder goes and its set-aside one returns. Telling the job file is best effort here:
+ * the folders going back comes first. Never leaving their disk (`removeFolder`); a folder that
+ * can't go keeps the previous version where it was set aside, still reported (and listed for
+ * `discard`).
+ */
+async function rollBack(
+  config: Config,
+  paths: Paths,
+  { moved, created, madeAbove, reportedAside }: InPlaceRestore,
+  { line, aside }: Pick<RestoreReport, 'line' | 'aside'>,
+): Promise<void> {
+  for (const path of created) {
+    if (mountAt(paths, path) !== undefined || !(await removeFolder(config, path))) {
+      line(`${path}: could not be removed`);
+    }
+  }
+  removeEmptyParents(madeAbove);
+  let last = reportedAside;
+  const tell = (folders: string[]) => {
+    last = folders;
+    try {
+      aside(folders);
+    } catch {
+      // The list a restore killed now would report is too long, never too short.
+    }
+  };
+  const kept: string[] = [];
+  while (moved.length > 0) {
+    const { from, to } = moved.pop()!;
+    // A bind mount of the same disk is one rm would walk into: mountinfo says so first.
+    if (mountAt(paths, from) === undefined && (await removeFolder(config, from))) {
+      renameSync(to, from);
+    } else {
+      kept.push(to);
+      line(`${from}: could not be removed, the previous version stays at ${to}`);
+    }
+    tell([...moved.map((m) => m.to), ...kept]);
+  }
+  if (last.length !== kept.length) tell(kept);
+  writeSetAside(
+    paths,
+    readSetAside(paths).filter((e) => !reportedAside.includes(e.path) || kept.includes(e.path)),
+  );
 }
 
 /** The folders above `path` that aren't there, outermost first. */
