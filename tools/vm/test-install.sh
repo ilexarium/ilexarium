@@ -58,8 +58,9 @@ done
 mkdir -p "$HERE/run"
 LOCK="$HERE/run/lock"
 if ! mkdir "$LOCK" 2>/dev/null; then
-  if kill -0 "$(cat "$LOCK/pid" 2>/dev/null || echo 0)" 2>/dev/null; then
-    echo "An install test is already running here (pid $(cat "$LOCK/pid")): one at a time." >&2
+  holder="$(cat "$LOCK/pid" 2>/dev/null || true)"
+  if [[ "$holder" =~ ^[0-9]+$ ]] && ((holder > 1)) && kill -0 "$holder" 2>/dev/null; then
+    echo "An install test is already running here (pid $holder): one at a time." >&2
     exit 1
   fi
   rm -rf "$LOCK" && mkdir "$LOCK"
