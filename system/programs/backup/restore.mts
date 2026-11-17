@@ -461,9 +461,9 @@ async function restoreInPlace(
           : `${source}: not in this backup's files`,
       );
     }
-    const returned = moved.filter((m) => missing(m.from));
-    if (returned.length > 0) {
-      for (const { from, to } of returned) {
+    const notInBackup = moved.filter((m) => missing(m.from));
+    if (notInBackup.length > 0) {
+      for (const { from, to } of notInBackup) {
         renameSync(to, from);
         moved.splice(
           moved.findIndex((m) => m.to === to),
@@ -471,7 +471,7 @@ async function restoreInPlace(
         );
         warnings.push(`${from}: not in this backup's files, the current folder was put back`);
       }
-      const putBack = returned.map((m) => m.to);
+      const putBack = notInBackup.map((m) => m.to);
       done.reportedAside = done.reportedAside.filter((path) => !putBack.includes(path));
       aside(done.reportedAside);
       writeSetAside(
