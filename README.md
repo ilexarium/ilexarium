@@ -58,7 +58,8 @@ npm run dev:web      # UI on :4200
 ```
 
 How the repository is laid out and the safety rules: [`CONTRIBUTING.md`](CONTRIBUTING.md).
-Security problems: [`SECURITY.md`](SECURITY.md).
+How Ilexarium is protected, its limits and how it's built, and how to report a security problem:
+[`SECURITY.md`](SECURITY.md).
 
 ## Licence
 

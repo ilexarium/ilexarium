@@ -65,6 +65,14 @@ Changes to these get a slow, line-by-line review. Point them out in your pull re
 
 A new helper or root program action, a new proxy rule or a widened one, and a new systemd unit each need a reason in the pull request. A rule that both the app and a program check also goes in `system/programs/rules-match-app.spec.ts`.
 
+## AI assistants
+
+You may use AI coding assistants. Ilexarium is built with them too. You're responsible for everything you send:
+
+- Understand every line and be able to explain it. The safety rules apply whoever or whatever wrote the code.
+- Say in the pull request that you used one, and for what.
+- Check a security report yourself before sending it. A report an AI wrote that nobody has reproduced will be closed.
+
 ## Code style
 
 - Small, focused commits and pull requests: one change each.
