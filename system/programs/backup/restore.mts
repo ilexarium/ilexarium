@@ -351,7 +351,7 @@ async function restoreArchive(
   /** Sources that weren't there before: on a failure, what was extracted of them goes. */
   const created: string[] = [];
   /** The folders above them Borg makes (as root, 0700): each source's, outermost first. */
-  const madeAbove = new Map<string, string[]>();
+  const madeAbove: string[][] = [];
   const result: ItemResult = {
     itemId: item.id,
     status: 'ok',
@@ -377,7 +377,7 @@ async function restoreArchive(
     for (const source of restored) {
       if (!existsSync(source)) {
         created.push(source);
-        madeAbove.set(source, missingParents(source));
+        madeAbove.push(missingParents(source));
         continue;
       }
       const to = `${source}${suffix}`;
@@ -505,8 +505,8 @@ export function missingParents(path: string): string[] {
  * above (`assertParentsSafe`), so nobody gains by swapping one meanwhile, but root still never
  * changes anything but the folder it made.
  */
-export function giveParentsToOwner(madeAbove: Map<string, string[]>): void {
-  for (const parents of madeAbove.values()) {
+export function giveParentsToOwner(madeAbove: string[][]): void {
+  for (const parents of madeAbove) {
     if (parents.length === 0) continue;
     const owner = lstatSync(dirname(parents[0]), { throwIfNoEntry: false });
     if (!owner?.isDirectory()) continue;
@@ -528,8 +528,8 @@ export function giveParentsToOwner(madeAbove: Map<string, string[]>): void {
 }
 
 /** After a failure: the folders made above a source go again if empty; the others become their owner's. */
-export function removeEmptyParents(madeAbove: Map<string, string[]>): void {
-  for (const parents of madeAbove.values()) {
+export function removeEmptyParents(madeAbove: string[][]): void {
+  for (const parents of madeAbove) {
     for (const parent of [...parents].reverse()) {
       try {
         rmdirSync(parent);

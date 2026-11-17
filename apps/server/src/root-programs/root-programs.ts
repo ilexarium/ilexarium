@@ -156,13 +156,10 @@ export class RootPrograms {
         if (typeof archives !== 'object' || archives === null || Array.isArray(archives)) {
           return undefined;
         }
-        const lists = Object.entries(archives);
-        const valid = lists.every(
-          ([, names]) => Array.isArray(names) && names.every((name) => typeof name === 'string'),
+        const valid = Object.values(archives).every(
+          (names) => Array.isArray(names) && names.every((name) => typeof name === 'string'),
         );
-        return valid
-          ? { archives: Object.fromEntries(lists) as Record<string, string[]> }
-          : undefined;
+        return valid ? { archives: archives as Record<string, string[]> } : undefined;
       },
     });
   }
