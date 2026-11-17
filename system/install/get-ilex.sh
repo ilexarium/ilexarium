@@ -22,7 +22,7 @@ die() {
 
 as_root() { if [[ "$(id -u)" == 0 ]]; then "$@"; else sudo "$@"; fi; }
 
-for tool in curl:curl openssl:openssl tar:tar sha256sum:coreutils base64:coreutils cmp:diffutils; do
+for tool in curl:curl openssl:openssl tar:tar sha256sum:coreutils base64:coreutils od:coreutils; do
   command -v "${tool%%:*}" >/dev/null ||
     die "${tool%%:*} is needed (sudo apt install ${tool#*:}, or on Arch: sudo pacman -S ${tool#*:})"
 done
@@ -42,7 +42,7 @@ bytes() { wc -c <"$1" | tr -d ' '; }
 # "ED", the key's id and the signature of the file's BLAKE2b-512; the trusted comment; the
 # signature of both.
 verify() {
-  local file="$1" sig="$2" trusted
+  local file="$1" sig="$2" trusted sig_id key_id
   printf '%s' "$PUBLIC_KEY" | base64 -d >"$WORK/key" 2>/dev/null || return 1
   [[ "$(bytes "$WORK/key")" == 42 && "$(head -c 2 "$WORK/key")" == Ed ]] || return 1
   # The raw Ed25519 key as DER, the form openssl reads.
@@ -51,7 +51,11 @@ verify() {
   [[ "$(wc -l <"$sig" | tr -d ' ')" == 4 ]] || return 1
   sed -n 2p "$sig" | base64 -d >"$WORK/sig" 2>/dev/null || return 1
   [[ "$(bytes "$WORK/sig")" == 74 && "$(head -c 2 "$WORK/sig")" == ED ]] || return 1
-  cmp -s <(head -c 10 "$WORK/sig" | tail -c 8) <(head -c 10 "$WORK/key" | tail -c 8) || return 1
+  # The key's id (the 8 bytes after the algorithm) as hex: od is in coreutils, everywhere (cmp isn't
+  # on a minimal Arch). Anything but 16 hex digits refuses, so a failed od never passes.
+  sig_id="$(head -c 10 "$WORK/sig" | tail -c 8 | od -An -tx1 | tr -d ' \n')" || return 1
+  key_id="$(head -c 10 "$WORK/key" | tail -c 8 | od -An -tx1 | tr -d ' \n')" || return 1
+  [[ "$key_id" =~ ^[0-9a-f]{16}$ && "$sig_id" == "$key_id" ]] || return 1
   tail -c 64 "$WORK/sig" >"$WORK/sig.bin"
   openssl dgst -blake2b512 -binary "$file" >"$WORK/digest"
   openssl pkeyutl -verify -pubin -keyform DER -inkey "$WORK/key.der" -rawin \
