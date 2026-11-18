@@ -136,18 +136,28 @@ release_app() { rm -f "$APP_HOLD"; }
 
 # Socket unit $1 listening where URL $2 says, restarted if nothing takes connections there: not
 # started yet, or a daemon-reload after a change to its settings left it without listeners. systemd
-# refuses to start a socket while its service is starting — and a request to the other socket
-# starts the held app (it waits for APP_HOLD) — so the app is stopped first.
+# refuses to start a socket while its service is starting, and a running socket with a connection
+# waiting (the probe here, of the other socket) starts the held app again at once: both sockets
+# and the app are stopped first, the other socket started again after. Healthy sockets are never
+# restarted — systemd keeps holding their ports.
 ensure_socket() {
-  local unit="$1" address="${2#*://}" host port
+  local unit="$1" address="${2#*://}" host port other others=()
   port="${address##*:}"
   host="${address%:*}"
   host="${host#\[}"
   host="${host%\]}"
   if systemctl is-active --quiet "$unit" && listening "$host" "$port"; then return; fi
-  systemctl stop ilex.service
-  systemctl restart "$unit" ||
-    die "Port $port ($host) is taken by another program (ss -ltnp shows which): stop it, or choose another port in $ETC/app.env, then run this again"
+  for other in ilex.socket ilex-https.socket; do
+    if [[ "$other" != "$unit" ]] && systemctl is-active --quiet "$other"; then others+=("$other"); fi
+  done
+  systemctl stop ilex.socket ilex-https.socket ilex.service
+  if ! systemctl start "$unit"; then
+    journalctl -u "$unit" -n 5 --no-pager -o cat >&2 || true
+    die "$unit could not listen on port $port ($host) — systemd's reason above; another program there? (ss -ltnp shows which): stop it, or choose another port in $ETC/app.env, then run this again"
+  fi
+  for other in "${others[@]}"; do
+    systemctl start "$other" || die "$other did not start again (journalctl -u $other)"
+  done
 }
 
 # The app's own units come with the app, once it's installed: a run that stops before leaves an
