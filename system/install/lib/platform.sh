@@ -134,18 +134,14 @@ hold_app() {
 }
 release_app() { rm -f "$APP_HOLD"; }
 
-# Socket unit $1 listening where URL $2 says, restarted if nothing takes connections there: not
-# started yet, or a daemon-reload after a change to its settings left it without listeners. systemd
+# Socket unit $1 listening on address $2, port $3 — restarted if nothing takes connections there:
+# not started yet, or a daemon-reload after a change to its settings left it without listeners. systemd
 # refuses to start a socket while its service is starting, and a running socket with a connection
 # waiting (the probe here, of the other socket) starts the held app again at once: both sockets
 # and the app are stopped first, the other socket started again after. Healthy sockets are never
 # restarted — systemd keeps holding their ports.
 ensure_socket() {
-  local unit="$1" address="${2#*://}" host port other others=()
-  port="${address##*:}"
-  host="${address%:*}"
-  host="${host#\[}"
-  host="${host%\]}"
+  local unit="$1" host="$2" port="$3" other others=()
   if systemctl is-active --quiet "$unit" && listening "$host" "$port"; then return; fi
   for other in ilex.socket ilex-https.socket; do
     if [[ "$other" != "$unit" ]] && systemctl is-active --quiet "$other"; then others+=("$other"); fi
@@ -172,7 +168,7 @@ start_app() {
   systemctl enable ilex.socket ilex.service >/dev/null 2>&1
 
   url="$(app_url)"
-  ensure_socket ilex.socket "$url"
+  ensure_socket ilex.socket "$(local_address "$(app_setting HOST)")" "$(app_port)"
   enable_https_socket
   release_app
   systemctl restart ilex.service

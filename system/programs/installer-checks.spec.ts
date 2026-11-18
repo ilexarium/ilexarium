@@ -494,6 +494,18 @@ describe('HTTPS on the network (the installer’s https.sh)', () => {
     }
   });
 
+  it('the address that reaches a socket from this machine: every address is 127.0.0.1', () => {
+    const local = (host: string) => https('local_address "$HOST"', { HOST: host }).stdout;
+    expect(local('')).toBe('127.0.0.1');
+    expect(local('0.0.0.0')).toBe('127.0.0.1');
+    expect(local('::')).toBe('127.0.0.1');
+    expect(local('::1')).toBe('::1');
+    expect(local('192.168.1.10')).toBe('192.168.1.10');
+    const url = (host: string) => https('local_url https "$HOST" 3443', { HOST: host }).stdout;
+    expect(url('0.0.0.0')).toBe('https://127.0.0.1:3443');
+    expect(url('fd00::5')).toBe('https://[fd00::5]:3443');
+  });
+
   it('the address to open: HTTPS_HOST’s own, or the machine’s first', () => {
     const link = (settings: string, addresses = '192.168.1.5\n10.0.0.2\n') => {
       writeFileSync(join(dir, 'app.env'), settings);
