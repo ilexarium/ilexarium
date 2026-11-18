@@ -28,7 +28,7 @@ These are by design and not vulnerabilities:
 - A signed-in person can do what their own Linux account can do (that's what Files, the terminal and the apps are for). A person in the `docker` group effectively has root, as on any machine.
 - While someone's sudo is unlocked (up to 15 minutes after their last root action), the app can do root work for them. So can any other program running as that same account: Ilexarium can't tell its requests from theirs, and each request keeps the unlock alive. A program running as a sudoer could as well wait for their next `sudo` in a terminal.
 - Signed in to Ilexarium alone (no Linux sign-in), a person can start, stop and restart containers (except Ilexarium's own), remove unused images, empty the build cache and delete Docker volumes no container uses. These are the socket proxy's only writes.
-- Signing in needs HTTPS from a proxy you choose. Ilexarium itself listens only on `127.0.0.1`.
+- Signing in needs HTTPS. Unless installed with `--local-only`, Ilexarium serves it on port 3443 on every address of the machine, with its own self-signed certificate; a proxy you choose can use `127.0.0.1:3000`.
 
 ## How Ilexarium is protected
 
@@ -44,6 +44,8 @@ These are by design and not vulnerabilities:
 ## Trade-offs and known limits
 
 - **SSH passwords from this machine.** The installer adds `/etc/ssh/sshd_config.d/ilex.conf`, which allows password sign-ins only for connections from `127.0.0.1` and `::1`. Connections from the network keep your own settings. Ilexarium checks your Linux password through SSH because any other way would need root. The flip side: a program on the machine itself can try passwords over localhost, within SSH's own limits.
+- **The sign-in page on your network.** By default anyone who reaches the machine on port 3443 sees the sign-in page (as with Cockpit, Proxmox or TrueNAS). Sign-ins are rate-limited per address and per account. `--local-only` at install, or removing `HTTPS_HOST` from `/etc/ilex/app.env`, keeps it on this machine for a proxy of your choice. Ilexarium doesn't check whether the machine has a public address: don't expose port 3443 to the internet.
+- **The first visit trusts a self-signed certificate.** The browser can't check it, so the first visit is where someone on your network could pretend to be your server. The installer prints the certificate's SHA-256 fingerprint: compare it with the one your browser shows before you go on. Your own certificate (for example Let's Encrypt, or `tailscale cert`) can replace it: `/etc/ilex/tls/cert.pem` and `key.pem` (the key `root:ilex 0640`), then `sudo systemctl restart ilex`. The installer never replaces a certificate it didn't make.
 - **The 15-minute unlock** matches sudo's own default. Use "Lock now" when you're done.
 - **No independent audit yet.** Ilexarium has had several in-depth internal reviews, but no outside audit. Outside reviews are very welcome. A good place to start is `system/programs/` and the parts listed in [`CONTRIBUTING.md`](CONTRIBUTING.md#parts-that-need-a-careful-review).
 
