@@ -192,7 +192,7 @@ https_link() {
 enable_https_socket() {
   if https_on; then
     systemctl enable ilex-https.socket >/dev/null 2>&1
-    ensure_socket ilex-https.socket "$(https_local_url)"
+    ensure_socket ilex-https.socket "$(local_address "$(app_setting HTTPS_HOST)")" "$(https_port)"
   else
     systemctl disable --now ilex-https.socket >/dev/null 2>&1 || true
   fi
