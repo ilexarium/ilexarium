@@ -5,8 +5,9 @@
 # written once by the installer and never by an update.
 #
 # Its port is ilex.socket's: systemd holds it, from boot on and while the app is down, and passes
-# it to the app (which refuses to start without it). A request while the app is stopped starts
-# it; to keep it stopped, stop both: systemctl stop ilex.socket ilex.service
+# it to the app (which refuses to start without it) — with ilex-https.socket's, when Ilexarium is
+# open on the network. A request while the app is stopped starts it; to keep it stopped, stop
+# them all: systemctl stop ilex.socket ilex-https.socket ilex.service
 #
 # No NoNewPrivileges, ProtectSystem, PrivateTmp and the like yet. The app starts nothing privileged
 # any more: root work runs in the signed-in person's SSH session, through their own sudo.

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import {
   APP_NAME_PATTERN,
   BACKUP_FILESYSTEMS,
@@ -42,6 +43,8 @@ import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
 import * as appManifest from '../../apps/server/src/updates/release-manifest.ts';
 import * as appUpdates from '../../apps/server/src/updates/updates.constants.ts';
 import { socketMismatch } from '../../apps/server/src/common/systemd-socket.ts';
+import { HTTPS_SOCKET } from '../../apps/server/src/common/systemd-socket.constants.ts';
+import { validateEnv } from '../../apps/server/src/config/env.schema.ts';
 import * as wrapperConfigure from './backup/configure.mts';
 import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
@@ -255,6 +258,34 @@ describe('the app and the root programs check the same rules', () => {
     }
     // Unset, both take the app's default.
     expect(socketMismatch(listening('', '', 'yes'), undefined, 3000)).toBeNull();
+  });
+
+  it('where ilex-https.socket listens: the same addresses, the same default port everywhere', () => {
+    const generator = new URL('../systemd/ilex-socket-generator', import.meta.url).pathname;
+    const https = new URL('../install/lib/https.sh', import.meta.url).pathname;
+    const appDefault = validateEnv({ DATABASE_URL: 'postgresql://x@localhost/x' }).HTTPS_PORT;
+    const generated = execFileSync(
+      'bash',
+      ['-c', 'source "$1"; listen_lines 0.0.0.0 "" no 3443', '_', generator],
+      { encoding: 'utf8' },
+    );
+    expect(generated).toBe(`ListenStream=0.0.0.0:${appDefault}\n`);
+    expect(readFileSync(generator, 'utf8')).toContain(`"$ipv6" ${appDefault})`);
+    expect(
+      execFileSync('bash', ['-c', 'source "$1"; printf %s "$HTTPS_PORT_DEFAULT"', '_', https], {
+        encoding: 'utf8',
+      }),
+    ).toBe(String(appDefault));
+    expect(
+      socketMismatch(
+        [{ address: '0.0.0.0', port: appDefault, family: 'IPv4' }],
+        '0.0.0.0',
+        appDefault,
+        HTTPS_SOCKET,
+      ),
+    ).toBeNull();
+    // No HTTPS_HOST: the generator writes no address, and the app expects none.
+    expect(HTTPS_SOCKET.defaultHost).toBeUndefined();
   });
   it('apps and Files: every file the app reads as an app’s is one the helper checks; a deletion outlasts its rm', () => {
     for (const name of [...COMPOSE_FILES, ENV_FILE]) {

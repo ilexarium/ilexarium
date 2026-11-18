@@ -27,7 +27,7 @@ choose_network() {
     return
   fi
   log 'Opening Ilexarium on your network'
-  local question="Open Ilexarium from other devices (it listens on all of this machine's addresses, https://<address>:$(https_port))?"
+  local question="Open Ilexarium from other devices (it listens on every IPv4 address of this machine, https://<address>:$(https_port))?"
   if [[ "$LOCAL_ONLY" == 1 ]]; then
     info "$question no (--local-only)"
     return
@@ -39,8 +39,16 @@ choose_network() {
   fi
   if [[ ! -t 0 ]]; then die "$question — run again with --yes (opens it) or --local-only"; fi
   local answer
-  read -r -p "    $question [Y/n] " answer
-  if [[ -z "$answer" || "$answer" == y || "$answer" == Y ]]; then OPEN_ON_NETWORK=1; fi
+  while read -r -p "    $question [Y/n] " answer; do
+    case "${answer,,}" in
+      '' | y | yes)
+        OPEN_ON_NETWORK=1
+        return
+        ;;
+      n | no) return ;;
+    esac
+  done
+  die "$question — no answer"
 }
 
 # The first install's answer, into app.env beside the settings ensure_app_settings wrote.
@@ -114,11 +122,14 @@ ensure_certificate() {
       fi
       return
     fi
-    if openssl x509 -noout -checkend $((RENEW_DAYS * 86400)) -in "$cert" >/dev/null 2>&1; then
+    if [[ ! -e "$key" ]]; then
+      info 'making the self-signed certificate again: its key is gone'
+    elif openssl x509 -noout -checkend $((RENEW_DAYS * 86400)) -in "$cert" >/dev/null 2>&1; then
       info "$cert (self-signed, $(openssl x509 -noout -enddate -in "$cert" | sed 's/^notAfter=/valid until /'))"
       return
+    else
+      info 'renewing the self-signed certificate: fewer than 30 days left'
     fi
-    info 'renewing the self-signed certificate: fewer than 30 days left'
   fi
   make_certificate
 }
@@ -159,23 +170,16 @@ CONF
   info "$TLS_DIR/cert.pem (self-signed, $CERT_DAYS days: $(certificate_names))"
 }
 
-# Where the HTTPS port answers on this machine (listening on every address: on 127.0.0.1).
-https_local_url() {
-  local host
-  host="$(app_setting HTTPS_HOST)"
-  case "$host" in
-    0.0.0.0 | ::) host=127.0.0.1 ;;
-    *:*) host="[$host]" ;;
-  esac
-  printf 'https://%s:%s' "$host" "$(https_port)"
-}
+https_local_url() { local_url https "$(app_setting HTTPS_HOST)" "$(https_port)"; }
 
-# The address to open from another device: HTTPS_HOST's own, or the machine's first.
+# The address to open from another device: HTTPS_HOST's own, or the machine's first address that
+# HTTPS_HOST covers (0.0.0.0: IPv4 only).
 https_link() {
   local host
   host="$(app_setting HTTPS_HOST)"
   case "$host" in
-    0.0.0.0 | ::) host="$(machine_addresses | head -n1)" ;;
+    0.0.0.0) host="$(machine_addresses | grep -v : | head -n1 || true)" ;;
+    ::) host="$(machine_addresses | head -n1)" ;;
   esac
   case "$host" in
     '') host="<this machine's address>" ;;
@@ -188,15 +192,7 @@ https_link() {
 enable_https_socket() {
   if https_on; then
     systemctl enable ilex-https.socket >/dev/null 2>&1
-    local url="${1#https://}" host port
-    port="${url##*:}"
-    host="${url%:*}"
-    host="${host#\[}"
-    host="${host%\]}"
-    if ! systemctl is-active --quiet ilex-https.socket || ! listening "$host" "$port"; then
-      systemctl restart ilex-https.socket ||
-        die "Port $port ($host) is taken by another program (ss -ltnp shows which): stop it, or choose another — HTTPS_PORT in $ETC/app.env — then run this again"
-    fi
+    ensure_socket ilex-https.socket "$(https_local_url)"
   else
     systemctl disable --now ilex-https.socket >/dev/null 2>&1 || true
   fi

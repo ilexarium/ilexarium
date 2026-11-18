@@ -73,14 +73,15 @@ export function socketMismatch(
  * connections handed to it — one server for the API and both WebSocket paths. An HTTPS socket's
  * connections are decrypted first (what Node's own https.Server is inside) and stay encrypted
  * for their whole life, upgrades too; Express sees the TLS socket, so `request.secure` holds.
- * The others stop with the server; a connection one takes while it closes is dropped.
+ * The others stop with the server (the HTTPS ones also with `closeEncrypted`); a connection one
+ * takes while it closes is dropped.
  */
 export async function listenOnSockets(
   server: HttpServer,
   plain: ListenTarget[],
   encrypted: ListenTarget[] = [],
   certificate?: Certificate,
-): Promise<{ plain: AddressInfo[]; encrypted: AddressInfo[] }> {
+): Promise<{ plain: AddressInfo[]; encrypted: AddressInfo[]; closeEncrypted: () => void }> {
   const [first, ...rest] = plain;
   if (first === undefined) throw new Error('No socket to listen on');
   if (encrypted.length > 0 && certificate === undefined) {
@@ -113,6 +114,9 @@ export async function listenOnSockets(
   return {
     plain: [server, ...others].map(addressOf),
     encrypted: secure.map(addressOf),
+    closeEncrypted: () => {
+      for (const other of secure) other.close();
+    },
   };
 }
 
