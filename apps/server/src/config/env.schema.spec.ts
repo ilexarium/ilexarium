@@ -84,6 +84,31 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, HOST: 'example.com' })).toThrow(/HOST/);
   });
 
+  it('HTTPS on the network: off unless HTTPS_HOST names an address, port 3443', () => {
+    const production = { ...base, NODE_ENV: 'production' };
+    expect(validateEnv(production)).toMatchObject({ HTTPS_PORT: 3443 });
+    expect(validateEnv(production).HTTPS_HOST).toBeUndefined();
+    expect(validateEnv({ ...production, HTTPS_HOST: '' }).HTTPS_HOST).toBeUndefined();
+    expect(validateEnv({ ...production, HTTPS_HOST: '  ' }).HTTPS_HOST).toBeUndefined();
+    expect(validateEnv({ ...production, HTTPS_HOST: '0.0.0.0', HTTPS_PORT: '8443' })).toMatchObject(
+      { HTTPS_HOST: '0.0.0.0', HTTPS_PORT: 8443 },
+    );
+    expect(validateEnv({ ...production, HTTPS_HOST: '::' }).HTTPS_HOST).toBe('::');
+    expect(() => validateEnv({ ...production, HTTPS_HOST: 'taragui.local' })).toThrow(/HTTPS_HOST/);
+    expect(() => validateEnv({ ...production, HTTPS_PORT: '70000' })).toThrow(/HTTPS_PORT/);
+  });
+
+  it('the certificate: the installer’s files in production, or the person’s', () => {
+    expect(validateEnv({ ...base, NODE_ENV: 'production' })).toMatchObject({
+      TLS_CERT_FILE: '/etc/ilex/tls/cert.pem',
+      TLS_KEY_FILE: '/etc/ilex/tls/key.pem',
+    });
+    expect(
+      validateEnv({ ...base, TLS_CERT_FILE: '/srv/cert.pem', TLS_KEY_FILE: '/srv/key.pem' }),
+    ).toMatchObject({ TLS_CERT_FILE: '/srv/cert.pem', TLS_KEY_FILE: '/srv/key.pem' });
+    expect(() => validateEnv({ ...base, TLS_KEY_FILE: 'key.pem' })).toThrow(/TLS_KEY_FILE/);
+  });
+
   it('uses the installed files and sudo in production', () => {
     expect(validateEnv({ ...base, NODE_ENV: 'production' })).toMatchObject({
       MASTER_KEY_FILE: '/etc/ilex/master.key',
