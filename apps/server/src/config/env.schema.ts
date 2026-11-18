@@ -48,8 +48,9 @@ export const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/, error: 'Must be a postgresql:// URL' }),
     /**
-     * Unset: `loopback` in production — the app listens on 127.0.0.1, so whatever sends it requests
-     * (the HTTPS proxy in front, whichever the person chose) is on this machine; none otherwise.
+     * Unset: `loopback` in production — a proxy in front (whichever the person chose) reaches the
+     * app on 127.0.0.1, so it's on this machine; browsers on the HTTPS port connect directly, with
+     * their own addresses. None otherwise.
      */
     TRUST_PROXY: trustProxySchema.optional(),
     SETUP_TOKEN_FILE: z.string().trim().min(1).optional(),
@@ -60,6 +61,19 @@ export const envSchema = z
      * for "localhost").
      */
     HOST: z.union([z.ipv4(), z.ipv6()]).optional(),
+    /**
+     * Where browsers on the network reach the app over HTTPS with its own certificate
+     * (ilex-https.socket; the installer writes 0.0.0.0 unless told --local-only). Unset or empty:
+     * off — this machine only, through the person's own proxy.
+     */
+    HTTPS_HOST: z.preprocess(
+      (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+      z.union([z.ipv4(), z.ipv6()]).optional(),
+    ),
+    HTTPS_PORT: z.coerce.number().int().min(1).max(65535).default(3443),
+    /** The HTTPS certificate and its key (PEM): the installer's self-signed one, or the person's. */
+    TLS_CERT_FILE: z.string().trim().startsWith('/').optional(),
+    TLS_KEY_FILE: z.string().trim().startsWith('/').optional(),
     /**
      * The Docker API: always the socket proxy, never Docker's own socket — tcp:// or http://
      * (development), or the proxy's Unix socket under /run/ilex/ (production: only the app's
@@ -134,6 +148,9 @@ export const envSchema = z
           ? '/opt/ilex/catalog'
           : fileURLToPath(new URL('../../../../catalog', import.meta.url))),
       HOST: env.HOST ?? (production ? '127.0.0.1' : undefined),
+      TLS_CERT_FILE:
+        env.TLS_CERT_FILE ?? (production ? '/etc/ilex/tls/cert.pem' : '.dev/tls/cert.pem'),
+      TLS_KEY_FILE: env.TLS_KEY_FILE ?? (production ? '/etc/ilex/tls/key.pem' : '.dev/tls/key.pem'),
       TRUST_PROXY: env.TRUST_PROXY ?? (production ? ['loopback'] : false),
       SSH_PORT: env.SSH_PORT ?? (production ? 22 : 2222),
       SSH_HOST_KEYS: env.SSH_HOST_KEYS ?? (production ? '/etc/ssh' : '.dev/sshd'),

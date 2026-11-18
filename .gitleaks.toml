@@ -1,0 +1,7 @@
+# gitleaks: the default rules, and the one private key the repository holds on purpose — the HTTPS
+# tests' certificate, trusted nowhere.
+[extend]
+useDefault = true
+
+[allowlist]
+paths = ['''^apps/server/test/fixtures/tls/key\.pem$''']
