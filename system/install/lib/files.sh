@@ -241,20 +241,28 @@ app_setting() {
   printf '%s' "$value"
 }
 
-# Where something listening on host $2 and port $3 answers on this machine, as a $1 URL:
-# listening on every address, on 127.0.0.1.
-local_url() {
-  local host="$2"
-  case "$host" in
-    '' | 0.0.0.0 | ::) host=127.0.0.1 ;;
-    *:*) host="[$host]" ;;
+# The address that reaches something listening on host $1 from this machine: listening on every
+# address, 127.0.0.1.
+local_address() {
+  case "$1" in
+    '' | 0.0.0.0 | ::) printf 127.0.0.1 ;;
+    *) printf '%s' "$1" ;;
   esac
+}
+
+# Where something listening on host $2 and port $3 answers on this machine, as a $1 URL.
+local_url() {
+  local host
+  host="$(local_address "$2")"
+  if [[ "$host" == *:* ]]; then host="[$host]"; fi
   printf '%s://%s:%s' "$1" "$host" "$3"
 }
 
-# Where the app answers on this machine, from its settings (the app's defaults without them).
-app_url() {
+app_port() {
   local port
   port="$(app_setting PORT)"
-  local_url http "$(app_setting HOST)" "${port:-3000}"
+  printf '%s' "${port:-3000}"
 }
+
+# Where the app answers on this machine, from its settings (the app's defaults without them).
+app_url() { local_url http "$(app_setting HOST)" "$(app_port)"; }
