@@ -42,8 +42,14 @@ The key that signs every Ilexarium release, as `get-ilex.sh` carries it:
 
     PUBLIC_KEY='RWTCTN0pOPdJ/mpJjRirU77qRxeSGPL7lzj5u5xSeDlZSvyd+AU+1QVg'
 
-Ilexarium listens on `127.0.0.1:3000` (and `[::1]:3000`, so `localhost` works too); you reach it
-through an HTTPS proxy of your choice.
+The installer asks whether to open Ilexarium from other devices (yes by default; `--local-only`
+says no). Then open `https://<your server's address>:3443` from any device on your network: the
+browser warns once, because the certificate is your server's own (self-signed) — compare its
+SHA-256 fingerprint with the one the installer printed before going on. Your own certificate can
+replace it (`/etc/ilex/tls/cert.pem` and `key.pem`, then `sudo systemctl restart ilex`).
+
+An HTTPS proxy of your choice works too, on its own or beside it: Ilexarium listens on
+`127.0.0.1:3000` for one (and `[::1]:3000`, so `localhost` works too).
 Guides: [ilexarium.com](https://ilexarium.com).
 
 ## Development
