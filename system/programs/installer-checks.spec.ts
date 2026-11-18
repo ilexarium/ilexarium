@@ -5,6 +5,8 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
+  statSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs';
@@ -12,7 +14,7 @@ import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ROOT_LOCK, startTime } from './lib/lock.mts';
 
 const CHECKS = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/checks.sh');
@@ -20,6 +22,13 @@ const PACKAGES = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/p
 const COMMON = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/common.sh');
 const PLATFORM = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/platform.sh');
 const FILES = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/files.sh');
+const HTTPS = join(dirname(fileURLToPath(import.meta.url)), '../install/lib/https.sh');
+const TEST_CERT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../apps/server/test/fixtures/tls/cert.pem',
+);
+
+const mode = (path: string) => (statSync(path).mode & 0o777).toString(8);
 
 // The installer's own functions, fed samples: `source` only defines them.
 const call = (fn: string, ...args: string[]) =>
@@ -331,13 +340,12 @@ describe('the app’s port before a first install', () => {
         resolve((server!.address() as { port: number }).port),
       );
     });
-  const checkPort = (settings: string, installed = '') => {
+  const checkPort = (settings: string, installed = '', open = '0') => {
     writeFileSync(join(dir, 'app.env'), settings);
-    return script('source "$FILES"; ETC="$DIR"; OLD_VERSION="$INSTALLED"; check_port', {
-      FILES,
-      DIR: dir,
-      INSTALLED: installed,
-    });
+    return script(
+      'source "$FILES"; source "$HTTPS"; ETC="$DIR"; OLD_VERSION="$INSTALLED"; OPEN_ON_NETWORK="$OPEN"; check_port',
+      { FILES, HTTPS, DIR: dir, INSTALLED: installed, OPEN: open },
+    );
   };
 
   it('refuses when another program answers there, before anything changed', async () => {
@@ -364,5 +372,197 @@ describe('the app’s port before a first install', () => {
     server?.close();
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(checkPort(`PORT=${port}\n`).status).toBe(0);
+  });
+
+  it('opening it on the network: the HTTPS port too, with what to do', async () => {
+    const port = await listen('127.0.0.1');
+    const free = `PORT=${port + 1}\nHTTPS_PORT=${port}\n`;
+    expect(checkPort(free).status).toBe(0);
+    const run = checkPort(free, '', '1');
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain(`Another program answers on port ${port}`);
+    expect(run.stderr).toContain('HTTPS_PORT=<port>');
+    expect(run.stderr).toContain('--local-only');
+  });
+});
+
+describe('HTTPS on the network (the installer’s https.sh)', () => {
+  let dir: string;
+  beforeEach(() => (dir = mkdtempSync(join(tmpdir(), 'ilex-install-https-'))));
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  // write_file and chown as a test user can: no owners (written beside, then moved, as the real one).
+  const https = (body: string, env: Record<string, string> = {}) =>
+    script(
+      `source "$FILES"; source "$HTTPS"; ETC="$DIR"; TLS_DIR="$DIR/tls"; APP_USER=ilex;
+       write_file() { cat >"$1.new" && mv "$1.new" "$1"; }; chown() { :; }; ${body}`,
+      { FILES, HTTPS, DIR: dir, ...env },
+    );
+  const choose = (flags: string, settings: string | null = null, installed = '') => {
+    if (settings !== null) writeFileSync(join(dir, 'app.env'), settings);
+    return https(
+      `UPDATE=0 ASSUME_YES=0 LOCAL_ONLY=0 OLD_VERSION="$INSTALLED" ${flags}; choose_network </dev/null; echo "open=$OPEN_ON_NETWORK"`,
+      { INSTALLED: installed },
+    );
+  };
+
+  it('the first install asks; --yes opens it, --local-only doesn’t (also with --yes)', () => {
+    const yes = choose('ASSUME_YES=1');
+    expect(yes.stdout).toContain(
+      "Open Ilexarium from other devices (it listens on all of this machine's addresses, https://<address>:3443)? yes (--yes)",
+    );
+    expect(yes.stdout).toContain('open=1');
+    for (const flags of ['LOCAL_ONLY=1', 'LOCAL_ONLY=1 ASSUME_YES=1']) {
+      const no = choose(flags);
+      expect(no.stdout, flags).toContain('? no (--local-only)');
+      expect(no.stdout, flags).toContain('open=0');
+    }
+  });
+
+  it('no one to ask: stops before anything changed, saying how to answer', () => {
+    const run = choose('');
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain('run again with --yes (opens it) or --local-only');
+  });
+
+  it('after the first install app.env decides: no question, --local-only ignored', () => {
+    for (const [settings, installed] of [
+      [null, '0.2.2'],
+      ['HTTPS_HOST=\n', ''],
+      ['  HTTPS_HOST=0.0.0.0\n', ''],
+    ] as const) {
+      const run = choose('LOCAL_ONLY=1', settings, installed);
+      expect(run.status).toBe(0);
+      expect(run.stdout).not.toContain('Open Ilexarium');
+      expect(run.stdout).toContain('--local-only: ignored');
+      expect(run.stdout).toContain('open=0');
+    }
+  });
+
+  it('the answer goes into app.env once, beside the settings there; its port if one was set', () => {
+    writeFileSync(join(dir, 'app.env'), 'HOST=127.0.0.1\nPORT=3000\nDATABASE_URL=postgres://x\n');
+    expect(https('OPEN_ON_NETWORK=1; ensure_https_settings; ensure_https_settings').status).toBe(0);
+    const settings = readFileSync(join(dir, 'app.env'), 'utf8');
+    expect(settings).toMatch(
+      /^HOST=127\.0\.0\.1\nPORT=3000\nDATABASE_URL=postgres:\/\/x\n# Ilexarium on your network/,
+    );
+    expect(settings.match(/^HTTPS_HOST=0\.0\.0\.0$/gm)).toHaveLength(1);
+    expect(settings).toMatch(/^HTTPS_PORT=3443$/m);
+
+    writeFileSync(join(dir, 'app.env'), 'HTTPS_PORT=8443\n');
+    https('OPEN_ON_NETWORK=1; ensure_https_settings');
+    expect(readFileSync(join(dir, 'app.env'), 'utf8')).toMatch(
+      /HTTPS_HOST=0\.0\.0\.0\nHTTPS_PORT=8443\n$/,
+    );
+
+    writeFileSync(join(dir, 'app.env'), 'PORT=3000\n');
+    https('OPEN_ON_NETWORK=0; ensure_https_settings');
+    expect(readFileSync(join(dir, 'app.env'), 'utf8')).toBe('PORT=3000\n');
+  });
+
+  it('the certificate’s names: the machine’s name (.local too), localhost, its addresses', () => {
+    const names = (name: string, addresses: string) =>
+      https(
+        `machine_name() { printf %s "$NAME"; }; machine_addresses() { printf "$ADDRESSES"; }; certificate_names`,
+        { NAME: name, ADDRESSES: addresses },
+      ).stdout;
+    expect(names('taragui', '192.168.1.5\n100.64.0.7\nfd00::5\n')).toBe(
+      'DNS:taragui,DNS:taragui.local,DNS:localhost,IP:127.0.0.1,IP:::1,IP:192.168.1.5,IP:100.64.0.7,IP:fd00::5',
+    );
+    expect(names('server.home.arpa', '')).toBe(
+      'DNS:server.home.arpa,DNS:localhost,IP:127.0.0.1,IP:::1',
+    );
+    expect(names('', '')).toBe('DNS:localhost,IP:127.0.0.1,IP:::1');
+  });
+
+  it('only a host name that can be a DNS name: nothing else reaches the certificate', () => {
+    for (const [hostname, want] of [
+      ['taragui', 'taragui'],
+      ['my-server.lan', 'my-server.lan'],
+      ['bad name', ''],
+      ['x,IP:1.2.3.4', ''],
+      ['-dash', ''],
+      ['a\nCN = evil', ''],
+    ]) {
+      const got = https(
+        `cat() { if [[ "$1" == /proc/sys/kernel/hostname ]]; then printf %s "$NAME"; else command cat "$@"; fi; }; machine_name`,
+        { NAME: hostname! },
+      ).stdout;
+      expect(got, hostname).toBe(want);
+    }
+  });
+
+  it('the address to open: HTTPS_HOST’s own, or the machine’s first', () => {
+    const link = (settings: string, addresses = '192.168.1.5\n10.0.0.2\n') => {
+      writeFileSync(join(dir, 'app.env'), settings);
+      return https('machine_addresses() { printf "$ADDRESSES"; }; https_link', {
+        ADDRESSES: addresses,
+      }).stdout;
+    };
+    expect(link('HTTPS_HOST=0.0.0.0\n')).toBe('https://192.168.1.5:3443');
+    expect(link('HTTPS_HOST=0.0.0.0\nHTTPS_PORT=8443\n')).toBe('https://192.168.1.5:8443');
+    expect(link('HTTPS_HOST=100.64.0.7\n')).toBe('https://100.64.0.7:3443');
+    expect(link('HTTPS_HOST=fd00::5\n')).toBe('https://[fd00::5]:3443');
+    expect(link('HTTPS_HOST=0.0.0.0\n', '')).toBe("https://<this machine's address>:3443");
+  });
+
+  it('makes a self-signed certificate: its names, 825 days, not a CA, the key its own', () => {
+    mkdirSync(join(dir, 'tls'));
+    const run = https(
+      'machine_name() { printf taragui; }; machine_addresses() { printf "192.168.1.5\n"; }; make_certificate',
+    );
+    expect(run.status, run.stderr).toBe(0);
+    const cert = join(dir, 'tls/cert.pem');
+    const text = execFileSync('openssl', ['x509', '-noout', '-text', '-in', cert], {
+      encoding: 'utf8',
+    });
+    expect(text).toContain('DNS:taragui, DNS:taragui.local, DNS:localhost, IP Address:127.0.0.1');
+    expect(text).toContain('IP Address:192.168.1.5');
+    expect(text).toMatch(/Basic Constraints: critical\s+CA:FALSE/);
+    expect(text).toContain('TLS Web Server Authentication');
+    expect(text).toContain('ASN1 OID: prime256v1');
+    const days = (end: string) =>
+      Math.round((Date.parse(end.replace(/^notAfter=/, '')) - Date.now()) / 86_400_000);
+    expect(
+      days(
+        execFileSync('openssl', ['x509', '-noout', '-enddate', '-in', cert], { encoding: 'utf8' }),
+      ),
+    ).toBe(825);
+    const publicOf = (args: string[]) => execFileSync('openssl', args, { encoding: 'utf8' });
+    expect(publicOf(['pkey', '-pubout', '-in', join(dir, 'tls/key.pem')])).toBe(
+      publicOf(['x509', '-noout', '-pubkey', '-in', cert]),
+    );
+    expect(mode(join(dir, 'tls/key.pem'))).toBe('640');
+    expect(readdirSync(join(dir, 'tls')).sort()).toEqual(['.self-signed', 'cert.pem', 'key.pem']);
+    expect(https('self_made').status).toBe(0);
+  });
+
+  it('self-made only while the marker holds the certificate’s fingerprint', () => {
+    mkdirSync(join(dir, 'tls'));
+    execFileSync('cp', [TEST_CERT, join(dir, 'tls/cert.pem')]);
+    expect(https('self_made').status).toBe(1);
+    const fingerprint = https('fingerprint "$TLS_DIR/cert.pem"').stdout.trim();
+    expect(fingerprint).toMatch(/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/);
+    writeFileSync(join(dir, 'tls/.self-signed'), `${fingerprint}\n`);
+    expect(https('self_made').status).toBe(0);
+    writeFileSync(join(dir, 'tls/.self-signed'), 'AA:BB\n');
+    expect(https('self_made').status).toBe(1);
+  });
+
+  it('a certificate of the person’s own is kept, however near its end', () => {
+    mkdirSync(join(dir, 'tls'));
+    execFileSync('cp', [TEST_CERT, join(dir, 'tls/cert.pem')]);
+    writeFileSync(join(dir, 'tls/key.pem'), 'theirs');
+    writeFileSync(join(dir, 'app.env'), 'HTTPS_HOST=0.0.0.0\n');
+    const run = https('runuser() { return 0; }; RENEW_DAYS=100000; ensure_certificate');
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).toContain('(yours, kept)');
+    expect(readFileSync(join(dir, 'tls/key.pem'), 'utf8')).toBe('theirs');
+  });
+
+  it('HTTPS off: no certificate made', () => {
+    writeFileSync(join(dir, 'app.env'), 'PORT=3000\n');
+    expect(https('ensure_certificate').status).toBe(0);
+    expect(existsSync(join(dir, 'tls'))).toBe(false);
   });
 });

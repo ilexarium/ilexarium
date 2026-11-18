@@ -50,17 +50,18 @@ ensure_base() {
   log 'Checking the basics'
   local missing=()
   if [[ "$OS_FAMILY" == pacman ]]; then
-    for tool in curl sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
+    for tool in curl openssl sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
     [[ -x /usr/bin/kill ]] || missing+=(kill)
     if ((${#missing[@]} > 0)); then
       confirm "Install the basics Ilexarium needs (missing: ${missing[*]})?" || die 'They are needed'
-      pacman_install ca-certificates curl sudo util-linux
+      pacman_install ca-certificates curl openssl sudo util-linux
     fi
     # A person's own systemd and its bus are part of systemd and dbus.
-    info 'curl, sudo, util-linux'
+    info 'curl, openssl, sudo, util-linux'
     return
   fi
-  for tool in curl gpg sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
+  # openssl makes the HTTPS certificate.
+  for tool in curl gpg openssl sudo visudo; do command -v "$tool" >/dev/null || missing+=("$tool"); done
   # The program, not the shell's builtin: ending a process runs `env kill` as the person.
   [[ -x /usr/bin/kill ]] || missing+=(kill)
   # A person's own systemd and its bus (user units: apps without sudo for the docker group).
@@ -71,9 +72,9 @@ ensure_base() {
   if ((${#missing[@]} > 0)); then
     confirm "Install the basics Ilexarium needs (missing: ${missing[*]})?" || die 'They are needed'
     apt_update
-    apt_install ca-certificates curl gnupg sudo procps libpam-systemd dbus-user-session
+    apt_install ca-certificates curl gnupg openssl sudo procps libpam-systemd dbus-user-session
   fi
-  info 'curl, gnupg, sudo, procps, libpam-systemd, dbus-user-session'
+  info 'curl, gnupg, openssl, sudo, procps, libpam-systemd, dbus-user-session'
 }
 
 # Node 24.5 or newer (ilex-update trusts the machine's certificates with an API from 24.5) at

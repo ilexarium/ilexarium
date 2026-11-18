@@ -66,8 +66,8 @@ check_version() {
   fi
 }
 
-# A first install: nothing may answer on the app's port yet — where /etc/ilex/app.env says if it's
-# there already, 127.0.0.1:3000 otherwise. ilex.socket takes it, and another program there would
+# A first install: nothing may answer on the app's ports yet — where /etc/ilex/app.env says if it's
+# there already, 127.0.0.1:3000 (and 3443 when opening it on the network) otherwise. ilex.socket takes it, and another program there would
 # get what the HTTPS proxy sends (the installer's own check would believe its answer).
 check_port() {
   if [[ -n "$OLD_VERSION" ]]; then return; fi
@@ -81,6 +81,9 @@ check_port() {
       die "Another program answers on port $port ($address; ss -ltnp shows which): stop it, or choose another port before installing — PORT=<port> in $ETC/app.env"
     fi
   done
+  if [[ "$OPEN_ON_NETWORK" == 1 ]] && listening 127.0.0.1 "$(https_port)"; then
+    die "Another program answers on port $(https_port) (ss -ltnp shows which): stop it, or choose another port before installing — HTTPS_PORT=<port> in $ETC/app.env — or install with --local-only"
+  fi
 }
 
 # The app's user must not reach Docker's socket: only the proxy may.
