@@ -140,7 +140,7 @@ start_app() {
   log 'Starting the app'
   local units=/etc/systemd/system url address host port
   install -o root -g root -m 0644 "$RELEASE/system/systemd/ilex.socket" \
-    "$RELEASE/system/systemd/ilex.service" "$units/"
+    "$RELEASE/system/systemd/ilex-https.socket" "$RELEASE/system/systemd/ilex.service" "$units/"
   install -D -o root -g root -m 0755 "$RELEASE/system/systemd/ilex-socket-generator" "$SOCKET_GENERATOR"
   systemctl daemon-reload
   systemctl enable ilex.socket ilex.service >/dev/null 2>&1
@@ -157,6 +157,7 @@ start_app() {
     systemctl restart ilex.socket ||
       die "Port $port ($host) is taken by another program (ss -ltnp shows which): stop it, then run this again"
   fi
+  enable_https_socket "$(https_local_url)"
   release_app
   systemctl restart ilex.service
 
@@ -165,6 +166,7 @@ start_app() {
   while ((SECONDS < end)); do
     if curl -fsS --max-time 3 "$url/api/health" 2>/dev/null | grep -qF "\"version\":\"$NEW_VERSION\""; then
       info "the app answers on $url, ilex.socket holds its port"
+      check_https
       return
     fi
     sleep 1
@@ -176,16 +178,29 @@ print_result() {
   log "Ilexarium $NEW_VERSION is running"
   if [[ -n "${DATABASE_BACKUP:-}" ]]; then info "Database before the update: $DATABASE_BACKUP"; fi
   if [[ "$UPDATE" == 1 ]]; then return; fi
-  local url status token
+  local url status token address
   url="$(app_url)"
-  info "It listens on $url. Signing in needs HTTPS: put an HTTPS proxy of your choice in front of it."
+  if https_on; then
+    address="$(https_link)"
+    info "Open it from any device on your network: $address"
+    info 'Your browser warns once: the certificate is this machine'"'"'s own. Before going on, compare'
+    info 'its SHA-256 fingerprint (the browser shows it in the certificate'"'"'s details) with this one:'
+    info ''
+    info "    $(fingerprint "$TLS_DIR/cert.pem")"
+    info ''
+    firewall_hint "$(https_port)"
+    info "An HTTPS proxy of your choice works too: it listens on $url for one."
+  else
+    address='https://<your address>'
+    info "It listens on $url. Signing in needs HTTPS: put an HTTPS proxy of your choice in front of it."
+  fi
   status="$(curl -fsS "$url/api/auth/status" 2>/dev/null || true)"
   if [[ "$status" == *'"needsSetup":true'* ]]; then
     # Read as the app's user: the file is in its folder (root reading it could follow a link).
     token="$(runuser -u "$APP_USER" -- cat "$VAR/app/setup-token" 2>/dev/null || true)"
     info 'Then create your account (the link works once):'
     info ''
-    info "    https://<your address>/setup#token=$token"
+    info "    $address/setup#token=$token"
     info ''
     info 'Lost it? sudo ilex-setup-code'
   fi

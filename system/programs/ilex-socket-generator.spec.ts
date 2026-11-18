@@ -30,8 +30,11 @@ function call(fn: string, ...args: string[]) {
 function generate(settings: string) {
   writeFileSync(join(dir, 'app.env'), settings);
   const run = call('main', join(dir, 'normal'), join(dir, 'early'), join(dir, 'late'));
-  const dropIn = join(dir, 'normal/ilex.socket.d/listen.conf');
-  return { ...run, dropIn: existsSync(dropIn) ? readFileSync(dropIn, 'utf8') : null };
+  const read = (unit: string) => {
+    const file = join(dir, `normal/${unit}.d/listen.conf`);
+    return existsSync(file) ? readFileSync(file, 'utf8') : null;
+  };
+  return { ...run, dropIn: read('ilex.socket'), httpsDropIn: read('ilex-https.socket') };
 }
 
 describe('ilex-socket-generator', () => {
@@ -88,6 +91,52 @@ describe('ilex-socket-generator', () => {
     expect(call('listen_lines', '', '', 'no').stdout).toBe('ListenStream=127.0.0.1:3000\n');
   });
 
+  it('HTTPS on the network: ilex-https.socket from HTTPS_HOST and HTTPS_PORT (3443 unset)', () => {
+    const { dropIn, httpsDropIn, status } = generate(
+      'HOST=127.0.0.1\nPORT=3000\nHTTPS_HOST=0.0.0.0\nHTTPS_PORT=3443\n',
+    );
+    expect(status).toBe(0);
+    expect(dropIn).toMatch(/^\[Socket\]\nListenStream=127.0.0.1:3000\n/);
+    expect(httpsDropIn).toBe(
+      `[Socket]\nListenStream=0.0.0.0:3443\n${IPV6 ? 'ListenStream=[::1]:3443\n' : ''}`,
+    );
+    expect(generate('HTTPS_HOST=192.168.1.10\n').httpsDropIn).toBe(
+      '[Socket]\nListenStream=192.168.1.10:3443\n',
+    );
+    expect(generate('HTTPS_HOST="100.64.0.7"\nHTTPS_PORT=8443\n').httpsDropIn).toBe(
+      '[Socket]\nListenStream=100.64.0.7:8443\n',
+    );
+  });
+
+  it('no HTTPS_HOST (this machine only): no address for ilex-https.socket, nothing said', () => {
+    for (const settings of [
+      'HOST=127.0.0.1\n',
+      'HTTPS_HOST=\n',
+      'HTTPS_HOST=""\nHTTPS_PORT=3443\n',
+    ]) {
+      const { dropIn, httpsDropIn, status, stderr } = generate(settings);
+      expect(status, settings).toBe(0);
+      expect(dropIn, settings).not.toBeNull();
+      expect(httpsDropIn, settings).toBeNull();
+      expect(stderr, settings).toBe('');
+    }
+  });
+
+  it('HTTPS settings that aren’t an address and a port: no HTTPS address, the plain one kept', () => {
+    for (const settings of [
+      'HTTPS_HOST=taragui.local\n',
+      'HTTPS_HOST=0.0.0.0\nHTTPS_PORT=0\n',
+      'HTTPS_HOST=0.0.0.0; touch x\n',
+      'HTTPS_HOST="0.0.0.0\nListenStream=0.0.0.0:22"\n',
+    ]) {
+      const { dropIn, httpsDropIn, status, stderr } = generate(settings);
+      expect(status, settings).toBe(0);
+      expect(dropIn, settings).not.toBeNull();
+      expect(httpsDropIn, settings).toBeNull();
+      expect(stderr, settings).toMatch(/HTTPS_HOST or HTTPS_PORT .* is not an address and a port/);
+    }
+  });
+
   it('reads HOST and PORT as the installer does (app_setting)', () => {
     for (const settings of [
       '',
@@ -97,9 +146,10 @@ describe('ilex-socket-generator', () => {
       'HOST="0.0.0.0"\nPORT=\'8080\'\n',
       '  PORT=8080 \r\nHOST=::1\r\n',
       '# HOST=10.0.0.1\nHOST=127.0.0.1\n',
+      'HTTPS_HOST=0.0.0.0\nHTTPS_PORT= 8443\r\n',
     ]) {
       writeFileSync(join(dir, 'app.env'), settings);
-      for (const name of ['HOST', 'PORT']) {
+      for (const name of ['HOST', 'PORT', 'HTTPS_HOST', 'HTTPS_PORT']) {
         const installer = execFileSync(
           'bash',
           ['-c', 'source "$1"; ETC="$2"; app_setting "$3"', '_', FILES, dir, name],

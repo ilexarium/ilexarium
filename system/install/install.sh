@@ -5,15 +5,19 @@
 # machine (amd64, arm64) into a running platform, or updates an installed one to this release.
 # Run from the unpacked release archive:
 #
-#   sudo ./install.sh [--yes]
+#   sudo ./install.sh [--yes] [--local-only]
 #
 #   --yes            install missing programs (Node.js, Docker, Borg) without asking (on Arch
-#                    from the package database as it is — never a system upgrade)
+#                    from the package database as it is — never a system upgrade), and open
+#                    Ilexarium on the network (the first install's question, default yes)
+#   --local-only     a first install: this machine only — no HTTPS port on the network; open it
+#                    through an HTTPS proxy of your choice
 #   --update         an update from the app (ilex-update): installs no programs, asks nothing,
 #                    prints its progress as @@ lines
 #
-# How people reach the machine is theirs: Ilexarium listens where /etc/ilex/app.env says
-# (127.0.0.1:3000 at first) and needs an HTTPS proxy of their choice in front of it.
+# How people reach the machine is theirs: Ilexarium listens where /etc/ilex/app.env says —
+# 127.0.0.1:3000 for a proxy of their choice, and (unless --local-only) every address on port 3443
+# over HTTPS with a self-signed certificate, for browsers on their network.
 #
 # Every step checks first and changes only what's missing or outdated: running it again is safe.
 # It never deletes a user's data.
@@ -22,13 +26,15 @@ umask 0022
 
 RELEASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSUME_YES=0
+LOCAL_ONLY=0
 UPDATE=0
 for arg in "$@"; do
   case "$arg" in
     --yes) ASSUME_YES=1 ;;
+    --local-only) LOCAL_ONLY=1 ;;
     --update) UPDATE=1 ;;
     -h | --help)
-      sed -n '2,18s/^# \{0,1\}//p' "$0"
+      sed -n '2,20s/^# \{0,1\}//p' "$0"
       exit 0
       ;;
     *)
@@ -51,6 +57,8 @@ LIB="$RELEASE/system/install/lib"
 . "$LIB/files.sh"
 # shellcheck source=lib/platform.sh
 . "$LIB/platform.sh"
+# shellcheck source=lib/https.sh
+. "$LIB/https.sh"
 
 # The licence's notice, before anything changes (an update from the app has seen it already).
 if [[ "$UPDATE" == 0 ]]; then
@@ -60,6 +68,7 @@ fi
 check_machine
 hold_lock
 check_version
+choose_network
 check_port
 ensure_packages
 marker phase checked
@@ -82,6 +91,7 @@ install_platform_files
 start_platform
 backup_database
 ensure_app_settings
+ensure_https_settings
 # Migrated from the new release before it replaces the old: a failure leaves the old one.
 migrate_database
 marker phase migrated
@@ -92,6 +102,7 @@ printf '%s\n' "$NEW_VERSION" | write_file "$ETC/version" root:root 0644
 marker phase installed
 setup_ssh_login
 enable_lingering
+ensure_certificate
 start_app
 marker phase started
 check_setup

@@ -1,0 +1,22 @@
+# /etc/systemd/system/ilex-https.socket
+# Ilexarium on the network over HTTPS, with its own certificate (/etc/ilex/tls): for browsers on
+# this machine's network or tailnet, beside ilex.socket's port for a proxy on this machine. Held
+# by systemd like that one and passed to the app with it (Service=: ilex.service doesn't pull it
+# in — on a machine opened to this machine only, it stays disabled and nothing fails).
+#
+# Where it listens is the machine's setting, HTTPS_HOST and HTTPS_PORT in /etc/ilex/app.env
+# (the installer writes 0.0.0.0 and 3443 unless told --local-only): the generator writes the
+# addresses from there. No HTTPS_HOST: no address, and the installer leaves it disabled.
+# After changing them:
+#   systemctl daemon-reload && systemctl restart ilex-https.socket ilex
+
+[Unit]
+Description=Ilexarium's HTTPS port
+
+[Socket]
+Service=ilex.service
+FreeBind=yes
+BindIPv6Only=both
+
+[Install]
+WantedBy=sockets.target
