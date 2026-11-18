@@ -241,15 +241,20 @@ app_setting() {
   printf '%s' "$value"
 }
 
-# Where the app answers on this machine, from its settings (the app's defaults without them):
+# Where something listening on host $2 and port $3 answers on this machine, as a $1 URL:
 # listening on every address, on 127.0.0.1.
-app_url() {
-  local host port
-  host="$(app_setting HOST)"
-  port="$(app_setting PORT)"
+local_url() {
+  local host="$2"
   case "$host" in
     '' | 0.0.0.0 | ::) host=127.0.0.1 ;;
     *:*) host="[$host]" ;;
   esac
-  printf 'http://%s:%s' "$host" "${port:-3000}"
+  printf '%s://%s:%s' "$1" "$host" "$3"
+}
+
+# Where the app answers on this machine, from its settings (the app's defaults without them).
+app_url() {
+  local port
+  port="$(app_setting PORT)"
+  local_url http "$(app_setting HOST)" "${port:-3000}"
 }

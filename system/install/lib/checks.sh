@@ -81,9 +81,14 @@ check_port() {
       die "Another program answers on port $port ($address; ss -ltnp shows which): stop it, or choose another port before installing — PORT=<port> in $ETC/app.env"
     fi
   done
-  if [[ "$OPEN_ON_NETWORK" == 1 ]] && listening 127.0.0.1 "$(https_port)"; then
-    die "Another program answers on port $(https_port) (ss -ltnp shows which): stop it, or choose another port before installing — HTTPS_PORT=<port> in $ETC/app.env — or install with --local-only"
-  fi
+  if [[ "${OPEN_ON_NETWORK:-0}" != 1 ]] && ! https_on; then return; fi
+  port="$(https_port)"
+  for address in 127.0.0.1 "$(app_setting HTTPS_HOST)"; do
+    case "$address" in '' | 0.0.0.0 | ::) continue ;; esac
+    if listening "$address" "$port"; then
+      die "Another program answers on port $port ($address; ss -ltnp shows which): stop it, or choose another port before installing — HTTPS_PORT=<port> in $ETC/app.env — or install with --local-only"
+    fi
+  done
 }
 
 # The app's user must not reach Docker's socket: only the proxy may.

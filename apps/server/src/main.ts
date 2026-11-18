@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -5,12 +6,14 @@ import { AppModule } from './app.module.js';
 import { configureApp } from './app.setup.js';
 import { readCertificate } from './common/https-certificate.js';
 import {
+  HTTPS_OFF_NOTE,
   HTTPS_SOCKET,
   MOVE_SOCKET_HINT,
   NO_SOCKET_MESSAGE,
   PLAIN_SOCKET,
 } from './common/systemd-socket.constants.js';
 import { listenOnSockets, passedSockets, socketMismatch } from './common/systemd-socket.js';
+import type { Certificate } from './common/systemd-socket.model.js';
 import type { Env } from './config/env.schema.js';
 
 async function bootstrap() {
@@ -30,15 +33,25 @@ async function bootstrap() {
     await (host ? app.listen(port, host) : app.listen(port));
     return;
   }
-  const encrypted = sockets.filter((socket) => socket.name === HTTPS_SOCKET.unit);
+  // HTTPS on the network is an extra entrance: a problem with it is logged and turns it off,
+  // never this machine's own port (the person's proxy, their way in to fix it).
+  const logger = new Logger('HTTPS');
+  let encrypted = sockets.filter((socket) => socket.name === HTTPS_SOCKET.unit);
   const plain = sockets.filter((socket) => socket.name !== HTTPS_SOCKET.unit);
-  const certificate =
-    encrypted.length > 0
-      ? await readCertificate(
-          config.get('TLS_CERT_FILE', { infer: true }),
-          config.get('TLS_KEY_FILE', { infer: true }),
-        )
-      : undefined;
+  let certificate: Certificate | undefined;
+  let checkHttps = true;
+  if (encrypted.length > 0) {
+    try {
+      certificate = await readCertificate(
+        config.get('TLS_CERT_FILE', { infer: true }),
+        config.get('TLS_KEY_FILE', { infer: true }),
+      );
+    } catch (error) {
+      logger.error(`${(error as Error).message} ${HTTPS_OFF_NOTE}`);
+      encrypted = [];
+      checkHttps = false;
+    }
+  }
   await app.init();
   const listening = await listenOnSockets(
     app.getHttpServer(),
@@ -46,17 +59,22 @@ async function bootstrap() {
     encrypted.map(({ fd }) => ({ fd })),
     certificate,
   );
-  const mismatch =
-    socketMismatch(listening.plain, host, port, PLAIN_SOCKET) ??
+  const mismatch = socketMismatch(listening.plain, host, port, PLAIN_SOCKET);
+  if (mismatch) {
+    await app.close();
+    throw new Error(mismatch);
+  }
+  const httpsMismatch =
+    checkHttps &&
     socketMismatch(
       listening.encrypted,
       config.get('HTTPS_HOST', { infer: true }),
       config.get('HTTPS_PORT', { infer: true }),
       HTTPS_SOCKET,
     );
-  if (mismatch) {
-    await app.close();
-    throw new Error(mismatch);
+  if (httpsMismatch) {
+    listening.closeEncrypted();
+    logger.error(`${httpsMismatch} ${HTTPS_OFF_NOTE}`);
   }
 }
 await bootstrap();
