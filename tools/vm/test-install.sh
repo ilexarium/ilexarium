@@ -250,6 +250,11 @@ if ! run_in bash /root/get-ilex.sh --yes >>"$LOG" 2>&1; then
   tail -40 "$LOG"
   exit 1
 fi
+# What the browser shows at its warning is what the installer said to compare.
+if ! grep -qF "$(run_in cat /etc/ilex/tls/.self-signed)" "$LOG"; then
+  echo '  FAIL the installer did not print the certificate’s fingerprint' | tee -a "$LOG"
+  exit 1
+fi
 # The smoke test's own tools (not the platform's).
 install_tools iproute2
 # Arch's administrators' group, wheel, may use sudo once sudoers allows it (an administrator's step).
@@ -292,6 +297,45 @@ if ! run_in bash -c "cd /root/ilex-$VERSION && ./install.sh --update" >>"$LOG" 2
 fi
 app_settings_kept 'install.sh --update'
 run_in node /root/smoke.mjs update --installed-again | tee -a "$LOG"
+
+# HTTPS on the network follows app.env, and the certificate is the installer's only while it's the
+# one it made: a self-made one near its end is renewed, one of the person's own never touched.
+installed_again() {
+  if ! run_in bash -c "cd /root/ilex-$VERSION && ./install.sh --update" >>"$LOG" 2>&1; then
+    tail -40 "$LOG"
+    exit 1
+  fi
+}
+own_certificate() { # $1: its name, $2: days
+  run_in bash -c "set -e; cd /etc/ilex/tls
+    openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days $2 -subj /CN=$1 \
+      -keyout key.pem -out cert.pem 2>/dev/null
+    chown root:ilex key.pem && chmod 0640 key.pem
+    openssl x509 -noout -fingerprint -sha256 -in cert.pem | sed 's/^[^=]*=//' >/root/$1-fingerprint"
+}
+step 'HTTPS: a self-made certificate near its end renewed'
+own_certificate old 10
+run_in cp /root/old-fingerprint /etc/ilex/tls/.self-signed
+installed_again
+run_in bash -c '! cmp -s /root/old-fingerprint /etc/ilex/tls/.self-signed &&
+  openssl x509 -noout -checkend $((800 * 86400)) -in /etc/ilex/tls/cert.pem >/dev/null &&
+  [[ "$(openssl x509 -noout -fingerprint -sha256 -in /etc/ilex/tls/cert.pem | sed "s/^[^=]*=//")" == "$(cat /etc/ilex/tls/.self-signed)" ]] &&
+  cp /etc/ilex/tls/.self-signed /root/https-fingerprint' ||
+  { echo '  FAIL the self-made certificate was not renewed' | tee -a "$LOG"; exit 1; }
+run_in node /root/smoke.mjs https | tee -a "$LOG"
+
+step 'HTTPS turned off (no HTTPS_HOST in app.env)'
+run_in bash -c "cp -p /etc/ilex/app.env /root/app.env.https && sed -i '/^HTTPS_HOST=/d' /etc/ilex/app.env"
+installed_again
+run_in node /root/smoke.mjs https | tee -a "$LOG"
+
+step 'HTTPS on again, with a certificate of your own (kept, even near its end)'
+run_in cp -p /root/app.env.https /etc/ilex/app.env
+own_certificate own 5
+run_in cp /root/own-fingerprint /root/https-fingerprint
+installed_again
+app_settings_kept 'turning HTTPS off and on again'
+run_in node /root/smoke.mjs https | tee -a "$LOG"
 
 # Two newer versions of the same release, signed with the test key: one that works, one whose app
 # never starts (the update must put the working one back).

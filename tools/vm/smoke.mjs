@@ -13,6 +13,9 @@
 //                            an update by ilex-update from the test's release folder: its
 //                            outcome (updated, rolled_back), the version answering, and then
 //                            everything still there
+//   node smoke.mjs https     HTTPS on the network as app.env says (on: the socket, the
+//                            certificate in /etc/ilex/tls served, a sign-in over it; off: the
+//                            port closed) — after the install test changed it
 // Exits 1 on the first failure. Uses only Node's own modules and the app's `ws`.
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -26,6 +29,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { get } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 import { networkInterfaces } from 'node:os';
 import { promisify } from 'node:util';
 
@@ -52,6 +56,13 @@ const SSH_UNIT =
   JSON.parse(readFileSync('/etc/ilex/wrappers.json', 'utf8')).update.sshUnit ?? 'ssh.service';
 const ADMINS = existsSync('/etc/arch-release') ? 'wheel' : 'sudo';
 const BASE = `http://${ADDRESS}:${PORT}`;
+// HTTPS on the network (ilex-https.socket): on when app.env has HTTPS_HOST.
+const HTTPS_HOST = appSetting('HTTPS_HOST');
+const HTTPS_PORT = appSetting('HTTPS_PORT') || '3443';
+const TLS = '/etc/ilex/tls';
+// The certificate the install served, to see an update keep it (the install test writes it again
+// when it puts another one there).
+const KEPT_FINGERPRINT = '/root/https-fingerprint';
 const ORIGIN = BASE;
 const USER = 'owner';
 const PASSWORD = 'correct horse battery staple';
@@ -355,6 +366,10 @@ async function securitySetup() {
     role,
   );
   await ownPort();
+  await httpsPort();
+  if (HTTPS_HOST && !existsSync(KEPT_FINGERPRINT)) {
+    writeFileSync(KEPT_FINGERPRINT, `${fingerprintOf(`${TLS}/cert.pem`)}\n`);
+  }
 }
 
 /**
@@ -369,26 +384,14 @@ async function ownPort() {
     'ilex.socket is enabled and listening',
     active('ilex.socket') && sh('systemctl', ['is-enabled', 'ilex.socket']).trim() === 'enabled',
   );
-  const listen = sh('systemctl', ['show', '-p', 'Listen', '--value', 'ilex.socket'])
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word !== '(Stream)');
-  // As the generator writes them: HOST (unset: 127.0.0.1), with its loopback partner.
-  const host = HOST || '127.0.0.1';
-  const own = `${host.includes(':') ? `[${host}]` : host}:${PORT}`;
-  const partner = { '127.0.0.1': '[::1]', '0.0.0.0': '[::1]', '::1': '127.0.0.1' }[host];
-  const expected = partner ? [own, `${partner}:${PORT}`] : [own];
+  const listen = socketListen('ilex.socket');
+  const expected = expectedListen(HOST || '127.0.0.1', PORT);
   check(
     `ilex.socket listens where app.env says (${expected.join(', ')})`,
     listen.length === expected.length && expected.every((at) => listen.includes(at)),
     listen.join(' '),
   );
-  const held = () => {
-    const lines = sh('ss', ['-ltnpH']).split('\n');
-    return listen.every((at) =>
-      lines.some((line) => line.split(/\s+/)[3] === at && /\("systemd",pid=1,/.test(line)),
-    );
-  };
+  const held = () => heldBySystemd(listen);
   check('systemd (pid 1) holds each of them', held(), sh('ss', ['-ltnpH']));
   if (listen.includes(`[::1]:${PORT}`)) {
     const answer = await fetch(`http://[::1]:${PORT}/api/health`).catch(() => null);
@@ -432,6 +435,146 @@ async function ownPort() {
     'a request starts the app again (it waits, no one else answers)',
     woken === 200 && active('ilex.service'),
     `${woken}`,
+  );
+}
+
+/** Where a socket listens, as the generator writes it: the host, with its loopback partner. */
+function expectedListen(host, port) {
+  const own = `${host.includes(':') ? `[${host}]` : host}:${port}`;
+  const partner = { '127.0.0.1': '[::1]', '0.0.0.0': '[::1]', '::1': '127.0.0.1' }[host];
+  return partner ? [own, `${partner}:${port}`] : [own];
+}
+
+function socketListen(unit) {
+  return sh('systemctl', ['show', '-p', 'Listen', '--value', unit])
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word && word !== '(Stream)');
+}
+
+function heldBySystemd(listen) {
+  const lines = sh('ss', ['-ltnpH']).split('\n');
+  return listen.every((at) =>
+    lines.some((line) => line.split(/\s+/)[3] === at && /\("systemd",pid=1,/.test(line)),
+  );
+}
+
+const fingerprintOf = (file) =>
+  sh('openssl', ['x509', '-noout', '-fingerprint', '-sha256', '-in', file])
+    .trim()
+    .replace(/^[^=]*=/, '');
+
+/**
+ * A request over HTTPS, trusting whatever certificate answers — which one is checked by its
+ * fingerprint (a certificate of the person's own needn't name the address asked).
+ */
+function overHttps(url, { method = 'GET', headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const request = httpsRequest(
+      url,
+      { method, headers, rejectUnauthorized: false, agent: false, timeout: 20_000 },
+      (response) => {
+        const fingerprint = response.socket.getPeerCertificate().fingerprint256;
+        let text = '';
+        response.setEncoding('utf8');
+        response.on('data', (chunk) => (text += chunk));
+        response.on('end', () =>
+          resolve({ status: response.statusCode, headers: response.headers, text, fingerprint }),
+        );
+      },
+    );
+    request.on('timeout', () => request.destroy(new Error('timed out')));
+    request.on('error', reject);
+    request.end(body);
+  });
+}
+
+async function httpsPort() {
+  console.log('\nHTTPS on the network (ilex-https.socket)');
+  const active = !fails('systemctl', ['is-active', '--quiet', 'ilex-https.socket']);
+  const enabled = !fails('systemctl', ['is-enabled', '--quiet', 'ilex-https.socket']);
+  const local = `https://127.0.0.1:${HTTPS_PORT}`;
+  if (!HTTPS_HOST) {
+    check('off without HTTPS_HOST: ilex-https.socket disabled and stopped', !active && !enabled);
+    const answer = await overHttps(`${local}/api/health`).catch((error) => String(error));
+    check(`nothing answers on ${HTTPS_PORT}`, /ECONNREFUSED/.test(answer), JSON.stringify(answer));
+    return;
+  }
+  check('ilex-https.socket is enabled and listening', active && enabled);
+  const listen = socketListen('ilex-https.socket');
+  const expected = expectedListen(HTTPS_HOST, HTTPS_PORT);
+  check(
+    `it listens where app.env says (${expected.join(', ')})`,
+    listen.length === expected.length && expected.every((at) => listen.includes(at)),
+    listen.join(' '),
+  );
+  check('systemd (pid 1) holds them', heldBySystemd(listen), sh('ss', ['-ltnpH']));
+  expect(`${TLS}/key.pem`, { mode: '0640', uid: 0, gid: gidOf('ilex') });
+  expect(`${TLS}/cert.pem`, { uid: 0 });
+  const file = fingerprintOf(`${TLS}/cert.pem`);
+  const health = await overHttps(`${local}/api/health`).catch((error) => ({
+    error: String(error),
+  }));
+  check(
+    `the app answers on ${local} with the certificate in ${TLS}`,
+    health.status === 200 && health.fingerprint === file,
+    JSON.stringify(health).slice(0, 300),
+  );
+  if (existsSync(KEPT_FINGERPRINT)) {
+    check(
+      'the certificate kept as it was',
+      readFileSync(KEPT_FINGERPRINT, 'utf8').trim() === file,
+      file,
+    );
+  }
+  const network = Object.values(networkInterfaces())
+    .flat()
+    .find((address) => address && !address.internal && address.family === 'IPv4')?.address;
+  if (network && HTTPS_HOST === '0.0.0.0') {
+    const there = await overHttps(`https://${network}:${HTTPS_PORT}/api/health`).catch((error) => ({
+      error: String(error),
+    }));
+    check(`…and on the machine’s network address (${network})`, there.status === 200);
+  }
+  const login = await overHttps(`${local}/api/auth/login`, {
+    method: 'POST',
+    headers: { Origin: local, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: USER, password: PASSWORD }),
+  });
+  const session = [login.headers['set-cookie'] ?? []]
+    .flat()
+    .find((line) => line.startsWith('__Host-sid='));
+  check(
+    'signs in over HTTPS, with a Secure session cookie',
+    login.status === 200 && /;\s*secure/i.test(session ?? ''),
+    `${login.status} ${login.text}`,
+  );
+  const me = await overHttps(`${local}/api/auth/me`, {
+    headers: { Cookie: session?.split(';')[0] ?? '' },
+  });
+  check('…which works there', me.status === 200, `${me.status}`);
+  const containers = await new Promise((resolve) => {
+    const ws = new WebSocket(`wss://127.0.0.1:${HTTPS_PORT}/api/ws`, {
+      headers: { Cookie: session?.split(';')[0] ?? '', Origin: local },
+      rejectUnauthorized: false,
+    });
+    const timer = setTimeout(() => (ws.terminate(), resolve(null)), 20_000);
+    ws.on('open', () =>
+      ws.send(JSON.stringify({ event: 'subscribe', data: { topic: 'containers' } })),
+    );
+    ws.on('message', (raw) => {
+      const message = JSON.parse(raw.toString());
+      if (message.event === 'containers:snapshot') {
+        clearTimeout(timer);
+        ws.close();
+        resolve(message.data);
+      }
+    });
+    ws.on('error', () => (clearTimeout(timer), resolve(null)));
+  });
+  check(
+    'the WebSocket over HTTPS too (one server for every socket)',
+    containers?.dockerAvailable === true,
   );
 }
 
@@ -1374,7 +1517,10 @@ async function selfUpdate(version, expected) {
 }
 
 if (process.argv[2] === 'self-update') await selfUpdate(process.argv[3], process.argv[4]);
-else await (process.argv[2] === 'update' ? update() : install());
+else if (process.argv[2] === 'https') {
+  await httpsPort();
+  done();
+} else await (process.argv[2] === 'update' ? update() : install());
 
 /** Docker's unused data, freed through the proxy socket: the prunes really run here. */
 async function dockerCleanup() {
