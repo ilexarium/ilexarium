@@ -383,6 +383,8 @@ describe('the app’s port before a first install', () => {
     expect(run.stderr).toContain(`Another program answers on port ${port}`);
     expect(run.stderr).toContain('HTTPS_PORT=<port>');
     expect(run.stderr).toContain('--local-only');
+    // A first install run again, its answer already in app.env.
+    expect(checkPort(`${free}HTTPS_HOST=0.0.0.0\n`).status).toBe(1);
   });
 });
 
@@ -409,7 +411,7 @@ describe('HTTPS on the network (the installer’s https.sh)', () => {
   it('the first install asks; --yes opens it, --local-only doesn’t (also with --yes)', () => {
     const yes = choose('ASSUME_YES=1');
     expect(yes.stdout).toContain(
-      "Open Ilexarium from other devices (it listens on all of this machine's addresses, https://<address>:3443)? yes (--yes)",
+      'Open Ilexarium from other devices (it listens on every IPv4 address of this machine, https://<address>:3443)? yes (--yes)',
     );
     expect(yes.stdout).toContain('open=1');
     for (const flags of ['LOCAL_ONLY=1', 'LOCAL_ONLY=1 ASSUME_YES=1']) {
@@ -504,6 +506,10 @@ describe('HTTPS on the network (the installer’s https.sh)', () => {
     expect(link('HTTPS_HOST=100.64.0.7\n')).toBe('https://100.64.0.7:3443');
     expect(link('HTTPS_HOST=fd00::5\n')).toBe('https://[fd00::5]:3443');
     expect(link('HTTPS_HOST=0.0.0.0\n', '')).toBe("https://<this machine's address>:3443");
+    // 0.0.0.0 doesn't listen on IPv6: the first IPv4 address, whatever comes first.
+    expect(link('HTTPS_HOST=0.0.0.0\n', 'fd00::5\n192.168.1.5\n')).toBe('https://192.168.1.5:3443');
+    expect(link('HTTPS_HOST=0.0.0.0\n', 'fd00::5\n')).toBe("https://<this machine's address>:3443");
+    expect(link('HTTPS_HOST=::\n', 'fd00::5\n192.168.1.5\n')).toBe('https://[fd00::5]:3443');
   });
 
   it('makes a self-signed certificate: its names, 825 days, not a CA, the key its own', () => {
@@ -558,6 +564,36 @@ describe('HTTPS on the network (the installer’s https.sh)', () => {
     expect(run.status, run.stderr).toBe(0);
     expect(run.stdout).toContain('(yours, kept)');
     expect(readFileSync(join(dir, 'tls/key.pem'), 'utf8')).toBe('theirs');
+  });
+
+  it('its own certificate without its key (lost): made again', () => {
+    mkdirSync(join(dir, 'tls'));
+    writeFileSync(join(dir, 'app.env'), 'HTTPS_HOST=0.0.0.0\n');
+    const stubs = 'machine_name() { printf taragui; }; machine_addresses() { :; };';
+    expect(https(`${stubs} make_certificate`).status).toBe(0);
+    const before = https('fingerprint "$TLS_DIR/cert.pem"').stdout;
+    rmSync(join(dir, 'tls/key.pem'));
+    const run = https(`${stubs} ensure_certificate`);
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).toContain('its key is gone');
+    expect(existsSync(join(dir, 'tls/key.pem'))).toBe(true);
+    expect(https('fingerprint "$TLS_DIR/cert.pem"').stdout).not.toBe(before);
+    expect(https('self_made').status).toBe(0);
+  });
+
+  it('its own certificate, valid for long enough: kept', () => {
+    mkdirSync(join(dir, 'tls'));
+    writeFileSync(join(dir, 'app.env'), 'HTTPS_HOST=0.0.0.0\n');
+    const stubs = 'machine_name() { printf taragui; }; machine_addresses() { :; };';
+    https(`${stubs} make_certificate`);
+    const before = https('fingerprint "$TLS_DIR/cert.pem"').stdout;
+    const run = https(`${stubs} ensure_certificate`);
+    expect(run.stdout).toMatch(/cert\.pem \(self-signed, valid until /);
+    expect(https('fingerprint "$TLS_DIR/cert.pem"').stdout).toBe(before);
+    expect(https(`${stubs} RENEW_DAYS=900; ensure_certificate`).stdout).toContain(
+      'renewing the self-signed certificate',
+    );
+    expect(https('fingerprint "$TLS_DIR/cert.pem"').stdout).not.toBe(before);
   });
 
   it('HTTPS off: no certificate made', () => {

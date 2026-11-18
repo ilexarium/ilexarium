@@ -35,3 +35,5 @@ export const HTTPS_SOCKET: SocketUnit = {
 };
 
 export const MIN_TLS_VERSION = 'TLSv1.2';
+export const HTTPS_OFF_NOTE =
+  "HTTPS on the network is off until then; this machine's own port answers as before.";

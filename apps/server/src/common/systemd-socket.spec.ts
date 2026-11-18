@@ -205,6 +205,21 @@ describe('listenOnSockets', () => {
     ).rejects.toThrow(/ECONNREFUSED/);
   });
 
+  it('closeEncrypted: HTTPS off, the plain socket still answering', async () => {
+    const server = app();
+    const listening = await listenOnSockets(server, [local], [local], certificate);
+    listening.closeEncrypted();
+    await expect(
+      new Promise((done, fail) =>
+        connect(
+          { port: listening.encrypted[0]!.port, host: '127.0.0.1', ca: certificate.cert },
+          () => done('connected'),
+        ).on('error', fail),
+      ),
+    ).rejects.toThrow(/ECONNREFUSED/);
+    expect(await get(`http://127.0.0.1:${listening.plain[0]!.port}/`)).toBe('{"encrypted":false}');
+  });
+
   it('refuses an HTTPS socket without a certificate, and no plain socket at all', async () => {
     await expect(listenOnSockets(app(), [local], [local])).rejects.toThrow(/needs a certificate/);
     await expect(listenOnSockets(app(), [])).rejects.toThrow(/No socket/);

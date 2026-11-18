@@ -134,11 +134,27 @@ hold_app() {
 }
 release_app() { rm -f "$APP_HOLD"; }
 
+# Socket unit $1 listening where URL $2 says, restarted if nothing takes connections there: not
+# started yet, or a daemon-reload after a change to its settings left it without listeners. systemd
+# refuses to start a socket while its service is starting — and a request to the other socket
+# starts the held app (it waits for APP_HOLD) — so the app is stopped first.
+ensure_socket() {
+  local unit="$1" address="${2#*://}" host port
+  port="${address##*:}"
+  host="${address%:*}"
+  host="${host#\[}"
+  host="${host%\]}"
+  if systemctl is-active --quiet "$unit" && listening "$host" "$port"; then return; fi
+  systemctl stop ilex.service
+  systemctl restart "$unit" ||
+    die "Port $port ($host) is taken by another program (ss -ltnp shows which): stop it, or choose another port in $ETC/app.env, then run this again"
+}
+
 # The app's own units come with the app, once it's installed: a run that stops before leaves an
 # older app with its own unit, runnable as it was.
 start_app() {
   log 'Starting the app'
-  local units=/etc/systemd/system url address host port
+  local units=/etc/systemd/system url
   install -o root -g root -m 0644 "$RELEASE/system/systemd/ilex.socket" \
     "$RELEASE/system/systemd/ilex-https.socket" "$RELEASE/system/systemd/ilex.service" "$units/"
   install -D -o root -g root -m 0755 "$RELEASE/system/systemd/ilex-socket-generator" "$SOCKET_GENERATOR"
@@ -146,18 +162,8 @@ start_app() {
   systemctl enable ilex.socket ilex.service >/dev/null 2>&1
 
   url="$(app_url)"
-  address="${url#http://}"
-  port="${address##*:}"
-  host="${address%:*}"
-  host="${host#\[}"
-  host="${host%\]}"
-  # Nothing taking connections there: the socket isn't listening — not started yet, or a
-  # daemon-reload after a change to HOST or PORT left it without listeners until it restarts.
-  if ! systemctl is-active --quiet ilex.socket || ! listening "$host" "$port"; then
-    systemctl restart ilex.socket ||
-      die "Port $port ($host) is taken by another program (ss -ltnp shows which): stop it, then run this again"
-  fi
-  enable_https_socket "$(https_local_url)"
+  ensure_socket ilex.socket "$url"
+  enable_https_socket
   release_app
   systemctl restart ilex.service
 

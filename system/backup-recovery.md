@@ -39,7 +39,7 @@ echo "$PLATFORM"                           # one name: <id>-<date and time>
 Stop Ilexarium, then take back the database dump, the key that opens the secrets stored in the database, the backup plan and its schedule. Nothing else from that backup: the rest of `/etc/ilex` belongs to this machine.
 
 ```sh
-systemctl stop ilex.socket ilex            # the app and its port (its database keeps running)
+systemctl stop ilex.socket ilex-https.socket ilex   # the app and its ports (its database keeps running)
 cd / && borg extract "$REPO::$PLATFORM" \
   var/lib/ilex/backups/platform etc/ilex/master.key etc/ilex/backup.json \
   etc/ilex/backup-repository.json etc/systemd/system/ilex-backup.timer.d
