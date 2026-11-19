@@ -162,10 +162,10 @@ export class BackupChecks {
   }
 
   /**
-   * New items, checked: apps Docker knows, folders that may be backed up. The rest (off the
-   * backup disk, skips inside the folders, how many) the backup program refuses.
+   * New items, checked: apps Docker knows, folders that may be backed up, none on the backup disk
+   * (`destination`) or holding it. The rest (skips inside the folders, how many) the backup
+   * program refuses.
    */
-  /** `destination`: the backup disk's folder, which no item may overlap. */
   async checkNewItems(requests: BackupItemRequest[], destination: string): Promise<NewItemRow[]> {
     const problems: FieldError[] = [];
     const rows: NewItemRow[] = [];
@@ -196,7 +196,7 @@ export class BackupChecks {
               id: randomUUID(),
               kind: 'app',
               project: request.project,
-              folders: [...new Set(this.appFoldersOf(request, apps))],
+              folders: [...new Set(this.appFoldersOf(request, apps, destination))],
               skip: [...new Set(request.skip)],
               mode: request.mode,
             }
@@ -248,21 +248,40 @@ export class BackupChecks {
     );
   }
 
-  /** A restore's own folder: allowed. */
-  checkRestoreTarget(target: string): void {
+  /** A restore's own folder: allowed, and not on the backup disk. */
+  checkRestoreTarget(target: string, destination: string): void {
     if (!isAllowedFolder(this.programConfigService.config, target)) {
       throw validationFailed([
         { field: 'target', code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' },
       ]);
     }
+    if (pathsOverlap(target, destination)) {
+      throw validationFailed([{ field: 'target', ...ON_BACKUP_DISK }]);
+    }
   }
 
-  /** The folders asked for; none asked: every folder Docker says the app uses. */
+  /** Moving the backups to another disk: no item may be on it or hold it. */
+  async checkItemsOffDisk(destination: string): Promise<void> {
+    const items = await this.prisma.backupItem.findMany({ where: { removedAt: null } });
+    const onDisk = items.some((item) =>
+      (item.kind === 'folder' ? [item.path ?? ''] : item.folders).some(
+        (path) => path && pathsOverlap(path, destination),
+      ),
+    );
+    if (onDisk) throw validationFailed([{ field: 'destination', ...ON_BACKUP_DISK }]);
+  }
+
+  /**
+   * The folders asked for; none asked: every folder Docker says the app uses, except those on the
+   * backup disk (left out like a system path, not a reason to refuse the app).
+   */
   private appFoldersOf(
     request: Extract<BackupItemRequest, { kind: 'app' }>,
     apps: ReadonlyMap<string, string[]>,
+    destination: string,
   ): string[] {
-    return request.folders.length > 0 ? request.folders : (apps.get(request.project) ?? []);
+    if (request.folders.length > 0) return request.folders;
+    return (apps.get(request.project) ?? []).filter((path) => !pathsOverlap(path, destination));
   }
 
   private appProblem(
@@ -273,7 +292,7 @@ export class BackupChecks {
     if (!apps.has(request.project)) {
       return { code: BACKUP_ERROR_CODES.itemNotFound, message: 'No such app' };
     }
-    return this.appFoldersProblem(this.appFoldersOf(request, apps), destination);
+    return this.appFoldersProblem(this.appFoldersOf(request, apps, destination), destination);
   }
 
   private appFoldersProblem(

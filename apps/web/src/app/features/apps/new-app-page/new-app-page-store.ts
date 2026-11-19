@@ -19,7 +19,17 @@ import {
   type Template,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  debounceTime,
+  EMPTY,
+  firstValueFrom,
+  map,
+  type Observable,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import type { AppFollowed } from '../../../core/apps/apps.model';
@@ -197,11 +207,17 @@ export const NewAppPageStore = signalStore(
       );
 
       // Adding it to the backups is the global store's: it runs even if the page is left.
-      const show = rxMethod<AppFollowed & { started: AppStarted }>(
-        tap(({ task, after, started: { name, folder } }) => {
-          patchState(store, { task });
-          if (after === 'done') patchState(store, { installed: { name, folder } });
-        }),
+      // The stream inside an object: a plain value, not one rxMethod would subscribe to itself.
+      const show = rxMethod<{ followed$: Observable<AppFollowed>; started: AppStarted }>(
+        pipe(
+          switchMap(({ followed$, started }) =>
+            followed$.pipe(map((followed) => ({ ...followed, started }))),
+          ),
+          tap(({ task, after, started: { name, folder } }) => {
+            patchState(store, { task });
+            if (after === 'done') patchState(store, { installed: { name, folder } });
+          }),
+        ),
       );
 
       // The follow-up (adding it to the backups) is the global store's, started here and not inside
@@ -210,7 +226,7 @@ export const NewAppPageStore = signalStore(
         const { include, ...preset } = store.backup();
         const backup = include ? buildAppBackupItem(started.name, started.folder, preset) : null;
         const followed$ = appTasksStore.follow(started, { kind: 'install', backup });
-        show(followed$.pipe(map((followed) => ({ ...followed, started }))));
+        show({ followed$, started });
       };
 
       return {

@@ -107,6 +107,17 @@ describe('apiErrorText', () => {
     ).toEqual(['errors.path_on_backup_disk']);
     expect(
       apiErrorText(
+        httpError(400, {
+          message: 'Validation failed',
+          errors: [
+            { field: 'items.0', code: 'something_else', message: 'x' },
+            { field: 'items.1', code: 'path_on_backup_disk', message: 'On the backup disk' },
+          ],
+        }),
+      ),
+    ).toEqual(['errors.path_on_backup_disk']);
+    expect(
+      apiErrorText(
         httpError(400, { message: 'x', errors: [{ field: 'f', code: 'c', message: 'm' }] }),
       ),
     ).toEqual(['errors.server', { status: 400 }]);
