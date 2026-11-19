@@ -32,7 +32,7 @@
     "release:key": "node scripts/release-key.mjs",
     "release:sign": "node scripts/sign-release.mjs",
     "release:publish": "node scripts/publish-release.mjs",
-    "release:upload": "node scripts/upload-release.mjs",
+    "release:github": "node scripts/publish-github.mjs",
     "ship": "node scripts/ship.mjs"
   },
   "devDependencies": {
