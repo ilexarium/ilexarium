@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { AppStarted, AppTask, BackupsStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { lastValueFrom, type Observable, of, throwError } from 'rxjs';
+import { lastValueFrom, type Observable, of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { BackupsApi } from '../backups/backups-api';
@@ -67,8 +67,8 @@ describe('AppTasksStore', () => {
     const { tasks, appsApi, answers } = await setup();
     const success = vi.spyOn(toast, 'success');
     answers.push(testTask({ action: 'down', state: 'succeeded' }));
-    const followed$ = await tasks.remove('music', FOLDER, TICKED);
-    expect(followed$).not.toBeNull();
+    const result = await tasks.remove('music', FOLDER, TICKED);
+    expect(result?.started.task).toMatchObject({ action: 'down', state: 'running' });
     // Nobody subscribes: the store follows it itself.
     await vi.waitFor(() => expect(success).toHaveBeenCalledWith('music was removed.'), {
       timeout: 4000,
@@ -81,25 +81,51 @@ describe('AppTasksStore', () => {
     const { tasks, answers } = await setup();
     answers.push(testTask({ action: 'down' }));
     answers.push(testTask({ action: 'down', state: 'succeeded' }));
-    const followed$ = await tasks.remove('music', FOLDER, null);
-    const last = await lastValueFrom(followed$!);
+    const result = await tasks.remove('music', FOLDER, null);
+    const last = await lastValueFrom(result!.followed$);
     expect(last).toMatchObject({ task: { state: 'succeeded' }, after: 'done' });
   });
 
   it('deletes nothing when the down failed', async () => {
     const { tasks, appsApi, answers } = await setup();
     answers.push(testTask({ action: 'down', state: 'failed' }));
-    const last = await lastValueFrom((await tasks.remove('music', FOLDER, TICKED))!);
+    const last = await lastValueFrom((await tasks.remove('music', FOLDER, TICKED))!.followed$);
     expect(last).toMatchObject({ task: { state: 'failed' }, after: null });
     expect(appsApi.delete).not.toHaveBeenCalled();
   });
 
-  it('a removal refused at the start: worded in a toast, nothing to show', async () => {
+  it('a removal refused at the start throws, for the page to word; nothing deleted', async () => {
     const { tasks, appsApi } = await setup();
-    const error = vi.spyOn(toast, 'error');
     appsApi.remove.mockReturnValueOnce(throwError(() => new Error('refused')));
-    expect(await tasks.remove('music', FOLDER, TICKED)).toBeNull();
-    expect(error).toHaveBeenCalledWith("Couldn't remove music", expect.anything());
+    await expect(tasks.remove('music', FOLDER, TICKED)).rejects.toThrow('refused');
+    expect(appsApi.delete).not.toHaveBeenCalled();
+  });
+
+  it('never follows a task whose start answered after a sign-out', async () => {
+    const { tasks, appsApi, answers } = await setup();
+    const started = new Subject<AppStarted>();
+    appsApi.remove.mockReturnValueOnce(started);
+    const removing = tasks.remove('music', FOLDER, TICKED);
+    await TestBed.inject(AuthStore).logout();
+    TestBed.tick();
+    started.next(testStarted('music', { action: 'down' }));
+    started.complete();
+    expect(await removing).toBeNull();
+    answers.push(testTask({ action: 'down', state: 'succeeded' }));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(appsApi.task).not.toHaveBeenCalled();
+    expect(appsApi.delete).not.toHaveBeenCalled();
+  });
+
+  it('read late, it replays the latest state and never runs the second step twice', async () => {
+    const { tasks, appsApi, answers } = await setup();
+    answers.push(testTask({ action: 'down', state: 'succeeded' }));
+    const result = await tasks.remove('music', FOLDER, TICKED);
+    await vi.waitFor(() => expect(appsApi.delete).toHaveBeenCalledTimes(1), { timeout: 4000 });
+    const late = await lastValueFrom(result!.followed$);
+    expect(late).toMatchObject({ task: { state: 'succeeded' }, after: 'done' });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(appsApi.delete).toHaveBeenCalledTimes(1);
   });
 
   it('nothing when the Linux sign-in was dismissed', async () => {

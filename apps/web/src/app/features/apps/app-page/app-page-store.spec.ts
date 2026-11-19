@@ -166,6 +166,9 @@ describe('AppPageStore', () => {
     const [settings, data] = store.removal()!;
     answers.push(testTask({ action: 'down', state: 'succeeded' }));
     await store.remove([settings, data]);
+    // The server's answer shown at once: the buttons stay locked until the task has ended.
+    expect(store.task()).toMatchObject({ action: 'down' });
+    expect(store.running()).toBe(true);
     await vi.waitFor(() => expect(store.removed()).toBe(true), { timeout: 4000 });
     expect(appsApi.remove).toHaveBeenCalledWith('music', FOLDER);
     expect(appsApi.delete).toHaveBeenCalledWith('music', {
