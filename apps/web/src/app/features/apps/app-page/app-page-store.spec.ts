@@ -2,9 +2,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AppTask } from '@ilex/shared';
+import type { AppStarted, AppTask } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, Subject, throwError } from 'rxjs';
+import { type Observable, of, Subject, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { testApp, testDetails, testStarted, testTask } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -43,7 +43,7 @@ async function setup() {
         ],
       }),
     ),
-    remove: vi.fn(() => of(testStarted('music', { action: 'down' }))),
+    remove: vi.fn((): Observable<AppStarted> => of(testStarted('music', { action: 'down' }))),
     delete: vi.fn(() => of(undefined)),
   };
   const backupsApi = { addItem: vi.fn(() => of({})) };
@@ -194,6 +194,30 @@ describe('AppPageStore', () => {
       settings: false,
       folders: [],
       volumes: ['music_cache'],
+    });
+  });
+
+  it('still deletes what was ticked when the page is left while the removal is starting', async () => {
+    const { store, page, appsApi, answers } = await setup();
+    const success = vi.spyOn(toast, 'success');
+    await store.openRemoval();
+    const [settings] = store.removal()!;
+    const started = new Subject<AppStarted>();
+    appsApi.remove.mockReturnValueOnce(started);
+    answers.push(testTask({ action: 'down', state: 'succeeded' }));
+    const removing = store.remove([settings]);
+    page.destroy();
+    started.next(testStarted('music', { action: 'down' }));
+    started.complete();
+    await removing;
+    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('music was removed.'), {
+      timeout: 4000,
+    });
+    expect(appsApi.delete).toHaveBeenCalledWith('music', {
+      folder: FOLDER,
+      settings: true,
+      folders: [],
+      volumes: [],
     });
   });
 

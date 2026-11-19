@@ -22,6 +22,7 @@ import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
+import type { AppFollowed } from '../../../core/apps/apps.model';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { buildAppBackupItem } from '../../../core/backups/app-backup-item';
 import { BackupsStore } from '../../../core/backups/backups-store';
@@ -196,23 +197,21 @@ export const NewAppPageStore = signalStore(
       );
 
       // Adding it to the backups is the global store's: it runs even if the page is left.
-      const follow = rxMethod<AppStarted>(
-        pipe(
-          switchMap((started) => {
-            const { include, ...preset } = store.backup();
-            const backup = include
-              ? buildAppBackupItem(started.name, started.folder, preset)
-              : null;
-            return appTasksStore
-              .follow(started, { kind: 'install', backup })
-              .pipe(map((followed) => ({ ...followed, started })));
-          }),
-          tap(({ task, after, started: { name, folder } }) => {
-            patchState(store, { task });
-            if (after === 'done') patchState(store, { installed: { name, folder } });
-          }),
-        ),
+      const show = rxMethod<AppFollowed & { started: AppStarted }>(
+        tap(({ task, after, started: { name, folder } }) => {
+          patchState(store, { task });
+          if (after === 'done') patchState(store, { installed: { name, folder } });
+        }),
       );
+
+      // The follow-up (adding it to the backups) is the global store's, started here and not inside
+      // the page's stream: the page may have been left while the install was starting.
+      const follow = (started: AppStarted) => {
+        const { include, ...preset } = store.backup();
+        const backup = include ? buildAppBackupItem(started.name, started.folder, preset) : null;
+        const followed$ = appTasksStore.follow(started, { kind: 'install', backup });
+        show(followed$.pipe(map((followed) => ({ ...followed, started }))));
+      };
 
       return {
         async chooseTemplate(id: string): Promise<void> {
