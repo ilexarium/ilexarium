@@ -69,4 +69,5 @@ How Ilexarium is protected, its limits and how it's built, and how to report a s
 
 ## Licence
 
-Free software under the [GNU GPL, version 3 or later](LICENSE), without any warranty.
+Free software under the [GNU GPL, version 3 or later](LICENSE), without any warranty. The name
+"Ilexarium" and its logo are not covered by the licence: see [Name and logo](brand/README.md#name-and-logo).
