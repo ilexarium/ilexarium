@@ -34,7 +34,6 @@ import { AppsApi } from '../../../core/apps/apps-api';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import type { AppFollowed } from '../../../core/apps/apps.model';
 import { AppsStore } from '../../../core/apps/apps-store';
-import { buildAppBackupItem } from '../../../core/backups/app-backup-item';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
@@ -131,7 +130,6 @@ export const NewAppPageStore = signalStore(
       store,
       appsApi = inject(AppsApi),
       appTasksStore = inject(AppTasksStore),
-      linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
       const failed = (key: string, error: unknown) =>
@@ -206,7 +204,6 @@ export const NewAppPageStore = signalStore(
         ),
       );
 
-      // Adding it to the backups is the global store's: it runs even if the page is left.
       // The stream inside an object: a plain value, not one rxMethod would subscribe to itself.
       const show = rxMethod<{ followed$: Observable<AppFollowed>; started: AppStarted }>(
         pipe(
@@ -219,15 +216,6 @@ export const NewAppPageStore = signalStore(
           }),
         ),
       );
-
-      // The follow-up (adding it to the backups) is the global store's, started here and not inside
-      // the page's stream: the page may have been left while the install was starting.
-      const follow = (started: AppStarted) => {
-        const { include, ...preset } = store.backup();
-        const backup = include ? buildAppBackupItem(started.name, started.folder, preset) : null;
-        const followed$ = appTasksStore.follow(started, { kind: 'install', backup });
-        show({ followed$, started });
-      };
 
       return {
         async chooseTemplate(id: string): Promise<void> {
@@ -294,24 +282,24 @@ export const NewAppPageStore = signalStore(
           patchState(store, { backup: { ...store.backup(), ...change } });
         },
 
-        /** Installs as the person: their Linux sign-in, their sudo if Docker needs it. */
+        /** Installs as the person, then adds it to the backups — all of it AppTasksStore's. */
         async install(): Promise<void> {
           patchState(store, { problem: null });
+          const { include, ...preset } = store.backup();
           try {
-            const started = await linuxSessionStore.asPerson(() =>
-              firstValueFrom(
-                appsApi.install({
-                  name: store.name(),
-                  folder: store.folder(),
-                  template: store.template()?.id ?? null,
-                  compose: store.compose(),
-                  env: store.env(),
-                }),
-              ),
+            const result = await appTasksStore.install(
+              {
+                name: store.name(),
+                folder: store.folder(),
+                template: store.template()?.id ?? null,
+                compose: store.compose(),
+                env: store.env(),
+              },
+              include ? preset : null,
             );
-            if (!started) return;
-            patchState(store, { step: 'installing', task: started.task });
-            follow(started);
+            if (!result) return;
+            patchState(store, { step: 'installing', task: result.started.task });
+            show(result);
           } catch (error) {
             const detail = (error as { error?: { detail?: unknown } }).error?.detail;
             if (typeof detail === 'string') patchState(store, { problem: detail });
