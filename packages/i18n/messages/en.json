@@ -195,6 +195,7 @@
     "busy": "Another operation (an install, a backup, a restore or a disk being mounted) is running. Try again when it has finished.",
     "path_not_allowed": "This folder is not in an allowed area.",
     "path_not_found": "This folder doesn't exist.",
+    "path_on_backup_disk": "This folder is on the backup disk, or holds it: the backup disk can't back itself up.",
     "path_others_can_change": "Another account can change this folder or one above it, so root doesn't write there. Restore into a new folder of your own instead (in your home or under /srv), or let that account restore it with its own sudo.",
     "compose_failed": "Compose failed. The output shows why.",
     "timed_out": "This took too long and was stopped.",

@@ -11,6 +11,7 @@ import {
   type BackupItemUpdate,
   type FieldError,
   isPlainAbsolutePath,
+  pathsOverlap,
 } from '@ilex/shared';
 import { DockerService } from '../docker/docker.service.js';
 import { SystemReader } from '../host/system-reader.js';
@@ -27,7 +28,12 @@ import {
   mountInfoFile,
   repositoryPath,
 } from './backup-paths.js';
-import { DESTINATION_SOURCE, FOLDER_PLACES, SUBFOLDERS_MAX } from './backups.constants.js';
+import {
+  DESTINATION_SOURCE,
+  FOLDER_PLACES,
+  ON_BACKUP_DISK,
+  SUBFOLDERS_MAX,
+} from './backups.constants.js';
 
 /**
  * Where backups can go and what can be backed up: the disk and folder pickers, and the app's
@@ -159,7 +165,8 @@ export class BackupChecks {
    * New items, checked: apps Docker knows, folders that may be backed up. The rest (off the
    * backup disk, skips inside the folders, how many) the backup program refuses.
    */
-  async checkNewItems(requests: BackupItemRequest[]): Promise<NewItemRow[]> {
+  /** `destination`: the backup disk's folder, which no item may overlap. */
+  async checkNewItems(requests: BackupItemRequest[], destination: string): Promise<NewItemRow[]> {
     const problems: FieldError[] = [];
     const rows: NewItemRow[] = [];
     const items = await this.prisma.backupItem.findMany();
@@ -169,8 +176,8 @@ export class BackupChecks {
       const field = `items.${i}`;
       const problem =
         request.kind === 'app'
-          ? this.appProblem(request, apps)
-          : await this.folderProblem(request.path);
+          ? this.appProblem(request, apps, destination)
+          : await this.folderProblem(request.path, destination);
       if (problem) {
         problems.push({ field, ...problem });
         continue;
@@ -201,8 +208,12 @@ export class BackupChecks {
   }
 
   /** An app item's change: its folders allowed. */
-  checkAppChange(current: { folders: string[] }, change: BackupItemUpdate): void {
-    const problem = this.appFoldersProblem(change.folders ?? current.folders);
+  checkAppChange(
+    current: { folders: string[] },
+    change: BackupItemUpdate,
+    destination: string,
+  ): void {
+    const problem = this.appFoldersProblem(change.folders ?? current.folders, destination);
     if (problem) throw validationFailed([{ field: 'folders', ...problem }]);
   }
 
@@ -257,28 +268,37 @@ export class BackupChecks {
   private appProblem(
     request: Extract<BackupItemRequest, { kind: 'app' }>,
     apps: ReadonlyMap<string, string[]>,
+    destination: string,
   ): Omit<FieldError, 'field'> | null {
     if (!apps.has(request.project)) {
       return { code: BACKUP_ERROR_CODES.itemNotFound, message: 'No such app' };
     }
-    return this.appFoldersProblem(this.appFoldersOf(request, apps));
+    return this.appFoldersProblem(this.appFoldersOf(request, apps), destination);
   }
 
-  private appFoldersProblem(folders: string[]): Omit<FieldError, 'field'> | null {
+  private appFoldersProblem(
+    folders: string[],
+    destination: string,
+  ): Omit<FieldError, 'field'> | null {
     const config = this.programConfigService.config;
     if (folders.length === 0)
       return { code: BACKUP_ERROR_CODES.sourceMissing, message: 'No folders' };
     if (!folders.every((folder) => isAllowedFolder(config, folder))) {
       return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' };
     }
+    if (folders.some((folder) => pathsOverlap(folder, destination))) return ON_BACKUP_DISK;
     return null;
   }
 
   /** Why a folder can't be added, or null. */
-  private async folderProblem(path: string): Promise<Omit<FieldError, 'field'> | null> {
+  private async folderProblem(
+    path: string,
+    destination: string,
+  ): Promise<Omit<FieldError, 'field'> | null> {
     if (!isAllowedFolder(this.programConfigService.config, path)) {
       return { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'Not allowed' };
     }
+    if (pathsOverlap(path, destination)) return ON_BACKUP_DISK;
     // Another user's home: the app may not look, root can read it.
     const state = await this.systemReader.folder(path);
     if (state === 'missing' || state === 'other') {
