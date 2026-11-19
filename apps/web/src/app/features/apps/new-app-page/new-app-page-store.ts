@@ -12,27 +12,14 @@ import {
   APP_NAME_PATTERN,
   type AppField,
   type AppNameCheck,
-  type AppStarted,
-  type AppTask,
   parseEnv,
   setEnvValues,
   type Template,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import {
-  catchError,
-  debounceTime,
-  EMPTY,
-  firstValueFrom,
-  map,
-  type Observable,
-  pipe,
-  switchMap,
-  tap,
-} from 'rxjs';
+import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
-import type { AppFollowed } from '../../../core/apps/apps.model';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
@@ -57,8 +44,8 @@ interface NewAppState {
   backup: BackupChoice;
   /** What Compose said when it refused the files. */
   problem: string | null;
-  task: AppTask | null;
-  installed: { name: string; folder: string } | null;
+  /** This page's install as AppTasksStore follows it: the app's name and the entry's id. */
+  install: { name: string; id: number } | null;
   /** The template search, as typed. */
   search: string;
 }
@@ -75,8 +62,7 @@ const initialState: NewAppState = {
   folder: null,
   backup: { include: true, mode: 'stop', skip: [] },
   problem: null,
-  task: null,
-  installed: null,
+  install: null,
   search: '',
 };
 
@@ -94,36 +80,53 @@ export const NewAppPageStore = signalStore(
   withComputed(
     (
       store,
+      appTasksStore = inject(AppTasksStore),
       appsStore = inject(AppsStore),
       backupsStore = inject(BackupsStore),
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
-    ) => ({
-      templates: appsStore.templates,
-      searchable: computed(() => (appsStore.templates()?.length ?? 0) >= TEMPLATE_SEARCH_FROM),
-      /** Those whose name or description has every word typed. */
-      shownTemplates: computed(() => {
-        const templates = appsStore.templates();
-        const words = store.search().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-        if (!templates || words.length === 0) return templates;
-        return templates.filter((template) => {
-          const text =
-            `${template.name} ${translator.t(`catalog.${template.id}.description`)}`.toLocaleLowerCase();
-          return words.every((word) => text.includes(word));
-        });
-      }),
-      values: computed(() => parseEnv(store.env())),
-      backupsConfigured: backupsStore.configured,
-      nameValid: computed(() => APP_NAME_PATTERN.test(store.name())),
-      /** Whose the app will be: the Linux account signed in, if one is. */
-      account: computed(() => linuxSessionStore.session()?.username ?? null),
-      canInstall: computed(
-        () =>
-          APP_NAME_PATTERN.test(store.name()) &&
-          store.nameCheck()?.free !== false &&
-          store.compose().trim() !== '',
-      ),
-    }),
+    ) => {
+      /** The install's entry — not a later task of the same app. */
+      const entry = computed(() => {
+        const install = store.install();
+        const found = install ? appTasksStore.tasks()[install.name] : undefined;
+        return found && found.id === install?.id ? found : null;
+      });
+      return {
+        task: computed(() => entry()?.task ?? null),
+        /** Installed and added to the backups: on to its page. */
+        installed: computed(() => {
+          const found = entry();
+          return found?.after === 'done'
+            ? { name: store.install()!.name, folder: found.folder }
+            : null;
+        }),
+        templates: appsStore.templates,
+        searchable: computed(() => (appsStore.templates()?.length ?? 0) >= TEMPLATE_SEARCH_FROM),
+        /** Those whose name or description has every word typed. */
+        shownTemplates: computed(() => {
+          const templates = appsStore.templates();
+          const words = store.search().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+          if (!templates || words.length === 0) return templates;
+          return templates.filter((template) => {
+            const text =
+              `${template.name} ${translator.t(`catalog.${template.id}.description`)}`.toLocaleLowerCase();
+            return words.every((word) => text.includes(word));
+          });
+        }),
+        values: computed(() => parseEnv(store.env())),
+        backupsConfigured: backupsStore.configured,
+        nameValid: computed(() => APP_NAME_PATTERN.test(store.name())),
+        /** Whose the app will be: the Linux account signed in, if one is. */
+        account: computed(() => linuxSessionStore.session()?.username ?? null),
+        canInstall: computed(
+          () =>
+            APP_NAME_PATTERN.test(store.name()) &&
+            store.nameCheck()?.free !== false &&
+            store.compose().trim() !== '',
+        ),
+      };
+    },
   ),
   withMethods(
     (
@@ -200,19 +203,6 @@ export const NewAppPageStore = signalStore(
             if (!wanted || wanted === fromFile || store.template() || store.nameTyped()) return;
             fromFile = wanted;
             void suggestName(wanted);
-          }),
-        ),
-      );
-
-      // The stream inside an object: a plain value, not one rxMethod would subscribe to itself.
-      const show = rxMethod<{ followed$: Observable<AppFollowed>; started: AppStarted }>(
-        pipe(
-          switchMap(({ followed$, started }) =>
-            followed$.pipe(map((followed) => ({ ...followed, started }))),
-          ),
-          tap(({ task, after, started: { name, folder } }) => {
-            patchState(store, { task });
-            if (after === 'done') patchState(store, { installed: { name, folder } });
           }),
         ),
       );
@@ -298,8 +288,9 @@ export const NewAppPageStore = signalStore(
               include ? preset : null,
             );
             if (!result) return;
-            patchState(store, { step: 'installing', task: result.started.task });
-            show(result);
+            const id = appTasksStore.tasks()[result.name]?.id;
+            if (id !== undefined)
+              patchState(store, { step: 'installing', install: { name: result.name, id } });
           } catch (error) {
             const detail = (error as { error?: { detail?: unknown } }).error?.detail;
             if (typeof detail === 'string') patchState(store, { problem: detail });

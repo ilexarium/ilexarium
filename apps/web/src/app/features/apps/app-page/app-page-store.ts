@@ -1,4 +1,4 @@
-import { computed, inject } from '@angular/core';
+import { computed, effect, inject, untracked } from '@angular/core';
 import {
   patchState,
   signalStore,
@@ -13,25 +13,14 @@ import {
   type AppDetails,
   type AppRemovalItem,
   type AppStarted,
-  type AppTask,
   type BackupItemRequest,
   parseEnv,
   setEnvValues,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import {
-  catchError,
-  EMPTY,
-  firstValueFrom,
-  map,
-  type Observable,
-  pipe,
-  switchMap,
-  tap,
-} from 'rxjs';
+import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import type { AppFollowed, AppTaskStart } from '../../../core/apps/apps.model';
-import { AppTasksStore } from '../../../core/apps/app-tasks-store';
+import { AppTasksStore, taskEnded } from '../../../core/apps/app-tasks-store';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
@@ -55,8 +44,14 @@ interface AppPageState {
   env: string;
   /** Saved with other files on disk meanwhile: reload, or overwrite. */
   conflict: boolean;
-  busy: boolean;
-  task: AppTask | null;
+  /** A request of this page's in flight (the tasks themselves are AppTasksStore's). */
+  requesting: boolean;
+  /**
+   * AppTasksStore's last task id when the page opened, and the app's task then still running:
+   * the page reacts only to tasks that end during its visit.
+   */
+  openedAt: number;
+  runningAtOpen: number | null;
   removal: AppRemovalItem[] | null;
   /** Removed: back to the list. */
   removed: boolean;
@@ -72,8 +67,9 @@ const initialState: AppPageState = {
   compose: '',
   env: '',
   conflict: false,
-  busy: false,
-  task: null,
+  requesting: false,
+  openedAt: 0,
+  runningAtOpen: null,
   removal: null,
   removed: false,
   tab: 'overview',
@@ -81,19 +77,28 @@ const initialState: AppPageState = {
 
 /**
  * One app's page: its files read as the signed-in Linux account (fresh each time), the form and
- * the editor, Update, the backup, the removal — each change done as the person, its task followed
- * live.
+ * the editor, Update, the backup, the removal. The tasks are AppTasksStore's: the page shows the
+ * app's latest and reacts when one ends while it's open.
  */
 export const AppPageStore = signalStore(
   withState<AppPageState>(initialState),
   withComputed(
     (
       store,
+      appTasksStore = inject(AppTasksStore),
       appsStore = inject(AppsStore),
       backupsStore = inject(BackupsStore),
       containerActionsStore = inject(ContainerActionsStore),
       monitoringStore = inject(MonitoringStore),
     ) => {
+      const entry = computed(() => appTasksStore.tasks()[store.name()] ?? null);
+      /** The app's latest task: the one followed here, or the one read with its files if newer. */
+      const task = computed(() => {
+        const followed = entry()?.task ?? null;
+        const read = store.details()?.task ?? null;
+        if (!followed || !read) return followed ?? read;
+        return followed.startedAt >= read.startedAt ? followed : read;
+      });
       /** Live from the containers topic, else as read with the files. */
       const summary = computed(
         () =>
@@ -135,7 +140,10 @@ export const AppPageStore = signalStore(
         }),
         backup: computed(() => backupsStore.apps().get(store.name()) ?? null),
         backupsConfigured: backupsStore.configured,
-        running: computed(() => store.task()?.state === 'running'),
+        task,
+        running: computed(() => task()?.state === 'running'),
+        /** A request in flight, or a task's second step (a removal's deletion) still running. */
+        busy: computed(() => store.requesting() || entry()?.after === 'pending'),
         pending: computed(() => {
           const pending = containerActionsStore.pending();
           return (summary()?.containers ?? []).some((name) => pending.has(name));
@@ -176,9 +184,12 @@ export const AppPageStore = signalStore(
                   compose: details.compose,
                   env: details.env,
                   conflict: false,
-                  task: store.task() ?? details.task,
                 }),
               ),
+              // Opened during a task (started elsewhere, or before a reload): followed too.
+              tap((details) => {
+                if (details.task) appTasksStore.watch(store.name(), details.folder, details.task);
+              }),
               catchError((error: unknown) => {
                 patchState(store, { loadError: apiErrorCode(error) ?? 'failed' });
                 return EMPTY;
@@ -188,39 +199,35 @@ export const AppPageStore = signalStore(
         ),
       );
 
-      // The stream inside an object: a plain value, not one rxMethod would subscribe to itself.
-      const show = rxMethod<{ followed$: Observable<AppFollowed>; removal: boolean }>(
-        pipe(
-          switchMap(({ followed$, removal }) =>
-            followed$.pipe(map((followed) => ({ ...followed, removal }))),
-          ),
-          tap(({ task, after, removal }) => {
-            // The deletion after a removal: the page stays busy until it's through.
-            patchState(store, { task, busy: after === 'pending' });
-            if (task.state === 'running' || after === 'pending') return;
-            if (after === 'done' && removal) patchState(store, { removed: true });
-            if (!store.removed()) load();
-          }),
-        ),
-      );
-
-      /** A task without a second step (save, update, start): followed only to show it. */
-      const followStarted = (result: AppStarted | null) => {
-        if (!result) return;
-        patchState(store, { task: result.task });
-        show({ followed$: appTasksStore.follow(result), removal: false });
+      /**
+       * A task through AppTasksStore, `requesting` while it starts; a refused start worded under
+       * `key` (or handled by `refused`, true when it was).
+       */
+      const startTask = async (
+        key: string,
+        start: () => Promise<AppStarted | null>,
+        refused?: (error: unknown) => boolean,
+      ): Promise<void> => {
+        patchState(store, { requesting: true });
+        try {
+          await start();
+        } catch (error) {
+          if (!refused?.(error)) failed(key, error);
+        } finally {
+          patchState(store, { requesting: false });
+        }
       };
 
-      /** As the person; `busy` meanwhile; the error worded under `key`. */
+      /** As the person; `requesting` meanwhile; the error worded under `key`. */
       const asPerson = async <T>(key: string, action: () => Promise<T>): Promise<T | null> => {
-        patchState(store, { busy: true });
+        patchState(store, { requesting: true });
         try {
           return await linuxSessionStore.asPerson(action);
         } catch (error) {
           failed(key, error);
           return null;
         } finally {
-          patchState(store, { busy: false });
+          patchState(store, { requesting: false });
         }
       };
 
@@ -245,7 +252,16 @@ export const AppPageStore = signalStore(
 
       return {
         open(name: string, folder: string | null): void {
-          patchState(store, { ...initialState, name, folderHint: folder, tab: store.tab() });
+          const current = appTasksStore.tasks()[name];
+          const running = current && !taskEnded(current) ? current : undefined;
+          patchState(store, {
+            ...initialState,
+            name,
+            folderHint: folder,
+            tab: store.tab(),
+            openedAt: appTasksStore.lastId(),
+            runningAtOpen: running?.id ?? null,
+          });
           load();
         },
 
@@ -279,30 +295,22 @@ export const AppPageStore = signalStore(
           const details = store.details();
           if (!details) return;
           patchState(store, { conflict: false });
-          patchState(store, { busy: true });
-          try {
-            followStarted(
-              await linuxSessionStore.asPerson(() =>
-                firstValueFrom(
-                  appsApi.save(store.name(), {
-                    folder: details.folder,
-                    compose: store.compose(),
-                    env: store.env(),
-                    hash: details.hash,
-                    overwrite,
-                  }),
-                ),
-              ),
-            );
-          } catch (error) {
-            if (apiErrorCode(error) === APP_ERROR_CODES.changedOnDisk) {
+          await startTask(
+            'apps.save.failed',
+            () =>
+              appTasksStore.save(store.name(), {
+                folder: details.folder,
+                compose: store.compose(),
+                env: store.env(),
+                hash: details.hash,
+                overwrite,
+              }),
+            (error) => {
+              if (apiErrorCode(error) !== APP_ERROR_CODES.changedOnDisk) return false;
               patchState(store, { conflict: true });
-            } else {
-              failed('apps.save.failed', error);
-            }
-          } finally {
-            patchState(store, { busy: false });
-          }
+              return true;
+            },
+          );
         },
 
         async update(backupFirst: boolean): Promise<void> {
@@ -310,10 +318,8 @@ export const AppPageStore = signalStore(
             toast.error(translator.t('apps.update.notBackedUp', { name: store.name() }));
             return;
           }
-          followStarted(
-            await asPerson('apps.update.failed', () =>
-              firstValueFrom(appsApi.update(store.name(), store.folder())),
-            ),
+          await startTask('apps.update.failed', () =>
+            appTasksStore.update(store.name(), store.folder()),
           );
         },
 
@@ -339,10 +345,8 @@ export const AppPageStore = signalStore(
           const summary = store.summary();
           if (!summary) return;
           if (action === 'start' && summary.state === 'none') {
-            followStarted(
-              await asPerson('apps.starting.failed', () =>
-                firstValueFrom(appsApi.start(store.name(), store.folder())),
-              ),
+            await startTask('apps.starting.failed', () =>
+              appTasksStore.start(store.name(), store.folder()),
             );
             return;
           }
@@ -369,32 +373,40 @@ export const AppPageStore = signalStore(
                   volumes: ticked.filter((i) => i.kind === 'volume').map((i) => i.path),
                 }
               : null;
-          // AppTasksStore asks for the sign-in itself: only `busy` and the wording here.
-          patchState(store, { busy: true });
-          let result: AppTaskStart | null = null;
-          try {
-            result = await appTasksStore.remove(store.name(), folder, request);
-          } catch (error) {
-            failed('apps.remove.failed', error);
-          } finally {
-            patchState(store, { busy: false });
-          }
-          if (!result) return;
-          patchState(store, { task: result.started.task });
-          show({ followed$: result.followed$, removal: true });
+          await startTask('apps.remove.failed', () =>
+            appTasksStore.remove(store.name(), folder, request),
+          );
         },
       };
     },
   ),
-  withHooks((_store, monitoringStore = inject(MonitoringStore)) => {
-    let stop: (() => void) | undefined;
-    return {
-      onInit() {
-        stop = monitoringStore.watch(['containers']);
-      },
-      onDestroy() {
-        stop?.();
-      },
-    };
-  }),
+  withHooks(
+    (store, appTasksStore = inject(AppTasksStore), monitoringStore = inject(MonitoringStore)) => {
+      let stop: (() => void) | undefined;
+      return {
+        onInit() {
+          stop = monitoringStore.watch(['containers']);
+          // A task ending during this visit (only once each): a removal done is back to the list,
+          // any other the files read again. One that had ended before the page opened: nothing.
+          let handled = 0;
+          effect(() => {
+            const entry = appTasksStore.tasks()[store.name()];
+            if (!entry || entry.id === handled || !taskEnded(entry)) return;
+            if (entry.id <= store.openedAt() && entry.id !== store.runningAtOpen()) return;
+            handled = entry.id;
+            untracked(() => {
+              if (entry.kind === 'remove' && entry.after === 'done') {
+                patchState(store, { removed: true });
+              } else {
+                store.reload();
+              }
+            });
+          });
+        },
+        onDestroy() {
+          stop?.();
+        },
+      };
+    },
+  ),
 );

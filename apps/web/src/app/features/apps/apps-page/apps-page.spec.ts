@@ -163,6 +163,25 @@ describe('AppsPage', () => {
     expect(start.disabled).toBe(false);
   });
 
+  it('the card stays busy while its start runs, then is free again', async () => {
+    const { el, receive, appsApi, fixture } = await render();
+    let state: 'running' | 'succeeded' = 'running';
+    appsApi.task.mockImplementation(() => of({ task: testTask({ action: 'up', state }) }));
+    await receive({
+      event: 'containers:snapshot',
+      data: { dockerAvailable: true, containers: [], history: {} },
+    });
+    const start = el.querySelector<HTMLButtonElement>('button[aria-label="Start notes"]')!;
+    start.click();
+    await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
+    await fixture.whenStable();
+    expect(start.disabled).toBe(true);
+    state = 'succeeded';
+    await vi.waitFor(() => expect(appsApi.list).toHaveBeenCalledTimes(2), { timeout: 4000 });
+    await fixture.whenStable();
+    expect(start.disabled).toBe(false);
+  });
+
   it('Docker down: said so; adding an app still offered', async () => {
     const { el, receive } = await render();
     await receive({

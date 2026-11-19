@@ -65,7 +65,15 @@ async function setup() {
   const store = page.get(AppPageStore);
   store.open('music', null);
   await vi.waitFor(() => expect(store.details()).not.toBeNull());
-  return { store, page, appsApi, backupsApi, asPerson, answers };
+  /** The page opened again (a new visit), like coming back to it. */
+  const reopen = async () => {
+    const again = createEnvironmentInjector([AppPageStore], TestBed.inject(EnvironmentInjector));
+    const next = again.get(AppPageStore);
+    next.open('music', null);
+    await vi.waitFor(() => expect(next.details()).not.toBeNull());
+    return { store: next, page: again };
+  };
+  return { store, page, appsApi, backupsApi, asPerson, answers, reopen };
 }
 
 describe('AppPageStore', () => {
@@ -222,6 +230,47 @@ describe('AppPageStore', () => {
       folders: [],
       volumes: [],
     });
+  });
+
+  it('back on the page, the task still runs there — and the files are read again at its end', async () => {
+    const { page, appsApi, answers, reopen } = await setup();
+    answers.push(testTask({ action: 'update' }));
+    const first = page.get(AppPageStore);
+    await first.update(false);
+    page.destroy();
+    const { store } = await reopen();
+    expect(store.task()).toMatchObject({ action: 'update', state: 'running' });
+    expect(store.running()).toBe(true);
+    const reads = appsApi.details.mock.calls.length;
+    answers.splice(0, answers.length, testTask({ action: 'update', state: 'succeeded' }));
+    await vi.waitFor(() => expect(store.running()).toBe(false), { timeout: 4000 });
+    await vi.waitFor(() => expect(appsApi.details.mock.calls.length).toBeGreaterThan(reads));
+  });
+
+  it('a removal finished before the page opened never sends it away', async () => {
+    const { store, page, answers, reopen } = await setup();
+    await store.openRemoval();
+    answers.push(testTask({ action: 'down', state: 'succeeded' }));
+    await store.remove([]);
+    await vi.waitFor(() => expect(store.removed()).toBe(true), { timeout: 4000 });
+    page.destroy();
+    const { store: later } = await reopen();
+    TestBed.tick();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(later.removed()).toBe(false);
+  });
+
+  it('opened during a task started elsewhere: follows it to its end', async () => {
+    const { appsApi, answers, reopen } = await setup();
+    // Read once during the task; read again after it, the task has ended.
+    appsApi.details.mockReturnValueOnce(
+      of(testDetails('music', { task: testTask({ action: 'update' }) })),
+    );
+    answers.push(testTask({ action: 'update' }));
+    const { store } = await reopen();
+    expect(store.running()).toBe(true);
+    answers.splice(0, answers.length, testTask({ action: 'update', state: 'succeeded' }));
+    await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
   });
 
   it('stays busy until the deletion after a removal is through', async () => {
