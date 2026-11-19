@@ -78,11 +78,11 @@ export const AppTasksStore = signalStore(
 
       /**
        * A second step's request as the person: true once done, false when it failed (worded under
-       * `key`), was dismissed, or a sign-out came first — checked again after the sign-in prompt,
+       * `errorKey`), was dismissed, or a sign-out came first — checked again after the sign-in prompt,
        * right before the request, so it never goes out as whoever signed in next.
        */
       const asPerson = async (
-        key: string,
+        errorKey: string,
         name: string,
         at: number,
         action: () => Promise<unknown>,
@@ -93,7 +93,7 @@ export const AppTasksStore = signalStore(
           );
           return done === true;
         } catch (error) {
-          toast.error(translator.t(key, { name }), {
+          toast.error(translator.t(errorKey, { name }), {
             description: translator.t(...apiErrorText(error)),
           });
           return false;
