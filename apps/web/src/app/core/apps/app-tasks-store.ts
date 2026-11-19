@@ -8,7 +8,7 @@ import type {
   AppTask,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { firstValueFrom, type Subscription } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { buildAppBackupItem } from '../backups/app-backup-item';
 import { BackupsApi } from '../backups/backups-api';
@@ -18,7 +18,7 @@ import { Translator } from '../i18n/translator';
 import { LinuxSessionStore } from '../linux/linux-session-store';
 import { apiErrorText } from '../../shared/forms/submission-errors';
 import { AppsApi } from './apps-api';
-import type { AppTaskEntry, AppTaskKind } from './apps.model';
+import type { AppTaskEntry, AppTaskKind, AppTasksVisit } from './apps.model';
 import { followTask } from './task-follower';
 
 interface AppTasksState {
@@ -30,10 +30,14 @@ interface AppTasksState {
 
 const initialState: AppTasksState = { tasks: {}, lastId: 0 };
 
-/** What happens when a task ends: `then` once it succeeded (true: done), `failed` once it didn't. */
+/**
+ * What happens when a task ends: `onSucceeded` (its second step; true: done), `onFailed` once it
+ * ended any other way (failed, interrupted).
+ */
 interface TaskEnd {
-  then?: () => Promise<boolean>;
-  failed?: () => void;
+  /** Given the sign-in count it started under, for its requests (see `asPerson`). */
+  onSucceeded?: (at: number) => Promise<boolean>;
+  onFailed?: () => void;
 }
 
 /** Whether a task and its second step are through. */
@@ -52,6 +56,7 @@ export const AppTasksStore = signalStore(
   withMethods(
     (
       store,
+      authStore = inject(AuthStore),
       appsApi = inject(AppsApi),
       backupsApi = inject(BackupsApi),
       backupsStore = inject(BackupsStore),
@@ -71,10 +76,22 @@ export const AppTasksStore = signalStore(
         patchState(store, { tasks: { ...store.tasks(), [name]: { ...entry, ...change } } });
       };
 
-      /** As the person; true once done, false when it failed (worded under `key`) or was dismissed. */
-      const asPerson = async (key: string, name: string, action: () => Promise<unknown>) => {
+      /**
+       * A second step's request as the person: true once done, false when it failed (worded under
+       * `key`), was dismissed, or a sign-out came first — checked again after the sign-in prompt,
+       * right before the request, so it never goes out as whoever signed in next.
+       */
+      const asPerson = async (
+        key: string,
+        name: string,
+        at: number,
+        action: () => Promise<unknown>,
+      ) => {
         try {
-          return (await linuxSessionStore.asPerson(() => action().then(() => true))) === true;
+          const done = await linuxSessionStore.asPerson(() =>
+            signOuts === at ? action().then(() => true) : Promise.resolve(false),
+          );
+          return done === true;
         } catch (error) {
           toast.error(translator.t(key, { name }), {
             description: translator.t(...apiErrorText(error)),
@@ -84,38 +101,50 @@ export const AppTasksStore = signalStore(
       };
 
       /**
-       * Follows a task to its end in `tasks`: `then` run once it succeeded (its `after`), `failed`
-       * once it didn't. Replaces the app's earlier entry and stops its poll.
+       * Follows a task to its end in `tasks`: `onSucceeded` run once it succeeded (its `after`),
+       * `onFailed` once it ended otherwise; neither after a sign-out. Replaces the app's earlier
+       * entry and stops its poll. A poll that gives up drops the entry: the page reads the task
+       * with the app's files instead.
        */
       const track = (
         kind: AppTaskKind,
         name: string,
         folder: string,
         task: AppTask,
-        { then, failed }: TaskEnd = {},
+        { onSucceeded, onFailed }: TaskEnd = {},
       ) => {
         polls.get(name)?.unsubscribe();
+        const at = signOuts;
         const id = store.lastId() + 1;
         patchState(store, {
           lastId: id,
           tasks: { ...store.tasks(), [name]: { id, kind, folder, task, after: null } },
         });
-        const poll = followTask(appsApi, name, folder).subscribe({
-          next: (latest) => {
-            patchEntry(name, id, { task: latest });
-            if (latest.state === 'failed') failed?.();
-            if (latest.state !== 'succeeded' || !then) return;
-            patchEntry(name, id, { after: 'pending' });
-            void then()
-              .catch(() => false)
-              .then((ok) => patchEntry(name, id, { after: ok ? 'done' : 'failed' }));
-          },
-          complete: () => {
-            if (polls.get(name) === poll) polls.delete(name);
-          },
-        });
-        // A poll that ended at once (in tests) is already done.
-        if (!poll.closed) polls.set(name, poll);
+        const poll = new Subscription();
+        polls.set(name, poll);
+        poll.add(
+          followTask(appsApi, name, folder).subscribe({
+            next: (latest) => {
+              const ended = latest.state !== 'running';
+              const succeeded = latest.state === 'succeeded';
+              const stepNow = succeeded && !!onSucceeded && signOuts === at;
+              patchEntry(name, id, { task: latest, ...(stepNow && { after: 'pending' }) });
+              if (ended && !succeeded && signOuts === at) onFailed?.();
+              if (!stepNow) return;
+              void onSucceeded(at)
+                .catch(() => false)
+                .then((ok) => patchEntry(name, id, { after: ok ? 'done' : 'failed' }));
+            },
+            complete: () => {
+              if (polls.get(name) === poll) polls.delete(name);
+              const entry = store.tasks()[name];
+              if (entry?.id === id && entry.task.state === 'running') {
+                const { [name]: _gaveUp, ...rest } = store.tasks();
+                patchState(store, { tasks: rest });
+              }
+            },
+          }),
+        );
       };
 
       /**
@@ -155,11 +184,11 @@ export const AppTasksStore = signalStore(
             () =>
               announce
                 ? {
-                    then: async () => {
+                    onSucceeded: async () => {
                       toast.success(translator.t('apps.starting.done', { name }));
                       return true;
                     },
-                    failed: () => toast.error(translator.t('apps.starting.failed', { name })),
+                    onFailed: () => toast.error(translator.t('apps.starting.failed', { name })),
                   }
                 : {},
           );
@@ -177,10 +206,10 @@ export const AppTasksStore = signalStore(
             'remove',
             () => firstValueFrom(appsApi.remove(name, folder)),
             () => ({
-              then: async () => {
+              onSucceeded: async (at) => {
                 if (
                   ticked &&
-                  !(await asPerson('apps.remove.deleteFailed', name, () =>
+                  !(await asPerson('apps.remove.deleteFailed', name, at, () =>
                     firstValueFrom(appsApi.delete(name, ticked)),
                   ))
                 )
@@ -204,9 +233,9 @@ export const AppTasksStore = signalStore(
             'install',
             () => firstValueFrom(appsApi.install(request)),
             ({ name, folder }) => ({
-              then: async () => {
+              onSucceeded: async (at) => {
                 if (backup && backupsStore.configured())
-                  await asPerson('apps.new.backupFailed', name, () =>
+                  await asPerson('apps.new.backupFailed', name, at, () =>
                     firstValueFrom(backupsApi.addItem(buildAppBackupItem(name, folder, backup))),
                   );
                 toast.success(translator.t('apps.new.installed', { name }));
@@ -218,8 +247,25 @@ export const AppTasksStore = signalStore(
 
         /** A task found running (an app page opened during it): followed too, unless it is already. */
         watch(name: string, folder: string, task: AppTask): void {
-          if (task.state !== 'running' || polls.has(name)) return;
+          // An answer read around a sign-out starts nothing for whoever signs in next.
+          if (task.state !== 'running' || polls.has(name) || !authStore.isAuthenticated()) return;
           track('watched', name, folder, task);
+        },
+
+        /** Where a page's visit starts (see `endedDuring`). */
+        visit(): AppTasksVisit {
+          return {
+            after: store.lastId(),
+            running: Object.values(store.tasks())
+              .filter((entry) => !taskEnded(entry))
+              .map((entry) => entry.id),
+          };
+        },
+
+        /** Whether a task ended during a page's visit: started after it began, or running then. */
+        endedDuring(visit: AppTasksVisit | null, entry: AppTaskEntry | undefined): boolean {
+          if (!visit || !entry || !taskEnded(entry)) return false;
+          return entry.id > visit.after || visit.running.includes(entry.id);
         },
 
         reset(): void {

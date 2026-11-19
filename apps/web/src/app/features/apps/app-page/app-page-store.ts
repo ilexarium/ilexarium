@@ -20,7 +20,8 @@ import {
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import { AppTasksStore, taskEnded } from '../../../core/apps/app-tasks-store';
+import { AppTasksStore } from '../../../core/apps/app-tasks-store';
+import type { AppTasksVisit } from '../../../core/apps/apps.model';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
@@ -46,12 +47,8 @@ interface AppPageState {
   conflict: boolean;
   /** A request of this page's in flight (the tasks themselves are AppTasksStore's). */
   requesting: boolean;
-  /**
-   * AppTasksStore's last task id when the page opened, and the app's task then still running:
-   * the page reacts only to tasks that end during its visit.
-   */
-  openedAt: number;
-  runningAtOpen: number | null;
+  /** Where this visit started: the page reacts only to tasks that end during it. */
+  visit: AppTasksVisit | null;
   removal: AppRemovalItem[] | null;
   /** Removed: back to the list. */
   removed: boolean;
@@ -68,8 +65,7 @@ const initialState: AppPageState = {
   env: '',
   conflict: false,
   requesting: false,
-  openedAt: 0,
-  runningAtOpen: null,
+  visit: null,
   removal: null,
   removed: false,
   tab: 'overview',
@@ -252,15 +248,12 @@ export const AppPageStore = signalStore(
 
       return {
         open(name: string, folder: string | null): void {
-          const current = appTasksStore.tasks()[name];
-          const running = current && !taskEnded(current) ? current : undefined;
           patchState(store, {
             ...initialState,
             name,
             folderHint: folder,
             tab: store.tab(),
-            openedAt: appTasksStore.lastId(),
-            runningAtOpen: running?.id ?? null,
+            visit: appTasksStore.visit(),
           });
           load();
         },
@@ -391,8 +384,8 @@ export const AppPageStore = signalStore(
           let handled = 0;
           effect(() => {
             const entry = appTasksStore.tasks()[store.name()];
-            if (!entry || entry.id === handled || !taskEnded(entry)) return;
-            if (entry.id <= store.openedAt() && entry.id !== store.runningAtOpen()) return;
+            if (!entry || entry.id === handled) return;
+            if (!appTasksStore.endedDuring(store.visit(), entry)) return;
             handled = entry.id;
             untracked(() => {
               if (entry.kind === 'remove' && entry.after === 'done') {

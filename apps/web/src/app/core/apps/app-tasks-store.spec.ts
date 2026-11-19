@@ -214,6 +214,41 @@ describe('AppTasksStore', () => {
     expect(success).not.toHaveBeenCalled();
   });
 
+  it('a card’s start that was interrupted says it failed too', async () => {
+    const { tasks, answers } = await setup();
+    const error = vi.spyOn(toast, 'error');
+    answers.push(testTask({ state: 'interrupted' }));
+    await tasks.start('music', FOLDER, true);
+    await vi.waitFor(() => expect(error).toHaveBeenCalledWith("Couldn't start music"), {
+      timeout: 4000,
+    });
+  });
+
+  it('a second step waiting at the sign-in when someone signs out sends nothing', async () => {
+    const { tasks, entry, appsApi, asPerson, answers } = await setup();
+    answers.push(testTask({ action: 'down', state: 'succeeded' }));
+    // The first call starts the removal; at the second (the deletion's) a sign-out comes first.
+    asPerson.mockImplementationOnce((action) => action());
+    asPerson.mockImplementationOnce(async (action) => {
+      await TestBed.inject(AuthStore).logout();
+      TestBed.tick();
+      return action();
+    });
+    await tasks.remove('music', FOLDER, TICKED);
+    await vi.waitFor(() => expect(asPerson).toHaveBeenCalledTimes(2), { timeout: 4000 });
+    await wait(50);
+    expect(appsApi.delete).not.toHaveBeenCalled();
+    expect(entry()).toBeUndefined();
+  });
+
+  it('watches nothing once signed out', async () => {
+    const { tasks, entry } = await setup();
+    await TestBed.inject(AuthStore).logout();
+    TestBed.tick();
+    tasks.watch('music', FOLDER, testTask({ action: 'update' }));
+    expect(entry()).toBeUndefined();
+  });
+
   it('watches a task found running, once; a finished one not at all', async () => {
     const { tasks, entry, appsApi, answers } = await setup();
     tasks.watch('music', FOLDER, testTask({ state: 'succeeded' }));

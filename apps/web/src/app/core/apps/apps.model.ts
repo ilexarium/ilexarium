@@ -16,3 +16,9 @@ export interface AppTaskEntry {
   task: AppTask;
   after: 'pending' | 'done' | 'failed' | null;
 }
+
+/** Where a page's visit starts: tasks started later, and those running then, end during it. */
+export interface AppTasksVisit {
+  after: number;
+  running: number[];
+}
