@@ -1,3 +1,5 @@
+import { BACKUP_ERROR_CODES } from '@ilex/shared';
+
 /** Per IP, for changes (slow, privileged, rare); reads aren't limited. */
 export const CHANGE_LIMIT = { default: { limit: 20, ttl: 60_000 } };
 
@@ -6,6 +8,11 @@ export const PASSPHRASE_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 
 /** A disk a backup may go to: a real device (not tmpfs, overlay, a network share). */
 export const DESTINATION_SOURCE = /^\/dev\//;
+/** The backup disk can't back itself up (the root program refuses it too). */
+export const ON_BACKUP_DISK = {
+  code: BACKUP_ERROR_CODES.pathOnBackupDisk,
+  message: 'On the backup disk',
+} as const;
 /** Where the folder picker starts, besides the home folders and the disks. */
 export const FOLDER_PLACES = ['/srv', '/opt', '/data'];
 /** Folders the picker lists in one folder at most. */

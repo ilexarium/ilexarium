@@ -80,7 +80,7 @@ export class BackupPlanManager {
         );
       }
       await this.backupChecks.checkDestination(request.destination);
-      const items = await this.backupChecks.checkNewItems(request.items);
+      const items = await this.backupChecks.checkNewItems(request.items, request.destination);
       const init = await programCall(() =>
         this.rootPrograms.backupInit(request.destination, actor),
       );
@@ -132,8 +132,8 @@ export class BackupPlanManager {
   /** Adds an app or a folder (one removed earlier comes back, with its archives). */
   async addItem(request: BackupItemRequest, actor: RootActor): Promise<BackupItem> {
     const id = await this.changePlan(async () => {
-      await requirePlan(this.prisma);
-      const [row] = await this.backupChecks.checkNewItems([request]);
+      const plan = await requirePlan(this.prisma);
+      const [row] = await this.backupChecks.checkNewItems([request], plan.destination);
       const removed = await this.prisma.backupItem.findFirst({
         where:
           row.kind === 'app'
@@ -163,14 +163,14 @@ export class BackupPlanManager {
   /** An app item's folders, skips or mode. */
   async updateItem(id: string, change: BackupItemUpdate, actor: RootActor): Promise<BackupItem> {
     await this.changePlan(async () => {
-      await requirePlan(this.prisma);
+      const plan = await requirePlan(this.prisma);
       const item = await requireItem(this.prisma, id);
       if (item.kind !== 'app' || item.removedAt) {
         throw new BadRequestException(
           apiError('Only an app’s folders can be changed', BACKUP_ERROR_CODES.itemFixed),
         );
       }
-      this.backupChecks.checkAppChange(item, change);
+      this.backupChecks.checkAppChange(item, change, plan.destination);
       await this.applyPlanChange(actor, (tx) =>
         tx.backupItem.update({
           where: { id },

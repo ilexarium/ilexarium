@@ -7,6 +7,7 @@ import {
   BACKUP_LIMITS,
   BACKUP_REPOSITORY_FOLDER,
   BACKUP_SYSTEM_FOLDERS,
+  pathsOverlap,
   BACKUP_TIME_PATTERN,
   CATALOG_LIMITS,
   DISK_FILESYSTEMS,
@@ -50,6 +51,7 @@ import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
 import * as wrapperBackupInput from './backup/input.mts';
 import * as wrapperPlan from './backup/plan.mts';
+import * as wrapperPlaces from './backup/places.mts';
 import * as wrapperDiskConfig from './disk/config.mts';
 import * as wrapperDiskDevices from './disk/devices.mts';
 import * as wrapperDiskMount from './disk/mount.mts';
@@ -77,6 +79,13 @@ describe('the app and the root programs check the same rules', () => {
     expect(wrapperDestination.REPOSITORY_FOLDER).toBe(BACKUP_REPOSITORY_FOLDER);
     expect(wrapperPlan.MAX_ITEMS).toBe(BACKUP_LIMITS.maxItems);
     expect(String(wrapperPlan.TIME_PATTERN)).toBe(String(BACKUP_TIME_PATTERN));
+  });
+
+  it('backups: no item on the backup disk or holding it', () => {
+    const disk = '/mnt/backups';
+    for (const path of [disk, `${disk}/a`, '/mnt', '/', '/mnt/backups-2', '/mnt/back', '/srv/x']) {
+      expect(wrapperPlaces.overlaps(path, disk), path).toBe(pathsOverlap(path, disk));
+    }
   });
 
   it('backups: an app’s name and what may be skipped in its folders', () => {

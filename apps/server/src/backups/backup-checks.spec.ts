@@ -9,6 +9,7 @@ import type { ProgramConfigService } from '../root-programs/program-config.js';
 import { BackupChecks } from './backup-checks.js';
 
 const APP = { kind: 'app' as const, folders: [], skip: [], mode: 'stop' as const };
+const DISK = '/mnt/backups';
 
 /** What the signed-in account sees over SFTP: each readable folder's entries; others refused. */
 type Tree = Record<string, { name: string; folder: boolean }[] | 'denied'>;
@@ -64,13 +65,16 @@ describe('BackupChecks.checkNewItems', () => {
   it('names each refused item by its place in the request', async () => {
     const checks = checksWith([{ project: 'immich' }]);
     const response = await problems(
-      checks.checkNewItems([
-        { ...APP, project: 'immich' },
-        { ...APP, project: 'missing' },
-        { kind: 'folder', path: '/etc' },
-        { kind: 'folder', path: '/srv/ilex/docs' },
-        { kind: 'folder', path: '/srv/ilex/docs' },
-      ]),
+      checks.checkNewItems(
+        [
+          { ...APP, project: 'immich' },
+          { ...APP, project: 'missing' },
+          { kind: 'folder', path: '/etc' },
+          { kind: 'folder', path: '/srv/ilex/docs' },
+          { kind: 'folder', path: '/srv/ilex/docs' },
+        ],
+        DISK,
+      ),
     );
     expect(response.errors).toEqual([
       expect.objectContaining({ field: 'items.0', code: BACKUP_ERROR_CODES.itemExists }),
@@ -81,19 +85,22 @@ describe('BackupChecks.checkNewItems', () => {
   });
 
   it('an app without folders asked: Docker’s, but never a system path it mounts', async () => {
-    const [row] = await checksWith([]).checkNewItems([{ ...APP, project: 'immich' }]);
+    const [row] = await checksWith([]).checkNewItems([{ ...APP, project: 'immich' }], DISK);
     expect(row).toMatchObject({ kind: 'app', folders: ['/home/anna/apps/immich'] });
   });
 
   it('returns the checked rows, each with a new id', async () => {
-    const rows = await checksWith([]).checkNewItems([
-      {
-        ...APP,
-        project: 'music',
-        skip: ['/home/anna/apps/music/cache'],
-      },
-      { kind: 'folder', path: '/srv/ilex/docs' },
-    ]);
+    const rows = await checksWith([]).checkNewItems(
+      [
+        {
+          ...APP,
+          project: 'music',
+          skip: ['/home/anna/apps/music/cache'],
+        },
+        { kind: 'folder', path: '/srv/ilex/docs' },
+      ],
+      DISK,
+    );
     expect(rows).toEqual([
       {
         id: expect.any(String),
@@ -106,6 +113,38 @@ describe('BackupChecks.checkNewItems', () => {
       },
       { id: expect.any(String), kind: 'folder', path: '/srv/ilex/docs' },
     ]);
+  });
+
+  it('refuses the backup disk itself, a folder on it or one holding it — the disk can’t back itself up', async () => {
+    const response = await problems(
+      checksWith([]).checkNewItems(
+        [
+          { kind: 'folder', path: DISK },
+          { kind: 'folder', path: `${DISK}/old` },
+          { kind: 'folder', path: '/mnt' },
+          { kind: 'folder', path: '/mnt/backups-2' },
+          { ...APP, project: 'music', folders: ['/home/anna/apps/music', `${DISK}/music`] },
+        ],
+        DISK,
+      ),
+    );
+    const code = BACKUP_ERROR_CODES.pathOnBackupDisk;
+    expect(response.errors).toEqual([
+      expect.objectContaining({ field: 'items.0', code }),
+      expect.objectContaining({ field: 'items.1', code }),
+      expect.objectContaining({ field: 'items.2', code }),
+      expect.objectContaining({ field: 'items.4', code }),
+    ]);
+  });
+
+  it('refuses an app’s folders changed to one on the backup disk', () => {
+    expect(() =>
+      checksWith([]).checkAppChange(
+        { folders: ['/home/anna/apps/music'] },
+        { folders: [`${DISK}/x`] },
+        DISK,
+      ),
+    ).toThrow();
   });
 });
 
