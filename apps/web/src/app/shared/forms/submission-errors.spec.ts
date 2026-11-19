@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
 import en from '@ilex/i18n/en.json';
 import { flattenMessages } from '@ilex/i18n';
-import { toSubmissionErrors, TRANSLATED_ERROR_CODES } from './submission-errors';
+import { apiErrorText, toSubmissionErrors, TRANSLATED_ERROR_CODES } from './submission-errors';
 
 function makeForm() {
   return TestBed.runInInjectionContext(() =>
@@ -89,5 +89,26 @@ describe('toSubmissionErrors', () => {
   it('has a text in en.json for every code it translates', () => {
     const keys = Object.keys(flattenMessages(en));
     for (const code of TRANSLATED_ERROR_CODES) expect(keys).toContain(`errors.${code}`);
+  });
+});
+
+describe('apiErrorText', () => {
+  it('words the answer’s code, else its first refused field’s, else the status', () => {
+    expect(apiErrorText(httpError(409, { message: 'x', code: 'busy' }))).toEqual(['errors.busy']);
+    expect(
+      apiErrorText(
+        httpError(400, {
+          message: 'Validation failed',
+          errors: [
+            { field: 'items.0', code: 'path_on_backup_disk', message: 'On the backup disk' },
+          ],
+        }),
+      ),
+    ).toEqual(['errors.path_on_backup_disk']);
+    expect(
+      apiErrorText(
+        httpError(400, { message: 'x', errors: [{ field: 'f', code: 'c', message: 'm' }] }),
+      ),
+    ).toEqual(['errors.server', { status: 400 }]);
   });
 });

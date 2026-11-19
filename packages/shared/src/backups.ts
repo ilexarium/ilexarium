@@ -58,6 +58,12 @@ export const BACKUP_SYSTEM_FOLDERS = [
   '/opt/ilex',
 ] as const;
 
+/** One path inside the other, or the same. */
+export function pathsOverlap(a: string, b: string): boolean {
+  const inside = (x: string, y: string) => x === y || x.startsWith(`${y}/`);
+  return inside(a, b) || inside(b, a);
+}
+
 /** Neither inside a system folder nor holding one (never `/`). */
 export function isBackupFolder(path: string): boolean {
   const inside = (a: string, b: string) => a === b || a.startsWith(`${b}/`);
@@ -178,6 +184,8 @@ export const BACKUP_ERROR_CODES = {
   runNotFound: 'backup_run_not_found',
   pathNotAllowed: 'path_not_allowed',
   pathNotFound: 'path_not_found',
+  /** A folder on the backup disk, or one holding it: the disk can't back itself up. */
+  pathOnBackupDisk: 'path_on_backup_disk',
   /** A restore (or deleting what it set aside) below a folder another account can change. */
   pathOthersCanChange: 'path_others_can_change',
   /** Setting up on a disk that already has a `ilex-backups` folder that isn't ours. */

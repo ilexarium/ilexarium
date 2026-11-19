@@ -195,6 +195,7 @@
     "busy": "Ein anderer Vorgang (eine Installation, ein Backup, eine Wiederherstellung oder das Einbinden eines Laufwerks) läuft. Versuche es erneut, wenn er fertig ist.",
     "path_not_allowed": "Dieser Ordner liegt nicht in einem erlaubten Bereich.",
     "path_not_found": "Diesen Ordner gibt es nicht.",
+    "path_on_backup_disk": "Dieser Ordner liegt auf der Backup-Festplatte oder enthält sie: Die Backup-Festplatte kann sich nicht selbst sichern.",
     "path_others_can_change": "Ein anderes Konto kann diesen Ordner oder einen darüber ändern, deshalb schreibt root dort nicht. Stelle stattdessen in einen neuen eigenen Ordner wieder her (in deinem Home-Ordner oder unter /srv), oder lass das Konto es mit seinem eigenen sudo wiederherstellen.",
     "compose_failed": "Compose ist fehlgeschlagen. Die Ausgabe zeigt warum.",
     "timed_out": "Das hat zu lange gedauert und wurde abgebrochen.",
