@@ -6,7 +6,8 @@
 // install test included: ship starts that run and waits for it (about 20 minutes).
 // Where it comes from, the key and the folder: release-settings.json at the repository's top (not
 // in git) — {"releaseUrl": "https://…", "key": "<release.key>", "folder": "<release folder>"},
-// and with "upload" (scripts/upload-release.mjs) the folder is copied to the server at the end.
+// and with "github": "<owner>/<name>" the release commit and tag are pushed and the version is
+// published there too (scripts/publish-github.mjs).
 // The passphrase is asked first and checked against the key, so CI and the build run unattended; the
 // version is committed and tagged only once the release is published.
 import { execFileSync } from 'node:child_process';
@@ -17,6 +18,7 @@ import { parseArgs } from 'node:util';
 import { openKey } from './lib/key-file.mjs';
 import { passphrase } from './lib/passphrase.mjs';
 import { passCi } from './lib/github-ci.mjs';
+import { isGithubRepo } from './lib/github-release.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SETTINGS = join(ROOT, 'release-settings.json');
@@ -47,13 +49,14 @@ if (!existsSync(SETTINGS)) {
     `no ${SETTINGS} — {"releaseUrl": "https://…", "key": "<release.key>", "folder": "<folder>"}`,
   );
 }
-const { releaseUrl, key, folder, upload } = JSON.parse(readFileSync(SETTINGS, 'utf8'));
+const { releaseUrl, key, folder, github } = JSON.parse(readFileSync(SETTINGS, 'utf8'));
 if (typeof releaseUrl !== 'string' || typeof key !== 'string' || typeof folder !== 'string') {
   fail('release-settings.json needs releaseUrl, key and folder');
 }
 if (!existsSync(key)) fail(`no release key at ${key}`);
 if (!existsSync(folder)) fail(`no release folder at ${folder}`);
 if (values.notes && !existsSync(values.notes)) fail(`no notes at ${values.notes}`);
+if (github !== undefined && !isGithubRepo(github)) fail('"github" must be "<owner>/<name>"');
 
 if (git('status', '--porcelain') !== '') fail('the working tree has changes: commit them first');
 if (git('rev-parse', '--abbrev-ref', 'HEAD') !== 'main') fail('releases are built from main');
@@ -69,6 +72,15 @@ if (!newer(version, current) || !newer(version, published)) {
   fail(`${version} isn't newer than ${current} (package.json) and ${published} (published)`);
 }
 
+const gh = (args) => execFileSync('gh', args, { cwd: ROOT, encoding: 'utf8' });
+if (github) {
+  try {
+    gh(['repo', 'view', github, '--json', 'name']);
+  } catch {
+    fail(`${github} isn't reachable with gh (gh auth status)`);
+  }
+}
+
 const secret = await passphrase('Passphrase of the release key: ').catch((error) =>
   fail(error.message),
 );
@@ -78,7 +90,6 @@ try {
   fail(error.message);
 }
 
-const gh = (args) => execFileSync('gh', args, { cwd: ROOT, encoding: 'utf8' });
 try {
   await passCi({ gh, sha: head, sleep: (ms) => new Promise((done) => setTimeout(done, ms)) });
 } catch (error) {
@@ -106,13 +117,19 @@ try {
 git('commit', '-q', '-m', `Release ${version}`, '--', 'package.json', 'package-lock.json');
 git('tag', `v${version}`);
 console.log(`\n${version} is published and committed (tag v${version})`);
-if (upload) {
-  // After the commit: the version is in the folder for good, and an upload that stops is run
-  // again on its own.
-  try {
-    run('npm', ['run', 'release:upload']);
-  } catch {
-    fail(`${version} isn't fully on the server: npm run release:upload, then push`);
-  }
+if (!github) {
+  console.log('Push with: git push --follow-tags');
+  process.exit(0);
 }
-console.log('Push with: git push --follow-tags');
+// After the commit: the version is in the folder for good, and a step that stops is run again
+// on its own. The tag must be on GitHub before the release (--verify-tag).
+try {
+  run('git', ['push', 'origin', 'main', `refs/tags/v${version}`]);
+} catch {
+  fail(`${version} isn't on GitHub yet: git push --follow-tags, then npm run release:github`);
+}
+try {
+  run('npm', ['run', 'release:github', '--', version]);
+} catch {
+  fail(`${version} is pushed but not released on GitHub: npm run release:github -- ${version}`);
+}
