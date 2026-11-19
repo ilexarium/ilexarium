@@ -18,7 +18,7 @@ import { parseArgs } from 'node:util';
 import { openKey } from './lib/key-file.mjs';
 import { passphrase } from './lib/passphrase.mjs';
 import { passCi } from './lib/github-ci.mjs';
-import { isGithubRepo } from './lib/github-release.mjs';
+import { isGithubRepo, newerVersion as newer } from './lib/github-release.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SETTINGS = join(ROOT, 'release-settings.json');
@@ -30,11 +30,6 @@ const fail = (message) => {
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 const run = (command, args, env = {}) =>
   execFileSync(command, args, { cwd: ROOT, stdio: 'inherit', env: { ...process.env, ...env } });
-const newer = (a, b) => {
-  const [x, y] = [a, b].map((v) => v.split('.').map(Number));
-  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
-  return false;
-};
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -118,7 +113,7 @@ git('commit', '-q', '-m', `Release ${version}`, '--', 'package.json', 'package-l
 git('tag', `v${version}`);
 console.log(`\n${version} is published and committed (tag v${version})`);
 if (!github) {
-  console.log('Push with: git push --follow-tags');
+  console.log(`Push with: git push origin main v${version}`);
   process.exit(0);
 }
 // After the commit: the version is in the folder for good, and a step that stops is run again
@@ -126,7 +121,9 @@ if (!github) {
 try {
   run('git', ['push', 'origin', 'main', `refs/tags/v${version}`]);
 } catch {
-  fail(`${version} isn't on GitHub yet: git push --follow-tags, then npm run release:github`);
+  fail(
+    `${version} isn't on GitHub yet: git push origin main v${version}, then npm run release:github`,
+  );
 }
 try {
   run('npm', ['run', 'release:github', '--', version]);
