@@ -1,14 +1,15 @@
 import { effect, inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import type {
-  AppDeleteRequest,
-  AppInstallRequest,
-  AppSaveRequest,
-  AppStarted,
-  AppTask,
+import {
+  APP_LIMITS,
+  type AppDeleteRequest,
+  type AppInstallRequest,
+  type AppSaveRequest,
+  type AppStarted,
+  type AppTask,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { firstValueFrom, Subscription } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { buildAppBackupItem } from '../backups/app-backup-item';
 import { BackupsApi } from '../backups/backups-api';
@@ -19,7 +20,7 @@ import { LinuxSessionStore } from '../linux/linux-session-store';
 import { apiErrorText } from '../../shared/forms/submission-errors';
 import { AppsApi } from './apps-api';
 import type { AppTaskEntry, AppTaskKind, AppTasksVisit } from './apps.model';
-import { followTask } from './task-follower';
+import { TASK_POLL_GIVE_UP } from './app-tasks-store.constants';
 
 interface AppTasksState {
   /** Each app's latest task by its name, kept until that app's next one. */
@@ -30,25 +31,17 @@ interface AppTasksState {
 
 const initialState: AppTasksState = { tasks: {}, lastId: 0 };
 
-/**
- * What happens when a task ends: `onSucceeded` (its second step; true: done), `onFailed` once it
- * ended any other way (failed, interrupted).
- */
-interface TaskEnd {
-  /** Given the sign-in count it started under, for its requests (see `asPerson`). */
-  onSucceeded?: (at: number) => Promise<boolean>;
-  onFailed?: () => void;
-}
-
 /** Whether a task and its second step are through. */
 export const taskEnded = (entry: AppTaskEntry): boolean =>
   entry.task.state !== 'running' && entry.after !== 'pending';
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
- * Every app task — save, update, start, remove, install — started, followed to its end and
- * finished here, its state in `tasks` for pages to read: global, so leaving a page drops nothing.
- * Removing then deletes what was ticked, installing adds the app to the backups. Emptied at
- * sign-out (nobody to act as).
+ * Every app task — save, update, start, remove, install — done here as a plain sequence: start it
+ * as the person, wait until it's done (each answer in `tasks`, for pages to read), then the second
+ * step if it has one (a removal deletes what was ticked, an install adds the app to the backups).
+ * Global, so leaving a page drops nothing. Emptied at sign-out.
  */
 export const AppTasksStore = signalStore(
   { providedIn: 'root' },
@@ -63,33 +56,82 @@ export const AppTasksStore = signalStore(
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
-      /** One poll per app. */
-      const polls = new Map<string, Subscription>();
-      // Counts sign-outs: a task whose start answered after one is never followed (or it would
-      // finish as whoever signed in next).
-      let signOuts = 0;
+      // Counts sign-outs. Whatever began under an earlier sign-in stops at its next step: it must
+      // never go on as whoever signs in next.
+      let signIn = 0;
 
-      const patchEntry = (name: string, id: number, change: Partial<AppTaskEntry>) => {
+      const addEntry = (kind: AppTaskKind, name: string, folder: string, task: AppTask) => {
+        const id = store.lastId() + 1;
+        patchState(store, {
+          lastId: id,
+          tasks: { ...store.tasks(), [name]: { id, kind, folder, task, after: null } },
+        });
+        return id;
+      };
+
+      /** Still the app's latest task, under the same sign-in. */
+      const stillCurrent = (name: string, id: number, since: number) =>
+        signIn === since && store.tasks()[name]?.id === id;
+
+      const updateEntry = (name: string, id: number, change: Partial<AppTaskEntry>) => {
         const entry = store.tasks()[name];
-        // A newer task of the app replaced it meanwhile.
         if (entry?.id !== id) return;
         patchState(store, { tasks: { ...store.tasks(), [name]: { ...entry, ...change } } });
       };
 
+      const dropEntry = (name: string) => {
+        const { [name]: _dropped, ...rest } = store.tasks();
+        patchState(store, { tasks: rest });
+      };
+
+      /**
+       * Asks for the task once a second until it's done, each answer into its entry. Its end; null
+       * when it stopped first — a newer task of the app, a sign-out, or no answer for
+       * `TASK_POLL_GIVE_UP` polls in a row (the entry dropped: the page reads the task with the
+       * files). `thenMore`: a second step follows success — marked pending with the end, so a page
+       * never sees it as through in between.
+       */
+      const waitUntilDone = async (
+        name: string,
+        folder: string,
+        id: number,
+        since: number,
+        thenMore: boolean,
+      ): Promise<AppTask | null> => {
+        // The start's own answer is shown first; asked from the next tick on, then once a second.
+        for (let missed = 0, wait = 0; ; wait = APP_LIMITS.taskPollMs) {
+          await sleep(wait);
+          if (!stillCurrent(name, id, since)) return null;
+          const answer = await firstValueFrom(appsApi.task(name, folder)).catch(() => null);
+          if (!stillCurrent(name, id, since)) return null;
+          const task = answer?.task;
+          if (!task) {
+            if (++missed < TASK_POLL_GIVE_UP) continue;
+            dropEntry(name);
+            return null;
+          }
+          missed = 0;
+          const done = task.state !== 'running';
+          const more = done && thenMore && task.state === 'succeeded';
+          updateEntry(name, id, { task, ...(more && { after: 'pending' as const }) });
+          if (done) return task;
+        }
+      };
+
       /**
        * A second step's request as the person: true once done, false when it failed (worded under
-       * `errorKey`), was dismissed, or a sign-out came first — checked again after the sign-in prompt,
-       * right before the request, so it never goes out as whoever signed in next.
+       * `errorKey`) or was dismissed. Checked against the sign-in again after any prompt, right
+       * before the request.
        */
       const asPerson = async (
         errorKey: string,
         name: string,
-        at: number,
-        action: () => Promise<unknown>,
-      ) => {
+        since: number,
+        request: () => Promise<unknown>,
+      ): Promise<boolean> => {
         try {
           const done = await linuxSessionStore.asPerson(() =>
-            signOuts === at ? action().then(() => true) : Promise.resolve(false),
+            signIn === since ? request().then(() => true) : Promise.resolve(false),
           );
           return done === true;
         } catch (error) {
@@ -101,96 +143,62 @@ export const AppTasksStore = signalStore(
       };
 
       /**
-       * Follows a task to its end in `tasks`: `onSucceeded` run once it succeeded (its `after`),
-       * `onFailed` once it ended otherwise; neither after a sign-out. Replaces the app's earlier
-       * entry and stops its poll. A poll that gives up drops the entry: the page reads the task
-       * with the app's files instead.
+       * Starts a task as the person and returns once it has started; waiting for its end and
+       * `afterwards` (given that end) go on by themselves. Null when the sign-in was dismissed or
+       * a sign-out came first; throws when the start was refused, for the page to word.
        */
-      const track = (
-        kind: AppTaskKind,
-        name: string,
-        folder: string,
-        task: AppTask,
-        { onSucceeded, onFailed }: TaskEnd = {},
-      ) => {
-        polls.get(name)?.unsubscribe();
-        const at = signOuts;
-        const id = store.lastId() + 1;
-        patchState(store, {
-          lastId: id,
-          tasks: { ...store.tasks(), [name]: { id, kind, folder, task, after: null } },
-        });
-        const poll = new Subscription();
-        polls.set(name, poll);
-        poll.add(
-          followTask(appsApi, name, folder).subscribe({
-            next: (latest) => {
-              const ended = latest.state !== 'running';
-              const succeeded = latest.state === 'succeeded';
-              const stepNow = succeeded && !!onSucceeded && signOuts === at;
-              patchEntry(name, id, { task: latest, ...(stepNow && { after: 'pending' }) });
-              if (ended && !succeeded && signOuts === at) onFailed?.();
-              if (!stepNow) return;
-              void onSucceeded(at)
-                .catch(() => false)
-                .then((ok) => patchEntry(name, id, { after: ok ? 'done' : 'failed' }));
-            },
-            complete: () => {
-              if (polls.get(name) === poll) polls.delete(name);
-              const entry = store.tasks()[name];
-              if (entry?.id === id && entry.task.state === 'running') {
-                const { [name]: _gaveUp, ...rest } = store.tasks();
-                patchState(store, { tasks: rest });
-              }
-            },
-          }),
-        );
-      };
-
-      /**
-       * Starts a task as the person and follows it. Its start; null when the sign-in was dismissed
-       * or a sign-out came first. Throws when the start was refused, for the page to word.
-       */
-      const begin = async (
+      const run = async (
         kind: AppTaskKind,
         start: () => Promise<AppStarted>,
-        end: (started: AppStarted) => TaskEnd = () => ({}),
+        afterwards?: {
+          thenMore: boolean;
+          step: (task: AppTask, id: number, started: AppStarted) => Promise<void>;
+        },
       ): Promise<AppStarted | null> => {
-        const before = signOuts;
+        const since = signIn;
         const started = await linuxSessionStore.asPerson(start);
-        if (!started || signOuts !== before) return null;
-        track(kind, started.name, started.folder, started.task, end(started));
+        if (!started || signIn !== since) return null;
+        const { name, folder } = started;
+        const id = addEntry(kind, name, folder, started.task);
+        void (async () => {
+          const task = await waitUntilDone(name, folder, id, since, !!afterwards?.thenMore);
+          if (task && afterwards && signIn === since) await afterwards.step(task, id, started);
+        })().catch(() => undefined);
         return started;
       };
+
+      /** The second step's outcome into the entry. */
+      const finished = (name: string, id: number, ok: boolean) =>
+        updateEntry(name, id, { after: ok ? 'done' : 'failed' });
 
       return {
         /** Saves an app's files and applies them; a refused save throws (e.g. changed on disk). */
         save(name: string, request: AppSaveRequest): Promise<AppStarted | null> {
-          return begin('save', () => firstValueFrom(appsApi.save(name, request)));
+          return run('save', () => firstValueFrom(appsApi.save(name, request)));
         },
 
         update(name: string, folder: string): Promise<AppStarted | null> {
-          return begin('update', () => firstValueFrom(appsApi.update(name, folder)));
+          return run('update', () => firstValueFrom(appsApi.update(name, folder)));
         },
 
         /**
-         * `up` for an app without containers. `announce`: say so in toasts — that it's starting,
-         * and how it ended (a card has no task output to show).
+         * `up` for an app without containers. `announce`: say in toasts that it's starting and how
+         * it ended (a card has no task output to show).
          */
         async start(name: string, folder: string, announce = false): Promise<AppStarted | null> {
-          const started = await begin(
+          const started = await run(
             'start',
             () => firstValueFrom(appsApi.start(name, folder)),
-            () =>
-              announce
-                ? {
-                    onSucceeded: async () => {
+            announce
+              ? {
+                  thenMore: false,
+                  step: async (task) => {
+                    if (task.state === 'succeeded')
                       toast.success(translator.t('apps.starting.done', { name }));
-                      return true;
-                    },
-                    onFailed: () => toast.error(translator.t('apps.starting.failed', { name })),
-                  }
-                : {},
+                    else toast.error(translator.t('apps.starting.failed', { name }));
+                  },
+                }
+              : undefined,
           );
           if (started && announce) toast.info(translator.t('apps.starting.started', { name }));
           return started;
@@ -202,23 +210,20 @@ export const AppTasksStore = signalStore(
           folder: string,
           ticked: AppDeleteRequest | null,
         ): Promise<AppStarted | null> {
-          return begin(
-            'remove',
-            () => firstValueFrom(appsApi.remove(name, folder)),
-            () => ({
-              onSucceeded: async (at) => {
-                if (
-                  ticked &&
-                  !(await asPerson('apps.remove.deleteFailed', name, at, () =>
-                    firstValueFrom(appsApi.delete(name, ticked)),
-                  ))
-                )
-                  return false;
-                toast.success(translator.t('apps.remove.done', { name }));
-                return true;
-              },
-            }),
-          );
+          const since = signIn;
+          return run('remove', () => firstValueFrom(appsApi.remove(name, folder)), {
+            thenMore: true,
+            step: async (task, id) => {
+              if (task.state !== 'succeeded') return;
+              const ok =
+                !ticked ||
+                (await asPerson('apps.remove.deleteFailed', name, since, () =>
+                  firstValueFrom(appsApi.delete(name, ticked)),
+                ));
+              if (ok) toast.success(translator.t('apps.remove.done', { name }));
+              finished(name, id, ok);
+            },
+          });
         },
 
         /**
@@ -229,27 +234,29 @@ export const AppTasksStore = signalStore(
           request: AppInstallRequest,
           backup: BackupPreset | null,
         ): Promise<AppStarted | null> {
-          return begin(
-            'install',
-            () => firstValueFrom(appsApi.install(request)),
-            ({ name, folder }) => ({
-              onSucceeded: async (at) => {
-                if (backup && backupsStore.configured())
-                  await asPerson('apps.new.backupFailed', name, at, () =>
-                    firstValueFrom(backupsApi.addItem(buildAppBackupItem(name, folder, backup))),
-                  );
-                toast.success(translator.t('apps.new.installed', { name }));
-                return true;
-              },
-            }),
-          );
+          const since = signIn;
+          return run('install', () => firstValueFrom(appsApi.install(request)), {
+            thenMore: true,
+            step: async (task, id, { name, folder }) => {
+              if (task.state !== 'succeeded') return;
+              if (backup && backupsStore.configured())
+                await asPerson('apps.new.backupFailed', name, since, () =>
+                  firstValueFrom(backupsApi.addItem(buildAppBackupItem(name, folder, backup))),
+                );
+              toast.success(translator.t('apps.new.installed', { name }));
+              finished(name, id, true);
+            },
+          });
         },
 
-        /** A task found running (an app page opened during it): followed too, unless it is already. */
+        /** A task found running (an app page opened during it): waited for too, unless it is already. */
         watch(name: string, folder: string, task: AppTask): void {
+          const entry = store.tasks()[name];
           // An answer read around a sign-out starts nothing for whoever signs in next.
-          if (task.state !== 'running' || polls.has(name) || !authStore.isAuthenticated()) return;
-          track('watched', name, folder, task);
+          if (task.state !== 'running' || !authStore.isAuthenticated()) return;
+          if (entry && !taskEnded(entry)) return;
+          const id = addEntry('watched', name, folder, task);
+          void waitUntilDone(name, folder, id, signIn, false).catch(() => undefined);
         },
 
         /** Where a page's visit starts (see `endedDuring`). */
@@ -269,10 +276,8 @@ export const AppTasksStore = signalStore(
         },
 
         reset(): void {
-          signOuts++;
-          for (const poll of polls.values()) poll.unsubscribe();
-          polls.clear();
-          // The ids go on counting: a page's "started after I opened" never mistakes an old one.
+          signIn++;
+          // The ids go on counting: a page's visit never mistakes an old one.
           patchState(store, { tasks: {} });
         },
       };

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AppStarted, AppTask, BackupsStatus } from '@ilex/shared';
+import { APP_LIMITS, type AppStarted, type AppTask, type BackupsStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { type Observable, of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
@@ -12,6 +12,7 @@ import { RealtimeService } from '../realtime/realtime-service';
 import { fakeSockets } from '../realtime/testing';
 import { AppTasksStore, taskEnded } from './app-tasks-store';
 import { AppsApi } from './apps-api';
+import { TASK_POLL_GIVE_UP } from './app-tasks-store.constants';
 import { testStarted, testTask } from './testing';
 
 const FOLDER = '/home/anna/apps/music';
@@ -247,6 +248,39 @@ describe('AppTasksStore', () => {
     TestBed.tick();
     tasks.watch('music', FOLDER, testTask({ action: 'update' }));
     expect(entry()).toBeUndefined();
+  });
+
+  it('stops asking after polls in a row without an answer, and drops the entry', async () => {
+    const { tasks, entry, appsApi } = await setup();
+    vi.useFakeTimers();
+    try {
+      appsApi.task.mockImplementation(() => throwError(() => new Error('403')));
+      await tasks.update('music', FOLDER);
+      expect(entry()).toBeDefined();
+      await vi.advanceTimersByTimeAsync(APP_LIMITS.taskPollMs * (TASK_POLL_GIVE_UP + 2));
+      expect(appsApi.task).toHaveBeenCalledTimes(TASK_POLL_GIVE_UP);
+      expect(entry()).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('an answer in between starts the count again', async () => {
+    const { tasks, entry, appsApi } = await setup();
+    vi.useFakeTimers();
+    try {
+      let polls = 0;
+      appsApi.task.mockImplementation(() =>
+        ++polls === TASK_POLL_GIVE_UP - 1
+          ? of({ task: testTask({ action: 'update' }) })
+          : throwError(() => new Error('403')),
+      );
+      await tasks.update('music', FOLDER);
+      await vi.advanceTimersByTimeAsync(APP_LIMITS.taskPollMs * (TASK_POLL_GIVE_UP + 5));
+      expect(entry()).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('watches a task found running, once; a finished one not at all', async () => {
