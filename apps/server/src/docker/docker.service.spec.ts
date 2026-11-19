@@ -27,7 +27,8 @@ const summaries = [
     Image: 'app:latest',
     State: 'exited',
     Labels: { 'ilex.protected': 'yes' }, // only exactly "true" protects
-    Ports: [],
+    // Docker 29 answers null, not [], for a container without published ports (any stopped one).
+    Ports: null,
   },
   { Id: ID_GONE, Names: ['/gone'], Image: 'x', State: 'running', Ports: [] },
 ];

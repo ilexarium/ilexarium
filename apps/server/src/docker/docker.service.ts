@@ -89,27 +89,28 @@ export class DockerService {
     });
     const containers = await Promise.all(
       summaries.map(async (summary): Promise<DockerContainer | null> => {
+        let details: Dockerode.ContainerInspectInfo;
         try {
-          const details = await this.docker
+          details = await this.docker
             .getContainer(summary.Id)
             .inspect({ abortSignal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-          const startedAt = details.State.StartedAt;
-          return {
-            id: summary.Id,
-            name: (summary.Names[0] ?? details.Name).replace(/^\//, ''),
-            image: summary.Image,
-            state: toState(summary.State),
-            health: toHealth(details.State.Health?.Status),
-            startedAt: startedAt && startedAt !== NEVER ? new Date(startedAt).toISOString() : null,
-            ports: toPorts(summary.Ports),
-            protected: summary.Labels?.[PROTECTED_LABEL] === 'true',
-            composeProject: summary.Labels?.[COMPOSE_PROJECT_LABEL] ?? null,
-            composeWorkingDir: summary.Labels?.[COMPOSE_WORKING_DIR_LABEL] ?? null,
-            template: summary.Labels?.[TEMPLATE_LABEL] ?? null,
-          };
         } catch {
           return null; // removed between the list and the inspect
         }
+        const startedAt = details.State.StartedAt;
+        return {
+          id: summary.Id,
+          name: (summary.Names[0] ?? details.Name).replace(/^\//, ''),
+          image: summary.Image,
+          state: toState(summary.State),
+          health: toHealth(details.State.Health?.Status),
+          startedAt: startedAt && startedAt !== NEVER ? new Date(startedAt).toISOString() : null,
+          ports: toPorts(summary.Ports),
+          protected: summary.Labels?.[PROTECTED_LABEL] === 'true',
+          composeProject: summary.Labels?.[COMPOSE_PROJECT_LABEL] ?? null,
+          composeWorkingDir: summary.Labels?.[COMPOSE_WORKING_DIR_LABEL] ?? null,
+          template: summary.Labels?.[TEMPLATE_LABEL] ?? null,
+        };
       }),
     );
     return containers
@@ -395,10 +396,11 @@ function toHealth(status: string | undefined): ContainerHealth {
 }
 
 /** Docker lists a published port once per address family (0.0.0.0 and ::); shown once. */
-function toPorts(ports: Dockerode.Port[]): ContainerPort[] {
+// Docker 29 sends null, not [], when nothing is published — every stopped container.
+function toPorts(ports: Dockerode.Port[] | null): ContainerPort[] {
   const seen = new Set<string>();
   const result: ContainerPort[] = [];
-  for (const port of ports) {
+  for (const port of ports ?? []) {
     const protocol = port.Type === 'udp' || port.Type === 'sctp' ? port.Type : 'tcp';
     const key = `${port.PrivatePort}/${port.PublicPort ?? ''}/${protocol}`;
     if (seen.has(key)) continue;
