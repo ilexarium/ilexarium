@@ -30,7 +30,7 @@ import {
   tap,
 } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import type { AppFollowed } from '../../../core/apps/apps.model';
+import type { AppFollowed, AppTaskStart } from '../../../core/apps/apps.model';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -369,11 +369,19 @@ export const AppPageStore = signalStore(
                   volumes: ticked.filter((i) => i.kind === 'volume').map((i) => i.path),
                 }
               : null;
+          // AppTasksStore asks for the sign-in itself: only `busy` and the wording here.
           patchState(store, { busy: true });
-          const followed$ = await appTasksStore
-            .remove(store.name(), folder, request)
-            .finally(() => patchState(store, { busy: false }));
-          if (followed$) show({ followed$, removal: true });
+          let result: AppTaskStart | null = null;
+          try {
+            result = await appTasksStore.remove(store.name(), folder, request);
+          } catch (error) {
+            failed('apps.remove.failed', error);
+          } finally {
+            patchState(store, { busy: false });
+          }
+          if (!result) return;
+          patchState(store, { task: result.started.task });
+          show({ followed$: result.followed$, removal: true });
         },
       };
     },

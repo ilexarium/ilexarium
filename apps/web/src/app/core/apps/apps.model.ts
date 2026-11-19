@@ -1,4 +1,5 @@
-import type { AppTask } from '@ilex/shared';
+import type { AppStarted, AppTask } from '@ilex/shared';
+import type { Observable } from 'rxjs';
 
 /**
  * A followed task as it goes. `after`: its second step (a removal's deletion, a new app added to
@@ -8,4 +9,10 @@ import type { AppTask } from '@ilex/shared';
 export interface AppFollowed {
   task: AppTask;
   after: 'pending' | 'done' | 'failed' | null;
+}
+
+/** A task with a second step, started: what the server answered, and its progress to show. */
+export interface AppTaskStart {
+  started: AppStarted;
+  followed$: Observable<AppFollowed>;
 }
