@@ -30,7 +30,7 @@ import {
   tap,
 } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import type { AppFollowed, AppFollowUp } from '../../../core/apps/apps.model';
+import type { AppFollowed } from '../../../core/apps/apps.model';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -204,13 +204,11 @@ export const AppPageStore = signalStore(
         ),
       );
 
-      const followStarted = (result: AppStarted | null, then?: AppFollowUp) => {
+      /** A task without a second step (save, update, start): followed only to show it. */
+      const followStarted = (result: AppStarted | null) => {
         if (!result) return;
         patchState(store, { task: result.task });
-        // The follow-up (a removal's deletion) is the global store's, started here and not inside
-        // the page's stream: the page may have been left while the task was starting.
-        const followed$ = appTasksStore.follow(result, then);
-        show({ followed$, removal: then?.kind === 'remove' });
+        show({ followed$: appTasksStore.follow(result), removal: false });
       };
 
       /** As the person; `busy` meanwhile; the error worded under `key`. */
@@ -359,7 +357,7 @@ export const AppPageStore = signalStore(
           if (removal) patchState(store, { removal: removal.items });
         },
 
-        /** `docker compose down`, then what was ticked deleted. */
+        /** `docker compose down`, then what was ticked deleted — all of it AppTasksStore's. */
         async remove(ticked: AppRemovalItem[]): Promise<void> {
           const folder = store.folder();
           const request =
@@ -371,12 +369,11 @@ export const AppPageStore = signalStore(
                   volumes: ticked.filter((i) => i.kind === 'volume').map((i) => i.path),
                 }
               : null;
-          followStarted(
-            await asPerson('apps.remove.failed', () =>
-              firstValueFrom(appsApi.remove(store.name(), folder)),
-            ),
-            { kind: 'remove', delete: request },
-          );
+          patchState(store, { busy: true });
+          const followed$ = await appTasksStore
+            .remove(store.name(), folder, request)
+            .finally(() => patchState(store, { busy: false }));
+          if (followed$) show({ followed$, removal: true });
         },
       };
     },
