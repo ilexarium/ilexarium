@@ -19,7 +19,16 @@ import {
   setEnvValues,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  EMPTY,
+  firstValueFrom,
+  map,
+  type Observable,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import type { AppFollowed, AppFollowUp } from '../../../core/apps/apps.model';
 import { AppTasksStore } from '../../../core/apps/app-tasks-store';
@@ -179,14 +188,20 @@ export const AppPageStore = signalStore(
         ),
       );
 
-      const show = rxMethod<AppFollowed & { removal: boolean }>(
-        tap(({ task, after, removal }) => {
-          // The deletion after a removal: the page stays busy until it's through.
-          patchState(store, { task, busy: after === 'pending' });
-          if (task.state === 'running' || after === 'pending') return;
-          if (after === 'done' && removal) patchState(store, { removed: true });
-          if (!store.removed()) load();
-        }),
+      // The stream inside an object: a plain value, not one rxMethod would subscribe to itself.
+      const show = rxMethod<{ followed$: Observable<AppFollowed>; removal: boolean }>(
+        pipe(
+          switchMap(({ followed$, removal }) =>
+            followed$.pipe(map((followed) => ({ ...followed, removal }))),
+          ),
+          tap(({ task, after, removal }) => {
+            // The deletion after a removal: the page stays busy until it's through.
+            patchState(store, { task, busy: after === 'pending' });
+            if (task.state === 'running' || after === 'pending') return;
+            if (after === 'done' && removal) patchState(store, { removed: true });
+            if (!store.removed()) load();
+          }),
+        ),
       );
 
       const followStarted = (result: AppStarted | null, then?: AppFollowUp) => {
@@ -195,9 +210,7 @@ export const AppPageStore = signalStore(
         // The follow-up (a removal's deletion) is the global store's, started here and not inside
         // the page's stream: the page may have been left while the task was starting.
         const followed$ = appTasksStore.follow(result, then);
-        show(
-          followed$.pipe(map((followed) => ({ ...followed, removal: then?.kind === 'remove' }))),
-        );
+        show({ followed$, removal: then?.kind === 'remove' });
       };
 
       /** As the person; `busy` meanwhile; the error worded under `key`. */

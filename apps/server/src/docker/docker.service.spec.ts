@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.schema.js';
 import { ContainerLogsError, DockerService } from './docker.service.js';
@@ -278,6 +279,22 @@ describe('DockerService', () => {
     expect(fake.requests.map((r) => new URL(r.url, 'http://d').searchParams.get('all'))).toContain(
       'true',
     );
+  });
+
+  it('skips a container it can’t read, logged, and lists the rest', async () => {
+    const odd = 'd'.repeat(64);
+    summaries.push({ Id: odd, Names: ['/odd'], Image: 'x', State: 'running', Ports: [] });
+    inspects[odd] = { Name: '/odd', Config: {}, State: { StartedAt: 'not a time' } };
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    try {
+      const names = (await docker.listContainers()).map((c) => c.name);
+      expect(names).toEqual(['app', 'web']);
+      expect(logged).toHaveBeenCalledWith(expect.stringContaining(odd));
+    } finally {
+      summaries.pop();
+      delete inspects[odd];
+      logged.mockRestore();
+    }
   });
 
   it('streams stats frames as our stats, until aborted — which closes the connection', async () => {
