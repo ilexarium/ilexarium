@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CONTAINER_HEALTH,
@@ -72,6 +72,7 @@ const CONTAINER_EVENTS = [
 @Injectable()
 export class DockerService {
   private readonly docker: Dockerode;
+  private readonly logger = new Logger(DockerService.name);
 
   constructor(config: ConfigService<Env, true>) {
     this.docker = createDockerClient(config);
@@ -97,20 +98,13 @@ export class DockerService {
         } catch {
           return null; // removed between the list and the inspect
         }
-        const startedAt = details.State.StartedAt;
-        return {
-          id: summary.Id,
-          name: (summary.Names[0] ?? details.Name).replace(/^\//, ''),
-          image: summary.Image,
-          state: toState(summary.State),
-          health: toHealth(details.State.Health?.Status),
-          startedAt: startedAt && startedAt !== NEVER ? new Date(startedAt).toISOString() : null,
-          ports: toPorts(summary.Ports),
-          protected: summary.Labels?.[PROTECTED_LABEL] === 'true',
-          composeProject: summary.Labels?.[COMPOSE_PROJECT_LABEL] ?? null,
-          composeWorkingDir: summary.Labels?.[COMPOSE_WORKING_DIR_LABEL] ?? null,
-          template: summary.Labels?.[TEMPLATE_LABEL] ?? null,
-        };
+        try {
+          return toContainer(summary, details);
+        } catch (error) {
+          // Logged, never silent: a shape Docker changed must not hide its containers unnoticed.
+          this.logger.error(`Container ${summary.Id} not understood: ${(error as Error).message}`);
+          return null;
+        }
       }),
     );
     return containers
@@ -396,6 +390,26 @@ function toHealth(status: string | undefined): ContainerHealth {
 }
 
 /** Docker lists a published port once per address family (0.0.0.0 and ::); shown once. */
+function toContainer(
+  summary: Dockerode.ContainerInfo,
+  details: Dockerode.ContainerInspectInfo,
+): DockerContainer {
+  const startedAt = details.State.StartedAt;
+  return {
+    id: summary.Id,
+    name: (summary.Names[0] ?? details.Name).replace(/^\//, ''),
+    image: summary.Image,
+    state: toState(summary.State),
+    health: toHealth(details.State.Health?.Status),
+    startedAt: startedAt && startedAt !== NEVER ? new Date(startedAt).toISOString() : null,
+    ports: toPorts(summary.Ports),
+    protected: summary.Labels?.[PROTECTED_LABEL] === 'true',
+    composeProject: summary.Labels?.[COMPOSE_PROJECT_LABEL] ?? null,
+    composeWorkingDir: summary.Labels?.[COMPOSE_WORKING_DIR_LABEL] ?? null,
+    template: summary.Labels?.[TEMPLATE_LABEL] ?? null,
+  };
+}
+
 // Docker 29 sends null, not [], when nothing is published — every stopped container.
 function toPorts(ports: Dockerode.Port[] | null): ContainerPort[] {
   const seen = new Set<string>();

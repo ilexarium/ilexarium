@@ -66,11 +66,10 @@ export function pathsOverlap(a: string, b: string): boolean {
 
 /** Neither inside a system folder nor holding one (never `/`). */
 export function isBackupFolder(path: string): boolean {
-  const inside = (a: string, b: string) => a === b || a.startsWith(`${b}/`);
   return (
     isPlainAbsolutePath(path) &&
     path !== '/' &&
-    !BACKUP_SYSTEM_FOLDERS.some((folder) => inside(path, folder) || inside(folder, path))
+    !BACKUP_SYSTEM_FOLDERS.some((folder) => pathsOverlap(path, folder))
   );
 }
 

@@ -49,7 +49,9 @@ export function apiErrorText(error: unknown): [string, Record<string, unknown>?]
   if (error.status === 429) return ['errors.tooManyAttempts'];
   const response = apiErrorResponseSchema.safeParse(error.error).data;
   // A refused field's code when the answer has none of its own (a refused backup item).
-  const code = response?.code ?? response?.errors?.[0]?.code;
+  const code =
+    response?.code ??
+    response?.errors?.find((error) => TRANSLATED_ERROR_CODES.includes(error.code))?.code;
   return code && TRANSLATED_ERROR_CODES.includes(code)
     ? [`errors.${code}`]
     : ['errors.server', { status: error.status }];

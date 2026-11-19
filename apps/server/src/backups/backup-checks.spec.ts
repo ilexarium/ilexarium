@@ -32,6 +32,8 @@ function checksWith(
           // System files an app mounts too are never offered for its backup.
           ['immich', ['/etc/localtime', '/home/anna/apps/immich', '/var/run/docker.sock']],
           ['music', ['/home/anna/apps/music', '/mnt/usb/music']],
+          // A folder on the backup disk is left out of what's suggested, not a reason to refuse.
+          ['media', ['/home/anna/apps/media', '/mnt/backups/media']],
         ]),
     ),
   } as unknown as DockerService;
@@ -135,6 +137,29 @@ describe('BackupChecks.checkNewItems', () => {
       expect.objectContaining({ field: 'items.2', code }),
       expect.objectContaining({ field: 'items.4', code }),
     ]);
+  });
+
+  it('an app without folders asked: Docker’s, but none on the backup disk', async () => {
+    const [row] = await checksWith([]).checkNewItems([{ ...APP, project: 'media' }], DISK);
+    expect(row).toMatchObject({ kind: 'app', folders: ['/home/anna/apps/media'] });
+  });
+
+  it('refuses a restore into the backup disk', () => {
+    const checks = checksWith([]);
+    expect(() => checks.checkRestoreTarget(`${DISK}/restored`, DISK)).toThrow();
+    expect(() => checks.checkRestoreTarget('/srv/restored', DISK)).not.toThrow();
+  });
+
+  it('refuses moving the backups to a disk an item is on', async () => {
+    const checks = checksWith([
+      { kind: 'folder', path: '/mnt/disk2/photos', folders: [] },
+      { kind: 'app', path: null, folders: ['/home/anna/apps/music'] },
+    ] as never);
+    const response = await problems(checks.checkItemsOffDisk('/mnt/disk2'));
+    expect(response.errors).toEqual([
+      expect.objectContaining({ field: 'destination', code: BACKUP_ERROR_CODES.pathOnBackupDisk }),
+    ]);
+    await expect(checks.checkItemsOffDisk('/mnt/disk3')).resolves.toBeUndefined();
   });
 
   it('refuses an app’s folders changed to one on the backup disk', () => {

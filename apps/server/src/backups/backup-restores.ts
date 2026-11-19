@@ -41,12 +41,13 @@ export class BackupRestores {
   readonly changes$: Observable<void> = this.changed.asObservable();
 
   async restore(request: BackupRestoreRequest, actor: RootActor): Promise<{ restoreId: string }> {
-    await requirePlan(this.prisma);
+    const plan = await requirePlan(this.prisma);
     const item = await requireItem(this.prisma, request.itemId);
     if (!item.archives.includes(request.archive)) {
       throw new NotFoundException(apiError('No such backup', BACKUP_ERROR_CODES.archiveNotFound));
     }
-    if (request.target !== null) this.backupChecks.checkRestoreTarget(request.target);
+    if (request.target !== null)
+      this.backupChecks.checkRestoreTarget(request.target, plan.destination);
     const row = await this.prisma.backupRestore.create({
       data: {
         itemId: item.id,

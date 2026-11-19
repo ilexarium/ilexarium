@@ -112,6 +112,7 @@ export class BackupPlanManager {
       const destination = request.destination;
       if (destination && destination !== plan.destination) {
         await this.backupChecks.checkDestination(destination);
+        await this.backupChecks.checkItemsOffDisk(destination);
         const init = await programCall(() => this.rootPrograms.backupInit(destination, actor));
         data.destination = destination;
         data.repositoryId = init.repositoryId;
