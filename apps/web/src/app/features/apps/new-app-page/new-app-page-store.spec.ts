@@ -2,9 +2,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AppField, AppTask, BackupsStatus, TemplateSummary } from '@ilex/shared';
+import type { AppField, AppStarted, AppTask, BackupsStatus, TemplateSummary } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, Subject, throwError } from 'rxjs';
+import { type Observable, of, Subject, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { testStarted, testTask, testTemplate } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -53,7 +53,7 @@ async function setup(templates: TemplateSummary[] = []) {
       }),
     ),
     checkName: vi.fn((name: string) => of({ free: false, suggestion: `${name}-2` })),
-    install: vi.fn(() => of(testStarted('navidrome-2'))),
+    install: vi.fn((): Observable<AppStarted> => of(testStarted('navidrome-2'))),
     task: vi.fn(() => of({ task: answers.shift() ?? null })),
   };
   const backupsApi = { addItem: vi.fn(() => of({})) };
@@ -221,6 +221,27 @@ describe('NewAppPageStore', () => {
     answers.push(testTask({ state: 'succeeded' }));
     await store.install();
     page.destroy();
+    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('navidrome-2 is installed.'), {
+      timeout: 4000,
+    });
+    expect(backupsApi.addItem).toHaveBeenCalledWith(
+      expect.objectContaining({ project: 'navidrome-2', mode: 'live' }),
+    );
+  });
+
+  it('still adds the app to the backups when the page is left while the install is starting', async () => {
+    const { store, page, appsApi, backupsApi, answers, socket } = await setup();
+    const success = vi.spyOn(toast, 'success');
+    socket.receive({ event: 'backups:snapshot', data: backupsStatus });
+    await store.chooseTemplate('navidrome');
+    const started = new Subject<AppStarted>();
+    appsApi.install.mockReturnValueOnce(started);
+    answers.push(testTask({ state: 'succeeded' }));
+    const installing = store.install();
+    page.destroy();
+    started.next(testStarted('navidrome-2'));
+    started.complete();
+    await installing;
     await vi.waitFor(() => expect(success).toHaveBeenCalledWith('navidrome-2 is installed.'), {
       timeout: 4000,
     });
