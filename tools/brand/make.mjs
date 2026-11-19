@@ -73,6 +73,8 @@ const centred = (scale) =>
 const appIcon = tile() + `<g transform="${centred(0.8)}">${markPath(COLOR.onPrimary)}</g>`;
 // Maskable (Android): a full square; the mark stays inside the central safe zone (80 %).
 const maskable = `<rect width="64" height="64" fill="${COLOR.primary}"/><g transform="${centred(0.68)}">${markPath(COLOR.onPrimary)}</g>`;
+// GitHub's profile picture: a full square too — sites round the corners themselves, and a tile's own transparent corners show through theirs.
+const avatar = `<rect width="64" height="64" fill="${COLOR.primary}"/><g transform="${centred(0.72)}">${markPath(COLOR.onPrimary)}</g>`;
 // Lavender where the browser is dark, so the mark stays visible on a dark tab bar.
 const favicon = `<style>path{fill:${COLOR.primary}}@media (prefers-color-scheme:dark){path{fill:${COLOR.primaryDark}}}</style><path fill-rule="evenodd" d="${SMALL_D}"/>`;
 
@@ -111,6 +113,7 @@ await png(iconSvg, 192, 'icon-192.png');
 await png(iconSvg, 512, 'icon-512.png');
 await png(svg('0 0 64 64', maskable, 'Ilexarium'), 512, 'icon-maskable-512.png');
 await png(iconSvg, 500, 'ilexarium-avatar.png');
+await png(svg('0 0 64 64', avatar, 'Ilexarium'), 500, 'ilexarium-avatar-github.png');
 
 // favicon.ico: the small-size version at exactly 1×, 2× and 3× its grid (the ICO has no dark mode: violet).
 const ico16 = await png(files['favicon.svg'], 16);
@@ -150,7 +153,7 @@ writeFileSync(
 console.log(
   `capital height ${capHeight.toFixed(3)} em, font size ${fontSize.toFixed(1)}, lockup ${lockupW} × ${MARK_H}`,
 );
-console.log(Object.keys(files).length + ' SVG files, 5 PNG files, favicon.ico');
+console.log(Object.keys(files).length + ' SVG files, 6 PNG files, favicon.ico');
 
 // The web app's icons (favicon, home screen, manifest) are copies: its build only takes files from apps/web.
 const WEB = new URL('../../apps/web/public/', import.meta.url).pathname;

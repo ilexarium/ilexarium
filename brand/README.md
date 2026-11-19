@@ -16,7 +16,12 @@ The mark is a **terminal screen on two server units**: the screen's top corner c
 | `apple-touch-icon.png`                                 | iPhone and iPad home screen (180 × 180)                                                                                                                                                                                                                                                           |
 | `icon-192.png`, `icon-512.png`                         | Android home screen and installing the web app                                                                                                                                                                                                                                                    |
 | `icon-maskable-512.png`                                | Android's round and squircle crops: a full square with the mark inside the safe zone                                                                                                                                                                                                              |
-| `ilexarium-avatar.png`                                 | profile pictures, e.g. the GitHub organisation (500 × 500)                                                                                                                                                                                                                                        |
+| `ilexarium-avatar.png`                                 | profile pictures shown as they are (500 × 500, the rounded tile)                                                                                                                                                                                                                                  |
+| `ilexarium-avatar-github.png`                          | the GitHub organisation (500 × 500): a full square, since GitHub rounds the corners itself                                                                                                                                                                                                        |
+
+## Name and logo
+
+The code is free software under the GNU GPL (`LICENSE`); the name "Ilexarium" and its logo are not covered by it (GPL section 7e). They identify this project. You may use them to refer to it — in articles, guides, reviews or a link to it — but not as the name or logo of a fork or another product, or in a way that suggests it's official or endorsed, without permission.
 
 ## Using the logo
 
