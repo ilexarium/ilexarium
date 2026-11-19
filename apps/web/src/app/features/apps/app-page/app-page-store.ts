@@ -164,8 +164,8 @@ export const AppPageStore = signalStore(
       containerActionsStore = inject(ContainerActionsStore),
       translator = inject(Translator),
     ) => {
-      const failed = (key: string, error: unknown) =>
-        toast.error(translator.t(key, { name: store.name() }), {
+      const failed = (errorKey: string, error: unknown) =>
+        toast.error(translator.t(errorKey, { name: store.name() }), {
           description: translator.t(...apiErrorText(error)),
         });
 
@@ -197,30 +197,30 @@ export const AppPageStore = signalStore(
 
       /**
        * A task through AppTasksStore, `requesting` while it starts; a refused start worded under
-       * `key` (or handled by `refused`, true when it was).
+       * `errorKey` (or handled by `handleRefusal`, true when it was).
        */
       const startTask = async (
-        key: string,
+        errorKey: string,
         start: () => Promise<AppStarted | null>,
-        refused?: (error: unknown) => boolean,
+        handleRefusal?: (error: unknown) => boolean,
       ): Promise<void> => {
         patchState(store, { requesting: true });
         try {
           await start();
         } catch (error) {
-          if (!refused?.(error)) failed(key, error);
+          if (!handleRefusal?.(error)) failed(errorKey, error);
         } finally {
           patchState(store, { requesting: false });
         }
       };
 
-      /** As the person; `requesting` meanwhile; the error worded under `key`. */
-      const asPerson = async <T>(key: string, action: () => Promise<T>): Promise<T | null> => {
+      /** As the person; `requesting` meanwhile; the error worded under `errorKey`. */
+      const asPerson = async <T>(errorKey: string, action: () => Promise<T>): Promise<T | null> => {
         patchState(store, { requesting: true });
         try {
           return await linuxSessionStore.asPerson(action);
         } catch (error) {
-          failed(key, error);
+          failed(errorKey, error);
           return null;
         } finally {
           patchState(store, { requesting: false });
