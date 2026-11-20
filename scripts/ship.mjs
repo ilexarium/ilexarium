@@ -109,7 +109,7 @@ try {
   git('checkout', '--', 'package.json', 'package-lock.json');
   fail(`${version} was not published; package.json is back at ${current}`);
 }
-git('commit', '-q', '-m', `Release ${version}`, '--', 'package.json', 'package-lock.json');
+git('commit', '-q', '-m', `chore(release): ${version}`, '--', 'package.json', 'package-lock.json');
 git('tag', `v${version}`);
 console.log(`\n${version} is published and committed (tag v${version})`);
 if (!github) {
