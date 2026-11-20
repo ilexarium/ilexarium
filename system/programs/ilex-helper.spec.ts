@@ -110,7 +110,9 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
 });
 
-describe('ilex-helper', () => {
+// Every test starts the real helper (and often a fake sudo and ilex-root) as processes: a few
+// seconds each on a busy CI runner, past vitest's default 5 s.
+describe('ilex-helper', { timeout: 30_000 }, () => {
   it('says who it runs as', async () => {
     const me = userInfo();
     expect(await ask({ action: 'hello' })).toEqual({
@@ -660,8 +662,6 @@ describe('ilex-helper', () => {
         message: expect.stringContaining('set PASS'),
       });
     },
-    // Two runs of the real docker compose: over 5 s on a busy CI runner.
-    30_000,
   );
 
   it('runs Docker and deletes folders as root through ilex-root only', async () => {
