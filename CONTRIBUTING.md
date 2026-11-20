@@ -76,9 +76,53 @@ You may use AI coding assistants. Ilexarium is built with them too. You're respo
 ## Code style
 
 - Small, focused commits and pull requests: one change each.
+- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (see below).
 - Every user-visible text is a translation key in `packages/i18n/messages/en.json`, also added to `de.json` and `ar.json` (a test checks this). Layouts use start/end, never left/right, because Arabic reads right to left.
 - Pages must work on phones too: no sideways scrolling, nothing that needs hover.
 - Comments only for what the code can't say: a reason, a security rule, a trap.
+
+## Commit messages
+
+[Conventional Commits](https://www.conventionalcommits.org/): `type(scope): subject`, then a blank line and an optional body.
+
+```
+fix(server): keep stopped containers in the apps list
+
+Docker 29 sends "Ports": null for a stopped container, which the
+schema refused, so the container vanished until the next start.
+```
+
+- **Subject:** at most 72 characters in all, imperative mood ("add", not "added"), lowercase after the colon, no full stop. Say what changed; keep the details for the body.
+- **Body:** why the change was made and what the diff can't show (a trap, a decision, how it was tested), wrapped at 72 characters.
+- **Breaking change:** `!` before the colon (`feat(installer)!: …`) and a `BREAKING CHANGE:` line in the body saying what an update needs.
+
+| Type       | For                                                   |
+| ---------- | ----------------------------------------------------- |
+| `feat`     | a new feature or behaviour                            |
+| `fix`      | a bug fix                                             |
+| `refactor` | a code change that changes no behaviour               |
+| `perf`     | faster or lighter                                     |
+| `test`     | tests only                                            |
+| `docs`     | documentation (README, SECURITY.md, guides, comments) |
+| `build`    | dependencies, npm, how a release is built             |
+| `ci`       | the GitHub workflows                                  |
+| `chore`    | anything else (formatting, clean-up)                  |
+| `revert`   | undoing an earlier commit                             |
+
+| Scope       | What                                                            |
+| ----------- | --------------------------------------------------------------- |
+| `web`       | `apps/web`                                                      |
+| `server`    | `apps/server`                                                   |
+| `shared`    | `packages/shared`                                               |
+| `i18n`      | `packages/i18n`                                                 |
+| `system`    | `system/`: the helper, root programs, systemd, the Docker proxy |
+| `installer` | `system/install/`                                               |
+| `catalog`   | `catalog/`                                                      |
+| `tools`     | `tools/` and `dev/`                                             |
+| `release`   | the release scripts (`scripts/`)                                |
+| `deps`      | dependency updates                                              |
+
+A change across several areas takes the main one's scope, or none.
 
 ## Licence
 
