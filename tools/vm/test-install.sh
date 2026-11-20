@@ -371,8 +371,13 @@ if [[ -n "$FROM" && "$MODE" == container && "$OS" != arch ]]; then
     FROM_ARCHIVE="$HERE/run/ilex-$FROM.tar.gz"
     curl -fsSL --proto '=https' -o "$FROM_ARCHIVE" "$OLDEST_URL/download/v$FROM/ilex-$FROM.tar.gz"
     git -C "$ROOT" show "v$FROM:tools/vm/smoke.mjs" >"$HERE/run/smoke-from.mjs"
+    # Its smoke test expects the test releases' address; a published release carries the real one.
+    from_url="$(tar -xzOf "$FROM_ARCHIVE" "ilex-$FROM/release.env" 2>/dev/null | sed -n 's/^RELEASE_URL=//p')"
+    sed -i.bak "s#https://localhost:8443/releases#$from_url#" "$HERE/run/smoke-from.mjs" && rm -f "$HERE/run/smoke-from.mjs.bak"
   fi
-  FROM_DIR="$(tar -tzf "$FROM_ARCHIVE" | head -1 | cut -d/ -f1)"
+  # awk reads the whole list (head would stop tar mid-list: a SIGPIPE, which pipefail counts as a
+  # failure) and skips the ._ files a Mac's tar put in 0.2.5's archive.
+  FROM_DIR="$(tar -tzf "$FROM_ARCHIVE" 2>/dev/null | awk -F/ '$1 !~ /^\._/ && !found { print $1; found = 1 }')"
   TARGET="$MAJOR.$((MINOR + 3)).0"
   step "From ${FROM_DIR#ilex-} straight to $TARGET (this release, ilex-update)"
   (

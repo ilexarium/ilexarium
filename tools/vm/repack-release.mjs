@@ -28,16 +28,22 @@ try {
     writeFileSync(join(stage, 'app/apps/server/dist/main.js'), 'process.exit(1);\n');
   }
   const out = join(dirname(archive), `ilex-${version}.tar.gz`);
-  execFileSync('tar', [
-    '--owner=0',
-    '--group=0',
-    '--numeric-owner',
-    '-czf',
-    out,
-    '-C',
-    work,
-    `ilex-${version}`,
-  ]);
+  // Like scripts/release.mjs: no ._ files or Apple attribute headers from a Mac's tar.
+  execFileSync(
+    'tar',
+    [
+      '--no-xattrs',
+      '--owner=0',
+      '--group=0',
+      '--numeric-owner',
+      '-czf',
+      out,
+      '-C',
+      work,
+      `ilex-${version}`,
+    ],
+    { env: { ...process.env, COPYFILE_DISABLE: '1' } },
+  );
   console.log(out);
 } finally {
   rmSync(work, { recursive: true, force: true });
