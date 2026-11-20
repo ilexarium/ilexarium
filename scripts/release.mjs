@@ -172,7 +172,13 @@ if (releaseUrl) {
 
 // The archive: owned by root inside, so unpacking it as root keeps nothing of this machine's users.
 const archive = join(OUT, `${NAME}.tar.gz`);
-run('tar', ['--owner=0', '--group=0', '--numeric-owner', '-czf', archive, '-C', OUT, NAME]);
+// Built on a Mac, bsdtar would add a ._ file and an Apple attribute header for every file (Linux's
+// tar unpacks the first and warns about the second): COPYFILE_DISABLE and --no-xattrs leave both out.
+execFileSync(
+  'tar',
+  ['--no-xattrs', '--owner=0', '--group=0', '--numeric-owner', '-czf', archive, '-C', OUT, NAME],
+  { stdio: 'inherit', env: { ...process.env, COPYFILE_DISABLE: '1' } },
+);
 const hash = createHash('sha256');
 for await (const chunk of createReadStream(archive)) hash.update(chunk);
 const sha256 = hash.digest('hex');
