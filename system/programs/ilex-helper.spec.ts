@@ -660,6 +660,8 @@ describe('ilex-helper', () => {
         message: expect.stringContaining('set PASS'),
       });
     },
+    // Two runs of the real docker compose: over 5 s on a busy CI runner.
+    30_000,
   );
 
   it('runs Docker and deletes folders as root through ilex-root only', async () => {
