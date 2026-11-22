@@ -429,6 +429,13 @@ describe('AppManager: a change that doesn’t start changes nothing', () => {
 });
 
 describe('AppManager: removing', () => {
+  /** The install's `up` ended well. */
+  const finishedUp = (folder: string) =>
+    writeFileSync(
+      join(folder, '.ilex', 'tasks', '20261028T120000-up.log'),
+      'ok\n@@ilex-result\nsuccess\n',
+    );
+
   it('lists the settings, each data folder (one outside marked) and each named volume, nothing ticked', async () => {
     await install();
     const folder = join(home, 'apps', 'music');
@@ -441,7 +448,7 @@ describe('AppManager: removing', () => {
     ]);
   });
 
-  it('deletes only after its down succeeded, only what the removal listed; all inside ticked: the whole folder', async () => {
+  it('deletes only without containers, only what the removal listed; all inside ticked: the whole folder', async () => {
     await install();
     const folder = join(home, 'apps', 'music');
     const request = {
@@ -450,9 +457,6 @@ describe('AppManager: removing', () => {
       folders: [join(folder, 'data')],
       volumes: ['music_cache', 'other'],
     };
-    await expect(manager().delete(SESSION, 'music', request, ACTOR)).rejects.toMatchObject({
-      response: { code: 'app_task_running' },
-    });
     taskResult = 'removed\n@@ilex-result\nsuccess\nexited\n0\n';
     await manager().remove(SESSION, 'music', folder, ACTOR);
     await manager().delete(
@@ -474,6 +478,96 @@ describe('AppManager: removing', () => {
         administrator: false,
       },
     ]);
+  });
+
+  const stopped = (project: string, folder: string) => [
+    {
+      name: `${project}-web-1`,
+      composeProject: project,
+      composeWorkingDir: folder,
+      state: 'exited',
+      ports: [],
+    },
+  ];
+  const deleteAll = (folder: string) =>
+    manager().delete(
+      SESSION,
+      'music',
+      { folder, settings: true, folders: [join(folder, 'data')], volumes: ['music_cache'] },
+      ACTOR,
+    );
+
+  it('refused while Docker has a container of it, also a stopped one, even after its down', async () => {
+    await install();
+    const folder = join(home, 'apps', 'music');
+    taskResult = '@@ilex-result\nsuccess\n';
+    await manager().remove(SESSION, 'music', folder, ACTOR);
+    containers = stopped('music', folder);
+    await expect(deleteAll(folder)).rejects.toMatchObject({
+      status: 409,
+      response: { code: 'app_has_containers' },
+    });
+    expect(asked.filter((a) => a.action === 'paths.remove')).toEqual([]);
+    expect(existsSync(join(folder, 'compose.yml'))).toBe(true);
+  });
+
+  it('a protected project of that name counts too', async () => {
+    await install();
+    const folder = join(home, 'apps', 'music');
+    finishedUp(folder);
+    containers = [{ ...stopped('music', '/opt/ilex')[0], protected: true }];
+    await expect(deleteAll(folder)).rejects.toMatchObject({
+      response: { code: 'app_has_containers' },
+    });
+  });
+
+  it('a container started from its folder under another project name counts too', async () => {
+    await install();
+    const folder = join(home, 'apps', 'music');
+    finishedUp(folder);
+    containers = stopped('music-stack', folder);
+    await expect(deleteAll(folder)).rejects.toMatchObject({
+      response: { code: 'app_has_containers' },
+    });
+  });
+
+  it('refused while a task of it runs', async () => {
+    await install();
+    taskActive = 'active';
+    await expect(deleteAll(join(home, 'apps', 'music'))).rejects.toMatchObject({
+      response: { code: 'app_task_running' },
+    });
+  });
+
+  it('Docker not answering: refused, never taken for “no containers”', async () => {
+    await install();
+    const folder = join(home, 'apps', 'music');
+    finishedUp(folder);
+    const m = manager();
+    (m as unknown as { dockerService: { listContainers: () => Promise<never> } }).dockerService = {
+      listContainers: () => Promise.reject(new Error('proxy down')),
+    };
+    await expect(
+      m.delete(SESSION, 'music', { folder, settings: true, folders: [], volumes: [] }, ACTOR),
+    ).rejects.toMatchObject({ response: { code: 'docker_unavailable' } });
+    expect(existsSync(join(folder, 'compose.yml'))).toBe(true);
+  });
+
+  it('allowed after a down done outside Ilexarium: its last task here was an up', async () => {
+    await install();
+    const folder = join(home, 'apps', 'music');
+    finishedUp(folder);
+    await deleteAll(folder);
+    expect(existsSync(folder)).toBe(false);
+  });
+
+  it('allowed for an app never started: no task at all', async () => {
+    const folder = join(home, 'apps', 'music');
+    mkdirSync(join(folder, 'data'), { recursive: true });
+    writeFileSync(join(folder, 'compose.yml'), compose);
+    writeFileSync(join(folder, '.env'), 'PORT=8080\nMEDIA=/srv/music\n');
+    await deleteAll(folder);
+    expect(existsSync(folder)).toBe(false);
   });
 
   it('a container’s files need sudo, locked: the app’s files stay, so the retry after unlocking works', async () => {

@@ -16,6 +16,7 @@ const STATUS: Record<AppErrorCode, HttpStatus> = {
   [APP_ERROR_CODES.composeInvalid]: HttpStatus.BAD_REQUEST,
   [APP_ERROR_CODES.changedOnDisk]: HttpStatus.CONFLICT,
   [APP_ERROR_CODES.taskRunning]: HttpStatus.CONFLICT,
+  [APP_ERROR_CODES.hasContainers]: HttpStatus.CONFLICT,
   [APP_ERROR_CODES.taskNotStarted]: HttpStatus.BAD_GATEWAY,
   [APP_ERROR_CODES.dockerUnavailable]: HttpStatus.SERVICE_UNAVAILABLE,
   [APP_ERROR_CODES.templateNotFound]: HttpStatus.NOT_FOUND,

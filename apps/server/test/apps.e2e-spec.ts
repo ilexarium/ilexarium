@@ -259,7 +259,7 @@ describe('apps and templates (e2e)', () => {
         expect(details.fields.find((f) => f.key === 'WEB_PORT')?.value).toBe('9999');
       });
 
-      it('removal lists what Compose says it mounts; delete only after its down, only that', async () => {
+      it('removal lists what Compose says it mounts; delete without containers, only that', async () => {
         const name = `e2e-rm-${Date.now()}`;
         const compose = [
           'services:',
@@ -307,9 +307,7 @@ describe('apps and templates (e2e)', () => {
           folders: [`${folder}/data`, `${folder}/extra`],
           volumes: [],
         };
-        const early = await api().post(`/apps/${name}/delete`, request).expect(409);
-        expect(early.body.code).toBe('app_task_running');
-        await downFinished(name, folder);
+        // Never started: no containers, so its files may go.
         await makeFolder(folder, 'data');
         await makeFolder(folder, 'extra');
         await api()

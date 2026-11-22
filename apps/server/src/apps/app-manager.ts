@@ -324,7 +324,7 @@ export class AppManager {
     return { items };
   }
 
-  /** `docker compose down`, as a task; what to delete comes after it, with `delete`. */
+  /** `docker compose down`, as a task; deleting its files is a separate request (`delete`). */
   async remove(
     appSessionId: string,
     name: string,
@@ -341,7 +341,7 @@ export class AppManager {
   }
 
   /**
-   * After the removal's `down`: deletes what the person ticked — as them, through their sudo for
+   * Deletes what the person ticked of an app without containers — as them, through their sudo for
    * what containers wrote as another user. The settings are the Compose file, `.env` and `.ilex`;
    * the app's folder goes only when nothing else is left in it.
    */
@@ -354,10 +354,8 @@ export class AppManager {
     const sftp = this.sftp(appSessionId);
     const { folder } = request;
     await this.assertFolderOf(name, folder);
-    const task = await this.appTasks.read(appSessionId, sftp, folder);
-    if (task?.action !== 'down' || task.state !== 'succeeded') {
-      throw appError(APP_ERROR_CODES.taskRunning, 'Remove the app first');
-    }
+    await this.withoutContainers(name, folder);
+    await this.notBusy(appSessionId, sftp, folder);
     const files = await this.readFiles(sftp, folder);
     const mounts = deletable(
       await this.appTasks.check(appSessionId, folder, name),
@@ -514,6 +512,23 @@ export class AppManager {
     const known = await this.knownApp(name);
     if (known?.folder && known.folder !== folder) {
       throw appError(APP_ERROR_CODES.folderMismatch, 'Docker runs this app from another folder');
+    }
+  }
+
+  /**
+   * Not one container of its Compose project, running or stopped: a stopped one still holds its
+   * volumes and would make empty data folders again when it starts. However the app got there —
+   * removed here, `down` in a terminal, never started — and whoever's the project is. Nor one
+   * started from its folder under another project name (`docker compose up` in a terminal).
+   */
+  private async withoutContainers(name: string, folder: string): Promise<void> {
+    const containers = await this.dockerService.listContainers().catch(() => {
+      throw appError(APP_ERROR_CODES.dockerUnavailable, 'Docker did not answer');
+    });
+    const own = (container: (typeof containers)[number]) =>
+      container.composeProject === name || container.composeWorkingDir === folder;
+    if (containers.some(own)) {
+      throw appError(APP_ERROR_CODES.hasContainers, 'Remove the app first');
     }
   }
 

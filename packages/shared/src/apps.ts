@@ -216,6 +216,8 @@ export const APP_ERROR_CODES = {
   composeInvalid: 'compose_invalid',
   changedOnDisk: 'changed_on_disk',
   taskRunning: 'app_task_running',
+  /** Its files are deleted only while Docker has no container of it, running or stopped. */
+  hasContainers: 'app_has_containers',
   taskNotStarted: 'app_task_not_started',
   dockerUnavailable: 'docker_unavailable',
   templateNotFound: 'catalog_entry_not_found',
