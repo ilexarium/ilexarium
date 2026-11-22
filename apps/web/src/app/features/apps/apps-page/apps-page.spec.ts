@@ -28,13 +28,13 @@ const container = (name: string, change: Partial<Container> = {}): Container => 
   ...change,
 });
 
-async function render(resting = [testApp('notes', { state: 'none', containers: [] })]) {
+async function render(withoutContainers = [testApp('notes', { state: 'none', containers: [] })]) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   const appsApi = {
     templates: vi.fn(() => of([])),
     // Signed in to Linux: an app in ~/apps that doesn't run.
-    list: vi.fn(() => of({ apps: resting })),
+    list: vi.fn(() => of({ apps: withoutContainers })),
     start: vi.fn((name: string) => of(testStarted(name))),
     task: vi.fn((_name: string) => of({ task: testTask({ action: 'up', state: 'succeeded' }) })),
   };

@@ -19,17 +19,7 @@ import {
   setEnvValues,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import {
-  catchError,
-  concat,
-  defer,
-  EMPTY,
-  firstValueFrom,
-  type Observable,
-  pipe,
-  switchMap,
-  tap,
-} from 'rxjs';
+import { catchError, EMPTY, firstValueFrom, type Observable, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { followAppTask } from '../../../core/apps/follow-app-task';
@@ -239,15 +229,15 @@ export const AppPageStore = signalStore(
             if (!started) return EMPTY;
             patchState(store, { followed: started.task });
             if (started.task.state !== 'running') return EMPTY;
-            return concat(
-              followAppTask(appsApi, store.name(), started.folder).pipe(
-                tap((task) => patchState(store, { followed: task })),
-              ),
-              defer(() => {
-                // Given up while it ran: what the files say instead.
-                if (store.followed()?.state === 'running') patchState(store, { followed: null });
-                load();
-                return EMPTY;
+            return followAppTask(appsApi, store.name(), started.folder).pipe(
+              tap({
+                next: (task) => patchState(store, { followed: task }),
+                // Ended or given up (never when the page is left or a newer task replaces it).
+                complete: () => {
+                  // Given up while it ran: what the files say instead.
+                  if (store.followed()?.state === 'running') patchState(store, { followed: null });
+                  load();
+                },
               }),
             );
           }),
