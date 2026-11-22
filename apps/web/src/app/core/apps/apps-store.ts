@@ -8,16 +8,9 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import {
-  type AppSummary,
-  appsFromContainers,
-  type BackupItemRequest,
-  type TemplateSummary,
-} from '@ilex/shared';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
+import { type AppSummary, appsFromContainers, type TemplateSummary } from '@ilex/shared';
+import { catchError, EMPTY, exhaustMap, pipe, tap } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
-import { buildAppBackupItem } from '../backups/app-backup-item';
-import type { BackupPreset } from '../backups/backups.model';
 import { MonitoringStore } from '../monitoring/monitoring-store';
 import { AppsApi } from './apps-api';
 
@@ -54,23 +47,6 @@ export const AppsStore = signalStore(
     templatesById: computed(() => new Map((store.templates() ?? []).map((t) => [t.id, t]))),
   })),
   withMethods((store, appsApi = inject(AppsApi)) => ({
-    /**
-     * An app's backup item, with its template's preset when it has one (Ollama runs on, its models
-     * skipped): the same wherever "Add to backups" is clicked. Rejects when the template can't be
-     * read — never a plain "stop, everything" instead.
-     */
-    async appBackupItem(
-      app: Pick<AppSummary, 'name' | 'folder' | 'template'>,
-    ): Promise<BackupItemRequest> {
-      let preset: BackupPreset = { mode: 'stop', skip: [] };
-      if (app.template && app.folder) {
-        const { template } = await firstValueFrom(appsApi.template(app.template.id));
-        if (template.backup)
-          preset = { mode: template.backup.mode, skip: template.backup.skip ?? [] };
-      }
-      return buildAppBackupItem(app.name, app.folder, preset);
-    },
-
     loadTemplates: rxMethod<void>(
       pipe(
         exhaustMap(() =>

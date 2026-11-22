@@ -20,7 +20,7 @@ import { DeleteDialog } from '../delete-dialog/delete-dialog';
 import { RemoveDialog } from '../remove-dialog/remove-dialog';
 import { TaskOutput } from '../task-output/task-output';
 import { UpdateDialog } from '../update-dialog/update-dialog';
-import { AppPageStore } from './app-page-store';
+import { AppPageStore } from './store/app-page-store';
 
 /**
  * One app: its band, a running task, then Overview (stats, containers, its files without

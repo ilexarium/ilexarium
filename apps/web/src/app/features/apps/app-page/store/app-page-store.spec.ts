@@ -2,18 +2,19 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AppStarted, AppTask, BackupsStatus } from '@ilex/shared';
+import { APP_LIMITS, type AppStarted, type AppTask, type BackupsStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { type Observable, of, throwError } from 'rxjs';
-import { AppsApi } from '../../../core/apps/apps-api';
-import { testApp, testDetails, testStarted, testTask } from '../../../core/apps/testing';
-import { AuthStore } from '../../../core/auth/auth-store';
-import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
-import { BackupsApi } from '../../../core/backups/backups-api';
-import { BackupsStore } from '../../../core/backups/backups-store';
-import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
-import { RealtimeService } from '../../../core/realtime/realtime-service';
-import { fakeSockets } from '../../../core/realtime/testing';
+import { AppsApi } from '../../../../core/apps/apps-api';
+import { TASK_POLL_GIVE_UP } from '../../../../core/apps/follow-app-task.constants';
+import { testApp, testDetails, testStarted, testTask } from '../../../../core/apps/testing';
+import { AuthStore } from '../../../../core/auth/auth-store';
+import { fakeAuthApi, OWNER } from '../../../../core/auth/testing';
+import { BackupsApi } from '../../../../core/backups/backups-api';
+import { BackupsStore } from '../../../../core/backups/backups-store';
+import { LinuxSessionStore } from '../../../../core/linux/linux-session-store';
+import { RealtimeService } from '../../../../core/realtime/realtime-service';
+import { fakeSockets } from '../../../../core/realtime/testing';
 import { AppPageStore } from './app-page-store';
 
 const FOLDER = '/home/anna/apps/music';
@@ -325,6 +326,29 @@ describe('AppPageStore', () => {
     const calls = appsApi.task.mock.calls.length;
     await new Promise((resolve) => setTimeout(resolve, 2500));
     expect(appsApi.task).toHaveBeenCalledTimes(calls);
+  });
+
+  it('a task it gave up following: not shown as running, not followed again from a read', async () => {
+    const { store, appsApi } = await setup();
+    // No answer about the task; the files still say it runs (the same task: same start).
+    appsApi.task.mockReturnValue(of({ task: null }));
+    appsApi.details.mockReturnValue(
+      of(testDetails('music', { task: testTask({ action: 'update' }) })),
+    );
+    vi.useFakeTimers();
+    try {
+      await store.update();
+      expect(store.running()).toBe(true);
+      await vi.advanceTimersByTimeAsync(APP_LIMITS.taskPollMs * (TASK_POLL_GIVE_UP + 2));
+      TestBed.tick();
+      expect(store.running()).toBe(false);
+      const polls = appsApi.task.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(APP_LIMITS.taskPollMs * 5);
+      TestBed.tick();
+      expect(appsApi.task).toHaveBeenCalledTimes(polls);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('updates as the person and follows the task — no backup first', async () => {

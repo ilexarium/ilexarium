@@ -45,6 +45,7 @@ import { BackupsApi } from '../../../core/backups/backups-api';
 import { BackupsStore } from '../../../core/backups/backups-store';
 import { Translator } from '../../../core/i18n/translator';
 import { AppsStore } from '../../../core/apps/apps-store';
+import { AppActionsService } from '../../../core/apps/services/app-actions-service';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
 import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
@@ -202,7 +203,7 @@ export const BackupsPageStore = signalStore(
     (
       store,
       backupsApi = inject(BackupsApi),
-      appsStore = inject(AppsStore),
+      appActionsService = inject(AppActionsService),
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
@@ -242,7 +243,7 @@ export const BackupsPageStore = signalStore(
 
       const appItem = (name: string): Promise<BackupItemRequest> => {
         const app = store.apps().find((a) => a.name === name);
-        return appsStore.appBackupItem(app ?? { name, folder: null, template: null });
+        return appActionsService.appBackupItem(app ?? { name, folder: null, template: null });
       };
 
       const plan$ = () =>
