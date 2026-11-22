@@ -19,18 +19,7 @@ import {
   type Template,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import {
-  catchError,
-  concat,
-  debounceTime,
-  defer,
-  EMPTY,
-  firstValueFrom,
-  map,
-  pipe,
-  switchMap,
-  tap,
-} from 'rxjs';
+import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { followAppTask } from '../../../core/apps/follow-app-task';
@@ -136,20 +125,19 @@ export const NewAppPageStore = signalStore(
       const followInstall = rxMethod<AppStarted>(
         pipe(
           switchMap(({ name, folder }) =>
-            concat(
-              followAppTask(appsApi, name, folder).pipe(
-                tap((task) => {
+            followAppTask(appsApi, name, folder).pipe(
+              tap({
+                next: (task) => {
                   patchState(store, { task });
                   if (task.state !== 'succeeded') return;
                   toast.success(translator.t('apps.new.installed', { name }));
                   patchState(store, { installed: { name, folder } });
-                }),
-              ),
-              // Given up while it ran: its page reads the task with the files.
-              defer(() => {
-                if (store.task()?.state === 'running')
-                  patchState(store, { installed: { name, folder } });
-                return EMPTY;
+                },
+                // Given up while it ran: its page reads the task with the files.
+                complete: () => {
+                  if (store.task()?.state === 'running')
+                    patchState(store, { installed: { name, folder } });
+                },
               }),
             ),
           ),

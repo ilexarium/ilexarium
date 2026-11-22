@@ -10,18 +10,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { AppStarted, AppSummary, Container } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import {
-  catchError,
-  concat,
-  defer,
-  EMPTY,
-  exhaustMap,
-  firstValueFrom,
-  ignoreElements,
-  mergeMap,
-  pipe,
-  tap,
-} from 'rxjs';
+import { catchError, EMPTY, exhaustMap, firstValueFrom, mergeMap, pipe, tap } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { followAppTask } from '../../../core/apps/follow-app-task';
@@ -39,7 +28,7 @@ import type { AppStats } from '../apps.model';
 
 interface AppsPageState {
   /** With a Linux session: the apps in `~/apps` that don't run (no containers). */
-  resting: AppSummary[];
+  withoutContainers: AppSummary[];
   /** Apps whose start request is in flight, by name. */
   requesting: string[];
   /** Apps whose start task this page follows, by name. */
@@ -51,7 +40,7 @@ interface AppsPageState {
  * Linux — those in the person's `~/apps` without containers. Start and stop act on each container.
  */
 export const AppsPageStore = signalStore(
-  withState<AppsPageState>({ resting: [], requesting: [], following: [] }),
+  withState<AppsPageState>({ withoutContainers: [], requesting: [], following: [] }),
   withComputed(
     (
       store,
@@ -64,8 +53,8 @@ export const AppsPageStore = signalStore(
         const live = appsStore.apps();
         if (live === null) return null;
         const names = new Set(live.map((app) => app.name));
-        return [...live, ...store.resting().filter((app) => !names.has(app.name))].sort((a, b) =>
-          a.name.localeCompare(b.name),
+        return [...live, ...store.withoutContainers().filter((app) => !names.has(app.name))].sort(
+          (a, b) => a.name.localeCompare(b.name),
         );
       });
       /** Each app's containers, by its name. */
@@ -125,12 +114,12 @@ export const AppsPageStore = signalStore(
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
-      const loadResting = rxMethod<void>(
+      const loadWithoutContainers = rxMethod<void>(
         pipe(
           exhaustMap(() =>
             appsApi.list().pipe(
               tap(({ apps }) =>
-                patchState(store, { resting: apps.filter((a) => a.state === 'none') }),
+                patchState(store, { withoutContainers: apps.filter((a) => a.state === 'none') }),
               ),
               catchError(() => EMPTY),
             ),
@@ -145,20 +134,19 @@ export const AppsPageStore = signalStore(
       const followStart = rxMethod<AppStarted>(
         pipe(
           mergeMap(({ name, folder }) =>
-            concat(
-              followAppTask(appsApi, name, folder).pipe(
-                tap((task) => {
+            followAppTask(appsApi, name, folder).pipe(
+              tap({
+                next: (task) => {
                   if (task.state === 'succeeded')
                     toast.success(translator.t('apps.starting.done', { name }));
                   else if (task.state !== 'running')
                     toast.error(translator.t('apps.starting.failed', { name }));
-                }),
-                ignoreElements(),
-              ),
-              defer(() => {
-                patchState(store, { following: store.following().filter((n) => n !== name) });
-                loadResting();
-                return EMPTY;
+                },
+                // Ended or given up (never when the page is left).
+                complete: () => {
+                  patchState(store, { following: store.following().filter((n) => n !== name) });
+                  loadWithoutContainers();
+                },
               }),
             ),
           ),
@@ -166,7 +154,7 @@ export const AppsPageStore = signalStore(
       );
 
       /** An app without containers: `up` as the person. */
-      const startResting = async (name: string, folder: string): Promise<void> => {
+      const startWithoutContainers = async (name: string, folder: string): Promise<void> => {
         patchState(store, { requesting: [...store.requesting(), name] });
         try {
           const started = await linuxSessionStore.asPerson(() =>
@@ -174,7 +162,7 @@ export const AppsPageStore = signalStore(
           );
           // Not started (the sign-in dismissed): the list as it is now.
           if (!started) {
-            loadResting();
+            loadWithoutContainers();
             return;
           }
           toast.info(translator.t('apps.starting.started', { name }));
@@ -184,17 +172,17 @@ export const AppsPageStore = signalStore(
           toast.error(translator.t('apps.starting.failed', { name }), {
             description: translator.t(...apiErrorText(error)),
           });
-          loadResting();
+          loadWithoutContainers();
         } finally {
           patchState(store, { requesting: store.requesting().filter((n) => n !== name) });
         }
       };
 
       return {
-        loadResting,
+        loadWithoutContainers,
         async act(app: AppSummary, action: 'start' | 'stop'): Promise<void> {
           if (action === 'start' && app.state === 'none' && app.folder) {
-            await startResting(app.name, app.folder);
+            await startWithoutContainers(app.name, app.folder);
             return;
           }
           await containerActionsStore.runAll(app.containers, action, app.name);
@@ -213,7 +201,7 @@ export const AppsPageStore = signalStore(
         onInit() {
           stop = monitoringStore.watch(['containers']);
           linuxSessionStore.check();
-          store.loadResting();
+          store.loadWithoutContainers();
         },
         onDestroy() {
           stop?.();
