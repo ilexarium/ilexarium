@@ -1,19 +1,10 @@
 import { NgTemplateOutlet } from '@angular/common';
-import {
-  Component,
-  DOCUMENT,
-  computed,
-  effect,
-  inject,
-  signal,
-  untracked,
-  viewChild,
-} from '@angular/core';
+import { Component, DOCUMENT, computed, effect, inject, untracked, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { type AppRemovalItem, catalogIconPath, FILES_ERROR_CODES } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideArrowLeft, lucideRefreshCw } from '@ng-icons/lucide';
+import { lucideArrowLeft, lucideRefreshCw, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmButton } from '@ui/button';
 import { HlmSkeleton } from '@ui/skeleton';
@@ -25,17 +16,23 @@ import { AppHeader } from '../app-header/app-header';
 import { AppOverview } from '../app-overview/app-overview';
 import { AppSettings } from '../app-settings/app-settings';
 import type { AppTab, FieldChange } from '../apps.model';
+import { DeleteDialog } from '../delete-dialog/delete-dialog';
 import { RemoveDialog } from '../remove-dialog/remove-dialog';
 import { TaskOutput } from '../task-output/task-output';
+import { UpdateDialog } from '../update-dialog/update-dialog';
 import { AppPageStore } from './app-page-store';
 
-/** One app: its band, a running task, then Overview (stats, containers, backup, update) | Settings. */
+/**
+ * One app: its band, a running task, then Overview (stats, containers, its files without
+ * containers, backup, update) | Settings.
+ */
 @Component({
   selector: 'ilex-app-page',
   imports: [
     AppHeader,
     AppOverview,
     AppSettings,
+    DeleteDialog,
     HlmButton,
     HlmSkeleton,
     HlmTabsImports,
@@ -46,8 +43,9 @@ import { AppPageStore } from './app-page-store';
     SaveBar,
     TaskOutput,
     TranslatePipe,
+    UpdateDialog,
   ],
-  providers: [AppPageStore, provideIcons({ lucideArrowLeft, lucideRefreshCw })],
+  providers: [AppPageStore, provideIcons({ lucideArrowLeft, lucideRefreshCw, lucideTrash2 })],
   templateUrl: './app-page.html',
 })
 export class AppPage {
@@ -57,8 +55,9 @@ export class AppPage {
   private readonly router = inject(Router);
   private readonly location = inject(DOCUMENT).location;
   private readonly removeDialog = viewChild.required(RemoveDialog);
+  private readonly deleteDialog = viewChild.required(DeleteDialog);
+  private readonly updateDialog = viewChild.required(UpdateDialog);
   protected readonly codes = FILES_ERROR_CODES;
-  protected readonly backupFirst = signal(true);
   private readonly params = toSignal(this.route.paramMap, { requireSync: true });
   private readonly query = toSignal(this.route.queryParamMap, { requireSync: true });
   // Separate, so switching tabs (a query change) doesn't read the app again.
@@ -105,10 +104,18 @@ export class AppPage {
 
   protected askRemove(): void {
     this.removeDialog().open();
-    void this.appPageStore.openRemoval();
   }
 
-  protected remove(items: AppRemovalItem[]): void {
-    void this.appPageStore.remove(items);
+  protected askDelete(): void {
+    this.deleteDialog().open();
+    void this.appPageStore.openDeletion();
+  }
+
+  protected deleteFiles(items: AppRemovalItem[]): void {
+    void this.appPageStore.deleteFiles(items);
+  }
+
+  protected askUpdate(): void {
+    this.updateDialog().open();
   }
 }

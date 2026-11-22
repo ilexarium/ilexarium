@@ -17,7 +17,7 @@
     [openUrl]="openUrl()"
     [pending]="appPageStore.pending()"
     [busy]="appPageStore.busy() || appPageStore.running()"
-    [removable]="!!appPageStore.folder()"
+    [removable]="!!appPageStore.folder() && !appPageStore.filesOnly()"
     (start)="appPageStore.act('start')"
     (stop)="appPageStore.act('stop')"
     (remove)="askRemove()"
@@ -46,6 +46,34 @@
           [containers]="appPageStore.containerStats()"
         />
         <div class="grid content-start gap-4">
+          @if (appPageStore.filesOnly() && !appPageStore.running()) {
+            <section
+              class="grid gap-3 rounded-xl border bg-card p-4 text-sm"
+              aria-labelledby="files-left-title"
+              data-files-left
+            >
+              <div class="grid gap-1">
+                <h3 id="files-left-title" class="font-semibold">
+                  {{ 'apps.delete.title' | translate }}
+                </h3>
+                <p class="text-muted-foreground">{{ 'apps.delete.text' | translate }}</p>
+              </div>
+              <div>
+                <button
+                  hlmBtn
+                  variant="outline"
+                  size="sm"
+                  class="text-destructive"
+                  [disabled]="appPageStore.busy()"
+                  (click)="askDelete()"
+                >
+                  <ng-icon name="lucideTrash2" aria-hidden="true" />
+                  {{ 'apps.delete.action' | translate }}
+                </button>
+              </div>
+            </section>
+          }
+
           @if (appPageStore.backupsConfigured()) {
             <section
               class="grid gap-3 rounded-xl border bg-card p-4 text-sm"
@@ -54,7 +82,9 @@
               <h3 id="backup-title" class="font-semibold">{{ 'apps.backup.title' | translate }}</h3>
               @if (appPageStore.backup(); as item) {
                 <p>
-                  @if (item.lastSuccessAt) {
+                  @if (appPageStore.appBackingUp()) {
+                    {{ 'apps.backup.running' | translate }}
+                  } @else if (item.lastSuccessAt) {
                     {{
                       'apps.backup.last' | translate: { time: formatter.ago(item.lastSuccessAt) }
                     }}
@@ -62,8 +92,17 @@
                     {{ 'apps.backup.never' | translate }}
                   }
                 </p>
-                <div>
-                  <a hlmBtn variant="outline" size="sm" routerLink="/backups">{{
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    hlmBtn
+                    variant="outline"
+                    size="sm"
+                    [disabled]="appPageStore.busy() || appPageStore.backupRunning()"
+                    (click)="appPageStore.backUpNow()"
+                  >
+                    {{ 'apps.backup.backUpNow' | translate }}
+                  </button>
+                  <a hlmBtn variant="ghost" size="sm" routerLink="/backups">{{
                     'apps.backup.manage' | translate
                   }}</a>
                 </div>
@@ -95,23 +134,17 @@
             @if (appPageStore.loadError(); as error) {
               <ng-container *ngTemplateOutlet="access; context: { $implicit: error }" />
             } @else if (appPageStore.details()) {
-              @if (appPageStore.backup()) {
-                <label class="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    class="mt-0.5 size-4"
-                    [checked]="backupFirst()"
-                    (change)="backupFirst.set($any($event.target).checked)"
-                  />
-                  {{ 'apps.update.backupFirst' | translate }}
-                </label>
-              }
               <div>
                 <button
                   hlmBtn
                   size="sm"
-                  [disabled]="appPageStore.busy() || appPageStore.running()"
-                  (click)="appPageStore.update(backupFirst() && !!appPageStore.backup())"
+                  [disabled]="
+                    appPageStore.busy() ||
+                    appPageStore.running() ||
+                    appPageStore.appBackingUp() ||
+                    appPageStore.filesOnly()
+                  "
+                  (click)="askUpdate()"
                 >
                   <ng-icon name="lucideRefreshCw" aria-hidden="true" />
                   {{ 'apps.update.action' | translate }}
@@ -224,8 +257,20 @@
   </div>
 </ng-template>
 
-<ilex-remove-dialog
+<ilex-remove-dialog [name]="appPageStore.name()" (remove)="appPageStore.remove()" />
+
+<ilex-delete-dialog
   [name]="appPageStore.name()"
   [items]="appPageStore.removal()"
-  (remove)="remove($event)"
+  (delete)="deleteFiles($event)"
+/>
+
+<ilex-update-dialog
+  [name]="appPageStore.name()"
+  [inBackups]="!!appPageStore.backup()"
+  [lastBackup]="appPageStore.backup()?.lastSuccessAt ?? null"
+  [backupRunning]="appPageStore.backupRunning()"
+  [appBackingUp]="appPageStore.appBackingUp()"
+  (backUp)="appPageStore.backUpNow()"
+  (update)="appPageStore.update()"
 />

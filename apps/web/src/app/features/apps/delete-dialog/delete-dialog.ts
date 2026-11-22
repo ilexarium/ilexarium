@@ -7,20 +7,20 @@ import { PluralPipe } from '../../../core/i18n/plural-pipe';
 import { Formatter } from '../../../shared/format/formatter';
 
 /**
- * Removing an app: its containers go (`docker compose down`); every item it could delete listed,
- * none ticked — its settings, each data folder (one outside the app's folder may be used
- * elsewhere), each named volume. Backups stay. UI only: the page opens it and loads the list.
+ * Deleting the files of an app without containers: every item it could delete listed, none
+ * ticked — its settings, each data folder (one outside the app's folder may be used elsewhere),
+ * each named volume. Backups stay. UI only: the page opens it and loads the list.
  */
 @Component({
-  selector: 'ilex-remove-dialog',
+  selector: 'ilex-delete-dialog',
   imports: [HlmAlertDialogImports, HlmSkeleton, PluralPipe, TranslatePipe],
-  templateUrl: './remove-dialog.html',
+  templateUrl: './delete-dialog.html',
 })
-export class RemoveDialog {
+export class DeleteDialog {
   readonly name = input.required<string>();
   /** Null while the list loads. */
   readonly items = input<AppRemovalItem[] | null>(null);
-  readonly remove = output<AppRemovalItem[]>();
+  readonly delete = output<AppRemovalItem[]>();
 
   protected readonly formatter = inject(Formatter);
   private readonly dialog = viewChild.required(HlmAlertDialog);
@@ -46,7 +46,7 @@ export class RemoveDialog {
   protected confirmed(): void {
     const ticked = (this.items() ?? []).filter((item) => this.ticked().has(key(item)));
     this.dialog().close();
-    this.remove.emit(ticked);
+    this.delete.emit(ticked);
   }
 }
 

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Container } from '@ilex/shared';
+import { toast } from '@spartan-ng/brain/sonner';
 import { of } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { testApp, testContainer, testStarted, testTask } from '../../../core/apps/testing';
@@ -35,7 +36,7 @@ async function render(resting = [testApp('notes', { state: 'none', containers: [
     // Signed in to Linux: an app in ~/apps that doesn't run.
     list: vi.fn(() => of({ apps: resting })),
     start: vi.fn((name: string) => of(testStarted(name))),
-    task: vi.fn(() => of({ task: testTask({ action: 'up', state: 'succeeded' }) })),
+    task: vi.fn((_name: string) => of({ task: testTask({ action: 'up', state: 'succeeded' }) })),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -68,6 +69,8 @@ async function render(resting = [testApp('notes', { state: 'none', containers: [
 }
 
 describe('AppsPage', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('waits for the containers, then lists each Compose project — the platform’s own and loose containers left out', async () => {
     const { el, socket, receive } = await render();
     expect(socket.sent).toContainEqual({ event: 'subscribe', data: { topic: 'containers' } });
@@ -180,6 +183,47 @@ describe('AppsPage', () => {
     await vi.waitFor(() => expect(appsApi.list).toHaveBeenCalledTimes(2), { timeout: 4000 });
     await fixture.whenStable();
     expect(start.disabled).toBe(false);
+  });
+
+  it('two cards started side by side: each followed, each said how it ended', async () => {
+    const { el, receive, appsApi, fixture } = await render([
+      testApp('notes', { state: 'none', containers: [] }),
+      testApp('wiki', { state: 'none', containers: [] }),
+    ]);
+    const states: Record<string, 'running' | 'succeeded' | 'failed'> = {
+      notes: 'running',
+      wiki: 'running',
+    };
+    appsApi.task.mockImplementation((name: string) =>
+      of({ task: testTask({ action: 'up', state: states[name] }) }),
+    );
+    const success = vi.spyOn(toast, 'success');
+    const error = vi.spyOn(toast, 'error');
+    await receive({
+      event: 'containers:snapshot',
+      data: { dockerAvailable: true, containers: [], history: {} },
+    });
+    const button = (name: string) =>
+      el.querySelector<HTMLButtonElement>(`button[aria-label="Start ${name}"]`)!;
+    button('notes').click();
+    button('wiki').click();
+    await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalledWith('wiki', expect.any(String)));
+    await fixture.whenStable();
+    expect(button('notes').disabled).toBe(true);
+    expect(button('wiki').disabled).toBe(true);
+    states['wiki'] = 'failed';
+    await vi.waitFor(() => expect(error).toHaveBeenCalledWith("Couldn't start wiki"), {
+      timeout: 4000,
+    });
+    await fixture.whenStable();
+    expect(button('wiki').disabled).toBe(false);
+    expect(button('notes').disabled).toBe(true);
+    states['notes'] = 'succeeded';
+    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('notes started'), {
+      timeout: 4000,
+    });
+    await fixture.whenStable();
+    expect(button('notes').disabled).toBe(false);
   });
 
   it('Docker down: said so; adding an app still offered', async () => {

@@ -1,0 +1,32 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle>
+        {{ 'apps.update.confirmTitle' | translate }} <span dir="ltr">{{ name() }}</span>
+      </h2>
+      <p hlmAlertDialogDescription>{{ 'apps.update.text' | translate }}</p>
+      <p hlmAlertDialogDescription data-last-backup>
+        @if (appBackingUp()) {
+          {{ 'apps.update.backingUp' | translate }}
+        } @else if (!inBackups()) {
+          {{ 'apps.update.notInBackups' | translate }}
+        } @else if (lastBackup(); as time) {
+          {{ 'apps.update.lastBackup' | translate: { time: formatter.ago(time) } }}
+        } @else {
+          {{ 'apps.update.neverBackedUp' | translate }}
+        }
+      </p>
+    </hlm-alert-dialog-header>
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'apps.update.cancel' | translate }}</button>
+      @if (inBackups()) {
+        <button hlmBtn variant="outline" [disabled]="backupRunning()" (click)="backUpChosen()">
+          {{ 'apps.update.backUpNow' | translate }}
+        </button>
+      }
+      <button hlmAlertDialogAction [disabled]="appBackingUp()" (click)="updateChosen()">
+        {{ 'apps.update.confirm' | translate }}
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

@@ -82,7 +82,7 @@ async function setup(templates: TemplateSummary[] = []) {
 describe('NewAppPageStore', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('a template: its file, its form with the values written to .env, a free name, its backup preset', async () => {
+  it('a template: its file, its form with the values written to .env, a free name', async () => {
     const { store, appsApi } = await setup();
     await store.chooseTemplate('navidrome');
     await vi.waitFor(() => expect(store.fields()).not.toBeNull());
@@ -91,7 +91,6 @@ describe('NewAppPageStore', () => {
     expect(appsApi.fields).toHaveBeenCalledWith({ template: 'navidrome' });
     expect(store.env()).toBe('VERSION=0.53\nPORT=4533\n');
     expect(store.name()).toBe('navidrome-2');
-    expect(store.backup()).toEqual({ include: true, mode: 'live', skip: ['cache'] });
   });
 
   it('your own file: its own name suggested once pasted, no form — its files as they are', async () => {
@@ -184,15 +183,16 @@ describe('NewAppPageStore', () => {
     expect(store.env()).toBe('');
   });
 
-  it('installs as the person, follows the output, then adds the app to the backups', async () => {
-    const { store, appsApi, backupsApi, answers, socket } = await setup();
+  it('installs as the person and follows the output — nothing else: no backup added', async () => {
+    const { store, appsApi, backupsApi, asPerson, answers, socket } = await setup();
+    const success = vi.spyOn(toast, 'success');
     socket.receive({ event: 'backups:snapshot', data: backupsStatus });
-    expect(store.backupsConfigured()).toBe(true);
     await store.chooseTemplate('navidrome');
     await vi.waitFor(() => expect(store.fields()).not.toBeNull());
     answers.push(testTask({ output: ['pulling'] }));
     answers.push(testTask({ state: 'succeeded', output: ['pulling', 'started'] }));
     await store.install();
+    expect(asPerson).toHaveBeenCalledTimes(1);
     expect(appsApi.install).toHaveBeenCalledWith({
       name: 'navidrome-2',
       folder: null,
@@ -202,52 +202,45 @@ describe('NewAppPageStore', () => {
     });
     expect(store.step()).toBe('installing');
     await vi.waitFor(() => expect(store.installed()).not.toBeNull(), { timeout: 4000 });
+    expect(store.installed()).toEqual({
+      name: 'navidrome-2',
+      folder: '/home/anna/apps/navidrome-2',
+    });
     expect(store.task()?.output).toEqual(['pulling', 'started']);
-    expect(backupsApi.addItem).toHaveBeenCalledWith({
-      kind: 'app',
-      project: 'navidrome-2',
-      folders: [],
-      skip: ['/home/anna/apps/navidrome-2/cache'],
-      mode: 'live',
-    });
+    expect(success).toHaveBeenCalledWith('navidrome-2 is installed.');
+    expect(backupsApi.addItem).not.toHaveBeenCalled();
+    expect(asPerson).toHaveBeenCalledTimes(1);
   });
 
-  it('still adds the app to the backups when the page is left during the install', async () => {
-    const { store, page, backupsApi, answers, socket } = await setup();
-    const success = vi.spyOn(toast, 'success');
-    socket.receive({ event: 'backups:snapshot', data: backupsStatus });
+  it('a failed install: its output stays, no hand-over', async () => {
+    const { store, answers } = await setup();
     await store.chooseTemplate('navidrome');
-    answers.push(testTask({ output: ['pulling'] }));
-    answers.push(testTask({ state: 'succeeded' }));
+    answers.push(testTask({ state: 'failed', output: ['no such image'] }));
     await store.install();
-    page.destroy();
-    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('navidrome-2 is installed.'), {
-      timeout: 4000,
-    });
-    expect(backupsApi.addItem).toHaveBeenCalledWith(
-      expect.objectContaining({ project: 'navidrome-2', mode: 'live' }),
-    );
+    await vi.waitFor(() => expect(store.task()?.state).toBe('failed'), { timeout: 4000 });
+    expect(store.installed()).toBeNull();
+    expect(store.step()).toBe('installing');
   });
 
-  it('still adds the app to the backups when the page is left while the install is starting', async () => {
-    const { store, page, appsApi, backupsApi, answers, socket } = await setup();
-    const success = vi.spyOn(toast, 'success');
-    socket.receive({ event: 'backups:snapshot', data: backupsStatus });
+  it('the page left during the install: no more polls', async () => {
+    const { store, page, appsApi, answers } = await setup();
     await store.chooseTemplate('navidrome');
-    const started = new Subject<AppStarted>();
-    appsApi.install.mockReturnValueOnce(started);
-    answers.push(testTask({ state: 'succeeded' }));
-    const installing = store.install();
+    answers.push(testTask(), testTask(), testTask());
+    await store.install();
+    await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
     page.destroy();
-    started.next(testStarted('navidrome-2'));
-    started.complete();
-    await installing;
-    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('navidrome-2 is installed.'), {
-      timeout: 4000,
-    });
-    expect(backupsApi.addItem).toHaveBeenCalledWith(
-      expect.objectContaining({ project: 'navidrome-2', mode: 'live' }),
-    );
+    const calls = appsApi.task.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(appsApi.task).toHaveBeenCalledTimes(calls);
+  });
+
+  it('the sign-in dismissed: nothing started, still on the form', async () => {
+    const { store, appsApi, asPerson } = await setup();
+    await store.chooseTemplate('navidrome');
+    asPerson.mockResolvedValueOnce(null);
+    await store.install();
+    expect(appsApi.install).not.toHaveBeenCalled();
+    expect(store.step()).toBe('setup');
   });
 
   it('shows what Compose said when it refused the files, staying on the form', async () => {

@@ -2,19 +2,39 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { AppStarted, AppTask } from '@ilex/shared';
+import type { AppStarted, AppTask, BackupsStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { type Observable, of, Subject, throwError } from 'rxjs';
+import { type Observable, of, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { testApp, testDetails, testStarted, testTask } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsApi } from '../../../core/backups/backups-api';
+import { BackupsStore } from '../../../core/backups/backups-store';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
+import { RealtimeService } from '../../../core/realtime/realtime-service';
 import { fakeSockets } from '../../../core/realtime/testing';
 import { AppPageStore } from './app-page-store';
 
 const FOLDER = '/home/anna/apps/music';
+const ITEM: BackupsStatus['items'][number] = {
+  id: '00000000-0000-4000-8000-000000000001',
+  kind: 'app',
+  project: 'music',
+  lastSuccessAt: '2026-11-21T03:00:00.000Z',
+  lastStatus: 'ok',
+};
+const BACKUPS: BackupsStatus = {
+  configured: true,
+  warnings: [],
+  lastSuccessAt: null,
+  nextRunAt: null,
+  running: null,
+  lastRun: null,
+  items: [],
+  restore: null,
+  lastCheck: null,
+};
 
 async function setup() {
   const auth = fakeAuthApi({ user: OWNER });
@@ -46,7 +66,10 @@ async function setup() {
     remove: vi.fn((): Observable<AppStarted> => of(testStarted('music', { action: 'down' }))),
     delete: vi.fn(() => of(undefined)),
   };
-  const backupsApi = { addItem: vi.fn(() => of({})) };
+  const backupsApi = {
+    addItem: vi.fn(() => of({})),
+    runNow: vi.fn(() => of({ runId: '00000000-0000-4000-8000-000000000009' })),
+  };
   // Signed in to Linux with sudo at hand: every action goes straight through.
   const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
   TestBed.configureTestingModule({
@@ -60,6 +83,13 @@ async function setup() {
     ],
   });
   await TestBed.inject(AuthStore).load();
+  TestBed.inject(RealtimeService).connect();
+  const socket = sockets.latest();
+  socket.open();
+  TestBed.inject(BackupsStore).watch();
+  /** The `backups` topic says this. */
+  const backups = (change: Partial<BackupsStatus>) =>
+    socket.receive({ event: 'backups:snapshot', data: { ...BACKUPS, ...change } });
   // Its own injector, like a page's: destroying it is leaving the page.
   const page = createEnvironmentInjector([AppPageStore], TestBed.inject(EnvironmentInjector));
   const store = page.get(AppPageStore);
@@ -73,7 +103,7 @@ async function setup() {
     await vi.waitFor(() => expect(next.details()).not.toBeNull());
     return { store: next, page: again };
   };
-  return { store, page, appsApi, backupsApi, asPerson, answers, reopen };
+  return { store, page, appsApi, backupsApi, asPerson, answers, reopen, backups };
 }
 
 describe('AppPageStore', () => {
@@ -162,105 +192,103 @@ describe('AppPageStore', () => {
   it('nothing happens when the Linux sign-in is closed', async () => {
     const { store, appsApi, asPerson } = await setup();
     asPerson.mockResolvedValueOnce(null);
-    await store.update(false);
+    await store.update();
     expect(appsApi.update).not.toHaveBeenCalled();
     expect(store.task()).toBeNull();
   });
 
-  it('removes: down first, then only what was ticked deleted — the app gone from the page', async () => {
+  it('removes: down only, followed to its end — the page stays and reads the files again', async () => {
     const { store, appsApi, answers } = await setup();
-    const success = vi.spyOn(toast, 'success');
-    await store.openRemoval();
-    const [settings, data] = store.removal()!;
-    answers.push(testTask({ action: 'down', state: 'succeeded' }));
-    await store.remove([settings, data]);
+    answers.push(testTask({ action: 'down' }), testTask({ action: 'down', state: 'succeeded' }));
+    await store.remove();
+    expect(appsApi.remove).toHaveBeenCalledWith('music', FOLDER);
     // The server's answer shown at once: the buttons stay locked until the task has ended.
     expect(store.task()).toMatchObject({ action: 'down' });
     expect(store.running()).toBe(true);
-    await vi.waitFor(() => expect(store.removed()).toBe(true), { timeout: 4000 });
-    expect(appsApi.remove).toHaveBeenCalledWith('music', FOLDER);
+    await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
+    await vi.waitFor(() => expect(appsApi.details).toHaveBeenCalledTimes(2));
+    // Read again from the folder it had: Docker no longer knows it once removed.
+    expect(appsApi.details).toHaveBeenLastCalledWith('music', FOLDER);
+    expect(appsApi.removal).not.toHaveBeenCalled();
+    expect(appsApi.delete).not.toHaveBeenCalled();
+    expect(store.removed()).toBe(false);
+  });
+
+  it('a failed down: its output stays, nothing else happens', async () => {
+    const { store, appsApi, answers } = await setup();
+    answers.push(testTask({ action: 'down', state: 'failed', output: ['error'] }));
+    await store.remove();
+    await vi.waitFor(() => expect(store.task()?.state).toBe('failed'), { timeout: 4000 });
+    expect(appsApi.delete).not.toHaveBeenCalled();
+    expect(store.removed()).toBe(false);
+  });
+
+  it('its files offered for deletion only without containers', async () => {
+    const { store, appsApi } = await setup();
+    expect(store.filesOnly()).toBe(false);
+    appsApi.details.mockReturnValueOnce(
+      of(testDetails('music', { app: testApp('music', { state: 'none', containers: [] }) })),
+    );
+    store.reload();
+    await vi.waitFor(() => expect(store.filesOnly()).toBe(true));
+  });
+
+  it('deletes the files ticked; with the settings the app is gone: back to the list', async () => {
+    const { store, appsApi, asPerson } = await setup();
+    const success = vi.spyOn(toast, 'success');
+    await store.openDeletion();
+    expect(appsApi.removal).toHaveBeenCalledWith('music', FOLDER);
+    const [settings, data] = store.removal()!;
+    await store.deleteFiles([settings, data]);
+    expect(asPerson).toHaveBeenCalledTimes(2);
     expect(appsApi.delete).toHaveBeenCalledWith('music', {
       folder: FOLDER,
       settings: true,
       folders: [`${FOLDER}/data`],
       volumes: [],
     });
-    expect(success).toHaveBeenCalledWith('music was removed.');
+    expect(success).toHaveBeenCalledWith('music: what was ticked was deleted.');
+    expect(store.removed()).toBe(true);
   });
 
-  it('still deletes what was ticked when the page is left during the removal', async () => {
-    const { store, page, appsApi, answers } = await setup();
-    const success = vi.spyOn(toast, 'success');
-    await store.openRemoval();
+  it('without the settings: the files read again, still on the page', async () => {
+    const { store, appsApi } = await setup();
+    await store.openDeletion();
     const [, , volume] = store.removal()!;
-    answers.push(testTask({ action: 'down' }));
-    answers.push(testTask({ action: 'down', state: 'succeeded' }));
-    await store.remove([volume]);
-    page.destroy();
-    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('music was removed.'), {
-      timeout: 4000,
-    });
+    await store.deleteFiles([volume]);
     expect(appsApi.delete).toHaveBeenCalledWith('music', {
       folder: FOLDER,
       settings: false,
       folders: [],
       volumes: ['music_cache'],
     });
+    expect(store.removed()).toBe(false);
+    await vi.waitFor(() => expect(appsApi.details).toHaveBeenCalledTimes(2));
   });
 
-  it('still deletes what was ticked when the page is left while the removal is starting', async () => {
-    const { store, page, appsApi, answers } = await setup();
-    const success = vi.spyOn(toast, 'success');
-    await store.openRemoval();
-    const [settings] = store.removal()!;
-    const started = new Subject<AppStarted>();
-    appsApi.remove.mockReturnValueOnce(started);
-    answers.push(testTask({ action: 'down', state: 'succeeded' }));
-    const removing = store.remove([settings]);
-    page.destroy();
-    started.next(testStarted('music', { action: 'down' }));
-    started.complete();
-    await removing;
-    await vi.waitFor(() => expect(success).toHaveBeenCalledWith('music was removed.'), {
-      timeout: 4000,
+  it('a refused deletion: said why, the files read again, still on the page', async () => {
+    const { store, appsApi } = await setup();
+    const error = vi.spyOn(toast, 'error');
+    appsApi.delete.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: { message: 'x', code: 'app_has_containers' },
+          }),
+      ),
+    );
+    await store.openDeletion();
+    await store.deleteFiles([store.removal()![0]]);
+    expect(error).toHaveBeenCalledWith("Couldn't delete the files of music", {
+      description: 'The app still has containers. Remove it first.',
     });
-    expect(appsApi.delete).toHaveBeenCalledWith('music', {
-      folder: FOLDER,
-      settings: true,
-      folders: [],
-      volumes: [],
-    });
+    expect(store.removed()).toBe(false);
+    expect(store.busy()).toBe(false);
+    await vi.waitFor(() => expect(appsApi.details).toHaveBeenCalledTimes(2));
   });
 
-  it('back on the page, the task still runs there — and the files are read again at its end', async () => {
-    const { page, appsApi, answers, reopen } = await setup();
-    answers.push(testTask({ action: 'update' }));
-    const first = page.get(AppPageStore);
-    await first.update(false);
-    page.destroy();
-    const { store } = await reopen();
-    expect(store.task()).toMatchObject({ action: 'update', state: 'running' });
-    expect(store.running()).toBe(true);
-    const reads = appsApi.details.mock.calls.length;
-    answers.splice(0, answers.length, testTask({ action: 'update', state: 'succeeded' }));
-    await vi.waitFor(() => expect(store.running()).toBe(false), { timeout: 4000 });
-    await vi.waitFor(() => expect(appsApi.details.mock.calls.length).toBeGreaterThan(reads));
-  });
-
-  it('a removal finished before the page opened never sends it away', async () => {
-    const { store, page, answers, reopen } = await setup();
-    await store.openRemoval();
-    answers.push(testTask({ action: 'down', state: 'succeeded' }));
-    await store.remove([]);
-    await vi.waitFor(() => expect(store.removed()).toBe(true), { timeout: 4000 });
-    page.destroy();
-    const { store: later } = await reopen();
-    TestBed.tick();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(later.removed()).toBe(false);
-  });
-
-  it('opened during a task started elsewhere: follows it to its end', async () => {
+  it('opened during a task started elsewhere: follows it to its end, then reads again', async () => {
     const { appsApi, answers, reopen } = await setup();
     // Read once during the task; read again after it, the task has ended.
     appsApi.details.mockReturnValueOnce(
@@ -269,56 +297,102 @@ describe('AppPageStore', () => {
     answers.push(testTask({ action: 'update' }));
     const { store } = await reopen();
     expect(store.running()).toBe(true);
+    const reads = appsApi.details.mock.calls.length;
     answers.splice(0, answers.length, testTask({ action: 'update', state: 'succeeded' }));
     await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
+    await vi.waitFor(() => expect(appsApi.details.mock.calls.length).toBeGreaterThan(reads));
   });
 
-  it('stays busy until the deletion after a removal is through', async () => {
+  it('left during a task: no more polls', async () => {
+    const { store, page, appsApi, answers } = await setup();
+    answers.push(testTask({ action: 'update' }), testTask({ action: 'update' }));
+    await store.update();
+    await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
+    page.destroy();
+    const calls = appsApi.task.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(appsApi.task).toHaveBeenCalledTimes(calls);
+  });
+
+  it('another app opened during a task: the old one no longer followed', async () => {
     const { store, appsApi, answers } = await setup();
-    const deleted = new Subject<undefined>();
-    appsApi.delete.mockReturnValueOnce(deleted);
-    await store.openRemoval();
-    const [settings] = store.removal()!;
-    answers.push(testTask({ action: 'down', state: 'succeeded' }));
-    await store.remove([settings]);
-    await vi.waitFor(() => expect(appsApi.delete).toHaveBeenCalled(), { timeout: 4000 });
-    expect(store.busy()).toBe(true);
-    deleted.next(undefined);
-    deleted.complete();
-    await vi.waitFor(() => expect(store.removed()).toBe(true));
+    answers.push(testTask({ action: 'update' }), testTask({ action: 'update' }));
+    await store.update();
+    await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
+    appsApi.details.mockReturnValue(of(testDetails('wiki')));
+    store.open('wiki', null);
+    expect(store.task()).toBeNull();
+    const calls = appsApi.task.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+    expect(appsApi.task).toHaveBeenCalledTimes(calls);
+  });
+
+  it('updates as the person and follows the task — no backup first', async () => {
+    const { store, appsApi, backupsApi, answers } = await setup();
+    answers.push(testTask({ action: 'update', state: 'succeeded', output: ['pulled'] }));
+    await store.update();
+    expect(appsApi.update).toHaveBeenCalledWith('music', FOLDER);
+    expect(backupsApi.runNow).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
+    expect(store.task()?.output).toContain('pulled');
+  });
+
+  it('Back up now: starts the app’s backup as the person and waits for nothing', async () => {
+    const { store, appsApi, backupsApi, asPerson, backups } = await setup();
+    const info = vi.spyOn(toast, 'info');
+    backups({ items: [ITEM] });
+    await store.backUpNow();
+    expect(asPerson).toHaveBeenCalledTimes(1);
+    expect(backupsApi.runNow).toHaveBeenCalledWith(ITEM.id);
+    expect(info).toHaveBeenCalledWith("music's backup has started.");
+    expect(appsApi.update).not.toHaveBeenCalled();
     expect(store.busy()).toBe(false);
   });
 
-  it('deletes nothing after a sign-out, even with the page still open', async () => {
-    const { store, appsApi, answers } = await setup();
-    await store.openRemoval();
-    const [settings] = store.removal()!;
-    answers.push(testTask({ action: 'down' }));
-    await store.remove([settings]);
-    await TestBed.inject(AuthStore).logout();
-    TestBed.tick();
-    answers.push(testTask({ action: 'down', state: 'succeeded' }));
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-    expect(appsApi.delete).not.toHaveBeenCalled();
+  it('a backup just started here: no update and no second backup, before the topic shows it', async () => {
+    const { store, backups } = await setup();
+    backups({ items: [ITEM] });
+    await store.backUpNow();
+    expect(store.appBackingUp()).toBe(true);
+    expect(store.backupRunning()).toBe(true);
+    backups({
+      items: [ITEM],
+      lastRun: {
+        id: '00000000-0000-4000-8000-000000000009',
+        trigger: 'manual',
+        itemId: ITEM.id,
+        status: 'ok',
+        errorCode: null,
+        startedAt: '2026-11-22T10:00:00.000Z',
+        finishedAt: '2026-11-22T10:01:00.000Z',
+        items: [],
+      },
+    });
+    expect(store.appBackingUp()).toBe(false);
+    expect(store.backupRunning()).toBe(false);
   });
 
-  it('a failed down deletes nothing', async () => {
-    const { store, appsApi, answers } = await setup();
-    await store.openRemoval();
-    answers.push(testTask({ action: 'down', state: 'failed', output: ['error'] }));
-    await store.remove(store.removal()!);
-    await vi.waitFor(() => expect(store.task()?.state).toBe('failed'), { timeout: 4000 });
-    expect(appsApi.delete).not.toHaveBeenCalled();
-    expect(store.removed()).toBe(false);
-  });
-
-  it('updates as the person and follows the task', async () => {
-    const { store, appsApi, answers } = await setup();
-    answers.push(testTask({ action: 'update', state: 'succeeded', output: ['pulled'] }));
-    await store.update(false);
-    expect(appsApi.update).toHaveBeenCalledWith('music', FOLDER);
-    await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
-    expect(store.task()?.output).toContain('pulled');
+  it('while its backup runs or waits in the run: no update; another app’s backup: update allowed', async () => {
+    const { store, backups } = await setup();
+    const run = (itemId: string, state: 'waiting' | 'running' | 'done') => ({
+      runId: '00000000-0000-4000-8000-000000000009',
+      trigger: 'manual' as const,
+      startedAt: '2026-11-22T10:00:00.000Z',
+      items: [{ itemId, state, phase: null, result: null }],
+      output: [],
+    });
+    backups({ items: [ITEM], running: run(ITEM.id, 'running') });
+    expect(store.appBackingUp()).toBe(true);
+    expect(store.backupRunning()).toBe(true);
+    backups({ items: [ITEM], running: run(ITEM.id, 'waiting') });
+    expect(store.appBackingUp()).toBe(true);
+    backups({ items: [ITEM], running: run(ITEM.id, 'done') });
+    expect(store.appBackingUp()).toBe(false);
+    backups({ items: [ITEM], running: run('00000000-0000-4000-8000-000000000002', 'running') });
+    expect(store.appBackingUp()).toBe(false);
+    expect(store.backupRunning()).toBe(true);
+    backups({ items: [ITEM] });
+    expect(store.backupRunning()).toBe(false);
   });
 
   it('adds a templated app with its template’s preset', async () => {

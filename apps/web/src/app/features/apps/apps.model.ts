@@ -1,4 +1,4 @@
-import type { AppTask, BackupMode, Container } from '@ilex/shared';
+import type { AppTask, Container } from '@ilex/shared';
 import type { SparklineSeries } from '../../shared/charts/sparkline/sparkline.model';
 
 /** A field's change in the form. */
@@ -32,14 +32,6 @@ export interface ContainerWithStats {
 export interface AppTrends {
   cpu: { series: SparklineSeries[]; max: number } | null;
   memory: SparklineSeries[] | null;
-}
-
-/** What a new app's backup will be. */
-export interface BackupChoice {
-  include: boolean;
-  mode: BackupMode;
-  /** Subfolders of the app's folder, relative to it. */
-  skip: string[];
 }
 
 export type AppTab = 'overview' | 'settings';
