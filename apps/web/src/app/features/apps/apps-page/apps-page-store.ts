@@ -10,10 +10,9 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { AppStarted, AppSummary, Container } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, mergeMap, pipe, tap } from 'rxjs';
-import { AppsApi } from '../../../core/apps/apps-api';
+import { catchError, EMPTY, exhaustMap, mergeMap, pipe, tap } from 'rxjs';
 import { AppsStore } from '../../../core/apps/apps-store';
-import { followAppTask } from '../../../core/apps/follow-app-task';
+import { AppActionsService } from '../../../core/apps/services/app-actions-service';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MonitoringStore } from '../../../core/monitoring/monitoring-store';
@@ -109,15 +108,14 @@ export const AppsPageStore = signalStore(
   withMethods(
     (
       store,
-      appsApi = inject(AppsApi),
+      appActionsService = inject(AppActionsService),
       containerActionsStore = inject(ContainerActionsStore),
-      linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
       const loadWithoutContainers = rxMethod<void>(
         pipe(
           exhaustMap(() =>
-            appsApi.list().pipe(
+            appActionsService.list().pipe(
               tap(({ apps }) =>
                 patchState(store, { withoutContainers: apps.filter((a) => a.state === 'none') }),
               ),
@@ -134,7 +132,7 @@ export const AppsPageStore = signalStore(
       const followStart = rxMethod<AppStarted>(
         pipe(
           mergeMap(({ name, folder }) =>
-            followAppTask(appsApi, name, folder).pipe(
+            appActionsService.followTask(name, folder).pipe(
               tap({
                 next: (task) => {
                   if (task.state === 'succeeded')
@@ -157,9 +155,7 @@ export const AppsPageStore = signalStore(
       const startWithoutContainers = async (name: string, folder: string): Promise<void> => {
         patchState(store, { requesting: [...store.requesting(), name] });
         try {
-          const started = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(appsApi.start(name, folder)),
-          );
+          const started = await appActionsService.start(name, folder);
           // Not started (the sign-in dismissed): the list as it is now.
           if (!started) {
             loadWithoutContainers();

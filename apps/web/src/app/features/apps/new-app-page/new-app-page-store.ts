@@ -20,9 +20,8 @@ import {
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
-import { AppsApi } from '../../../core/apps/apps-api';
 import { AppsStore } from '../../../core/apps/apps-store';
-import { followAppTask } from '../../../core/apps/follow-app-task';
+import { AppActionsService } from '../../../core/apps/services/app-actions-service';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
@@ -112,12 +111,7 @@ export const NewAppPageStore = signalStore(
     }),
   ),
   withMethods(
-    (
-      store,
-      appsApi = inject(AppsApi),
-      linuxSessionStore = inject(LinuxSessionStore),
-      translator = inject(Translator),
-    ) => {
+    (store, appActionsService = inject(AppActionsService), translator = inject(Translator)) => {
       const failed = (key: string, error: unknown) =>
         toast.error(translator.t(key), { description: translator.t(...apiErrorText(error)) });
 
@@ -125,7 +119,7 @@ export const NewAppPageStore = signalStore(
       const followInstall = rxMethod<AppStarted>(
         pipe(
           switchMap(({ name, folder }) =>
-            followAppTask(appsApi, name, folder).pipe(
+            appActionsService.followTask(name, folder).pipe(
               tap({
                 next: (task) => {
                   patchState(store, { task });
@@ -148,7 +142,7 @@ export const NewAppPageStore = signalStore(
       const loadFields = rxMethod<string>(
         pipe(
           switchMap((template) =>
-            appsApi.fields({ template }).pipe(
+            appActionsService.fields(template).pipe(
               tap(({ fields }) => {
                 // Answered after Back or another choice: not this setup's.
                 if (store.template()?.id !== template) return;
@@ -172,7 +166,7 @@ export const NewAppPageStore = signalStore(
         pipe(
           debounceTime(NAME_CHECK_MS),
           switchMap((name) =>
-            appsApi.checkName(name).pipe(
+            appActionsService.checkName(name).pipe(
               tap((nameCheck) => patchState(store, { nameCheck })),
               catchError(() => EMPTY),
             ),
@@ -188,7 +182,7 @@ export const NewAppPageStore = signalStore(
       const suggestName = (wanted: string) => {
         const asked = ++suggestion;
         const stale = () => asked !== suggestion || store.nameTyped() || store.step() !== 'setup';
-        return firstValueFrom(appsApi.checkName(wanted)).then(
+        return firstValueFrom(appActionsService.checkName(wanted)).then(
           (check) => {
             if (!stale())
               patchState(store, { name: check.suggestion, nameCheck: { ...check, free: true } });
@@ -216,7 +210,7 @@ export const NewAppPageStore = signalStore(
       return {
         async chooseTemplate(id: string): Promise<void> {
           try {
-            const { template, compose } = await firstValueFrom(appsApi.template(id));
+            const { template, compose } = await firstValueFrom(appActionsService.template(id));
             patchState(store, {
               ...initialState,
               search: store.search(),
@@ -280,9 +274,7 @@ export const NewAppPageStore = signalStore(
             env: store.env(),
           };
           try {
-            const started = await linuxSessionStore.asPerson(() =>
-              firstValueFrom(appsApi.install(request)),
-            );
+            const started = await appActionsService.install(request);
             if (!started) return;
             patchState(store, { step: 'installing', task: started.task });
             followInstall(started);
