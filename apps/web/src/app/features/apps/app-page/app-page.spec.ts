@@ -5,7 +5,7 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { of, throwError } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import { testContainer, testDetails } from '../../../core/apps/testing';
+import { testApp, testContainer, testDetails, testStarted } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -17,14 +17,18 @@ import { AppPage } from './app-page';
 @Component({ template: '' })
 class Elsewhere {}
 
-async function setup({ signedIn = true } = {}) {
+async function setup({ signedIn = true, withContainers = true } = {}) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   const appsApi = {
     templates: vi.fn(() => of([])),
     details: vi.fn(() =>
       signedIn
-        ? of(testDetails('music'))
+        ? of(
+            withContainers
+              ? testDetails('music')
+              : testDetails('music', { app: testApp('music', { state: 'none', containers: [] }) }),
+          )
         : throwError(
             () =>
               new HttpErrorResponse({
@@ -34,7 +38,13 @@ async function setup({ signedIn = true } = {}) {
           ),
     ),
     task: vi.fn(() => of({ task: null })),
-    removal: vi.fn(() => of({ items: [] })),
+    removal: vi.fn(() =>
+      of({
+        items: [{ kind: 'settings', path: '/home/anna/apps/music', bytes: null, outside: false }],
+      }),
+    ),
+    remove: vi.fn(() => of(testStarted('music', { action: 'down' }))),
+    update: vi.fn(() => of(testStarted('music', { action: 'update' }))),
   };
   TestBed.configureTestingModule({
     providers: [
@@ -68,7 +78,10 @@ async function setup({ signedIn = true } = {}) {
     event: 'containers:snapshot',
     data: {
       dockerAvailable: true,
-      containers: [testContainer('music-web-1', 'music'), testContainer('other-1', 'other')],
+      containers: [
+        ...(withContainers ? [testContainer('music-web-1', 'music')] : []),
+        testContainer('other-1', 'other'),
+      ],
       history: {},
     },
   });
@@ -141,16 +154,59 @@ describe('AppPage', () => {
     expect(panel(el)!.querySelector('#compose-file')).toBeNull();
   });
 
-  it('removes from the header’s menu: the dialog opens with its list, Cancel closes it', async () => {
+  it('removes from the header’s menu: a plain confirmation, then only down — no list to tick', async () => {
     const { el, appsApi } = await setup();
+    expect(el.querySelector('[data-files-left]')).toBeNull();
     el.querySelector<HTMLButtonElement>('button[aria-label="More for music"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('[role="menuitem"]')).not.toBeNull());
     document.querySelector<HTMLButtonElement>('[role="menuitem"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull());
+    const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]')!;
+    expect(dialog.textContent).toContain('Its files and data stay');
+    expect(dialog.querySelector('input')).toBeNull();
+    expect(appsApi.removal).not.toHaveBeenCalled();
+    [...dialog.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent!.trim() === 'Remove')!
+      .click();
+    await vi.waitFor(() =>
+      expect(appsApi.remove).toHaveBeenCalledWith('music', '/home/anna/apps/music'),
+    );
+    await vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).toBeNull());
+  });
+
+  it('without containers: its files still here, Delete files… opens the list to tick', async () => {
+    const { el, appsApi, settle } = await setup({ withContainers: false });
+    const section = el.querySelector<HTMLElement>('[data-files-left]')!;
+    expect(section.textContent).toContain('Its files are still here');
+    [...section.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent!.includes('Delete files'))!
+      .click();
+    await settle();
+    await vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull());
     expect(appsApi.removal).toHaveBeenCalledWith('music', '/home/anna/apps/music');
+    await vi.waitFor(() =>
+      expect(document.querySelector('[role="alertdialog"] input[type="checkbox"]')).not.toBeNull(),
+    );
     [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')]
       .find((b) => b.textContent!.includes('Cancel'))!
       .click();
     await vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).toBeNull());
+  });
+
+  it('Update asks first, saying the backup state; Update in the dialog starts it', async () => {
+    const { el, appsApi } = await setup();
+    [...el.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent!.trim() === 'Update')!
+      .click();
+    await vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull());
+    const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]')!;
+    expect(dialog.textContent).toContain('Not in the backups');
+    expect(appsApi.update).not.toHaveBeenCalled();
+    [...dialog.querySelectorAll<HTMLButtonElement>('button')]
+      .find((b) => b.textContent!.trim() === 'Update')!
+      .click();
+    await vi.waitFor(() =>
+      expect(appsApi.update).toHaveBeenCalledWith('music', '/home/anna/apps/music'),
+    );
   });
 });

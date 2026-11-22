@@ -268,6 +268,7 @@
     "compose_invalid": "Docker hat die Compose-Datei abgelehnt.",
     "changed_on_disk": "Die Dateien wurden inzwischen auf der Festplatte geändert.",
     "app_task_running": "Eine Aufgabe dieser App läuft.",
+    "app_has_containers": "Die App hat noch Container. Entferne sie zuerst.",
     "app_task_not_started": "Die Aufgabe ist nicht gestartet.",
     "path_protected": "Dieser Ordner wird nie gelöscht.",
     "app_folder_unsafe": "Ein anderes Linux-Konto könnte den Ordner dieser App, einen Ordner darüber oder ihre Compose-Dateien ändern, deshalb führt Ilexarium sie nicht aus. Mach sie zu deinen (oder root gehörenden) ohne Schreibrecht für andere Konten – chmod go-w – und versuch es noch einmal.",
@@ -1637,23 +1638,23 @@
     },
     "backup": {
       "title": "Sicherung",
-      "include": "Diese App mit den anderen sichern",
-      "mode": "Während der Sicherung",
       "stop": "Stoppen (am sichersten)",
       "live": "Weiterlaufen lassen",
-      "skip": "Ausgelassen",
-      "removeSkip": "{{path}} nicht auslassen",
       "newSkip": "Ein Unterordner zum Auslassen",
       "newSkipPlaceholder": "data/cache oder *.tmp",
       "addSkip": "Auslassen",
       "added": "{{name}} wird ab jetzt gesichert.",
       "failed": "{{name}} konnte nicht zu den Sicherungen hinzugefügt werden",
-      "last": "Gesichert {{time}}",
+      "last": "Vor {{time}} gesichert",
       "never": "Noch nicht gesichert",
       "manage": "Sicherungen",
       "notIncluded": "Nicht in den Sicherungen.",
       "add": "Sichern",
-      "notBackedUp": "Nicht gesichert"
+      "notBackedUp": "Nicht gesichert",
+      "backUpNow": "Jetzt sichern",
+      "started": "Die Sicherung von {{name}} hat begonnen.",
+      "runFailed": "{{name}} konnte nicht gesichert werden",
+      "running": "Wird gesichert…"
     },
     "new": {
       "templatesText": "Ein Ausgangspunkt: Nach dem Einrichten gehört der Ordner der App dir.",
@@ -1677,7 +1678,6 @@
       "installFailed": "Installation nicht möglich",
       "templateFailed": "Die Vorlage konnte nicht geladen werden",
       "fieldsFailed": "Die Compose-Datei konnte nicht gelesen werden",
-      "backupFailed": "Installiert, aber nicht zu den Sicherungen hinzugefügt",
       "choose": "App auswählen",
       "search": "Apps suchen",
       "own": "Eigene Compose-Datei",
@@ -1715,14 +1715,18 @@
     "update": {
       "title": "Aktualisieren",
       "text": "Holt die neuesten Images der eingestellten Versionen und startet die App neu. Um eine Version zu ändern, stelle sie unter Einstellungen ein und speichere.",
-      "backupFirst": "Diese App zuerst sichern",
       "action": "Aktualisieren",
       "wayBack": "Wenn ein Update schiefgeht, stelle die Sicherung dieser App von davor wieder her: Daten, Einstellungen und Versionen sind sofort wieder da.",
       "restoreLink": "Sicherung wiederherstellen",
-      "backingUp": "{{name}} wird zuerst gesichert…",
-      "notBackedUp": "{{name}} wurde nicht aktualisiert: Die Sicherung ist nicht gelungen.",
-      "backupFailed": "{{name}} konnte nicht gesichert werden",
-      "failed": "{{name}} konnte nicht aktualisiert werden"
+      "failed": "{{name}} konnte nicht aktualisiert werden",
+      "confirmTitle": "Aktualisieren",
+      "lastBackup": "Zuletzt vor {{time}} gesichert.",
+      "neverBackedUp": "Noch nicht gesichert.",
+      "notInBackups": "Nicht in den Sicherungen: Geht das Update schief, gibt es keine Sicherung, zu der du zurückkannst.",
+      "backingUp": "Ihre Sicherung läuft. Aktualisiere, wenn sie fertig ist: Die Sicherung kann die App stoppen.",
+      "backUpNow": "Jetzt sichern",
+      "confirm": "Aktualisieren",
+      "cancel": "Abbrechen"
     },
     "settings": {
       "title": "Einstellungen",
@@ -1739,8 +1743,18 @@
     "remove": {
       "action": "Entfernen…",
       "title": "Entfernen",
-      "text": "Ihre Container werden entfernt. Unten wird nichts gelöscht, was du nicht ankreuzt.",
-      "delete": "Auch löschen",
+      "text": "Ihre Container werden gestoppt und entfernt. Dateien und Daten bleiben: Du kannst sie wieder starten oder sie danach löschen.",
+      "backupsStay": "Ihre Sicherungen bleiben.",
+      "cancel": "Abbrechen",
+      "confirm": "Entfernen",
+      "failed": "{{name}} konnte nicht entfernt werden"
+    },
+    "delete": {
+      "title": "Ihre Dateien sind noch da",
+      "text": "Keine Container führen sie aus. Starte sie wieder oder lösche ihre Einstellungen und Daten.",
+      "action": "Dateien löschen…",
+      "dialogTitle": "Dateien löschen von",
+      "dialogText": "Kreuze an, was gelöscht werden soll; der Rest bleibt.",
       "kind": {
         "settings": "Ihre Einstellungen (compose.yml, .env)",
         "folder": "Datenordner",
@@ -1750,12 +1764,11 @@
       "outsideWarning": "Ein angekreuzter Ordner liegt außerhalb des App-Ordners: Stelle sicher, dass ihn nichts anderes nutzt.",
       "backupsStay": "Ihre Sicherungen bleiben.",
       "cancel": "Abbrechen",
-      "confirm": "Entfernen",
-      "confirmDelete_one": "Entfernen und {{count}} Eintrag löschen",
-      "confirmDelete_other": "Entfernen und {{count}} Einträge löschen",
-      "done": "{{name}} wurde entfernt.",
-      "failed": "{{name}} konnte nicht entfernt werden",
-      "deleteFailed": "{{name}} wurde entfernt, aber nicht alles Angekreuzte wurde gelöscht"
+      "confirmNothing": "Löschen",
+      "confirm_one": "{{count}} Eintrag löschen",
+      "confirm_other": "{{count}} Einträge löschen",
+      "done": "{{name}}: Das Angekreuzte wurde gelöscht.",
+      "failed": "Die Dateien von {{name}} konnten nicht gelöscht werden"
     },
     "headline": {
       "attention_one": "Eine App braucht deine Aufmerksamkeit",

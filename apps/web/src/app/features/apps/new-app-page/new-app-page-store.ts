@@ -12,21 +12,32 @@ import {
   APP_NAME_PATTERN,
   type AppField,
   type AppNameCheck,
+  type AppStarted,
+  type AppTask,
   parseEnv,
   setEnvValues,
   type Template,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  concat,
+  debounceTime,
+  defer,
+  EMPTY,
+  firstValueFrom,
+  map,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
-import { AppTasksStore } from '../../../core/apps/app-tasks-store';
 import { AppsStore } from '../../../core/apps/apps-store';
-import { BackupsStore } from '../../../core/backups/backups-store';
+import { followAppTask } from '../../../core/apps/follow-app-task';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { apiErrorText } from '../../../shared/forms/submission-errors';
 import { NAME_CHECK_MS, TEMPLATE_SEARCH_FROM } from '../apps.constants';
-import type { BackupChoice } from '../apps.model';
 
 interface NewAppState {
   step: 'choose' | 'setup' | 'installing';
@@ -41,11 +52,12 @@ interface NewAppState {
   nameCheck: AppNameCheck | null;
   /** Null: `~/apps/<name>`. */
   folder: string | null;
-  backup: BackupChoice;
   /** What Compose said when it refused the files. */
   problem: string | null;
-  /** This page's install as AppTasksStore follows it: the app's name and the entry's id. */
-  install: { name: string; id: number } | null;
+  /** The install's task, as last read. */
+  task: AppTask | null;
+  /** Installed: its page is next. */
+  installed: { name: string; folder: string } | null;
   /** The template search, as typed. */
   search: string;
 }
@@ -60,9 +72,9 @@ const initialState: NewAppState = {
   nameTyped: false,
   nameCheck: null,
   folder: null,
-  backup: { include: true, mode: 'stop', skip: [] },
   problem: null,
-  install: null,
+  task: null,
+  installed: null,
   search: '',
 };
 
@@ -71,72 +83,78 @@ const composeName = (text: string): string | undefined =>
   /^name:\s*['"]?([a-z0-9][a-z0-9_-]*)/m.exec(text)?.[1];
 
 /**
- * Adding an app: a template or a pasted Compose file, then the name (checked while typing), the
- * template's form (a pasted file: its two files as they are), the backup — then the install as the
- * person, its output live. Docker checks the file (`docker compose config`), nothing else.
+ * Adding an app: a template or a pasted Compose file, then the name (checked while typing) and
+ * the template's form (a pasted file: its two files as they are) — then the install as the person,
+ * its output live while the page is open. Docker checks the file (`docker compose config`),
+ * nothing else. Adding it to the backups is a step of its own, on the app's page.
  */
 export const NewAppPageStore = signalStore(
   withState<NewAppState>(initialState),
   withComputed(
     (
       store,
-      appTasksStore = inject(AppTasksStore),
       appsStore = inject(AppsStore),
-      backupsStore = inject(BackupsStore),
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
-    ) => {
-      /** The install's entry — not a later task of the same app. */
-      const entry = computed(() => {
-        const install = store.install();
-        const found = install ? appTasksStore.tasks()[install.name] : undefined;
-        return found && found.id === install?.id ? found : null;
-      });
-      return {
-        task: computed(() => entry()?.task ?? null),
-        /** Installed and added to the backups: on to its page. */
-        installed: computed(() => {
-          const found = entry();
-          return found?.after === 'done'
-            ? { name: store.install()!.name, folder: found.folder }
-            : null;
-        }),
-        templates: appsStore.templates,
-        searchable: computed(() => (appsStore.templates()?.length ?? 0) >= TEMPLATE_SEARCH_FROM),
-        /** Those whose name or description has every word typed. */
-        shownTemplates: computed(() => {
-          const templates = appsStore.templates();
-          const words = store.search().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-          if (!templates || words.length === 0) return templates;
-          return templates.filter((template) => {
-            const text =
-              `${template.name} ${translator.t(`catalog.${template.id}.description`)}`.toLocaleLowerCase();
-            return words.every((word) => text.includes(word));
-          });
-        }),
-        values: computed(() => parseEnv(store.env())),
-        backupsConfigured: backupsStore.configured,
-        nameValid: computed(() => APP_NAME_PATTERN.test(store.name())),
-        /** Whose the app will be: the Linux account signed in, if one is. */
-        account: computed(() => linuxSessionStore.session()?.username ?? null),
-        canInstall: computed(
-          () =>
-            APP_NAME_PATTERN.test(store.name()) &&
-            store.nameCheck()?.free !== false &&
-            store.compose().trim() !== '',
-        ),
-      };
-    },
+    ) => ({
+      templates: appsStore.templates,
+      searchable: computed(() => (appsStore.templates()?.length ?? 0) >= TEMPLATE_SEARCH_FROM),
+      /** Those whose name or description has every word typed. */
+      shownTemplates: computed(() => {
+        const templates = appsStore.templates();
+        const words = store.search().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+        if (!templates || words.length === 0) return templates;
+        return templates.filter((template) => {
+          const text =
+            `${template.name} ${translator.t(`catalog.${template.id}.description`)}`.toLocaleLowerCase();
+          return words.every((word) => text.includes(word));
+        });
+      }),
+      values: computed(() => parseEnv(store.env())),
+      nameValid: computed(() => APP_NAME_PATTERN.test(store.name())),
+      /** Whose the app will be: the Linux account signed in, if one is. */
+      account: computed(() => linuxSessionStore.session()?.username ?? null),
+      canInstall: computed(
+        () =>
+          APP_NAME_PATTERN.test(store.name()) &&
+          store.nameCheck()?.free !== false &&
+          store.compose().trim() !== '',
+      ),
+    }),
   ),
   withMethods(
     (
       store,
       appsApi = inject(AppsApi),
-      appTasksStore = inject(AppTasksStore),
+      linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => {
       const failed = (key: string, error: unknown) =>
         toast.error(translator.t(key), { description: translator.t(...apiErrorText(error)) });
+
+      /** The install's output while the page is open; succeeded: on to the app's page. */
+      const followInstall = rxMethod<AppStarted>(
+        pipe(
+          switchMap(({ name, folder }) =>
+            concat(
+              followAppTask(appsApi, name, folder).pipe(
+                tap((task) => {
+                  patchState(store, { task });
+                  if (task.state !== 'succeeded') return;
+                  toast.success(translator.t('apps.new.installed', { name }));
+                  patchState(store, { installed: { name, folder } });
+                }),
+              ),
+              // Given up while it ran: its page reads the task with the files.
+              defer(() => {
+                if (store.task()?.state === 'running')
+                  patchState(store, { installed: { name, folder } });
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      );
 
       /** The template's form; every field's value written to `.env` (defaults, new secrets). */
       const loadFields = rxMethod<string>(
@@ -217,11 +235,6 @@ export const NewAppPageStore = signalStore(
               step: 'setup',
               template,
               compose,
-              backup: {
-                include: true,
-                mode: template.backup?.mode ?? 'stop',
-                skip: template.backup?.skip ?? [],
-              },
             });
             loadFields(id);
             await suggestName(id);
@@ -268,29 +281,23 @@ export const NewAppPageStore = signalStore(
           patchState(store, { env, problem: null });
         },
 
-        setBackup(change: Partial<BackupChoice>): void {
-          patchState(store, { backup: { ...store.backup(), ...change } });
-        },
-
-        /** Installs as the person, then adds it to the backups — all of it AppTasksStore's. */
+        /** Installs as the person; a refused install shows what Compose said. */
         async install(): Promise<void> {
           patchState(store, { problem: null });
-          const { include, ...preset } = store.backup();
+          const request = {
+            name: store.name(),
+            folder: store.folder(),
+            template: store.template()?.id ?? null,
+            compose: store.compose(),
+            env: store.env(),
+          };
           try {
-            const result = await appTasksStore.install(
-              {
-                name: store.name(),
-                folder: store.folder(),
-                template: store.template()?.id ?? null,
-                compose: store.compose(),
-                env: store.env(),
-              },
-              include ? preset : null,
+            const started = await linuxSessionStore.asPerson(() =>
+              firstValueFrom(appsApi.install(request)),
             );
-            if (!result) return;
-            const id = appTasksStore.tasks()[result.name]?.id;
-            if (id !== undefined)
-              patchState(store, { step: 'installing', install: { name: result.name, id } });
+            if (!started) return;
+            patchState(store, { step: 'installing', task: started.task });
+            followInstall(started);
           } catch (error) {
             const detail = (error as { error?: { detail?: unknown } }).error?.detail;
             if (typeof detail === 'string') patchState(store, { problem: detail });

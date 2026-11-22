@@ -268,6 +268,7 @@
     "compose_invalid": "Docker refused the Compose file.",
     "changed_on_disk": "The files changed on disk meanwhile.",
     "app_task_running": "A task of this app is running.",
+    "app_has_containers": "The app still has containers. Remove it first.",
     "app_task_not_started": "The task didn't start.",
     "path_protected": "That folder is never deleted.",
     "app_folder_unsafe": "Another Linux account could change this app’s folder, a folder above it or its Compose files, so Ilexarium doesn’t run them. Make them yours (or root’s) with no write access for other accounts — chmod go-w — and try again.",
@@ -1637,23 +1638,23 @@
     },
     "backup": {
       "title": "Backup",
-      "include": "Back this app up with the others",
-      "mode": "While it's backed up",
       "stop": "Stop it (safest)",
       "live": "Keep it running",
-      "skip": "Skipped",
-      "removeSkip": "Don't skip {{path}}",
       "newSkip": "A subfolder to skip",
       "newSkipPlaceholder": "data/cache or *.tmp",
       "addSkip": "Skip",
       "added": "{{name}} is backed up from now on.",
       "failed": "Couldn't add {{name}} to the backups",
-      "last": "Backed up {{time}}",
+      "last": "Backed up {{time}} ago",
       "never": "Not backed up yet",
       "manage": "Backups",
       "notIncluded": "Not in the backups.",
       "add": "Back it up",
-      "notBackedUp": "Not backed up"
+      "notBackedUp": "Not backed up",
+      "backUpNow": "Back up now",
+      "started": "{{name}}'s backup has started.",
+      "runFailed": "Couldn't back {{name}} up",
+      "running": "Backing up…"
     },
     "new": {
       "templatesText": "A starting point: after setup, the app's folder is yours to change.",
@@ -1677,7 +1678,6 @@
       "installFailed": "Couldn't install",
       "templateFailed": "Couldn't load the template",
       "fieldsFailed": "Couldn't read the Compose file",
-      "backupFailed": "Installed, but not added to the backups",
       "choose": "Choose an app",
       "search": "Search apps",
       "own": "Your own Compose file",
@@ -1715,14 +1715,18 @@
     "update": {
       "title": "Update",
       "text": "Gets the newest images of the versions set, and starts the app again. To change a version, set it under Settings and save.",
-      "backupFirst": "Back this app up first",
       "action": "Update",
       "wayBack": "If an update goes wrong, restore this app's backup from before it: its data, settings and versions come back at once.",
       "restoreLink": "Restore a backup",
-      "backingUp": "Backing {{name}} up first…",
-      "notBackedUp": "{{name}} wasn't updated: its backup didn't succeed.",
-      "backupFailed": "Couldn't back {{name}} up",
-      "failed": "Couldn't update {{name}}"
+      "failed": "Couldn't update {{name}}",
+      "confirmTitle": "Update",
+      "lastBackup": "Last backed up {{time}} ago.",
+      "neverBackedUp": "Not backed up yet.",
+      "notInBackups": "Not in the backups: there's no backup to go back to if the update goes wrong.",
+      "backingUp": "Its backup is running. Update once it's done: the backup may stop the app.",
+      "backUpNow": "Back up now",
+      "confirm": "Update",
+      "cancel": "Cancel"
     },
     "settings": {
       "title": "Settings",
@@ -1739,8 +1743,18 @@
     "remove": {
       "action": "Remove…",
       "title": "Remove",
-      "text": "Its containers are removed. Nothing below is deleted unless you tick it.",
-      "delete": "Also delete",
+      "text": "Its containers are stopped and removed. Its files and data stay: you can start it again, or delete them afterwards.",
+      "backupsStay": "Its backups stay.",
+      "cancel": "Cancel",
+      "confirm": "Remove",
+      "failed": "Couldn't remove {{name}}"
+    },
+    "delete": {
+      "title": "Its files are still here",
+      "text": "No containers run it. Start it again, or delete its settings and data.",
+      "action": "Delete files…",
+      "dialogTitle": "Delete files of",
+      "dialogText": "Tick what to delete; the rest stays.",
       "kind": {
         "settings": "Its settings (compose.yml, .env)",
         "folder": "Data folder",
@@ -1750,12 +1764,11 @@
       "outsideWarning": "A ticked folder is outside the app's folder: make sure nothing else uses it.",
       "backupsStay": "Its backups stay.",
       "cancel": "Cancel",
-      "confirm": "Remove",
-      "confirmDelete_one": "Remove and delete {{count}} item",
-      "confirmDelete_other": "Remove and delete {{count}} items",
-      "done": "{{name}} was removed.",
-      "failed": "Couldn't remove {{name}}",
-      "deleteFailed": "{{name}} was removed, but not everything ticked was deleted"
+      "confirmNothing": "Delete",
+      "confirm_one": "Delete {{count}} item",
+      "confirm_other": "Delete {{count}} items",
+      "done": "{{name}}: what was ticked was deleted.",
+      "failed": "Couldn't delete the files of {{name}}"
     },
     "headline": {
       "attention_one": "One app needs your attention",

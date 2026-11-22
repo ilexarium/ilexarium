@@ -30,9 +30,6 @@ export const TASK_STATE_TONES: Record<AppTaskState, StatusTone> = {
 /** The name typed is checked this long after the last key. */
 export const NAME_CHECK_MS = 300;
 
-/** "Back up this app first" waits this long for its backup at most. */
-export const BACKUP_WAIT_MS = 6 * 60 * 60_000;
-
 /** From this many templates on, a search box. */
 export const TEMPLATE_SEARCH_FROM = 10;
 

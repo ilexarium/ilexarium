@@ -1,0 +1,17 @@
+<hlm-alert-dialog>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    <hlm-alert-dialog-header>
+      <h2 hlmAlertDialogTitle>
+        {{ 'apps.remove.title' | translate }} <span dir="ltr">{{ name() }}</span>
+      </h2>
+      <p hlmAlertDialogDescription>{{ 'apps.remove.text' | translate }}</p>
+      <p hlmAlertDialogDescription>{{ 'apps.remove.backupsStay' | translate }}</p>
+    </hlm-alert-dialog-header>
+    <hlm-alert-dialog-footer>
+      <button hlmAlertDialogCancel>{{ 'apps.remove.cancel' | translate }}</button>
+      <button hlmAlertDialogAction variant="destructive" (click)="confirmed()">
+        {{ 'apps.remove.confirm' | translate }}
+      </button>
+    </hlm-alert-dialog-footer>
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

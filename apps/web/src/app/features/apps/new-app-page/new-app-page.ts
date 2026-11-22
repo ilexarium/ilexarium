@@ -12,7 +12,6 @@ import { HlmSkeleton } from '@ui/skeleton';
 import { AppHeader } from '../app-header/app-header';
 import { AppSettings } from '../app-settings/app-settings';
 import type { FieldChange } from '../apps.model';
-import { BackupOptions } from '../backup-options/backup-options';
 import { TaskOutput } from '../task-output/task-output';
 import { NewAppPageStore } from './new-app-page-store';
 
@@ -22,7 +21,6 @@ import { NewAppPageStore } from './new-app-page-store';
   imports: [
     AppHeader,
     AppSettings,
-    BackupOptions,
     HlmButton,
     HlmInput,
     HlmLabel,
