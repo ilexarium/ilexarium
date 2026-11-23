@@ -10,7 +10,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { AppStarted, AppSummary, Container } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, mergeMap, pipe, tap } from 'rxjs';
+import { catchError, EMPTY, exhaustMap, mergeMap, pipe, tap } from 'rxjs';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { AppActionsService } from '../../../core/apps/services/app-actions-service';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
@@ -105,31 +105,27 @@ export const AppsPageStore = signalStore(
       };
     },
   ),
-  withMethods(
-    (
-      store,
-      appActionsService = inject(AppActionsService),
-      containerActionsStore = inject(ContainerActionsStore),
-      translator = inject(Translator),
-    ) => {
-      const loadWithoutContainers = rxMethod<void>(
-        pipe(
-          exhaustMap(() =>
-            appActionsService.list().pipe(
-              tap(({ apps }) =>
-                patchState(store, { withoutContainers: apps.filter((a) => a.state === 'none') }),
-              ),
-              catchError(() => EMPTY),
+  withMethods((store, appActionsService = inject(AppActionsService)) => ({
+    _loadWithoutContainers: rxMethod<void>(
+      pipe(
+        exhaustMap(() =>
+          appActionsService.list().pipe(
+            tap(({ apps }) =>
+              patchState(store, { withoutContainers: apps.filter((a) => a.state === 'none') }),
             ),
+            catchError(() => EMPTY),
           ),
         ),
-      );
-
+      ),
+    ),
+  })),
+  withMethods(
+    (store, appActionsService = inject(AppActionsService), translator = inject(Translator)) => ({
       /**
        * Card starts while the page is open, side by side: how each ended said in a toast (a card
        * has no task output to show), then the apps without containers read again.
        */
-      const followStart = rxMethod<AppStarted>(
+      _followStart: rxMethod<AppStarted>(
         pipe(
           mergeMap(({ name, folder }) =>
             appActionsService.followTask(name, folder).pipe(
@@ -143,48 +139,63 @@ export const AppsPageStore = signalStore(
                 // Ended or given up (never when the page is left).
                 complete: () => {
                   patchState(store, { following: store.following().filter((n) => n !== name) });
-                  loadWithoutContainers();
+                  store._loadWithoutContainers();
                 },
               }),
             ),
           ),
         ),
-      );
+      ),
+    }),
+  ),
+  withMethods(
+    (
+      store,
+      appActionsService = inject(AppActionsService),
+      containerActionsStore = inject(ContainerActionsStore),
+      translator = inject(Translator),
+    ) => ({
+      /** An app without containers: `up` as the person; other apps: each container started. */
+      start: rxMethod<AppSummary>(
+        pipe(
+          // Apps side by side, every click its own start (a card shows it pending meanwhile).
+          mergeMap(({ name, state, folder, containers }) => {
+            if (state !== 'none' || !folder) {
+              void containerActionsStore.runAll(containers, 'start', name);
+              return EMPTY;
+            }
+            return appActionsService.start(name, folder).pipe(
+              tap({
+                subscribe: () => patchState(store, { requesting: [...store.requesting(), name] }),
+                finalize: () =>
+                  patchState(store, { requesting: store.requesting().filter((n) => n !== name) }),
+              }),
+              tap((started) => {
+                // Not started (the sign-in dismissed): the list as it is now.
+                if (!started) {
+                  store._loadWithoutContainers();
+                  return;
+                }
+                toast.info(translator.t('apps.starting.started', { name }));
+                patchState(store, { following: [...store.following(), name] });
+                store._followStart(started);
+              }),
+              catchError((error: unknown) => {
+                toast.error(translator.t('apps.starting.failed', { name }), {
+                  description: translator.t(...apiErrorText(error)),
+                });
+                store._loadWithoutContainers();
+                return EMPTY;
+              }),
+            );
+          }),
+        ),
+      ),
 
-      /** An app without containers: `up` as the person. */
-      const startWithoutContainers = async (name: string, folder: string): Promise<void> => {
-        patchState(store, { requesting: [...store.requesting(), name] });
-        try {
-          const started = await firstValueFrom(appActionsService.start(name, folder));
-          // Not started (the sign-in dismissed): the list as it is now.
-          if (!started) {
-            loadWithoutContainers();
-            return;
-          }
-          toast.info(translator.t('apps.starting.started', { name }));
-          patchState(store, { following: [...store.following(), name] });
-          followStart(started);
-        } catch (error) {
-          toast.error(translator.t('apps.starting.failed', { name }), {
-            description: translator.t(...apiErrorText(error)),
-          });
-          loadWithoutContainers();
-        } finally {
-          patchState(store, { requesting: store.requesting().filter((n) => n !== name) });
-        }
-      };
-
-      return {
-        loadWithoutContainers,
-        async act(app: AppSummary, action: 'start' | 'stop'): Promise<void> {
-          if (action === 'start' && app.state === 'none' && app.folder) {
-            await startWithoutContainers(app.name, app.folder);
-            return;
-          }
-          await containerActionsStore.runAll(app.containers, action, app.name);
-        },
-      };
-    },
+      stop: rxMethod<AppSummary>(
+        tap(({ name, containers }) => void containerActionsStore.runAll(containers, 'stop', name)),
+      ),
+    }),
   ),
   withHooks(
     (
@@ -197,7 +208,7 @@ export const AppsPageStore = signalStore(
         onInit() {
           stop = monitoringStore.watch(['containers']);
           linuxSessionStore.check();
-          store.loadWithoutContainers();
+          store._loadWithoutContainers();
         },
         onDestroy() {
           stop?.();

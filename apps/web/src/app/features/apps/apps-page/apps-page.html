@@ -37,8 +37,8 @@
                 appsPageStore.starting().includes(app.name) ||
                 app.containers.some((c) => appsPageStore.pending().has(c))
               "
-              (start)="appsPageStore.act(app, 'start')"
-              (stop)="appsPageStore.act(app, 'stop')"
+              (start)="appsPageStore.start(app)"
+              (stop)="appsPageStore.stop(app)"
             />
           </li>
         }

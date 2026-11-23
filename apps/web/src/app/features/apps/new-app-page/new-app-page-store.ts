@@ -19,7 +19,7 @@ import {
   type Template,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, debounceTime, EMPTY, firstValueFrom, map, pipe, switchMap, tap } from 'rxjs';
+import { catchError, debounceTime, EMPTY, exhaustMap, map, of, pipe, switchMap, tap } from 'rxjs';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { AppActionsService } from '../../../core/apps/services/app-actions-service';
 import { Translator } from '../../../core/i18n/translator';
@@ -48,6 +48,8 @@ interface NewAppState {
   installed: { name: string; folder: string } | null;
   /** The template search, as typed. */
   search: string;
+  /** Your own file's `name:` last suggested (each suggested once). */
+  _suggestedFromFile: string | null;
 }
 
 const initialState: NewAppState = {
@@ -64,6 +66,7 @@ const initialState: NewAppState = {
   task: null,
   installed: null,
   search: '',
+  _suggestedFromFile: null,
 };
 
 /** A Compose file's own `name:` (a pasted file may have one). */
@@ -111,12 +114,13 @@ export const NewAppPageStore = signalStore(
     }),
   ),
   withMethods(
-    (store, appActionsService = inject(AppActionsService), translator = inject(Translator)) => {
-      const failed = (key: string, error: unknown) =>
+    (store, appActionsService = inject(AppActionsService), translator = inject(Translator)) => ({
+      _failed(key: string, error: unknown): void {
         toast.error(translator.t(key), { description: translator.t(...apiErrorText(error)) });
+      },
 
       /** The install's output while the page is open; succeeded: on to the app's page. */
-      const followInstall = rxMethod<AppStarted>(
+      _followInstall: rxMethod<AppStarted>(
         pipe(
           switchMap(({ name, folder }) =>
             appActionsService.followTask(name, folder).pipe(
@@ -136,33 +140,9 @@ export const NewAppPageStore = signalStore(
             ),
           ),
         ),
-      );
+      ),
 
-      /** The template's form; every field's value written to `.env` (defaults, new secrets). */
-      const loadFields = rxMethod<string>(
-        pipe(
-          switchMap((template) =>
-            appActionsService.fields(template).pipe(
-              tap(({ fields }) => {
-                // Answered after Back or another choice: not this setup's.
-                if (store.template()?.id !== template) return;
-                const values: Record<string, string> = {};
-                const known = parseEnv(store.env());
-                for (const field of fields) {
-                  if (!known.has(field.key)) values[field.key] = field.value;
-                }
-                patchState(store, { fields, env: setEnvValues(store.env(), values) });
-              }),
-              catchError((error: unknown) => {
-                failed('apps.new.fieldsFailed', error);
-                return EMPTY;
-              }),
-            ),
-          ),
-        ),
-      );
-
-      const checkName = rxMethod<string>(
+      _checkName: rxMethod<string>(
         pipe(
           debounceTime(NAME_CHECK_MS),
           switchMap((name) =>
@@ -172,121 +152,162 @@ export const NewAppPageStore = signalStore(
             ),
           ),
         ),
-      );
+      ),
 
       /**
-       * Starts with the name the file or template suggests, made free. Only the latest suggestion
-       * lands, and none once a name was typed or the setup left.
+       * The name the file or template suggests, made free. Only the latest suggestion lands, and
+       * none once a name was typed or the setup left.
        */
-      let suggestion = 0;
-      const suggestName = (wanted: string) => {
-        const asked = ++suggestion;
-        const stale = () => asked !== suggestion || store.nameTyped() || store.step() !== 'setup';
-        return firstValueFrom(appActionsService.checkName(wanted)).then(
-          (check) => {
-            if (!stale())
-              patchState(store, { name: check.suggestion, nameCheck: { ...check, free: true } });
-          },
-          () => {
-            if (!stale()) patchState(store, { name: wanted });
-          },
-        );
-      };
-
-      /** Your own file's `name:`, once typing stops, each name suggested once. */
-      let fromFile: string | null = null;
-      const suggestFromFile = rxMethod<string>(
+      _suggestName: rxMethod<string>(
         pipe(
-          debounceTime(NAME_CHECK_MS),
-          map(composeName),
-          tap((wanted) => {
-            if (!wanted || wanted === fromFile || store.template() || store.nameTyped()) return;
-            fromFile = wanted;
-            void suggestName(wanted);
-          }),
+          switchMap((wanted) =>
+            appActionsService.checkName(wanted).pipe(
+              map((check) => ({ name: check.suggestion, nameCheck: { ...check, free: true } })),
+              catchError(() => of({ name: wanted })),
+              tap((suggested) => {
+                if (!store.nameTyped() && store.step() === 'setup') patchState(store, suggested);
+              }),
+            ),
+          ),
         ),
-      );
-
-      return {
-        async chooseTemplate(id: string): Promise<void> {
-          try {
-            const { template, compose } = await firstValueFrom(appActionsService.template(id));
-            patchState(store, {
-              ...initialState,
-              search: store.search(),
-              step: 'setup',
-              template,
-              compose,
-            });
-            loadFields(id);
-            await suggestName(id);
-          } catch (error) {
-            failed('apps.new.templateFailed', error);
-          }
-        },
-
-        /** Your own Compose file: pasted in its Files section (its `name:` then suggested). */
-        async useOwnFile(): Promise<void> {
-          patchState(store, { ...initialState, step: 'setup', search: store.search() });
-          fromFile = null;
-          await suggestName('app');
-        },
-
-        back(): void {
-          patchState(store, { ...initialState, search: store.search() });
-        },
-
-        setSearch(search: string): void {
-          patchState(store, { search });
-        },
-
-        setName(name: string): void {
-          suggestion++;
-          patchState(store, { name, nameTyped: true, nameCheck: null });
-          checkName(name);
-        },
-
-        setFolder(folder: string): void {
-          patchState(store, { folder: folder.trim() || null });
-        },
-
-        setValue(key: string, value: string): void {
-          patchState(store, { env: setEnvValues(store.env(), { [key]: value }) });
-        },
-
-        setCompose(compose: string): void {
-          patchState(store, { compose, problem: null });
-          suggestFromFile(compose);
-        },
-
-        setEnv(env: string): void {
-          patchState(store, { env, problem: null });
-        },
-
-        /** Installs as the person; a refused install shows what Compose said. */
-        async install(): Promise<void> {
-          patchState(store, { problem: null });
-          const request = {
-            name: store.name(),
-            folder: store.folder(),
-            template: store.template()?.id ?? null,
-            compose: store.compose(),
-            env: store.env(),
-          };
-          try {
-            const started = await firstValueFrom(appActionsService.install(request));
-            if (!started) return;
-            patchState(store, { step: 'installing', task: started.task });
-            followInstall(started);
-          } catch (error) {
-            const detail = (error as { error?: { detail?: unknown } }).error?.detail;
-            if (typeof detail === 'string') patchState(store, { problem: detail });
-            failed('apps.new.installFailed', error);
-          }
-        },
-      };
-    },
+      ),
+    }),
   ),
+  withMethods((store, appActionsService = inject(AppActionsService)) => ({
+    /** The template's form; every field's value written to `.env` (defaults, new secrets). */
+    _loadFields: rxMethod<string>(
+      pipe(
+        switchMap((template) =>
+          appActionsService.fields(template).pipe(
+            tap(({ fields }) => {
+              // Answered after Back or another choice: not this setup's.
+              if (store.template()?.id !== template) return;
+              const values: Record<string, string> = {};
+              const known = parseEnv(store.env());
+              for (const field of fields) {
+                if (!known.has(field.key)) values[field.key] = field.value;
+              }
+              patchState(store, { fields, env: setEnvValues(store.env(), values) });
+            }),
+            catchError((error: unknown) => {
+              store._failed('apps.new.fieldsFailed', error);
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    ),
+
+    /** Your own file's `name:`, once typing stops, each name suggested once. */
+    _suggestFromFile: rxMethod<string>(
+      pipe(
+        debounceTime(NAME_CHECK_MS),
+        map(composeName),
+        tap((wanted) => {
+          if (
+            !wanted ||
+            wanted === store._suggestedFromFile() ||
+            store.template() ||
+            store.nameTyped()
+          )
+            return;
+          patchState(store, { _suggestedFromFile: wanted });
+          store._suggestName(wanted);
+        }),
+      ),
+    ),
+  })),
+  withMethods((store, appActionsService = inject(AppActionsService)) => ({
+    chooseTemplate: rxMethod<string>(
+      pipe(
+        exhaustMap((id) =>
+          appActionsService.template(id).pipe(
+            tap(({ template, compose }) => {
+              patchState(store, {
+                ...initialState,
+                search: store.search(),
+                step: 'setup',
+                template,
+                compose,
+              });
+              store._loadFields(id);
+              store._suggestName(id);
+            }),
+            catchError((error: unknown) => {
+              store._failed('apps.new.templateFailed', error);
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    ),
+
+    /** Your own Compose file: pasted in its Files section (its `name:` then suggested). */
+    useOwnFile(): void {
+      patchState(store, { ...initialState, step: 'setup', search: store.search() });
+      store._suggestName('app');
+    },
+
+    back(): void {
+      patchState(store, { ...initialState, search: store.search() });
+    },
+
+    setSearch(search: string): void {
+      patchState(store, { search });
+    },
+
+    setName(name: string): void {
+      patchState(store, { name, nameTyped: true, nameCheck: null });
+      store._checkName(name);
+    },
+
+    setFolder(folder: string): void {
+      patchState(store, { folder: folder.trim() || null });
+    },
+
+    setValue(key: string, value: string): void {
+      patchState(store, { env: setEnvValues(store.env(), { [key]: value }) });
+    },
+
+    setCompose(compose: string): void {
+      patchState(store, { compose, problem: null });
+      store._suggestFromFile(compose);
+    },
+
+    setEnv(env: string): void {
+      patchState(store, { env, problem: null });
+    },
+
+    /** Installs as the person; a refused install shows what Compose said. */
+    install: rxMethod<void>(
+      pipe(
+        exhaustMap(() => {
+          patchState(store, { problem: null });
+          return appActionsService
+            .install({
+              name: store.name(),
+              folder: store.folder(),
+              template: store.template()?.id ?? null,
+              compose: store.compose(),
+              env: store.env(),
+            })
+            .pipe(
+              tap((started) => {
+                if (!started) return;
+                patchState(store, { step: 'installing', task: started.task });
+                store._followInstall(started);
+              }),
+              catchError((error: unknown) => {
+                const detail = (error as { error?: { detail?: unknown } }).error?.detail;
+                if (typeof detail === 'string') patchState(store, { problem: detail });
+                store._failed('apps.new.installFailed', error);
+                return EMPTY;
+              }),
+            );
+        }),
+      ),
+    ),
+  })),
   withHooks((_store, linuxSessionStore = inject(LinuxSessionStore)) => ({
     onInit() {
       linuxSessionStore.check();
