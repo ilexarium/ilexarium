@@ -48,8 +48,6 @@ interface LinuxSessionState {
   sudoPromptId: number;
   /** The Linux sign-in is asked (an action waits for a Linux session). */
   signInPrompt: boolean;
-  /** Which sign-in: a late "closed" of an earlier one never answers a newer one. */
-  signInPromptId: number;
   /** For the minutes of sudo left. */
   now: number;
 }
@@ -60,7 +58,6 @@ const initialState: LinuxSessionState = {
   sudoPrompt: false,
   sudoPromptId: 0,
   signInPrompt: false,
-  signInPromptId: 0,
   now: Date.now(),
 };
 
@@ -89,8 +86,7 @@ export const LinuxSessionStore = signalStore(
       hideDialog: () => patchState(store, { sudoPrompt: false }),
     });
     const signInQuestion = new SharedPrompt({
-      showDialog: () =>
-        patchState(store, { signInPrompt: true, signInPromptId: store.signInPromptId() + 1 }),
+      showDialog: () => patchState(store, { signInPrompt: true }),
       hideDialog: () => patchState(store, { signInPrompt: false }),
     });
     const answerPrompt = (unlocked: boolean) => sudoQuestion.answerWith(unlocked);
@@ -294,9 +290,8 @@ export const LinuxSessionStore = signalStore(
         );
       },
 
-      /** The shell's sign-in prompt: signed in (true) or closed; with `id`, only while that one is asked. */
-      signInAnswered(signedIn: boolean, id?: number): void {
-        if (id !== undefined && (id !== store.signInPromptId() || !store.signInPrompt())) return;
+      /** The shell's sign-in prompt: signed in (true) or closed. */
+      signInAnswered(signedIn: boolean): void {
         answerSignIn(signedIn && store.session() !== null);
       },
 

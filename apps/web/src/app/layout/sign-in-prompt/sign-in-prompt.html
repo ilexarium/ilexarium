@@ -4,5 +4,5 @@
   text="linux.asPerson.text"
   submitLabel="linux.asPerson.submit"
   [signIn]="signIn"
-  (closed)="onClosed()"
+  (closed)="linuxSessionStore.signInAnswered(true)"
 />
