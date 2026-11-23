@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { LinuxSession } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, throwError } from 'rxjs';
+import { defer, firstValueFrom, of, throwError } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { FilesApi } from '../files/files-api';
@@ -152,5 +152,148 @@ describe('LinuxSessionStore', () => {
     expect(store.session()).toBeNull();
     expect(store.checked()).toBe(false);
     expect(store.sudoPrompt()).toBe(false);
+  });
+
+  describe('as Observables', () => {
+    /** An action that answers `results` in turn, an HTTP error being a refusal. */
+    const answering = (...results: (string | HttpErrorResponse)[]) =>
+      vi.fn(() =>
+        defer(() => {
+          const next = results.shift();
+          return next instanceof HttpErrorResponse ? throwError(() => next) : of(next);
+        }),
+      );
+
+    it('asks nothing and runs nothing before it is subscribed', async () => {
+      const { store } = await setup(null);
+      const action = answering('done');
+      const result = store.asPerson$(action);
+      expect(store.signInPrompt()).toBe(false);
+      expect(action).not.toHaveBeenCalled();
+      result.subscribe();
+      expect(store.signInPrompt()).toBe(true);
+    });
+
+    it('asPerson$: signed in first without a session, then the action', async () => {
+      const { store, filesApi } = await setup(null);
+      const action = answering('done');
+      const result = firstValueFrom(store.asPerson$(action));
+      expect(store.signInPrompt()).toBe(true);
+      await store.signIn({ username: 'anna', password: 'pw' });
+      store.signInAnswered(true);
+      expect(await result).toBe('done');
+      expect(store.signInPrompt()).toBe(false);
+      // sudo may have been used: the session read again for its minutes.
+      expect(filesApi.session).toHaveBeenCalledTimes(2);
+    });
+
+    it('asPerson$: the sign-in closed — null, once, and nothing sent', async () => {
+      const { store } = await setup(null);
+      const action = answering('done');
+      const result = firstValueFrom(store.asPerson$(action));
+      store.signInAnswered(false);
+      expect(await result).toBeNull();
+      expect(action).not.toHaveBeenCalled();
+    });
+
+    it('asPerson$: sudo needed and locked — the password asked, then the action once more', async () => {
+      const { store } = await setup(unlockedFor(5 * 60_000));
+      const action = answering(httpError(403, 'sudo_required'), 'done');
+      const result = firstValueFrom(store.asPerson$(action));
+      await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
+      expect(store.sudoMinutes()).toBeNull();
+      await store.unlockSudo('pw');
+      expect(await result).toBe('done');
+      expect(action).toHaveBeenCalledTimes(2);
+    });
+
+    it('asPerson$: the Linux session ended meanwhile — signed in again, then once more', async () => {
+      const { store } = await setup();
+      const action = answering(httpError(403, 'linux_session_required'), 'done');
+      const result = firstValueFrom(store.asPerson$(action));
+      expect(store.session()).toBeNull();
+      expect(store.signInPrompt()).toBe(true);
+      await store.signIn({ username: 'anna', password: 'pw' });
+      store.signInAnswered(true);
+      expect(await result).toBe('done');
+    });
+
+    it('asPerson$: passes on other refusals, and gives up after three tries', async () => {
+      const { store } = await setup(unlockedFor(5 * 60_000));
+      const failure = httpError(409, 'app_task_running');
+      await expect(firstValueFrom(store.asPerson$(answering(failure)))).rejects.toBe(failure);
+      const sudo = () => httpError(403, 'sudo_required');
+      const action = answering(sudo(), sudo(), sudo());
+      const result = firstValueFrom(store.asPerson$(action));
+      await store.unlockSudo('pw');
+      await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
+      await store.unlockSudo('pw');
+      await expect(result).rejects.toBeInstanceOf(HttpErrorResponse);
+      expect(action).toHaveBeenCalledTimes(3);
+    });
+
+    it('unsubscribed while a prompt is asked (the page left): the prompt closes', async () => {
+      const { store } = await setup(null);
+      const subscription = store.asPerson$(answering('done')).subscribe();
+      expect(store.signInPrompt()).toBe(true);
+      subscription.unsubscribe();
+      expect(store.signInPrompt()).toBe(false);
+    });
+
+    it('a late “closed” of a sign-in closed from code never answers the one asked now', async () => {
+      const { store } = await setup(null);
+      const left = store.asPerson$(answering('a')).subscribe();
+      const first = store.signInPromptId();
+      left.unsubscribe();
+      const action = answering('b');
+      const result = firstValueFrom(store.asPerson$(action));
+      expect(store.signInPromptId()).toBe(first + 1);
+      // The first dialog's close animation ends now.
+      store.signInAnswered(true, first);
+      expect(store.signInPrompt()).toBe(true);
+      await store.signIn({ username: 'anna', password: 'pw' });
+      store.signInAnswered(true, first + 1);
+      expect(await result).toBe('b');
+    });
+
+    it('a prompt shared with another waiting action stays open when one leaves', async () => {
+      const { store } = await setup();
+      const left = store.withSudo$(answering('a')).subscribe();
+      const staying = firstValueFrom(store.withSudo$(answering('b')));
+      left.unsubscribe();
+      expect(store.sudoPrompt()).toBe(true);
+      await store.unlockSudo('pw');
+      expect(await staying).toBe('b');
+    });
+
+    it('withSudo$: asked while locked, then run; at once while unlocked', async () => {
+      const { store } = await setup();
+      const result = firstValueFrom(store.withSudo$(answering('done')));
+      expect(store.sudoPrompt()).toBe(true);
+      await store.unlockSudo('pw');
+      expect(await result).toBe('done');
+      expect(store.sudoMinutes()).toBe(15);
+      expect(await firstValueFrom(store.withSudo$(answering('again')))).toBe('again');
+      expect(store.sudoPrompt()).toBe(false);
+    });
+
+    it('withSudo$: cancelled — null, nothing run', async () => {
+      const { store } = await setup();
+      const action = answering('done');
+      const result = firstValueFrom(store.withSudo$(action));
+      store.cancelSudo();
+      expect(await result).toBeNull();
+      expect(action).not.toHaveBeenCalled();
+    });
+
+    it('withSudo$: sudo ran out meanwhile — asked again, the action once more', async () => {
+      const { store } = await setup(unlockedFor(5 * 60_000));
+      const action = answering(httpError(403, 'sudo_required'), 'done');
+      const result = firstValueFrom(store.withSudo$(action));
+      await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
+      await store.unlockSudo('pw');
+      expect(await result).toBe('done');
+      expect(action).toHaveBeenCalledTimes(2);
+    });
   });
 });

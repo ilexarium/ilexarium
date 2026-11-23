@@ -16,12 +16,24 @@ import {
   type LinuxSignInRequest,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
+import {
+  catchError,
+  EMPTY,
+  exhaustMap,
+  firstValueFrom,
+  type Observable,
+  of,
+  pipe,
+  switchMap,
+  tap,
+  throwError,
+} from 'rxjs';
 import { apiErrorCode, apiErrorText } from '../../shared/forms/submission-errors';
 import { AuthStore } from '../auth/auth-store';
 import { FilesApi } from '../files/files-api';
 import { Translator } from '../i18n/translator';
 import { SUDO_CLOCK_MS } from './linux-session-store.constants';
+import { SharedPrompt } from './shared-prompt';
 
 interface LinuxSessionState {
   /** Asked the server whether a Linux session is open. */
@@ -33,6 +45,8 @@ interface LinuxSessionState {
   sudoPromptId: number;
   /** The Linux sign-in is asked (an action waits for a Linux session). */
   signInPrompt: boolean;
+  /** Which sign-in: a late "closed" of an earlier one never answers a newer one. */
+  signInPromptId: number;
   /** For the minutes of sudo left. */
   now: number;
 }
@@ -43,6 +57,7 @@ const initialState: LinuxSessionState = {
   sudoPrompt: false,
   sudoPromptId: 0,
   signInPrompt: false,
+  signInPromptId: 0,
   now: Date.now(),
 };
 
@@ -65,31 +80,18 @@ export const LinuxSessionStore = signalStore(
     }),
   })),
   withMethods((store, filesApi = inject(FilesApi), translator = inject(Translator)) => {
-    /** The prompt's answer: unlocked, or not (cancelled). */
-    let prompted: { promise: Promise<boolean>; resolve: (unlocked: boolean) => void } | null = null;
-    const answerPrompt = (unlocked: boolean) => {
-      prompted?.resolve(unlocked);
-      prompted = null;
-      patchState(store, { sudoPrompt: false });
-    };
-    /** The sign-in's answer: signed in, or not (closed). */
-    let signingIn: { promise: Promise<boolean>; resolve: (signedIn: boolean) => void } | null =
-      null;
-    const answerSignIn = (signedIn: boolean) => {
-      signingIn?.resolve(signedIn);
-      signingIn = null;
-      patchState(store, { signInPrompt: false });
-    };
+    const sudoQuestion = new SharedPrompt(
+      () => patchState(store, { sudoPrompt: true, sudoPromptId: store.sudoPromptId() + 1 }),
+      () => patchState(store, { sudoPrompt: false }),
+    );
+    const signInQuestion = new SharedPrompt(
+      () => patchState(store, { signInPrompt: true, signInPromptId: store.signInPromptId() + 1 }),
+      () => patchState(store, { signInPrompt: false }),
+    );
+    const answerPrompt = (unlocked: boolean) => sudoQuestion.respond(unlocked);
+    const answerSignIn = (signedIn: boolean) => signInQuestion.respond(signedIn);
     /** Asks for the Linux sign-in; true once signed in, false when closed. */
-    const requestSignIn = (): Promise<boolean> => {
-      if (!signingIn) {
-        let resolve!: (signedIn: boolean) => void;
-        const promise = new Promise<boolean>((done) => (resolve = done));
-        signingIn = { promise, resolve };
-        patchState(store, { signInPrompt: true });
-      }
-      return signingIn.promise;
-    };
+    const requestSignIn = (): Promise<boolean> => firstValueFrom(signInQuestion.ask());
     /** An action found the Linux session gone (idle, closed elsewhere). */
     const ended = () => {
       patchState(store, { session: null });
@@ -108,15 +110,16 @@ export const LinuxSessionStore = signalStore(
       patchState(store, { session: { ...session, sudoUntil }, now: Date.now() });
     };
     /** Asks for the sudo password; true once unlocked, false when cancelled. */
-    const requestSudo = (): Promise<boolean> => {
-      if (!prompted) {
-        let resolve!: (unlocked: boolean) => void;
-        const promise = new Promise<boolean>((done) => (resolve = done));
-        prompted = { promise, resolve };
-        patchState(store, { sudoPrompt: true, sudoPromptId: store.sudoPromptId() + 1 });
-      }
-      return prompted.promise;
-    };
+    const requestSudo = (): Promise<boolean> => firstValueFrom(sudoQuestion.ask());
+    // Each use starts ilex-root's idle time again (the server counts the same).
+    const restartSudoMinutes = () =>
+      setSudoUntil(Date.now() + FILES_LIMITS.sudoIdleMinutes * 60_000);
+    // sudo may have been used: the top bar's minutes come from the server's estimate.
+    const refreshSession = () =>
+      filesApi.session().subscribe({
+        next: ({ session }) => patchState(store, { session, now: Date.now() }),
+        error: () => undefined,
+      });
 
     return {
       check: rxMethod<void>(
@@ -204,8 +207,7 @@ export const LinuxSessionStore = signalStore(
           if (!(await requestSudo())) return null;
           result = await action();
         }
-        // Each use starts ilex-root's idle time again (the server counts the same).
-        setSudoUntil(Date.now() + FILES_LIMITS.sudoIdleMinutes * 60_000);
+        restartSudoMinutes();
         return result;
       },
 
@@ -220,11 +222,7 @@ export const LinuxSessionStore = signalStore(
         for (let attempt = 0; ; attempt++) {
           try {
             const result = await action();
-            // sudo may have been used: the top bar's minutes come from the server's estimate.
-            firstValueFrom(filesApi.session()).then(
-              ({ session }) => patchState(store, { session, now: Date.now() }),
-              () => undefined,
-            );
+            refreshSession();
             return result;
           } catch (error) {
             const code = apiErrorCode(error);
@@ -242,8 +240,67 @@ export const LinuxSessionStore = signalStore(
         }
       },
 
-      /** The shell's sign-in prompt: signed in (true) or closed. */
-      signInAnswered(signedIn: boolean): void {
+      /**
+       * `withSudo` as an Observable: the password asked first while locked (nothing before
+       * subscribing), and again when sudo ran out meanwhile, then the action once more. Null when
+       * the prompt was cancelled; unsubscribing while it's asked closes it.
+       */
+      withSudo$<T>(action: () => Observable<T>): Observable<T | null> {
+        const unlockedThenRun = (unlocked: boolean): Observable<T | null> =>
+          unlocked ? action().pipe(tap(restartSudoMinutes)) : of(null);
+        return sudoQuestion
+          .ask(() => store.sudoMinutes() !== null)
+          .pipe(
+            switchMap((unlocked) =>
+              !unlocked
+                ? of(null)
+                : action().pipe(
+                    tap(restartSudoMinutes),
+                    catchError((error: unknown) => {
+                      if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired)
+                        return throwError(() => error);
+                      setSudoUntil(null);
+                      return sudoQuestion.ask().pipe(switchMap(unlockedThenRun));
+                    }),
+                  ),
+            ),
+          );
+      },
+
+      /**
+       * `asPerson` as an Observable: the Linux sign-in first without a session (nothing before
+       * subscribing); the sudo password only when the server says sudo is needed and locked; then
+       * the action once more. Null when a prompt was closed — it emits once and completes;
+       * unsubscribing while a prompt is asked closes it.
+       */
+      asPerson$<T>(action: () => Observable<T>): Observable<T | null> {
+        const attempt = (tries: number): Observable<T | null> =>
+          action().pipe(
+            tap(refreshSession),
+            catchError((error: unknown) => {
+              const code = apiErrorCode(error);
+              const retryAfter = (answer: Observable<boolean>) =>
+                answer.pipe(switchMap((yes) => (yes ? attempt(tries + 1) : of(null))));
+              if (tries >= 2) return throwError(() => error);
+              if (code === FILES_ERROR_CODES.sudoRequired) {
+                setSudoUntil(null);
+                return retryAfter(sudoQuestion.ask());
+              }
+              if (code === FILES_ERROR_CODES.linuxSessionRequired) {
+                ended();
+                return retryAfter(signInQuestion.ask());
+              }
+              return throwError(() => error);
+            }),
+          );
+        return signInQuestion
+          .ask(() => store.session() !== null)
+          .pipe(switchMap((signedIn) => (signedIn ? attempt(0) : of(null))));
+      },
+
+      /** The shell's sign-in prompt: signed in (true) or closed; with `id`, only while that one is asked. */
+      signInAnswered(signedIn: boolean, id?: number): void {
+        if (id !== undefined && (id !== store.signInPromptId() || !store.signInPrompt())) return;
         answerSignIn(signedIn && store.session() !== null);
       },
 
