@@ -33,6 +33,7 @@ import {
   filter,
   firstValueFrom,
   forkJoin,
+  groupBy,
   lastValueFrom,
   map,
   mergeMap,
@@ -385,18 +386,11 @@ export const BackupsPageStore = signalStore(
       addApp: rxMethod<string>(
         pipe(
           mergeMap((name) =>
-            store._appItem(name).pipe(
-              catchError((error: unknown) => {
-                store._failed('backups.items.addFailed', error);
-                return EMPTY;
-              }),
-              concatMap((item) =>
-                store._act(`add:${name}`, 'backups.items.addFailed', () =>
-                  backupsApi.addItem(item),
-                ),
-              ),
-              tap(() => store.reload()),
-            ),
+            store
+              ._act(`add:${name}`, 'backups.items.addFailed', () =>
+                store._appItem(name).pipe(concatMap((item) => backupsApi.addItem(item))),
+              )
+              .pipe(tap(() => store.reload())),
           ),
         ),
       ),
@@ -418,15 +412,20 @@ export const BackupsPageStore = signalStore(
         ),
       ),
 
-      /** One item's changes in the order made. */
+      /** Each item's changes in the order made; items side by side. */
       changeItem: rxMethod<ItemChange>(
         pipe(
-          concatMap(({ itemId, change }) =>
-            store
-              ._act(`folders:${itemId}`, 'backups.items.foldersFailed', () =>
-                backupsApi.updateItem(itemId, change as BackupItemUpdate),
-              )
-              .pipe(tap(() => store.reload())),
+          groupBy(({ itemId }) => itemId),
+          mergeMap((changes) =>
+            changes.pipe(
+              concatMap(({ itemId, change }) =>
+                store
+                  ._act(`folders:${itemId}`, 'backups.items.foldersFailed', () =>
+                    backupsApi.updateItem(itemId, change as BackupItemUpdate),
+                  )
+                  .pipe(tap(() => store.reload())),
+              ),
+            ),
           ),
         ),
       ),

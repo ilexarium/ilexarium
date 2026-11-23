@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, output } from '@angular/core';
 import type { FileEntry } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertDialogImports } from '@ui/alert-dialog';
@@ -22,9 +22,14 @@ export class FileDeleteDialog {
   readonly cancel = output<void>();
 
   private readonly formatter = inject(Formatter);
-  protected readonly entry = computed(() => this.deleting()?.entry ?? null);
+  /** The delete asked about, kept while the dialog closes (so it doesn't go blank). */
+  private readonly shown = linkedSignal<FileDeletion | null, FileDeletion | null>({
+    source: this.deleting,
+    computation: (deleting, previous) => deleting ?? previous?.value ?? null,
+  });
+  protected readonly entry = computed(() => this.shown()?.entry ?? null);
   /** Null while counting. */
-  protected readonly summary = computed(() => this.deleting()?.summary ?? null);
+  protected readonly summary = computed(() => this.shown()?.summary ?? null);
   protected readonly size = computed(() => this.formatter.bytes(this.summary()?.bytes ?? 0));
   protected readonly count = computed(() => {
     const summary = this.summary();
@@ -36,7 +41,8 @@ export class FileDeleteDialog {
     if (entry) this.confirm.emit(entry);
   }
 
-  protected closed(): void {
-    if (this.deleting()) this.cancel.emit();
+  /** Closed without Delete (Cancel, Escape): as soon as it starts closing. */
+  protected stateChanged(state: 'open' | 'closed'): void {
+    if (state === 'closed' && this.deleting()) this.cancel.emit();
   }
 }

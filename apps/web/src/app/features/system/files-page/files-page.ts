@@ -4,6 +4,7 @@ import {
   effect,
   type ElementRef,
   inject,
+  linkedSignal,
   signal,
   untracked,
   viewChild,
@@ -28,7 +29,7 @@ import { FileDeleteDialog } from '../file-delete-dialog/file-delete-dialog';
 import { FileList } from '../file-list/file-list';
 import { FileNameDialog } from '../file-name-dialog/file-name-dialog';
 import { SignInDialog } from '../../../shared/sign-in-dialog/sign-in-dialog';
-import type { FileAction } from '../files.model';
+import type { FileAction, UploadClash } from '../files.model';
 import { joinPath } from '../files-paths';
 import { FilesPageStore } from './files-page-store';
 import { EmptyState } from '../../../shared/empty-state/empty-state';
@@ -77,6 +78,11 @@ export class FilesPage {
   protected readonly dragging = signal(false);
   /** Opens on its own once, on arrival without a Linux session; then only from the button. */
   protected readonly signInOpen = signal(false);
+  /** The clashes asked about, kept while the question closes (so it doesn't go blank). */
+  protected readonly shownClashes = linkedSignal<UploadClash[], UploadClash[]>({
+    source: this.filesPageStore.clashes,
+    computation: (clashes, previous) => (clashes.length ? clashes : (previous?.value ?? [])),
+  });
   protected readonly signIn = (request: LinuxSignInRequest) => this.filesPageStore.signIn(request);
   protected readonly urlFor = (entry: FileEntry) => this.filesPageStore.downloadUrl(entry);
   /** The names in the folder shown that are being renamed or deleted. */
@@ -96,6 +102,12 @@ export class FilesPage {
       arrived = true;
       if (!this.filesPageStore.session()) untracked(() => this.signInOpen.set(true));
     });
+  }
+
+  /** Closed without Replace (Cancel, Escape): kept — as soon as it starts closing. */
+  protected clashQuestionChanged(state: 'open' | 'closed'): void {
+    if (state === 'closed' && this.filesPageStore.clashes().length)
+      this.filesPageStore.answerClashes(false);
   }
 
   protected signInClosed(): void {

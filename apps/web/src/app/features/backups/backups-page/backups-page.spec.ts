@@ -136,6 +136,7 @@ async function render(start: BackupPlan | null, url = '/backups') {
     ),
     runNow: vi.fn(() => of({ runId: 'r1' })),
     updateItem: vi.fn(() => of(null)),
+    addItem: vi.fn(() => of(null)),
     // 204: no body.
     removeItem: vi.fn(() => of(null)),
     passphrase: vi.fn(() => of({ passphrase: PASSPHRASE })),
@@ -207,7 +208,17 @@ async function render(start: BackupPlan | null, url = '/backups') {
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
       b.textContent?.includes(text),
     )!;
-  return { fixture, el, api, asPerson, asPersonPromise, socket, pushStatus, button, store };
+  return {
+    fixture,
+    el,
+    api,
+    asPerson,
+    asPersonPromise,
+    socket,
+    pushStatus,
+    button,
+    store,
+  };
 }
 
 /** "⋯" → "Show the passphrase again" (the header shows once the topic's status is in). */
@@ -497,6 +508,22 @@ describe('BackupsPage with a plan', () => {
     late.next({ runId: 'r' });
     late.complete();
     expect(store.pending()).toEqual([]);
+  });
+
+  it('Add clicked twice before the first is answered (its template read inside): added once', async () => {
+    const { api, asPerson, store } = await render(plan());
+    const asked = new Subject<unknown>();
+    asPerson.mockReturnValueOnce(asked as never);
+    store.addApp('notes');
+    store.addApp('notes');
+    expect(asPerson).toHaveBeenCalledTimes(1);
+    expect(store.pending()).toEqual(['add:notes']);
+    asked.complete();
+    store.addApp('notes');
+    await vi.waitFor(() =>
+      expect(api.addItem).toHaveBeenCalledWith(expect.objectContaining({ project: 'notes' })),
+    );
+    expect(api.addItem).toHaveBeenCalledTimes(1);
   });
 
   it('shows a removed item gone at once (an empty answer is done, not cancelled)', async () => {

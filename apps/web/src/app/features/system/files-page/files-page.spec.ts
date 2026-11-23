@@ -304,6 +304,68 @@ describe('FilesPage', () => {
     );
   });
 
+  it('files chosen, then another folder opened before their turn: they go where they were chosen', async () => {
+    const { fixture, api } = await render();
+    const store = fixture.debugElement.injector.get(FilesPageStore);
+    const first = new Subject<number>();
+    api.upload.mockReturnValueOnce(first);
+    const b = new File(['b'], 'b.txt');
+    store.upload({ files: [new File(['a'], 'a.txt')], replace: false });
+    store.upload({ files: [b], replace: false });
+    store.open('/home/anna/Photos');
+    first.complete();
+    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', b, false);
+  });
+
+  it('Replace confirmed while other files upload, then another folder opened: replaced where asked', async () => {
+    const { fixture, api } = await render();
+    const store = fixture.debugElement.injector.get(FilesPageStore);
+    const later = new Subject<number>();
+    api.upload
+      .mockReturnValueOnce(throwError(() => httpError(409, 'file_exists')))
+      .mockReturnValueOnce(later);
+    const notes = new File(['new'], 'notes.txt');
+    store.upload({ files: [notes], replace: false });
+    store.upload({ files: [new File(['c'], 'c.txt')], replace: false });
+    expect(store.clashes().map((c) => c.file)).toEqual([notes]);
+    store.answerClashes(true);
+    store.open('/home/anna/Photos');
+    later.complete();
+    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', notes, true);
+  });
+
+  it('another folder opened while an upload runs, its name taken: Replace goes where it was chosen', async () => {
+    const { fixture, api } = await render();
+    const store = fixture.debugElement.injector.get(FilesPageStore);
+    const answer = new Subject<number>();
+    api.upload.mockReturnValueOnce(answer);
+    const notes = new File(['new'], 'notes.txt');
+    store.upload({ files: [notes], replace: false });
+    store.open('/home/anna/Photos');
+    answer.error(httpError(409, 'file_exists'));
+    store.answerClashes(true);
+    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', notes, true);
+  });
+
+  it('taken names from two uploads: both asked about in one question', async () => {
+    const { fixture, api } = await render();
+    const store = fixture.debugElement.injector.get(FilesPageStore);
+    api.upload.mockImplementation(() => throwError(() => httpError(409, 'file_exists')));
+    store.upload({ files: [new File(['1'], 'one.txt')], replace: false });
+    store.upload({ files: [new File(['2'], 'two.txt')], replace: false });
+    expect(store.clashes().map((c) => c.file.name)).toEqual(['one.txt', 'two.txt']);
+  });
+
+  it('a delete cancelled: gone from the store as soon as the dialog starts closing', async () => {
+    const { fixture, menu } = await render();
+    const store = fixture.debugElement.injector.get(FilesPageStore);
+    await menu('Photos', 'Delete');
+    await vi.waitFor(() => expect(dialog()!.textContent).toContain('43 items'));
+    dialogButton('Cancel')!.click();
+    expect(store.deleting()).toBeNull();
+    await vi.waitFor(() => expect(dialog()).toBeNull());
+  });
+
   it('several taken names: one question, keeping them uploads nothing more', async () => {
     const { el, api } = await render();
     api.upload.mockImplementation(() => throwError(() => httpError(409, 'file_exists')));

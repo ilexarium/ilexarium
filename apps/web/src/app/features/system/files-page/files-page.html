@@ -159,15 +159,15 @@
 
 <hlm-alert-dialog
   [state]="filesPageStore.clashes().length ? 'open' : 'closed'"
-  (closed)="filesPageStore.answerClashes(false)"
+  (stateChanged)="clashQuestionChanged($event)"
 >
   <hlm-alert-dialog-content *hlmAlertDialogPortal>
-    @let files = filesPageStore.clashes();
+    @let files = shownClashes();
     @if (files.length) {
       <hlm-alert-dialog-header>
         <h2 hlmAlertDialogTitle class="break-words">
           @if (files.length === 1) {
-            {{ 'files.replaceDialog.title' | translate: { name: files[0].name } }}
+            {{ 'files.replaceDialog.title' | translate: { name: files[0].file.name } }}
           } @else {
             {{ 'files.replaceDialog.titleMany' | translate }}
           }
@@ -183,7 +183,7 @@
         <ul class="max-h-40 list-inside list-disc overflow-y-auto text-sm">
           @for (file of files; track $index) {
             <li class="truncate">
-              <span dir="ltr">{{ file.name }}</span>
+              <span dir="ltr">{{ file.file.name }}</span>
             </li>
           }
         </ul>
