@@ -145,7 +145,7 @@ export const FilesPageStore = signalStore(
       /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
       signIn: (request: LinuxSignInRequest): Promise<void> => linuxSessionStore.signIn(request),
 
-      signOut: (): Promise<void> => linuxSessionStore.signOut(),
+      signOut: rxMethod<void>(tap(() => linuxSessionStore.signOut())),
 
       /** The Linux session changed: its home opened, or (gone) nothing of it left. */
       sessionChanged(home: string | null): void {

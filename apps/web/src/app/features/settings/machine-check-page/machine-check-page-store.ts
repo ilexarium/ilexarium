@@ -9,7 +9,19 @@ import {
 } from '@ngrx/signals';
 import type { PersonCheck } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { firstValueFrom } from 'rxjs';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import {
+  catchError,
+  concatMap,
+  defer,
+  EMPTY,
+  exhaustMap,
+  finalize,
+  type Observable,
+  of,
+  pipe,
+  tap,
+} from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { MachineCheckApi } from '../../../core/machine-check/machine-check-api';
@@ -97,44 +109,55 @@ export const MachineCheckPageStore = signalStore(
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
     ) => ({
-      /** Runs every step; `withoutSudo` for an account meant to have none. */
-      async run(withoutSudo = false): Promise<void> {
-        if (store.running()) return;
-        patchState(store, { ...initialState, started: true, running: true });
-        try {
-          const check = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(machineCheckApi.person()),
-          );
-          if (!check) {
-            patchState(store, { signedIn: false });
-            return;
-          }
-          patchState(store, { signedIn: true, check });
-          if (check.helper !== 'ok') return;
-          if (withoutSudo) {
-            patchState(store, { sudo: 'skipped' });
-            return;
-          }
-          // Unlocked as the server sees it (ilex-root may have ended meanwhile); otherwise the
-          // prompt, which says what sudo answered.
-          await linuxSessionStore.refresh();
-          const unlocked =
-            linuxSessionStore.sudoMinutes() !== null ||
-            (await linuxSessionStore.withSudo(async () => true)) === true;
-          patchState(store, { sudo: unlocked ? 'ok' : 'not_unlocked' });
-        } catch (error) {
-          if (store.signedIn() === null && linuxSessionStore.session()) {
-            patchState(store, { signedIn: true });
-          }
-          toast.error(translator.t('machineCheck.failed'), {
-            description: translator.t(...apiErrorText(error)),
-          });
-        } finally {
-          patchState(store, { running: false });
-        }
+      /** Every step; `withoutSudo` for an account meant to have none. */
+      _run(withoutSudo: boolean): Observable<unknown> {
+        return defer(() => {
+          patchState(store, { ...initialState, started: true, running: true });
+          return linuxSessionStore.asPerson$(() => machineCheckApi.person());
+        }).pipe(
+          concatMap((check) => {
+            if (!check) {
+              patchState(store, { signedIn: false });
+              return EMPTY;
+            }
+            patchState(store, { signedIn: true, check });
+            if (check.helper !== 'ok') return EMPTY;
+            if (withoutSudo) {
+              patchState(store, { sudo: 'skipped' });
+              return EMPTY;
+            }
+            // Unlocked as the server sees it (ilex-root may have ended meanwhile); otherwise the
+            // prompt, which says what sudo answered.
+            return linuxSessionStore.refresh$().pipe(
+              concatMap(() =>
+                linuxSessionStore.sudoMinutes() !== null
+                  ? of(true)
+                  : linuxSessionStore.withSudo$(() => of(true)),
+              ),
+              tap((unlocked) =>
+                patchState(store, { sudo: unlocked === true ? 'ok' : 'not_unlocked' }),
+              ),
+            );
+          }),
+          catchError((error: unknown) => {
+            if (store.signedIn() === null && linuxSessionStore.session()) {
+              patchState(store, { signedIn: true });
+            }
+            toast.error(translator.t('machineCheck.failed'), {
+              description: translator.t(...apiErrorText(error)),
+            });
+            return EMPTY;
+          }),
+          finalize(() => patchState(store, { running: false })),
+        );
       },
     }),
   ),
+  withMethods((store) => ({
+    run: rxMethod<void>(pipe(exhaustMap(() => store._run(false)))),
+
+    runWithoutSudo: rxMethod<void>(pipe(exhaustMap(() => store._run(true)))),
+  })),
   // Whether a Linux session is open: the check then starts without the sign-in.
   withHooks((_store, linuxSessionStore = inject(LinuxSessionStore)) => ({
     onInit() {
