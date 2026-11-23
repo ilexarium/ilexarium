@@ -16,7 +16,18 @@ import {
   type SystemServicesResponse,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  EMPTY,
+  exhaustMap,
+  finalize,
+  map,
+  mergeMap,
+  of,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { SystemServicesApi } from '../../../core/system-services/system-services-api';
@@ -196,9 +207,20 @@ export const ServicesPageStore = signalStore(
         load,
 
         /** Signs in to Linux (the shell's prompt), then reads the list. */
-        async signInAndLoad(): Promise<void> {
-          await linuxSessionStore.asPerson(async () => load());
-        },
+        signInAndLoad: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              linuxSessionStore
+                .asPerson$(() => of(true))
+                .pipe(
+                  tap((signedIn) => {
+                    if (signedIn) load();
+                  }),
+                  catchError(() => EMPTY),
+                ),
+            ),
+          ),
+        ),
 
         /** Again, while the page is shown and signed in; quietly (nothing changes until it answers). */
         refresh(): void {
@@ -229,24 +251,36 @@ export const ServicesPageStore = signalStore(
         },
 
         /** Starts, stops or restarts (already confirmed), through the account's sudo. */
-        async act({ name, action }: ServiceActionRequest): Promise<void> {
-          pending(name, true);
-          try {
-            const done = await linuxSessionStore.asPerson(async () => {
-              await firstValueFrom(systemServicesApi.act(name, action));
-              return true;
-            });
-            if (done) toast.success(translator.t(`systemServices.done.${action}`, { name }));
-          } catch (error) {
-            toast.error(translator.t(`systemServices.failed.${action}`, { name }), {
-              description: translator.t(...apiErrorText(error)),
-            });
-          } finally {
-            pending(name, false);
-            load();
-            if (store.selected() === name) loadDetails(name);
-          }
-        },
+        act: rxMethod<ServiceActionRequest>(
+          pipe(
+            // Services side by side; a repeat for one while it runs is ignored.
+            mergeMap(({ name, action }) => {
+              if (store.pending().includes(name)) return EMPTY;
+              return linuxSessionStore
+                .asPerson$(() => systemServicesApi.act(name, action).pipe(map(() => true)))
+                .pipe(
+                  tap({
+                    subscribe: () => pending(name, true),
+                    next: (done) => {
+                      if (done)
+                        toast.success(translator.t(`systemServices.done.${action}`, { name }));
+                    },
+                  }),
+                  catchError((error: unknown) => {
+                    toast.error(translator.t(`systemServices.failed.${action}`, { name }), {
+                      description: translator.t(...apiErrorText(error)),
+                    });
+                    return EMPTY;
+                  }),
+                  finalize(() => {
+                    pending(name, false);
+                    load();
+                    if (store.selected() === name) loadDetails(name);
+                  }),
+                );
+            }),
+          ),
+        ),
       };
     },
   ),
