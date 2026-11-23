@@ -202,11 +202,11 @@ describe('FilesPage', () => {
     const deleted = new Subject<undefined>();
     api.delete.mockReturnValueOnce(deleted);
     const store = fixture.debugElement.injector.get(FilesPageStore);
-    const deleting = store.delete(HOME.entries[2]);
+    store.delete(HOME.entries[2]);
     store.open('/home/anna/Photos');
     deleted.next(undefined);
     deleted.complete();
-    await deleting;
+    await fixture.whenStable();
     expect(store.list()?.path).toBe('/home/anna/Photos');
   });
 
@@ -281,6 +281,27 @@ describe('FilesPage', () => {
     dialogButton('Replace')!.click();
     await vi.waitFor(() => expect(api.upload).toHaveBeenCalledWith('/home/anna', notes, true));
     await vi.waitFor(() => expect(dialog()).toBeNull());
+  });
+
+  it('files chosen again while uploads run: they go after them, in order', async () => {
+    const { fixture, api } = await render();
+    const store = fixture.debugElement.injector.get(FilesPageStore);
+    const first = new Subject<number>();
+    api.upload.mockReturnValueOnce(first);
+    const a = new File(['a'], 'a.txt');
+    const b = new File(['b'], 'b.txt');
+    store.upload({ files: [a], replace: false });
+    store.upload({ files: [b], replace: false });
+    expect(api.upload).toHaveBeenCalledTimes(1);
+    first.next(1);
+    first.complete();
+    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', b, false);
+    await vi.waitFor(() =>
+      expect(store.uploads().map((u) => [u.name, u.state])).toEqual([
+        ['a.txt', 'done'],
+        ['b.txt', 'done'],
+      ]),
+    );
   });
 
   it('several taken names: one question, keeping them uploads nothing more', async () => {

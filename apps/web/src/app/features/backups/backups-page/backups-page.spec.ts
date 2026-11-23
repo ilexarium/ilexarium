@@ -9,7 +9,7 @@ import type {
   BackupsStatus,
   Container,
 } from '@ilex/shared';
-import { defer, type Observable, of, throwError } from 'rxjs';
+import { defer, type Observable, of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { BackupsApi } from '../../../core/backups/backups-api';
@@ -160,7 +160,9 @@ async function render(start: BackupPlan | null, url = '/backups') {
     ),
   };
   // Signed in to Linux with sudo at hand: every action goes straight through.
-  const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
+  const asPerson = vi.fn(<T>(action: () => Observable<T>): Observable<T | null> => action());
+  // Form submissions (setup, settings) still take the Promise version.
+  const asPersonPromise = vi.fn(<T>(action: () => Promise<T>) => action());
   TestBed.configureTestingModule({
     providers: [
       provideRouter([{ path: 'backups', component: BackupsPage }]),
@@ -168,7 +170,10 @@ async function render(start: BackupPlan | null, url = '/backups') {
       sockets.provider,
       { provide: BackupsApi, useValue: api },
       { provide: AppsApi, useValue: apps },
-      { provide: LinuxSessionStore, useValue: { asPerson } },
+      {
+        provide: LinuxSessionStore,
+        useValue: { asPerson$: asPerson, asPerson: asPersonPromise },
+      },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -202,7 +207,7 @@ async function render(start: BackupPlan | null, url = '/backups') {
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
       b.textContent?.includes(text),
     )!;
-  return { fixture, el, api, asPerson, socket, pushStatus, button, store };
+  return { fixture, el, api, asPerson, asPersonPromise, socket, pushStatus, button, store };
 }
 
 /** "⋯" → "Show the passphrase again" (the header shows once the topic's status is in). */
@@ -228,12 +233,12 @@ describe('BackupsPage before setup', () => {
   });
 
   it('sets up as the person with the chosen disk and apps (templates’ presets), then shows the passphrase until saved', async () => {
-    const { el, api, asPerson, fixture, button } = await render(null);
+    const { el, api, asPersonPromise, fixture, button } = await render(null);
     el.querySelector<HTMLInputElement>('input[value="/mnt/usb"]')!.click();
     expect([...el.querySelectorAll('label')].map((l) => l.textContent?.trim())).toContain('notes');
     button('Set up backups').click();
     await vi.waitFor(() => expect(api.setup).toHaveBeenCalled());
-    expect(asPerson).toHaveBeenCalled();
+    expect(asPersonPromise).toHaveBeenCalled();
     expect(api.setup).toHaveBeenCalledWith({
       destination: '/mnt/usb',
       schedule: { frequency: 'daily', time: '03:00' },
@@ -480,10 +485,24 @@ describe('BackupsPage with a plan', () => {
     expect(api.runs).toHaveBeenCalledTimes(2);
   });
 
+  it('Back up now clicked again while it starts: once; another item’s still runs', async () => {
+    const { api, store } = await render(plan());
+    const late = new Subject<{ runId: string }>();
+    api.runNow.mockReturnValueOnce(late as never);
+    store.runItemNow(IMMICH_ITEM);
+    store.runItemNow(IMMICH_ITEM);
+    expect(store.pending()).toEqual([`run:${IMMICH_ITEM}`]);
+    store.runNow();
+    expect(api.runNow.mock.calls).toEqual([[IMMICH_ITEM], [undefined]]);
+    late.next({ runId: 'r' });
+    late.complete();
+    expect(store.pending()).toEqual([]);
+  });
+
   it('shows a removed item gone at once (an empty answer is done, not cancelled)', async () => {
     const { api, store } = await render(plan());
     const before = api.plan.mock.calls.length;
-    await store.removeItem({ itemId: FOLDER_ITEM, deleteArchives: false });
+    store.removeItem({ itemId: FOLDER_ITEM, deleteArchives: false });
     expect(api.removeItem).toHaveBeenCalledWith(FOLDER_ITEM, false);
     await vi.waitFor(() => expect(api.plan.mock.calls.length).toBeGreaterThan(before));
   });
@@ -514,7 +533,7 @@ describe('BackupsPage with a plan', () => {
     await vi.waitFor(() => expect(api.archives).toHaveBeenCalledTimes(2));
     expect(store.archives()?.list).toHaveLength(1);
     expect(toastError).toHaveBeenCalledTimes(1);
-    asPerson.mockResolvedValueOnce(null);
+    asPerson.mockReturnValueOnce(of(null));
     store.loadArchives(IMMICH_ITEM);
     await vi.waitFor(() => expect(api.archives).toHaveBeenCalledTimes(3));
     expect(toastError).toHaveBeenCalledTimes(1);
@@ -523,7 +542,7 @@ describe('BackupsPage with a plan', () => {
   it('applies a restored app’s settings as the person, in its own folder', async () => {
     const { api, asPerson, store } = await render(plan());
     const before = api.plan.mock.calls.length;
-    await store.applyRestored({ id: 'r1', itemId: IMMICH_ITEM } as never);
+    store.applyRestored({ id: 'r1', itemId: IMMICH_ITEM } as never);
     expect(asPerson).toHaveBeenCalled();
     expect(api.applyRestored).toHaveBeenCalledWith('r1', '/home/anna/apps/immich');
     // The restore no longer offers it: read again.
@@ -542,7 +561,7 @@ describe('BackupsPage with a plan', () => {
   it('shows nothing when the sudo prompt is closed', async () => {
     const { el, api, asPerson, fixture, pushStatus } = await render(plan());
     await pushStatus(status());
-    asPerson.mockResolvedValueOnce(null);
+    asPerson.mockReturnValueOnce(of(null));
     await morePassphrase(el);
     await fixture.whenStable();
     expect(api.passphrase).not.toHaveBeenCalled();
@@ -566,7 +585,7 @@ describe('BackupsPage with a plan', () => {
     expect(store.folders()).toEqual(anna);
 
     // The sign-in closed: the listing stays as it was.
-    asPerson.mockResolvedValueOnce(null);
+    asPerson.mockReturnValueOnce(of(null));
     store.browse('/home/anna/Photos');
     await fixture.whenStable();
     expect(store.folders()).toEqual(anna);

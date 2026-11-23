@@ -20,7 +20,7 @@ import {
   lucideUpload,
 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
-import { HlmAlertDialog, HlmAlertDialogImports } from '@ui/alert-dialog';
+import { HlmAlertDialogImports } from '@ui/alert-dialog';
 import { HlmButton } from '@ui/button';
 import { HlmProgressImports } from '@ui/progress';
 import { HlmSkeleton } from '@ui/skeleton';
@@ -71,14 +71,10 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
 export class FilesPage {
   protected readonly filesPageStore = inject(FilesPageStore);
   private readonly nameDialog = viewChild.required(FileNameDialog);
-  private readonly deleteDialog = viewChild.required(FileDeleteDialog);
-  private readonly replaceDialog = viewChild.required<HlmAlertDialog>('replaceDialog');
   private readonly signInButton = viewChild<ElementRef<HTMLButtonElement>>('signInButton');
 
   /** Files dragged over the page. */
   protected readonly dragging = signal(false);
-  /** Uploads whose name is taken there: one question for all of them. */
-  protected readonly taken = signal<File[]>([]);
   /** Opens on its own once, on arrival without a Linux session; then only from the button. */
   protected readonly signInOpen = signal(false);
   protected readonly signIn = (request: LinuxSignInRequest) => this.filesPageStore.signIn(request);
@@ -114,7 +110,7 @@ export class FilesPage {
 
   protected act(action: FileAction): void {
     if (action.kind === 'rename') this.nameDialog().open({ kind: 'rename', entry: action.entry });
-    else this.deleteDialog().open(action.entry, this.filesPageStore.summary(action.entry));
+    else this.filesPageStore.askDelete(action.entry);
   }
 
   protected newFolder(): void {
@@ -123,7 +119,7 @@ export class FilesPage {
 
   protected chosen(event: Event): void {
     const input = event.target as HTMLInputElement;
-    void this.upload([...(input.files ?? [])]);
+    this.filesPageStore.upload({ files: [...(input.files ?? [])], replace: false });
     input.value = '';
   }
 
@@ -143,20 +139,6 @@ export class FilesPage {
     this.dragging.set(false);
     // Plain files only: a dropped folder has no contents to read here.
     const files = [...(event.dataTransfer?.files ?? [])].filter((f) => f.size > 0 || f.type);
-    if (files.length) void this.upload(files);
-  }
-
-  /** The question's confirm: uploads the taken files again, replacing what's there. */
-  protected async replace(): Promise<void> {
-    this.replaceDialog().close();
-    await this.filesPageStore.upload(this.taken(), true);
-  }
-
-  private async upload(files: File[]): Promise<void> {
-    const taken = await this.filesPageStore.upload(files);
-    if (taken.length) {
-      this.taken.set(taken);
-      this.replaceDialog().open();
-    }
+    if (files.length) this.filesPageStore.upload({ files, replace: false });
   }
 }

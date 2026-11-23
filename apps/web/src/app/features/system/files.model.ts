@@ -1,4 +1,4 @@
-import type { FileEntry } from '@ilex/shared';
+import type { FileEntry, FileSummary } from '@ilex/shared';
 
 /** An upload in progress or finished. */
 export interface Upload {
@@ -17,3 +17,15 @@ export interface FileAction {
 
 /** The name dialog: a new folder, or renaming/moving an entry. */
 export type NameRequest = { kind: 'newFolder' } | { kind: 'rename'; entry: FileEntry };
+
+/** A delete waiting for its confirmation: the entry, and how much it holds (null while counted). */
+export interface FileDeletion {
+  entry: FileEntry;
+  summary: FileSummary | null;
+}
+
+/** Files to upload into the folder shown; `replace` false: a name taken there is asked about. */
+export interface UploadRequest {
+  files: File[];
+  replace: boolean;
+}
