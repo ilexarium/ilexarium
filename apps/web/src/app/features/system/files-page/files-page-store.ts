@@ -11,18 +11,32 @@ import {
   FILES_ERROR_CODES,
   type FileEntry,
   type FileList,
-  type FileSummary,
   type LinuxSignInRequest,
 } from '@ilex/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, firstValueFrom, lastValueFrom, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  concat,
+  concatMap,
+  defer,
+  EMPTY,
+  firstValueFrom,
+  from,
+  ignoreElements,
+  lastValueFrom,
+  mergeMap,
+  type Observable,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 import { joinPath, renameTarget } from '../files-paths';
-import type { Upload } from '../files.model';
+import type { FileDeletion, Upload, UploadRequest } from '../files.model';
 
 interface FilesPageState {
   list: FileList | null;
@@ -30,6 +44,10 @@ interface FilesPageState {
   uploads: Upload[];
   /** Paths being renamed or deleted, for pending buttons. */
   pending: string[];
+  /** The delete waiting for its confirmation. */
+  deleting: FileDeletion | null;
+  /** Uploads whose name is taken there: one question for all of them. */
+  clashes: File[];
 }
 
 const initialState: FilesPageState = {
@@ -37,6 +55,8 @@ const initialState: FilesPageState = {
   loading: false,
   uploads: [],
   pending: [],
+  deleting: null,
+  clashes: [],
 };
 
 let nextUpload = 0;
@@ -59,9 +79,9 @@ export const FilesPageStore = signalStore(
       filesApi = inject(FilesApi),
       linuxSessionStore = inject(LinuxSessionStore),
       translator = inject(Translator),
-    ) => {
+    ) => ({
       /** A failure in a toast — or, when the Linux session ended, back to the sign-in. */
-      const failed = (error: unknown) => {
+      _failed(error: unknown): void {
         if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
           linuxSessionStore.ended();
           patchState(store, { list: null, loading: false });
@@ -69,153 +89,232 @@ export const FilesPageStore = signalStore(
         toast.error(translator.t('files.actionFailed'), {
           description: translator.t(...apiErrorText(error)),
         });
-      };
-      const folder = () => store.list()?.path ?? store.session()?.home ?? '/';
+      },
 
-      // A click on another folder while one loads: the latest wins.
-      const open = rxMethod<string>(
+      _folder(): string {
+        return store.list()?.path ?? store.session()?.home ?? '/';
+      },
+    }),
+  ),
+  withMethods((store, filesApi = inject(FilesApi)) => ({
+    /** A click on another folder while one loads: the latest wins. */
+    open: rxMethod<string>(
+      pipe(
+        tap(() => patchState(store, { loading: true })),
+        switchMap((path) =>
+          filesApi.list(path).pipe(
+            tap((list) => patchState(store, { list, loading: false })),
+            catchError((error: unknown) => {
+              patchState(store, { loading: false });
+              store._failed(error);
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    ),
+
+    /**
+     * The folder shown, again after a change. Not through `open`: it mustn't cancel a folder
+     * clicked meanwhile, and that folder wins over it.
+     */
+    _reload(): Observable<unknown> {
+      return defer(() => {
+        const path = store._folder();
+        return filesApi.list(path).pipe(
+          tap((list) => {
+            if (!store.loading() && store._folder() === path) patchState(store, { list });
+          }),
+        );
+      }).pipe(
+        catchError((error: unknown) => {
+          store._failed(error);
+          return EMPTY;
+        }),
+      );
+    },
+  })),
+  withMethods(
+    (
+      store,
+      filesApi = inject(FilesApi),
+      linuxSessionStore = inject(LinuxSessionStore),
+      translator = inject(Translator),
+    ) => ({
+      /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
+      signIn: (request: LinuxSignInRequest): Promise<void> => linuxSessionStore.signIn(request),
+
+      signOut: (): Promise<void> => linuxSessionStore.signOut(),
+
+      /** The Linux session changed: its home opened, or (gone) nothing of it left. */
+      sessionChanged(home: string | null): void {
+        if (home) store.open(home);
+        else
+          patchState(store, {
+            list: null,
+            loading: false,
+            uploads: [],
+            deleting: null,
+            clashes: [],
+          });
+      },
+
+      refresh(): void {
+        store.open(store._folder());
+      },
+
+      downloadUrl(entry: FileEntry): string {
+        return filesApi.downloadUrl(joinPath(store._folder(), entry.name));
+      },
+
+      /** The name dialog's submission: true once made (the dialog closes). */
+      async newFolder(name: string): Promise<boolean> {
+        try {
+          await firstValueFrom(filesApi.newFolder(store._folder(), name));
+          toast.success(translator.t('files.created', { name }));
+          await lastValueFrom(store._reload(), { defaultValue: undefined });
+          return true;
+        } catch (error) {
+          store._failed(error);
+          return false;
+        }
+      },
+
+      /** The name dialog's submission: true once renamed or moved (the dialog closes). */
+      async rename(entry: FileEntry, input: string): Promise<boolean> {
+        const from = joinPath(store._folder(), entry.name);
+        patchState(store, { pending: [...store.pending(), from] });
+        try {
+          await firstValueFrom(filesApi.rename(from, renameTarget(store._folder(), input)));
+          toast.success(translator.t('files.renamed'));
+          await lastValueFrom(store._reload(), { defaultValue: undefined });
+          return true;
+        } catch (error) {
+          store._failed(error);
+          return false;
+        } finally {
+          patchState(store, { pending: store.pending().filter((p) => p !== from) });
+        }
+      },
+
+      /**
+       * Asks before deleting: the confirmation shows, with how much is in it once counted (a
+       * failed count says why in a toast and closes it). Another entry asked for meanwhile wins.
+       */
+      askDelete: rxMethod<FileEntry>(
         pipe(
-          tap(() => patchState(store, { loading: true })),
-          switchMap((path) =>
-            filesApi.list(path).pipe(
-              tap((list) => patchState(store, { list, loading: false })),
+          tap((entry) => patchState(store, { deleting: { entry, summary: null } })),
+          switchMap((entry) =>
+            filesApi.summary(joinPath(store._folder(), entry.name)).pipe(
+              tap((summary) => {
+                if (store.deleting()?.entry === entry)
+                  patchState(store, { deleting: { entry, summary } });
+              }),
               catchError((error: unknown) => {
-                patchState(store, { loading: false });
-                failed(error);
+                store._failed(error);
+                if (store.deleting()?.entry === entry) patchState(store, { deleting: null });
                 return EMPTY;
               }),
             ),
           ),
         ),
-      );
-      const refresh = () => open(folder());
+      ),
+
+      cancelDelete(): void {
+        patchState(store, { deleting: null });
+      },
+
+      /** Deletes it (confirmed); deletes of several entries run side by side. */
+      delete: rxMethod<FileEntry>(
+        pipe(
+          mergeMap((entry) => {
+            patchState(store, { deleting: null });
+            const path = joinPath(store._folder(), entry.name);
+            if (store.pending().includes(path)) return EMPTY;
+            return concat(
+              filesApi.delete(path).pipe(
+                tap({
+                  subscribe: () => patchState(store, { pending: [...store.pending(), path] }),
+                  complete: () =>
+                    toast.success(translator.t('files.deleted', { name: entry.name })),
+                  finalize: () =>
+                    patchState(store, { pending: store.pending().filter((p) => p !== path) }),
+                }),
+                catchError((error: unknown) => {
+                  store._failed(error);
+                  return EMPTY;
+                }),
+              ),
+              // Not after the Linux session ended (the sign-in is shown).
+              defer(() => (store.session() ? store._reload() : EMPTY)),
+            );
+          }),
+        ),
+      ),
+
       /**
-       * The folder shown, again after a change (the action waits for it). Not through `open`: it
-       * mustn't cancel a folder clicked meanwhile, and that folder wins over it.
+       * Uploads files into the folder shown, one after another (and each request after the one
+       * before). Names taken there already (`replace` false) become `clashes`: the page asks
+       * before replacing them.
        */
-      const reload = async (): Promise<void> => {
-        const path = folder();
-        try {
-          const list = await firstValueFrom(filesApi.list(path));
-          if (!store.loading() && folder() === path) patchState(store, { list });
-        } catch (error) {
-          failed(error);
-        }
-      };
-
-      return {
-        /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
-        signIn: (request: LinuxSignInRequest): Promise<void> => linuxSessionStore.signIn(request),
-
-        signOut: (): Promise<void> => linuxSessionStore.signOut(),
-
-        /** The Linux session changed: its home opened, or (gone) nothing of it left. */
-        sessionChanged(home: string | null): void {
-          if (home) open(home);
-          else patchState(store, { list: null, loading: false, uploads: [] });
-        },
-
-        open,
-        refresh,
-
-        downloadUrl(entry: FileEntry): string {
-          return filesApi.downloadUrl(joinPath(folder(), entry.name));
-        },
-
-        async newFolder(name: string): Promise<boolean> {
-          try {
-            await firstValueFrom(filesApi.newFolder(folder(), name));
-            toast.success(translator.t('files.created', { name }));
-            await reload();
-            return true;
-          } catch (error) {
-            failed(error);
-            return false;
-          }
-        },
-
-        async rename(entry: FileEntry, input: string): Promise<boolean> {
-          const from = joinPath(folder(), entry.name);
-          patchState(store, { pending: [...store.pending(), from] });
-          try {
-            await firstValueFrom(filesApi.rename(from, renameTarget(folder(), input)));
-            toast.success(translator.t('files.renamed'));
-            await reload();
-            return true;
-          } catch (error) {
-            failed(error);
-            return false;
-          } finally {
-            patchState(store, { pending: store.pending().filter((p) => p !== from) });
-          }
-        },
-
-        /** What deleting it would remove (for the confirmation); a failure says why in a toast. */
-        async summary(entry: FileEntry): Promise<FileSummary> {
-          try {
-            return await firstValueFrom(filesApi.summary(joinPath(folder(), entry.name)));
-          } catch (error) {
-            failed(error);
-            throw error;
-          }
-        },
-
-        async delete(entry: FileEntry): Promise<void> {
-          const path = joinPath(folder(), entry.name);
-          patchState(store, { pending: [...store.pending(), path] });
-          try {
-            await firstValueFrom(filesApi.delete(path));
-            toast.success(translator.t('files.deleted', { name: entry.name }));
-          } catch (error) {
-            failed(error);
-          } finally {
-            patchState(store, { pending: store.pending().filter((p) => p !== path) });
-          }
-          // Not after the Linux session ended (the sign-in is shown).
-          if (store.session()) await reload();
-        },
-
-        /**
-         * Uploads files into the folder shown, one after another. Returns the ones whose name is
-         * taken there already (`replace` false): the page asks before replacing them.
-         */
-        async upload(files: File[], replace = false): Promise<File[]> {
-          const target = folder();
-          const taken: File[] = [];
-          for (const file of files) {
-            const id = nextUpload++;
-            const set = (change: Partial<Upload>) =>
-              patchState(store, {
-                uploads: store.uploads().map((u) => (u.id === id ? { ...u, ...change } : u)),
-              });
-            patchState(store, {
-              uploads: [
-                ...store.uploads(),
-                { id, name: file.name, progress: 0, state: 'uploading' },
-              ],
-            });
-            try {
-              await lastValueFrom(
-                filesApi.upload(target, file, replace).pipe(tap((progress) => set({ progress }))),
-                { defaultValue: 1 },
-              );
-              set({ progress: 1, state: 'done' });
-            } catch (error) {
-              if (apiErrorCode(error) === FILES_ERROR_CODES.exists && !replace) {
-                patchState(store, { uploads: store.uploads().filter((u) => u.id !== id) });
-                taken.push(file);
-              } else {
-                set({ state: 'failed' });
-                failed(error);
-              }
-            }
-          }
-          if (files.length > taken.length) await reload();
-          return taken;
-        },
-      };
-    },
+      upload: rxMethod<UploadRequest>(
+        pipe(
+          concatMap(({ files, replace }) => {
+            const target = store._folder();
+            const taken: File[] = [];
+            const uploads = from(files).pipe(
+              concatMap((file) => {
+                const id = nextUpload++;
+                const set = (change: Partial<Upload>) =>
+                  patchState(store, {
+                    uploads: store.uploads().map((u) => (u.id === id ? { ...u, ...change } : u)),
+                  });
+                patchState(store, {
+                  uploads: [
+                    ...store.uploads(),
+                    { id, name: file.name, progress: 0, state: 'uploading' },
+                  ],
+                });
+                return filesApi.upload(target, file, replace).pipe(
+                  tap({
+                    next: (progress) => set({ progress }),
+                    complete: () => set({ progress: 1, state: 'done' }),
+                  }),
+                  catchError((error: unknown) => {
+                    if (apiErrorCode(error) === FILES_ERROR_CODES.exists && !replace) {
+                      patchState(store, { uploads: store.uploads().filter((u) => u.id !== id) });
+                      taken.push(file);
+                    } else {
+                      set({ state: 'failed' });
+                      store._failed(error);
+                    }
+                    return EMPTY;
+                  }),
+                );
+              }),
+              ignoreElements(),
+            );
+            return concat(
+              uploads,
+              defer(() => (files.length > taken.length ? store._reload() : EMPTY)),
+              defer(() => {
+                if (taken.length) patchState(store, { clashes: taken });
+                return EMPTY;
+              }),
+            );
+          }),
+        ),
+      ),
+    }),
   ),
+  withMethods((store) => ({
+    /** The clash question answered: replaced (uploaded again) or kept. */
+    answerClashes(replace: boolean): void {
+      const files = store.clashes();
+      patchState(store, { clashes: [] });
+      if (replace && files.length) store.upload({ files, replace: true });
+    },
+  })),
   withHooks((store, linuxSessionStore = inject(LinuxSessionStore)) => ({
     onInit() {
       linuxSessionStore.check();

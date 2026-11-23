@@ -141,7 +141,7 @@ export class BackupsPage {
   protected fromSheet(action: 'runNow' | 'restore' | 'remove'): void {
     const row = this.backupsPageStore.sheetRow();
     if (!row) return;
-    if (action === 'runNow') void this.backupsPageStore.runNow(row.item.id);
+    if (action === 'runNow') this.backupsPageStore.runItemNow(row.item.id);
     else if (action === 'restore') this.openRestore(row);
     else this.askRemove(row);
   }
@@ -149,7 +149,7 @@ export class BackupsPage {
   protected openRestore(row: ItemRow): void {
     this.backupsPageStore.closeSheet();
     this.restoreDialog()?.open(row);
-    void this.backupsPageStore.loadArchives(row.item.id);
+    this.backupsPageStore.loadArchives(row.item.id);
   }
 
   protected askRemove(row: ItemRow): void {

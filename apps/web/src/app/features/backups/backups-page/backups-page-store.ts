@@ -26,14 +26,15 @@ import { toast } from '@spartan-ng/brain/sonner';
 import {
   catchError,
   concat,
+  concatMap,
   defer,
   EMPTY,
   exhaustMap,
+  filter,
   firstValueFrom,
   forkJoin,
-  from,
   lastValueFrom,
-  merge,
+  map,
   mergeMap,
   type Observable,
   of,
@@ -215,207 +216,252 @@ export const BackupsPageStore = signalStore(
         toast.error(translator.t(key, params), {
           description: translator.t(...apiErrorText(error)),
         });
+      return {
+        _failed: failed,
+
+        /**
+         * An action as the person (their sign-in and sudo asked when needed) with a pending
+         * marker; a failure is a toast. Emits once when done; nothing when refused, dismissed, or
+         * the same action still runs.
+         */
+        _act(
+          key: string,
+          failureKey: string,
+          request: () => Observable<unknown>,
+          params = {},
+        ): Observable<true> {
+          return defer(() =>
+            store.pending().includes(key)
+              ? EMPTY
+              : // `true` once answered: an empty answer (204) is null too, like a dismissed sign-in.
+                linuxSessionStore
+                  .asPerson$(() => request().pipe(map(() => true as const)))
+                  .pipe(
+                    tap({
+                      subscribe: () => pending(key, true),
+                      finalize: () => pending(key, false),
+                    }),
+                    catchError((error: unknown) => {
+                      failed(failureKey, error, params);
+                      return EMPTY;
+                    }),
+                    filter((done): done is true => done === true),
+                  ),
+          );
+        },
+
+        _appItem(name: string): Observable<BackupItemRequest> {
+          const app = store.apps().find((a) => a.name === name);
+          return appActionsService.appBackupItem(app ?? { name, folder: null, template: null });
+        },
+
+        _loadPlan(): Observable<unknown> {
+          return backupsApi.plan().pipe(
+            tap(({ plan }) => patchState(store, { plan, loaded: true, failed: false })),
+            catchError(() => {
+              patchState(store, { loaded: true, failed: true });
+              return EMPTY;
+            }),
+          );
+        },
+      };
+    },
+  ),
+  withMethods((store, backupsApi = inject(BackupsApi), translator = inject(Translator)) => {
+    // Deferred: whether there is a plan is known only once it's loaded.
+    const history$ = defer(() =>
+      store.plan() ? forkJoin([backupsApi.runs(), backupsApi.restores()]) : EMPTY,
+    ).pipe(
+      tap(([{ runs }, { restores }]) => patchState(store, { runs, restores })),
+      // The page shows the last known history; the next change tries again.
+      catchError(() => EMPTY),
+    );
+    return {
+      _runNow(itemId: string | undefined): Observable<unknown> {
+        return store
+          ._act(itemId ? `run:${itemId}` : 'run', 'backups.run.failed', () =>
+            backupsApi.runNow(itemId),
+          )
+          .pipe(tap(() => toast.success(translator.t('backups.run.started'))));
+      },
 
       /**
-       * Runs an action as the person (their sign-in and sudo asked when needed) with a pending
-       * marker; a failure is a toast. Resolves true on success.
+       * The plan and its history again (after an action, after a change the topic pushed): one
+       * pipeline, so the latest asked for wins.
        */
-      async function act(
-        key: string,
-        failureKey: string,
-        request: () => Observable<unknown>,
-        params = {},
-      ) {
-        pending(key, true);
-        try {
-          // `true` once answered: an empty answer (204) is null too, like a dismissed sign-in.
-          const done = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(request()).then(() => true),
-          );
-          return done === true;
-        } catch (error) {
-          failed(failureKey, error, params);
-          return false;
-        } finally {
-          pending(key, false);
-        }
-      }
+      reload: rxMethod<void>(pipe(switchMap(() => concat(store._loadPlan(), history$)))),
 
-      const appItem = (name: string): Promise<BackupItemRequest> => {
-        const app = store.apps().find((a) => a.name === name);
-        return firstValueFrom(
-          appActionsService.appBackupItem(app ?? { name, folder: null, template: null }),
-        );
-      };
-
-      const plan$ = () =>
-        backupsApi.plan().pipe(
-          tap(({ plan }) => patchState(store, { plan, loaded: true, failed: false })),
-          catchError(() => {
-            patchState(store, { loaded: true, failed: true });
-            return EMPTY;
-          }),
-        );
-      // Deferred: whether there is a plan is known only once it's loaded.
-      const history$ = () =>
-        defer(() =>
-          store.plan() ? forkJoin([backupsApi.runs(), backupsApi.restores()]) : EMPTY,
-        ).pipe(
-          tap(([{ runs }, { restores }]) => patchState(store, { runs, restores })),
-          // The page shows the last known history; the next change tries again.
-          catchError(() => EMPTY),
-        );
-
-      // Every reload of the plan and its history goes through this one pipeline, so the latest
-      // asked for wins (after an action, after a change the topic pushed).
-      const reload = rxMethod<void>(pipe(switchMap(() => concat(plan$(), history$()))));
-      const loadExtras = rxMethod<void>(
+      _loadExtras: rxMethod<void>(
         pipe(
           exhaustMap(() =>
-            merge(
-              backupsApi.destinations().pipe(
-                tap(({ destinations }) => patchState(store, { destinations })),
-                catchError(() => {
-                  patchState(store, { destinations: [] });
-                  return EMPTY;
-                }),
-              ),
+            backupsApi.destinations().pipe(
+              tap(({ destinations }) => patchState(store, { destinations })),
+              catchError(() => {
+                patchState(store, { destinations: [] });
+                return EMPTY;
+              }),
             ),
           ),
         ),
-      );
+      ),
+    };
+  }),
+  withMethods(
+    (
+      store,
+      backupsApi = inject(BackupsApi),
+      linuxSessionStore = inject(LinuxSessionStore),
+      translator = inject(Translator),
+    ) => ({
+      load(): void {
+        store._loadExtras();
+        store.reload();
+      },
 
-      return {
-        load(): void {
-          loadExtras();
-          reload();
-        },
+      /**
+       * Sets backups up, as the person, with these apps (their templates' presets) and folders;
+       * rejects with the server's error (the form puts it on its fields).
+       */
+      async setup(
+        settings: Omit<BackupSetupRequest, 'items'>,
+        apps: string[],
+        folders: string[],
+      ): Promise<void> {
+        const items: BackupSetupRequest['items'] = [
+          ...(await Promise.all(apps.map((name) => firstValueFrom(store._appItem(name))))),
+          ...folders.map((path) => ({ kind: 'folder' as const, path })),
+        ];
+        const answer = await linuxSessionStore.asPerson(() =>
+          firstValueFrom(backupsApi.setup({ ...settings, items })),
+        );
+        if (!answer) return;
+        patchState(store, { passphrase: answer.passphrase, passphraseFirst: true });
+        // The form stays busy until the plan shows.
+        await lastValueFrom(store._loadPlan(), { defaultValue: undefined });
+        toast.success(translator.t('backups.setup.done'));
+      },
 
-        /** After a change pushed by the topic: the plan and the history again. */
-        reload,
+      /** The passphrase was saved by the user: it goes from the page. */
+      hidePassphrase(): void {
+        patchState(store, { passphrase: null, passphraseFirst: false });
+      },
 
-        /**
-         * Sets backups up, as the person, with these apps (their templates' presets) and folders;
-         * rejects with the server's error (the form puts it on its fields).
-         */
-        async setup(
-          settings: Omit<BackupSetupRequest, 'items'>,
-          apps: string[],
-          folders: string[],
-        ): Promise<void> {
-          const items: BackupSetupRequest['items'] = [
-            ...(await Promise.all(apps.map((name) => appItem(name)))),
-            ...folders.map((path) => ({ kind: 'folder' as const, path })),
-          ];
-          const answer = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(backupsApi.setup({ ...settings, items })),
-          );
-          if (!answer) return;
-          patchState(store, { passphrase: answer.passphrase, passphraseFirst: true });
-          // The form stays busy until the plan shows.
-          await lastValueFrom(plan$(), { defaultValue: undefined });
-          toast.success(translator.t('backups.setup.done'));
-        },
+      /** "Show again": through the person's sudo. */
+      showPassphrase: rxMethod<void>(
+        pipe(
+          exhaustMap(() =>
+            linuxSessionStore
+              .asPerson$(() => backupsApi.passphrase())
+              .pipe(
+                tap((answer) => {
+                  if (answer)
+                    patchState(store, { passphrase: answer.passphrase, passphraseFirst: false });
+                }),
+                catchError((error: unknown) => {
+                  store._failed('backups.passphrase.failed', error);
+                  return EMPTY;
+                }),
+              ),
+          ),
+        ),
+      ),
 
-        /** The passphrase was saved by the user: it goes from the page. */
-        hidePassphrase(): void {
-          patchState(store, { passphrase: null, passphraseFirst: false });
-        },
+      /** Saves schedule, retention or disk, as the person; rejects with the server's error. */
+      async updatePlan(update: BackupPlanUpdate): Promise<void> {
+        const plan = await linuxSessionStore.asPerson(() =>
+          firstValueFrom(backupsApi.updatePlan(update)),
+        );
+        if (!plan) return;
+        patchState(store, { plan });
+        toast.success(translator.t('backups.settings.saved'));
+      },
 
-        /** "Show again": through the person's sudo. */
-        async showPassphrase(): Promise<void> {
-          try {
-            const answer = await linuxSessionStore.asPerson(() =>
-              firstValueFrom(backupsApi.passphrase()),
-            );
-            if (answer)
-              patchState(store, { passphrase: answer.passphrase, passphraseFirst: false });
-          } catch (error) {
-            failed('backups.passphrase.failed', error);
-          }
-        },
+      /** The whole plan now. */
+      runNow: rxMethod<void>(pipe(mergeMap(() => store._runNow(undefined)))),
 
-        /** Saves schedule, retention or disk, as the person; rejects with the server's error. */
-        async updatePlan(update: BackupPlanUpdate): Promise<void> {
-          const plan = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(backupsApi.updatePlan(update)),
-          );
-          if (!plan) return;
-          patchState(store, { plan });
-          toast.success(translator.t('backups.settings.saved'));
-        },
+      /** One item now (beside the whole plan's run: each its own pending button). */
+      runItemNow: rxMethod<string>(pipe(mergeMap((itemId) => store._runNow(itemId)))),
 
-        async runNow(itemId?: string): Promise<void> {
-          const key = itemId ? `run:${itemId}` : 'run';
-          if (await act(key, 'backups.run.failed', () => backupsApi.runNow(itemId))) {
-            toast.success(translator.t('backups.run.started'));
-          }
-        },
+      addApp: rxMethod<string>(
+        pipe(
+          mergeMap((name) =>
+            store._appItem(name).pipe(
+              catchError((error: unknown) => {
+                store._failed('backups.items.addFailed', error);
+                return EMPTY;
+              }),
+              concatMap((item) =>
+                store._act(`add:${name}`, 'backups.items.addFailed', () =>
+                  backupsApi.addItem(item),
+                ),
+              ),
+              tap(() => store.reload()),
+            ),
+          ),
+        ),
+      ),
 
-        async addApp(name: string): Promise<void> {
-          let item: BackupItemRequest;
-          try {
-            item = await appItem(name);
-          } catch (error) {
-            failed('backups.items.addFailed', error);
-            return;
-          }
-          if (await act(`add:${name}`, 'backups.items.addFailed', () => backupsApi.addItem(item))) {
-            reload();
-          }
-        },
+      addFolder: rxMethod<string>(
+        pipe(
+          mergeMap((path) =>
+            store
+              ._act(`add:${path}`, 'backups.items.addFailed', () =>
+                backupsApi.addItem({ kind: 'folder', path }),
+              )
+              .pipe(
+                tap(() => {
+                  patchState(store, { folders: null });
+                  store.reload();
+                }),
+              ),
+          ),
+        ),
+      ),
 
-        async addFolder(path: string): Promise<void> {
-          if (
-            await act(`add:${path}`, 'backups.items.addFailed', () =>
-              backupsApi.addItem({ kind: 'folder', path }),
-            )
-          ) {
-            patchState(store, { folders: null });
-            reload();
-          }
-        },
+      /** One item's changes in the order made. */
+      changeItem: rxMethod<ItemChange>(
+        pipe(
+          concatMap(({ itemId, change }) =>
+            store
+              ._act(`folders:${itemId}`, 'backups.items.foldersFailed', () =>
+                backupsApi.updateItem(itemId, change as BackupItemUpdate),
+              )
+              .pipe(tap(() => store.reload())),
+          ),
+        ),
+      ),
 
-        async changeItem({ itemId, change }: ItemChange): Promise<void> {
-          if (
-            await act(`folders:${itemId}`, 'backups.items.foldersFailed', () =>
-              backupsApi.updateItem(itemId, change as BackupItemUpdate),
-            )
-          ) {
-            reload();
-          }
-        },
+      /** Out of the plan (already confirmed); `deleteArchives` deletes its backups too. */
+      removeItem: rxMethod<ItemRemoval>(
+        pipe(
+          mergeMap(({ itemId, deleteArchives }) =>
+            store
+              ._act(
+                `remove:${itemId}`,
+                deleteArchives ? 'backups.items.deleteFailed' : 'backups.items.removeFailed',
+                () => backupsApi.removeItem(itemId, deleteArchives),
+              )
+              .pipe(tap(() => store.reload())),
+          ),
+        ),
+      ),
 
-        /** Out of the plan (already confirmed); `deleteArchives` deletes its backups too. */
-        async removeItem({ itemId, deleteArchives }: ItemRemoval): Promise<void> {
-          const failure = deleteArchives
-            ? 'backups.items.deleteFailed'
-            : 'backups.items.removeFailed';
-          if (
-            await act(`remove:${itemId}`, failure, () =>
-              backupsApi.removeItem(itemId, deleteArchives),
-            )
-          ) {
-            reload();
-          }
-        },
-
-        /**
-         * The archives for the restore dialog, read again from the disk first through the person's
-         * sudo (the saved lists are a run behind after a recovery); without it, the saved list.
-         * Another item opened meanwhile wins.
-         */
-        loadArchives: rxMethod<string>(
-          pipe(
-            tap((itemId) => patchState(store, { archives: { itemId, list: null } })),
-            switchMap((itemId) =>
-              from(
-                linuxSessionStore.asPerson(() => firstValueFrom(backupsApi.refreshArchives())),
-              ).pipe(
+      /**
+       * The archives for the restore dialog, read again from the disk first through the person's
+       * sudo (the saved lists are a run behind after a recovery); without it, the saved list.
+       * Another item opened meanwhile wins.
+       */
+      loadArchives: rxMethod<string>(
+        pipe(
+          tap((itemId) => patchState(store, { archives: { itemId, list: null } })),
+          switchMap((itemId) =>
+            linuxSessionStore
+              .asPerson$(() => backupsApi.refreshArchives())
+              .pipe(
                 catchError((error: unknown) => {
                   // A backup running holds the repository: its saved list is just as new.
                   if (apiErrorCode(error) !== 'busy')
-                    failed('backups.restore.refreshFailed', error);
+                    store._failed('backups.restore.refreshFailed', error);
                   return of(null);
                 }),
                 switchMap(() => backupsApi.archives(itemId)),
@@ -425,101 +471,121 @@ export const BackupsPageStore = signalStore(
                   return EMPTY;
                 }),
               ),
-            ),
           ),
         ),
+      ),
 
-        /** Starts a restore (already confirmed); its progress arrives through the topic. */
-        async restore(choice: RestoreChoice): Promise<void> {
-          if (await act('restore', 'backups.restore.failed', () => backupsApi.restore(choice))) {
-            toast.success(translator.t('backups.restore.started'));
-            reload();
-          }
-        },
-
-        /** After a restore back where it was: the app's restored files applied, as the person. */
-        async applyRestored(restore: BackupRestore): Promise<void> {
-          const project = store.plan()?.items.find((i) => i.id === restore.itemId)?.project;
-          const app = store.apps().find((a) => a.name === project);
-          if (!app?.folder) {
-            toast.error(translator.t('backups.restore.applyFailed'));
-            return;
-          }
-          const folder = app.folder;
-          if (
-            await act(`apply:${restore.id}`, 'backups.restore.applyFailed', () =>
-              backupsApi.applyRestored(restore.id, folder),
-            )
-          ) {
-            toast.success(translator.t('backups.restore.applyStarted'));
-            reload();
-          }
-        },
-
-        async discardPrevious(restoreId: string): Promise<void> {
-          if (
-            await act(`discard:${restoreId}`, 'backups.restore.discardFailed', () =>
-              backupsApi.discardPrevious(restoreId),
-            )
-          ) {
-            toast.success(translator.t('backups.restore.discarded'));
-            reload();
-          }
-        },
-
-        loadOutput: rxMethod<string>(
-          pipe(
-            mergeMap((runId) =>
-              backupsApi.runOutput(runId).pipe(
-                tap(({ output }) =>
-                  patchState(store, { outputs: { ...store.outputs(), [runId]: output } }),
-                ),
-                catchError(() => {
-                  patchState(store, { outputs: { ...store.outputs(), [runId]: [] } });
-                  return EMPTY;
+      /** Starts a restore (already confirmed); its progress arrives through the topic. */
+      restore: rxMethod<RestoreChoice>(
+        pipe(
+          exhaustMap((choice) =>
+            store
+              ._act('restore', 'backups.restore.failed', () => backupsApi.restore(choice))
+              .pipe(
+                tap(() => {
+                  toast.success(translator.t('backups.restore.started'));
+                  store.reload();
                 }),
               ),
+          ),
+        ),
+      ),
+
+      /** After a restore back where it was: the app's restored files applied, as the person. */
+      applyRestored: rxMethod<BackupRestore>(
+        pipe(
+          mergeMap((restore) => {
+            const project = store.plan()?.items.find((i) => i.id === restore.itemId)?.project;
+            const folder = store.apps().find((a) => a.name === project)?.folder;
+            if (!folder) {
+              toast.error(translator.t('backups.restore.applyFailed'));
+              return EMPTY;
+            }
+            return store
+              ._act(`apply:${restore.id}`, 'backups.restore.applyFailed', () =>
+                backupsApi.applyRestored(restore.id, folder),
+              )
+              .pipe(
+                tap(() => {
+                  toast.success(translator.t('backups.restore.applyStarted'));
+                  store.reload();
+                }),
+              );
+          }),
+        ),
+      ),
+
+      discardPrevious: rxMethod<string>(
+        pipe(
+          mergeMap((restoreId) =>
+            store
+              ._act(`discard:${restoreId}`, 'backups.restore.discardFailed', () =>
+                backupsApi.discardPrevious(restoreId),
+              )
+              .pipe(
+                tap(() => {
+                  toast.success(translator.t('backups.restore.discarded'));
+                  store.reload();
+                }),
+              ),
+          ),
+        ),
+      ),
+
+      loadOutput: rxMethod<string>(
+        pipe(
+          mergeMap((runId) =>
+            backupsApi.runOutput(runId).pipe(
+              tap(({ output }) =>
+                patchState(store, { outputs: { ...store.outputs(), [runId]: output } }),
+              ),
+              catchError(() => {
+                patchState(store, { outputs: { ...store.outputs(), [runId]: [] } });
+                return EMPTY;
+              }),
             ),
           ),
         ),
+      ),
 
-        /**
-         * The folder picker: the starting places, or inside a folder; the latest click wins. Read
-         * as the signed-in Linux account: its sign-in asked for first (closed: nothing changes).
-         */
-        browse: rxMethod<string | undefined>(
-          pipe(
-            switchMap((path) =>
-              from(linuxSessionStore.asPerson(() => firstValueFrom(backupsApi.folders(path)))).pipe(
+      /**
+       * The folder picker: the starting places, or inside a folder; the latest click wins. Read
+       * as the signed-in Linux account: its sign-in asked for first (closed: nothing changes).
+       */
+      browse: rxMethod<string | undefined>(
+        pipe(
+          switchMap((path) =>
+            linuxSessionStore
+              .asPerson$(() => backupsApi.folders(path))
+              .pipe(
                 tap((folders) => {
                   if (folders) patchState(store, { folders });
                 }),
                 catchError((error: unknown) => {
-                  failed('backups.folders.failed', error);
+                  store._failed('backups.folders.failed', error);
                   return EMPTY;
                 }),
               ),
-            ),
           ),
         ),
+      ),
 
-        closeBrowser(): void {
-          patchState(store, { folders: null });
-        },
+      closeBrowser(): void {
+        patchState(store, { folders: null });
+      },
 
-        setTab(tab: BackupsTab): void {
-          patchState(store, { tab });
-        },
+      setTab(tab: BackupsTab): void {
+        patchState(store, { tab });
+      },
 
-        openSheet(itemId: string): void {
-          patchState(store, { sheetItemId: itemId });
-        },
+      openSheet(itemId: string): void {
+        patchState(store, { sheetItemId: itemId });
+      },
 
-        closeSheet(): void {
-          patchState(store, { sheetItemId: null });
-        },
-      };
-    },
+      closeSheet(): void {
+        patchState(store, { sheetItemId: null });
+      },
+    }),
   ),
   withHooks(
     (store, monitoringStore = inject(MonitoringStore), backupsStore = inject(BackupsStore)) => {

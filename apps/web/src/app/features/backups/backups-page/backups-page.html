@@ -64,7 +64,7 @@
           [runBusy]="backupsPageStore.running() !== null"
           [folderListing]="backupsPageStore.folders()"
           (openItem)="backupsPageStore.openSheet($event)"
-          (runNow)="backupsPageStore.runNow($event)"
+          (runNow)="backupsPageStore.runItemNow($event)"
           (restore)="openRestore($event)"
           (remove)="askRemove($event)"
           (addApp)="backupsPageStore.addApp($event)"

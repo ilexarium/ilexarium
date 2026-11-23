@@ -151,11 +151,18 @@
 }
 
 <ilex-file-name-dialog />
-<ilex-file-delete-dialog (confirm)="filesPageStore.delete($event)" />
+<ilex-file-delete-dialog
+  [deleting]="filesPageStore.deleting()"
+  (confirm)="filesPageStore.delete($event)"
+  (cancel)="filesPageStore.cancelDelete()"
+/>
 
-<hlm-alert-dialog #replaceDialog>
+<hlm-alert-dialog
+  [state]="filesPageStore.clashes().length ? 'open' : 'closed'"
+  (closed)="filesPageStore.answerClashes(false)"
+>
   <hlm-alert-dialog-content *hlmAlertDialogPortal>
-    @let files = taken();
+    @let files = filesPageStore.clashes();
     @if (files.length) {
       <hlm-alert-dialog-header>
         <h2 hlmAlertDialogTitle class="break-words">
@@ -185,7 +192,7 @@
         <button hlmAlertDialogCancel>
           {{ 'files.replaceDialog.cancel' | translate }}
         </button>
-        <button hlmAlertDialogAction (click)="replace()">
+        <button hlmAlertDialogAction (click)="filesPageStore.answerClashes(true)">
           {{ 'files.replaceDialog.confirm' | translate }}
         </button>
       </hlm-alert-dialog-footer>
