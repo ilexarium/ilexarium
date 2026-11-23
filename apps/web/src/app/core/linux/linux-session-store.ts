@@ -83,16 +83,18 @@ export const LinuxSessionStore = signalStore(
     }),
   })),
   withMethods((store, filesApi = inject(FilesApi), translator = inject(Translator)) => {
-    const sudoQuestion = new SharedPrompt(
-      () => patchState(store, { sudoPrompt: true, sudoPromptId: store.sudoPromptId() + 1 }),
-      () => patchState(store, { sudoPrompt: false }),
-    );
-    const signInQuestion = new SharedPrompt(
-      () => patchState(store, { signInPrompt: true, signInPromptId: store.signInPromptId() + 1 }),
-      () => patchState(store, { signInPrompt: false }),
-    );
-    const answerPrompt = (unlocked: boolean) => sudoQuestion.respond(unlocked);
-    const answerSignIn = (signedIn: boolean) => signInQuestion.respond(signedIn);
+    const sudoQuestion = new SharedPrompt({
+      showDialog: () =>
+        patchState(store, { sudoPrompt: true, sudoPromptId: store.sudoPromptId() + 1 }),
+      hideDialog: () => patchState(store, { sudoPrompt: false }),
+    });
+    const signInQuestion = new SharedPrompt({
+      showDialog: () =>
+        patchState(store, { signInPrompt: true, signInPromptId: store.signInPromptId() + 1 }),
+      hideDialog: () => patchState(store, { signInPrompt: false }),
+    });
+    const answerPrompt = (unlocked: boolean) => sudoQuestion.answerWith(unlocked);
+    const answerSignIn = (signedIn: boolean) => signInQuestion.answerWith(signedIn);
     /** Asks for the Linux sign-in; true once signed in, false when closed. */
     const requestSignIn = (): Promise<boolean> => firstValueFrom(signInQuestion.ask());
     /** An action found the Linux session gone (idle, closed elsewhere). */
