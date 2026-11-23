@@ -119,7 +119,11 @@ export function withAppTask() {
                   'apps.starting.failed',
                   appActionsService.start(store.name(), store.folder()),
                 );
-              void containerActionsStore.runAll(summary.containers, action, store.name());
+              containerActionsStore.runAll({
+                names: summary.containers,
+                action,
+                label: store.name(),
+              });
               return EMPTY;
             }),
           ),
