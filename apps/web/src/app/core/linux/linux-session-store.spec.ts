@@ -232,28 +232,16 @@ describe('LinuxSessionStore', () => {
       expect(action).toHaveBeenCalledTimes(3);
     });
 
-    it('unsubscribed while a prompt is asked (the page left): the prompt closes', async () => {
+    it('unsubscribed while a prompt is asked (the page left): only an answer closes it', async () => {
       const { store } = await setup(null);
-      const subscription = store.asPerson$(answering('done')).subscribe();
-      expect(store.signInPrompt()).toBe(true);
+      const left = answering('a');
+      const subscription = store.asPerson$(left).subscribe();
       subscription.unsubscribe();
-      expect(store.signInPrompt()).toBe(false);
-    });
-
-    it('a late “closed” of a sign-in closed from code never answers the one asked now', async () => {
-      const { store } = await setup(null);
-      const left = store.asPerson$(answering('a')).subscribe();
-      const first = store.signInPromptId();
-      left.unsubscribe();
-      const action = answering('b');
-      const result = firstValueFrom(store.asPerson$(action));
-      expect(store.signInPromptId()).toBe(first + 1);
-      // The first dialog's close animation ends now.
-      store.signInAnswered(true, first);
       expect(store.signInPrompt()).toBe(true);
       await store.signIn({ username: 'anna', password: 'pw' });
-      store.signInAnswered(true, first + 1);
-      expect(await result).toBe('b');
+      store.signInAnswered(true);
+      expect(store.signInPrompt()).toBe(false);
+      expect(left).not.toHaveBeenCalled();
     });
 
     it('a prompt shared with another waiting action stays open when one leaves', async () => {
