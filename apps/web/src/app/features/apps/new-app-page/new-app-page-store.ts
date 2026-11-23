@@ -5,6 +5,7 @@ import {
   withComputed,
   withHooks,
   withMethods,
+  withProps,
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
@@ -19,7 +20,20 @@ import {
   type Template,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, debounceTime, EMPTY, exhaustMap, map, of, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  debounceTime,
+  EMPTY,
+  exhaustMap,
+  filter,
+  map,
+  of,
+  pipe,
+  Subject,
+  switchMap,
+  takeUntil,
+  tap,
+} from 'rxjs';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { AppActionsService } from '../../../core/apps/services/app-actions-service';
 import { Translator } from '../../../core/i18n/translator';
@@ -81,6 +95,8 @@ const composeName = (text: string): string | undefined =>
  */
 export const NewAppPageStore = signalStore(
   withState<NewAppState>(initialState),
+  /** The setup started again or left: a template still loading is no longer wanted. */
+  withProps(() => ({ _setupChanged: new Subject<void>() })),
   withComputed(
     (
       store,
@@ -147,7 +163,11 @@ export const NewAppPageStore = signalStore(
           debounceTime(NAME_CHECK_MS),
           switchMap((name) =>
             appActionsService.checkName(name).pipe(
-              tap((nameCheck) => patchState(store, { nameCheck })),
+              tap((nameCheck) => {
+                // Not for a name since changed, or a setup since left.
+                if (store.name() === name && store.step() === 'setup')
+                  patchState(store, { nameCheck });
+              }),
               catchError(() => EMPTY),
             ),
           ),
@@ -202,6 +222,8 @@ export const NewAppPageStore = signalStore(
     _suggestFromFile: rxMethod<string>(
       pipe(
         debounceTime(NAME_CHECK_MS),
+        // Only the file as it is now (not one typed in a setup since left).
+        filter((compose) => compose === store.compose()),
         map(composeName),
         tap((wanted) => {
           if (
@@ -218,10 +240,12 @@ export const NewAppPageStore = signalStore(
     ),
   })),
   withMethods((store, appActionsService = inject(AppActionsService)) => ({
+    /** The latest template clicked wins. */
     chooseTemplate: rxMethod<string>(
       pipe(
-        exhaustMap((id) =>
+        switchMap((id) =>
           appActionsService.template(id).pipe(
+            takeUntil(store._setupChanged),
             tap(({ template, compose }) => {
               patchState(store, {
                 ...initialState,
@@ -244,11 +268,13 @@ export const NewAppPageStore = signalStore(
 
     /** Your own Compose file: pasted in its Files section (its `name:` then suggested). */
     useOwnFile(): void {
+      store._setupChanged.next();
       patchState(store, { ...initialState, step: 'setup', search: store.search() });
       store._suggestName('app');
     },
 
     back(): void {
+      store._setupChanged.next();
       patchState(store, { ...initialState, search: store.search() });
     },
 

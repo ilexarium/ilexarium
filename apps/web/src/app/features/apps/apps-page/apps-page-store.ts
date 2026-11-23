@@ -164,6 +164,8 @@ export const AppsPageStore = signalStore(
               void containerActionsStore.runAll(containers, 'start', name);
               return EMPTY;
             }
+            // A second click before the card shows it pending: one start is enough.
+            if (store.starting().includes(name)) return EMPTY;
             return appActionsService.start(name, folder).pipe(
               tap({
                 subscribe: () => patchState(store, { requesting: [...store.requesting(), name] }),

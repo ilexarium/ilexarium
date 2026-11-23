@@ -166,6 +166,20 @@ describe('AppsPage', () => {
     expect(start.disabled).toBe(false);
   });
 
+  it('Start clicked twice before the card shows it busy: one start', async () => {
+    const { el, receive, appsApi } = await render();
+    appsApi.task.mockImplementation(() => of({ task: testTask({ action: 'up' }) }));
+    await receive({
+      event: 'containers:snapshot',
+      data: { dockerAvailable: true, containers: [], history: {} },
+    });
+    const start = el.querySelector<HTMLButtonElement>('button[aria-label="Start notes"]')!;
+    start.click();
+    start.click();
+    await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
+    expect(appsApi.start).toHaveBeenCalledTimes(1);
+  });
+
   it('the card stays busy while its start runs, then is free again', async () => {
     const { el, receive, appsApi, fixture } = await render();
     let state: 'running' | 'succeeded' = 'running';
