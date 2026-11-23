@@ -243,7 +243,9 @@ export const BackupsPageStore = signalStore(
 
       const appItem = (name: string): Promise<BackupItemRequest> => {
         const app = store.apps().find((a) => a.name === name);
-        return appActionsService.appBackupItem(app ?? { name, folder: null, template: null });
+        return firstValueFrom(
+          appActionsService.appBackupItem(app ?? { name, folder: null, template: null }),
+        );
       };
 
       const plan$ = () =>

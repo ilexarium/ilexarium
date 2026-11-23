@@ -5,11 +5,23 @@ import {
   withComputed,
   withHooks,
   withMethods,
+  withProps,
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  EMPTY,
+  exhaustMap,
+  type Observable,
+  of,
+  pipe,
+  Subject,
+  switchMap,
+  takeUntil,
+  tap,
+} from 'rxjs';
 import { AppsStore } from '../../../../core/apps/apps-store';
 import { AppActionsService } from '../../../../core/apps/services/app-actions-service';
 import { ContainerActionsStore } from '../../../../core/containers/container-actions-store';
@@ -28,6 +40,8 @@ import { initialAppDetailsState } from './app-page-store.constants';
 export function withAppDetails() {
   return signalStoreFeature(
     withState<AppDetailsState>({ ...initialAppDetailsState, tab: 'overview' }),
+    /** Another app opened here: the previous one's request ends, its answer never shown. */
+    withProps(() => ({ _appChanged: new Subject<void>() })),
     withComputed(
       (
         store,
@@ -114,26 +128,29 @@ export function withAppDetails() {
         },
 
         /**
-         * One of the page's requests: `requesting` meanwhile, a refusal worded under `errorKey`
-         * (unless `handleRefusal` took it). Null when refused or the prompt was dismissed.
+         * One of the page's requests: `requesting` while it runs, a refusal worded under
+         * `errorKey` (unless `handleRefusal` took it). Null when refused or the prompt was
+         * dismissed.
          */
-        async _request<T>(
+        _request<T>(
           errorKey: string,
-          action: () => Promise<T | null>,
+          request: Observable<T | null>,
           handleRefusal?: (error: unknown) => boolean,
-        ): Promise<T | null> {
-          patchState(store, { requesting: true });
-          try {
-            return await action();
-          } catch (error) {
-            if (!handleRefusal?.(error))
-              toast.error(translator.t(errorKey, { name: store.name() }), {
-                description: translator.t(...apiErrorText(error)),
-              });
-            return null;
-          } finally {
-            patchState(store, { requesting: false });
-          }
+        ): Observable<T | null> {
+          return request.pipe(
+            takeUntil(store._appChanged),
+            tap({
+              subscribe: () => patchState(store, { requesting: true }),
+              finalize: () => patchState(store, { requesting: false }),
+            }),
+            catchError((error: unknown) => {
+              if (!handleRefusal?.(error))
+                toast.error(translator.t(errorKey, { name: store.name() }), {
+                  description: translator.t(...apiErrorText(error)),
+                });
+              return of(null);
+            }),
+          );
         },
       }),
     ),
@@ -143,9 +160,17 @@ export function withAppDetails() {
       },
 
       /** Signed in to Linux first, then read (the files are the person's). */
-      async signInAndLoad(): Promise<void> {
-        if (await appActionsService.signIn()) store.load();
-      },
+      signInAndLoad: rxMethod<void>(
+        pipe(
+          exhaustMap(() =>
+            appActionsService.signIn().pipe(
+              tap((signedIn) => {
+                if (signedIn) store.load();
+              }),
+            ),
+          ),
+        ),
+      ),
     })),
     withHooks((_store, monitoringStore = inject(MonitoringStore)) => {
       let stop: (() => void) | undefined;

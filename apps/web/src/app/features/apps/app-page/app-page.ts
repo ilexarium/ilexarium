@@ -108,11 +108,11 @@ export class AppPage {
 
   protected askDelete(): void {
     this.deleteDialog().open();
-    void this.appPageStore.openDeletion();
+    this.appPageStore.openDeletion();
   }
 
   protected deleteFiles(items: AppRemovalItem[]): void {
-    void this.appPageStore.deleteFiles(items);
+    this.appPageStore.deleteFiles(items);
   }
 
   protected askUpdate(): void {

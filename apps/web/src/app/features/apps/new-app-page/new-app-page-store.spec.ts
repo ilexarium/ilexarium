@@ -57,7 +57,7 @@ async function setup(templates: TemplateSummary[] = []) {
     task: vi.fn(() => of({ task: answers.shift() ?? null })),
   };
   const backupsApi = { addItem: vi.fn(() => of({})) };
-  const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
+  const asPerson = vi.fn(<T>(action: () => Observable<T>): Observable<T | null> => action());
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
@@ -65,7 +65,7 @@ async function setup(templates: TemplateSummary[] = []) {
       sockets.provider,
       { provide: AppsApi, useValue: appsApi },
       { provide: BackupsApi, useValue: backupsApi },
-      { provide: LinuxSessionStore, useValue: { asPerson, check: vi.fn() } },
+      { provide: LinuxSessionStore, useValue: { asPerson$: asPerson, check: vi.fn() } },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -237,7 +237,7 @@ describe('NewAppPageStore', () => {
   it('the sign-in dismissed: nothing started, still on the form', async () => {
     const { store, appsApi, asPerson } = await setup();
     await store.chooseTemplate('navidrome');
-    asPerson.mockResolvedValueOnce(null);
+    asPerson.mockReturnValueOnce(of(null));
     await store.install();
     expect(appsApi.install).not.toHaveBeenCalled();
     expect(store.step()).toBe('setup');

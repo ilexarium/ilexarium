@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { APP_LIMITS, type AppStarted, type AppTask, type BackupsStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { type Observable, of, throwError } from 'rxjs';
+import { type Observable, of, Subject, throwError } from 'rxjs';
 import { AppsApi } from '../../../../core/apps/apps-api';
 import { TASK_POLL_GIVE_UP } from '../../../../core/apps/follow-app-task.constants';
 import { testApp, testDetails, testStarted, testTask } from '../../../../core/apps/testing';
@@ -72,7 +72,7 @@ async function setup() {
     runNow: vi.fn(() => of({ runId: '00000000-0000-4000-8000-000000000009' })),
   };
   // Signed in to Linux with sudo at hand: every action goes straight through.
-  const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
+  const asPerson = vi.fn(<T>(action: () => Observable<T>): Observable<T | null> => action());
   TestBed.configureTestingModule({
     providers: [
       provideRouter([{ path: 'login', children: [] }]),
@@ -80,7 +80,7 @@ async function setup() {
       sockets.provider,
       { provide: AppsApi, useValue: appsApi },
       { provide: BackupsApi, useValue: backupsApi },
-      { provide: LinuxSessionStore, useValue: { asPerson, check: vi.fn() } },
+      { provide: LinuxSessionStore, useValue: { asPerson$: asPerson, check: vi.fn() } },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -140,7 +140,7 @@ describe('AppPageStore', () => {
     store.setValue('VERSION', '1.28');
     answers.push(testTask({ output: ['pulling'] }));
     answers.push(testTask({ state: 'succeeded', output: ['pulling', 'started'] }));
-    await store.save();
+    store.save();
     expect(asPerson).toHaveBeenCalled();
     expect(appsApi.save).toHaveBeenCalledWith('music', {
       folder: FOLDER,
@@ -164,7 +164,7 @@ describe('AppPageStore', () => {
     store.reload();
     await vi.waitFor(() => expect(store.summary()?.state).toBe('none'));
     answers.push(testTask({ action: 'up', state: 'succeeded' }));
-    await store.act('start');
+    store.act('start');
     expect(asPerson).toHaveBeenCalled();
     expect(appsApi.start).toHaveBeenCalledWith('music', FOLDER);
     await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
@@ -179,10 +179,10 @@ describe('AppPageStore', () => {
       ),
     );
     const error = vi.spyOn(toast, 'error');
-    await store.save();
+    store.save();
     expect(store.conflict()).toBe(true);
     expect(error).not.toHaveBeenCalled();
-    await store.save(true);
+    store.overwrite();
     expect(store.conflict()).toBe(false);
     expect(appsApi.save).toHaveBeenLastCalledWith(
       'music',
@@ -192,8 +192,8 @@ describe('AppPageStore', () => {
 
   it('nothing happens when the Linux sign-in is closed', async () => {
     const { store, appsApi, asPerson } = await setup();
-    asPerson.mockResolvedValueOnce(null);
-    await store.update();
+    asPerson.mockReturnValueOnce(of(null));
+    store.update();
     expect(appsApi.update).not.toHaveBeenCalled();
     expect(store.task()).toBeNull();
   });
@@ -201,7 +201,7 @@ describe('AppPageStore', () => {
   it('removes: down only, followed to its end — the page stays and reads the files again', async () => {
     const { store, appsApi, answers } = await setup();
     answers.push(testTask({ action: 'down' }), testTask({ action: 'down', state: 'succeeded' }));
-    await store.remove();
+    store.remove();
     expect(appsApi.remove).toHaveBeenCalledWith('music', FOLDER);
     // The server's answer shown at once: the buttons stay locked until the task has ended.
     expect(store.task()).toMatchObject({ action: 'down' });
@@ -218,7 +218,7 @@ describe('AppPageStore', () => {
   it('a failed down: its output stays, nothing else happens', async () => {
     const { store, appsApi, answers } = await setup();
     answers.push(testTask({ action: 'down', state: 'failed', output: ['error'] }));
-    await store.remove();
+    store.remove();
     await vi.waitFor(() => expect(store.task()?.state).toBe('failed'), { timeout: 4000 });
     expect(appsApi.delete).not.toHaveBeenCalled();
     expect(store.removed()).toBe(false);
@@ -237,10 +237,10 @@ describe('AppPageStore', () => {
   it('deletes the files ticked; with the settings the app is gone: back to the list', async () => {
     const { store, appsApi, asPerson } = await setup();
     const success = vi.spyOn(toast, 'success');
-    await store.openDeletion();
+    store.openDeletion();
     expect(appsApi.removal).toHaveBeenCalledWith('music', FOLDER);
     const [settings, data] = store.removal()!;
-    await store.deleteFiles([settings, data]);
+    store.deleteFiles([settings, data]);
     expect(asPerson).toHaveBeenCalledTimes(2);
     expect(appsApi.delete).toHaveBeenCalledWith('music', {
       folder: FOLDER,
@@ -254,9 +254,9 @@ describe('AppPageStore', () => {
 
   it('without the settings: the files read again, still on the page', async () => {
     const { store, appsApi } = await setup();
-    await store.openDeletion();
+    store.openDeletion();
     const [, , volume] = store.removal()!;
-    await store.deleteFiles([volume]);
+    store.deleteFiles([volume]);
     expect(appsApi.delete).toHaveBeenCalledWith('music', {
       folder: FOLDER,
       settings: false,
@@ -279,8 +279,8 @@ describe('AppPageStore', () => {
           }),
       ),
     );
-    await store.openDeletion();
-    await store.deleteFiles([store.removal()![0]]);
+    store.openDeletion();
+    store.deleteFiles([store.removal()![0]]);
     expect(error).toHaveBeenCalledWith("Couldn't delete the files of music", {
       description: 'The app still has containers. Remove it first.',
     });
@@ -307,7 +307,7 @@ describe('AppPageStore', () => {
   it('left during a task: no more polls', async () => {
     const { store, page, appsApi, answers } = await setup();
     answers.push(testTask({ action: 'update' }), testTask({ action: 'update' }));
-    await store.update();
+    store.update();
     await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
     page.destroy();
     const calls = appsApi.task.mock.calls.length;
@@ -318,7 +318,7 @@ describe('AppPageStore', () => {
   it('another app opened during a task: the old one no longer followed', async () => {
     const { store, appsApi, answers } = await setup();
     answers.push(testTask({ action: 'update' }), testTask({ action: 'update' }));
-    await store.update();
+    store.update();
     await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
     appsApi.details.mockReturnValue(of(testDetails('wiki')));
     store.open('wiki', null);
@@ -326,6 +326,24 @@ describe('AppPageStore', () => {
     const calls = appsApi.task.mock.calls.length;
     await new Promise((resolve) => setTimeout(resolve, 2500));
     expect(appsApi.task).toHaveBeenCalledTimes(calls);
+  });
+
+  it('another app opened while a request runs: that request ends, the new app’s click goes through', async () => {
+    const { store, appsApi } = await setup();
+    const success = vi.spyOn(toast, 'success');
+    // music's removal list never answers.
+    const pending = new Subject<never>();
+    appsApi.removal.mockReturnValueOnce(pending);
+    store.openDeletion();
+    expect(store.busy()).toBe(true);
+    appsApi.details.mockReturnValue(of(testDetails('wiki')));
+    store.open('wiki', null);
+    await vi.waitFor(() => expect(store.details()).not.toBeNull());
+    expect(pending.observed).toBe(false);
+    expect(store.busy()).toBe(false);
+    store.update();
+    expect(appsApi.update).toHaveBeenCalledWith('wiki', expect.any(String));
+    expect(success).not.toHaveBeenCalled();
   });
 
   it('a task it gave up following: not shown as running, not followed again from a read', async () => {
@@ -337,7 +355,7 @@ describe('AppPageStore', () => {
     );
     vi.useFakeTimers();
     try {
-      await store.update();
+      store.update();
       expect(store.running()).toBe(true);
       await vi.advanceTimersByTimeAsync(APP_LIMITS.taskPollMs * (TASK_POLL_GIVE_UP + 2));
       TestBed.tick();
@@ -354,7 +372,7 @@ describe('AppPageStore', () => {
   it('updates as the person and follows the task — no backup first', async () => {
     const { store, appsApi, backupsApi, answers } = await setup();
     answers.push(testTask({ action: 'update', state: 'succeeded', output: ['pulled'] }));
-    await store.update();
+    store.update();
     expect(appsApi.update).toHaveBeenCalledWith('music', FOLDER);
     expect(backupsApi.runNow).not.toHaveBeenCalled();
     await vi.waitFor(() => expect(store.task()?.state).toBe('succeeded'), { timeout: 4000 });
@@ -365,7 +383,7 @@ describe('AppPageStore', () => {
     const { store, appsApi, backupsApi, asPerson, backups } = await setup();
     const info = vi.spyOn(toast, 'info');
     backups({ items: [ITEM] });
-    await store.backUpNow();
+    store.backUpNow();
     expect(asPerson).toHaveBeenCalledTimes(1);
     expect(backupsApi.runNow).toHaveBeenCalledWith(ITEM.id);
     expect(info).toHaveBeenCalledWith("music's backup has started.");
@@ -376,7 +394,7 @@ describe('AppPageStore', () => {
   it('a backup just started here: no update and no second backup, before the topic shows it', async () => {
     const { store, backups } = await setup();
     backups({ items: [ITEM] });
-    await store.backUpNow();
+    store.backUpNow();
     expect(store.appBackingUp()).toBe(true);
     expect(store.backupRunning()).toBe(true);
     backups({
@@ -426,7 +444,7 @@ describe('AppPageStore', () => {
     );
     store.reload();
     await vi.waitFor(() => expect(store.details()?.template).not.toBeNull());
-    await store.addToBackups();
+    store.addToBackups();
     expect(appsApi.template).toHaveBeenCalledWith('navidrome');
     expect(backupsApi.addItem).toHaveBeenCalledWith({
       kind: 'app',
@@ -446,14 +464,14 @@ describe('AppPageStore', () => {
     store.reload();
     await vi.waitFor(() => expect(store.details()?.template).not.toBeNull());
     appsApi.template.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 500 })));
-    await store.addToBackups();
+    store.addToBackups();
     expect(backupsApi.addItem).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalled();
   });
 
   it('adds the app to the backups as the person', async () => {
     const { store, backupsApi } = await setup();
-    await store.addToBackups();
+    store.addToBackups();
     expect(backupsApi.addItem).toHaveBeenCalledWith({
       kind: 'app',
       project: 'music',

@@ -10,7 +10,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { AppStarted, AppSummary, Container } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, mergeMap, pipe, tap } from 'rxjs';
+import { catchError, EMPTY, exhaustMap, firstValueFrom, mergeMap, pipe, tap } from 'rxjs';
 import { AppsStore } from '../../../core/apps/apps-store';
 import { AppActionsService } from '../../../core/apps/services/app-actions-service';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
@@ -155,7 +155,7 @@ export const AppsPageStore = signalStore(
       const startWithoutContainers = async (name: string, folder: string): Promise<void> => {
         patchState(store, { requesting: [...store.requesting(), name] });
         try {
-          const started = await appActionsService.start(name, folder);
+          const started = await firstValueFrom(appActionsService.start(name, folder));
           // Not started (the sign-in dismissed): the list as it is now.
           if (!started) {
             loadWithoutContainers();

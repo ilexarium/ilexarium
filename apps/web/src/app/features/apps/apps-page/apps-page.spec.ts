@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Container } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of } from 'rxjs';
+import { type Observable, of } from 'rxjs';
 import { AppsApi } from '../../../core/apps/apps-api';
 import { testApp, testContainer, testStarted, testTask } from '../../../core/apps/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -49,7 +49,7 @@ async function render(withoutContainers = [testApp('notes', { state: 'none', con
         useValue: {
           check: vi.fn(),
           session: () => null,
-          asPerson: <T>(action: () => Promise<T>) => action(),
+          asPerson$: <T>(action: () => Observable<T>) => action(),
         },
       },
     ],

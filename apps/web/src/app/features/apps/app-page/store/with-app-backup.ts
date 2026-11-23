@@ -8,7 +8,9 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
+import { EMPTY, exhaustMap, pipe, tap } from 'rxjs';
 import { AppActionsService } from '../../../../core/apps/services/app-actions-service';
 import { BackupsStore } from '../../../../core/backups/backups-store';
 import { Translator } from '../../../../core/i18n/translator';
@@ -49,28 +51,46 @@ export function withAppBackup() {
     withMethods(
       (store, appActionsService = inject(AppActionsService), translator = inject(Translator)) => ({
         /** Starts this app's backup; its progress comes with the `backups` topic. */
-        async backUpNow(): Promise<void> {
-          const item = store.backup();
-          if (!item) return;
-          const run = await store._request('apps.backup.runFailed', () =>
-            appActionsService.backUpNow(item.id),
-          );
-          if (!run) return;
-          patchState(store, { startedRun: run.runId });
-          toast.info(translator.t('apps.backup.started', { name: store.name() }));
-        },
+        backUpNow: rxMethod<void>(
+          pipe(
+            exhaustMap(() => {
+              const item = store.backup();
+              if (!item) return EMPTY;
+              return store
+                ._request('apps.backup.runFailed', appActionsService.backUpNow(item.id))
+                .pipe(
+                  tap((run) => {
+                    if (!run) return;
+                    patchState(store, { startedRun: run.runId });
+                    toast.info(translator.t('apps.backup.started', { name: store.name() }));
+                  }),
+                );
+            }),
+          ),
+        ),
 
         /** Added with its template's preset (refused when the template can't be read). */
-        async addToBackups(): Promise<void> {
-          const item = await store._request('apps.backup.failed', () =>
-            appActionsService.addToBackups({
-              name: store.name(),
-              folder: store.folder() || null,
-              template: store.details()?.template ?? store.summary()?.template ?? null,
-            }),
-          );
-          if (item) toast.success(translator.t('apps.backup.added', { name: store.name() }));
-        },
+        addToBackups: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              store
+                ._request(
+                  'apps.backup.failed',
+                  appActionsService.addToBackups({
+                    name: store.name(),
+                    folder: store.folder() || null,
+                    template: store.details()?.template ?? store.summary()?.template ?? null,
+                  }),
+                )
+                .pipe(
+                  tap((item) => {
+                    if (item)
+                      toast.success(translator.t('apps.backup.added', { name: store.name() }));
+                  }),
+                ),
+            ),
+          ),
+        ),
       }),
     ),
   );

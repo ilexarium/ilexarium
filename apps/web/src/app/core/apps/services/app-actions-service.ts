@@ -16,19 +16,20 @@ import type {
   BackupRunStartedResponse,
   TemplateDetails,
 } from '@ilex/shared';
-import { firstValueFrom, type Observable } from 'rxjs';
+import { map, type Observable, of, switchMap } from 'rxjs';
 import { buildAppBackupItem } from '../../backups/app-backup-item';
 import { BackupsApi } from '../../backups/backups-api';
 import type { BackupPreset } from '../../backups/backups.model';
 import { LinuxSessionStore } from '../../linux/linux-session-store';
 import { AppsApi } from '../apps-api';
 import { followAppTask } from '../follow-app-task';
+import { DEFAULT_BACKUP_PRESET } from './app-actions-service.constants';
 
 /**
  * Apps' reads and actions for the stores: the API calls, the steps that belong together, and
  * every change as the signed-in Linux account (`asPerson`: the sign-in or sudo prompt first when
- * needed). Stateless: reads are Observables, changes Promises — null when the prompt was
- * dismissed; a refusal throws, for the store to word.
+ * needed). Stateless: every method an Observable; a change gives null when the prompt was
+ * dismissed, a refusal is its error, for the store to word.
  */
 @Service()
 export class AppActionsService {
@@ -61,72 +62,73 @@ export class AppActionsService {
   }
 
   /** Signed in to Linux (true), or the sign-in dismissed (null). */
-  signIn(): Promise<true | null> {
-    return this.linuxSessionStore.asPerson(async () => true as const);
+  signIn(): Observable<true | null> {
+    return this.linuxSessionStore.asPerson$(() => of(true as const));
   }
 
-  install(request: AppInstallRequest): Promise<AppStarted | null> {
-    return this.asPerson(() => this.appsApi.install(request));
+  install(request: AppInstallRequest): Observable<AppStarted | null> {
+    return this.linuxSessionStore.asPerson$(() => this.appsApi.install(request));
   }
 
-  save(name: string, request: AppSaveRequest): Promise<AppStarted | null> {
-    return this.asPerson(() => this.appsApi.save(name, request));
+  save(name: string, request: AppSaveRequest): Observable<AppStarted | null> {
+    return this.linuxSessionStore.asPerson$(() => this.appsApi.save(name, request));
   }
 
-  update(name: string, folder: string): Promise<AppStarted | null> {
-    return this.asPerson(() => this.appsApi.update(name, folder));
+  update(name: string, folder: string): Observable<AppStarted | null> {
+    return this.linuxSessionStore.asPerson$(() => this.appsApi.update(name, folder));
   }
 
-  start(name: string, folder: string): Promise<AppStarted | null> {
-    return this.asPerson(() => this.appsApi.start(name, folder));
+  start(name: string, folder: string): Observable<AppStarted | null> {
+    return this.linuxSessionStore.asPerson$(() => this.appsApi.start(name, folder));
   }
 
-  remove(name: string, folder: string): Promise<AppStarted | null> {
-    return this.asPerson(() => this.appsApi.remove(name, folder));
+  remove(name: string, folder: string): Observable<AppStarted | null> {
+    return this.linuxSessionStore.asPerson$(() => this.appsApi.remove(name, folder));
   }
 
-  removal(name: string, folder: string): Promise<AppRemoval | null> {
-    return this.asPerson(() => this.appsApi.removal(name, folder));
+  removal(name: string, folder: string): Observable<AppRemoval | null> {
+    return this.linuxSessionStore.asPerson$(() => this.appsApi.removal(name, folder));
   }
 
-  async deleteFiles(name: string, request: AppDeleteRequest): Promise<true | null> {
-    return this.linuxSessionStore.asPerson(async () => {
-      await firstValueFrom(this.appsApi.delete(name, request));
-      return true as const;
-    });
+  deleteFiles(name: string, request: AppDeleteRequest): Observable<true | null> {
+    return this.linuxSessionStore.asPerson$(() =>
+      this.appsApi.delete(name, request).pipe(map(() => true as const)),
+    );
   }
 
-  backUpNow(itemId: string): Promise<BackupRunStartedResponse | null> {
-    return this.asPerson(() => this.backupsApi.runNow(itemId));
+  backUpNow(itemId: string): Observable<BackupRunStartedResponse | null> {
+    return this.linuxSessionStore.asPerson$(() => this.backupsApi.runNow(itemId));
   }
 
-  /** Added to the backups with its template's preset; throws when the template can't be read. */
-  async addToBackups(
+  /** Added to the backups with its template's preset; fails when the template can't be read. */
+  addToBackups(
     app: Pick<AppSummary, 'name' | 'folder' | 'template'>,
-  ): Promise<BackupItem | null> {
-    const item = await this.appBackupItem(app);
-    return this.asPerson(() => this.backupsApi.addItem(item));
+  ): Observable<BackupItem | null> {
+    return this.appBackupItem(app).pipe(
+      switchMap((item) => this.linuxSessionStore.asPerson$(() => this.backupsApi.addItem(item))),
+    );
   }
 
   /**
    * An app's backup item, with its template's preset when it has one (Ollama runs on, its models
-   * skipped): the same wherever "Add to backups" is clicked. Rejects when the template can't be
+   * skipped): the same wherever "Add to backups" is clicked. Fails when the template can't be
    * read — never a plain "stop, everything" instead.
    */
-  async appBackupItem(
+  appBackupItem(
     app: Pick<AppSummary, 'name' | 'folder' | 'template'>,
-  ): Promise<BackupItemRequest> {
-    let preset: BackupPreset = { mode: 'stop', skip: [] };
-    if (app.template && app.folder) {
-      const { template } = await firstValueFrom(this.appsApi.template(app.template.id));
-      if (template.backup)
-        preset = { mode: template.backup.mode, skip: template.backup.skip ?? [] };
-    }
-    return buildAppBackupItem(app.name, app.folder, preset);
-  }
-
-  /** The request made only once signed in (and again after a sudo prompt). */
-  private asPerson<T>(request: () => Observable<T>): Promise<T | null> {
-    return this.linuxSessionStore.asPerson(() => firstValueFrom(request()));
+  ): Observable<BackupItemRequest> {
+    const preset$: Observable<BackupPreset> =
+      app.template && app.folder
+        ? this.appsApi
+            .template(app.template.id)
+            .pipe(
+              map(({ template }) =>
+                template.backup
+                  ? { mode: template.backup.mode, skip: template.backup.skip ?? [] }
+                  : DEFAULT_BACKUP_PRESET,
+              ),
+            )
+        : of(DEFAULT_BACKUP_PRESET);
+    return preset$.pipe(map((preset) => buildAppBackupItem(app.name, app.folder, preset)));
   }
 }
