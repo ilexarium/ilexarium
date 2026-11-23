@@ -24,6 +24,7 @@ import {
   exhaustMap,
   filter,
   firstValueFrom,
+  map,
   type Observable,
   pipe,
   retry,
@@ -139,10 +140,13 @@ export const LinuxSessionStore = signalStore(
         ),
       ),
 
-      /** The session as the server sees it now (sudo may have ended there); rejects on failure. */
-      async refresh(): Promise<void> {
-        const { session } = await firstValueFrom(filesApi.session());
-        patchState(store, { session, checked: true, now: Date.now() });
+      /** The session as the server sees it now (sudo may have ended there); fails on failure. */
+      refresh$(): Observable<void> {
+        return filesApi.session().pipe(
+          map(({ session }) => {
+            patchState(store, { session, checked: true, now: Date.now() });
+          }),
+        );
       },
 
       /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
@@ -151,15 +155,22 @@ export const LinuxSessionStore = signalStore(
         patchState(store, { session, checked: true });
       },
 
-      async signOut(): Promise<void> {
-        try {
-          await firstValueFrom(filesApi.signOut());
-          patchState(store, { session: null });
-          toast.success(translator.t('files.closed'));
-        } catch (error) {
-          failed(error);
-        }
-      },
+      signOut: rxMethod<void>(
+        pipe(
+          exhaustMap(() =>
+            filesApi.signOut().pipe(
+              tap(() => {
+                patchState(store, { session: null });
+                toast.success(translator.t('files.closed'));
+              }),
+              catchError((error: unknown) => {
+                failed(error);
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      ),
 
       ended,
 
@@ -182,15 +193,22 @@ export const LinuxSessionStore = signalStore(
       },
 
       /** "Lock now": sudo locked; the Linux session stays. */
-      async lockNow(): Promise<void> {
-        try {
-          const { session } = await firstValueFrom(filesApi.lockSudo());
-          patchState(store, { session, now: Date.now() });
-          toast.success(translator.t('linux.locked'));
-        } catch (error) {
-          failed(error);
-        }
-      },
+      lockNow: rxMethod<void>(
+        pipe(
+          exhaustMap(() =>
+            filesApi.lockSudo().pipe(
+              tap(({ session }) => {
+                patchState(store, { session, now: Date.now() });
+                toast.success(translator.t('linux.locked'));
+              }),
+              catchError((error: unknown) => {
+                failed(error);
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      ),
 
       /**
        * Runs an action that needs sudo: the password asked first while locked, and again when
