@@ -13,10 +13,10 @@ export class SharedPrompt {
     private readonly closed: () => void,
   ) {}
 
-  /** The answer once given; `true` at once, without asking, while `alreadyYes()` holds. */
-  ask(alreadyYes?: () => boolean): Observable<boolean> {
+  /** The answer once given; `true` at once, without asking, while `skipWhen()` holds. */
+  ask({ skipWhen }: { skipWhen?: () => boolean } = {}): Observable<boolean> {
     return new Observable<boolean>((subscriber) => {
-      if (alreadyYes?.()) {
+      if (skipWhen?.()) {
         subscriber.next(true);
         subscriber.complete();
         return undefined;
