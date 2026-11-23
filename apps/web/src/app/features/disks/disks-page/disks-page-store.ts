@@ -10,7 +10,7 @@ import {
 import { DISK_MOUNT_ROOT, type DiskMountRequest, type DisksStatus } from '@ilex/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, firstValueFrom, map, mergeMap, pipe, switchMap, tap } from 'rxjs';
 import { DisksApi } from '../../../core/disks/disks-api';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { Translator } from '../../../core/i18n/translator';
@@ -91,23 +91,38 @@ export const DisksPageStore = signalStore(
         },
 
         /** Unmounts (already confirmed) — or forgets a disk that isn't connected. */
-        async unmount({ mountPoint, connected }: UnmountTarget): Promise<void> {
-          patchState(store, { pending: [...store.pending(), mountPoint] });
-          try {
-            const done = await linuxSessionStore.asPerson(() =>
-              firstValueFrom(disksApi.unmount(mountPoint)).then(() => true),
-            );
-            if (!done) return;
-            toast.success(translator.t(connected ? 'disks.unmounted' : 'disks.forgotten'));
-            load();
-          } catch (error) {
-            toast.error(translator.t('disks.unmountFailed'), {
-              description: translator.t(...apiErrorText(error)),
-            });
-          } finally {
-            patchState(store, { pending: store.pending().filter((n) => n !== mountPoint) });
-          }
-        },
+        unmount: rxMethod<UnmountTarget>(
+          pipe(
+            mergeMap(({ mountPoint, connected }) => {
+              if (store.pending().includes(mountPoint)) return EMPTY;
+              return linuxSessionStore
+                .asPerson$(() => disksApi.unmount(mountPoint).pipe(map(() => true)))
+                .pipe(
+                  tap({
+                    subscribe: () =>
+                      patchState(store, { pending: [...store.pending(), mountPoint] }),
+                    next: (done) => {
+                      if (!done) return;
+                      toast.success(
+                        translator.t(connected ? 'disks.unmounted' : 'disks.forgotten'),
+                      );
+                      load();
+                    },
+                    finalize: () =>
+                      patchState(store, {
+                        pending: store.pending().filter((n) => n !== mountPoint),
+                      }),
+                  }),
+                  catchError((error: unknown) => {
+                    toast.error(translator.t('disks.unmountFailed'), {
+                      description: translator.t(...apiErrorText(error)),
+                    });
+                    return EMPTY;
+                  }),
+                );
+            }),
+          ),
+        ),
       };
     },
   ),
