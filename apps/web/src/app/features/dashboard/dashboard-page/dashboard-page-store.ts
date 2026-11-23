@@ -217,9 +217,15 @@ export const DashboardPageStore = signalStore(
       ),
 
       /** Starts an app's stopped containers (harmless: no confirmation). */
-      async start(app: AppTile): Promise<void> {
-        await containerActionsStore.runAll(app.stopped, 'start', app.app.name);
-      },
+      start: rxMethod<AppTile>(
+        tap((app) =>
+          containerActionsStore.runAll({
+            names: app.stopped,
+            action: 'start',
+            label: app.app.name,
+          }),
+        ),
+      ),
     }),
   ),
   withHooks(

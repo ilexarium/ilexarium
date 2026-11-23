@@ -161,7 +161,7 @@ export const AppsPageStore = signalStore(
           // Apps side by side, every click its own start (a card shows it pending meanwhile).
           mergeMap(({ name, state, folder, containers }) => {
             if (state !== 'none' || !folder) {
-              void containerActionsStore.runAll(containers, 'start', name);
+              containerActionsStore.runAll({ names: containers, action: 'start', label: name });
               return EMPTY;
             }
             // A second click before the card shows it pending: one start is enough.
@@ -195,7 +195,9 @@ export const AppsPageStore = signalStore(
       ),
 
       stop: rxMethod<AppSummary>(
-        tap(({ name, containers }) => void containerActionsStore.runAll(containers, 'stop', name)),
+        tap(({ name, containers }) =>
+          containerActionsStore.runAll({ names: containers, action: 'stop', label: name }),
+        ),
       ),
     }),
   ),
