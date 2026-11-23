@@ -1,3 +1,4 @@
+import { firstValueFrom } from 'rxjs';
 import { Component, computed } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
@@ -8,7 +9,7 @@ import { Translator } from './translator';
 
 /** German test texts on top of the English ones the tests load. */
 async function switchToGerman() {
-  await TestBed.inject(LanguageService).setLanguage('de');
+  await firstValueFrom(TestBed.inject(LanguageService).setLanguage('de'));
   TestBed.inject(TranslateService).setTranslation(
     'de',
     {
@@ -49,7 +50,7 @@ describe('Translator', () => {
   });
 
   it('uses each language’s own plural forms (Arabic has six)', async () => {
-    await TestBed.inject(LanguageService).setLanguage('ar');
+    await firstValueFrom(TestBed.inject(LanguageService).setLanguage('ar'));
     TestBed.inject(TranslateService).setTranslation(
       'ar',
       {

@@ -7,7 +7,7 @@ import {
   RTL_LANGUAGES,
 } from '@ilex/i18n';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
+import { defer, firstValueFrom, map, type Observable, take } from 'rxjs';
 import { AVAILABLE_LANGUAGES } from './i18n-loader';
 import { readStored, writeStored } from '../storage/browser-storage';
 import { LANGUAGE_STORAGE_KEY } from './language.constants';
@@ -49,10 +49,14 @@ export class LanguageService {
   }
 
   /** Switches once the language's file has loaded; remembered for this browser. */
-  async setLanguage(language: Language): Promise<void> {
-    await firstValueFrom(this.translateService.use(language));
-    this.current.set(language);
-    writeStored(this.window, LANGUAGE_STORAGE_KEY, language);
+  setLanguage(language: Language): Observable<void> {
+    return defer(() => this.translateService.use(language)).pipe(
+      take(1),
+      map(() => {
+        this.current.set(language);
+        writeStored(this.window, LANGUAGE_STORAGE_KEY, language);
+      }),
+    );
   }
 
   private initial(): Language {

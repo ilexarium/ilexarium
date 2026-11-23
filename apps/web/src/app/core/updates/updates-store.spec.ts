@@ -40,7 +40,7 @@ describe('UpdatesStore', () => {
     const authStore = TestBed.inject(AuthStore);
     await authStore.load();
     store.update(updatesStatus({ installed: '0.1.0' }));
-    await authStore.logout();
+    authStore.logout();
     TestBed.tick();
     expect(store.status()).toBeNull();
     store.update(updatesStatus({ installed: '0.2.0' }));

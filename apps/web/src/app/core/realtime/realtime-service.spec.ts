@@ -243,7 +243,7 @@ describe('RealtimeService', () => {
     const { realtime, sockets, latest } = await setup();
     realtime.connect();
     latest().open();
-    await TestBed.inject(AuthStore).logout();
+    TestBed.inject(AuthStore).logout();
     TestBed.tick();
     expect(latest().closedWith).toBe(1000);
     expect(realtime.status()).toBe('offline');
