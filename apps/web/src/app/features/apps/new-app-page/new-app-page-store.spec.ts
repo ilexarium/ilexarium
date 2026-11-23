@@ -84,7 +84,7 @@ describe('NewAppPageStore', () => {
 
   it('a template: its file, its form with the values written to .env, a free name', async () => {
     const { store, appsApi } = await setup();
-    await store.chooseTemplate('navidrome');
+    store.chooseTemplate('navidrome');
     await vi.waitFor(() => expect(store.fields()).not.toBeNull());
     expect(store.step()).toBe('setup');
     expect(store.compose()).toBe(COMPOSE);
@@ -95,7 +95,7 @@ describe('NewAppPageStore', () => {
 
   it('your own file: its own name suggested once pasted, no form — its files as they are', async () => {
     const { store, appsApi } = await setup();
-    await store.useOwnFile();
+    store.useOwnFile();
     expect(store.step()).toBe('setup');
     expect(appsApi.checkName).toHaveBeenCalledWith('app');
     store.setCompose(`name: music\n${COMPOSE}`);
@@ -116,7 +116,7 @@ describe('NewAppPageStore', () => {
 
   it('your own file: a name typed by hand stays; nothing to install without a file', async () => {
     const { store, appsApi } = await setup();
-    await store.useOwnFile();
+    store.useOwnFile();
     expect(store.canInstall()).toBe(false);
     store.setName('songs');
     appsApi.checkName.mockClear();
@@ -128,7 +128,7 @@ describe('NewAppPageStore', () => {
 
   it('a suggestion answered after a name was typed: the typed name stays', async () => {
     const { store, appsApi } = await setup();
-    await store.useOwnFile();
+    store.useOwnFile();
     const late = new Subject<{ free: boolean; suggestion: string }>();
     appsApi.checkName.mockReturnValueOnce(late as never);
     store.setCompose(`name: notes\n${COMPOSE}`);
@@ -138,6 +138,19 @@ describe('NewAppPageStore', () => {
     late.complete();
     await new Promise((resolve) => setTimeout(resolve));
     expect(store.name()).toBe('blog');
+  });
+
+  it('a suggestion answered after the setup started again: only the newer one lands', async () => {
+    const { store, appsApi } = await setup();
+    const late = new Subject<{ free: boolean; suggestion: string }>();
+    appsApi.checkName.mockReturnValueOnce(late as never);
+    store.useOwnFile();
+    store.back();
+    store.useOwnFile();
+    expect(store.name()).toBe('app-2');
+    late.next({ free: true, suggestion: 'old' });
+    late.complete();
+    expect(store.name()).toBe('app-2');
   });
 
   it('searches the templates by name and description, every word typed; Back keeps the search', async () => {
@@ -155,7 +168,7 @@ describe('NewAppPageStore', () => {
     expect(store.shownTemplates()!.map((t) => t.id)).toEqual(['immich']);
     store.setSearch('phone music');
     expect(store.shownTemplates()!.map((t) => t.id)).toEqual(['navidrome']);
-    await store.useOwnFile();
+    store.useOwnFile();
     store.back();
     expect(store.search()).toBe('phone music');
   });
@@ -164,9 +177,9 @@ describe('NewAppPageStore', () => {
     const { store, appsApi } = await setup();
     const late = new Subject<{ fields: AppField[] }>();
     appsApi.fields.mockReturnValueOnce(late as never);
-    await store.chooseTemplate('navidrome');
+    store.chooseTemplate('navidrome');
     store.back();
-    await store.useOwnFile();
+    store.useOwnFile();
     late.next({
       fields: [
         {
@@ -187,11 +200,11 @@ describe('NewAppPageStore', () => {
     const { store, appsApi, backupsApi, asPerson, answers, socket } = await setup();
     const success = vi.spyOn(toast, 'success');
     socket.receive({ event: 'backups:snapshot', data: backupsStatus });
-    await store.chooseTemplate('navidrome');
+    store.chooseTemplate('navidrome');
     await vi.waitFor(() => expect(store.fields()).not.toBeNull());
     answers.push(testTask({ output: ['pulling'] }));
     answers.push(testTask({ state: 'succeeded', output: ['pulling', 'started'] }));
-    await store.install();
+    store.install();
     expect(asPerson).toHaveBeenCalledTimes(1);
     expect(appsApi.install).toHaveBeenCalledWith({
       name: 'navidrome-2',
@@ -214,9 +227,9 @@ describe('NewAppPageStore', () => {
 
   it('a failed install: its output stays, no hand-over', async () => {
     const { store, answers } = await setup();
-    await store.chooseTemplate('navidrome');
+    store.chooseTemplate('navidrome');
     answers.push(testTask({ state: 'failed', output: ['no such image'] }));
-    await store.install();
+    store.install();
     await vi.waitFor(() => expect(store.task()?.state).toBe('failed'), { timeout: 4000 });
     expect(store.installed()).toBeNull();
     expect(store.step()).toBe('installing');
@@ -224,9 +237,9 @@ describe('NewAppPageStore', () => {
 
   it('the page left during the install: no more polls', async () => {
     const { store, page, appsApi, answers } = await setup();
-    await store.chooseTemplate('navidrome');
+    store.chooseTemplate('navidrome');
     answers.push(testTask(), testTask(), testTask());
-    await store.install();
+    store.install();
     await vi.waitFor(() => expect(appsApi.task).toHaveBeenCalled());
     page.destroy();
     const calls = appsApi.task.mock.calls.length;
@@ -236,9 +249,9 @@ describe('NewAppPageStore', () => {
 
   it('the sign-in dismissed: nothing started, still on the form', async () => {
     const { store, appsApi, asPerson } = await setup();
-    await store.chooseTemplate('navidrome');
+    store.chooseTemplate('navidrome');
     asPerson.mockReturnValueOnce(of(null));
-    await store.install();
+    store.install();
     expect(appsApi.install).not.toHaveBeenCalled();
     expect(store.step()).toBe('setup');
   });
@@ -246,7 +259,7 @@ describe('NewAppPageStore', () => {
   it('shows what Compose said when it refused the files, staying on the form', async () => {
     const { store, appsApi } = await setup();
     const error = vi.spyOn(toast, 'error');
-    await store.useOwnFile();
+    store.useOwnFile();
     store.setCompose(COMPOSE);
     appsApi.install.mockReturnValueOnce(
       throwError(
@@ -257,7 +270,7 @@ describe('NewAppPageStore', () => {
           }),
       ),
     );
-    await store.install();
+    store.install();
     expect(store.problem()).toBe('services.web: bad port');
     expect(store.step()).toBe('setup');
     expect(error).toHaveBeenCalled();
