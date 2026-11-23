@@ -274,7 +274,7 @@ export const NewAppPageStore = signalStore(
             env: store.env(),
           };
           try {
-            const started = await appActionsService.install(request);
+            const started = await firstValueFrom(appActionsService.install(request));
             if (!started) return;
             patchState(store, { step: 'installing', task: started.task });
             followInstall(started);

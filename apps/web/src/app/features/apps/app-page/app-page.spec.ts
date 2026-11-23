@@ -59,7 +59,7 @@ async function setup({ signedIn = true, withContainers = true } = {}) {
       { provide: BackupsApi, useValue: {} },
       {
         provide: LinuxSessionStore,
-        useValue: { asPerson: vi.fn((action: () => unknown) => action()), check: vi.fn() },
+        useValue: { asPerson$: vi.fn((action: () => unknown) => action()), check: vi.fn() },
       },
     ],
   });

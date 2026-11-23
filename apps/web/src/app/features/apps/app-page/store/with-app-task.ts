@@ -11,7 +11,7 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { AppDetails, AppStarted } from '@ilex/shared';
-import { EMPTY, pipe, switchMap, tap } from 'rxjs';
+import { EMPTY, exhaustMap, type Observable, pipe, switchMap, tap } from 'rxjs';
 import { AppActionsService } from '../../../../core/apps/services/app-actions-service';
 import { ContainerActionsStore } from '../../../../core/containers/container-actions-store';
 import type { withAppDetails } from './with-app-details';
@@ -80,15 +80,16 @@ export function withAppTask() {
       ),
 
       /** Starts a task through the page's request, then follows it. */
-      async _startTask(
+      _startTask(
         errorKey: string,
-        start: () => Promise<AppStarted | null>,
+        start: Observable<AppStarted | null>,
         handleRefusal?: (error: unknown) => boolean,
-      ): Promise<void> {
-        const name = store.name();
-        const started = await store._request(errorKey, start, handleRefusal);
-        // Answered after another app was opened here: not this page's.
-        if (started && started.name === name && store.name() === name) store.follow(started);
+      ): Observable<unknown> {
+        return store._request(errorKey, start, handleRefusal).pipe(
+          tap((started) => {
+            if (started) store.follow(started);
+          }),
+        );
       },
     })),
     withMethods(
@@ -97,30 +98,44 @@ export function withAppTask() {
         appActionsService = inject(AppActionsService),
         containerActionsStore = inject(ContainerActionsStore),
       ) => ({
-        async update(): Promise<void> {
-          await store._startTask('apps.update.failed', () =>
-            appActionsService.update(store.name(), store.folder()),
-          );
-        },
+        update: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              store._startTask(
+                'apps.update.failed',
+                appActionsService.update(store.name(), store.folder()),
+              ),
+            ),
+          ),
+        ),
 
-        async act(action: 'start' | 'stop'): Promise<void> {
-          const summary = store.summary();
-          if (!summary) return;
-          if (action === 'start' && summary.state === 'none') {
-            await store._startTask('apps.starting.failed', () =>
-              appActionsService.start(store.name(), store.folder()),
-            );
-            return;
-          }
-          await containerActionsStore.runAll(summary.containers, action, store.name());
-        },
+        act: rxMethod<'start' | 'stop'>(
+          pipe(
+            exhaustMap((action) => {
+              const summary = store.summary();
+              if (!summary) return EMPTY;
+              if (action === 'start' && summary.state === 'none')
+                return store._startTask(
+                  'apps.starting.failed',
+                  appActionsService.start(store.name(), store.folder()),
+                );
+              void containerActionsStore.runAll(summary.containers, action, store.name());
+              return EMPTY;
+            }),
+          ),
+        ),
 
         /** `docker compose down`: its containers go, its files stay. */
-        async remove(): Promise<void> {
-          await store._startTask('apps.remove.failed', () =>
-            appActionsService.remove(store.name(), store.folder()),
-          );
-        },
+        remove: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              store._startTask(
+                'apps.remove.failed',
+                appActionsService.remove(store.name(), store.folder()),
+              ),
+            ),
+          ),
+        ),
       }),
     ),
     withHooks((store) => ({

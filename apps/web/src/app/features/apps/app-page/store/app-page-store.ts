@@ -25,6 +25,7 @@ export const AppPageStore = signalStore(
   withMethods((store) => ({
     /** Another app (or the first): everything of the previous one gone, its task no longer followed. */
     open(name: string, folder: string | null): void {
+      store._appChanged.next();
       store.follow(null);
       patchState(store, {
         ...initialAppDetailsState,

@@ -9,6 +9,8 @@ import {
   withMethods,
 } from '@ngrx/signals';
 import { APP_ERROR_CODES, parseEnv, setEnvValues } from '@ilex/shared';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import { EMPTY, exhaustMap, type Observable, pipe } from 'rxjs';
 import { AppActionsService } from '../../../../core/apps/services/app-actions-service';
 import { apiErrorCode } from '../../../../shared/forms/submission-errors';
 import type { withAppDetails } from './with-app-details';
@@ -49,21 +51,20 @@ export function withAppFiles() {
         patchState(store, { env });
       },
 
-      /** Saves both files and applies them; `overwrite` after "changed on disk". */
-      async save(overwrite = false): Promise<void> {
+      /** Saves both files and applies them (refused when they changed on disk meanwhile). */
+      _saveFiles(overwrite: boolean): Observable<unknown> {
         const details = store.details();
-        if (!details) return;
+        if (!details) return EMPTY;
         patchState(store, { conflict: false });
-        await store._startTask(
+        return store._startTask(
           'apps.save.failed',
-          () =>
-            appActionsService.save(store.name(), {
-              folder: details.folder,
-              compose: store.compose(),
-              env: store.env(),
-              hash: details.hash,
-              overwrite,
-            }),
+          appActionsService.save(store.name(), {
+            folder: details.folder,
+            compose: store.compose(),
+            env: store.env(),
+            hash: details.hash,
+            overwrite,
+          }),
           (error) => {
             if (apiErrorCode(error) !== APP_ERROR_CODES.changedOnDisk) return false;
             patchState(store, { conflict: true });
@@ -71,6 +72,12 @@ export function withAppFiles() {
           },
         );
       },
+    })),
+    withMethods((store) => ({
+      save: rxMethod<void>(pipe(exhaustMap(() => store._saveFiles(false)))),
+
+      /** After "changed on disk": saved over what's there. */
+      overwrite: rxMethod<void>(pipe(exhaustMap(() => store._saveFiles(true)))),
     })),
   );
 }
