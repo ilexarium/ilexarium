@@ -290,9 +290,9 @@ export const LinuxSessionStore = signalStore(
         );
       },
 
-      /** The shell's sign-in prompt: signed in (true) or closed. */
-      signInAnswered(signedIn: boolean): void {
-        answerSignIn(signedIn && store.session() !== null);
+      /** The shell's sign-in prompt closed: signed in now, or not. */
+      signInClosed(): void {
+        answerSignIn(store.session() !== null);
       },
 
       tick(): void {

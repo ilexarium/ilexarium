@@ -180,7 +180,7 @@ describe('LinuxSessionStore', () => {
       const result = firstValueFrom(store.asPerson$(action));
       expect(store.signInPrompt()).toBe(true);
       await store.signIn({ username: 'anna', password: 'pw' });
-      store.signInAnswered(true);
+      store.signInClosed();
       expect(await result).toBe('done');
       expect(store.signInPrompt()).toBe(false);
       // sudo may have been used: the session read again for its minutes.
@@ -191,7 +191,7 @@ describe('LinuxSessionStore', () => {
       const { store } = await setup(null);
       const action = answering('done');
       const result = firstValueFrom(store.asPerson$(action));
-      store.signInAnswered(false);
+      store.signInClosed();
       expect(await result).toBeNull();
       expect(action).not.toHaveBeenCalled();
     });
@@ -214,7 +214,7 @@ describe('LinuxSessionStore', () => {
       expect(store.session()).toBeNull();
       expect(store.signInPrompt()).toBe(true);
       await store.signIn({ username: 'anna', password: 'pw' });
-      store.signInAnswered(true);
+      store.signInClosed();
       expect(await result).toBe('done');
     });
 
@@ -239,7 +239,7 @@ describe('LinuxSessionStore', () => {
       subscription.unsubscribe();
       expect(store.signInPrompt()).toBe(true);
       await store.signIn({ username: 'anna', password: 'pw' });
-      store.signInAnswered(true);
+      store.signInClosed();
       expect(store.signInPrompt()).toBe(false);
       expect(left).not.toHaveBeenCalled();
     });
