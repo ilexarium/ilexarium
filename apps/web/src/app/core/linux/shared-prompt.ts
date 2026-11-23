@@ -8,10 +8,7 @@ export class SharedPrompt {
   private answer: Subject<boolean> | null = null;
   private waiting = 0;
 
-  constructor(
-    private readonly opened: () => void,
-    private readonly closed: () => void,
-  ) {}
+  constructor(private readonly dialog: { showDialog: () => void; hideDialog: () => void }) {}
 
   /** The answer once given; `true` at once, without asking, while `skipWhen()` holds. */
   ask({ skipWhen }: { skipWhen?: () => boolean } = {}): Observable<boolean> {
@@ -24,22 +21,22 @@ export class SharedPrompt {
       if (!this.answer) {
         this.answer = new Subject<boolean>();
         this.waiting = 0;
-        this.opened();
+        this.dialog.showDialog();
       }
       const answer = this.answer;
       this.waiting++;
       const subscription = answer.subscribe(subscriber);
       return () => {
         subscription.unsubscribe();
-        if (this.answer === answer && --this.waiting === 0) this.respond(false);
+        if (this.answer === answer && --this.waiting === 0) this.answerWith(false);
       };
     });
   }
 
-  respond(yes: boolean): void {
+  answerWith(yes: boolean): void {
     const answer = this.answer;
     this.answer = null;
-    this.closed();
+    this.dialog.hideDialog();
     answer?.next(yes);
     answer?.complete();
   }
