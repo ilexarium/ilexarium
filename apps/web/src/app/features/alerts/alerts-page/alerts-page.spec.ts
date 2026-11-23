@@ -3,13 +3,14 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { AlertsStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { NEVER, of, throwError } from 'rxjs';
+import { NEVER, of, Subject, throwError } from 'rxjs';
 import { AlertsApi } from '../../../core/alerts/alerts-api';
 import { AlertsStore } from '../../../core/alerts/alerts-store';
 import { alertsStatus, testAlert } from '../../../core/alerts/testing';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { AlertsPage } from './alerts-page';
+import { AlertsPageStore } from './alerts-page-store';
 
 async function render(start: AlertsStatus | null) {
   const auth = fakeAuthApi({ user: OWNER });
@@ -179,6 +180,22 @@ describe('AlertsPage', () => {
     expect(card('immich has').textContent).toContain('Acknowledged by owner');
     expect(card('immich has').querySelector('button')).toBeNull();
     expect(card('jellyfin has').textContent).toContain('Acknowledge');
+  });
+
+  it('Acknowledge clicked again while it’s sent: once; another alert’s still goes', async () => {
+    const alert = testAlert();
+    const other = testAlert({ subject: 'hl-jellyfin-1', app: 'jellyfin' });
+    const { fixture, api } = await render(alertsStatus({ open: [alert, other] }));
+    const store = fixture.debugElement.injector.get(AlertsPageStore);
+    const answer = new Subject<undefined>();
+    api.acknowledge.mockReturnValueOnce(answer);
+    store.acknowledge(alert.id);
+    store.acknowledge(alert.id);
+    store.acknowledge(other.id);
+    expect(api.acknowledge.mock.calls).toEqual([[alert.id], [other.id]]);
+    expect(store.pending()).toEqual([alert.id]);
+    answer.complete();
+    expect(store.pending()).toEqual([]);
   });
 
   it('a late answer of its first load doesn’t replace what the topic said meanwhile', async () => {
