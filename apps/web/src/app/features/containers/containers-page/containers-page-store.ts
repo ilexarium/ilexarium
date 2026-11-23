@@ -10,7 +10,7 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import type { ContainerActionParams, DockerCleanup } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, exhaustMap, finalize, mergeMap, pipe, switchMap, tap } from 'rxjs';
 import { ContainerActionsStore } from '../../../core/containers/container-actions-store';
 import { DockerCleanupApi } from '../../../core/containers/docker-cleanup-api';
 import { Translator } from '../../../core/i18n/translator';
@@ -75,6 +75,50 @@ export const ContainersPageStore = signalStore(
       }),
     }),
   ),
+  withMethods((store, dockerCleanupApi = inject(DockerCleanupApi)) => ({
+    /** The latest wins: a reload after freeing space replaces one still on its way. */
+    _loadVolumeSizes: rxMethod<void>(
+      pipe(
+        tap(() => patchState(store, { volumeSizes: null, volumeSizesFailed: false })),
+        switchMap(() =>
+          dockerCleanupApi.volumeSizes().pipe(
+            tap(({ sizes }) => patchState(store, { volumeSizes: sizes })),
+            catchError(() => {
+              patchState(store, { volumeSizesFailed: true });
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    ),
+  })),
+  withMethods((store, dockerCleanupApi = inject(DockerCleanupApi)) => ({
+    /** Without Docker the card stays away: the table says Docker isn't reachable. */
+    loadCleanup: rxMethod<void>(
+      pipe(
+        switchMap(() =>
+          dockerCleanupApi.overview().pipe(
+            tap((cleanup) => {
+              patchState(store, { cleanup });
+              // Counted again only for a volume it doesn't know: a delete or a prune keeps them.
+              const names = cleanup.volumes.map((volume) => volume.name);
+              const sizes = store.volumeSizes();
+              if (names.length === 0) patchState(store, { volumeSizes: {} });
+              else if (sizes && names.every((name) => name in sizes)) {
+                patchState(store, {
+                  volumeSizes: Object.fromEntries(names.map((name) => [name, sizes[name]])),
+                });
+              } else store._loadVolumeSizes();
+            }),
+            catchError(() => {
+              patchState(store, { cleanup: null });
+              return EMPTY;
+            }),
+          ),
+        ),
+      ),
+    ),
+  })),
   withMethods(
     (
       store,
@@ -82,94 +126,65 @@ export const ContainersPageStore = signalStore(
       dockerCleanupApi = inject(DockerCleanupApi),
       translator = inject(Translator),
       formatter = inject(Formatter),
-    ) => {
-      // The latest wins: a reload after freeing space replaces one still on its way.
-      const loadVolumeSizes = rxMethod<void>(
+    ) => ({
+      act: rxMethod<ContainerActionParams>(tap((request) => containerActionsStore.run(request))),
+
+      /** Every unused image and the build cache (already confirmed). */
+      prune: rxMethod<void>(
         pipe(
-          tap(() => patchState(store, { volumeSizes: null, volumeSizesFailed: false })),
-          switchMap(() =>
-            dockerCleanupApi.volumeSizes().pipe(
-              tap(({ sizes }) => patchState(store, { volumeSizes: sizes })),
-              catchError(() => {
-                patchState(store, { volumeSizesFailed: true });
+          exhaustMap(() =>
+            dockerCleanupApi.prune().pipe(
+              tap({
+                subscribe: () => patchState(store, { pruning: true }),
+                next: ({ bytesFreed, buildCacheFailed }) => {
+                  const size = formatter.bytes(bytesFreed);
+                  if (buildCacheFailed) {
+                    toast.warning(translator.t('containers.freeSpace.freedNotCache', { size }));
+                  } else toast.success(translator.t('containers.freeSpace.freed', { size }));
+                },
+              }),
+              catchError((error: unknown) => {
+                toast.error(translator.t('containers.freeSpace.pruneFailed'), {
+                  description: translator.t(...apiErrorText(error)),
+                });
                 return EMPTY;
+              }),
+              finalize(() => {
+                patchState(store, { pruning: false });
+                store.loadCleanup();
               }),
             ),
           ),
         ),
-      );
-      // Without Docker the card stays away: the table says Docker isn't reachable.
-      const loadCleanup = rxMethod<void>(
+      ),
+
+      /** One volume no container uses (already confirmed); volumes side by side. */
+      removeVolume: rxMethod<string>(
         pipe(
-          switchMap(() =>
-            dockerCleanupApi.overview().pipe(
-              tap((cleanup) => {
-                patchState(store, { cleanup });
-                // Counted again only for a volume it doesn't know: a delete or a prune keeps them.
-                const names = cleanup.volumes.map((volume) => volume.name);
-                const sizes = store.volumeSizes();
-                if (names.length === 0) patchState(store, { volumeSizes: {} });
-                else if (sizes && names.every((name) => name in sizes)) {
-                  patchState(store, {
-                    volumeSizes: Object.fromEntries(names.map((name) => [name, sizes[name]])),
-                  });
-                } else loadVolumeSizes();
+          mergeMap((name) => {
+            if (store.removing().includes(name)) return EMPTY;
+            const params = { name: formatter.machine(name) };
+            return dockerCleanupApi.removeVolume(name).pipe(
+              tap({
+                subscribe: () => patchState(store, { removing: [...store.removing(), name] }),
+                complete: () =>
+                  toast.success(translator.t('containers.freeSpace.volumeDeleted', params)),
               }),
-              catchError(() => {
-                patchState(store, { cleanup: null });
+              catchError((error: unknown) => {
+                toast.error(translator.t('containers.freeSpace.volumeFailed', params), {
+                  description: translator.t(...apiErrorText(error)),
+                });
                 return EMPTY;
               }),
-            ),
-          ),
+              finalize(() => {
+                patchState(store, { removing: store.removing().filter((n) => n !== name) });
+                store.loadCleanup();
+              }),
+            );
+          }),
         ),
-      );
-
-      return {
-        loadCleanup,
-
-        act(request: ContainerActionParams): void {
-          void containerActionsStore.run(request);
-        },
-
-        /** Every unused image and the build cache (already confirmed). */
-        async prune(): Promise<void> {
-          if (store.pruning()) return;
-          patchState(store, { pruning: true });
-          try {
-            const { bytesFreed, buildCacheFailed } = await firstValueFrom(dockerCleanupApi.prune());
-            const size = formatter.bytes(bytesFreed);
-            if (buildCacheFailed) {
-              toast.warning(translator.t('containers.freeSpace.freedNotCache', { size }));
-            } else toast.success(translator.t('containers.freeSpace.freed', { size }));
-          } catch (error) {
-            toast.error(translator.t('containers.freeSpace.pruneFailed'), {
-              description: translator.t(...apiErrorText(error)),
-            });
-          } finally {
-            patchState(store, { pruning: false });
-            loadCleanup();
-          }
-        },
-
-        /** One volume no container uses (already confirmed). */
-        async removeVolume(name: string): Promise<void> {
-          if (store.removing().includes(name)) return;
-          patchState(store, { removing: [...store.removing(), name] });
-          const params = { name: formatter.machine(name) };
-          try {
-            await firstValueFrom(dockerCleanupApi.removeVolume(name));
-            toast.success(translator.t('containers.freeSpace.volumeDeleted', params));
-          } catch (error) {
-            toast.error(translator.t('containers.freeSpace.volumeFailed', params), {
-              description: translator.t(...apiErrorText(error)),
-            });
-          } finally {
-            patchState(store, { removing: store.removing().filter((n) => n !== name) });
-            loadCleanup();
-          }
-        },
-      };
-    },
+      ),
+    }),
   ),
   withHooks((store, monitoringStore = inject(MonitoringStore)) => {
     let stop: (() => void) | null = null;

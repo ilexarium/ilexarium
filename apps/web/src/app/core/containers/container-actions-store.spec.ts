@@ -36,7 +36,7 @@ describe('ContainerActionsStore', () => {
 
   it('keeps the name left to right inside a right-to-left toast', async () => {
     const { store, success } = await setup({ rtl: true });
-    await store.run({ name: 'jellyfin', action: 'stop' });
+    store.run({ name: 'jellyfin', action: 'stop' });
     // The words are English here (the test's language file); the isolate is what's checked.
     expect(success).toHaveBeenCalledWith('\u2066jellyfin\u2069 stopped');
   });
@@ -45,17 +45,16 @@ describe('ContainerActionsStore', () => {
     const { store, api, success } = await setup();
     const answer = new Subject<null>();
     api.act.mockReturnValueOnce(answer);
-    const running = store.run({ name: 'jellyfin', action: 'stop' });
+    store.run({ name: 'jellyfin', action: 'stop' });
     expect(api.act).toHaveBeenCalledWith('jellyfin', 'stop');
     expect(store.pending()).toEqual(new Map([['jellyfin', 'stop']]));
 
     // A second action for the same container while one runs is ignored.
-    await store.run({ name: 'jellyfin', action: 'restart' });
+    store.run({ name: 'jellyfin', action: 'restart' });
     expect(api.act).toHaveBeenCalledTimes(1);
 
     answer.next(null);
     answer.complete();
-    await running;
     expect(store.pending()).toEqual(new Map());
     expect(success).toHaveBeenCalledWith(`jellyfin stopped`);
   });
@@ -75,7 +74,7 @@ describe('ContainerActionsStore', () => {
   ])('says in plain words why an action failed (%o)', async (response, text) => {
     const { store, api, error } = await setup();
     api.act.mockReturnValueOnce(throwError(() => new HttpErrorResponse(response)));
-    await store.run({ name: 'old-app', action: 'start' });
+    store.run({ name: 'old-app', action: 'start' });
     expect(error).toHaveBeenCalledWith(`Couldn't start old-app`, {
       description: text.replaceAll('’', "'"),
     });
@@ -85,7 +84,7 @@ describe('ContainerActionsStore', () => {
   it('is reset on sign-out', async () => {
     const { store, api } = await setup();
     api.act.mockReturnValueOnce(NEVER);
-    void store.run({ name: 'jellyfin', action: 'stop' });
+    store.run({ name: 'jellyfin', action: 'stop' });
     expect(store.pending().size).toBe(1);
     await TestBed.inject(AuthStore).logout();
     TestBed.tick();
@@ -96,7 +95,7 @@ describe('ContainerActionsStore', () => {
     const { store, api, success } = await setup();
     const answer = new Subject<null>();
     api.act.mockReturnValueOnce(answer).mockReturnValueOnce(of(null));
-    const running = store.runAll(['immich-server-1', 'immich-ml-1'], 'start', 'Immich');
+    store.runAll({ names: ['immich-server-1', 'immich-ml-1'], action: 'start', label: 'Immich' });
     expect(store.pending()).toEqual(
       new Map([
         ['immich-server-1', 'start'],
@@ -105,7 +104,6 @@ describe('ContainerActionsStore', () => {
     );
     answer.next(null);
     answer.complete();
-    await running;
     expect(api.act.mock.calls).toEqual([
       ['immich-server-1', 'start'],
       ['immich-ml-1', 'start'],
@@ -120,7 +118,7 @@ describe('ContainerActionsStore', () => {
     api.act
       .mockReturnValueOnce(of(null))
       .mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
-    await store.runAll(['a-1', 'a-2'], 'start', 'App');
+    store.runAll({ names: ['a-1', 'a-2'], action: 'start', label: 'App' });
     expect(success).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledOnce();
     expect(error.mock.calls[0][0]).toBe('App only partly started');
@@ -129,7 +127,7 @@ describe('ContainerActionsStore', () => {
   it('says once that an app could not be started when none of its containers did', async () => {
     const { store, api, error } = await setup();
     api.act.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 0 })));
-    await store.runAll(['a-1', 'a-2'], 'start', 'App');
+    store.runAll({ names: ['a-1', 'a-2'], action: 'start', label: 'App' });
     expect(error).toHaveBeenCalledOnce();
     expect(error.mock.calls[0][0]).toBe("Couldn't start App");
   });
