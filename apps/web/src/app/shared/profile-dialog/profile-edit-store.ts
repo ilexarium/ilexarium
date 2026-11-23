@@ -2,7 +2,8 @@ import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import type { ProfileForm, ProfileUpdate } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { firstValueFrom } from 'rxjs';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import { catchError, defer, EMPTY, finalize, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
 import { AuthStore } from '../../core/auth/auth-store';
 import { Translator } from '../../core/i18n/translator';
 import { ProfileApi } from '../../core/profile/profile-api';
@@ -48,24 +49,31 @@ export const ProfileEditStore = signalStore(
           forgetPreview();
           patchState(store, initialState);
         },
-        async choosePicture(file: File): Promise<void> {
-          if (file.size > SOURCE_MAX_BYTES) {
-            patchState(store, { pictureProblem: 'tooLarge' });
-            return;
-          }
-          patchState(store, { preparing: true, pictureProblem: null });
-          try {
-            const picture = await pictureEncoder(file);
-            forgetPreview();
-            patchState(store, {
-              picture: { kind: 'set', picture, url: URL.createObjectURL(picture) },
-            });
-          } catch {
-            patchState(store, { pictureProblem: 'unreadable' });
-          } finally {
-            patchState(store, { preparing: false });
-          }
-        },
+        /** Drawn here in the browser (no request); the latest chosen wins. */
+        choosePicture: rxMethod<File>(
+          pipe(
+            switchMap((file) => {
+              if (file.size > SOURCE_MAX_BYTES) {
+                patchState(store, { pictureProblem: 'tooLarge' });
+                return EMPTY;
+              }
+              patchState(store, { preparing: true, pictureProblem: null });
+              return defer(() => pictureEncoder(file)).pipe(
+                tap((picture) => {
+                  forgetPreview();
+                  patchState(store, {
+                    picture: { kind: 'set', picture, url: URL.createObjectURL(picture) },
+                  });
+                }),
+                catchError(() => {
+                  patchState(store, { pictureProblem: 'unreadable' });
+                  return EMPTY;
+                }),
+                finalize(() => patchState(store, { preparing: false })),
+              );
+            }),
+          ),
+        ),
         removePicture(): void {
           forgetPreview();
           patchState(store, { picture: { kind: 'remove' }, pictureProblem: null });
