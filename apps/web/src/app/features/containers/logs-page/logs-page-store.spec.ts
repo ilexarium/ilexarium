@@ -227,7 +227,7 @@ describe('LogsPageStore', () => {
     const { logs, source, send } = await setup();
     logs.open('web');
     send(line(1));
-    await TestBed.inject(AuthStore).logout();
+    TestBed.inject(AuthStore).logout();
     TestBed.tick();
     expect(source().closed).toBe(true);
     expect(logs.entries()).toEqual([]);

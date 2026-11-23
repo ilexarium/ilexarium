@@ -9,7 +9,20 @@ import {
   withState,
 } from '@ngrx/signals';
 import type { PublicUser } from '@ilex/shared';
-import { firstValueFrom, forkJoin } from 'rxjs';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import {
+  catchError,
+  defer,
+  EMPTY,
+  exhaustMap,
+  finalize,
+  firstValueFrom,
+  forkJoin,
+  map,
+  type Observable,
+  pipe,
+  tap,
+} from 'rxjs';
 import { LanguageService } from '../i18n/language';
 import { AuthApi } from './auth-api';
 import type { AuthStatus } from './auth.model';
@@ -19,6 +32,8 @@ interface AuthState {
   user: PublicUser | null;
   status: AuthStatus;
   needsSetup: boolean;
+  /** Signing out everywhere: the socket closing with 4401 meanwhile isn't an expiry. */
+  _leaving: boolean;
 }
 
 /**
@@ -30,7 +45,7 @@ interface AuthState {
  */
 export const AuthStore = signalStore(
   { providedIn: 'root' },
-  withState<AuthState>({ user: null, status: 'unknown', needsSetup: false }),
+  withState<AuthState>({ user: null, status: 'unknown', needsSetup: false, _leaving: false }),
   withComputed(({ status }) => ({
     isAuthenticated: computed(() => status() === 'authenticated'),
   })),
@@ -43,11 +58,9 @@ export const AuthStore = signalStore(
       channel = inject(SIGN_OUT_CHANNEL),
     ) => {
       const sessionEnded = () => patchState(store, { user: null, status: 'anonymous' });
-      /** Signing out on purpose: the socket closing with 4401 meanwhile isn't an expiry. */
-      let leaving = false;
       const applyLanguage = async (user: PublicUser | null) => {
         if (!user?.language || user.language === languageService.language()) return;
-        await languageService.setLanguage(user.language).catch(() => undefined);
+        await firstValueFrom(languageService.setLanguage(user.language)).catch(() => undefined);
       };
       const toLogin = (expired: boolean) => {
         if (router.url.startsWith('/login')) return;
@@ -58,9 +71,9 @@ export const AuthStore = signalStore(
           },
         });
       };
-      const signedOut = async () => {
+      const signedOut = () => {
         sessionEnded();
-        await router.navigateByUrl('/login');
+        void router.navigateByUrl('/login');
       };
       // Before the server call: the other tabs' sockets close with 4401 while it runs, and they
       // should take it for a sign-out, not an expiry. A failed call signs this tab out too.
@@ -90,7 +103,7 @@ export const AuthStore = signalStore(
         sessionEnded,
         /** An API 401 or a WebSocket 4401 while in use. "Expired" only if they were signed in. */
         sessionExpired(): void {
-          if (leaving) return;
+          if (store._leaving()) return;
           const wasSignedIn = store.status() === 'authenticated';
           sessionEnded();
           toLogin(wasSignedIn);
@@ -101,23 +114,32 @@ export const AuthStore = signalStore(
           sessionEnded();
           toLogin(false);
         },
-        async logout(): Promise<void> {
-          tellOtherTabs();
-          try {
-            await firstValueFrom(api.logout());
-          } finally {
-            await signedOut();
-          }
-        },
-        async logoutEverywhere(): Promise<void> {
-          leaving = true;
-          tellOtherTabs();
-          try {
-            await firstValueFrom(api.logoutEverywhere());
-            await signedOut();
-          } finally {
-            leaving = false;
-          }
+        /** Signed out here even when the server can't be reached. */
+        logout: rxMethod<void>(
+          pipe(
+            exhaustMap(() => {
+              tellOtherTabs();
+              return api.logout().pipe(
+                catchError(() => EMPTY),
+                finalize(() => signedOut()),
+              );
+            }),
+          ),
+        ),
+        /**
+         * Ends every session, this one too. An Observable for the page that asks: its refusal is
+         * worded there (the wording isn't part of the startup download).
+         */
+        logoutEverywhere$(): Observable<void> {
+          return defer(() => {
+            patchState(store, { _leaving: true });
+            tellOtherTabs();
+            return api.logoutEverywhere().pipe(
+              tap(() => signedOut()),
+              map(() => undefined),
+              finalize(() => patchState(store, { _leaving: false })),
+            );
+          });
         },
       };
     },

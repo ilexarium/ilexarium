@@ -230,7 +230,7 @@ describe('MonitoringStore', () => {
     stop();
     expect(store.system()).not.toBeNull();
 
-    await TestBed.inject(AuthStore).logout();
+    TestBed.inject(AuthStore).logout();
     TestBed.tick();
     expect(store.system()).toBeNull();
     expect(store.containers()).toBeNull();
@@ -246,7 +246,7 @@ describe('MonitoringStore', () => {
     expect(host).toHaveBeenCalledTimes(1);
     expect(store.host()?.kernel).toBe(systemSnapshot(0).host.kernel);
 
-    await TestBed.inject(AuthStore).logout();
+    TestBed.inject(AuthStore).logout();
     TestBed.tick();
     expect(store.host()).toBeNull();
   });
@@ -281,7 +281,7 @@ describe('MonitoringStore', () => {
     const answer = new Subject<HostInfo>();
     vi.spyOn(TestBed.inject(MonitoringApi), 'host').mockReturnValue(answer);
     store.loadHost();
-    await TestBed.inject(AuthStore).logout();
+    TestBed.inject(AuthStore).logout();
     TestBed.tick();
     answer.next(systemSnapshot(0).host);
     expect(store.host()).toBeNull();

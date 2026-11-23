@@ -86,7 +86,7 @@ describe('ContainerActionsStore', () => {
     api.act.mockReturnValueOnce(NEVER);
     store.run({ name: 'jellyfin', action: 'stop' });
     expect(store.pending().size).toBe(1);
-    await TestBed.inject(AuthStore).logout();
+    TestBed.inject(AuthStore).logout();
     TestBed.tick();
     expect(store.pending().size).toBe(0);
   });
