@@ -17,7 +17,7 @@ import {
   type JournalBootInfo,
   type JournalLine,
 } from '@ilex/shared';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, exhaustMap, type Observable, of, pipe, switchMap, tap } from 'rxjs';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { SystemJournalApi } from '../../../core/system-journal/system-journal-api';
 import type { JournalRequest } from '../../../core/system-journal/system-journal.model';
@@ -298,9 +298,13 @@ export const JournalPageStore = signalStore(
         },
 
         /** Signs in to Linux (the shell's prompt), then reads. */
-        async signIn(): Promise<void> {
-          await linuxSessionStore.asPerson(async () => true);
-        },
+        signIn: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              linuxSessionStore.asPerson$(() => of(true)).pipe(catchError(() => EMPTY)),
+            ),
+          ),
+        ),
 
         /** What's newer, while shown, read and following. */
         poll(): void {
@@ -334,31 +338,46 @@ export const JournalPageStore = signalStore(
         },
 
         /** Through the account's sudo: its password asked for while locked. */
-        async readAsAdministrator(): Promise<void> {
-          const boots = await linuxSessionStore
-            .asPerson(() => firstValueFrom(systemJournalApi.boots(true)))
-            .catch((error: unknown) => {
-              patchState(store, { loadError: errorOf(error) });
-              return null;
-            });
-          if (!boots) return;
-          touched();
-          patchState(store, { administrator: true, boots: boots.boots });
-          read();
-        },
+        readAsAdministrator: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              linuxSessionStore
+                .asPerson$(() => systemJournalApi.boots(true))
+                .pipe(
+                  tap((boots) => {
+                    if (!boots) return;
+                    touched();
+                    patchState(store, { administrator: true, boots: boots.boots });
+                    read();
+                  }),
+                  catchError((error: unknown) => {
+                    patchState(store, { loadError: errorOf(error) });
+                    return EMPTY;
+                  }),
+                ),
+            ),
+          ),
+        ),
 
         /** Following again (as administrator, after it stopped): sudo unlocked again if needed. */
-        async follow(): Promise<void> {
-          if (store.administrator()) {
-            const ok = await linuxSessionStore
-              .withSudo(() => firstValueFrom(systemJournalApi.boots(true)))
-              .catch(() => null);
-            if (!ok) return;
-          }
-          touched();
-          // The read that sudo stopped: again.
-          if (!store.loaded()) read();
-        },
+        follow: rxMethod<void>(
+          pipe(
+            exhaustMap(() => {
+              const unlocked: Observable<unknown> = store.administrator()
+                ? linuxSessionStore.withSudo$(() => systemJournalApi.boots(true))
+                : of(true);
+              return unlocked.pipe(
+                tap((ok) => {
+                  if (!ok) return;
+                  touched();
+                  // The read that sudo stopped: again.
+                  if (!store.loaded()) read();
+                }),
+                catchError(() => EMPTY),
+              );
+            }),
+          ),
+        ),
       };
     },
   ),

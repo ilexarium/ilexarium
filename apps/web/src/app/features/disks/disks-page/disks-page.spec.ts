@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { Disk, DiskPartition, DisksStatus } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, throwError } from 'rxjs';
+import { of, throwError, type Observable } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { DisksApi } from '../../../core/disks/disks-api';
@@ -67,14 +67,16 @@ async function render(start: DisksStatus) {
     unmount: vi.fn(() => of(undefined)),
   };
   // Signed in to Linux with sudo at hand: every action goes straight through.
+  // The mount form still takes the Promise version; unmounting the Observable one.
   const asPerson = vi.fn(<T>(action: () => Promise<T>) => action());
+  const asPerson$ = vi.fn(<T>(action: () => Observable<T>): Observable<T | null> => action());
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       auth.provider,
       sockets.provider,
       { provide: DisksApi, useValue: api },
-      { provide: LinuxSessionStore, useValue: { asPerson } },
+      { provide: LinuxSessionStore, useValue: { asPerson, asPerson$ } },
     ],
   });
   await TestBed.inject(AuthStore).load();
@@ -92,7 +94,7 @@ async function render(start: DisksStatus) {
     [...root.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
       b.textContent?.trim().startsWith(text),
     );
-  return { fixture, el, api, asPerson, socket, push, button };
+  return { fixture, el, api, asPerson, asPerson$, socket, push, button };
 }
 
 const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
@@ -201,7 +203,7 @@ describe('DisksPage', () => {
       managed: true,
       usedForBackups: true,
     });
-    const { el, api, fixture, button } = await render(status([usb([mounted, backup])]));
+    const { el, api, asPerson$, fixture, button } = await render(status([usb([mounted, backup])]));
     const unmountButtons = [...el.querySelectorAll<HTMLButtonElement>('button')].filter((b) =>
       b.textContent?.includes('Unmount'),
     );
@@ -213,6 +215,7 @@ describe('DisksPage', () => {
     expect(dialog()!.textContent).toContain('/mnt/photos');
     button('Unmount', dialog()!)!.click();
     await vi.waitFor(() => expect(api.unmount).toHaveBeenCalledWith('/mnt/photos'));
+    expect(asPerson$).toHaveBeenCalledOnce();
   });
 
   it('forgets a disk mounted before that isn’t connected now', async () => {
