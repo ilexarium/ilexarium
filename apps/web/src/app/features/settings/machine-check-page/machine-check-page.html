@@ -5,7 +5,7 @@
     <button hlmBtn [disabled]="store.running()" (click)="store.run()">
       {{ (store.started() ? 'machineCheck.checkAgain' : 'machineCheck.check') | translate }}
     </button>
-    <button hlmBtn variant="outline" [disabled]="store.running()" (click)="store.run(true)">
+    <button hlmBtn variant="outline" [disabled]="store.running()" (click)="store.runWithoutSudo()">
       {{ 'machineCheck.checkWithoutSudo' | translate }}
     </button>
   </div>
