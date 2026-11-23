@@ -2,7 +2,8 @@ import { inject } from '@angular/core';
 import { signalStore, withMethods } from '@ngrx/signals';
 import type { UserLanguage } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { firstValueFrom } from 'rxjs';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import { catchError, concatMap, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
 import { apiErrorText } from '../../shared/forms/submission-errors';
 import { AuthStore } from '../auth/auth-store';
 import { LanguageService } from '../i18n/language';
@@ -25,28 +26,36 @@ export const ProfileStore = signalStore(
       translator = inject(Translator),
     ) => ({
       /** Shows the app in `language`, and keeps it for the account (it follows to other browsers). */
-      async chooseLanguage(language: UserLanguage): Promise<void> {
-        try {
-          await languageService.setLanguage(language);
-        } catch (error) {
-          // Its file didn't load (offline, an update under way): the language stays as it was.
-          const [key, params] = apiErrorText(error);
-          toast.error(translator.t('profile.languageNotLoaded'), {
-            description: translator.t(key, params),
-          });
-          return;
-        }
-        if (!authStore.isAuthenticated() || authStore.user()?.language === language) return;
-        try {
-          authStore.updated((await firstValueFrom(profileApi.update({ language }))).user);
-        } catch (error) {
-          // Shown here all the same; only other browsers won't know.
-          const [key, params] = apiErrorText(error);
-          toast.error(translator.t('profile.languageNotSaved'), {
-            description: translator.t(key, params),
-          });
-        }
-      },
+      chooseLanguage: rxMethod<UserLanguage>(
+        pipe(
+          exhaustMap((language) =>
+            languageService.setLanguage(language).pipe(
+              catchError((error: unknown) => {
+                // Its file didn't load (offline, an update under way): the language stays as it was.
+                const [key, params] = apiErrorText(error);
+                toast.error(translator.t('profile.languageNotLoaded'), {
+                  description: translator.t(key, params),
+                });
+                return EMPTY;
+              }),
+              filter(() => authStore.isAuthenticated() && authStore.user()?.language !== language),
+              concatMap(() =>
+                profileApi.update({ language }).pipe(
+                  tap(({ user }) => authStore.updated(user)),
+                  catchError((error: unknown) => {
+                    // Shown here all the same; only other browsers won't know.
+                    const [key, params] = apiErrorText(error);
+                    toast.error(translator.t('profile.languageNotSaved'), {
+                      description: translator.t(key, params),
+                    });
+                    return EMPTY;
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     }),
   ),
 );

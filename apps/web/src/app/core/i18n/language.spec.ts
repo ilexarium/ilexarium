@@ -1,3 +1,4 @@
+import { firstValueFrom } from 'rxjs';
 import { TestBed } from '@angular/core/testing';
 import { TranslateService } from '@ngx-translate/core';
 import { stubLocalStorage } from '../../layout/testing';
@@ -78,7 +79,7 @@ describe('LanguageService', () => {
 
   it('switches, remembers the choice, and lays out right to left for Arabic', async () => {
     const service = create();
-    await service.setLanguage('ar');
+    await firstValueFrom(service.setLanguage('ar'));
     TestBed.tick();
     expect(service.language()).toBe('ar');
     expect(TestBed.inject(TranslateService).currentLang()).toBe('ar');
@@ -92,7 +93,7 @@ describe('LanguageService', () => {
     storage.restore();
     storage = stubLocalStorage({ blocked: true });
     const service = create();
-    await service.setLanguage('de');
+    await firstValueFrom(service.setLanguage('de'));
     expect(service.language()).toBe('de');
   });
 });

@@ -19,7 +19,7 @@ function fakeLanguages() {
     language: language.asReadonly(),
     dir: signal<'ltr' | 'rtl'>('ltr').asReadonly(),
     available: ['en', 'de', 'ar'] as Language[],
-    setLanguage: vi.fn(async (next: Language) => language.set(next)),
+    setLanguage: vi.fn((next: Language) => of(language.set(next))),
   };
 }
 
@@ -104,7 +104,9 @@ describe('TopBar user menu', () => {
 
   it('signs out from the menu', async () => {
     const { fixture, item } = await openMenu();
-    const logout = vi.spyOn(TestBed.inject(AuthStore), 'logout').mockResolvedValue();
+    const logout = vi
+      .spyOn(TestBed.inject(AuthStore), 'logout')
+      .mockReturnValue({ destroy: () => undefined });
     item('Sign out').click();
     await fixture.whenStable();
     expect(logout).toHaveBeenCalled();

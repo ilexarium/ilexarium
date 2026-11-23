@@ -146,7 +146,7 @@ describe('LinuxSessionStore', () => {
     const { store, authStore } = await setup(unlockedFor(5 * 60_000));
     store.ended();
     const result = store.withSudo(async () => 'done');
-    await authStore.logout();
+    authStore.logout();
     TestBed.tick();
     expect(await result).toBeNull();
     expect(store.session()).toBeNull();
