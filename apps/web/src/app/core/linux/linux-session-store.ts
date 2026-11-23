@@ -18,12 +18,15 @@ import {
 import { toast } from '@spartan-ng/brain/sonner';
 import {
   catchError,
+  defaultIfEmpty,
+  defer,
   EMPTY,
   exhaustMap,
+  filter,
   firstValueFrom,
   type Observable,
-  of,
   pipe,
+  retry,
   switchMap,
   tap,
   throwError,
@@ -243,57 +246,50 @@ export const LinuxSessionStore = signalStore(
       /**
        * `withSudo` as an Observable: the password asked first while locked (nothing before
        * subscribing), and again when sudo ran out meanwhile, then the action once more. Null when
-       * the prompt was cancelled; unsubscribing while it's asked closes it.
+       * the prompt was closed; unsubscribing while it's asked closes it.
        */
       withSudo$<T>(action: () => Observable<T>): Observable<T | null> {
-        const unlockedThenRun = (unlocked: boolean): Observable<T | null> =>
-          unlocked ? action().pipe(tap(restartSudoMinutes)) : of(null);
+        const askToRetry = (error: unknown): Observable<boolean> => {
+          if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired)
+            return throwError(() => error);
+          setSudoUntil(null);
+          return sudoQuestion.ask().pipe(filter(Boolean));
+        };
         return sudoQuestion.ask({ skipWhen: () => store.sudoMinutes() !== null }).pipe(
-          switchMap((unlocked) =>
-            !unlocked
-              ? of(null)
-              : action().pipe(
-                  tap(restartSudoMinutes),
-                  catchError((error: unknown) => {
-                    if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired)
-                      return throwError(() => error);
-                    setSudoUntil(null);
-                    return sudoQuestion.ask().pipe(switchMap(unlockedThenRun));
-                  }),
-                ),
+          filter(Boolean),
+          switchMap(() =>
+            defer(action).pipe(tap(restartSudoMinutes), retry({ count: 1, delay: askToRetry })),
           ),
+          defaultIfEmpty(null),
         );
       },
 
       /**
        * `asPerson` as an Observable: the Linux sign-in first without a session (nothing before
-       * subscribing); the sudo password only when the server says sudo is needed and locked; then
-       * the action once more. Null when a prompt was closed — it emits once and completes;
-       * unsubscribing while a prompt is asked closes it.
+       * subscribing); the sudo password or the sign-in again when the server asks for it, then the
+       * action once more (three tries at most). Null when a prompt was closed — it emits once and
+       * completes; unsubscribing while a prompt is asked closes it.
        */
       asPerson$<T>(action: () => Observable<T>): Observable<T | null> {
-        const attempt = (tries: number): Observable<T | null> =>
-          action().pipe(
-            tap(refreshSession),
-            catchError((error: unknown) => {
-              const code = apiErrorCode(error);
-              const retryAfter = (answer: Observable<boolean>) =>
-                answer.pipe(switchMap((yes) => (yes ? attempt(tries + 1) : of(null))));
-              if (tries >= 2) return throwError(() => error);
-              if (code === FILES_ERROR_CODES.sudoRequired) {
-                setSudoUntil(null);
-                return retryAfter(sudoQuestion.ask());
-              }
-              if (code === FILES_ERROR_CODES.linuxSessionRequired) {
-                ended();
-                return retryAfter(signInQuestion.ask());
-              }
-              return throwError(() => error);
-            }),
-          );
-        return signInQuestion
-          .ask({ skipWhen: () => store.session() !== null })
-          .pipe(switchMap((signedIn) => (signedIn ? attempt(0) : of(null))));
+        const askToRetry = (error: unknown): Observable<boolean> => {
+          const code = apiErrorCode(error);
+          if (code === FILES_ERROR_CODES.sudoRequired) {
+            setSudoUntil(null);
+            return sudoQuestion.ask().pipe(filter(Boolean));
+          }
+          if (code === FILES_ERROR_CODES.linuxSessionRequired) {
+            ended();
+            return signInQuestion.ask().pipe(filter(Boolean));
+          }
+          return throwError(() => error);
+        };
+        return signInQuestion.ask({ skipWhen: () => store.session() !== null }).pipe(
+          filter(Boolean),
+          switchMap(() =>
+            defer(action).pipe(tap(refreshSession), retry({ count: 2, delay: askToRetry })),
+          ),
+          defaultIfEmpty(null),
+        );
       },
 
       /** The shell's sign-in prompt: signed in (true) or closed; with `id`, only while that one is asked. */
