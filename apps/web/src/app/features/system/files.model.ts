@@ -24,8 +24,16 @@ export interface FileDeletion {
   summary: FileSummary | null;
 }
 
-/** Files to upload into the folder shown; `replace` false: a name taken there is asked about. */
+/** Files to upload; `replace` false: a name taken there is asked about. */
 export interface UploadRequest {
   files: File[];
   replace: boolean;
+  /** Where to; the folder shown when asked if not given. */
+  folder?: string;
+}
+
+/** A file whose name was taken in the folder it went to: the page asks before replacing it. */
+export interface UploadClash {
+  folder: string;
+  file: File;
 }

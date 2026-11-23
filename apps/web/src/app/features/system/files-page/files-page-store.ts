@@ -25,6 +25,7 @@ import {
   from,
   ignoreElements,
   lastValueFrom,
+  map,
   mergeMap,
   type Observable,
   pipe,
@@ -36,7 +37,7 @@ import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 import { joinPath, renameTarget } from '../files-paths';
-import type { FileDeletion, Upload, UploadRequest } from '../files.model';
+import type { FileDeletion, Upload, UploadClash, UploadRequest } from '../files.model';
 
 interface FilesPageState {
   list: FileList | null;
@@ -46,8 +47,8 @@ interface FilesPageState {
   pending: string[];
   /** The delete waiting for its confirmation. */
   deleting: FileDeletion | null;
-  /** Uploads whose name is taken there: one question for all of them. */
-  clashes: File[];
+  /** Uploads whose name was taken there: one question for all of them. */
+  clashes: UploadClash[];
 }
 
 const initialState: FilesPageState = {
@@ -259,9 +260,10 @@ export const FilesPageStore = signalStore(
        */
       upload: rxMethod<UploadRequest>(
         pipe(
-          concatMap(({ files, replace }) => {
-            const target = store._folder();
-            const taken: File[] = [];
+          // The folder when asked, not when its turn comes (the person may have opened another).
+          map((request) => ({ ...request, target: request.folder ?? store._folder() })),
+          concatMap(({ files, replace, target }) => {
+            const taken: UploadClash[] = [];
             const uploads = from(files).pipe(
               concatMap((file) => {
                 const id = nextUpload++;
@@ -283,7 +285,7 @@ export const FilesPageStore = signalStore(
                   catchError((error: unknown) => {
                     if (apiErrorCode(error) === FILES_ERROR_CODES.exists && !replace) {
                       patchState(store, { uploads: store.uploads().filter((u) => u.id !== id) });
-                      taken.push(file);
+                      taken.push({ folder: target, file });
                     } else {
                       set({ state: 'failed' });
                       store._failed(error);
@@ -298,7 +300,7 @@ export const FilesPageStore = signalStore(
               uploads,
               defer(() => (files.length > taken.length ? store._reload() : EMPTY)),
               defer(() => {
-                if (taken.length) patchState(store, { clashes: taken });
+                if (taken.length) patchState(store, { clashes: [...store.clashes(), ...taken] });
                 return EMPTY;
               }),
             );
@@ -310,9 +312,16 @@ export const FilesPageStore = signalStore(
   withMethods((store) => ({
     /** The clash question answered: replaced (uploaded again) or kept. */
     answerClashes(replace: boolean): void {
-      const files = store.clashes();
+      const clashes = store.clashes();
       patchState(store, { clashes: [] });
-      if (replace && files.length) store.upload({ files, replace: true });
+      if (!replace) return;
+      // Each into the folder it was asked about.
+      for (const folder of new Set(clashes.map((c) => c.folder)))
+        store.upload({
+          folder,
+          files: clashes.filter((c) => c.folder === folder).map((c) => c.file),
+          replace: true,
+        });
     },
   })),
   withHooks((store, linuxSessionStore = inject(LinuxSessionStore)) => ({

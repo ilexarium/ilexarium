@@ -1,4 +1,4 @@
-<hlm-alert-dialog [state]="deleting() ? 'open' : 'closed'" (closed)="closed()">
+<hlm-alert-dialog [state]="deleting() ? 'open' : 'closed'" (stateChanged)="stateChanged($event)">
   <hlm-alert-dialog-content *hlmAlertDialogPortal>
     @if (entry(); as entry) {
       <hlm-alert-dialog-header>
