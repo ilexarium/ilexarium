@@ -153,6 +153,53 @@ describe('NewAppPageStore', () => {
     expect(store.name()).toBe('app-2');
   });
 
+  it('two templates clicked while the first loads: the latest wins', async () => {
+    const { store, appsApi } = await setup();
+    const first = new Subject<never>();
+    appsApi.template.mockReturnValueOnce(first as never);
+    store.chooseTemplate('immich');
+    store.chooseTemplate('navidrome');
+    expect(appsApi.template).toHaveBeenLastCalledWith('navidrome');
+    expect(first.observed).toBe(false);
+    expect(store.template()?.id).toBe('navidrome');
+  });
+
+  it('your own file chosen while a template loads: the template no longer opens', async () => {
+    const { store, appsApi } = await setup();
+    const late = new Subject<{ template: unknown; compose: string }>();
+    appsApi.template.mockReturnValueOnce(late as never);
+    store.chooseTemplate('navidrome');
+    store.useOwnFile();
+    expect(late.observed).toBe(false);
+    expect(store.template()).toBeNull();
+    expect(store.step()).toBe('setup');
+  });
+
+  it('a name check answered after Back and a new setup: not applied', async () => {
+    const { store, appsApi } = await setup();
+    store.useOwnFile();
+    const late = new Subject<{ free: boolean; suggestion: string }>();
+    appsApi.checkName.mockReturnValueOnce(late as never);
+    store.setName('blog');
+    await vi.waitFor(() => expect(appsApi.checkName).toHaveBeenCalledWith('blog'));
+    store.back();
+    store.useOwnFile();
+    late.next({ free: false, suggestion: 'blog-2' });
+    expect(store.name()).toBe('app-2');
+    expect(store.nameCheck()?.free).toBe(true);
+  });
+
+  it('a file pasted just before Back: its name not suggested in the next setup', async () => {
+    const { store, appsApi } = await setup();
+    store.useOwnFile();
+    store.setCompose(`name: music\n${COMPOSE}`);
+    store.back();
+    store.useOwnFile();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(appsApi.checkName).not.toHaveBeenCalledWith('music');
+    expect(store.name()).toBe('app-2');
+  });
+
   it('searches the templates by name and description, every word typed; Back keeps the search', async () => {
     const { store } = await setup([
       testTemplate('immich', { name: 'Immich' }),
