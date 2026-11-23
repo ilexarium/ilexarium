@@ -15,7 +15,8 @@ import {
   processKey,
 } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { firstValueFrom } from 'rxjs';
+import { rxMethod } from '@ngrx/signals/rxjs-interop';
+import { catchError, EMPTY, map, mergeMap, type Observable, pipe, tap } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { ProcessesApi } from '../../../core/processes/processes-api';
@@ -253,31 +254,39 @@ export const ProcessesPageStore = signalStore(
          * Ends a process as the account (already confirmed): asked to stop (TERM), or forced
          * (KILL). Another account's through its sudo: the password asked while locked.
          */
-        async end(request: EndRequest): Promise<void> {
-          const key = processKey(request.process);
-          const { pid, startTicks } = request.process;
-          const send = async () => {
-            await firstValueFrom(processesApi.signal({ pid, startTicks, signal: request.signal }));
-            return true;
-          };
-          pending(key, true);
-          try {
-            const done =
-              endAs(request.process) === 'own'
-                ? await send()
-                : await linuxSessionStore.withSudo(send);
-            if (done) ended(request);
-          } catch (error) {
-            if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
-              linuxSessionStore.ended();
-            }
-            toast.error(translator.t('processes.endFailed'), {
-              description: translator.t(...apiErrorText(error)),
-            });
-          } finally {
-            pending(key, false);
-          }
-        },
+        end: rxMethod<EndRequest>(
+          pipe(
+            // Every signal sent (a forced end may follow one asked to stop).
+            mergeMap((request) => {
+              const key = processKey(request.process);
+              const { pid, startTicks } = request.process;
+              const send = () =>
+                processesApi
+                  .signal({ pid, startTicks, signal: request.signal })
+                  .pipe(map(() => true));
+              const done: Observable<boolean | null> =
+                endAs(request.process) === 'own' ? send() : linuxSessionStore.withSudo$(send);
+              return done.pipe(
+                tap({
+                  subscribe: () => pending(key, true),
+                  next: (ok) => {
+                    if (ok) ended(request);
+                  },
+                  finalize: () => pending(key, false),
+                }),
+                catchError((error: unknown) => {
+                  if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
+                    linuxSessionStore.ended();
+                  }
+                  toast.error(translator.t('processes.endFailed'), {
+                    description: translator.t(...apiErrorText(error)),
+                  });
+                  return EMPTY;
+                }),
+              );
+            }),
+          ),
+        ),
       };
     },
   ),

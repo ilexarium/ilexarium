@@ -9,7 +9,7 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe, tap } from 'rxjs';
+import { catchError, concatMap, EMPTY, exhaustMap, map, pipe, tap } from 'rxjs';
 import { Translator } from '../../../core/i18n/translator';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { RealtimeService } from '../../../core/realtime/realtime-service';
@@ -73,51 +73,75 @@ export const UpdatesPageStore = signalStore(
         ),
       ),
 
-      async check(): Promise<void> {
-        patchState(store, { checking: true });
-        try {
-          const status = await firstValueFrom(updatesApi.check());
-          updatesStore.update(status);
-          if (status.checkError)
-            toast.error(translator.t(`updates.checkError.${status.checkError}`));
-          else if (!status.available) toast.success(translator.t('updates.upToDate'));
-        } catch (error) {
-          toast.error(translator.t('updates.checkFailed'), {
-            description: translator.t(...apiErrorText(error)),
-          });
-        } finally {
-          patchState(store, { checking: false });
-        }
-      },
+      check: rxMethod<void>(
+        pipe(
+          exhaustMap(() =>
+            updatesApi.check().pipe(
+              tap({
+                subscribe: () => patchState(store, { checking: true }),
+                next: (status) => {
+                  updatesStore.update(status);
+                  if (status.checkError)
+                    toast.error(translator.t(`updates.checkError.${status.checkError}`));
+                  else if (!status.available) toast.success(translator.t('updates.upToDate'));
+                },
+                finalize: () => patchState(store, { checking: false }),
+              }),
+              catchError((error: unknown) => {
+                toast.error(translator.t('updates.checkFailed'), {
+                  description: translator.t(...apiErrorText(error)),
+                });
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      ),
 
-      async setCheckAutomatically(checkAutomatically: boolean): Promise<void> {
-        try {
-          await firstValueFrom(updatesApi.setCheckAutomatically(checkAutomatically));
-          const status = updatesStore.status();
-          if (status) updatesStore.update({ ...status, checkAutomatically });
-        } catch (error) {
-          toast.error(translator.t('updates.settingFailed'), {
-            description: translator.t(...apiErrorText(error)),
-          });
-        }
-      },
+      /** Each switch in the order made. */
+      setCheckAutomatically: rxMethod<boolean>(
+        pipe(
+          concatMap((checkAutomatically) =>
+            updatesApi.setCheckAutomatically(checkAutomatically).pipe(
+              tap(() => {
+                const status = updatesStore.status();
+                if (status) updatesStore.update({ ...status, checkAutomatically });
+              }),
+              catchError((error: unknown) => {
+                toast.error(translator.t('updates.settingFailed'), {
+                  description: translator.t(...apiErrorText(error)),
+                });
+                return EMPTY;
+              }),
+            ),
+          ),
+        ),
+      ),
 
       /** Starts the update (already confirmed) as the person: their sudo password if it's locked. */
-      async start(version: string): Promise<void> {
-        patchState(store, { starting: true });
-        try {
-          const started = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(updatesApi.start(version)).then(() => true),
-          );
-          if (started) toast.success(translator.t('updates.started', { version }));
-        } catch (error) {
-          toast.error(translator.t('updates.startFailed'), {
-            description: translator.t(...apiErrorText(error)),
-          });
-        } finally {
-          patchState(store, { starting: false });
-        }
-      },
+      start: rxMethod<string>(
+        pipe(
+          exhaustMap((version) =>
+            linuxSessionStore
+              .asPerson$(() => updatesApi.start(version).pipe(map(() => true)))
+              .pipe(
+                tap({
+                  subscribe: () => patchState(store, { starting: true }),
+                  next: (started) => {
+                    if (started) toast.success(translator.t('updates.started', { version }));
+                  },
+                  finalize: () => patchState(store, { starting: false }),
+                }),
+                catchError((error: unknown) => {
+                  toast.error(translator.t('updates.startFailed'), {
+                    description: translator.t(...apiErrorText(error)),
+                  });
+                  return EMPTY;
+                }),
+              ),
+          ),
+        ),
+      ),
     }),
   ),
   withHooks({
