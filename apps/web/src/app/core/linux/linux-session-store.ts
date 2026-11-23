@@ -244,7 +244,7 @@ export const LinuxSessionStore = signalStore(
       /**
        * `withSudo` as an Observable: the password asked first while locked (nothing before
        * subscribing), and again when sudo ran out meanwhile, then the action once more. Null when
-       * the prompt was closed; unsubscribing while it's asked closes it.
+       * the prompt was closed; only an answer closes the prompt.
        */
       withSudo$<T>(action: () => Observable<T>): Observable<T | null> {
         const askToRetry = (error: unknown): Observable<boolean> => {
@@ -266,7 +266,7 @@ export const LinuxSessionStore = signalStore(
        * `asPerson` as an Observable: the Linux sign-in first without a session (nothing before
        * subscribing); the sudo password or the sign-in again when the server asks for it, then the
        * action once more (three tries at most). Null when a prompt was closed — it emits once and
-       * completes; unsubscribing while a prompt is asked closes it.
+       * completes; only an answer closes a prompt.
        */
       asPerson$<T>(action: () => Observable<T>): Observable<T | null> {
         const askToRetry = (error: unknown): Observable<boolean> => {
