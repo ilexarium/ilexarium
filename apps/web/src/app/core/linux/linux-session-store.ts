@@ -248,23 +248,21 @@ export const LinuxSessionStore = signalStore(
       withSudo$<T>(action: () => Observable<T>): Observable<T | null> {
         const unlockedThenRun = (unlocked: boolean): Observable<T | null> =>
           unlocked ? action().pipe(tap(restartSudoMinutes)) : of(null);
-        return sudoQuestion
-          .ask(() => store.sudoMinutes() !== null)
-          .pipe(
-            switchMap((unlocked) =>
-              !unlocked
-                ? of(null)
-                : action().pipe(
-                    tap(restartSudoMinutes),
-                    catchError((error: unknown) => {
-                      if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired)
-                        return throwError(() => error);
-                      setSudoUntil(null);
-                      return sudoQuestion.ask().pipe(switchMap(unlockedThenRun));
-                    }),
-                  ),
-            ),
-          );
+        return sudoQuestion.ask({ skipWhen: () => store.sudoMinutes() !== null }).pipe(
+          switchMap((unlocked) =>
+            !unlocked
+              ? of(null)
+              : action().pipe(
+                  tap(restartSudoMinutes),
+                  catchError((error: unknown) => {
+                    if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired)
+                      return throwError(() => error);
+                    setSudoUntil(null);
+                    return sudoQuestion.ask().pipe(switchMap(unlockedThenRun));
+                  }),
+                ),
+          ),
+        );
       },
 
       /**
@@ -294,7 +292,7 @@ export const LinuxSessionStore = signalStore(
             }),
           );
         return signInQuestion
-          .ask(() => store.session() !== null)
+          .ask({ skipWhen: () => store.session() !== null })
           .pipe(switchMap((signedIn) => (signedIn ? attempt(0) : of(null))));
       },
 
