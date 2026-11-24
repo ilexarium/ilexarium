@@ -90,7 +90,7 @@ export class PasswordDialog {
       });
     });
     effect(() => {
-      if (this.profilePageStore.saves() > 0) untracked(() => this.shown.set(false));
+      if (this.profilePageStore.saved()) untracked(() => this.shown.set(false));
     });
   }
 }

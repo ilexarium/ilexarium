@@ -6,7 +6,7 @@ import { NO_SUBMISSION } from './with-form-submission.constants';
 
 /**
  * A form's submission as store state, so the submit is an rxMethod like any other action: what was
- * sent, while it runs, the server's errors (shown by `validateServerErrors`), and the saves.
+ * sent, while it runs, the server's errors (shown by `validateServerErrors`), and whether it was saved.
  */
 export function withFormSubmission<T>() {
   return signalStoreFeature(
@@ -22,13 +22,15 @@ export function withFormSubmission<T>() {
       /** Sends `value` through `request`; a refusal becomes `serverErrors` and ends quietly. */
       _submit<R>(value: T, request: Observable<R>): Observable<R> {
         return defer(() => {
-          patchState(store, { submitting: true, submittedValue: value, serverErrors: [] });
+          patchState(store, {
+            submitting: true,
+            submittedValue: value,
+            serverErrors: [],
+            saved: false,
+          });
           return request.pipe(
             // Saved: the sent value (passwords, say) isn't needed any more.
-            tap({
-              complete: () =>
-                patchState(store, ({ saves }) => ({ saves: saves + 1, submittedValue: null })),
-            }),
+            tap({ complete: () => patchState(store, { saved: true, submittedValue: null }) }),
             catchError((error: unknown) => {
               patchState(store, { serverErrors: toServerErrors(error) });
               return EMPTY;

@@ -17,7 +17,7 @@ function setup() {
 }
 
 describe('withFormSubmission', () => {
-  it('is submitting while the request runs and counts a save when it ends', () => {
+  it('is submitting while the request runs and is saved when it ends', () => {
     const store = setup();
     const answer = new Subject<string>();
     const results: string[] = [];
@@ -29,7 +29,7 @@ describe('withFormSubmission', () => {
     answer.complete();
     expect(results).toEqual(['done']);
     expect(store.submitting()).toBe(false);
-    expect(store.saves()).toBe(1);
+    expect(store.saved()).toBe(true);
     expect(store.serverErrors()).toEqual([]);
     expect(store.submittedValue()).toBeNull();
   });
@@ -44,10 +44,10 @@ describe('withFormSubmission', () => {
     expect(answer.observed).toBe(false);
     expect(store.submitting()).toBe(false);
     answer.next('late');
-    expect(store.saves()).toBe(0);
+    expect(store.saved()).toBe(false);
   });
 
-  it('turns a refusal into server errors by field and ends without a value or save', () => {
+  it('turns a refusal into server errors by field and ends without a value, not saved', () => {
     const store = setup();
     const error = new HttpErrorResponse({
       status: 400,
@@ -69,7 +69,7 @@ describe('withFormSubmission', () => {
     expect(completed).toBe(true);
     expect(store.serverErrors()).toEqual([{ field: 'name', kind: 'name_taken', message: 'Taken' }]);
     expect(store.submitting()).toBe(false);
-    expect(store.saves()).toBe(0);
+    expect(store.saved()).toBe(false);
   });
 
   it('clears the last errors when sending again', () => {
@@ -96,7 +96,7 @@ describe('withFormSubmission', () => {
     const store = setup();
     store.send({ name: 'a' }, of(null)).subscribe();
     store.resetSubmission();
-    expect(store.saves()).toBe(0);
+    expect(store.saved()).toBe(false);
     expect(store.submittedValue()).toBeNull();
   });
 });

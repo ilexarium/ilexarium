@@ -23,8 +23,8 @@ export interface FormSubmissionState<T> {
   /** What was sent last, to show the server's errors while the form still holds it. */
   submittedValue: T | null;
   serverErrors: readonly ServerError[];
-  /** Submissions that succeeded since the last reset: a dialog closes when it goes up. */
-  saves: number;
+  /** The last submission succeeded: a dialog closes on it. */
+  saved: boolean;
 }
 
 /** What `validateServerErrors` reads of a store with `withFormSubmission`. */
