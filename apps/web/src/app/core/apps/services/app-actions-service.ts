@@ -27,7 +27,7 @@ import { DEFAULT_BACKUP_PRESET } from './app-actions-service.constants';
 
 /**
  * Apps' reads and actions for the stores: the API calls, the steps that belong together, and
- * every change as the signed-in Linux account (`asPerson`: the sign-in or sudo prompt first when
+ * every change as the signed-in Linux account (`asPerson$`: the sign-in or sudo prompt first when
  * needed). Stateless: every method an Observable; a change gives null when the prompt was
  * dismissed, a refusal is its error, for the store to word.
  */
