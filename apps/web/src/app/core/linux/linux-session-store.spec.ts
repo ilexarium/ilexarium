@@ -250,6 +250,7 @@ describe('LinuxSessionStore', () => {
       const action = answering(httpError(403, 'sudo_required'), 'done');
       const result = firstValueFrom(store.withSudo$(action));
       await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
+      expect(store.sudoMinutes()).toBeNull();
       await store.unlockSudo('pw');
       expect(await result).toBe('done');
       expect(action).toHaveBeenCalledTimes(2);

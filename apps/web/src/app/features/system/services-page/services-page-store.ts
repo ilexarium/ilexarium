@@ -104,7 +104,7 @@ function dotOf(service: SystemService): DotTone {
  * The Services page's data, provided by the page and gone with it:
  * the host's service units, read as the signed-in Linux account and asked again every 10 s while
  * the page is shown; a unit's details; starting, stopping and restarting through the account's
- * sudo (`LinuxSessionStore.asPerson` asks for what's missing), with their toasts.
+ * sudo (`LinuxSessionStore.asPerson$` asks for what's missing), with their toasts.
  */
 export const ServicesPageStore = signalStore(
   withState<ServicesPageState>(initialState),
