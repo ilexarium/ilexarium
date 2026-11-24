@@ -21,7 +21,7 @@ import { ErrorTextPipe } from '../../../shared/forms/error-text-pipe';
 import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { Formatter } from '../../../shared/format/formatter';
-import { BackupsPageStore } from '../backups-page/backups-page-store';
+import { BackupsPageStore } from '../backups-page/store/backups-page-store';
 import type { AppSummary } from '@ilex/shared';
 import { FolderPicker } from '../folder-picker/folder-picker';
 import { RetentionFields } from '../retention-fields/retention-fields';

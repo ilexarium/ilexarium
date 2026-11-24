@@ -19,7 +19,7 @@ import { RemoveItemDialog } from '../remove-item-dialog/remove-item-dialog';
 import { RestoreDialog } from '../restore-dialog/restore-dialog';
 import { RestoreStatus } from '../restore-status/restore-status';
 import { RunProgress } from '../run-progress/run-progress';
-import { BackupsPageStore } from './backups-page-store';
+import { BackupsPageStore } from './store/backups-page-store';
 
 /**
  * Backups: set up once (disk, what, when), then where they stand — the header (headline, disk,

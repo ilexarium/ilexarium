@@ -13,7 +13,7 @@ import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { SaveBar } from '../../../shared/save-bar/save-bar';
-import { BackupsPageStore } from '../backups-page/backups-page-store';
+import { BackupsPageStore } from '../backups-page/store/backups-page-store';
 import { RetentionFields } from '../retention-fields/retention-fields';
 import { ScheduleFields } from '../schedule-fields/schedule-fields';
 

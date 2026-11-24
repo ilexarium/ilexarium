@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { BackupPlan } from '@ilex/shared';
-import { BackupsPageStore } from '../backups-page/backups-page-store';
+import { BackupsPageStore } from '../backups-page/store/backups-page-store';
 import { BackupSettings } from './backup-settings';
 
 const plan = (updatedAt: string, daily = 7): BackupPlan => ({

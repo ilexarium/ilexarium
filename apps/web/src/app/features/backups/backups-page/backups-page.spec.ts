@@ -21,7 +21,7 @@ import { testAppItem, testItem } from '../../../core/backups/testing';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { formatBytes } from '../../../shared/format/format';
 import { BackupsPage } from './backups-page';
-import { BackupsPageStore } from './backups-page-store';
+import { BackupsPageStore } from './store/backups-page-store';
 import { toast } from '@spartan-ng/brain/sonner';
 
 const PLATFORM = '0193a000-0000-7000-8000-000000000001';
