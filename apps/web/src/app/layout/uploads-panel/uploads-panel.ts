@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   DOCUMENT,
   effect,
   type ElementRef,
@@ -17,13 +18,10 @@ import { HlmProgressImports } from '@ui/progress';
 import { joinPath } from '../../core/files/files-paths';
 import type { UploadClash } from '../../core/files/files.model';
 import { UploadsStore } from '../../core/files/uploads-store';
+import { Formatter } from '../../shared/format/formatter';
 import { PANEL_HEIGHT_PROPERTY } from './uploads-panel.constants';
 
-/**
- * The uploads on every page, at the bottom end corner while the list isn't empty: each file's
- * progress, and the question before replacing files whose name was taken. While a file uploads,
- * leaving the site asks first (the browser's own "Leave site?").
- */
+/** The uploads on every page, and the question before replacing taken names. */
 @Component({
   selector: 'ilex-uploads-panel',
   imports: [HlmAlertDialogImports, HlmButton, HlmProgressImports, NgIcon, TranslatePipe],
@@ -32,11 +30,16 @@ import { PANEL_HEIGHT_PROPERTY } from './uploads-panel.constants';
 })
 export class UploadsPanel {
   protected readonly uploadsStore = inject(UploadsStore);
+  protected readonly formatter = inject(Formatter);
   private readonly document = inject(DOCUMENT);
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
 
   protected readonly collapsed = signal(false);
-  /** The clashes asked about, kept while the question closes (so it doesn't go blank). */
+  protected readonly position = computed(() => {
+    const { current, total } = this.uploadsStore.position();
+    return { current: this.formatter.count(current), total: this.formatter.count(total) };
+  });
+  /** Kept while the question closes, so it doesn't go blank. */
   protected readonly shownClashes = linkedSignal<UploadClash[], UploadClash[]>({
     source: this.uploadsStore.clashes,
     computation: (clashes, previous) => (clashes.length ? clashes : (previous?.value ?? [])),
@@ -44,7 +47,8 @@ export class UploadsPanel {
   protected readonly pathOf = (clash: UploadClash) => joinPath(clash.folder, clash.file.name);
 
   constructor() {
-    // Only while uploading: a `beforeunload` listener keeps some browsers from caching the page.
+    // "Leave site?" while a file uploads. Only then: a `beforeunload` listener keeps some
+    // browsers from caching the page.
     effect((onCleanup) => {
       if (!this.uploadsStore.running()) return;
       const window = this.document.defaultView;

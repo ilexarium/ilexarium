@@ -345,6 +345,24 @@ describe('FilesPage', () => {
     expect(store.pending()).toEqual([]);
   });
 
+  it('a refusal without a text of its own: worded in the app’s language under the name', async () => {
+    const { api, fixture, button } = await render();
+    api.newFolder.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 500, error: { message: 'Boom' } })),
+    );
+    button('New folder')!.click();
+    await fixture.whenStable();
+    const input = dialog()!.querySelector<HTMLInputElement>('input')!;
+    input.value = 'Taxes';
+    input.dispatchEvent(new Event('input'));
+    dialogButton('Create')!.click();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(dialog()!.textContent).toContain('(500)');
+    });
+    expect(dialog()!.textContent).not.toContain('Boom');
+  });
+
   it('a new folder after the Linux session ended: the page goes back to its sign-in', async () => {
     const { el, api, fixture, button } = await render();
     api.newFolder.mockReturnValueOnce(throwError(() => httpError(403, 'linux_session_required')));
