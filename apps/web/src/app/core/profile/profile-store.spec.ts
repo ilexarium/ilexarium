@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import type { Language } from '@ilex/i18n';
 import type { ProfileUpdate } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { throwError, of } from 'rxjs';
+import { throwError, of, Subject } from 'rxjs';
 import { AuthStore } from '../auth/auth-store';
 import { fakeAuthApi, OWNER } from '../auth/testing';
 import { LanguageService } from '../i18n/language';
@@ -41,6 +41,20 @@ describe('ProfileStore.chooseLanguage', () => {
     store.chooseLanguage('ar');
     expect(languages.setLanguage).toHaveBeenCalledWith('ar');
     expect(api.update).toHaveBeenCalledWith({ language: 'ar' });
+    expect(auth.user()?.language).toBe('ar');
+  });
+
+  it('another language clicked while the first loads: both in turn, the last one kept', async () => {
+    const { store, auth, languages, api } = await setup();
+    const german = new Subject<void>();
+    languages.setLanguage.mockReturnValueOnce(german);
+    store.chooseLanguage('de');
+    store.chooseLanguage('ar');
+    expect(languages.setLanguage).toHaveBeenCalledTimes(1);
+    german.next();
+    german.complete();
+    expect(languages.setLanguage).toHaveBeenLastCalledWith('ar');
+    expect(api.update).toHaveBeenLastCalledWith({ language: 'ar' });
     expect(auth.user()?.language).toBe('ar');
   });
 

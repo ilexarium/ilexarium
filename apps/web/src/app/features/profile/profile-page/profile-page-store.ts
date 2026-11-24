@@ -3,11 +3,10 @@ import { signalStore, withMethods } from '@ngrx/signals';
 import type { ChangePasswordRequest } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { catchError, EMPTY, exhaustMap, firstValueFrom, pipe } from 'rxjs';
+import { firstValueFrom, tap } from 'rxjs';
 import { AuthApi } from '../../../core/auth/auth-api';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { Translator } from '../../../core/i18n/translator';
-import { apiErrorText } from '../../../shared/forms/submission-errors';
 
 /**
  * The profile page's actions, provided by the page and gone with it: changing the password (the
@@ -30,21 +29,7 @@ export const ProfilePageStore = signalStore(
         });
       },
       /** Ends every session, this one too; the app goes to the login page. */
-      signOutEverywhere: rxMethod<void>(
-        pipe(
-          exhaustMap(() =>
-            authStore.logoutEverywhere$().pipe(
-              catchError((error: unknown) => {
-                const [key, params] = apiErrorText(error);
-                toast.error(translator.t('profile.signOutEverywhere.failed'), {
-                  description: translator.t(key, params),
-                });
-                return EMPTY;
-              }),
-            ),
-          ),
-        ),
-      ),
+      signOutEverywhere: rxMethod<void>(tap(() => authStore.logoutEverywhere())),
     }),
   ),
 );

@@ -10,20 +10,10 @@ import {
 } from '@ngrx/signals';
 import type { PublicUser } from '@ilex/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import {
-  catchError,
-  defer,
-  EMPTY,
-  exhaustMap,
-  finalize,
-  firstValueFrom,
-  forkJoin,
-  map,
-  type Observable,
-  pipe,
-  tap,
-} from 'rxjs';
+import { toast } from '@spartan-ng/brain/sonner';
+import { catchError, EMPTY, exhaustMap, finalize, firstValueFrom, forkJoin, pipe, tap } from 'rxjs';
 import { LanguageService } from '../i18n/language';
+import { Translator } from '../i18n/translator';
 import { AuthApi } from './auth-api';
 import type { AuthStatus } from './auth.model';
 import { SIGN_OUT_CHANNEL } from './sign-out-channel';
@@ -56,6 +46,7 @@ export const AuthStore = signalStore(
       languageService = inject(LanguageService),
       router = inject(Router),
       channel = inject(SIGN_OUT_CHANNEL),
+      translator = inject(Translator),
     ) => {
       const sessionEnded = () => patchState(store, { user: null, status: 'anonymous' });
       const applyLanguage = async (user: PublicUser | null) => {
@@ -127,20 +118,30 @@ export const AuthStore = signalStore(
           ),
         ),
         /**
-         * Ends every session, this one too. An Observable for the page that asks: its refusal is
-         * worded there (the wording isn't part of the startup download).
+         * Ends every session, this one too. Here, not in the page that asks: leaving the page must
+         * not cancel it once the other tabs were told.
          */
-        logoutEverywhere$(): Observable<void> {
-          return defer(() => {
-            patchState(store, { _leaving: true });
-            tellOtherTabs();
-            return api.logoutEverywhere().pipe(
-              tap(() => signedOut()),
-              map(() => undefined),
-              finalize(() => patchState(store, { _leaving: false })),
-            );
-          });
-        },
+        logoutEverywhere: rxMethod<void>(
+          pipe(
+            exhaustMap(() => {
+              patchState(store, { _leaving: true });
+              tellOtherTabs();
+              return api.logoutEverywhere().pipe(
+                tap(() => signedOut()),
+                catchError((error: unknown) => {
+                  // The wording of errors isn't part of the startup download: loaded when needed.
+                  void import('../../shared/forms/submission-errors').then(({ apiErrorText }) =>
+                    toast.error(translator.t('profile.signOutEverywhere.failed'), {
+                      description: translator.t(...apiErrorText(error)),
+                    }),
+                  );
+                  return EMPTY;
+                }),
+                finalize(() => patchState(store, { _leaving: false })),
+              );
+            }),
+          ),
+        ),
       };
     },
   ),
