@@ -31,6 +31,20 @@ describe('withFormSubmission', () => {
     expect(store.submitting()).toBe(false);
     expect(store.saves()).toBe(1);
     expect(store.serverErrors()).toEqual([]);
+    expect(store.submittedValue()).toBeNull();
+  });
+
+  it('ends a submission still running on reset: its answer changes nothing', () => {
+    const store = setup();
+    const answer = new Subject<string>();
+    let completed = false;
+    store.send({ name: 'a' }, answer).subscribe({ complete: () => (completed = true) });
+    store.resetSubmission();
+    expect(completed).toBe(true);
+    expect(answer.observed).toBe(false);
+    expect(store.submitting()).toBe(false);
+    answer.next('late');
+    expect(store.saves()).toBe(0);
   });
 
   it('turns a refusal into server errors by field and ends without a value or save', () => {
@@ -69,7 +83,6 @@ describe('withFormSubmission', () => {
     expect(store.serverErrors()).toEqual([{ kind: 'network', message: 'errors.network' }]);
     store.send({ name: 'b' }, of(null)).subscribe();
     expect(store.serverErrors()).toEqual([]);
-    expect(store.submittedValue()).toEqual({ name: 'b' });
   });
 
   it('sends nothing before it is subscribed', () => {

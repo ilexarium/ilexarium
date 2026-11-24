@@ -175,6 +175,45 @@ describe('PasswordDialog', () => {
     expect(fixture.componentInstance.closings).toBe(1);
   });
 
+  it('tries the same values again after a refusal of the whole form', async () => {
+    const { api, dialog, fill, submit } = await render();
+    api.changePassword.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 0, error: null })),
+    );
+    fill('old password here', 'brand new password');
+    await submit();
+    expect(dialog().querySelector('[role="alert"]')).not.toBeNull();
+    api.changePassword.mockReturnValue(of(null));
+    await submit();
+    expect(api.changePassword).toHaveBeenCalledTimes(2);
+  });
+
+  it('ends a change still running when closed: opened again it sends anew, the old answer ignored', async () => {
+    const { fixture, api, dialog, fill, submit } = await render();
+    const first = new Subject<null>();
+    api.changePassword.mockReturnValueOnce(first);
+    fill('old password here', 'brand new password');
+    await submit();
+    fixture.componentInstance.open.set(false);
+    await fixture.whenStable();
+    fixture.componentInstance.open.set(true);
+    await fixture.whenStable();
+
+    const second = new Subject<null>();
+    api.changePassword.mockReturnValue(second);
+    fill('old password here', 'brand new password');
+    await submit();
+    expect(api.changePassword).toHaveBeenCalledTimes(2);
+    first.next(null);
+    first.complete();
+    await fixture.whenStable();
+    expect(toastSuccess).not.toHaveBeenCalled();
+    // Once, by the test closing it; the old answer didn't close the new one.
+    expect(fixture.componentInstance.closings).toBe(1);
+    expect(fixture.componentInstance.open()).toBe(true);
+    expect(dialog()).not.toBeNull();
+  });
+
   it('forgets an earlier refusal when it opens again', async () => {
     const { fixture, api, dialog, fill, submit } = await render();
     api.changePassword.mockReturnValue(throwError(() => wrongPassword()));

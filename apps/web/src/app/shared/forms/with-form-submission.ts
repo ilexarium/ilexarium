@@ -1,5 +1,5 @@
-import { patchState, signalStoreFeature, withMethods, withState } from '@ngrx/signals';
-import { catchError, defer, EMPTY, finalize, type Observable, tap } from 'rxjs';
+import { patchState, signalStoreFeature, withMethods, withProps, withState } from '@ngrx/signals';
+import { catchError, defer, EMPTY, finalize, type Observable, Subject, takeUntil, tap } from 'rxjs';
 import type { FormSubmissionState } from './forms.model';
 import { toServerErrors } from './submission-errors';
 import { NO_SUBMISSION } from './with-form-submission.constants';
@@ -11,9 +11,11 @@ import { NO_SUBMISSION } from './with-form-submission.constants';
 export function withFormSubmission<T>() {
   return signalStoreFeature(
     withState<FormSubmissionState<T>>(NO_SUBMISSION),
+    withProps(() => ({ _reset: new Subject<void>() })),
     withMethods((store) => ({
-      /** Forgets the last submission (the form opened again). */
+      /** Forgets the last submission and ends one still running (the form closed or opened again). */
       resetSubmission(): void {
+        store._reset.next();
         patchState(store, NO_SUBMISSION);
       },
 
@@ -22,11 +24,16 @@ export function withFormSubmission<T>() {
         return defer(() => {
           patchState(store, { submitting: true, submittedValue: value, serverErrors: [] });
           return request.pipe(
-            tap({ complete: () => patchState(store, ({ saves }) => ({ saves: saves + 1 })) }),
+            // Saved: the sent value (passwords, say) isn't needed any more.
+            tap({
+              complete: () =>
+                patchState(store, ({ saves }) => ({ saves: saves + 1, submittedValue: null })),
+            }),
             catchError((error: unknown) => {
               patchState(store, { serverErrors: toServerErrors(error) });
               return EMPTY;
             }),
+            takeUntil(store._reset),
             finalize(() => patchState(store, { submitting: false })),
           );
         });

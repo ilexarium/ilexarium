@@ -17,7 +17,7 @@ import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
-import { validateServerErrors } from '../../../shared/forms/submission-errors';
+import { serverFormErrors, validateServerErrors } from '../../../shared/forms/submission-errors';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { ProfilePageStore } from '../profile-page/profile-page-store';
@@ -74,9 +74,15 @@ export class PasswordDialog {
     },
   );
 
+  protected readonly serverErrors = serverFormErrors(this.form, this.profilePageStore);
+
   constructor() {
     effect(() => {
-      if (!this.open()) return;
+      // Closed or opened again: nothing of the last submission stays, nor its passwords.
+      if (!this.open()) {
+        untracked(() => this.profilePageStore.resetSubmission());
+        return;
+      }
       untracked(() => {
         this.form().reset({ ...EMPTY });
         this.profilePageStore.resetSubmission();

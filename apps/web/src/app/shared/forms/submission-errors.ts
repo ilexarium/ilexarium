@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { computed } from '@angular/core';
 import {
   type FieldTree,
   type SchemaPath,
@@ -20,7 +21,7 @@ import {
   SYSTEM_SERVICE_ERROR_CODES,
   UPDATE_ERROR_CODES,
 } from '@ilex/shared';
-import type { FormError, FormSubmission, ServerError } from './forms.model';
+import type { FormError, FormSubmission, ServerError, WithErrors } from './forms.model';
 
 /** Server codes with their own text (`errors.<code>` in en.json); others show the server's text. */
 export const TRANSLATED_ERROR_CODES: readonly string[] = [
@@ -121,26 +122,41 @@ export function toSubmissionErrors(error: unknown, form: FieldTree<unknown>): Tr
 }
 
 /**
- * Shows a store's server errors (`withFormSubmission`) on the form while it still holds what was
- * sent: a field's error while that field does, the form's own while the whole form does. Editing
- * hides one; going back to the refused value shows it again, since the server refused exactly that.
+ * Shows a store's server field errors (`withFormSubmission`) on their fields while each still holds
+ * what was sent: editing hides one; going back to the refused value shows it again, since the
+ * server refused exactly that. Errors of the whole form are `serverFormErrors`, not a validator: as
+ * one they'd make the form invalid and block trying the same values again (after a 429, offline).
  */
 export function validateServerErrors<T>(path: SchemaPath<T>, submission: FormSubmission<T>): void {
   validateTree(path, ({ value, fieldTree }) => {
     const sent = submission.submittedValue();
     if (sent === null) return undefined;
     const current = value();
-    const form = fieldTree as FieldTree<unknown>;
     return submission.serverErrors().flatMap(({ field, ...error }): FormError[] => {
-      const target = field === undefined ? undefined : fieldAt(form, field);
-      const unchanged =
-        target && field !== undefined
-          ? sameValue(valueAt(current, field), valueAt(sent, field))
-          : sameValue(current, sent);
-      if (!unchanged) return [];
-      return [target ? { ...error, fieldTree: target } : error];
+      const target =
+        field === undefined ? undefined : fieldAt(fieldTree as FieldTree<unknown>, field);
+      if (!target || field === undefined) return [];
+      return sameValue(valueAt(current, field), valueAt(sent, field))
+        ? [{ ...error, fieldTree: target }]
+        : [];
     });
   });
+}
+
+/**
+ * The store's server errors that belong to no field of `form` (offline, too many attempts, a field
+ * it doesn't have), for `<ilex-form-errors>`, while the form still holds what was sent.
+ */
+export function serverFormErrors<T>(form: FieldTree<T>, submission: FormSubmission<T>): WithErrors {
+  const errors = computed((): FormError[] => {
+    const sent = submission.submittedValue();
+    if (sent === null || !sameValue(form().value(), sent)) return [];
+    return submission
+      .serverErrors()
+      .filter(({ field }) => field === undefined || !fieldAt(form as FieldTree<unknown>, field))
+      .map(({ field: _field, ...error }) => error);
+  });
+  return () => ({ errors });
 }
 
 /** The value at a dotted path of a form's model. */
