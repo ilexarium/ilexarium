@@ -8,3 +8,27 @@ export type FormError = ValidationError.WithOptionalFieldTree & {
 
 /** Any field or form of Signal Forms: what the error components need of it. */
 export type WithErrors = () => { errors: Signal<readonly ValidationError[]> };
+
+/** A server's form error: its field's dotted path (none: the form's own), a key and its params. */
+export interface ServerError {
+  field?: string;
+  kind: string;
+  message: string;
+  params?: Record<string, string | number>;
+}
+
+/** A form's submission in a store (`withFormSubmission`). */
+export interface FormSubmissionState<T> {
+  submitting: boolean;
+  /** What was sent last, to show the server's errors while the form still holds it. */
+  submittedValue: T | null;
+  serverErrors: readonly ServerError[];
+  /** Submissions that succeeded since the last reset: a dialog closes when it goes up. */
+  saves: number;
+}
+
+/** What `validateServerErrors` reads of a store with `withFormSubmission`. */
+export interface FormSubmission<T> {
+  submittedValue: Signal<T | null>;
+  serverErrors: Signal<readonly ServerError[]>;
+}

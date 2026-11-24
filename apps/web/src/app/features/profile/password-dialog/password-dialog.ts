@@ -17,7 +17,7 @@ import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { PasswordToggle } from '../../../shared/forms/password-toggle';
-import { toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import { validateServerErrors } from '../../../shared/forms/submission-errors';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { ProfilePageStore } from '../profile-page/profile-page-store';
@@ -51,7 +51,7 @@ export class PasswordDialog {
   /** Follows `open`; set false here to close (the dialog then says `closed` once). */
   protected readonly shown = linkedSignal(() => this.open());
 
-  private readonly profilePageStore = inject(ProfilePageStore);
+  protected readonly profilePageStore = inject(ProfilePageStore);
   protected readonly authStore = inject(AuthStore);
   protected readonly showPasswords = signal(false);
   protected readonly limits = VALIDATION_LIMITS;
@@ -59,18 +59,16 @@ export class PasswordDialog {
   private readonly model = signal<ChangePasswordForm>({ ...EMPTY });
   protected readonly form = form(
     this.model,
-    (path) => validateStandardSchema(path, changePasswordFormSchema),
+    (path) => {
+      validateStandardSchema(path, changePasswordFormSchema);
+      validateServerErrors(path, this.profilePageStore);
+    },
     {
       submission: {
-        action: async (field) => {
-          const { currentPassword, newPassword } = field().value();
-          try {
-            await this.profilePageStore.changePassword({ currentPassword, newPassword });
-          } catch (error) {
-            return toSubmissionErrors(error, field);
-          }
-          this.shown.set(false);
-          return undefined;
+        // Only starts the store's submission; its errors come back through the validator above.
+        action: (field) => {
+          this.profilePageStore.changePassword(field().value());
+          return Promise.resolve(undefined);
         },
       },
     },
@@ -81,8 +79,12 @@ export class PasswordDialog {
       if (!this.open()) return;
       untracked(() => {
         this.form().reset({ ...EMPTY });
+        this.profilePageStore.resetSubmission();
         this.showPasswords.set(false);
       });
+    });
+    effect(() => {
+      if (this.profilePageStore.saves() > 0) untracked(() => this.shown.set(false));
     });
   }
 }

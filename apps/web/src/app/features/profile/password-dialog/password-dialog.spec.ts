@@ -3,7 +3,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { ProfilePageStore } from '../profile-page/profile-page-store';
@@ -44,8 +44,23 @@ async function render() {
     dialog().querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     await fixture.whenStable();
   };
-  return { fixture, api: fake.api, dialog, field, fill, submit };
+  return { fixture, api: fake.api, dialog, field, fill, submit, type };
 }
+
+const wrongPassword = () =>
+  new HttpErrorResponse({
+    status: 400,
+    error: {
+      message: 'Validation failed',
+      errors: [
+        {
+          field: 'currentPassword',
+          code: 'wrong_password',
+          message: 'Current password is incorrect',
+        },
+      ],
+    },
+  });
 
 describe('PasswordDialog', () => {
   let toastSuccess: ReturnType<typeof vi.spyOn>;
@@ -101,6 +116,77 @@ describe('PasswordDialog', () => {
     expect(dialog().textContent).toContain('Current password is incorrect');
     expect(toastSuccess).not.toHaveBeenCalled();
     expect(fixture.componentInstance.closings).toBe(0);
+  });
+
+  it('hides the server’s error once the field changes and shows it again for the same value', async () => {
+    const { fixture, api, dialog, fill, submit, type } = await render();
+    api.changePassword.mockReturnValue(throwError(() => wrongPassword()));
+    fill('wrong', 'brand new password');
+    await submit();
+    expect(dialog().textContent).toContain('Current password is incorrect');
+
+    type('currentPassword', 'wrong again');
+    await fixture.whenStable();
+    expect(dialog().textContent).not.toContain('Current password is incorrect');
+
+    type('currentPassword', 'wrong');
+    await fixture.whenStable();
+    expect(dialog().textContent).toContain('Current password is incorrect');
+  });
+
+  it('sends again after the refused field was changed', async () => {
+    const { fixture, api, fill, submit, type } = await render();
+    api.changePassword.mockReturnValueOnce(throwError(() => wrongPassword()));
+    fill('wrong', 'brand new password');
+    await submit();
+    api.changePassword.mockReturnValue(of(null));
+    type('currentPassword', 'old password here');
+    await submit();
+    expect(api.changePassword).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.closings).toBe(1);
+  });
+
+  it('shows a refusal of the whole form above the fields', async () => {
+    const { fixture, api, dialog, fill, submit } = await render();
+    api.changePassword.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 429, error: {} })),
+    );
+    fill('old password here', 'brand new password');
+    await submit();
+    expect(dialog().querySelector('[role="alert"]')!.textContent).toContain('Too many attempts');
+    expect(fixture.componentInstance.closings).toBe(0);
+  });
+
+  it('sends once while a change is under way, the button disabled', async () => {
+    const { fixture, api, dialog, fill, submit } = await render();
+    const answer = new Subject<null>();
+    api.changePassword.mockReturnValue(answer);
+    fill('old password here', 'brand new password');
+    await submit();
+    const button = dialog().querySelector<HTMLButtonElement>('button[type=submit]')!;
+    expect(button.disabled).toBe(true);
+    button.click();
+    await fixture.whenStable();
+    expect(api.changePassword).toHaveBeenCalledTimes(1);
+
+    answer.next(null);
+    answer.complete();
+    await fixture.whenStable();
+    expect(fixture.componentInstance.closings).toBe(1);
+  });
+
+  it('forgets an earlier refusal when it opens again', async () => {
+    const { fixture, api, dialog, fill, submit } = await render();
+    api.changePassword.mockReturnValue(throwError(() => wrongPassword()));
+    fill('wrong', 'brand new password');
+    await submit();
+    fixture.componentInstance.open.set(false);
+    await fixture.whenStable();
+    fixture.componentInstance.open.set(true);
+    await fixture.whenStable();
+    fill('wrong', 'brand new password');
+    await fixture.whenStable();
+    expect(dialog().textContent).not.toContain('Current password is incorrect');
   });
 
   it('applies the choosing rules to the new password', async () => {
