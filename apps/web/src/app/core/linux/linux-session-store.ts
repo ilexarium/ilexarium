@@ -66,7 +66,7 @@ const initialState: LinuxSessionState = {
  * The Linux session of this browser session, shared by Files, the
  * terminal, Processes and the top bar: the account, and whether its sudo is unlocked (ilex-root
  * runs, until its idle limit; the server's `sudo_required` is the truth when it ended sooner). Actions that need sudo run
- * through `withSudo`, which asks for the password (the shell's prompt) and carries on. The
+ * through `withSudo$`, which asks for the password (the shell's prompt) and carries on. The
  * password goes to the server once, for sudo, and isn't kept here. Reset on sign-out.
  */
 export const LinuxSessionStore = signalStore(
@@ -92,8 +92,6 @@ export const LinuxSessionStore = signalStore(
     });
     const answerPrompt = (unlocked: boolean) => sudoQuestion.answerWith(unlocked);
     const answerSignIn = (signedIn: boolean) => signInQuestion.answerWith(signedIn);
-    /** Asks for the Linux sign-in; true once signed in, false when closed. */
-    const requestSignIn = (): Promise<boolean> => firstValueFrom(signInQuestion.ask());
     /** An action found the Linux session gone (idle, closed elsewhere). */
     const ended = () => {
       patchState(store, { session: null });
@@ -111,8 +109,6 @@ export const LinuxSessionStore = signalStore(
       const sudoUntil = until === null ? null : new Date(until).toISOString();
       patchState(store, { session: { ...session, sudoUntil }, now: Date.now() });
     };
-    /** Asks for the sudo password; true once unlocked, false when cancelled. */
-    const requestSudo = (): Promise<boolean> => firstValueFrom(sudoQuestion.ask());
     // Each use starts ilex-root's idle time again (the server counts the same).
     const restartSudoMinutes = () =>
       setSudoUntil(Date.now() + FILES_LIMITS.sudoIdleMinutes * 60_000);
@@ -211,58 +207,10 @@ export const LinuxSessionStore = signalStore(
       ),
 
       /**
-       * Runs an action that needs sudo: the password asked first while locked, and again when
-       * sudo says it ran out meanwhile (then the action once more). Null when the prompt was
-       * cancelled; the action's own errors are passed on.
-       */
-      async withSudo<T>(action: () => Promise<T>): Promise<T | null> {
-        if (store.sudoMinutes() === null && !(await requestSudo())) return null;
-        let result: T;
-        try {
-          result = await action();
-        } catch (error) {
-          if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired) throw error;
-          setSudoUntil(null);
-          if (!(await requestSudo())) return null;
-          result = await action();
-        }
-        restartSudoMinutes();
-        return result;
-      },
-
-      /**
-       * Runs a change done as the person (an app, a backup, a disk): the Linux sign-in first
-       * without a session; the sudo password only when the server says sudo is needed and
-       * locked; then the action once more. Null when a prompt was closed; the action's own
-       * errors are passed on.
-       */
-      async asPerson<T>(action: () => Promise<T>): Promise<T | null> {
-        if (!store.session() && !(await requestSignIn())) return null;
-        for (let attempt = 0; ; attempt++) {
-          try {
-            const result = await action();
-            refreshSession();
-            return result;
-          } catch (error) {
-            const code = apiErrorCode(error);
-            if (attempt >= 2) throw error;
-            if (code === FILES_ERROR_CODES.sudoRequired) {
-              setSudoUntil(null);
-              if (!(await requestSudo())) return null;
-            } else if (code === FILES_ERROR_CODES.linuxSessionRequired) {
-              ended();
-              if (!(await requestSignIn())) return null;
-            } else {
-              throw error;
-            }
-          }
-        }
-      },
-
-      /**
-       * `withSudo` as an Observable: the password asked first while locked (nothing before
+       * Runs an action that needs sudo: the password asked first while locked (nothing before
        * subscribing), and again when sudo ran out meanwhile, then the action once more. Null when
-       * the prompt was closed; only an answer closes the prompt.
+       * the prompt was closed; the action's own errors are passed on. Only an answer closes the
+       * prompt.
        */
       withSudo$<T>(action: () => Observable<T>): Observable<T | null> {
         const askToRetry = (error: unknown): Observable<boolean> => {
@@ -281,10 +229,11 @@ export const LinuxSessionStore = signalStore(
       },
 
       /**
-       * `asPerson` as an Observable: the Linux sign-in first without a session (nothing before
-       * subscribing); the sudo password or the sign-in again when the server asks for it, then the
-       * action once more (three tries at most). Null when a prompt was closed — it emits once and
-       * completes; only an answer closes a prompt.
+       * Runs a change done as the person (an app, a backup, a disk): the Linux sign-in first
+       * without a session (nothing before subscribing); the sudo password or the sign-in again
+       * when the server asks for it, then the action once more (three tries at most). Null when a
+       * prompt was closed — it emits once and completes (a form reads it with `firstValueFrom`);
+       * the action's own errors are passed on. Only an answer closes a prompt.
        */
       asPerson$<T>(action: () => Observable<T>): Observable<T | null> {
         const askToRetry = (error: unknown): Observable<boolean> => {
