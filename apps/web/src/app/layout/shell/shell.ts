@@ -11,15 +11,24 @@ import { AppSidebar } from '../app-sidebar/app-sidebar';
 import { SignInPrompt } from '../sign-in-prompt/sign-in-prompt';
 import { SudoDialog } from '../sudo-dialog/sudo-dialog';
 import { TopBar } from '../top-bar/top-bar';
+import { UploadsPanel } from '../uploads-panel/uploads-panel';
 
 /**
  * The signed-in layout: sidebar, then the top bar over the routed page, and the sudo password
- * prompt any page's action may need. Opens the WebSocket and follows the backups' status and the
+ * prompt any page's action may need, and the uploads panel (uploads go on from page to page). Opens the WebSocket and follows the backups' status and the
  * alerts for the whole session (the navigation's badge, the bell, the dashboard).
  */
 @Component({
   selector: 'ilex-shell',
-  imports: [RouterOutlet, HlmSidebarImports, AppSidebar, SignInPrompt, SudoDialog, TopBar],
+  imports: [
+    RouterOutlet,
+    HlmSidebarImports,
+    AppSidebar,
+    SignInPrompt,
+    SudoDialog,
+    TopBar,
+    UploadsPanel,
+  ],
   templateUrl: './shell.html',
 })
 export class Shell {

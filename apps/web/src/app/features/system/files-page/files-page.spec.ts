@@ -7,6 +7,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
+import { UploadsStore } from '../../../core/files/uploads-store';
 import { stubScreenWidth } from '../../../layout/testing';
 import { FilesPage } from './files-page';
 import { FilesPageStore } from './files-page-store';
@@ -264,96 +265,99 @@ describe('FilesPage', () => {
     await fixture.whenStable();
   });
 
-  it('uploads with progress; asks before replacing a file that is there', async () => {
+  it('files chosen go to the uploads, into the folder shown; the folder reloads once they are there', async () => {
     const { el, api, fixture } = await render();
-    api.upload
-      .mockImplementationOnce(() => of(0.5, 1))
-      .mockImplementationOnce(() => throwError(() => httpError(409, 'file_exists')));
+    const uploaded = new Subject<number>();
+    api.upload.mockReturnValueOnce(uploaded);
     const input = el.querySelector<HTMLInputElement>('input[type="file"]')!;
     const a = new File(['aaa'], 'a.txt');
-    const notes = new File(['new'], 'notes.txt');
-    Object.defineProperty(input, 'files', { value: [a, notes], configurable: true });
+    Object.defineProperty(input, 'files', { value: [a], configurable: true });
     input.dispatchEvent(new Event('change'));
-    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Replace notes.txt?'));
     expect(api.upload).toHaveBeenCalledWith('/home/anna', a, false);
-    fixture.detectChanges();
-    expect(el.textContent).toContain('Uploaded');
-    dialogButton('Replace')!.click();
-    await vi.waitFor(() => expect(api.upload).toHaveBeenCalledWith('/home/anna', notes, true));
-    await vi.waitFor(() => expect(dialog()).toBeNull());
+    expect(
+      TestBed.inject(UploadsStore)
+        .uploads()
+        .map((u) => u.name),
+    ).toEqual(['a.txt']);
+    const lists = api.list.mock.calls.length;
+    uploaded.next(1);
+    uploaded.complete();
+    await fixture.whenStable();
+    expect(api.list).toHaveBeenCalledTimes(lists + 1);
+    expect(api.list).toHaveBeenLastCalledWith('/home/anna');
   });
 
-  it('files chosen again while uploads run: they go after them, in order', async () => {
-    const { fixture, api } = await render();
-    const store = fixture.debugElement.injector.get(FilesPageStore);
-    const first = new Subject<number>();
-    api.upload.mockReturnValueOnce(first);
-    const a = new File(['a'], 'a.txt');
+  it('an upload that lands in another folder than the one shown: no reload', async () => {
+    const { api, fixture } = await render();
+    const lists = api.list.mock.calls.length;
+    TestBed.inject(UploadsStore).upload({
+      folder: '/srv',
+      files: [new File(['b'], 'b.txt')],
+      replace: false,
+    });
+    await fixture.whenStable();
+    expect(api.list).toHaveBeenCalledTimes(lists);
+  });
+
+  it('files dropped on the page go to the uploads', async () => {
+    const { el, api } = await render();
     const b = new File(['b'], 'b.txt');
-    store.upload({ files: [a], replace: false });
-    store.upload({ files: [b], replace: false });
-    expect(api.upload).toHaveBeenCalledTimes(1);
-    first.next(1);
-    first.complete();
-    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', b, false);
-    await vi.waitFor(() =>
-      expect(store.uploads().map((u) => [u.name, u.state])).toEqual([
-        ['a.txt', 'done'],
-        ['b.txt', 'done'],
-      ]),
-    );
+    const drop = new Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, 'dataTransfer', { value: { files: [b], types: ['Files'] } });
+    el.querySelector('ilex-file-list')!.dispatchEvent(drop);
+    expect(api.upload).toHaveBeenCalledWith('/home/anna', b, false);
   });
 
-  it('files chosen, then another folder opened before their turn: they go where they were chosen', async () => {
-    const { fixture, api } = await render();
-    const store = fixture.debugElement.injector.get(FilesPageStore);
-    const first = new Subject<number>();
-    api.upload.mockReturnValueOnce(first);
-    const b = new File(['b'], 'b.txt');
-    store.upload({ files: [new File(['a'], 'a.txt')], replace: false });
-    store.upload({ files: [b], replace: false });
-    store.open('/home/anna/Photos');
-    first.complete();
-    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', b, false);
+  it('a new folder whose name is taken: said under the name, no toast; editing the name clears it', async () => {
+    const { api, fixture, button } = await render();
+    const error = vi.spyOn(toast, 'error');
+    api.newFolder.mockReturnValueOnce(throwError(() => httpError(409, 'file_exists')));
+    button('New folder')!.click();
+    await fixture.whenStable();
+    const input = dialog()!.querySelector<HTMLInputElement>('input')!;
+    input.value = 'Photos';
+    input.dispatchEvent(new Event('input'));
+    dialogButton('Create')!.click();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(dialog()!.textContent).toContain('Something of that name is there already.');
+    });
+    expect(error).not.toHaveBeenCalled();
+    input.value = 'Photos 2';
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(dialog()!.textContent).not.toContain('Something of that name is there already.');
   });
 
-  it('Replace confirmed while other files upload, then another folder opened: replaced where asked', async () => {
-    const { fixture, api } = await render();
+  it('a rename Linux refuses: said under the name, the dialog stays open', async () => {
+    const { api, fixture, menu } = await render();
+    api.rename.mockReturnValueOnce(throwError(() => httpError(403, 'permission_denied')));
+    await menu('notes.txt', 'Rename or move');
+    const input = dialog()!.querySelector<HTMLInputElement>('input')!;
+    input.value = '/etc/notes.txt';
+    input.dispatchEvent(new Event('input'));
+    dialogButton('Save')!.click();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(dialog()!.textContent).toContain('Linux doesn’t allow this account to do that.');
+    });
     const store = fixture.debugElement.injector.get(FilesPageStore);
-    const later = new Subject<number>();
-    api.upload
-      .mockReturnValueOnce(throwError(() => httpError(409, 'file_exists')))
-      .mockReturnValueOnce(later);
-    const notes = new File(['new'], 'notes.txt');
-    store.upload({ files: [notes], replace: false });
-    store.upload({ files: [new File(['c'], 'c.txt')], replace: false });
-    expect(store.clashes().map((c) => c.file)).toEqual([notes]);
-    store.answerClashes(true);
-    store.open('/home/anna/Photos');
-    later.complete();
-    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', notes, true);
+    expect(store.pending()).toEqual([]);
   });
 
-  it('another folder opened while an upload runs, its name taken: Replace goes where it was chosen', async () => {
-    const { fixture, api } = await render();
-    const store = fixture.debugElement.injector.get(FilesPageStore);
-    const answer = new Subject<number>();
-    api.upload.mockReturnValueOnce(answer);
-    const notes = new File(['new'], 'notes.txt');
-    store.upload({ files: [notes], replace: false });
-    store.open('/home/anna/Photos');
-    answer.error(httpError(409, 'file_exists'));
-    store.answerClashes(true);
-    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', notes, true);
-  });
-
-  it('taken names from two uploads: both asked about in one question', async () => {
-    const { fixture, api } = await render();
-    const store = fixture.debugElement.injector.get(FilesPageStore);
-    api.upload.mockImplementation(() => throwError(() => httpError(409, 'file_exists')));
-    store.upload({ files: [new File(['1'], 'one.txt')], replace: false });
-    store.upload({ files: [new File(['2'], 'two.txt')], replace: false });
-    expect(store.clashes().map((c) => c.file.name)).toEqual(['one.txt', 'two.txt']);
+  it('a new folder after the Linux session ended: the page goes back to its sign-in', async () => {
+    const { el, api, fixture, button } = await render();
+    api.newFolder.mockReturnValueOnce(throwError(() => httpError(403, 'linux_session_required')));
+    button('New folder')!.click();
+    await fixture.whenStable();
+    const input = dialog()!.querySelector<HTMLInputElement>('input')!;
+    input.value = 'Taxes';
+    input.dispatchEvent(new Event('input'));
+    dialogButton('Create')!.click();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(el.textContent).toContain('Open your files');
+    });
   });
 
   it('a delete cancelled: gone from the store as soon as the dialog starts closing', async () => {
@@ -364,21 +368,6 @@ describe('FilesPage', () => {
     dialogButton('Cancel')!.click();
     expect(store.deleting()).toBeNull();
     await vi.waitFor(() => expect(dialog()).toBeNull());
-  });
-
-  it('several taken names: one question, keeping them uploads nothing more', async () => {
-    const { el, api } = await render();
-    api.upload.mockImplementation(() => throwError(() => httpError(409, 'file_exists')));
-    const input = el.querySelector<HTMLInputElement>('input[type="file"]')!;
-    const files = [new File(['1'], 'one.txt'), new File(['2'], 'two.txt')];
-    Object.defineProperty(input, 'files', { value: files, configurable: true });
-    input.dispatchEvent(new Event('change'));
-    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Replace these files?'));
-    expect(dialog()!.textContent).toContain('one.txt');
-    expect(dialog()!.textContent).toContain('two.txt');
-    dialogButton('Keep it')!.click();
-    await vi.waitFor(() => expect(dialog()).toBeNull());
-    expect(api.upload).toHaveBeenCalledTimes(2);
   });
 
   it('a Linux session that ended: the sign-in button, without the dialog opening on its own', async () => {

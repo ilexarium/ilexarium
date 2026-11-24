@@ -1468,22 +1468,29 @@
       "cancel": "Cancel",
       "confirm": "Delete"
     },
-    "replaceDialog": {
-      "title": "Replace {{name}}?",
-      "text": "A file of that name is in this folder already. Replacing it can’t be undone.",
-      "cancel": "Keep it",
-      "confirm": "Replace",
-      "titleMany": "Replace these files?",
-      "textMany": "Files of these names are in this folder already. Replacing them can’t be undone."
-    },
-    "uploads": "Uploads",
-    "uploadDone": "Uploaded",
-    "uploadFailed": "Failed",
     "created": "Folder {{name}} created",
     "renamed": "Saved",
     "deleted": "{{name}} deleted",
-    "uploaded": "{{name}} uploaded",
     "actionFailed": "That didn’t work"
+  },
+  "uploads": {
+    "uploading": "Uploading {{current}} of {{total}}",
+    "finished": "Uploads finished",
+    "waiting": "Waiting",
+    "done": "Uploaded",
+    "failed": "Failed",
+    "failedToast": "{{name}} wasn’t uploaded",
+    "collapse": "Hide the uploads",
+    "expand": "Show the uploads",
+    "close": "Close the list of uploads",
+    "replaceDialog": {
+      "title": "Replace {{name}}?",
+      "text": "A file of that name is there already. Replacing it can’t be undone.",
+      "cancel": "Keep it",
+      "confirm": "Replace",
+      "titleMany": "Replace these files?",
+      "textMany": "Files of these names are there already. Replacing them can’t be undone."
+    }
   },
   "terminal": {
     "signIn": {

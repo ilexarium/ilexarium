@@ -1,0 +1,129 @@
+@if (uploadsStore.uploads().length) {
+  <section
+    #panel
+    class="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)] shadow-lg sm:inset-x-auto sm:end-4 sm:bottom-4 sm:w-96 sm:rounded-lg sm:border"
+    aria-labelledby="uploads-panel-title"
+  >
+    <div class="flex items-center gap-1 py-1.5 ps-3 pe-1.5">
+      <h2 id="uploads-panel-title" class="min-w-0 flex-1 truncate text-sm font-medium">
+        @if (uploadsStore.running()) {
+          {{ 'uploads.uploading' | translate: uploadsStore.position() }}
+        } @else {
+          {{ 'uploads.finished' | translate }}
+        }
+      </h2>
+      <button
+        hlmBtn
+        variant="ghost"
+        size="icon-sm"
+        aria-controls="uploads-panel-list"
+        [attr.aria-expanded]="!collapsed()"
+        [attr.aria-label]="(collapsed() ? 'uploads.expand' : 'uploads.collapse') | translate"
+        (click)="collapsed.set(!collapsed())"
+      >
+        <ng-icon
+          name="lucideChevronDown"
+          class="transition-transform"
+          [class.rotate-180]="collapsed()"
+          aria-hidden="true"
+        />
+      </button>
+      @if (!uploadsStore.running()) {
+        <button
+          hlmBtn
+          variant="ghost"
+          size="icon-sm"
+          [attr.aria-label]="'uploads.close' | translate"
+          (click)="uploadsStore.clear()"
+        >
+          <ng-icon name="lucideX" aria-hidden="true" />
+        </button>
+      }
+    </div>
+    <ul
+      id="uploads-panel-list"
+      class="grid max-h-60 gap-2 overflow-y-auto border-t px-3 py-2"
+      [hidden]="collapsed()"
+    >
+      @for (upload of uploadsStore.uploads(); track upload.id) {
+        <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-sm">
+          <span class="truncate" dir="ltr">{{ upload.name }}</span>
+          @switch (upload.state) {
+            @case ('done') {
+              <span class="flex items-center gap-1 text-muted-foreground">
+                <ng-icon name="lucideCircleCheck" aria-hidden="true" />
+                {{ 'uploads.done' | translate }}
+              </span>
+            }
+            @case ('failed') {
+              <span class="flex items-center gap-1 text-destructive">
+                <ng-icon name="lucideCircleX" aria-hidden="true" />
+                {{ 'uploads.failed' | translate }}
+              </span>
+            }
+            @case ('waiting') {
+              <span class="text-muted-foreground">{{ 'uploads.waiting' | translate }}</span>
+            }
+            @default {
+              <span class="tabular-nums text-muted-foreground" dir="ltr"
+                >{{ (upload.progress * 100).toFixed(0) }} %</span
+              >
+            }
+          }
+          @if (upload.state === 'uploading') {
+            <hlm-progress
+              class="col-span-2 h-1.5"
+              [value]="upload.progress * 100"
+              [attr.aria-label]="upload.name"
+            >
+              <hlm-progress-indicator />
+            </hlm-progress>
+          }
+        </li>
+      }
+    </ul>
+  </section>
+}
+
+<hlm-alert-dialog
+  [state]="uploadsStore.clashes().length ? 'open' : 'closed'"
+  (stateChanged)="clashQuestionChanged($event)"
+>
+  <hlm-alert-dialog-content *hlmAlertDialogPortal>
+    @let clashes = shownClashes();
+    @if (clashes.length) {
+      <hlm-alert-dialog-header>
+        <h2 hlmAlertDialogTitle class="break-words">
+          @if (clashes.length === 1) {
+            {{ 'uploads.replaceDialog.title' | translate: { name: clashes[0].file.name } }}
+          } @else {
+            {{ 'uploads.replaceDialog.titleMany' | translate }}
+          }
+        </h2>
+        <p hlmAlertDialogDescription>
+          {{
+            (clashes.length === 1 ? 'uploads.replaceDialog.text' : 'uploads.replaceDialog.textMany')
+              | translate
+          }}
+        </p>
+      </hlm-alert-dialog-header>
+      <ul class="grid max-h-40 gap-1 overflow-y-auto text-sm">
+        @for (clash of clashes; track $index) {
+          <li class="min-w-0">
+            <code class="block truncate rounded bg-muted px-2 py-1" dir="ltr">{{
+              pathOf(clash)
+            }}</code>
+          </li>
+        }
+      </ul>
+      <hlm-alert-dialog-footer>
+        <button hlmAlertDialogCancel>
+          {{ 'uploads.replaceDialog.cancel' | translate }}
+        </button>
+        <button hlmAlertDialogAction (click)="uploadsStore.answerClashes(true)">
+          {{ 'uploads.replaceDialog.confirm' | translate }}
+        </button>
+      </hlm-alert-dialog-footer>
+    }
+  </hlm-alert-dialog-content>
+</hlm-alert-dialog>

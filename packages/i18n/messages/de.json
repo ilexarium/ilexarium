@@ -1468,22 +1468,29 @@
       "cancel": "Abbrechen",
       "confirm": "Löschen"
     },
-    "replaceDialog": {
-      "title": "{{name}} ersetzen?",
-      "text": "In diesem Ordner gibt es schon eine Datei mit diesem Namen. Das Ersetzen lässt sich nicht rückgängig machen.",
-      "cancel": "Behalten",
-      "confirm": "Ersetzen",
-      "titleMany": "Diese Dateien ersetzen?",
-      "textMany": "In diesem Ordner gibt es schon Dateien mit diesen Namen. Das Ersetzen lässt sich nicht rückgängig machen."
-    },
-    "uploads": "Uploads",
-    "uploadDone": "Hochgeladen",
-    "uploadFailed": "Fehlgeschlagen",
     "created": "Ordner {{name}} erstellt",
     "renamed": "Gespeichert",
     "deleted": "{{name}} gelöscht",
-    "uploaded": "{{name}} hochgeladen",
     "actionFailed": "Das hat nicht geklappt"
+  },
+  "uploads": {
+    "uploading": "Lade {{current}} von {{total}} hoch",
+    "finished": "Uploads abgeschlossen",
+    "waiting": "Wartet",
+    "done": "Hochgeladen",
+    "failed": "Fehlgeschlagen",
+    "failedToast": "{{name}} wurde nicht hochgeladen",
+    "collapse": "Uploads ausblenden",
+    "expand": "Uploads einblenden",
+    "close": "Liste der Uploads schließen",
+    "replaceDialog": {
+      "title": "{{name}} ersetzen?",
+      "text": "Dort gibt es schon eine Datei mit diesem Namen. Das Ersetzen lässt sich nicht rückgängig machen.",
+      "cancel": "Behalten",
+      "confirm": "Ersetzen",
+      "titleMany": "Diese Dateien ersetzen?",
+      "textMany": "Dort gibt es schon Dateien mit diesen Namen. Das Ersetzen lässt sich nicht rückgängig machen."
+    }
   },
   "terminal": {
     "signIn": {

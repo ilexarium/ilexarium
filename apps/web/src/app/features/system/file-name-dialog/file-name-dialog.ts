@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { FilesPageStore } from '../files-page/files-page-store';
 import type { NameRequest } from '../files.model';
 import { FieldErrors } from '../../../shared/forms/field-errors';
+import { errorsOnField, toSubmissionErrors } from '../../../shared/forms/submission-errors';
 
 /** A new name or path: renaming may also move it (a path, from the folder shown or from /). */
 const renameSchema = z.object({
@@ -63,11 +64,14 @@ export class FileNameDialog {
           submission: {
             action: async (tree) => {
               const { name } = tree().value();
-              const done =
-                request.kind === 'rename'
-                  ? await this.filesPageStore.rename(request.entry, name)
-                  : await this.filesPageStore.newFolder(name.trim());
-              if (done) this.close();
+              try {
+                if (request.kind === 'rename')
+                  await this.filesPageStore.rename(request.entry, name);
+                else await this.filesPageStore.newFolder(name.trim());
+              } catch (error) {
+                return errorsOnField(toSubmissionErrors(error, tree), tree.name);
+              }
+              this.close();
               return undefined;
             },
           },
