@@ -38,7 +38,7 @@ export class UpdatesPage {
 
   protected update(version: string): void {
     this.confirmDialog().close();
-    void this.updatesPageStore.start(version);
+    this.updatesPageStore.start(version);
   }
 
   protected percent(bytes: number, total: number): number {

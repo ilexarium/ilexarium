@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { LinuxSession, PersonCheck } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
@@ -12,6 +12,7 @@ import { SignInPrompt } from '../../../layout/sign-in-prompt/sign-in-prompt';
 import { SudoDialog } from '../../../layout/sudo-dialog/sudo-dialog';
 import { stubScreenWidth } from '../../../layout/testing';
 import { MachineCheckPage } from './machine-check-page';
+import { MachineCheckPageStore } from './machine-check-page-store';
 
 const ANNA: LinuxSession = { username: 'anna', home: '/home/anna', uid: 1000, sudoUntil: null };
 const PASSED: PersonCheck = {
@@ -83,6 +84,17 @@ describe('MachineCheckPage', () => {
   afterEach(() => {
     restoreScreen();
     document.querySelectorAll('.cdk-overlay-container').forEach((e) => e.remove());
+  });
+
+  it('the other button while a check runs: still one check', async () => {
+    const { fixture, api } = await render();
+    const answer = new Subject<PersonCheck>();
+    api.person.mockReturnValueOnce(answer);
+    const store = fixture.debugElement.injector.get(MachineCheckPageStore);
+    store.run();
+    store.runWithoutSudo();
+    expect(api.person).toHaveBeenCalledOnce();
+    expect(store.running()).toBe(true);
   });
 
   it('shows the steps in order before anything runs, and runs nothing by itself', async () => {
