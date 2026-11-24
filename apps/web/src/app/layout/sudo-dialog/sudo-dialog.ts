@@ -15,7 +15,7 @@ import { toSubmissionErrors } from '../../shared/forms/submission-errors';
 
 /**
  * The Linux account's password for its sudo, asked while an action waits for it (any page's,
- * through `LinuxSessionStore.withSudo`); unlocked, the action carries on. sudo keeps it unlocked
+ * through `LinuxSessionStore.withSudo$`); unlocked, the action carries on. sudo keeps it unlocked
  * for a while; the password isn't kept, not even in the form.
  */
 @Component({
