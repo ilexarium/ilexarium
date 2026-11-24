@@ -6,7 +6,7 @@ import {
   withMethods,
   withState,
 } from '@ngrx/signals';
-import { type AppSummary, type BackupItem, catalogIconPath } from '@ilex/shared';
+import { type BackupItem, catalogIconPath } from '@ilex/shared';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
 import {
@@ -21,6 +21,7 @@ import {
   tap,
 } from 'rxjs';
 import { AppsStore } from '../../../../core/apps/apps-store';
+import type { AppForBackup } from '../../../../core/backups/backups.model';
 import { BackupsStore } from '../../../../core/backups/backups-store';
 import { BackupsService } from '../../../../core/backups/services/backups-service';
 import { Translator } from '../../../../core/i18n/translator';
@@ -94,7 +95,7 @@ export function withBackupsCore() {
           _failed: failed,
 
           /** An app by name, as a backup item needs it (gone from Docker: just its name). */
-          _app(name: string): Pick<AppSummary, 'name' | 'folder' | 'template'> {
+          _app(name: string): AppForBackup {
             return (
               store.apps().find((a) => a.name === name) ?? { name, folder: null, template: null }
             );

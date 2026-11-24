@@ -1,6 +1,5 @@
 import { inject, Service } from '@angular/core';
 import type {
-  AppSummary,
   BackupArchivesResponse,
   BackupDestinationsResponse,
   BackupFoldersResponse,
@@ -17,9 +16,7 @@ import { forkJoin, map, type Observable, of, switchMap } from 'rxjs';
 import { AppActionsService } from '../../apps/services/app-actions-service';
 import { LinuxSessionStore } from '../../linux/linux-session-store';
 import { BackupsApi } from '../backups-api';
-import type { BackupHistory } from '../backups.model';
-
-type AppRef = Pick<AppSummary, 'name' | 'folder' | 'template'>;
+import type { AppForBackup, BackupHistory } from '../backups.model';
 
 /**
  * The Backups page's reads and actions for its store: the API calls, and every change as the
@@ -70,7 +67,7 @@ export class BackupsService {
   /** Sets backups up with these apps (their templates' presets) and folders. */
   setup(
     settings: Omit<BackupSetupRequest, 'items'>,
-    apps: AppRef[],
+    apps: AppForBackup[],
     folders: string[],
   ): Observable<BackupPassphraseResponse | null> {
     const appItems = apps.length
@@ -101,9 +98,13 @@ export class BackupsService {
     return this.done(() => this.backupsApi.runNow(itemId));
   }
 
-  /** An app added with its template's preset. */
-  addApp(app: AppRef): Observable<true | null> {
-    return this.appActionsService.addToBackups(app).pipe(map((item) => (item ? true : null)));
+  /** An app added with its template's preset (read once signed in, like the adding). */
+  addApp(app: AppForBackup): Observable<true | null> {
+    return this.done(() =>
+      this.appActionsService
+        .appBackupItem(app)
+        .pipe(switchMap((item) => this.backupsApi.addItem(item))),
+    );
   }
 
   addFolder(path: string): Observable<true | null> {

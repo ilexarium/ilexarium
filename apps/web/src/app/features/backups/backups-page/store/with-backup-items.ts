@@ -12,12 +12,16 @@ import { concatMap, groupBy, mergeMap, type Observable, pipe, tap } from 'rxjs';
 import { BackupsService } from '../../../../core/backups/services/backups-service';
 import { Translator } from '../../../../core/i18n/translator';
 import type { ItemChange, ItemRemoval } from '../../backups.model';
+import type { withBackupsCore } from './with-backups-core';
 import type { withFolderPicker } from './with-folder-picker';
 
 /** What's backed up: adding apps and folders, changing and removing items, backing up now. */
 export function withBackupItems() {
   return signalStoreFeature(
-    type<SignalStoreFeatureType<typeof withFolderPicker>>(),
+    type<
+      SignalStoreFeatureType<typeof withBackupsCore> &
+        SignalStoreFeatureType<typeof withFolderPicker>
+    >(),
     withComputed((store) => ({
       /** Apps that aren't in the plan yet. */
       addable: computed(() => {

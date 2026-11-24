@@ -95,4 +95,12 @@ describe('BackupsService', () => {
       expect.objectContaining({ kind: 'app', project: 'music', mode: 'live' }),
     );
   });
+
+  it('reads an app’s preset only once signed in: the prompt dismissed, nothing read or sent', async () => {
+    const { service, backupsApi, appsApi, asPerson } = setup();
+    asPerson.mockReturnValueOnce(of(null));
+    await expect(firstValueFrom(service.addApp(MUSIC as never))).resolves.toBeNull();
+    expect(appsApi.template).not.toHaveBeenCalled();
+    expect(backupsApi.addItem).not.toHaveBeenCalled();
+  });
 });

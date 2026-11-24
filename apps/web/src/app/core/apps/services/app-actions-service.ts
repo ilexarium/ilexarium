@@ -8,7 +8,6 @@ import type {
   AppRemoval,
   AppSaveRequest,
   AppStarted,
-  AppSummary,
   AppTask,
   AppsList,
   BackupItem,
@@ -19,7 +18,7 @@ import type {
 import { map, type Observable, of, switchMap } from 'rxjs';
 import { buildAppBackupItem } from '../../backups/app-backup-item';
 import { BackupsApi } from '../../backups/backups-api';
-import type { BackupPreset } from '../../backups/backups.model';
+import type { AppForBackup, BackupPreset } from '../../backups/backups.model';
 import { LinuxSessionStore } from '../../linux/linux-session-store';
 import { AppsApi } from '../apps-api';
 import { followAppTask } from '../follow-app-task';
@@ -101,9 +100,7 @@ export class AppActionsService {
   }
 
   /** Added to the backups with its template's preset; fails when the template can't be read. */
-  addToBackups(
-    app: Pick<AppSummary, 'name' | 'folder' | 'template'>,
-  ): Observable<BackupItem | null> {
+  addToBackups(app: AppForBackup): Observable<BackupItem | null> {
     return this.appBackupItem(app).pipe(
       switchMap((item) => this.linuxSessionStore.asPerson$(() => this.backupsApi.addItem(item))),
     );
@@ -114,9 +111,7 @@ export class AppActionsService {
    * skipped): the same wherever "Add to backups" is clicked. Fails when the template can't be
    * read — never a plain "stop, everything" instead.
    */
-  appBackupItem(
-    app: Pick<AppSummary, 'name' | 'folder' | 'template'>,
-  ): Observable<BackupItemRequest> {
+  appBackupItem(app: AppForBackup): Observable<BackupItemRequest> {
     const preset$: Observable<BackupPreset> =
       app.template && app.folder
         ? this.appsApi
