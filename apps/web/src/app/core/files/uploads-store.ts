@@ -13,9 +13,7 @@ import { FILES_ERROR_CODES } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import {
   catchError,
-  concat,
   concatMap,
-  defer,
   EMPTY,
   from,
   ignoreElements,
@@ -141,14 +139,15 @@ export const UploadsStore = signalStore(
               }),
               ignoreElements(),
             );
-            return concat(
-              uploads,
-              defer(() => {
-                if (landed) store._finished.next(folder);
-                if (taken.length) patchState(store, { clashes: [...store.clashes(), ...taken] });
-                return EMPTY;
+            return uploads.pipe(
+              tap({
+                complete: () => {
+                  if (landed) store._finished.next(folder);
+                  if (taken.length) patchState(store, { clashes: [...store.clashes(), ...taken] });
+                },
               }),
-            ).pipe(takeUntil(store._reset));
+              takeUntil(store._reset),
+            );
           }),
         ),
       ),
