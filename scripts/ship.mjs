@@ -3,7 +3,8 @@
 //   npm run ship -- <x.y.z> [--notes <file.md>]
 //
 // Only from a commit pushed as main, at which the CI workflow on GitHub passes every job, the
-// install test included: ship starts that run and waits for it (about 20 minutes).
+// install test included: the run of that push when it passed (or once it does), else a run ship
+// starts and waits for (about 20 minutes).
 // Where it comes from, the key and the folder: release-settings.json at the repository's top (not
 // in git) — {"releaseUrl": "https://…", "key": "<release.key>", "folder": "<release folder>"},
 // and with "github": "<owner>/<name>" the release commit and tag are pushed and the version is

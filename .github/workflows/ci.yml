@@ -1,7 +1,8 @@
 # The checks every pull request and every push to main must pass: the same parts as
-# `npm run verify` (scripts/verify.mjs), run on a Linux machine. The install test runs only when
-# the workflow is started by hand or by `npm run ship`, which releases only a commit whose run
-# passed every job. No secrets: it reads the repository and nothing else.
+# `npm run verify` (scripts/verify.mjs), run on a Linux machine. The install test runs on every
+# push to main and when the workflow is started (by hand or by `npm run ship`), not for pull
+# requests; ship releases only a commit whose run passed it. No secrets: it reads the
+# repository and nothing else.
 name: CI
 
 on:
@@ -84,7 +85,7 @@ jobs:
 
   install:
     name: Install test (Debian 13 container)
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     # A second machine updates the oldest supported release straight to this one (--from).
     timeout-minutes: 90

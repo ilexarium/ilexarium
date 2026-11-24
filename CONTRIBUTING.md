@@ -39,7 +39,7 @@ The install test (`[install]`) is left out unless asked for: it runs the install
 
 `npm run verify -- --only lint,unit` runs some parts. A change to the installer, `system/`, the helper, the root programs, the database or how a release is built needs the install test before it is merged. You don't have to run it yourself: say so in the pull request and a maintainer runs it.
 
-GitHub runs lint, format, unit and e2e on every pull request and every push to `main` (`.github/workflows/ci.yml`). The install test runs there only when a maintainer starts the workflow by hand ("Run workflow", after reading the change) or by a release: `npm run ship` releases only a commit pushed as `main`, starts the whole workflow for it and goes on only when every job passed.
+GitHub runs lint, format, unit and e2e on every pull request and every push to `main` (`.github/workflows/ci.yml`). The install test runs there on every push to `main` (not for pull requests) and when a maintainer starts the workflow by hand ("Run workflow"). `npm run ship` releases only a commit pushed as `main`, and only once a run for it passed every job, the install test included: the push's own run when it's there (ship waits for it while it runs), else one ship starts.
 
 ## Safety rules
 
