@@ -332,8 +332,8 @@ export const BackupsPageStore = signalStore(
           ...(await Promise.all(apps.map((name) => firstValueFrom(store._appItem(name))))),
           ...folders.map((path) => ({ kind: 'folder' as const, path })),
         ];
-        const answer = await linuxSessionStore.asPerson(() =>
-          firstValueFrom(backupsApi.setup({ ...settings, items })),
+        const answer = await firstValueFrom(
+          linuxSessionStore.asPerson$(() => backupsApi.setup({ ...settings, items })),
         );
         if (!answer) return;
         patchState(store, { passphrase: answer.passphrase, passphraseFirst: true });
@@ -369,8 +369,8 @@ export const BackupsPageStore = signalStore(
 
       /** Saves schedule, retention or disk, as the person; rejects with the server's error. */
       async updatePlan(update: BackupPlanUpdate): Promise<void> {
-        const plan = await linuxSessionStore.asPerson(() =>
-          firstValueFrom(backupsApi.updatePlan(update)),
+        const plan = await firstValueFrom(
+          linuxSessionStore.asPerson$(() => backupsApi.updatePlan(update)),
         );
         if (!plan) return;
         patchState(store, { plan });
