@@ -17,6 +17,15 @@ const unlockedFor = (ms: number): LinuxSession => ({
 const httpError = (status: number, code: string) =>
   new HttpErrorResponse({ status, error: { message: 'x', code } });
 
+/** An action that answers `results` in turn, an HTTP error being a refusal. */
+const answering = (...results: (string | HttpErrorResponse)[]) =>
+  vi.fn(() =>
+    defer(() => {
+      const next = results.shift();
+      return next instanceof HttpErrorResponse ? throwError(() => next) : of(next);
+    }),
+  );
+
 async function setup(session: LinuxSession | null = ANNA) {
   const filesApi = {
     session: vi.fn(() => of({ session })),
@@ -48,8 +57,8 @@ describe('LinuxSessionStore', () => {
 
   it('asks for the sudo password while locked, then runs the action', async () => {
     const { store, filesApi } = await setup();
-    const action = vi.fn(async () => 'done');
-    const result = store.withSudo(action);
+    const action = answering('done');
+    const result = firstValueFrom(store.withSudo$(action));
     expect(store.sudoPrompt()).toBe(true);
     expect(action).not.toHaveBeenCalled();
     await store.unlockSudo('pw');
@@ -59,49 +68,18 @@ describe('LinuxSessionStore', () => {
     expect(store.sudoMinutes()).toBe(15);
   });
 
-  it('runs at once while unlocked', async () => {
-    const { store } = await setup(unlockedFor(5 * 60_000));
-    expect(await store.withSudo(async () => 'done')).toBe('done');
-    expect(store.sudoPrompt()).toBe(false);
-  });
-
-  it('a cancelled prompt runs nothing', async () => {
-    const { store } = await setup();
-    const action = vi.fn(async () => 'done');
-    const result = store.withSudo(action);
-    store.cancelSudo();
-    expect(await result).toBeNull();
-    expect(action).not.toHaveBeenCalled();
-  });
-
-  it('sudo ran out meanwhile (the estimate was wrong): asked again, the action once more', async () => {
-    const { store } = await setup(unlockedFor(5 * 60_000));
-    const action = vi
-      .fn<() => Promise<string>>()
-      .mockRejectedValueOnce(httpError(403, 'sudo_required'))
-      .mockResolvedValueOnce('done');
-    const result = store.withSudo(action);
-    await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
-    expect(store.sudoMinutes()).toBeNull();
-    await store.unlockSudo('pw');
-    expect(await result).toBe('done');
-    expect(action).toHaveBeenCalledTimes(2);
-  });
-
   it('each use restarts the minutes left, like sudo’s own time', async () => {
     const { store } = await setup(unlockedFor(3 * 60_000));
     expect(store.sudoMinutes()).toBeLessThan(5);
-    await store.withSudo(async () => 'done');
+    await firstValueFrom(store.withSudo$(() => of('done')));
     expect(store.sudoMinutes()).toBe(15);
   });
 
   it('a late “closed” of an earlier prompt never cancels the one asked now', async () => {
     const { store } = await setup(unlockedFor(5 * 60_000));
-    const action = vi
-      .fn<() => Promise<string>>()
-      .mockRejectedValueOnce(httpError(403, 'sudo_required'))
-      .mockResolvedValueOnce('done');
-    const result = store.withSudo(action);
+    const result = firstValueFrom(
+      store.withSudo$(answering(httpError(403, 'sudo_required'), 'done')),
+    );
     await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
     const first = store.sudoPromptId();
     store.cancelSudo(first - 1);
@@ -114,12 +92,14 @@ describe('LinuxSessionStore', () => {
   it('passes on an action’s other errors', async () => {
     const { store } = await setup(unlockedFor(5 * 60_000));
     const failure = httpError(403, 'process_not_permitted');
-    await expect(store.withSudo(() => Promise.reject(failure))).rejects.toBe(failure);
+    await expect(firstValueFrom(store.withSudo$(() => throwError(() => failure)))).rejects.toBe(
+      failure,
+    );
   });
 
   it('a wrong password keeps the prompt open, rejecting for the form', async () => {
     const { store, filesApi } = await setup();
-    const result = store.withSudo(async () => 'done');
+    const result = firstValueFrom(store.withSudo$(() => of('done')));
     filesApi.unlockSudo.mockReturnValueOnce(
       throwError(() => httpError(403, 'sudo_password_wrong')),
     );
@@ -145,7 +125,7 @@ describe('LinuxSessionStore', () => {
   it('forgets everything at the app’s sign-out, a waiting prompt answered “no”', async () => {
     const { store, authStore } = await setup(unlockedFor(5 * 60_000));
     store.ended();
-    const result = store.withSudo(async () => 'done');
+    const result = firstValueFrom(store.withSudo$(() => of('done')));
     authStore.logout();
     TestBed.tick();
     expect(await result).toBeNull();
@@ -155,15 +135,6 @@ describe('LinuxSessionStore', () => {
   });
 
   describe('as Observables', () => {
-    /** An action that answers `results` in turn, an HTTP error being a refusal. */
-    const answering = (...results: (string | HttpErrorResponse)[]) =>
-      vi.fn(() =>
-        defer(() => {
-          const next = results.shift();
-          return next instanceof HttpErrorResponse ? throwError(() => next) : of(next);
-        }),
-      );
-
     it('asks nothing and runs nothing before it is subscribed', async () => {
       const { store } = await setup(null);
       const action = answering('done');
