@@ -65,7 +65,7 @@ export class FilesApi {
       .put('/api/files/upload', file, {
         params,
         headers: { 'Content-Type': 'application/octet-stream' },
-        reportProgress: true,
+        reportUploadProgress: true,
         observe: 'events',
       })
       .pipe(

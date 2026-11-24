@@ -4,7 +4,7 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { provideRouter, TitleStrategy } from '@angular/router';
 import {
   MissingTranslationHandler,
@@ -27,7 +27,8 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     { provide: TitleStrategy, useExisting: PageTitleStrategy },
-    provideHttpClient(withFetch(), withInterceptors([strictQueryInterceptor, authInterceptor])),
+    // XHR, not Fetch: Fetch can't report an upload's progress (the uploads panel shows it).
+    provideHttpClient(withXhr(), withInterceptors([strictQueryInterceptor, authInterceptor])),
     provideSpartanHlm(),
     provideTranslateService({
       fallbackLang: 'en',
