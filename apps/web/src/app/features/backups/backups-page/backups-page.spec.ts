@@ -162,8 +162,6 @@ async function render(start: BackupPlan | null, url = '/backups') {
   };
   // Signed in to Linux with sudo at hand: every action goes straight through.
   const asPerson = vi.fn(<T>(action: () => Observable<T>): Observable<T | null> => action());
-  // Form submissions (setup, settings) still take the Promise version.
-  const asPersonPromise = vi.fn(<T>(action: () => Promise<T>) => action());
   TestBed.configureTestingModule({
     providers: [
       provideRouter([{ path: 'backups', component: BackupsPage }]),
@@ -173,7 +171,7 @@ async function render(start: BackupPlan | null, url = '/backups') {
       { provide: AppsApi, useValue: apps },
       {
         provide: LinuxSessionStore,
-        useValue: { asPerson$: asPerson, asPerson: asPersonPromise },
+        useValue: { asPerson$: asPerson },
       },
     ],
   });
@@ -213,7 +211,6 @@ async function render(start: BackupPlan | null, url = '/backups') {
     el,
     api,
     asPerson,
-    asPersonPromise,
     socket,
     pushStatus,
     button,
@@ -244,12 +241,12 @@ describe('BackupsPage before setup', () => {
   });
 
   it('sets up as the person with the chosen disk and apps (templates’ presets), then shows the passphrase until saved', async () => {
-    const { el, api, asPersonPromise, fixture, button } = await render(null);
+    const { el, api, asPerson, fixture, button } = await render(null);
     el.querySelector<HTMLInputElement>('input[value="/mnt/usb"]')!.click();
     expect([...el.querySelectorAll('label')].map((l) => l.textContent?.trim())).toContain('notes');
     button('Set up backups').click();
     await vi.waitFor(() => expect(api.setup).toHaveBeenCalled());
-    expect(asPersonPromise).toHaveBeenCalled();
+    expect(asPerson).toHaveBeenCalled();
     expect(api.setup).toHaveBeenCalledWith({
       destination: '/mnt/usb',
       schedule: { frequency: 'daily', time: '03:00' },

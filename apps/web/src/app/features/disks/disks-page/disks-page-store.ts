@@ -81,8 +81,8 @@ export const DisksPageStore = signalStore(
          * puts it on its field). False when a prompt was closed.
          */
         async mount(request: DiskMountRequest): Promise<boolean> {
-          const answer = await linuxSessionStore.asPerson(() =>
-            firstValueFrom(disksApi.mount(request)),
+          const answer = await firstValueFrom(
+            linuxSessionStore.asPerson$(() => disksApi.mount(request)),
           );
           if (!answer) return false;
           toast.success(translator.t('disks.mounted', { path: answer.mountPoint }));
