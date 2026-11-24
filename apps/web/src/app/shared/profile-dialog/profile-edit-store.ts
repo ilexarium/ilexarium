@@ -3,7 +3,7 @@ import { patchState, signalStore, withHooks, withMethods, withState } from '@ngr
 import type { ProfileForm, ProfileUpdate } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { catchError, defer, EMPTY, finalize, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
+import { catchError, concatMap, defer, EMPTY, finalize, firstValueFrom, pipe, tap } from 'rxjs';
 import { AuthStore } from '../../core/auth/auth-store';
 import { Translator } from '../../core/i18n/translator';
 import { ProfileApi } from '../../core/profile/profile-api';
@@ -49,10 +49,10 @@ export const ProfileEditStore = signalStore(
           forgetPreview();
           patchState(store, initialState);
         },
-        /** Drawn here in the browser (no request); the latest chosen wins. */
+        /** Drawn here in the browser (no request); each in turn, the last chosen shown. */
         choosePicture: rxMethod<File>(
           pipe(
-            switchMap((file) => {
+            concatMap((file) => {
               if (file.size > SOURCE_MAX_BYTES) {
                 patchState(store, { pictureProblem: 'tooLarge' });
                 return EMPTY;

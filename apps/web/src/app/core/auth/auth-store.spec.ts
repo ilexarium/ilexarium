@@ -1,7 +1,9 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { Language } from '@ilex/i18n';
-import { of, throwError, firstValueFrom } from 'rxjs';
+import { toast } from '@spartan-ng/brain/sonner';
+import { of, throwError } from 'rxjs';
 import { LanguageService } from '../i18n/language';
 import { provideRouter, Router } from '@angular/router';
 import { AuthStore } from './auth-store';
@@ -134,7 +136,7 @@ describe('AuthStore', () => {
       store.sessionExpired(); // what RealtimeService does on the 4401
       return of(null);
     });
-    await firstValueFrom(store.logoutEverywhere$());
+    store.logoutEverywhere();
     expect(navigate).not.toHaveBeenCalled(); // no /login?reason=expired
     expect(store.user()).toBeNull();
   });
@@ -143,10 +145,24 @@ describe('AuthStore', () => {
     const { store, api } = setup({ user: OWNER });
     await store.load();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
-    await firstValueFrom(store.logoutEverywhere$());
+    store.logoutEverywhere();
     expect(api.logoutEverywhere).toHaveBeenCalled();
     expect(store.user()).toBeNull();
     expect(navigate).toHaveBeenCalledWith('/login');
+  });
+
+  it('logoutEverywhere() refused: said in a toast, still signed in here', async () => {
+    const { store, api } = setup({ user: OWNER });
+    await store.load();
+    const error = vi.spyOn(toast, 'error');
+    api.logoutEverywhere.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 0 })),
+    );
+    store.logoutEverywhere();
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith('Couldn’t sign out everywhere', expect.anything()),
+    );
+    expect(store.user()).not.toBeNull();
   });
 
   describe('other tabs', () => {
@@ -169,7 +185,7 @@ describe('AuthStore', () => {
       store.logout();
       api.logout.mockReturnValueOnce(throwError(() => new Error('offline')));
       store.logout();
-      await firstValueFrom(store.logoutEverywhere$());
+      store.logoutEverywhere();
       expect(tabs.channel.postMessage).toHaveBeenCalledTimes(3);
     });
 

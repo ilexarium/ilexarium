@@ -154,9 +154,12 @@ export const MachineCheckPageStore = signalStore(
     }),
   ),
   withMethods((store) => ({
-    run: rxMethod<void>(pipe(exhaustMap(() => store._run(false)))),
+    // One check at a time, whichever button started it.
+    run: rxMethod<void>(pipe(exhaustMap(() => (store.running() ? EMPTY : store._run(false))))),
 
-    runWithoutSudo: rxMethod<void>(pipe(exhaustMap(() => store._run(true)))),
+    runWithoutSudo: rxMethod<void>(
+      pipe(exhaustMap(() => (store.running() ? EMPTY : store._run(true)))),
+    ),
   })),
   // Whether a Linux session is open: the check then starts without the sign-in.
   withHooks((_store, linuxSessionStore = inject(LinuxSessionStore)) => ({
