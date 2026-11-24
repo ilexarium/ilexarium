@@ -20,6 +20,7 @@ import {
   catchError,
   EMPTY,
   exhaustMap,
+  filter,
   finalize,
   map,
   mergeMap,
@@ -213,9 +214,8 @@ export const ServicesPageStore = signalStore(
               linuxSessionStore
                 .asPerson$(() => of(true))
                 .pipe(
-                  tap((signedIn) => {
-                    if (signedIn) load();
-                  }),
+                  filter(Boolean),
+                  tap(() => load()),
                   catchError(() => EMPTY),
                 ),
             ),
