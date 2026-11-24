@@ -107,3 +107,15 @@ export function toSubmissionErrors(error: unknown, form: FieldTree<unknown>): Tr
 function formError(kind: string, message: string, params?: FormError['params']): FormError {
   return params ? { kind, message, params } : { kind, message };
 }
+
+/**
+ * Submission errors with the form-level ones moved onto `field`: for a form of one field, whose
+ * refusals (a name taken, permission denied) are about that field though the server names none.
+ */
+export function errorsOnField(
+  result: TreeValidationResult,
+  field: FieldTree<unknown>,
+): TreeValidationResult {
+  const errors = Array.isArray(result) ? result : result ? [result] : [];
+  return errors.map((error) => ({ ...error, fieldTree: error.fieldTree ?? field }));
+}

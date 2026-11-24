@@ -79,47 +79,6 @@
       </div>
     </div>
 
-    @if (filesPageStore.uploads().length) {
-      <section class="grid gap-2 rounded-lg border p-3" aria-labelledby="uploads-title">
-        <h2 id="uploads-title" class="text-sm font-medium">{{ 'files.uploads' | translate }}</h2>
-        <ul class="grid gap-2">
-          @for (upload of filesPageStore.uploads(); track upload.id) {
-            <li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-sm">
-              <span class="truncate" dir="ltr">{{ upload.name }}</span>
-              @switch (upload.state) {
-                @case ('done') {
-                  <span class="flex items-center gap-1 text-muted-foreground">
-                    <ng-icon name="lucideCircleCheck" aria-hidden="true" />
-                    {{ 'files.uploadDone' | translate }}
-                  </span>
-                }
-                @case ('failed') {
-                  <span class="flex items-center gap-1 text-destructive">
-                    <ng-icon name="lucideCircleX" aria-hidden="true" />
-                    {{ 'files.uploadFailed' | translate }}
-                  </span>
-                }
-                @default {
-                  <span class="tabular-nums text-muted-foreground" dir="ltr"
-                    >{{ (upload.progress * 100).toFixed(0) }} %</span
-                  >
-                }
-              }
-              @if (upload.state === 'uploading') {
-                <hlm-progress
-                  class="col-span-2 h-1.5"
-                  [value]="upload.progress * 100"
-                  [attr.aria-label]="upload.name"
-                >
-                  <hlm-progress-indicator />
-                </hlm-progress>
-              }
-            </li>
-          }
-        </ul>
-      </section>
-    }
-
     @if (filesPageStore.list(); as list) {
       @if (list.entries.length) {
         <ilex-file-list
@@ -156,49 +115,6 @@
   (confirm)="filesPageStore.delete($event)"
   (cancel)="filesPageStore.cancelDelete()"
 />
-
-<hlm-alert-dialog
-  [state]="filesPageStore.clashes().length ? 'open' : 'closed'"
-  (stateChanged)="clashQuestionChanged($event)"
->
-  <hlm-alert-dialog-content *hlmAlertDialogPortal>
-    @let files = shownClashes();
-    @if (files.length) {
-      <hlm-alert-dialog-header>
-        <h2 hlmAlertDialogTitle class="break-words">
-          @if (files.length === 1) {
-            {{ 'files.replaceDialog.title' | translate: { name: files[0].file.name } }}
-          } @else {
-            {{ 'files.replaceDialog.titleMany' | translate }}
-          }
-        </h2>
-        <p hlmAlertDialogDescription>
-          {{
-            (files.length === 1 ? 'files.replaceDialog.text' : 'files.replaceDialog.textMany')
-              | translate
-          }}
-        </p>
-      </hlm-alert-dialog-header>
-      @if (files.length > 1) {
-        <ul class="max-h-40 list-inside list-disc overflow-y-auto text-sm">
-          @for (file of files; track $index) {
-            <li class="truncate">
-              <span dir="ltr">{{ file.file.name }}</span>
-            </li>
-          }
-        </ul>
-      }
-      <hlm-alert-dialog-footer>
-        <button hlmAlertDialogCancel>
-          {{ 'files.replaceDialog.cancel' | translate }}
-        </button>
-        <button hlmAlertDialogAction (click)="filesPageStore.answerClashes(true)">
-          {{ 'files.replaceDialog.confirm' | translate }}
-        </button>
-      </hlm-alert-dialog-footer>
-    }
-  </hlm-alert-dialog-content>
-</hlm-alert-dialog>
 
 <ilex-sign-in-dialog
   title="files.signIn.title"

@@ -185,3 +185,13 @@
     @apply text-foreground;
   }
 }
+
+/* Toasts stay above the uploads panel, which shares their corner (it sets its height while shown). */
+:root [data-sonner-toaster][data-y-position='bottom'] {
+  bottom: calc(max(var(--offset), env(safe-area-inset-bottom)) + var(--uploads-panel-height, 0px));
+}
+@media (max-width: 600px) {
+  :root [data-sonner-toaster][data-y-position='bottom'] {
+    bottom: calc(20px + var(--uploads-panel-height, 0px));
+  }
+}
