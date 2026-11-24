@@ -127,15 +127,54 @@ describe('UploadsStore', () => {
     });
   });
 
-  it('a Linux session that ended: failed, and the session is gone', async () => {
-    const { api, store, states } = await setup();
+  it('a Linux session that ended: one toast, the session gone, the rest not sent', async () => {
+    const { api, store, finished } = await setup();
+    const error = vi.spyOn(toast, 'error');
     const linuxSessionStore = TestBed.inject(LinuxSessionStore);
     linuxSessionStore.check();
     await vi.waitFor(() => expect(linuxSessionStore.session()).toEqual(ANNA));
-    api.upload.mockReturnValueOnce(throwError(() => httpError(403, 'linux_session_required')));
-    store.upload({ folder: '/home/anna', files: [file('a.txt')], replace: false });
-    expect(states()).toEqual([['a.txt', 'failed']]);
+    const answer = new Subject<number>();
+    api.upload.mockReturnValueOnce(answer);
+    store.upload({ folder: '/home/anna', files: [file('a.txt'), file('b.txt')], replace: false });
+    store.upload({ folder: '/srv', files: [file('c.txt')], replace: false });
+    answer.error(httpError(403, 'linux_session_required'));
+    expect(api.upload).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledTimes(1);
     expect(linuxSessionStore.session()).toBeNull();
+    expect(store.uploads()).toEqual([]);
+    expect(finished).toEqual([]);
+  });
+
+  it('another Linux account signed in: the uploads and questions of the one before go', async () => {
+    const { api, store } = await setup();
+    const linuxSessionStore = TestBed.inject(LinuxSessionStore);
+    linuxSessionStore.check();
+    await vi.waitFor(() => expect(linuxSessionStore.session()).toEqual(ANNA));
+    TestBed.tick();
+    api.upload
+      .mockReturnValueOnce(throwError(() => httpError(409, 'file_exists')))
+      .mockReturnValueOnce(new Subject<number>());
+    store.upload({ folder: '/home/anna', files: [file('notes.txt')], replace: false });
+    const running = api.upload.mock.results.length;
+    store.upload({ folder: '/home/anna', files: [file('a.txt'), file('b.txt')], replace: false });
+    expect(store.clashes()).toHaveLength(1);
+    api.session.mockReturnValue(
+      of({ session: { username: 'bob', home: '/home/bob', uid: 1501, sudoUntil: null } }),
+    );
+    linuxSessionStore.check();
+    await vi.waitFor(() => expect(linuxSessionStore.session()?.username).toBe('bob'));
+    TestBed.tick();
+    expect(store.uploads()).toEqual([]);
+    expect(store.clashes()).toEqual([]);
+    expect(api.upload).toHaveBeenCalledTimes(running + 1);
+  });
+
+  it('a batch whose files all failed: no reload asked for', async () => {
+    const { api, store, finished } = await setup();
+    vi.spyOn(toast, 'error');
+    api.upload.mockReturnValue(throwError(() => httpError(403, 'permission_denied')));
+    store.upload({ folder: '/etc', files: [file('a.txt'), file('b.txt')], replace: false });
+    expect(finished).toEqual([]);
   });
 
   it('reset during an upload: the request ends, nothing is patched after, the queue is dropped', async () => {

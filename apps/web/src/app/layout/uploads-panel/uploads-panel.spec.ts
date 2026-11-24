@@ -54,7 +54,7 @@ describe('UploadsPanel', () => {
     first.next(0.42);
     await fixture.whenStable();
     expect(el.querySelector('h2')!.textContent).toContain('Uploading 1 of 2');
-    expect(el.textContent).toContain('42 %');
+    expect(el.textContent).toContain('42%');
     expect(el.textContent).toContain('Waiting');
     expect(el.querySelector('li [dir="ltr"]')!.textContent).toBe('a.txt');
     expect(el.querySelector('button[aria-label="Close the list of uploads"]')).toBeNull();

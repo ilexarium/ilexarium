@@ -16,7 +16,8 @@ import { z } from 'zod';
 import { FilesPageStore } from '../files-page/files-page-store';
 import type { NameRequest } from '../files.model';
 import { FieldErrors } from '../../../shared/forms/field-errors';
-import { errorsOnField, toSubmissionErrors } from '../../../shared/forms/submission-errors';
+import type { FormError } from '../../../shared/forms/forms.model';
+import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 
 /** A new name or path: renaming may also move it (a path, from the folder shown or from /). */
 const renameSchema = z.object({
@@ -69,7 +70,15 @@ export class FileNameDialog {
                   await this.filesPageStore.rename(request.entry, name);
                 else await this.filesPageStore.newFolder(name.trim());
               } catch (error) {
-                return errorsOnField(toSubmissionErrors(error, tree), tree.name);
+                // Every refusal is about the name (taken, not allowed there), though the server
+                // names no field.
+                const [message, params] = apiErrorText(error);
+                return {
+                  kind: apiErrorCode(error) ?? 'server',
+                  message,
+                  params: params as FormError['params'],
+                  fieldTree: tree.name,
+                };
               }
               this.close();
               return undefined;

@@ -186,9 +186,22 @@
   }
 }
 
-/* Toasts stay above the uploads panel, which shares their corner (it sets its height while shown). */
-:root [data-sonner-toaster][data-y-position='bottom'] {
-  bottom: calc(max(var(--offset), env(safe-area-inset-bottom)) + var(--uploads-panel-height, 0px));
+/* Toasts stay above the uploads panel where they share its corner (it sets its height while
+   shown): the bottom end on wider screens, the whole bottom on phones. */
+@media (min-width: 640px) {
+  :root:not([dir='rtl']) [data-sonner-toaster][data-x-position='right'][data-y-position='bottom'],
+  :root[dir='rtl'] [data-sonner-toaster][data-x-position='left'][data-y-position='bottom'] {
+    bottom: calc(
+      max(var(--offset), env(safe-area-inset-bottom)) + var(--uploads-panel-height, 0px)
+    );
+  }
+}
+@media (max-width: 639px) {
+  :root [data-sonner-toaster][data-y-position='bottom'] {
+    bottom: calc(
+      max(var(--offset), env(safe-area-inset-bottom)) + var(--uploads-panel-height, 0px)
+    );
+  }
 }
 @media (max-width: 600px) {
   :root [data-sonner-toaster][data-y-position='bottom'] {

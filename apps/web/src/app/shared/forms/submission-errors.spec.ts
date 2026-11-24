@@ -4,12 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
 import en from '@ilex/i18n/en.json';
 import { flattenMessages } from '@ilex/i18n';
-import {
-  apiErrorText,
-  errorsOnField,
-  toSubmissionErrors,
-  TRANSLATED_ERROR_CODES,
-} from './submission-errors';
+import { apiErrorText, toSubmissionErrors, TRANSLATED_ERROR_CODES } from './submission-errors';
 
 function makeForm() {
   return TestBed.runInInjectionContext(() =>
@@ -94,19 +89,6 @@ describe('toSubmissionErrors', () => {
   it('has a text in en.json for every code it translates', () => {
     const keys = Object.keys(flattenMessages(en));
     for (const code of TRANSLATED_ERROR_CODES) expect(keys).toContain(`errors.${code}`);
-  });
-});
-
-describe('errorsOnField', () => {
-  it('moves form-level errors onto the field, keeps field errors where they are', () => {
-    const f = makeForm();
-    expect(
-      errorsOnField({ kind: 'file_exists', message: 'errors.file_exists' }, f.newPassword),
-    ).toEqual([{ kind: 'file_exists', message: 'errors.file_exists', fieldTree: f.newPassword }]);
-    expect(
-      errorsOnField([{ kind: 'x', message: 'y', fieldTree: f.currentPassword }], f.newPassword),
-    ).toEqual([{ kind: 'x', message: 'y', fieldTree: f.currentPassword }]);
-    expect(errorsOnField(undefined, f.newPassword)).toEqual([]);
   });
 });
 
