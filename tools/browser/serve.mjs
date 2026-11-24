@@ -52,7 +52,15 @@ const server = createServer(async (req, res) => {
         up.pipe(res);
       },
     );
-    upstream.on('error', () => res.writeHead(502).end());
+    upstream.on('error', () => {
+      if (!res.headersSent) res.writeHead(502);
+      res.end();
+    });
+    // The browser gone before the answer (a tab closed mid-upload): end the request upstream
+    // too, as a real proxy would — else the server waits for the rest of the body.
+    res.on('close', () => {
+      if (!res.writableFinished) upstream.destroy();
+    });
     req.pipe(upstream);
     return;
   }
