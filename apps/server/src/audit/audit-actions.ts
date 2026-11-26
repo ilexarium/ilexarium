@@ -39,6 +39,7 @@ export const AUDIT_ACTIONS = [
   'files.upload',
   'files.rename',
   'files.delete',
+  'files.new_folder',
   'terminal.open',
   'terminal.close',
   'profile.update',

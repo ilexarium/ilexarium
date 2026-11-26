@@ -200,6 +200,11 @@ export const LinuxSessionStore = signalStore(
         restartSudoMinutes();
       },
 
+      /** A request found sudo locked (ilex-root ended sooner than the minutes said). */
+      sudoEnded(): void {
+        setSudoUntil(null);
+      },
+
       /** The prompt's password; rejects with the server's error (the form shows it). */
       async unlockSudo(password: string): Promise<void> {
         try {

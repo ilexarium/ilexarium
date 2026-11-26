@@ -16,7 +16,7 @@ import { SystemReader } from '../host/system-reader.js';
 import { linuxError } from '../linux-sessions/linux-session-errors.js';
 import { LinuxSessions } from '../linux-sessions/linux-sessions.js';
 import type { LinuxActor } from '../linux-sessions/linux-sessions.model.js';
-import { removalError, toFilesError } from './files-errors.js';
+import { filesCode, removalError, toFilesError } from './files-errors.js';
 import {
   DELETE_TIMEOUT_MS,
   NEW_FILE_MODE,
@@ -26,6 +26,8 @@ import {
   S_IFREG,
 } from './files.constants.js';
 import type { Download } from './files.model.js';
+import type { AuditAction } from '../audit/audit-actions.js';
+import { protectedFolder } from './protected-folders.js';
 
 function typeOf(mode: number): FileType {
   switch (mode & S_IFMT) {
@@ -64,7 +66,8 @@ export function permissions(mode: number): string {
  * limits of its own. Uploads and downloads stream (never held in memory); uploads go to a
  * temporary name beside the target first, renamed when complete. Uploads, renames and deletes
  * are audited (Linux user and path, never content). With `root` (Files as administrator), all of
- * it as root, through the account's unlocked sudo; audited as such.
+ * it as root, through the account's unlocked sudo; its changes audited as privileged actions are
+ * (requested first: no record, no change).
  */
 @Injectable()
 export class FilesService {
@@ -152,11 +155,10 @@ export class FilesService {
     if (typeOf(info.mode) !== 'file') {
       throw linuxError(FILES_ERROR_CODES.wrongType, 'Only files can be downloaded');
     }
-    return {
-      name: posix.basename(target),
-      size: info.size,
-      stream: await sftp.readStream(target),
-    };
+    const stream = await sftp.readStream(target);
+    // A long download as root keeps sudo unlocked while bytes flow.
+    if (root) stream.on('data', () => this.linuxSessions.usedRoot(appSessionId));
+    return { name: posix.basename(target), size: info.size, stream };
   }
 
   /**
@@ -172,6 +174,8 @@ export class FilesService {
     actor: LinuxActor,
   ): Promise<void> {
     const { sftp, username } = this.linuxSessions.sftp(appSessionId, { root: target.root });
+    // A long transfer as root keeps sudo unlocked while bytes flow.
+    const keepRoot = () => target.root && this.linuxSessions.usedRoot(appSessionId);
     if (size !== null && size > FILES_LIMITS.uploadMaxBytes) {
       throw linuxError(FILES_ERROR_CODES.tooLarge, 'Larger than 10 GB');
     }
@@ -192,41 +196,51 @@ export class FilesService {
       folder,
       `.${target.name}.ilex-upload-${randomBytes(6).toString('hex')}`,
     );
+    const details = { path, replaced: existing };
     let written = 0;
     const counter = new Transform({
       transform(chunk: Buffer, _encoding, next) {
         written += chunk.length;
+        keepRoot();
         if (written > FILES_LIMITS.uploadMaxBytes || (size !== null && written > size)) {
           next(linuxError(FILES_ERROR_CODES.tooLarge, 'Larger than announced or than 10 GB'));
         } else next(null, chunk);
       },
     });
-    try {
-      await pipeline(body, counter, sftp.writeStream(temporary, mode));
-      if (size !== null && written !== size) {
-        throw linuxError(FILES_ERROR_CODES.failed, 'The upload ended early');
+    await this.change(target.root === true, 'files.upload', actor, username, details, async () => {
+      try {
+        await pipeline(body, counter, sftp.writeStream(temporary, mode));
+        if (size !== null && written !== size) {
+          throw linuxError(FILES_ERROR_CODES.failed, 'The upload ended early');
+        }
+        // Replacing: one atomic step (OpenSSH's posix-rename) — the old file stays until the new
+        // one takes its place, so a failure here loses neither.
+        await sftp.rename(temporary, path, existing);
+      } catch (error) {
+        await sftp.remove(temporary).catch(() => undefined);
+        throw toFilesError(error);
       }
-      // Replacing: one atomic step (OpenSSH's posix-rename) — the old file stays until the new
-      // one takes its place, so a failure here loses neither.
-      await sftp.rename(temporary, path, existing);
-    } catch (error) {
-      await sftp.remove(temporary).catch(() => undefined);
-      throw toFilesError(error);
-    }
-    await this.record('files.upload', actor, username, target.root === true, {
-      path,
-      bytes: written,
-      replaced: existing,
+      return { bytes: written };
     });
   }
 
-  async newFolder(appSessionId: string, parent: string, name: string, root = false): Promise<void> {
-    const { sftp } = this.linuxSessions.sftp(appSessionId, { root });
+  /** As root, audited like the other changes; as the account, not (as before). */
+  async newFolder(
+    appSessionId: string,
+    parent: string,
+    name: string,
+    actor: LinuxActor,
+    root = false,
+  ): Promise<void> {
+    const { sftp, username } = this.linuxSessions.sftp(appSessionId, { root });
     const path = posix.join(posix.normalize(parent), name);
     if (await sftp.exists(path)) {
       throw linuxError(FILES_ERROR_CODES.exists, 'Something of that name is there');
     }
-    await sftp.makeFolder(path);
+    if (!root) return sftp.makeFolder(path);
+    await this.change(root, 'files.new_folder', actor, username, { path }, () =>
+      sftp.makeFolder(path),
+    );
   }
 
   /** Renames or moves — never onto something that exists. */
@@ -238,13 +252,22 @@ export class FilesService {
     root = false,
   ): Promise<void> {
     const { sftp, username } = this.linuxSessions.sftp(appSessionId, { root });
-    const source = posix.normalize(from);
+    const source = posix.normalize(from).replace(/(.)\/+$/, '$1');
     const destination = posix.normalize(to);
+    if (root && protectedFolder(source) && typeOf((await sftp.lstat(source)).mode) === 'folder') {
+      throw linuxError(FILES_ERROR_CODES.permissionDenied, 'That folder is never moved');
+    }
     if (await sftp.exists(destination)) {
       throw linuxError(FILES_ERROR_CODES.exists, 'Something of that name is there');
     }
-    await sftp.rename(source, destination, false);
-    await this.record('files.rename', actor, username, root, { from: source, to: destination });
+    await this.change(
+      root,
+      'files.rename',
+      actor,
+      username,
+      { from: source, to: destination },
+      () => sftp.rename(source, destination, false),
+    );
   }
 
   /**
@@ -258,33 +281,58 @@ export class FilesService {
     const { sftp, username } = this.linuxSessions.sftp(appSessionId, { root });
     const target = posix.normalize(path).replace(/(.)\/+$/, '$1');
     if (target === '/') throw linuxError(FILES_ERROR_CODES.permissionDenied, 'Not /');
-    if (typeOf((await sftp.lstat(target)).mode) === 'folder') {
+    const folder = typeOf((await sftp.lstat(target)).mode) === 'folder';
+    await this.change(root, 'files.delete', actor, username, { path: target }, async () => {
+      if (!folder) return sftp.unlink(target);
       const answer = await this.linuxSessions.ask(
         appSessionId,
         { action: 'paths.remove', paths: [target], administrator: root },
         { timeoutMs: DELETE_TIMEOUT_MS, sudo: root },
       );
       if (!answer.ok) throw removalError(answer.error);
-    } else {
-      await sftp.unlink(target);
-    }
-    await this.record('files.delete', actor, username, root, { path: target });
+    });
   }
 
-  private record(
-    action: 'files.upload' | 'files.rename' | 'files.delete',
+  /**
+   * A change and its audit entries. As root, a privileged action: `requested` first (without the
+   * audit log, nothing is changed), then its failure or success; as the account, its success.
+   */
+  private async change(
+    root: boolean,
+    action: AuditAction,
     actor: LinuxActor,
     linuxUser: string,
-    root: boolean,
     details: Record<string, string | number | boolean>,
+    act: () => Promise<Record<string, string | number | boolean> | void>,
   ): Promise<void> {
-    return this.auditService.tryRecord({
+    const entry = (
+      outcome: 'requested' | 'success' | 'failure',
+      more: Record<string, string | number | boolean> = {},
+    ) => ({
       action,
-      outcome: 'success',
+      outcome,
       userId: actor.user.id,
       username: actor.user.username,
       ip: actor.ip,
-      details: { linuxUser, ...(root && { asRoot: true }), ...details },
+      details: { linuxUser, ...(root && { asRoot: true }), ...details, ...more },
     });
+    if (root) {
+      try {
+        await this.auditService.record(entry('requested'));
+      } catch {
+        throw linuxError(FILES_ERROR_CODES.auditUnavailable, 'The audit log is unavailable');
+      }
+    }
+    let result: Record<string, string | number | boolean> | void;
+    try {
+      result = await act();
+    } catch (error) {
+      if (root) {
+        const reason = filesCode(error) ?? FILES_ERROR_CODES.failed;
+        await this.auditService.tryRecord(entry('failure', { reason }));
+      }
+      throw error;
+    }
+    await this.auditService.tryRecord(entry('success', result ?? {}));
   }
 }

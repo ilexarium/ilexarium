@@ -38,7 +38,13 @@ import {
 } from '../../apps/server/src/linux-sessions/linux-sessions.constants.ts';
 import { scheduleHours } from '../../apps/server/src/backups/backup-status.ts';
 import { COMPOSE_FILES, ENV_FILE } from '../../apps/server/src/apps/apps.constants.ts';
-import { DELETE_TIMEOUT_MS } from '../../apps/server/src/files/files.constants.ts';
+import {
+  DELETE_TIMEOUT_MS,
+  ROOT_NEVER_MOVED,
+  ROOT_NEVER_MOVED_BELOW,
+} from '../../apps/server/src/files/files.constants.ts';
+import { protectedFolder } from '../../apps/server/src/files/protected-folders.ts';
+import { protectedPath } from './helper/paths.mts';
 import { ROOT_PLACES, SYSTEM_MOUNTS } from '../../apps/server/src/disks/disks.constants.ts';
 import { SYSTEM_FOLDERS } from '../../apps/server/src/host/host.constants.ts';
 import * as appManifest from '../../apps/server/src/updates/release-manifest.ts';
@@ -301,5 +307,28 @@ describe('the app and the root programs check the same rules', () => {
       expect(helperConfig.COMPOSE_READS, name).toContain(name);
     }
     expect(DELETE_TIMEOUT_MS).toBeGreaterThan(helperConfig.LONG_TIMEOUT_MS);
+  });
+  it('Files as administrator: the folders root never moves are the ones ilex-root never deletes', () => {
+    expect(ROOT_NEVER_MOVED).toEqual(helperConfig.NEVER_REMOVED);
+    expect(ROOT_NEVER_MOVED_BELOW).toEqual(helperConfig.NEVER_REMOVED_BELOW);
+    for (const path of [
+      '/',
+      '/etc',
+      '/etc/nginx',
+      '/home',
+      '/home/anna',
+      '/home/anna/photos',
+      '/srv',
+      '/srv/media',
+      '/opt/ilex/app',
+      '/opt/other',
+      '/var/lib/docker/volumes',
+      '/var/log',
+      '/root',
+      '/root/notes',
+      '/tmp/x',
+    ]) {
+      expect(protectedFolder(path), path).toBe(protectedPath(path));
+    }
   });
 });

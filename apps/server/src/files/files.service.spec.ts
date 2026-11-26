@@ -25,6 +25,7 @@ describe('FilesService.delete', () => {
   let dir: string;
   let ask: ReturnType<typeof vi.fn>;
   let tryRecord: ReturnType<typeof vi.fn>;
+  let record: ReturnType<typeof vi.fn>;
   let files: FilesService;
   /** Whether each SFTP asked for was root's. */
   let sftpAsked: boolean[];
@@ -33,6 +34,7 @@ describe('FilesService.delete', () => {
     dir = mkdtempSync(join(tmpdir(), 'files-'));
     ask = vi.fn().mockResolvedValue({ ok: true });
     tryRecord = vi.fn().mockResolvedValue(undefined);
+    record = vi.fn().mockResolvedValue(undefined);
     sftpAsked = [];
     const linuxSessions = {
       sftp: (_id: string, options?: { root?: boolean }) => {
@@ -44,7 +46,7 @@ describe('FilesService.delete', () => {
     files = new FilesService(
       linuxSessions,
       {} as SystemReader,
-      { tryRecord } as unknown as AuditService,
+      { tryRecord, record } as unknown as AuditService,
     );
   });
 
@@ -88,6 +90,29 @@ describe('FilesService.delete', () => {
     );
   });
 
+  it('as root, a change is recorded as requested first — without the audit log, nothing changes', async () => {
+    writeFileSync(join(dir, 'kept'), 'x');
+    await files.delete('s1', join(dir, 'kept'), ACTOR, true).catch(() => undefined);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'files.delete', outcome: 'requested' }),
+    );
+    writeFileSync(join(dir, 'kept'), 'x');
+    record.mockRejectedValue(new Error('database down'));
+    const refused = await files
+      .delete('s1', join(dir, 'kept'), ACTOR, true)
+      .catch((error: unknown) => error);
+    expect((refused as { getResponse(): { code: string } }).getResponse().code).toBe(
+      'audit_unavailable',
+    );
+    expect(existsSync(join(dir, 'kept'))).toBe(true);
+  });
+
+  it('as the account, no requested entry (as before)', async () => {
+    writeFileSync(join(dir, 'mine'), 'x');
+    await files.delete('s1', join(dir, 'mine'), ACTOR);
+    expect(record).not.toHaveBeenCalled();
+  });
+
   it('sudo locked meanwhile: a folder’s removal says sudo_required', async () => {
     mkdirSync(join(dir, 'f'));
     ask.mockResolvedValue({ ok: false, error: 'sudo_required' });
@@ -124,6 +149,21 @@ describe('FilesService.delete', () => {
     expect(tryRecord).not.toHaveBeenCalled();
   });
 
+  it('as root, a system folder is never renamed or moved — a file in one is', async () => {
+    const etc = join(dir, 'etc');
+    mkdirSync(etc);
+    writeFileSync(join(etc, 'hosts'), 'x');
+    const refused = await files
+      .rename('s1', '/etc', '/etc.old', ACTOR, true)
+      .catch((error: unknown) => error);
+    expect((refused as { getResponse(): { code: string } }).getResponse().code).toBe(
+      'permission_denied',
+    );
+    // A file below /etc (here a temporary one standing in): renamed as root like anywhere else.
+    await files.rename('s1', join(etc, 'hosts'), join(etc, 'hosts.old'), ACTOR, true);
+    expect(existsSync(join(etc, 'hosts.old'))).toBe(true);
+  });
+
   it('never /', async () => {
     await expect(files.delete('s1', '/', ACTOR)).rejects.toMatchObject({
       response: { code: 'permission_denied' },
@@ -134,17 +174,21 @@ describe('FilesService.delete', () => {
 describe('FilesService.upload', () => {
   let dir: string;
   let files: FilesService;
+  let usedRoot: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'files-'));
+    usedRoot = vi.fn();
     const linuxSessions = {
       sftp: () => ({ sftp: new Sftp(fakeSftp()), username: 'anna' }),
+      usedRoot,
     } as unknown as LinuxSessions;
     files = new FilesService(
       linuxSessions,
       {} as SystemReader,
       {
         tryRecord: vi.fn().mockResolvedValue(undefined),
+        record: vi.fn().mockResolvedValue(undefined),
       } as unknown as AuditService,
     );
   });
@@ -160,6 +204,20 @@ describe('FilesService.upload', () => {
       ACTOR,
     );
   const mode = (name: string) => statSync(join(dir, name)).mode & 0o7777;
+
+  it('as root, a long upload keeps sudo unlocked while its bytes flow; as the account, never', async () => {
+    const chunks = ['a', 'b', 'c'].map((c) => Buffer.from(c));
+    await files.upload(
+      's1',
+      { folder: dir, name: 'x', replace: false, root: true },
+      Readable.from(chunks),
+      3,
+      ACTOR,
+    );
+    expect(usedRoot).toHaveBeenCalledTimes(3);
+    await upload('y', 'abc');
+    expect(usedRoot).toHaveBeenCalledTimes(3);
+  });
 
   it('a new file: 0644 — never the 0666 ssh2 would set past the umask', async () => {
     await upload('compose.yml', 'services: {}\n');

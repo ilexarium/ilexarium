@@ -169,8 +169,19 @@ export class FilesController {
 
   @Post('folder')
   @HttpCode(204)
-  newFolder(@Body() body: NewFolderDto, @CurrentSession() session: { id: string }): Promise<void> {
-    return this.filesService.newFolder(session.id, body.parent, body.name, body.root === true);
+  newFolder(
+    @Body() body: NewFolderDto,
+    @CurrentSession() session: { id: string },
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<void> {
+    return this.filesService.newFolder(
+      session.id,
+      body.parent,
+      body.name,
+      { user, ip },
+      body.root === true,
+    );
   }
 
   @Post('rename')
