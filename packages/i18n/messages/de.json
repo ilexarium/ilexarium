@@ -262,6 +262,7 @@
     "sudo_required": "Dafür sind Administratorrechte nötig: Entsperre sudo mit dem Passwort des Linux-Kontos.",
     "helper_unavailable": "In dieser Linux-Sitzung sind keine Administratoraktionen verfügbar (der Helfer von Ilexarium ist nicht gestartet). Melde dich erneut bei Linux an; bleibt es so, installiere Ilexarium erneut.",
     "sudo_failed": "sudo hat nicht geantwortet oder ist ohne Begründung fehlgeschlagen. Versuche es erneut; bleibt es so, prüfe sudo in einem Terminal.",
+    "root_files_unavailable": "Der Administratormodus für Dateien ist nicht verfügbar: sudo ist entsperrt, hat den Dateiserver aber nicht als root gestartet (sftp-server). Das sudo deines Kontos erlaubt vielleicht nur bestimmte Programme.",
     "app_not_found": "Im Ordner dieser App ist keine Compose-Datei.",
     "app_name_taken": "Eine App mit diesem Namen gibt es schon.",
     "app_folder_exists": "Dieser Ordner ist nicht leer.",

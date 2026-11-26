@@ -6,6 +6,7 @@ import type { LinuxHelper } from './linux-helper.js';
 export type HelperRequest =
   | { action: 'hello' }
   | { action: 'sudo.unlock'; password: string }
+  | { action: 'sudo.touch' }
   | { action: 'process.signal'; pid: number; signal: ProcessSignal; administrator: boolean }
   | { action: 'docker.access' }
   | {
@@ -48,6 +49,10 @@ export type HelperRequest =
 export type HelperAnswer =
   { ok: true; [field: string]: unknown } | { ok: false; error: string; message?: string };
 
+/** Why root's SFTP didn't open. */
+export type RootSftpFailure =
+  'password_required' | 'wrong_password' | 'not_allowed' | 'timed_out' | 'failed';
+
 /** Why a Linux session closed. */
 export type LinuxCloseReason =
   'idle' | 'app-sign-out' | 'closed' | 'replaced' | 'shutdown' | 'ended';
@@ -70,6 +75,10 @@ export interface OpenLinuxSession {
   helper: LinuxHelper | null;
   /** Until when ilex-root runs (ms): its idle limit after the last action; null: locked. */
   sudoUntil: number | null;
+  /** Files as administrator: root's SFTP, open while sudo is unlocked (null: not open). */
+  rootSftp: SFTPWrapper | null;
+  /** When root's SFTP last restarted ilex-root's idle time (ms). */
+  rootTouchedAt: number;
   /** The app user who opened it (an "everywhere" sign-out closes all of theirs). */
   userId: string;
   /** Closes it after 30 minutes without use; refreshed on every use. */

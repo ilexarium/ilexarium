@@ -26,13 +26,19 @@ describe('FilesService.delete', () => {
   let ask: ReturnType<typeof vi.fn>;
   let tryRecord: ReturnType<typeof vi.fn>;
   let files: FilesService;
+  /** Whether each SFTP asked for was root's. */
+  let sftpAsked: boolean[];
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'files-'));
     ask = vi.fn().mockResolvedValue({ ok: true });
     tryRecord = vi.fn().mockResolvedValue(undefined);
+    sftpAsked = [];
     const linuxSessions = {
-      sftp: () => ({ sftp: new Sftp(fakeSftp()), username: 'anna' }),
+      sftp: (_id: string, options?: { root?: boolean }) => {
+        sftpAsked.push(options?.root === true);
+        return { sftp: new Sftp(fakeSftp()), username: 'anna' };
+      },
       ask,
     } as unknown as LinuxSessions;
     files = new FilesService(
@@ -61,6 +67,32 @@ describe('FilesService.delete', () => {
         details: { linuxUser: 'anna', path: join(dir, 'share') },
       }),
     );
+  });
+
+  it('as root: root’s SFTP, a folder through ilex-root’s removal (sudo’s), audited as root', async () => {
+    mkdirSync(join(dir, 'etc-like'));
+    writeFileSync(join(dir, 'root-file'), 'x');
+    await files.delete('s1', join(dir, 'etc-like'), ACTOR, true);
+    await files.delete('s1', join(dir, 'root-file'), ACTOR, true);
+    expect(sftpAsked).toEqual([true, true]);
+    expect(ask).toHaveBeenCalledWith(
+      's1',
+      { action: 'paths.remove', paths: [join(dir, 'etc-like')], administrator: true },
+      expect.objectContaining({ sudo: true }),
+    );
+    expect(tryRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'files.delete',
+        details: { linuxUser: 'anna', asRoot: true, path: join(dir, 'root-file') },
+      }),
+    );
+  });
+
+  it('sudo locked meanwhile: a folder’s removal says sudo_required', async () => {
+    mkdirSync(join(dir, 'f'));
+    ask.mockResolvedValue({ ok: false, error: 'sudo_required' });
+    const error = await files.delete('s1', join(dir, 'f'), ACTOR, true).catch((e: unknown) => e);
+    expect((error as { getResponse(): { code: string } }).getResponse().code).toBe('sudo_required');
   });
 
   it('a file or a link is unlinked (a link to a folder: the link, never what it points to)', async () => {

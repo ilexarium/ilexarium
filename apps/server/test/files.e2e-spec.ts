@@ -249,6 +249,61 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
     expect(missing.body.code).toBe('file_not_found');
   });
 
+  it('as administrator: root through anna’s own unlocked sudo, closed when it locks', async () => {
+    const asRoot = (path: string) => `/files/list?path=${q(path)}&root=true`;
+    expect((await api().get(asRoot('/root')).expect(403)).body.code).toBe('sudo_required');
+    await api().post('/files/session/sudo', { password: ANNA.password }).expect(200);
+
+    const name = `e2e-${Date.now()}`;
+    const rootFolder = `/root/${name}`;
+    await api().post('/files/folder', { parent: '/root', name, root: true }).expect(204);
+    await api()
+      .put(`/files/upload?folder=${q(rootFolder)}&name=a.txt&root=true`, 'as root')
+      .expect(204);
+    const listed = (await api().get(asRoot(rootFolder)).expect(200)).body as FileList;
+    expect(listed.entries.map((e) => [e.name, e.owner])).toEqual([['a.txt', 'root']]);
+    const secret = await api()
+      .get(`/files/download?path=${q('/home/bob/private.txt')}&root=true`)
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect((secret.body as Buffer).toString()).toBe('secret\n');
+    await api()
+      .post('/files/rename', { from: `${rootFolder}/a.txt`, to: `${rootFolder}/b.txt`, root: true })
+      .expect(204);
+    // The plain SFTP stays anna's own, unlocked or not.
+    expect((await api().get(`/files/list?path=${q('/root')}`).expect(403)).body.code).toBe(
+      'permission_denied',
+    );
+    // A folder goes through ilex-root's removal.
+    await api().delete(`/files?path=${q(rootFolder)}&root=true`).expect(204);
+    expect(
+      ((await api().get(asRoot('/root')).expect(200)).body as FileList).entries.map((e) => e.name),
+    ).not.toContain(name);
+
+    const audit = await prisma.auditEvent.findMany({
+      where: { action: { in: ['files.upload', 'files.rename', 'files.delete'] } },
+      orderBy: { at: 'asc' },
+    });
+    expect(
+      audit
+        .filter((a) => (a.details as { asRoot?: boolean }).asRoot)
+        .map((a) => a.action),
+    ).toEqual(['files.upload', 'files.rename', 'files.delete']);
+    const unlock = await prisma.auditEvent.findFirst({
+      where: { action: 'linux.sudo_unlock', outcome: 'success' },
+    });
+    expect(unlock?.details).toMatchObject({ rootFiles: true });
+
+    // "Lock now": root's SFTP closes with sudo.
+    await api().delete('/files/session/sudo').expect(200);
+    expect((await api().get(asRoot('/root')).expect(403)).body.code).toBe('sudo_required');
+  });
+
   it('refuses bad requests', async () => {
     await api().get('/files/list?path=relative/path').expect(400);
     await api().post('/files/folder', { parent: '/home/anna', name: '../escape' }).expect(400);

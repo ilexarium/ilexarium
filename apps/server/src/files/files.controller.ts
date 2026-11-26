@@ -107,28 +107,28 @@ export class FilesController {
 
   @Get('list')
   list(
-    @Query() { path }: FilePathQueryDto,
+    @Query() { path, root }: FilePathQueryDto,
     @CurrentSession() session: { id: string },
   ): Promise<FileList> {
-    return this.filesService.list(session.id, path);
+    return this.filesService.list(session.id, path, root === 'true');
   }
 
   @Get('summary')
   summary(
-    @Query() { path }: FilePathQueryDto,
+    @Query() { path, root }: FilePathQueryDto,
     @CurrentSession() session: { id: string },
   ): Promise<FileSummary> {
-    return this.filesService.summary(session.id, path);
+    return this.filesService.summary(session.id, path, root === 'true');
   }
 
   /** Always an attachment, never shown in the browser: a file from a disk never runs as the app. */
   @Get('download')
   async download(
-    @Query() { path }: FilePathQueryDto,
+    @Query() { path, root }: FilePathQueryDto,
     @CurrentSession() session: { id: string },
     @Res() res: Response,
   ): Promise<void> {
-    const file = await this.filesService.download(session.id, path);
+    const file = await this.filesService.download(session.id, path, root === 'true');
     res.status(200).set({
       'Content-Type': 'application/octet-stream',
       // RFC 6266 for any name: a Latin-1 fallback, and the real name encoded when it needs it.
@@ -155,7 +155,12 @@ export class FilesController {
     const size = length !== undefined && /^\d+$/.test(length) ? Number(length) : null;
     return this.filesService.upload(
       session.id,
-      { folder: query.folder, name: query.name, replace: query.replace === 'true' },
+      {
+        folder: query.folder,
+        name: query.name,
+        replace: query.replace === 'true',
+        root: query.root === 'true',
+      },
       req,
       size,
       { user, ip },
@@ -165,7 +170,7 @@ export class FilesController {
   @Post('folder')
   @HttpCode(204)
   newFolder(@Body() body: NewFolderDto, @CurrentSession() session: { id: string }): Promise<void> {
-    return this.filesService.newFolder(session.id, body.parent, body.name);
+    return this.filesService.newFolder(session.id, body.parent, body.name, body.root === true);
   }
 
   @Post('rename')
@@ -176,17 +181,17 @@ export class FilesController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.filesService.rename(session.id, body.from, body.to, { user, ip });
+    return this.filesService.rename(session.id, body.from, body.to, { user, ip }, body.root === true);
   }
 
   @Delete()
   @HttpCode(204)
   delete(
-    @Query() { path }: FilePathQueryDto,
+    @Query() { path, root }: FilePathQueryDto,
     @CurrentSession() session: { id: string },
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.filesService.delete(session.id, path, { user, ip });
+    return this.filesService.delete(session.id, path, { user, ip }, root === 'true');
   }
 }

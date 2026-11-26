@@ -140,6 +140,14 @@ describe('ilex-helper', { timeout: 30_000 }, () => {
     expect(calls('sudo')).toHaveLength(2);
   });
 
+  it('sudo.touch starts ilex-root’s idle time again — locked, it says so and starts nothing', async () => {
+    expect(await ask({ action: 'sudo.touch' })).toEqual({ ok: false, error: 'sudo_required' });
+    expect(calls('sudo')).toEqual([]);
+    await ask({ action: 'sudo.unlock', password: 'right' });
+    expect(await ask({ action: 'sudo.touch' })).toEqual({ ok: true });
+    expect(calls('sudo')).toHaveLength(1);
+  });
+
   it('ends another’s process through ilex-root — locked, it says so', async () => {
     expect(
       await ask({ action: 'process.signal', pid: 1234, signal: 'TERM', administrator: true }),

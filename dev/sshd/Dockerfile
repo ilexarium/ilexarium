@@ -1,7 +1,7 @@
 # Development and tests only: an SSH server standing in for the machine's own sshd, for the
 # Linux sign-in, the file explorer and ending processes. Two people:
 #   anna / anna-dev-password (uid 1500) — the one the tests sign in as; her sudo may start
-#     ilex-root (and nothing else), the root half of the helper
+#     ilex-root, the root half of the helper, and OpenSSH's sftp-server (Files as administrator)
 #   bob  / bob-dev-password  (uid 1501) — whose home is private (permission denied for anna); no sudo
 # Its host keys are made at the first start into /keys, a folder shared with the app
 # (apps/server/.dev/sshd), which pins them like production pins /etc/ssh/ssh_host_*_key.pub.
@@ -26,7 +26,7 @@ RUN apt-get update \
  && echo 'anna:anna-dev-password' | chpasswd \
  && echo 'bob:bob-dev-password' | chpasswd \
  && chmod 0700 /home/bob \
- && echo 'anna ALL=(root) /opt/ilex/libexec/ilex-root.mts' > /etc/sudoers.d/anna && chmod 0440 /etc/sudoers.d/anna \
+ && echo 'anna ALL=(root) /opt/ilex/libexec/ilex-root.mts, /usr/lib/openssh/sftp-server' > /etc/sudoers.d/anna && chmod 0440 /etc/sudoers.d/anna \
  && echo 'secret' > /home/bob/private.txt && chown bob:bob /home/bob/private.txt \
  && rm -f /etc/ssh/ssh_host_*
 COPY sshd_config /etc/ssh/sshd_config

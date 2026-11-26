@@ -23,6 +23,7 @@ import {
   IDLE_MS,
   KEEPALIVE_COUNT_MAX,
   KEEPALIVE_INTERVAL_MS,
+  ROOT_TOUCH_EVERY_MS,
   SSH_HOST,
   SUDO_ERRORS,
   SUDO_IDLE_MS,
@@ -35,6 +36,7 @@ import type {
   LinuxShell,
   OpenLinuxSession,
 } from './linux-sessions.model.js';
+import { openRootSftp, RootSftpError } from './root-sftp.js';
 import { Sftp } from './sftp.js';
 
 /**
@@ -49,7 +51,8 @@ import { Sftp } from './sftp.js';
  * what Ilexarium does as that person: ending processes, and sudo — unlocked with the same password,
  * which starts ilex-root through the account's own sudo; the password
  * is never kept here. Unlocked means ilex-root runs: it ends 15 minutes after its last action
- * (the helper says so), at "Lock now", and with the session.
+ * (the helper says so), at "Lock now", and with the session. Unlocking also opens root's SFTP
+ * (Files as administrator: OpenSSH's sftp-server through the same sudo), closed with it.
  */
 @Injectable()
 export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
@@ -97,12 +100,25 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     return session ? this.view(session) : null;
   }
 
-  /** The open SFTP channel (counts as use: the idle time starts again), or a 403 `linux_session_required`. */
-  sftp(appSessionId: string): { sftp: Sftp; username: string } {
+  /**
+   * The open SFTP channel (counts as use: the idle time starts again), or a 403
+   * `linux_session_required`. With `root`, root's (counts as use of sudo too): 403 `sudo_required`
+   * while locked, `root_files_unavailable` when it didn't open.
+   */
+  sftp(appSessionId: string, { root = false } = {}): { sftp: Sftp; username: string } {
     const session = this.sessions.get(appSessionId);
     if (!session) throw linuxSessionRequired();
     session.idle.refresh();
-    return { sftp: new Sftp(session.sftp), username: session.username };
+    if (!root) return { sftp: new Sftp(session.sftp), username: session.username };
+    if (!this.unlocked(session)) {
+      this.locked(session);
+      throw linuxError(FILES_ERROR_CODES.sudoRequired, 'sudo is locked');
+    }
+    if (!session.rootSftp) {
+      throw linuxError(FILES_ERROR_CODES.rootFilesUnavailable, 'root’s SFTP is not open');
+    }
+    this.useRoot(appSessionId, session);
+    return { sftp: new Sftp(session.rootSftp), username: session.username };
   }
 
   /** Who the session is signed in as (counts as use), or a 403 `linux_session_required`. */
@@ -175,7 +191,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     const answer = await session.helper.request(request, options.timeoutMs ?? HELPER_TIMEOUT_MS);
     if (options.sudo) {
       if (answer.ok) session.sudoUntil = Date.now() + SUDO_IDLE_MS;
-      else if (answer.error === 'sudo_required') session.sudoUntil = null;
+      else if (answer.error === 'sudo_required') this.locked(session);
     }
     return answer;
   }
@@ -213,7 +229,11 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
       throw linuxSessionRequired();
     }
     if (answer.ok) {
-      await this.auditService.tryRecord(entry('success'));
+      const rootFiles = await this.openRoot(appSessionId, session, password);
+      await this.auditService.tryRecord({
+        ...entry('success'),
+        details: { linuxUser: session.username, rootFiles },
+      });
       return this.view(session);
     }
     const code = SUDO_ERRORS[answer.error] ?? FILES_ERROR_CODES.sudoFailed;
@@ -232,7 +252,7 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
     const session = this.sessions.get(appSessionId);
     if (!session) return null;
     session.helper?.close();
-    session.sudoUntil = null;
+    this.locked(session);
     session.helper = await this.startHelper(session.client, session.username);
     // Closed or replaced meanwhile: its new helper goes too.
     if (this.sessions.get(appSessionId) !== session) session.helper?.close();
@@ -315,6 +335,8 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
         gid,
         helper,
         sudoUntil: null,
+        rootSftp: null,
+        rootTouchedAt: 0,
         userId: actor.user.id,
         idle,
         closing: new Set(),
@@ -369,8 +391,61 @@ export class LinuxSessions implements OnModuleInit, OnModuleDestroy {
   private follow(session: OpenLinuxSession): void {
     if (!session.helper) return;
     session.helper.onEvent = (event) => {
-      if (event === 'sudo.locked') session.sudoUntil = null;
+      if (event === 'sudo.locked') this.locked(session);
     };
+  }
+
+  private unlocked(session: OpenLinuxSession): boolean {
+    return session.sudoUntil !== null && session.sudoUntil > Date.now();
+  }
+
+  /** sudo locked (ilex-root ended, or will): root's SFTP closes with it. */
+  private locked(session: OpenLinuxSession): void {
+    session.sudoUntil = null;
+    const root = session.rootSftp;
+    session.rootSftp = null;
+    root?.end();
+  }
+
+  /**
+   * Root's SFTP for Files as administrator, opened with the password that just unlocked sudo
+   * (kept nowhere after). Never fails the unlock: without it, Files says it isn't available.
+   */
+  private async openRoot(
+    appSessionId: string,
+    session: OpenLinuxSession,
+    password: string,
+  ): Promise<boolean> {
+    if (session.rootSftp) return true;
+    let root: SFTPWrapper;
+    try {
+      root = await openRootSftp(session.client, password);
+    } catch (error) {
+      const reason = error instanceof RootSftpError ? error.reason : 'failed';
+      this.logger.warn(
+        `Files as administrator unavailable for ${session.username} (${reason}): ${(error as Error).message}`,
+      );
+      return false;
+    }
+    // Locked, replaced or signed out while it opened.
+    if (this.sessions.get(appSessionId) !== session || !this.unlocked(session)) {
+      root.end();
+      return false;
+    }
+    session.rootSftp = root;
+    session.rootTouchedAt = Date.now();
+    root.on('close', () => {
+      if (session.rootSftp === root) session.rootSftp = null;
+    });
+    return true;
+  }
+
+  /** Root's SFTP used: sudo's idle time starts again, here and (now and then) in ilex-root. */
+  private useRoot(appSessionId: string, session: OpenLinuxSession): void {
+    session.sudoUntil = Date.now() + SUDO_IDLE_MS;
+    if (Date.now() - session.rootTouchedAt < ROOT_TOUCH_EVERY_MS) return;
+    session.rootTouchedAt = Date.now();
+    this.ask(appSessionId, { action: 'sudo.touch' }, { sudo: true }).catch(() => undefined);
   }
 
   private close(appSessionId: string, why: LinuxCloseReason): void {

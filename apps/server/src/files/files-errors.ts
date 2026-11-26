@@ -43,6 +43,8 @@ export function removalError(error: string): HttpException {
       return linuxError(FILES_ERROR_CODES.permissionDenied, 'That folder is never deleted');
     case 'ended':
       return linuxError(FILES_ERROR_CODES.linuxSessionRequired, 'Sign in as a Linux user first');
+    case 'sudo_required':
+      return linuxError(FILES_ERROR_CODES.sudoRequired, 'Unlock sudo first');
     default:
       return linuxError(FILES_ERROR_CODES.failed, 'The folder was not deleted');
   }
