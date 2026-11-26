@@ -511,6 +511,33 @@ describe('FilesPage', () => {
       );
     });
 
+    it('a root listing that answers after locking is never shown as the account’s', async () => {
+      const { api, fixture, button, names } = await render(UNLOCKED);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(button('As root')).toBeDefined());
+      const late = new Subject<FileList>();
+      api.list.mockImplementationOnce(() => late);
+      fixture.debugElement.injector.get(FilesPageStore).open('/root');
+      button('As root')!.click();
+      await vi.waitFor(() => expect(names()).toEqual(['Photos', 'music', 'notes.txt']));
+      late.next(ROOT_HOME);
+      late.complete();
+      await fixture.whenStable();
+      expect(names()).toEqual(['Photos', 'music', 'notes.txt']);
+    });
+
+    it('sudo locked under a root request: the top bar’s sudo locked too', async () => {
+      vi.spyOn(toast, 'info').mockReturnValue(0);
+      const { api, button } = await render(UNLOCKED);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(button('As root')).toBeDefined());
+      api.list.mockImplementation((path: string, root?: boolean) =>
+        root ? throwError(() => httpError(403, 'sudo_required')) : of(HOME),
+      );
+      document.querySelector<HTMLButtonElement>('button[aria-label="Refresh"]')!.click();
+      await vi.waitFor(() => expect(TestBed.inject(LinuxSessionStore).sudoMinutes()).toBeNull());
+    });
+
     it('sudo locked under a root request: back to the account, said in a toast', async () => {
       const info = vi.spyOn(toast, 'info').mockReturnValue(0);
       const { el, api, fixture, button } = await render(UNLOCKED);

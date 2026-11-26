@@ -117,7 +117,7 @@ describe('UploadsPanel', () => {
     await vi.waitFor(() => expect(dialog()?.textContent).toContain('Replace notes.txt?'));
     expect(dialog()!.textContent).toContain('/home/anna/notes.txt');
     dialogButton('Replace')!.click();
-    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', notes, true);
+    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', notes, true, false);
     await vi.waitFor(() => expect(dialog()).toBeNull());
     await fixture.whenStable();
   });

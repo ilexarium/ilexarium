@@ -292,12 +292,26 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
     ).not.toContain(name);
 
     const audit = await prisma.auditEvent.findMany({
-      where: { action: { in: ['files.upload', 'files.rename', 'files.delete'] } },
+      where: {
+        action: { in: ['files.new_folder', 'files.upload', 'files.rename', 'files.delete'] },
+      },
       orderBy: { at: 'asc' },
     });
+    // Each as a privileged action: requested first, then its success.
     expect(
-      audit.filter((a) => (a.details as { asRoot?: boolean }).asRoot).map((a) => a.action),
-    ).toEqual(['files.upload', 'files.rename', 'files.delete']);
+      audit
+        .filter((a) => (a.details as { asRoot?: boolean }).asRoot)
+        .map((a) => `${a.action} ${a.outcome}`),
+    ).toEqual([
+      'files.new_folder requested',
+      'files.new_folder success',
+      'files.upload requested',
+      'files.upload success',
+      'files.rename requested',
+      'files.rename success',
+      'files.delete requested',
+      'files.delete success',
+    ]);
     const unlock = await prisma.auditEvent.findFirst({
       where: { action: 'linux.sudo_unlock', outcome: 'success' },
     });

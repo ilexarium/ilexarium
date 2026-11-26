@@ -85,6 +85,16 @@ export const FilesPageStore = signalStore(
     _usedRoot(root: boolean): void {
       if (root) linuxSessionStore.sudoUsed();
     },
+
+    /**
+     * The error says sudo is locked: so it is, for every page and the top bar — and, working as
+     * root, the page goes back to the account (the hook following sudo's minutes, with its toast).
+     */
+    _sudoEnded(error: unknown): boolean {
+      if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired) return false;
+      linuxSessionStore.sudoEnded();
+      return true;
+    },
   })),
   withMethods((store, translator = inject(Translator)) => ({
     /** sudo locked while working as root: back to the account, said in a toast. */
@@ -101,8 +111,8 @@ export const FilesPageStore = signalStore(
     /** A failure in a toast — or, when the Linux session ended, back to the sign-in. */
     _failed(error: unknown): void {
       store._sessionEnded(error);
-      // sudo locked under a root request: the toast says Files is the account's again.
-      if (apiErrorCode(error) === FILES_ERROR_CODES.sudoRequired && store._rootLocked()) return;
+      // Working as root: the toast that Files is the account's again says it.
+      if (store.asRoot() && store._sudoEnded(error)) return;
       toast.error(translator.t('files.actionFailed'), {
         description: translator.t(...apiErrorText(error)),
       });
@@ -121,6 +131,8 @@ export const FilesPageStore = signalStore(
           const root = store.asRoot();
           return filesApi.list(path, root).pipe(
             tap((list) => {
+              // Locked or unlocked meanwhile: that mode's own listing is on its way.
+              if (store.asRoot() !== root) return;
               store._usedRoot(root);
               patchState(store, { list, loading: false });
             }),
@@ -248,7 +260,7 @@ export const FilesPageStore = signalStore(
           await firstValueFrom(filesApi.newFolder(store._folder(), name, root));
         } catch (error) {
           store._sessionEnded(error);
-          if (apiErrorCode(error) === FILES_ERROR_CODES.sudoRequired) store.sudoLocked();
+          store._sudoEnded(error);
           throw error;
         }
         store._usedRoot(root);
@@ -265,7 +277,7 @@ export const FilesPageStore = signalStore(
           await firstValueFrom(filesApi.rename(from, renameTarget(store._folder(), input), root));
         } catch (error) {
           store._sessionEnded(error);
-          if (apiErrorCode(error) === FILES_ERROR_CODES.sudoRequired) store.sudoLocked();
+          store._sudoEnded(error);
           throw error;
         } finally {
           patchState(store, { pending: store.pending().filter((p) => p !== from) });
