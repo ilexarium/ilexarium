@@ -178,6 +178,65 @@ describe('LinuxSessionStore', () => {
       expect(action).toHaveBeenCalledTimes(2);
     });
 
+    it('asPerson$: signed in here and then sudo needed — unlocked with the same password, no second prompt', async () => {
+      const { store, filesApi } = await setup(null);
+      const action = answering(httpError(403, 'sudo_required'), 'done');
+      const result = firstValueFrom(store.asPerson$(action));
+      await store.signIn({ username: 'anna', password: 'pw' });
+      store.signInClosed();
+      expect(await result).toBe('done');
+      expect(filesApi.unlockSudo).toHaveBeenCalledWith({ password: 'pw' });
+      expect(store.sudoPrompt()).toBe(false);
+      expect(action).toHaveBeenCalledTimes(2);
+    });
+
+    it('asPerson$: the unlock with the sign-in’s password refused — the action’s error, no sudo prompt', async () => {
+      const { store, filesApi } = await setup(null);
+      const refused = httpError(403, 'sudo_failed');
+      filesApi.unlockSudo.mockReturnValue(throwError(() => refused));
+      const action = answering(httpError(403, 'sudo_required'), 'done');
+      const result = firstValueFrom(store.asPerson$(action));
+      await store.signIn({ username: 'anna', password: 'pw' });
+      store.signInClosed();
+      await expect(result).rejects.toBe(refused);
+      expect(store.sudoPrompt()).toBe(false);
+      expect(action).toHaveBeenCalledTimes(1);
+    });
+
+    it('asPerson$: the sign-in’s password is used once — sudo needed again asks', async () => {
+      const { store, filesApi } = await setup(null);
+      const sudo = () => httpError(403, 'sudo_required');
+      const action = answering(sudo(), sudo(), 'done');
+      const result = firstValueFrom(store.asPerson$(action));
+      await store.signIn({ username: 'anna', password: 'pw' });
+      store.signInClosed();
+      await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
+      expect(filesApi.unlockSudo).toHaveBeenCalledTimes(1);
+      await store.unlockSudo('typed again');
+      expect(await result).toBe('done');
+    });
+
+    it('asPerson$: already signed in — sudo asked in its own prompt, as before', async () => {
+      const { store, filesApi } = await setup(ANNA);
+      const action = answering(httpError(403, 'sudo_required'), 'done');
+      const result = firstValueFrom(store.asPerson$(action));
+      await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
+      expect(filesApi.unlockSudo).not.toHaveBeenCalled();
+      await store.unlockSudo('pw');
+      expect(await result).toBe('done');
+    });
+
+    it('a sign-in outside the prompt (Files’ own) gives no password to a later action', async () => {
+      const { store, filesApi } = await setup(null);
+      await store.signIn({ username: 'anna', password: 'pw' });
+      const action = answering(httpError(403, 'sudo_required'), 'done');
+      const result = firstValueFrom(store.asPerson$(action));
+      await vi.waitFor(() => expect(store.sudoPrompt()).toBe(true));
+      expect(filesApi.unlockSudo).not.toHaveBeenCalled();
+      await store.unlockSudo('pw');
+      expect(await result).toBe('done');
+    });
+
     it('asPerson$: the Linux session ended meanwhile — signed in again, then once more', async () => {
       const { store } = await setup();
       const action = answering(httpError(403, 'linux_session_required'), 'done');

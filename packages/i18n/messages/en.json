@@ -1556,7 +1556,7 @@
     },
     "asPerson": {
       "title": "Sign in as a Linux user",
-      "text": "Ilexarium does this as your Linux account, with its rights.",
+      "text": "Ilexarium does this as your Linux account, with its rights. If it needs administrator rights, the same password unlocks sudo for {{minutes}} minutes.",
       "submit": "Sign in and continue"
     }
   },

@@ -12,7 +12,7 @@
     @if (step() === 'linux') {
       <hlm-dialog-header>
         <h2 hlmDialogTitle>{{ title() | translate }}</h2>
-        <p hlmDialogDescription>{{ text() | translate }}</p>
+        <p hlmDialogDescription>{{ text() | translate: textParams() }}</p>
       </hlm-dialog-header>
       <form id="sign-in-form" [formRoot]="linuxForm" class="grid gap-5">
         @if (notice(); as notice) {

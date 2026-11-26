@@ -1,31 +1,32 @@
 import { defer, Observable, of, Subject, take } from 'rxjs';
 
 /**
- * A prompt every waiting action shares: opened by the first, answered once for all of them. Only
- * an answer closes it — a page left while it's asked leaves it open, its answer then changes
- * nothing for that page.
+ * A prompt every waiting action shares: opened by the first, answered once for all of them (with
+ * a value, or null for "no"). Only an answer closes it — a page left while it's asked leaves it
+ * open, its answer then changes nothing for that page.
  */
-export class SharedPrompt {
-  private answer: Subject<boolean> | null = null;
+export class SharedPrompt<T> {
+  private answer: Subject<T | null> | null = null;
 
   constructor(private readonly dialog: { showDialog: () => void; hideDialog: () => void }) {}
 
-  /** The answer once given; `true` at once, without asking, while `skipWhen()` holds. */
-  ask({ skipWhen }: { skipWhen?: () => boolean } = {}): Observable<boolean> {
+  /** The answer once given; at once, without asking, what `skipWith()` gives when not undefined. */
+  ask({ skipWith }: { skipWith?: () => T | undefined } = {}): Observable<T | null> {
     return defer(() => {
-      if (skipWhen?.()) return of(true);
+      const skipped = skipWith?.();
+      if (skipped !== undefined) return of(skipped);
       if (!this.answer) {
-        this.answer = new Subject<boolean>();
+        this.answer = new Subject<T | null>();
         this.dialog.showDialog();
       }
       return this.answer.pipe(take(1));
     });
   }
 
-  answerWith(yes: boolean): void {
+  answerWith(value: T | null): void {
     const answer = this.answer;
     this.answer = null;
     this.dialog.hideDialog();
-    answer?.next(yes);
+    answer?.next(value);
   }
 }
