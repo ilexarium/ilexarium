@@ -14,3 +14,17 @@ export interface FileDeletion {
   entry: FileEntry;
   summary: FileSummary | null;
 }
+
+/** What the preview shows: loading, an image, text, or why it can't (`Translator` arguments). */
+export type FilePreviewContent =
+  | { kind: 'loading' }
+  | { kind: 'image'; url: string }
+  | { kind: 'text'; text: string; truncated: boolean }
+  | { kind: 'unavailable'; reason: [string, Record<string, unknown>?] };
+
+/** The file shown in the preview dialog. */
+export interface FilePreview {
+  entry: FileEntry;
+  downloadUrl: string;
+  content: FilePreviewContent;
+}

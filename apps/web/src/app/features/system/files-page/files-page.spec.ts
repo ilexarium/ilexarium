@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import type { FileEntry, FileList, FileSummary, LinuxSession } from '@ilex/shared';
+import type { FileEntry, FileList, FileSummary, FileText, LinuxSession } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
@@ -63,6 +63,8 @@ const signIn = (username: string, password: string) => {
   pass.dispatchEvent(new Event('input'));
   signInDialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
 };
+const menuDownload = () =>
+  document.querySelector<HTMLAnchorElement>('a[hlmDropdownMenuItem][download]');
 const dialogButton = (text: string) =>
   [...(dialog()?.querySelectorAll('button') ?? [])].find((b) => b.textContent!.includes(text));
 
@@ -94,6 +96,11 @@ function fakeApi(session: LinuxSession | null) {
     ),
     downloadUrl: (path: string, root?: boolean) =>
       `/api/files/download?path=${encodeURIComponent(path)}${root ? '&root=true' : ''}`,
+    previewUrl: (path: string, root?: boolean) =>
+      `/api/files/preview?path=${encodeURIComponent(path)}${root ? '&root=true' : ''}`,
+    text: vi.fn((_path: string, _root?: boolean) =>
+      of<FileText>({ text: 'PORT=8080\n', truncated: false, size: 10 }),
+    ),
     upload: vi.fn((_folder: string, _file: File, _replace: boolean) => of(0.5, 1)),
     newFolder: vi.fn(() => of(undefined)),
     rename: vi.fn(() => of(undefined)),
@@ -141,7 +148,12 @@ async function render(session: LinuxSession | null = ANNA, url = '/system/files'
       .click();
     await fixture.whenStable();
   };
-  return { fixture, el, api, button, names, menu };
+  /** Opens an entry's menu without choosing anything. */
+  const openMenu = async (name: string) => {
+    el.querySelector<HTMLButtonElement>(`button[aria-label="Actions for ${name}"]`)!.click();
+    await fixture.whenStable();
+  };
+  return { fixture, el, api, button, names, menu, openMenu };
 }
 
 describe('FilesPage', () => {
@@ -198,10 +210,8 @@ describe('FilesPage', () => {
     expect(signInDialog()).not.toBeNull();
   });
 
-  it('opens folders and links to folders, goes up; files are download links (attachments)', async () => {
+  it('opens folders and links to folders, goes up', async () => {
     const { el, api, fixture, button } = await render();
-    const file = el.querySelector<HTMLAnchorElement>('tbody a[download]')!;
-    expect(file.getAttribute('href')).toBe('/api/files/download?path=%2Fhome%2Fanna%2Fnotes.txt');
     expect(el.querySelectorAll('tbody tr')[2].querySelector('td')!.textContent).toMatch(
       /2(\.0)? kB/,
     );
@@ -215,6 +225,126 @@ describe('FilesPage', () => {
     button('music')!.click();
     // The fake has no music folder: opened, then (not found) home again.
     await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna/music', false));
+  });
+
+  describe('the preview', () => {
+    const preview = () => document.querySelector<HTMLElement>('[role="dialog"]');
+
+    it('a file clicked shows its text, machine text, with Download (an attachment)', async () => {
+      const { api, fixture, button } = await render();
+      button('notes.txt')!.click();
+      await vi.waitFor(() => expect(preview()).not.toBeNull());
+      await fixture.whenStable();
+      expect(api.text).toHaveBeenCalledWith('/home/anna/notes.txt', false);
+      const text = preview()!.querySelector('pre')!;
+      expect(text.textContent).toBe('PORT=8080\n');
+      expect(text.getAttribute('dir')).toBe('ltr');
+      expect(preview()!.textContent).toContain('notes.txt');
+      expect(preview()!.textContent).not.toContain('Showing the first 262 kB');
+      expect(preview()!.querySelector('a[download]')!.getAttribute('href')).toBe(
+        '/api/files/download?path=%2Fhome%2Fanna%2Fnotes.txt',
+      );
+      [...preview()!.querySelectorAll('button')]
+        .find((b) => b.textContent!.trim() === 'Close')!
+        .click();
+      await vi.waitFor(() => expect(preview()).toBeNull());
+      expect(fixture.debugElement.injector.get(FilesPageStore).preview()).toBeNull();
+    });
+
+    it('a long text says only its start is shown', async () => {
+      const { api, fixture, button } = await render();
+      api.text.mockReturnValueOnce(of({ text: 'a'.repeat(100), truncated: true, size: 10 ** 7 }));
+      button('notes.txt')!.click();
+      await vi.waitFor(() => expect(preview()?.querySelector('pre')).toBeTruthy());
+      await fixture.whenStable();
+      expect(preview()!.textContent).toContain('Showing the first 262 kB');
+    });
+
+    it('a binary file: can’t be previewed, Download offered', async () => {
+      const { api, fixture, button } = await render();
+      api.text.mockReturnValueOnce(throwError(() => httpError(409, 'not_text')));
+      button('notes.txt')!.click();
+      await vi.waitFor(() =>
+        expect(preview()?.textContent).toContain('This file can’t be previewed.'),
+      );
+      await fixture.whenStable();
+      expect(preview()!.querySelector('pre')).toBeNull();
+      expect(preview()!.querySelector('a[download]')).not.toBeNull();
+    });
+
+    it('an image by its name: shown from the checked preview address; refused, said so', async () => {
+      const { api, fixture } = await render();
+      const store = fixture.debugElement.injector.get(FilesPageStore);
+      store.openPreview(entry({ name: 'cat.PNG' }));
+      await vi.waitFor(() => expect(preview()?.querySelector('img')).toBeTruthy());
+      await fixture.whenStable();
+      const image = preview()!.querySelector('img')!;
+      expect(image.getAttribute('src')).toBe('/api/files/preview?path=%2Fhome%2Fanna%2Fcat.PNG');
+      expect(api.text).not.toHaveBeenCalled();
+      image.dispatchEvent(new Event('error'));
+      await fixture.whenStable();
+      expect(preview()!.textContent).toContain('This file can’t be previewed.');
+    });
+
+    it('an image larger than the server shows: said so, not asked for', async () => {
+      const { fixture } = await render();
+      const store = fixture.debugElement.injector.get(FilesPageStore);
+      store.openPreview(entry({ name: 'huge.jpg', size: 30 * 1024 ** 2 }));
+      await vi.waitFor(() => expect(preview()?.textContent).toContain('Too large to preview'));
+      await fixture.whenStable();
+      expect(preview()!.textContent).toMatch(/at most 2[01](\.\d)? MB/);
+      expect(preview()!.querySelector('img')).toBeNull();
+    });
+
+    it('closed while the text loads: stays closed when it arrives', async () => {
+      const { api, fixture, button } = await render();
+      const late = new Subject<FileText>();
+      api.text.mockReturnValueOnce(late);
+      button('notes.txt')!.click();
+      await vi.waitFor(() => expect(preview()).not.toBeNull());
+      await fixture.whenStable();
+      [...preview()!.querySelectorAll('button')]
+        .find((b) => b.textContent!.trim() === 'Close')!
+        .click();
+      late.next({ text: 'late', truncated: false, size: 4 });
+      late.complete();
+      await vi.waitFor(() => expect(preview()).toBeNull());
+      await fixture.whenStable();
+      expect(preview()).toBeNull();
+    });
+
+    it('locking root closes a root file’s preview', async () => {
+      const { fixture, button } = await render(UNLOCKED);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(button('As root')).toBeDefined());
+      await fixture.whenStable();
+      const store = fixture.debugElement.injector.get(FilesPageStore);
+      store.openPreview(HOME.entries[2]);
+      await vi.waitFor(() => expect(store.preview()?.content.kind).toBe('text'));
+      store.lockRoot();
+      expect(store.preview()).toBeNull();
+    });
+
+    it('from the file’s menu; Download is there too', async () => {
+      const { api, openMenu } = await render();
+      await openMenu('notes.txt');
+      expect(menuDownload()!.getAttribute('href')).toBe(
+        '/api/files/download?path=%2Fhome%2Fanna%2Fnotes.txt',
+      );
+      [...document.querySelectorAll<HTMLElement>('[hlmDropdownMenuItem]')]
+        .find((b) => b.textContent!.includes('Preview'))!
+        .click();
+      await vi.waitFor(() => expect(api.text).toHaveBeenCalledWith('/home/anna/notes.txt', false));
+    });
+
+    it('as root: read as root', async () => {
+      const { api, fixture, button } = await render(UNLOCKED);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(button('As root')).toBeDefined());
+      await fixture.whenStable();
+      button('notes.txt')!.click();
+      await vi.waitFor(() => expect(api.text).toHaveBeenCalledWith('/home/anna/notes.txt', true));
+    });
   });
 
   it('a folder opened while another one loads: the one opened last is shown', async () => {
@@ -589,7 +719,7 @@ describe('FilesPage', () => {
     const warning = (el: HTMLElement) => el.textContent!.includes('You’re working as root');
 
     it('starts as the account; unlocked, the folder as root with a warning; locked, back as the account', async () => {
-      const { el, api, fixture, button, names } = await render(UNLOCKED);
+      const { el, api, fixture, button, names, openMenu } = await render(UNLOCKED);
       expect(button('As anna')).toBeDefined();
       expect(warning(el)).toBe(false);
       button('As anna')!.click();
@@ -605,7 +735,10 @@ describe('FilesPage', () => {
       await fixture.whenStable();
       el.querySelector<HTMLButtonElement>('button[aria-label="Up one folder"]')?.click();
       await vi.waitFor(() => expect(names()).toContain('notes.txt'));
-      expect(el.querySelector<HTMLAnchorElement>('a[download]')?.href ?? '').toContain('root=true');
+      await openMenu('notes.txt');
+      expect(menuDownload()!.getAttribute('href')).toContain('root=true');
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await fixture.whenStable();
 
       button('As root')!.click();
       await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna'));

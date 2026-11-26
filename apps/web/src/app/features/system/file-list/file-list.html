@@ -54,7 +54,7 @@
   </ul>
 }
 
-<!-- The name: opens a folder, downloads a file (a plain link — the browser saves the attachment). -->
+<!-- The name: opens a folder, shows a file in the preview. -->
 <ng-template #name let-row>
   @if (row.folder) {
     <button
@@ -66,14 +66,14 @@
       <span class="truncate" dir="ltr">{{ row.entry.name }}</span>
     </button>
   } @else if (row.file) {
-    <a
-      class="flex min-h-8 min-w-0 items-center gap-2 hover:underline"
-      [href]="urlFor()(row.entry)"
-      download
+    <button
+      type="button"
+      class="flex min-h-8 min-w-0 items-center gap-2 text-start hover:underline"
+      (click)="preview.emit(row.entry)"
     >
       <ng-icon [name]="row.icon" class="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <span class="truncate" dir="ltr">{{ row.entry.name }}</span>
-    </a>
+    </button>
   } @else {
     <span class="flex min-h-8 min-w-0 items-center gap-2 text-muted-foreground">
       <ng-icon [name]="row.icon" class="size-5 shrink-0" aria-hidden="true" />
@@ -83,7 +83,7 @@
   }
 </ng-template>
 
-<!-- Open or download, rename or move, delete. -->
+<!-- Open, or preview and download; rename or move, delete. -->
 <ng-template #menu let-row>
   <button
     hlmBtn
@@ -104,6 +104,10 @@
           {{ 'files.open' | translate }}
         </button>
       } @else if (row.file) {
+        <button hlmDropdownMenuItem (triggered)="preview.emit(row.entry)">
+          <ng-icon name="lucideEye" aria-hidden="true" />
+          {{ 'files.preview.open' | translate }}
+        </button>
         <a hlmDropdownMenuItem [href]="urlFor()(row.entry)" download>
           <ng-icon name="lucideDownload" aria-hidden="true" />
           {{ 'files.download' | translate }}

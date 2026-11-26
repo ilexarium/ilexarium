@@ -3,6 +3,7 @@ import { inject, Service } from '@angular/core';
 import type {
   FileList,
   FileSummary,
+  FileText,
   LinuxSession,
   LinuxSessionAnswer,
   LinuxSignInRequest,
@@ -62,6 +63,19 @@ export class FilesApi {
   downloadUrl(path: string, root = false): string {
     const params = new HttpParams({ encoder: STRICT_QUERY_CODEC }).set('path', path);
     return `/api/files/download?${withRoot(params, root).toString()}`;
+  }
+
+  /** Where an `<img>` loads a file's preview from (only real PNG, JPEG, WebP or GIF answer). */
+  previewUrl(path: string, root = false): string {
+    const params = new HttpParams({ encoder: STRICT_QUERY_CODEC }).set('path', path);
+    return `/api/files/preview?${withRoot(params, root).toString()}`;
+  }
+
+  /** The start of a text file, for the preview. */
+  text(path: string, root = false): Observable<FileText> {
+    return this.http.get<FileText>('/api/files/text', {
+      params: withRoot(new HttpParams().set('path', path), root),
+    });
   }
 
   /** Uploads one file; emits its progress (0–1), completes when it's there. */
