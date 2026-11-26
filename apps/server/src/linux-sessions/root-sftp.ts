@@ -63,7 +63,10 @@ function attempt(client: Client, password: string | null): Promise<SFTPWrapper> 
         channel.close();
         reject(new RootSftpError(reason, message));
       };
-      const timer = setTimeout(() => fail('timed_out', 'sudo gave no SFTP answer'), ROOT_SFTP_TIMEOUT_MS);
+      const timer = setTimeout(
+        () => fail('timed_out', 'sudo gave no SFTP answer'),
+        ROOT_SFTP_TIMEOUT_MS,
+      );
       // Known refusals end it at once; anything else sudo says (a lecture) waits for the answer.
       channel.stderr.on('data', (data: Buffer) => {
         said = (said + data.toString()).slice(-2000);
@@ -74,14 +77,17 @@ function attempt(client: Client, password: string | null): Promise<SFTPWrapper> 
       if (password !== null) channel.write(`${password}\n`);
 
       const info = channel as unknown as ChannelInfo;
-      const sftp = new SFTP(client, { type: 'session', incoming: info.incoming, outgoing: info.outgoing }, {});
+      const sftp = new SFTP(
+        client,
+        { type: 'session', incoming: info.incoming, outgoing: info.outgoing },
+        {},
+      );
       // After the hand-over ssh2 gives the channel's data to the SFTP class; sudo's messages
       // still come here.
       sftp.stderr = channel.stderr;
-      (client as unknown as { _chanMgr: { update(id: number, channel: unknown): void } })._chanMgr.update(
-        info.incoming.id,
-        sftp,
-      );
+      (
+        client as unknown as { _chanMgr: { update(id: number, channel: unknown): void } }
+      )._chanMgr.update(info.incoming.id, sftp);
       sftp.once('ready', () => {
         if (settled) return sftp.end();
         settled = true;

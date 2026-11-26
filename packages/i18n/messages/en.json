@@ -1472,7 +1472,15 @@
     "created": "Folder {{name}} created",
     "renamed": "Saved",
     "deleted": "{{name}} deleted",
-    "actionFailed": "That didn’t work"
+    "actionFailed": "That didn’t work",
+    "admin": {
+      "as": "As",
+      "asRoot": "As root",
+      "unlockHint": "(unlock to work as root)",
+      "lockHint": "(lock to go back to {{account}})",
+      "warning": "You’re working as root: every file can be opened and changed, and a wrong change can break the system.",
+      "lockedToast": "sudo locked: Files is back to {{account}}."
+    }
   },
   "uploads": {
     "uploading": "Uploading {{current}} of {{total}}",

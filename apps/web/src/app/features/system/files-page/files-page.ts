@@ -13,6 +13,8 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowUp,
   lucideFolderPlus,
+  lucideLock,
+  lucideLockOpen,
   lucideLogOut,
   lucideRefreshCw,
   lucideUpload,
@@ -32,7 +34,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
 /**
  * The Files page: sign in as a Linux user, then browse,
  * download, upload (button or drop), make folders, rename or move, delete — exactly what that
- * account may. The data and actions are the page store's; the page asks before deleting. The
+ * account may, or as root through its unlocked sudo (the lock button; locked on every visit). The data and actions are the page store's; the page asks before deleting. The
  * uploads' progress and the question before replacing a file are the uploads panel's (every page).
  */
 @Component({
@@ -53,6 +55,8 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
     provideIcons({
       lucideArrowUp,
       lucideFolderPlus,
+      lucideLock,
+      lucideLockOpen,
       lucideLogOut,
       lucideRefreshCw,
       lucideUpload,

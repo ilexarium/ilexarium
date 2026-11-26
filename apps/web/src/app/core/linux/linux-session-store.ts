@@ -195,6 +195,11 @@ export const LinuxSessionStore = signalStore(
 
       ended,
 
+      /** sudo was used another way (Files as administrator): its minutes start again. */
+      sudoUsed(): void {
+        restartSudoMinutes();
+      },
+
       /** The prompt's password; rejects with the server's error (the form shows it). */
       async unlockSudo(password: string): Promise<void> {
         try {

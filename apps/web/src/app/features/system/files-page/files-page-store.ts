@@ -20,6 +20,7 @@ import {
   concat,
   defer,
   EMPTY,
+  exhaustMap,
   filter,
   firstValueFrom,
   lastValueFrom,
@@ -28,6 +29,7 @@ import {
   pipe,
   switchMap,
   tap,
+  throwError,
 } from 'rxjs';
 import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
@@ -40,6 +42,8 @@ import type { FileDeletion } from '../files.model';
 interface FilesPageState {
   list: FileList | null;
   loading: boolean;
+  /** Files as administrator: every request as root, through the unlocked sudo. Off each visit. */
+  asRoot: boolean;
   /** Paths being renamed or deleted, for pending buttons. */
   pending: string[];
   /** The delete waiting for its confirmation. */
@@ -49,6 +53,7 @@ interface FilesPageState {
 const initialState: FilesPageState = {
   list: null,
   loading: false,
+  asRoot: false,
   pending: [],
   deleting: null,
 };
@@ -58,7 +63,8 @@ const initialState: FilesPageState = {
  * the folder shown and every action with its toast — in the Linux session (`LinuxSessionStore`,
  * shared with the other pages and the top bar). A Linux session that ended (idle, the app's
  * sign-out, closed elsewhere) shows the sign-in again. Uploads are `UploadsStore`'s, so they keep
- * going when the page closes; the folder reloads when one lands in it.
+ * going when the page closes; the folder reloads when one lands in it. As administrator (unlocked
+ * with sudo, off on every visit), every request goes as root, until it's locked again or sudo locks.
  */
 export const FilesPageStore = signalStore(
   withState<FilesPageState>(initialState),
@@ -71,14 +77,32 @@ export const FilesPageStore = signalStore(
     _sessionEnded(error: unknown): void {
       if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) {
         linuxSessionStore.ended();
-        patchState(store, { list: null, loading: false });
+        patchState(store, { list: null, loading: false, asRoot: false });
       }
+    },
+
+    /** A root request went through: sudo's minutes start again, as on the server. */
+    _usedRoot(root: boolean): void {
+      if (root) linuxSessionStore.sudoUsed();
+    },
+  })),
+  withMethods((store, translator = inject(Translator)) => ({
+    /** sudo locked while working as root: back to the account, said in a toast. */
+    _rootLocked(): boolean {
+      if (!store.asRoot()) return false;
+      patchState(store, { asRoot: false });
+      toast.info(
+        translator.t('files.admin.lockedToast', { account: store.session()?.username ?? '' }),
+      );
+      return true;
     },
   })),
   withMethods((store, translator = inject(Translator)) => ({
     /** A failure in a toast — or, when the Linux session ended, back to the sign-in. */
     _failed(error: unknown): void {
       store._sessionEnded(error);
+      // sudo locked under a root request: the toast says Files is the account's again.
+      if (apiErrorCode(error) === FILES_ERROR_CODES.sudoRequired && store._rootLocked()) return;
       toast.error(translator.t('files.actionFailed'), {
         description: translator.t(...apiErrorText(error)),
       });
@@ -93,16 +117,20 @@ export const FilesPageStore = signalStore(
     open: rxMethod<string>(
       pipe(
         tap(() => patchState(store, { loading: true })),
-        switchMap((path) =>
-          filesApi.list(path).pipe(
-            tap((list) => patchState(store, { list, loading: false })),
+        switchMap((path) => {
+          const root = store.asRoot();
+          return filesApi.list(path, root).pipe(
+            tap((list) => {
+              store._usedRoot(root);
+              patchState(store, { list, loading: false });
+            }),
             catchError((error: unknown) => {
               patchState(store, { loading: false });
               store._failed(error);
               return EMPTY;
             }),
-          ),
-        ),
+          );
+        }),
       ),
     ),
 
@@ -113,9 +141,12 @@ export const FilesPageStore = signalStore(
     _reload(): Observable<unknown> {
       return defer(() => {
         const path = store._folder();
-        return filesApi.list(path).pipe(
+        const root = store.asRoot();
+        return filesApi.list(path, root).pipe(
           tap((list) => {
-            if (!store.loading() && store._folder() === path) patchState(store, { list });
+            store._usedRoot(root);
+            if (!store.loading() && store._folder() === path && store.asRoot() === root)
+              patchState(store, { list });
           }),
         );
       }).pipe(
@@ -124,6 +155,44 @@ export const FilesPageStore = signalStore(
           return EMPTY;
         }),
       );
+    },
+  })),
+  withMethods((store, filesApi = inject(FilesApi)) => ({
+    _openAsAccount: rxMethod<string>(
+      switchMap((path) => {
+        const home = store.session()?.home;
+        patchState(store, { loading: true });
+        return filesApi.list(path).pipe(
+          catchError((error: unknown) =>
+            apiErrorCode(error) === FILES_ERROR_CODES.permissionDenied && home && home !== path
+              ? filesApi.list(home)
+              : throwError(() => error),
+          ),
+          tap((list) => patchState(store, { list, loading: false })),
+          catchError((error: unknown) => {
+            patchState(store, { loading: false });
+            store._failed(error);
+            return EMPTY;
+          }),
+        );
+      }),
+    ),
+
+    refresh(): void {
+      store.open(store._folder());
+    },
+  })),
+  withMethods((store) => ({
+    /** Back to the account: the folder shown again as it — its home when it may not open it. */
+    lockRoot(): void {
+      if (!store.asRoot()) return;
+      patchState(store, { asRoot: false });
+      store._openAsAccount(store._folder());
+    },
+
+    /** sudo locked elsewhere (the top bar, its time ran out) while working as root. */
+    sudoLocked(): void {
+      if (store._rootLocked()) store._openAsAccount(store._folder());
     },
   })),
   withMethods(
@@ -139,28 +208,50 @@ export const FilesPageStore = signalStore(
 
       signOut: rxMethod<void>(tap(() => linuxSessionStore.signOut())),
 
-      /** The Linux session changed: its home opened, or (gone) nothing of it left. */
+      /** The Linux session changed: its home opened (as the account), or nothing of it left. */
       sessionChanged(home: string | null): void {
+        patchState(store, { asRoot: false });
         if (home) store.open(home);
         else patchState(store, { list: null, loading: false, deleting: null });
       },
 
-      refresh(): void {
-        store.open(store._folder());
-      },
+      /**
+       * Files as administrator: the folder shown, as root — through the sudo prompt while locked
+       * (one prompt opens both). Not available on this machine: said in a toast, still locked.
+       */
+      unlockRoot: rxMethod<void>(
+        exhaustMap(() => {
+          const path = store._folder();
+          return linuxSessionStore
+            .withSudo$(() => filesApi.list(path, true))
+            .pipe(
+              tap((list) => {
+                if (!list) return;
+                patchState(store, { asRoot: true, list, loading: false });
+              }),
+              catchError((error: unknown) => {
+                store._failed(error);
+                return EMPTY;
+              }),
+            );
+        }),
+      ),
 
       downloadUrl(entry: FileEntry): string {
-        return filesApi.downloadUrl(joinPath(store._folder(), entry.name));
+        return filesApi.downloadUrl(joinPath(store._folder(), entry.name), store.asRoot());
       },
 
       /** The name dialog's submission; rejects with the server's refusal (the dialog shows it). */
       async newFolder(name: string): Promise<void> {
+        const root = store.asRoot();
         try {
-          await firstValueFrom(filesApi.newFolder(store._folder(), name));
+          await firstValueFrom(filesApi.newFolder(store._folder(), name, root));
         } catch (error) {
           store._sessionEnded(error);
+          if (apiErrorCode(error) === FILES_ERROR_CODES.sudoRequired) store.sudoLocked();
           throw error;
         }
+        store._usedRoot(root);
         toast.success(translator.t('files.created', { name }));
         await lastValueFrom(store._reload(), { defaultValue: undefined });
       },
@@ -168,15 +259,18 @@ export const FilesPageStore = signalStore(
       /** The name dialog's submission; rejects with the server's refusal (the dialog shows it). */
       async rename(entry: FileEntry, input: string): Promise<void> {
         const from = joinPath(store._folder(), entry.name);
+        const root = store.asRoot();
         patchState(store, { pending: [...store.pending(), from] });
         try {
-          await firstValueFrom(filesApi.rename(from, renameTarget(store._folder(), input)));
+          await firstValueFrom(filesApi.rename(from, renameTarget(store._folder(), input), root));
         } catch (error) {
           store._sessionEnded(error);
+          if (apiErrorCode(error) === FILES_ERROR_CODES.sudoRequired) store.sudoLocked();
           throw error;
         } finally {
           patchState(store, { pending: store.pending().filter((p) => p !== from) });
         }
+        store._usedRoot(root);
         toast.success(translator.t('files.renamed'));
         await lastValueFrom(store._reload(), { defaultValue: undefined });
       },
@@ -189,7 +283,7 @@ export const FilesPageStore = signalStore(
         pipe(
           tap((entry) => patchState(store, { deleting: { entry, summary: null } })),
           switchMap((entry) =>
-            filesApi.summary(joinPath(store._folder(), entry.name)).pipe(
+            filesApi.summary(joinPath(store._folder(), entry.name), store.asRoot()).pipe(
               tap((summary) => {
                 if (store.deleting()?.entry === entry)
                   patchState(store, { deleting: { entry, summary } });
@@ -215,12 +309,15 @@ export const FilesPageStore = signalStore(
             patchState(store, { deleting: null });
             const path = joinPath(store._folder(), entry.name);
             if (store.pending().includes(path)) return EMPTY;
+            const root = store.asRoot();
             return concat(
-              filesApi.delete(path).pipe(
+              filesApi.delete(path, root).pipe(
                 tap({
                   subscribe: () => patchState(store, { pending: [...store.pending(), path] }),
-                  complete: () =>
-                    toast.success(translator.t('files.deleted', { name: entry.name })),
+                  complete: () => {
+                    store._usedRoot(root);
+                    toast.success(translator.t('files.deleted', { name: entry.name }));
+                  },
                   finalize: () =>
                     patchState(store, { pending: store.pending().filter((p) => p !== path) }),
                 }),
@@ -238,7 +335,14 @@ export const FilesPageStore = signalStore(
 
       /** Into the folder shown; the uploads go on when the page closes. */
       upload: rxMethod<File[]>(
-        tap((files) => uploadsStore.upload({ folder: store._folder(), files, replace: false })),
+        tap((files) =>
+          uploadsStore.upload({
+            folder: store._folder(),
+            files,
+            replace: false,
+            root: store.asRoot(),
+          }),
+        ),
       ),
 
       /** An upload batch finished: the folder again, if it's the one shown. */
@@ -267,6 +371,11 @@ export const FilesPageStore = signalStore(
           if (key === shown) return;
           shown = key;
           untracked(() => store.sessionChanged(session?.home ?? null));
+        });
+        // "Lock now" in the top bar, or sudo's time ran out, while working as root.
+        effect(() => {
+          if (linuxSessionStore.sudoMinutes() === null && untracked(store.asRoot))
+            untracked(() => store.sudoLocked());
         });
       },
     }),

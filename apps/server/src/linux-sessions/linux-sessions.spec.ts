@@ -287,7 +287,7 @@ describe('LinuxSessions', () => {
       try {
         run();
       } catch (error) {
-        return ((error as { getResponse(): { code: string } }).getResponse()).code;
+        return (error as { getResponse(): { code: string } }).getResponse().code;
       }
       return 'none';
     };

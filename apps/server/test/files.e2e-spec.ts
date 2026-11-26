@@ -276,11 +276,17 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
       .post('/files/rename', { from: `${rootFolder}/a.txt`, to: `${rootFolder}/b.txt`, root: true })
       .expect(204);
     // The plain SFTP stays anna's own, unlocked or not.
-    expect((await api().get(`/files/list?path=${q('/root')}`).expect(403)).body.code).toBe(
-      'permission_denied',
-    );
+    expect(
+      (
+        await api()
+          .get(`/files/list?path=${q('/root')}`)
+          .expect(403)
+      ).body.code,
+    ).toBe('permission_denied');
     // A folder goes through ilex-root's removal.
-    await api().delete(`/files?path=${q(rootFolder)}&root=true`).expect(204);
+    await api()
+      .delete(`/files?path=${q(rootFolder)}&root=true`)
+      .expect(204);
     expect(
       ((await api().get(asRoot('/root')).expect(200)).body as FileList).entries.map((e) => e.name),
     ).not.toContain(name);
@@ -290,9 +296,7 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
       orderBy: { at: 'asc' },
     });
     expect(
-      audit
-        .filter((a) => (a.details as { asRoot?: boolean }).asRoot)
-        .map((a) => a.action),
+      audit.filter((a) => (a.details as { asRoot?: boolean }).asRoot).map((a) => a.action),
     ).toEqual(['files.upload', 'files.rename', 'files.delete']);
     const unlock = await prisma.auditEvent.findFirst({
       where: { action: 'linux.sudo_unlock', outcome: 'success' },

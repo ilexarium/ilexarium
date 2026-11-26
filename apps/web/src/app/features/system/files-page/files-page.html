@@ -68,6 +68,29 @@
           aria-hidden="true"
           (change)="chosen($event)"
         />
+        @if (filesPageStore.asRoot()) {
+          <button
+            hlmBtn
+            variant="outline"
+            class="border-warning/60 bg-warning-muted text-warning hover:bg-warning-muted/80 hover:text-warning"
+            (click)="filesPageStore.lockRoot()"
+          >
+            <ng-icon name="lucideLockOpen" aria-hidden="true" />
+            {{ 'files.admin.asRoot' | translate }}
+            <span class="sr-only">{{
+              'files.admin.lockHint' | translate: { account: filesPageStore.session()!.username }
+            }}</span>
+          </button>
+        } @else {
+          <button hlmBtn variant="outline" (click)="filesPageStore.unlockRoot()">
+            <ng-icon name="lucideLock" aria-hidden="true" />
+            <span
+              >{{ 'files.admin.as' | translate }}
+              <span dir="ltr">{{ filesPageStore.session()!.username }}</span></span
+            >
+            <span class="sr-only">{{ 'files.admin.unlockHint' | translate }}</span>
+          </button>
+        }
         <button hlmBtn variant="ghost" (click)="filesPageStore.signOut()">
           <ng-icon name="lucideLogOut" class="rtl:-scale-x-100" aria-hidden="true" />
           {{ 'files.close' | translate }}
@@ -78,6 +101,15 @@
         </button>
       </div>
     </div>
+
+    @if (filesPageStore.asRoot()) {
+      <p
+        role="status"
+        class="rounded-lg border border-warning/40 bg-warning-muted px-3 py-2 text-sm text-warning"
+      >
+        {{ 'files.admin.warning' | translate }}
+      </p>
+    }
 
     @if (filesPageStore.list(); as list) {
       @if (list.entries.length) {

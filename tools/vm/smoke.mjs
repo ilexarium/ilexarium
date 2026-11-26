@@ -748,6 +748,20 @@ async function processes() {
   check('root’s process got SIGTERM', (await roots.signal()) === 'SIGTERM');
   roots.stop();
 
+  // Files as administrator: root's SFTP, OpenSSH's sftp-server started by the same unlock.
+  const rootList = await api('GET', '/files/list?path=%2Froot&root=true');
+  check(
+    'Files as administrator: /root listed as root',
+    rootList.status === 200 && Array.isArray(rootList.json?.entries),
+    `${rootList.status} ${rootList.text}`,
+  );
+  const asAnna = await api('GET', '/files/list?path=%2Froot');
+  check(
+    'and the plain Files stay anna’s (/root refused)',
+    asAnna.status === 403 && asAnna.json?.code === 'permission_denied',
+    `${asAnna.status} ${asAnna.text}`,
+  );
+
   const lock = await api('DELETE', '/files/session/sudo');
   const after = await api('GET', '/files/session');
   check(
@@ -759,6 +773,13 @@ async function processes() {
   );
   await sleep(500);
   check('ilex-root ended at “Lock now”', !ilexRootRunning());
+  const rootAfterLock = await api('GET', '/files/list?path=%2Froot&root=true');
+  check(
+    'after “Lock now”, Files as administrator needs sudo again',
+    rootAfterLock.status === 403 && rootAfterLock.json?.code === 'sudo_required',
+    `${rootAfterLock.status} ${rootAfterLock.text}`,
+  );
+  check('root’s sftp-server ended at “Lock now”', fails('pgrep', ['-u', 'root', 'sftp-server']));
   const wrongAfterLock = await api('POST', '/files/session/sudo', { password: 'wrong' });
   check(
     'after “Lock now”, a wrong password is refused (sudo’s own cache never unlocks)',

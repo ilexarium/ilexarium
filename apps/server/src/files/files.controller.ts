@@ -181,7 +181,13 @@ export class FilesController {
     @CurrentUser() user: PublicUser,
     @Ip() ip: string,
   ): Promise<void> {
-    return this.filesService.rename(session.id, body.from, body.to, { user, ip }, body.root === true);
+    return this.filesService.rename(
+      session.id,
+      body.from,
+      body.to,
+      { user, ip },
+      body.root === true,
+    );
   }
 
   @Delete()

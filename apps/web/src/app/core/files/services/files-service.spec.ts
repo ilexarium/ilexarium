@@ -12,6 +12,6 @@ describe('FilesService', () => {
       TestBed.inject(FilesService).upload('/srv', file, true).pipe(toArray()),
     );
     expect(progress).toEqual([0.5, 1]);
-    expect(api.upload).toHaveBeenCalledWith('/srv', file, true);
+    expect(api.upload).toHaveBeenCalledWith('/srv', file, true, false);
   });
 });

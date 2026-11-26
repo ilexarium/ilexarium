@@ -1584,7 +1584,15 @@
     "created": "أُنشئ المجلد {{name}}",
     "renamed": "تم الحفظ",
     "deleted": "حُذف {{name}}",
-    "actionFailed": "لم ينجح ذلك"
+    "actionFailed": "لم ينجح ذلك",
+    "admin": {
+      "as": "باسم",
+      "asRoot": "باسم root",
+      "unlockHint": "(افتح القفل للعمل باسم root)",
+      "lockHint": "(اقفل للعودة إلى {{account}})",
+      "warning": "أنت تعمل باسم root: يمكن فتح كل ملف وتغييره، وقد يؤدي تغيير خاطئ إلى تعطيل النظام.",
+      "lockedToast": "تم قفل sudo: عادت الملفات إلى {{account}}."
+    }
   },
   "uploads": {
     "uploading": "جارٍ رفع {{current}} من {{total}}",
