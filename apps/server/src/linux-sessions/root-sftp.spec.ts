@@ -26,7 +26,9 @@ function fakeClient(say: Partial<Record<string, string>>) {
       },
       channelClose: () => undefined,
     },
-    _chanMgr: { update: (_id: number, sftp: { push(data: Buffer | null): void }) => handedOver.push(sftp) },
+    _chanMgr: {
+      update: (_id: number, sftp: { push(data: Buffer | null): void }) => handedOver.push(sftp),
+    },
     exec(command: string, done: (error: Error | undefined, channel: unknown) => void) {
       commands.push(command);
       const stderr = new EventEmitter();
@@ -57,7 +59,9 @@ describe('openRootSftp', () => {
   });
 
   it('a password required: asked once more with it as the one line sudo reads', async () => {
-    const fake = fakeClient({ [ROOT_SFTP_COMMANDS.withoutPassword]: 'sudo: a password is required\n' });
+    const fake = fakeClient({
+      [ROOT_SFTP_COMMANDS.withoutPassword]: 'sudo: a password is required\n',
+    });
     await openRootSftp(fake.client, 'pw');
     expect(fake.commands).toEqual([
       ROOT_SFTP_COMMANDS.withoutPassword,
@@ -69,7 +73,10 @@ describe('openRootSftp', () => {
 
   it.each([
     ['Sorry, try again.\n', 'wrong_password'],
-    ['Sorry, user anna is not allowed to execute \'/usr/lib/openssh/sftp-server\' as root.\n', 'not_allowed'],
+    [
+      "Sorry, user anna is not allowed to execute '/usr/lib/openssh/sftp-server' as root.\n",
+      'not_allowed',
+    ],
   ])('sudo says %j: fails at once as %s, the channel closed', async (message, reason) => {
     const fake = fakeClient({
       [ROOT_SFTP_COMMANDS.withoutPassword]: 'sudo: a password is required\n',
@@ -84,7 +91,8 @@ describe('openRootSftp', () => {
   it('the commands are fixed: sudo by its path, sftp-server after --, its cache never used', () => {
     expect(ROOT_SFTP_COMMANDS).toEqual({
       withoutPassword: '/usr/bin/env LC_ALL=C /usr/bin/sudo -n -k -- /usr/lib/openssh/sftp-server',
-      withPassword: "/usr/bin/env LC_ALL=C /usr/bin/sudo -k -S -p '' -- /usr/lib/openssh/sftp-server",
+      withPassword:
+        "/usr/bin/env LC_ALL=C /usr/bin/sudo -k -S -p '' -- /usr/lib/openssh/sftp-server",
     });
   });
 });

@@ -11,7 +11,15 @@ import type {
 import { filter, map, type Observable } from 'rxjs';
 import { STRICT_QUERY_CODEC } from '../http/strict-query.constants';
 
-/** The Linux sign-in (with its sudo) and the file explorer's endpoints. */
+/** Files as administrator: `root=true` only when asked (absent, the account's own). */
+function withRoot(params: HttpParams, root: boolean): HttpParams {
+  return root ? params.set('root', 'true') : params;
+}
+
+/**
+ * The Linux sign-in (with its sudo) and the file explorer's endpoints; with `root`, the explorer's
+ * requests are done as root through the unlocked sudo.
+ */
 @Service()
 export class FilesApi {
   private readonly http = inject(HttpClient);
@@ -38,29 +46,30 @@ export class FilesApi {
     return this.http.delete<LinuxSessionAnswer>('/api/files/session/sudo');
   }
 
-  list(path: string): Observable<FileList> {
+  list(path: string, root = false): Observable<FileList> {
     return this.http.get<FileList>('/api/files/list', {
-      params: new HttpParams().set('path', path),
+      params: withRoot(new HttpParams().set('path', path), root),
     });
   }
 
-  summary(path: string): Observable<FileSummary> {
+  summary(path: string, root = false): Observable<FileSummary> {
     return this.http.get<FileSummary>('/api/files/summary', {
-      params: new HttpParams().set('path', path),
+      params: withRoot(new HttpParams().set('path', path), root),
     });
   }
 
   /** Where the browser downloads a file from (an attachment: never shown in the page). */
-  downloadUrl(path: string): string {
-    return `/api/files/download?${new HttpParams({ encoder: STRICT_QUERY_CODEC }).set('path', path).toString()}`;
+  downloadUrl(path: string, root = false): string {
+    const params = new HttpParams({ encoder: STRICT_QUERY_CODEC }).set('path', path);
+    return `/api/files/download?${withRoot(params, root).toString()}`;
   }
 
   /** Uploads one file; emits its progress (0–1), completes when it's there. */
-  upload(folder: string, file: File, replace: boolean): Observable<number> {
-    const params = new HttpParams()
-      .set('folder', folder)
-      .set('name', file.name)
-      .set('replace', String(replace));
+  upload(folder: string, file: File, replace: boolean, root = false): Observable<number> {
+    const params = withRoot(
+      new HttpParams().set('folder', folder).set('name', file.name).set('replace', String(replace)),
+      root,
+    );
     return this.http
       .put('/api/files/upload', file, {
         params,
@@ -74,15 +83,17 @@ export class FilesApi {
       );
   }
 
-  newFolder(parent: string, name: string): Observable<void> {
-    return this.http.post<void>('/api/files/folder', { parent, name });
+  newFolder(parent: string, name: string, root = false): Observable<void> {
+    return this.http.post<void>('/api/files/folder', { parent, name, ...(root && { root }) });
   }
 
-  rename(from: string, to: string): Observable<void> {
-    return this.http.post<void>('/api/files/rename', { from, to });
+  rename(from: string, to: string, root = false): Observable<void> {
+    return this.http.post<void>('/api/files/rename', { from, to, ...(root && { root }) });
   }
 
-  delete(path: string): Observable<void> {
-    return this.http.delete<void>('/api/files', { params: new HttpParams().set('path', path) });
+  delete(path: string, root = false): Observable<void> {
+    return this.http.delete<void>('/api/files', {
+      params: withRoot(new HttpParams().set('path', path), root),
+    });
   }
 }

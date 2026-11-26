@@ -8,7 +8,7 @@ export class FilesService {
   private readonly filesApi = inject(FilesApi);
 
   /** Its progress (0–1), complete once it's there. */
-  upload(folder: string, file: File, replace: boolean): Observable<number> {
-    return this.filesApi.upload(folder, file, replace);
+  upload(folder: string, file: File, replace: boolean, root = false): Observable<number> {
+    return this.filesApi.upload(folder, file, replace, root);
   }
 }

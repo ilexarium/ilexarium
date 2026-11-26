@@ -1472,7 +1472,15 @@
     "created": "Ordner {{name}} erstellt",
     "renamed": "Gespeichert",
     "deleted": "{{name}} gelöscht",
-    "actionFailed": "Das hat nicht geklappt"
+    "actionFailed": "Das hat nicht geklappt",
+    "admin": {
+      "as": "Als",
+      "asRoot": "Als root",
+      "unlockHint": "(entsperren, um als root zu arbeiten)",
+      "lockHint": "(sperren, um zu {{account}} zurückzukehren)",
+      "warning": "Du arbeitest als root: Jede Datei lässt sich öffnen und ändern, und eine falsche Änderung kann das System beschädigen.",
+      "lockedToast": "sudo gesperrt: Dateien arbeitet wieder als {{account}}."
+    }
   },
   "uploads": {
     "uploading": "Lade {{current}} von {{total}} hoch",

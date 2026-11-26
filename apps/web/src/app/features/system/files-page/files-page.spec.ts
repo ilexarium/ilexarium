@@ -7,6 +7,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { FilesApi } from '../../../core/files/files-api';
+import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { UploadsStore } from '../../../core/files/uploads-store';
 import { stubScreenWidth } from '../../../layout/testing';
 import { FilesPage } from './files-page';
@@ -39,6 +40,16 @@ const HOME: FileList = {
   ],
 };
 const PHOTOS: FileList = { path: '/home/anna/Photos', parent: '/home/anna', entries: [] };
+const ROOT_HOME: FileList = {
+  path: '/root',
+  parent: '/',
+  entries: [entry({ name: '.bashrc', owner: 'root' })],
+};
+/** sudo unlocked (the prompt is the shell's, not this page's). */
+const UNLOCKED: LinuxSession = {
+  ...ANNA,
+  sudoUntil: new Date(Date.now() + 10 * 60_000).toISOString(),
+};
 const httpError = (status: number, code: string) =>
   new HttpErrorResponse({ status, error: { message: 'x', code } });
 const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]');
@@ -63,10 +74,14 @@ function fakeApi(session: LinuxSession | null) {
     session: vi.fn(() => of({ session })),
     signIn: vi.fn(() => of(ANNA)),
     signOut: vi.fn(() => of(undefined)),
-    list: vi.fn((path: string) => {
+    // As root, /root opens too; as the account, Linux refuses it.
+    list: vi.fn((path: string, root?: boolean) => {
+      if (path === ROOT_HOME.path)
+        return root ? of(ROOT_HOME) : throwError(() => httpError(403, 'permission_denied'));
       const list = lists.get(path);
       return list ? of(list) : throwError(() => httpError(404, 'file_not_found'));
     }),
+    lockSudo: vi.fn(() => of({ session: { ...ANNA, sudoUntil: null } })),
     summary: vi.fn(() =>
       of<FileSummary>({
         type: 'folder',
@@ -76,7 +91,8 @@ function fakeApi(session: LinuxSession | null) {
         truncated: false,
       }),
     ),
-    downloadUrl: (path: string) => `/api/files/download?path=${encodeURIComponent(path)}`,
+    downloadUrl: (path: string, root?: boolean) =>
+      `/api/files/download?path=${encodeURIComponent(path)}${root ? '&root=true' : ''}`,
     upload: vi.fn((_folder: string, _file: File, _replace: boolean) => of(0.5, 1)),
     newFolder: vi.fn(() => of(undefined)),
     rename: vi.fn(() => of(undefined)),
@@ -129,7 +145,7 @@ describe('FilesPage', () => {
     await vi.waitFor(() =>
       expect(api.signIn).toHaveBeenCalledWith({ username: 'anna', password: 'secret' }),
     );
-    await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna'));
+    await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna', false));
     await fixture.whenStable();
     await vi.waitFor(() => expect(signInDialog()).toBeNull());
     expect(names()).toEqual(['Photos', 'music', 'notes.txt']);
@@ -175,14 +191,14 @@ describe('FilesPage', () => {
       /2(\.0)? kB/,
     );
     button('Photos')!.click();
-    await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/Photos'));
+    await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/Photos', false));
     await fixture.whenStable();
     expect(el.textContent).toContain('This folder is empty.');
     el.querySelector<HTMLButtonElement>('button[aria-label="Up one folder"]')!.click();
-    await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna'));
+    await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna', false));
     await fixture.whenStable();
     button('music')!.click();
-    await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/music'));
+    await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/music', false));
   });
 
   it('a folder opened while another one loads: the one opened last is shown', async () => {
@@ -220,7 +236,9 @@ describe('FilesPage', () => {
     input.value = 'Taxes';
     input.dispatchEvent(new Event('input'));
     dialogButton('Create')!.click();
-    await vi.waitFor(() => expect(api.newFolder).toHaveBeenCalledWith('/home/anna', 'Taxes'));
+    await vi.waitFor(() =>
+      expect(api.newFolder).toHaveBeenCalledWith('/home/anna', 'Taxes', false),
+    );
     await vi.waitFor(() => expect(success).toHaveBeenCalledWith('Folder Taxes created'));
     await vi.waitFor(() => expect(dialog()).toBeNull());
   });
@@ -247,7 +265,7 @@ describe('FilesPage', () => {
     input.dispatchEvent(new Event('input'));
     dialogButton('Save')!.click();
     await vi.waitFor(() =>
-      expect(api.rename).toHaveBeenCalledWith('/home/anna/notes.txt', '/home/bob/notes.txt'),
+      expect(api.rename).toHaveBeenCalledWith('/home/anna/notes.txt', '/home/bob/notes.txt', false),
     );
     await fixture.whenStable();
   });
@@ -258,9 +276,9 @@ describe('FilesPage', () => {
     await menu('Photos', 'Delete');
     await vi.waitFor(() => expect(dialog()!.textContent).toContain('43 items, 5.2 MB'));
     expect(dialog()!.textContent).toContain('Delete Photos?');
-    expect(api.summary).toHaveBeenCalledWith('/home/anna/Photos');
+    expect(api.summary).toHaveBeenCalledWith('/home/anna/Photos', false);
     dialogButton('Delete')!.click();
-    await vi.waitFor(() => expect(api.delete).toHaveBeenCalledWith('/home/anna/Photos'));
+    await vi.waitFor(() => expect(api.delete).toHaveBeenCalledWith('/home/anna/Photos', false));
     await vi.waitFor(() => expect(success).toHaveBeenCalledWith('Photos deleted'));
     await fixture.whenStable();
   });
@@ -273,7 +291,7 @@ describe('FilesPage', () => {
     const a = new File(['aaa'], 'a.txt');
     Object.defineProperty(input, 'files', { value: [a], configurable: true });
     input.dispatchEvent(new Event('change'));
-    expect(api.upload).toHaveBeenCalledWith('/home/anna', a, false);
+    expect(api.upload).toHaveBeenCalledWith('/home/anna', a, false, false);
     expect(
       TestBed.inject(UploadsStore)
         .uploads()
@@ -284,7 +302,7 @@ describe('FilesPage', () => {
     uploaded.complete();
     await fixture.whenStable();
     expect(api.list).toHaveBeenCalledTimes(lists + 1);
-    expect(api.list).toHaveBeenLastCalledWith('/home/anna');
+    expect(api.list).toHaveBeenLastCalledWith('/home/anna', false);
   });
 
   it('an upload that lands in another folder than the one shown: no reload', async () => {
@@ -305,7 +323,7 @@ describe('FilesPage', () => {
     const drop = new Event('drop', { bubbles: true, cancelable: true });
     Object.defineProperty(drop, 'dataTransfer', { value: { files: [b], types: ['Files'] } });
     el.querySelector('ilex-file-list')!.dispatchEvent(drop);
-    expect(api.upload).toHaveBeenCalledWith('/home/anna', b, false);
+    expect(api.upload).toHaveBeenCalledWith('/home/anna', b, false, false);
   });
 
   it('a new folder whose name is taken: said under the name, no toast; editing the name clears it', async () => {
@@ -432,6 +450,112 @@ describe('FilesPage', () => {
     await fixture.whenStable();
     expect(el.textContent).toContain('Open your files');
     expect(signInDialog()).toBeNull();
+  });
+
+  describe('as administrator', () => {
+    const warning = (el: HTMLElement) => el.textContent!.includes('You’re working as root');
+
+    it('starts as the account; unlocked, the folder as root with a warning; locked, back as the account', async () => {
+      const { el, api, fixture, button, names } = await render(UNLOCKED);
+      expect(button('As anna')).toBeDefined();
+      expect(warning(el)).toBe(false);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna', true));
+      await fixture.whenStable();
+      expect(warning(el)).toBe(true);
+      expect(button('As root')).toBeDefined();
+
+      // Everything as root now: folders, actions, downloads.
+      api.list.mockClear();
+      (el.querySelector('tbody th button') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/Photos', true));
+      await fixture.whenStable();
+      el.querySelector<HTMLButtonElement>('button[aria-label="Up one folder"]')?.click();
+      await vi.waitFor(() => expect(names()).toContain('notes.txt'));
+      expect(el.querySelector<HTMLAnchorElement>('a[download]')?.href ?? '').toContain('root=true');
+
+      button('As root')!.click();
+      await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna'));
+      await fixture.whenStable();
+      expect(warning(el)).toBe(false);
+      expect(button('As anna')).toBeDefined();
+    });
+
+    it('locked again in a root-only folder: the account’s home', async () => {
+      const { api, fixture, button, names } = await render(UNLOCKED);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna', true));
+      fixture.debugElement.injector.get(FilesPageStore).open('/root');
+      await vi.waitFor(() => expect(names()).toEqual(['.bashrc']));
+      button('As root')!.click();
+      await vi.waitFor(() => expect(names()).toEqual(['Photos', 'music', 'notes.txt']));
+      await fixture.whenStable();
+    });
+
+    it('new folders, renames, deletes and uploads go as root while unlocked', async () => {
+      const { api, fixture, button } = await render(UNLOCKED);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna', true));
+      await fixture.whenStable();
+      const store = fixture.debugElement.injector.get(FilesPageStore);
+      await store.newFolder('Taxes');
+      expect(api.newFolder).toHaveBeenCalledWith('/home/anna', 'Taxes', true);
+      await store.rename(HOME.entries[2], 'old.txt');
+      expect(api.rename).toHaveBeenCalledWith('/home/anna/notes.txt', '/home/anna/old.txt', true);
+      store.delete(HOME.entries[2]);
+      await vi.waitFor(() => expect(api.delete).toHaveBeenCalledWith('/home/anna/notes.txt', true));
+      const upload = new File(['x'], 'hosts');
+      store.upload([upload]);
+      await vi.waitFor(() =>
+        expect(api.upload).toHaveBeenCalledWith('/home/anna', upload, false, true),
+      );
+    });
+
+    it('sudo locked under a root request: back to the account, said in a toast', async () => {
+      const info = vi.spyOn(toast, 'info').mockReturnValue(0);
+      const { el, api, fixture, button } = await render(UNLOCKED);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(button('As root')).toBeDefined());
+      api.list.mockImplementation((path: string, root?: boolean) =>
+        root ? throwError(() => httpError(403, 'sudo_required')) : of(HOME),
+      );
+      el.querySelector<HTMLButtonElement>('button[aria-label="Refresh"]')!.click();
+      await vi.waitFor(() =>
+        expect(info).toHaveBeenCalledWith('sudo locked: Files is back to anna.'),
+      );
+      await fixture.whenStable();
+      expect(button('As anna')).toBeDefined();
+      expect(warning(el)).toBe(false);
+    });
+
+    it('“Lock now” elsewhere while working as root: back to the account', async () => {
+      const info = vi.spyOn(toast, 'info').mockReturnValue(0);
+      vi.spyOn(toast, 'success').mockReturnValue(0);
+      const { el, fixture, button } = await render(UNLOCKED);
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(button('As root')).toBeDefined());
+      TestBed.inject(LinuxSessionStore).lockNow();
+      await vi.waitFor(() => expect(info).toHaveBeenCalled());
+      await fixture.whenStable();
+      expect(warning(el)).toBe(false);
+    });
+
+    it('not available on this machine: said in a toast, still as the account', async () => {
+      const error = vi.spyOn(toast, 'error').mockReturnValue(0);
+      const { el, api, fixture, button } = await render(UNLOCKED);
+      api.list.mockImplementation((path: string, root?: boolean) =>
+        root ? throwError(() => httpError(403, 'root_files_unavailable')) : of(HOME),
+      );
+      button('As anna')!.click();
+      await vi.waitFor(() =>
+        expect(error).toHaveBeenCalledWith('That didn’t work', {
+          description: expect.stringContaining('Administrator mode for Files isn’t available'),
+        }),
+      );
+      await fixture.whenStable();
+      expect(button('As anna')).toBeDefined();
+      expect(warning(el)).toBe(false);
+    });
   });
 
   it('on a phone: a list instead of the table', async () => {

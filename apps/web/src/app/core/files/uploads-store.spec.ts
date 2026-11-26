@@ -58,9 +58,9 @@ describe('UploadsStore', () => {
     expect(store.uploads()[0].progress).toBe(0.4);
     first.complete();
     expect(api.upload.mock.calls).toEqual([
-      ['/home/anna', a, false],
-      ['/home/anna', b, false],
-      ['/srv/music', c, false],
+      ['/home/anna', a, false, false],
+      ['/home/anna', b, false, false],
+      ['/srv/music', c, false, false],
     ]);
     expect(states()).toEqual([
       ['a.txt', 'done'],
@@ -68,6 +68,16 @@ describe('UploadsStore', () => {
       ['c.txt', 'done'],
     ]);
     expect(store.running()).toBe(false);
+  });
+
+  it('as root: written as root, and a taken name replaced as root too', async () => {
+    const { store, api } = await setup();
+    const taken = file('hosts');
+    api.upload.mockReturnValueOnce(throwError(() => httpError(409, 'file_exists')));
+    store.upload({ folder: '/etc', files: [taken], replace: false, root: true });
+    expect(api.upload).toHaveBeenLastCalledWith('/etc', taken, false, true);
+    store.answerClashes(true);
+    expect(api.upload).toHaveBeenLastCalledWith('/etc', taken, true, true);
   });
 
   it('says which folder each batch finished in', async () => {
@@ -82,12 +92,12 @@ describe('UploadsStore', () => {
     api.upload.mockReturnValueOnce(throwError(() => httpError(409, 'file_exists')));
     const notes = file('notes.txt');
     store.upload({ folder: '/home/anna', files: [notes], replace: false });
-    expect(store.clashes()).toEqual([{ folder: '/home/anna', file: notes }]);
+    expect(store.clashes()).toEqual([{ folder: '/home/anna', file: notes, root: false }]);
     expect(store.uploads()).toEqual([]);
     expect(finished).toEqual([]);
     store.answerClashes(true);
     expect(store.clashes()).toEqual([]);
-    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', notes, true);
+    expect(api.upload).toHaveBeenLastCalledWith('/home/anna', notes, true, false);
     expect(finished).toEqual(['/home/anna']);
   });
 
@@ -100,8 +110,8 @@ describe('UploadsStore', () => {
     expect(store.clashes().map((c) => c.file)).toEqual([one, two]);
     api.upload.mockReturnValue(of(1));
     store.answerClashes(true);
-    expect(api.upload).toHaveBeenCalledWith('/home/anna', one, true);
-    expect(api.upload).toHaveBeenCalledWith('/srv', two, true);
+    expect(api.upload).toHaveBeenCalledWith('/home/anna', one, true, false);
+    expect(api.upload).toHaveBeenCalledWith('/srv', two, true, false);
   });
 
   it('kept: nothing more uploaded', async () => {

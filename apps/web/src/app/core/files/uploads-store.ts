@@ -101,7 +101,7 @@ export const UploadsStore = signalStore(
             });
             return { ...request, queued };
           }),
-          concatMap(({ folder, replace, queued }) => {
+          concatMap(({ folder, replace, root = false, queued }) => {
             const taken: UploadClash[] = [];
             let landed = 0;
             const uploads = from(queued).pipe(
@@ -109,7 +109,7 @@ export const UploadsStore = signalStore(
                 // Gone from the list: reset before its turn.
                 if (!store.uploads().some((u) => u.id === id)) return EMPTY;
                 store._set(id, { state: 'uploading' });
-                return filesService.upload(folder, file, replace).pipe(
+                return filesService.upload(folder, file, replace, root).pipe(
                   tap({
                     next: (progress) => store._set(id, { progress }),
                     complete: () => {
@@ -121,7 +121,7 @@ export const UploadsStore = signalStore(
                     const code = apiErrorCode(error);
                     if (code === FILES_ERROR_CODES.exists && !replace) {
                       patchState(store, { uploads: store.uploads().filter((u) => u.id !== id) });
-                      taken.push({ folder, file });
+                      taken.push({ folder, file, root });
                       return EMPTY;
                     }
                     store._set(id, { state: 'failed' });
@@ -163,12 +163,18 @@ export const UploadsStore = signalStore(
       const clashes = store.clashes();
       patchState(store, { clashes: [] });
       if (!replace) return;
-      // Each into the folder it was asked about.
-      for (const folder of new Set(clashes.map((c) => c.folder)))
+      // Each into the folder it was asked about, as whoever it was going to be written by.
+      const batches = new Map<string, UploadClash[]>();
+      for (const clash of clashes) {
+        const key = `${clash.root}:${clash.folder}`;
+        batches.set(key, [...(batches.get(key) ?? []), clash]);
+      }
+      for (const batch of batches.values())
         store.upload({
-          folder,
-          files: clashes.filter((c) => c.folder === folder).map((c) => c.file),
+          folder: batch[0].folder,
+          files: batch.map((c) => c.file),
           replace: true,
+          root: batch[0].root,
         });
     },
   })),
