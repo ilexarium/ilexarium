@@ -253,6 +253,8 @@
     "file_exists": "Something of that name is there already.",
     "wrong_type": "That doesn’t work here (a folder instead of a file, or the other way round).",
     "file_too_large": "Too large (at most 10 GB per file).",
+    "not_previewable": "Only PNG, JPEG, WebP and GIF images can be previewed.",
+    "not_text": "This file isn’t text.",
     "file_operation_failed": "The machine refused it (a full disk, or a folder that isn’t empty?).",
     "invalid_picture": "The picture couldn’t be used. Choose another JPEG, PNG or WebP image.",
     "picture_too_large": "The picture is too large.",
@@ -1480,6 +1482,16 @@
       "lockHint": "(lock to go back to {{account}})",
       "warning": "You’re working as root: every file can be opened and changed, and a wrong change can break the system.",
       "lockedToast": "sudo locked: Files is back to {{account}}."
+    },
+    "preview": {
+      "open": "Preview",
+      "close": "Close",
+      "loading": "Loading the preview…",
+      "truncated": "Showing the first {{size}}.",
+      "textLabel": "Contents of {{name}}",
+      "notPreviewable": "This file can’t be previewed.",
+      "tooLarge": "Too large to preview (at most {{size}}).",
+      "downloadInstead": "Download it to open it on this device."
     }
   },
   "uploads": {

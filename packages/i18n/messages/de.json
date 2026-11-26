@@ -253,6 +253,8 @@
     "file_exists": "Etwas mit diesem Namen gibt es schon.",
     "wrong_type": "Das geht hier nicht (ein Ordner statt einer Datei oder umgekehrt).",
     "file_too_large": "Zu groß (höchstens 10 GB pro Datei).",
+    "not_previewable": "Vorschau nur für PNG-, JPEG-, WebP- und GIF-Bilder.",
+    "not_text": "Diese Datei ist kein Text.",
     "file_operation_failed": "Der Rechner hat es abgelehnt (volle Festplatte oder ein Ordner, der nicht leer ist?).",
     "invalid_picture": "Das Bild konnte nicht verwendet werden. Wähle ein anderes JPEG-, PNG- oder WebP-Bild.",
     "picture_too_large": "Das Bild ist zu groß.",
@@ -1480,6 +1482,16 @@
       "lockHint": "(sperren, um zu {{account}} zurückzukehren)",
       "warning": "Du arbeitest als root: Jede Datei lässt sich öffnen und ändern, und eine falsche Änderung kann das System beschädigen.",
       "lockedToast": "sudo gesperrt: Dateien arbeitet wieder als {{account}}."
+    },
+    "preview": {
+      "open": "Vorschau",
+      "close": "Schließen",
+      "loading": "Vorschau wird geladen …",
+      "truncated": "Die ersten {{size}} werden angezeigt.",
+      "textLabel": "Inhalt von {{name}}",
+      "notPreviewable": "Für diese Datei gibt es keine Vorschau.",
+      "tooLarge": "Zu groß für die Vorschau (höchstens {{size}}).",
+      "downloadInstead": "Lade sie herunter, um sie auf diesem Gerät zu öffnen."
     }
   },
   "uploads": {
