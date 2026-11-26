@@ -22,6 +22,12 @@ export const FILES_LIMITS = {
   sudoIdleMinutes: 15,
   /** "How much is in this folder" stops counting here. */
   summaryMaxEntries: 10_000,
+  /** An image shown in the preview, at most. */
+  previewImageMaxBytes: 20 * 1024 ** 2,
+  /** A text file's preview: its first bytes. */
+  previewTextMaxBytes: 256 * 1024,
+  /** A NUL byte this early means binary, not text. */
+  previewBinaryCheckBytes: 8 * 1024,
 } as const;
 
 export const FILES_ERROR_CODES = {
@@ -56,6 +62,10 @@ export const FILES_ERROR_CODES = {
   /** Download of a folder, listing of a file, … */
   wrongType: 'wrong_type',
   tooLarge: 'file_too_large',
+  /** The preview shows only PNG, JPEG, WebP and GIF images (by their bytes, not the name). */
+  notPreviewable: 'not_previewable',
+  /** The text preview: the file is binary. */
+  notText: 'not_text',
   /** Anything else the SSH server refused (a full disk, a folder not empty, …). */
   failed: 'file_operation_failed',
 } as const;
@@ -172,6 +182,16 @@ const rootQuerySchema = z.enum(['true', 'false']).optional();
 
 export const filePathQuerySchema = z.strictObject({ path: filePathSchema, root: rootQuerySchema });
 export type FilePathQuery = z.infer<typeof filePathQuerySchema>;
+
+/** `GET /api/files/text?path=` — the start of a text file, shown in the preview. */
+export const fileTextSchema = z.object({
+  text: z.string(),
+  /** Only the first `previewTextMaxBytes` were read. */
+  truncated: z.boolean(),
+  /** The whole file's size in bytes. */
+  size: z.number().nonnegative(),
+});
+export type FileText = z.infer<typeof fileTextSchema>;
 
 /** `PUT /api/files/upload?folder=&name=&replace=` — the file itself is the body. */
 export const fileUploadQuerySchema = z.strictObject({
