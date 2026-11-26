@@ -262,6 +262,7 @@
     "sudo_required": "This needs administrator rights: unlock sudo with the Linux account’s password.",
     "helper_unavailable": "Administrator actions aren’t available in this Linux session (Ilexarium’s helper didn’t start). Sign in to Linux again; if it stays, install Ilexarium again.",
     "sudo_failed": "sudo didn’t answer, or failed without saying why. Try again; if it stays, check sudo in a terminal.",
+    "root_files_unavailable": "Administrator mode for Files isn’t available: sudo is unlocked, but it wouldn’t start the file server as root (sftp-server). Your account’s sudo may allow only some programs.",
     "app_not_found": "There's no Compose file in this app's folder.",
     "app_name_taken": "An app of this name exists.",
     "app_folder_exists": "That folder isn't empty.",

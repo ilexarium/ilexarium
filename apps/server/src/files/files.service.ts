@@ -63,7 +63,8 @@ export function permissions(mode: number): string {
  * whatever the signed-in Linux account may do, nothing more — Linux decides, the app adds no
  * limits of its own. Uploads and downloads stream (never held in memory); uploads go to a
  * temporary name beside the target first, renamed when complete. Uploads, renames and deletes
- * are audited (Linux user and path, never content).
+ * are audited (Linux user and path, never content). With `root` (Files as administrator), all of
+ * it as root, through the account's unlocked sudo; audited as such.
  */
 @Injectable()
 export class FilesService {
@@ -74,8 +75,8 @@ export class FilesService {
   ) {}
 
   /** A folder's contents, folders (and links to them) first, then by name. */
-  async list(appSessionId: string, path: string): Promise<FileList> {
-    const { sftp } = this.linuxSessions.sftp(appSessionId);
+  async list(appSessionId: string, path: string, root = false): Promise<FileList> {
+    const { sftp } = this.linuxSessions.sftp(appSessionId, { root });
     const folder = posix.normalize(path);
     const target = await sftp.stat(folder);
     if (typeOf(target.mode) !== 'folder') {
@@ -110,8 +111,8 @@ export class FilesService {
   }
 
   /** What deleting `path` would remove; counting stops at 10,000 entries. */
-  async summary(appSessionId: string, path: string): Promise<FileSummary> {
-    const { sftp } = this.linuxSessions.sftp(appSessionId);
+  async summary(appSessionId: string, path: string, root = false): Promise<FileSummary> {
+    const { sftp } = this.linuxSessions.sftp(appSessionId, { root });
     const target = posix.normalize(path);
     const own = await sftp.lstat(target);
     const type = typeOf(own.mode);
@@ -144,8 +145,8 @@ export class FilesService {
    * A regular file's contents, as a stream (links followed, like any program would). Opened
    * before anything is sent, so a file Linux won't let this account read is a clear 403.
    */
-  async download(appSessionId: string, path: string): Promise<Download> {
-    const { sftp } = this.linuxSessions.sftp(appSessionId);
+  async download(appSessionId: string, path: string, root = false): Promise<Download> {
+    const { sftp } = this.linuxSessions.sftp(appSessionId, { root });
     const target = posix.normalize(path);
     const info = await sftp.stat(target);
     if (typeOf(info.mode) !== 'file') {
@@ -165,12 +166,12 @@ export class FilesService {
    */
   async upload(
     appSessionId: string,
-    target: { folder: string; name: string; replace: boolean },
+    target: { folder: string; name: string; replace: boolean; root?: boolean },
     body: Readable,
     size: number | null,
     actor: LinuxActor,
   ): Promise<void> {
-    const { sftp, username } = this.linuxSessions.sftp(appSessionId);
+    const { sftp, username } = this.linuxSessions.sftp(appSessionId, { root: target.root });
     if (size !== null && size > FILES_LIMITS.uploadMaxBytes) {
       throw linuxError(FILES_ERROR_CODES.tooLarge, 'Larger than 10 GB');
     }
@@ -212,15 +213,15 @@ export class FilesService {
       await sftp.remove(temporary).catch(() => undefined);
       throw toFilesError(error);
     }
-    await this.record('files.upload', actor, username, {
+    await this.record('files.upload', actor, username, target.root === true, {
       path,
       bytes: written,
       replaced: existing,
     });
   }
 
-  async newFolder(appSessionId: string, parent: string, name: string): Promise<void> {
-    const { sftp } = this.linuxSessions.sftp(appSessionId);
+  async newFolder(appSessionId: string, parent: string, name: string, root = false): Promise<void> {
+    const { sftp } = this.linuxSessions.sftp(appSessionId, { root });
     const path = posix.join(posix.normalize(parent), name);
     if (await sftp.exists(path)) {
       throw linuxError(FILES_ERROR_CODES.exists, 'Something of that name is there');
@@ -229,44 +230,52 @@ export class FilesService {
   }
 
   /** Renames or moves — never onto something that exists. */
-  async rename(appSessionId: string, from: string, to: string, actor: LinuxActor): Promise<void> {
-    const { sftp, username } = this.linuxSessions.sftp(appSessionId);
+  async rename(
+    appSessionId: string,
+    from: string,
+    to: string,
+    actor: LinuxActor,
+    root = false,
+  ): Promise<void> {
+    const { sftp, username } = this.linuxSessions.sftp(appSessionId, { root });
     const source = posix.normalize(from);
     const destination = posix.normalize(to);
     if (await sftp.exists(destination)) {
       throw linuxError(FILES_ERROR_CODES.exists, 'Something of that name is there');
     }
     await sftp.rename(source, destination, false);
-    await this.record('files.rename', actor, username, { from: source, to: destination });
+    await this.record('files.rename', actor, username, root, { from: source, to: destination });
   }
 
   /**
    * Deletes a file, a link (never what it points to) or a folder with everything in it. A folder
    * goes through the helper (`rm -r --one-file-system` as the account): a walk over SFTP would
    * enter a subfolder by a type read earlier, so someone who swapped it for a link meanwhile
-   * would have another folder emptied. What Linux refuses stays; what's deleted stays deleted.
+   * would have another folder emptied. What Linux refuses stays; what's deleted stays deleted. As
+   * root, a folder goes through ilex-root's same removal, which never deletes the system's folders.
    */
-  async delete(appSessionId: string, path: string, actor: LinuxActor): Promise<void> {
-    const { sftp, username } = this.linuxSessions.sftp(appSessionId);
+  async delete(appSessionId: string, path: string, actor: LinuxActor, root = false): Promise<void> {
+    const { sftp, username } = this.linuxSessions.sftp(appSessionId, { root });
     const target = posix.normalize(path).replace(/(.)\/+$/, '$1');
     if (target === '/') throw linuxError(FILES_ERROR_CODES.permissionDenied, 'Not /');
     if (typeOf((await sftp.lstat(target)).mode) === 'folder') {
       const answer = await this.linuxSessions.ask(
         appSessionId,
-        { action: 'paths.remove', paths: [target], administrator: false },
-        { timeoutMs: DELETE_TIMEOUT_MS },
+        { action: 'paths.remove', paths: [target], administrator: root },
+        { timeoutMs: DELETE_TIMEOUT_MS, sudo: root },
       );
       if (!answer.ok) throw removalError(answer.error);
     } else {
       await sftp.unlink(target);
     }
-    await this.record('files.delete', actor, username, { path: target });
+    await this.record('files.delete', actor, username, root, { path: target });
   }
 
   private record(
     action: 'files.upload' | 'files.rename' | 'files.delete',
     actor: LinuxActor,
     linuxUser: string,
+    root: boolean,
     details: Record<string, string | number | boolean>,
   ): Promise<void> {
     return this.auditService.tryRecord({
@@ -275,7 +284,7 @@ export class FilesService {
       userId: actor.user.id,
       username: actor.user.username,
       ip: actor.ip,
-      details: { linuxUser, ...details },
+      details: { linuxUser, ...(root && { asRoot: true }), ...details },
     });
   }
 }

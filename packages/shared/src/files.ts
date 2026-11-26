@@ -47,6 +47,8 @@ export const FILES_ERROR_CODES = {
   helperUnavailable: 'helper_unavailable',
   /** Unlocking sudo is recorded first; without the audit log, nothing is done. */
   auditUnavailable: 'audit_unavailable',
+  /** Files as administrator: sudo is unlocked, but root's SFTP didn't open (no sftp-server for sudo). */
+  rootFilesUnavailable: 'root_files_unavailable',
   notFound: 'file_not_found',
   permissionDenied: 'permission_denied',
   /** Something is already there (upload without replacing, rename onto it, new folder). */
@@ -165,7 +167,10 @@ export const fileSummarySchema = z.object({
 });
 export type FileSummary = z.infer<typeof fileSummarySchema>;
 
-export const filePathQuerySchema = z.strictObject({ path: filePathSchema });
+/** Files as administrator: the request is done as root, through the unlocked sudo (a query value). */
+const rootQuerySchema = z.enum(['true', 'false']).optional();
+
+export const filePathQuerySchema = z.strictObject({ path: filePathSchema, root: rootQuerySchema });
 export type FilePathQuery = z.infer<typeof filePathQuerySchema>;
 
 /** `PUT /api/files/upload?folder=&name=&replace=` — the file itself is the body. */
@@ -173,6 +178,7 @@ export const fileUploadQuerySchema = z.strictObject({
   folder: filePathSchema,
   name: fileNameSchema,
   replace: z.enum(['true', 'false']).default('false'),
+  root: rootQuerySchema,
 });
 export type FileUploadQuery = z.infer<typeof fileUploadQuerySchema>;
 
@@ -180,6 +186,7 @@ export type FileUploadQuery = z.infer<typeof fileUploadQuerySchema>;
 export const newFolderRequestSchema = z.strictObject({
   parent: filePathSchema,
   name: fileNameSchema,
+  root: z.boolean().optional(),
 });
 export type NewFolderRequest = z.infer<typeof newFolderRequestSchema>;
 
@@ -187,5 +194,6 @@ export type NewFolderRequest = z.infer<typeof newFolderRequestSchema>;
 export const fileRenameRequestSchema = z.strictObject({
   from: filePathSchema,
   to: filePathSchema,
+  root: z.boolean().optional(),
 });
 export type FileRenameRequest = z.infer<typeof fileRenameRequestSchema>;

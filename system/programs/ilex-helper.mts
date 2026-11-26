@@ -6,6 +6,7 @@
 //
 //   {"id":1,"action":"hello"}                                  → {"uid","user","home"}
 //   {"id":2,"action":"sudo.unlock","password":"…"}             → starts ilex-root through sudo -S
+//   {"id":3,"action":"sudo.touch"}                             → ilex-root's idle time starts again
 //   {"id":3,"action":"process.signal","pid":1234,"signal":"TERM","administrator":false}
 //
 // Answers: {"id","ok":true,…} or {"id","ok":false,"error":"<code>"}. The first line it writes is

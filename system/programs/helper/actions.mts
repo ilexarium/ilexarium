@@ -58,6 +58,9 @@ export function handle(request: Request): Promise<Answer> | Answer {
       return hello();
     case 'sudo.unlock':
       return unlock(request);
+    // sudo used another way (Files as administrator): ilex-root's idle time starts again.
+    case 'sudo.touch':
+      return forward({ action: 'touch' });
     case 'process.signal':
       return signalProcess(request);
     case 'docker.access':

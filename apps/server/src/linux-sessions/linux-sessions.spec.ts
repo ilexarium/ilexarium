@@ -110,6 +110,20 @@ class FakeClient extends EventEmitter {
 }
 
 vi.mock('ssh2', () => ({ Client: FakeClient }));
+/** Root's SFTP (Files as administrator): what it was opened with, and whether it opens. */
+const rootOpenedWith: string[] = [];
+const rootSftps: { end: ReturnType<typeof vi.fn>; on: ReturnType<typeof vi.fn> }[] = [];
+let rootRefused = false;
+vi.mock('./root-sftp.js', () => ({
+  RootSftpError: class extends Error {},
+  openRootSftp: async (_client: unknown, password: string) => {
+    rootOpenedWith.push(password);
+    if (rootRefused) throw new Error('sudo: not allowed to execute sftp-server');
+    const sftp = { end: vi.fn(), on: vi.fn() };
+    rootSftps.push(sftp);
+    return sftp;
+  },
+}));
 const { LinuxSessions } = await import('./linux-sessions.js');
 
 const USER = {
@@ -141,6 +155,9 @@ describe('LinuxSessions', () => {
     started.length = 0;
     closedHelpers = 0;
     splitAt = 5;
+    rootOpenedWith.length = 0;
+    rootSftps.length = 0;
+    rootRefused = false;
     dir = mkdtempSync(join(tmpdir(), 'host-keys-'));
     writeFileSync(
       join(dir, 'ssh_host_ed25519_key.pub'),
@@ -263,6 +280,89 @@ describe('LinuxSessions', () => {
     helperAnswers['process.signal'] = { ok: false, error: 'sudo_required' };
     await sessions.ask('s1', signal, { sudo: true });
     expect(sessions.current('s1')?.sudoUntil).toBeNull();
+  });
+
+  describe('Files as administrator (root’s SFTP)', () => {
+    const rootCode = (run: () => unknown) => {
+      try {
+        run();
+      } catch (error) {
+        return ((error as { getResponse(): { code: string } }).getResponse()).code;
+      }
+      return 'none';
+    };
+
+    it('opens with the unlock, with its password; audited as opened, never with the password', async () => {
+      await signIn();
+      expect(rootCode(() => sessions.sftp('s1', { root: true }))).toBe('sudo_required');
+      await sessions.unlockSudo('s1', 'pw', ACTOR);
+      expect(rootOpenedWith).toEqual(['pw']);
+      expect(rootCode(() => sessions.sftp('s1', { root: true }))).toBe('none');
+      expect(audit.tryRecord).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          action: 'linux.sudo_unlock',
+          outcome: 'success',
+          details: { linuxUser: 'anna', rootFiles: true },
+        }),
+      );
+      // Unlocked again (its idle time): the one already open stays.
+      await sessions.unlockSudo('s1', 'pw', ACTOR);
+      expect(rootOpenedWith).toHaveLength(1);
+    });
+
+    it('not opening never fails the unlock: root requests say it isn’t available', async () => {
+      rootRefused = true;
+      await signIn();
+      const unlocked = await sessions.unlockSudo('s1', 'pw', ACTOR);
+      expect(unlocked.sudoUntil).not.toBeNull();
+      expect(rootCode(() => sessions.sftp('s1', { root: true }))).toBe('root_files_unavailable');
+      expect(audit.tryRecord).toHaveBeenLastCalledWith(
+        expect.objectContaining({ details: { linuxUser: 'anna', rootFiles: false } }),
+      );
+    });
+
+    it('closes when sudo locks: ilex-root ended, its time ran out, or “Lock now”', async () => {
+      await signIn();
+      await sessions.unlockSudo('s1', 'pw', ACTOR);
+      helperChannel!.emit('data', Buffer.from('{"event":"sudo.locked"}\n'));
+      expect(rootSftps[0].end).toHaveBeenCalled();
+      expect(rootCode(() => sessions.sftp('s1', { root: true }))).toBe('sudo_required');
+
+      await sessions.unlockSudo('s1', 'pw', ACTOR);
+      vi.advanceTimersByTime(15 * 60_000 + 1);
+      expect(rootCode(() => sessions.sftp('s1', { root: true }))).toBe('sudo_required');
+      expect(rootSftps[1].end).toHaveBeenCalled();
+
+      await sessions.unlockSudo('s1', 'pw', ACTOR);
+      await sessions.lockSudo('s1', ACTOR);
+      expect(rootSftps[2].end).toHaveBeenCalled();
+    });
+
+    it('using it counts as using sudo: its time starts again, ilex-root told at most once a minute', async () => {
+      await signIn();
+      await sessions.unlockSudo('s1', 'pw', ACTOR);
+      vi.advanceTimersByTime(10 * 60_000);
+      sessions.sftp('s1', { root: true });
+      sessions.sftp('s1', { root: true });
+      await vi.waitFor(() =>
+        expect(asked.filter((request) => request['action'] === 'sudo.touch')).toHaveLength(1),
+      );
+      vi.advanceTimersByTime(10 * 60_000);
+      expect(rootCode(() => sessions.sftp('s1', { root: true }))).toBe('none');
+      expect(sessions.current('s1')?.sudoUntil).toBe(
+        new Date(Date.now() + 15 * 60_000).toISOString(),
+      );
+      await vi.waitFor(() =>
+        expect(asked.filter((request) => request['action'] === 'sudo.touch')).toHaveLength(2),
+      );
+    });
+
+    it('the plain SFTP stays the account’s own', async () => {
+      await signIn();
+      await sessions.unlockSudo('s1', 'pw', ACTOR);
+      expect(rootCode(() => sessions.sftp('s1'))).toBe('none');
+      expect(asked.some((request) => request['action'] === 'sudo.touch')).toBe(false);
+    });
   });
 
   it('locked after 15 minutes without use, as ilex-root ends; at once when the helper says it ended', async () => {

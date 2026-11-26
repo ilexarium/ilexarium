@@ -39,3 +39,28 @@ export const SUDO_ERRORS: Partial<Record<string, FilesErrorCode>> = {
 export const SIGN_IN_LIMIT = { default: { limit: 5, ttl: 60_000 } };
 /** Unlocking sudo: a password too, few tries (PAM counts too). */
 export const SUDO_LIMIT = { default: { limit: 5, ttl: 60_000 } };
+
+/** OpenSSH's own SFTP server (Debian, Ubuntu): Files as administrator runs it as root. */
+export const SFTP_SERVER = '/usr/lib/openssh/sftp-server';
+/**
+ * The two fixed command lines that start it through the account's sudo — nothing in them comes
+ * from a request. `-n` first (an account whose sudo needs no password: it starts at once), then
+ * `-S` with the password as the one line sudo reads; `-k`: sudo's own cache is never used, so the
+ * password is never taken for SFTP data. LC_ALL=C: sudo's messages in English, for the patterns.
+ */
+export const ROOT_SFTP_COMMANDS = {
+  withoutPassword: `/usr/bin/env LC_ALL=C /usr/bin/sudo -n -k -- ${SFTP_SERVER}`,
+  withPassword: `/usr/bin/env LC_ALL=C /usr/bin/sudo -k -S -p '' -- ${SFTP_SERVER}`,
+} as const;
+/** Above sudo's delay after a wrong password. */
+export const ROOT_SFTP_TIMEOUT_MS = 20_000;
+/** What sudo and sudo-rs say (LC_ALL=C), as the helper reads them. */
+export const ROOT_SFTP_MESSAGES = {
+  passwordRequired: /a password is required|interaction required|interactive authentication/i,
+  wrongPassword:
+    /incorrect password|Sorry, try again|incorrect authentication|authentication failed(?!: interaction required)/i,
+  notAllowed:
+    /not in the sudoers|not allowed to (?:run|execute)|may not run sudo|I'm afraid I can't do that|command not found|No such file/i,
+};
+/** Root's SFTP use restarts ilex-root's idle time at most this often (each use counts on our side). */
+export const ROOT_TOUCH_EVERY_MS = 60_000;
