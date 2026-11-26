@@ -38,9 +38,10 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
  * The Files page: sign in as a Linux user, then browse,
  * download, upload (button or drop), make folders, rename or move, delete — exactly what that
  * account may, or as root through its unlocked sudo (the lock button; locked on every visit). The
- * open folder is the address's (`?path=`): opening one navigates, so the browser's back and forward
- * (a phone's back gesture) move through the folders; the store loads what the address names. The data and actions are the page store's; the page asks before deleting. The
- * uploads' progress and the question before replacing a file are the uploads panel's (every page).
+ * open folder is the address's (`?path=`): opening one navigates, so back and forward (a phone's
+ * back gesture) move through the folders, and the store loads what the address names. The data
+ * and actions are the page store's; the page asks before deleting. The uploads' progress and the
+ * question before replacing a file are the uploads panel's (every page).
  */
 @Component({
   selector: 'ilex-files-page',
@@ -72,10 +73,9 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
 export class FilesPage {
   protected readonly filesPageStore = inject(FilesPageStore);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
-  /** The folder the address names (`?path=`). */
+  private readonly activatedRoute = inject(ActivatedRoute);
   private readonly addressPath = toSignal(
-    this.route.queryParamMap.pipe(map((params) => params.get('path'))),
+    this.activatedRoute.queryParamMap.pipe(map((params) => params.get('path'))),
     { initialValue: null },
   );
   private readonly nameDialog = viewChild.required(FileNameDialog);
@@ -99,36 +99,31 @@ export class FilesPage {
 
   constructor() {
     // The address decides which folder is open: without one (or not a path), the home folder in
-    // its place; another account signing in, its home folder.
+    // its place; another account than the last one (also after a sign-out), its home folder.
+    // Opened when it isn't the folder shown, so a folder that failed opens again when asked.
     let account: string | null = null;
-    let opened: string | null = null;
     effect(() => {
       const session = this.filesPageStore.session();
       const path = this.addressPath();
-      if (!session) {
-        account = opened = null;
-        return;
-      }
+      if (!session) return;
       const who = `${session.username}:${session.home}`;
       const switched = account !== null && account !== who;
       account = who;
-      if (switched) opened = null;
       const target = !path?.startsWith('/') || switched ? session.home : path;
       untracked(() => {
         if (target !== path) this.go(target, { replace: true });
-        else if (target !== opened) {
-          opened = target;
-          this.filesPageStore.open(target);
-        }
+        else if (target !== this.filesPageStore.list()?.path) this.filesPageStore.open(target);
       });
     });
-    // A folder from the address that doesn't open (an old bookmark, root's after locking): home
-    // in its place, so back doesn't return to it.
+    // A folder that didn't open: the address names the one still shown again (home when none),
+    // so it matches the page and back doesn't return to the refused one.
     effect(() => {
-      const failed = this.filesPageStore.failed();
-      const home = this.filesPageStore.session()?.home;
-      if (failed && home && failed !== home && failed === untracked(this.addressPath))
-        untracked(() => this.go(home, { replace: true }));
+      if (this.filesPageStore.refused() === null) return;
+      untracked(() => {
+        const shown = this.filesPageStore.list()?.path ?? this.filesPageStore.session()?.home;
+        this.filesPageStore.refusalHandled();
+        if (shown) this.go(shown, { replace: true });
+      });
     });
 
     let arrived = false;
@@ -149,10 +144,9 @@ export class FilesPage {
     if (folder) this.go(joinPath(folder, entry.name));
   }
 
-  /** Opens a folder by going there: a new step in the browser's history (unless `replace`). */
   protected go(path: string, { replace = false } = {}): void {
     void this.router.navigate([], {
-      relativeTo: this.route,
+      relativeTo: this.activatedRoute,
       queryParams: { path },
       replaceUrl: replace,
     });

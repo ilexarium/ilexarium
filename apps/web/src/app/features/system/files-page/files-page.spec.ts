@@ -517,6 +517,50 @@ describe('FilesPage', () => {
       await vi.waitFor(() => expect(names()).toEqual(['Photos', 'music', 'notes.txt']));
     });
 
+    it('a folder clicked that fails: the address names the folder still shown, and asking again retries', async () => {
+      vi.spyOn(toast, 'error').mockReturnValue(0);
+      const { el, api, fixture, names } = await render();
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+      api.list.mockReturnValueOnce(throwError(() => httpError(500, 'x')));
+      (el.querySelector('tbody th button') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+      expect(names()).toEqual(['Photos', 'music', 'notes.txt']);
+      await fixture.whenStable();
+      (el.querySelector('tbody th button') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(url()).toBe('/system/files?path=%2Fhome%2Fanna%2FPhotos'));
+      expect(api.list.mock.calls.filter(([path]) => path === '/home/anna/Photos')).toHaveLength(2);
+    });
+
+    it('a folder it may not open: stays in the folder shown, not home', async () => {
+      vi.spyOn(toast, 'error').mockReturnValue(0);
+      const { api, names } = await render(ANNA, '/system/files?path=%2Fhome%2Fanna%2FPhotos');
+      await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna/Photos', false));
+      await TestBed.inject(Router).navigateByUrl('/system/files?path=%2Froot');
+      await vi.waitFor(() => expect(url()).toBe('/system/files?path=%2Fhome%2Fanna%2FPhotos'));
+      expect(names()).toEqual([]);
+      expect(api.list).not.toHaveBeenCalledWith('/home/anna', false);
+    });
+
+    it('another account signing in after a sign-out: its home, not the previous account’s folder', async () => {
+      const { api, button, fixture } = await render(
+        ANNA,
+        '/system/files?path=%2Fhome%2Fanna%2FPhotos',
+      );
+      await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna/Photos', false));
+      button('Close')!.click();
+      await vi.waitFor(() => expect(button('Sign in as a Linux user')).toBeDefined());
+      await fixture.whenStable();
+      api.signIn.mockReturnValueOnce(
+        of({ ...ANNA, username: 'bob', home: '/home/bob', uid: 1501 }),
+      );
+      api.list.mockClear();
+      button('Sign in as a Linux user')!.click();
+      await fixture.whenStable();
+      signIn('bob', 'secret');
+      await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/bob', false));
+      expect(api.list).not.toHaveBeenCalledWith('/home/anna/Photos', false);
+    });
+
     it('not a path: home in its place', async () => {
       await render(ANNA, '/system/files?path=relative');
       await vi.waitFor(() => expect(url()).toBe(HOME_URL));
