@@ -23,6 +23,7 @@ import {
   EMPTY,
   exhaustMap,
   filter,
+  finalize,
   firstValueFrom,
   map,
   type Observable,
@@ -81,17 +82,26 @@ export const LinuxSessionStore = signalStore(
     }),
   })),
   withMethods((store, filesApi = inject(FilesApi), translator = inject(Translator)) => {
-    const sudoQuestion = new SharedPrompt({
+    const sudoQuestion = new SharedPrompt<true>({
       showDialog: () =>
         patchState(store, { sudoPrompt: true, sudoPromptId: store.sudoPromptId() + 1 }),
       hideDialog: () => patchState(store, { sudoPrompt: false }),
     });
-    const signInQuestion = new SharedPrompt({
+    // The sign-in's answer carries its password to the actions waiting for it, so one of them that
+    // turns out to need sudo unlocks it without asking again (null: already signed in).
+    const signInQuestion = new SharedPrompt<{ password: string | null }>({
       showDialog: () => patchState(store, { signInPrompt: true }),
       hideDialog: () => patchState(store, { signInPrompt: false }),
     });
-    const answerPrompt = (unlocked: boolean) => sudoQuestion.answerWith(unlocked);
-    const answerSignIn = (signedIn: boolean) => signInQuestion.answerWith(signedIn);
+    // Only from the prompt's sign-in until its dialog closes, a moment later; never state.
+    let promptPassword: string | null = null;
+    const answerPrompt = (unlocked: boolean) => sudoQuestion.answerWith(unlocked ? true : null);
+    const answerSignIn = (signedIn: boolean) => {
+      const password = promptPassword;
+      promptPassword = null;
+      signInQuestion.answerWith(signedIn ? { password } : null);
+    };
+    const notNull = <T>(value: T | null): value is T => value !== null;
     /** An action found the Linux session gone (idle, closed elsewhere). */
     const ended = () => {
       patchState(store, { session: null });
@@ -113,6 +123,20 @@ export const LinuxSessionStore = signalStore(
     const restartSudoMinutes = () =>
       setSudoUntil(Date.now() + FILES_LIMITS.sudoIdleMinutes * 60_000);
     // sudo may have been used: the top bar's minutes come from the server's estimate.
+    /** Unlocks sudo with the password the sign-in prompt just took; fails with the server's error. */
+    const unlockWith$ = (password: string): Observable<true> =>
+      filesApi.unlockSudo({ password }).pipe(
+        map((session) => {
+          patchState(store, { session, now: Date.now() });
+          // Another action waiting at the sudo prompt carries on too.
+          if (store.sudoPrompt()) answerPrompt(true);
+          return true as const;
+        }),
+        catchError((error: unknown) => {
+          if (apiErrorCode(error) === FILES_ERROR_CODES.linuxSessionRequired) ended();
+          return throwError(() => error);
+        }),
+      );
     const refreshSession = () =>
       filesApi.session().subscribe({
         next: ({ session }) => patchState(store, { session, now: Date.now() }),
@@ -148,6 +172,7 @@ export const LinuxSessionStore = signalStore(
       /** Signs in as a Linux user; rejects with the server's error (the form shows it). */
       async signIn(request: LinuxSignInRequest): Promise<void> {
         const session = await firstValueFrom(filesApi.signIn(request));
+        if (store.signInPrompt()) promptPassword = request.password;
         patchState(store, { session, checked: true });
       },
 
@@ -217,15 +242,17 @@ export const LinuxSessionStore = signalStore(
           if (apiErrorCode(error) !== FILES_ERROR_CODES.sudoRequired)
             return throwError(() => error);
           setSudoUntil(null);
-          return sudoQuestion.ask().pipe(filter(Boolean));
+          return sudoQuestion.ask().pipe(filter(notNull));
         };
-        return sudoQuestion.ask({ skipWhen: () => store.sudoMinutes() !== null }).pipe(
-          filter(Boolean),
-          switchMap(() =>
-            defer(action).pipe(tap(restartSudoMinutes), retry({ count: 1, delay: askToRetry })),
-          ),
-          defaultIfEmpty(null),
-        );
+        return sudoQuestion
+          .ask({ skipWith: () => (store.sudoMinutes() !== null ? true : undefined) })
+          .pipe(
+            filter(notNull),
+            switchMap(() =>
+              defer(action).pipe(tap(restartSudoMinutes), retry({ count: 1, delay: askToRetry })),
+            ),
+            defaultIfEmpty(null),
+          );
       },
 
       /**
@@ -233,28 +260,43 @@ export const LinuxSessionStore = signalStore(
        * without a session (nothing before subscribing); the sudo password or the sign-in again
        * when the server asks for it, then the action once more (three tries at most). Null when a
        * prompt was closed — it emits once and completes (a form reads it with `firstValueFrom`);
-       * the action's own errors are passed on. Only an answer closes a prompt.
+       * the action's own errors are passed on. Only an answer closes a prompt. Signed in here and
+       * then needing sudo, the sign-in's password unlocks it once, without a second prompt (its
+       * failure is the action's error).
        */
       asPerson$<T>(action: () => Observable<T>): Observable<T | null> {
-        const askToRetry = (error: unknown): Observable<boolean> => {
-          const code = apiErrorCode(error);
-          if (code === FILES_ERROR_CODES.sudoRequired) {
-            setSudoUntil(null);
-            return sudoQuestion.ask().pipe(filter(Boolean));
-          }
-          if (code === FILES_ERROR_CODES.linuxSessionRequired) {
-            ended();
-            return signInQuestion.ask().pipe(filter(Boolean));
-          }
-          return throwError(() => error);
-        };
-        return signInQuestion.ask({ skipWhen: () => store.session() !== null }).pipe(
-          filter(Boolean),
-          switchMap(() =>
-            defer(action).pipe(tap(refreshSession), retry({ count: 2, delay: askToRetry })),
-          ),
-          defaultIfEmpty(null),
-        );
+        return defer(() => {
+          // This call's own: from its sign-in prompt to its one use, or the call's end.
+          let password: string | null = null;
+          const signedIn = (answer: { password: string | null }) => {
+            password = answer.password;
+          };
+          const askToRetry = (error: unknown): Observable<unknown> => {
+            const code = apiErrorCode(error);
+            if (code === FILES_ERROR_CODES.sudoRequired) {
+              setSudoUntil(null);
+              const typed = password;
+              password = null;
+              return typed !== null ? unlockWith$(typed) : sudoQuestion.ask().pipe(filter(notNull));
+            }
+            if (code === FILES_ERROR_CODES.linuxSessionRequired) {
+              ended();
+              return signInQuestion.ask().pipe(filter(notNull), tap(signedIn));
+            }
+            return throwError(() => error);
+          };
+          return signInQuestion
+            .ask({ skipWith: () => (store.session() !== null ? { password: null } : undefined) })
+            .pipe(
+              filter(notNull),
+              tap(signedIn),
+              switchMap(() =>
+                defer(action).pipe(tap(refreshSession), retry({ count: 2, delay: askToRetry })),
+              ),
+              defaultIfEmpty(null),
+              finalize(() => (password = null)),
+            );
+        });
       },
 
       /** The shell's sign-in prompt closed: signed in now, or not. */
@@ -269,6 +311,7 @@ export const LinuxSessionStore = signalStore(
       reset(): void {
         answerPrompt(false);
         answerSignIn(false);
+        promptPassword = null;
         patchState(store, { ...initialState, now: Date.now() });
       },
     };

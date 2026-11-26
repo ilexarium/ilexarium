@@ -1556,7 +1556,7 @@
     },
     "asPerson": {
       "title": "Als Linux-Benutzer anmelden",
-      "text": "Ilexarium tut das als dein Linux-Konto, mit dessen Rechten.",
+      "text": "Ilexarium tut das als dein Linux-Konto, mit dessen Rechten. Braucht es Administratorrechte, entsperrt dasselbe Passwort sudo für {{minutes}} Minuten.",
       "submit": "Anmelden und weiter"
     }
   },
