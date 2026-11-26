@@ -29,7 +29,6 @@ import {
   pipe,
   switchMap,
   tap,
-  throwError,
 } from 'rxjs';
 import { FilesApi } from '../../../core/files/files-api';
 import { Translator } from '../../../core/i18n/translator';
@@ -38,6 +37,7 @@ import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-err
 import { joinPath, renameTarget } from '../../../core/files/files-paths';
 import { UploadsStore } from '../../../core/files/uploads-store';
 import type { FileDeletion } from '../files.model';
+import { UNOPENABLE } from './files-page-store.constants';
 
 interface FilesPageState {
   list: FileList | null;
@@ -48,6 +48,8 @@ interface FilesPageState {
   pending: string[];
   /** The delete waiting for its confirmation. */
   deleting: FileDeletion | null;
+  /** A folder asked for that doesn't open (gone, not allowed, not a folder): the page goes home. */
+  failed: string | null;
 }
 
 const initialState: FilesPageState = {
@@ -56,6 +58,7 @@ const initialState: FilesPageState = {
   asRoot: false,
   pending: [],
   deleting: null,
+  failed: null,
 };
 
 /**
@@ -65,6 +68,7 @@ const initialState: FilesPageState = {
  * sign-out, closed elsewhere) shows the sign-in again. Uploads are `UploadsStore`'s, so they keep
  * going when the page closes; the folder reloads when one lands in it. As administrator (unlocked
  * with sudo, off on every visit), every request goes as root, until it's locked again or sudo locks.
+ * Which folder is open is the page's (the address): it asks `open`, and goes home on `failed`.
  */
 export const FilesPageStore = signalStore(
   withState<FilesPageState>(initialState),
@@ -126,7 +130,7 @@ export const FilesPageStore = signalStore(
     /** A click on another folder while one loads: the latest wins. */
     open: rxMethod<string>(
       pipe(
-        tap(() => patchState(store, { loading: true })),
+        tap(() => patchState(store, { loading: true, failed: null })),
         switchMap((path) => {
           const root = store.asRoot();
           return filesApi.list(path, root).pipe(
@@ -139,6 +143,8 @@ export const FilesPageStore = signalStore(
             catchError((error: unknown) => {
               patchState(store, { loading: false });
               store._failed(error);
+              if (UNOPENABLE.includes(apiErrorCode(error) ?? ''))
+                patchState(store, { failed: path });
               return EMPTY;
             }),
           );
@@ -170,20 +176,17 @@ export const FilesPageStore = signalStore(
     },
   })),
   withMethods((store, filesApi = inject(FilesApi)) => ({
+    /** Back to the account: its folder again — one it may not open is `failed`, without a toast. */
     _openAsAccount: rxMethod<string>(
       switchMap((path) => {
-        const home = store.session()?.home;
-        patchState(store, { loading: true });
+        patchState(store, { loading: true, failed: null });
         return filesApi.list(path).pipe(
-          catchError((error: unknown) =>
-            apiErrorCode(error) === FILES_ERROR_CODES.permissionDenied && home && home !== path
-              ? filesApi.list(home)
-              : throwError(() => error),
-          ),
           tap((list) => patchState(store, { list, loading: false })),
           catchError((error: unknown) => {
             patchState(store, { loading: false });
-            store._failed(error);
+            if (apiErrorCode(error) === FILES_ERROR_CODES.permissionDenied) {
+              patchState(store, { failed: path });
+            } else store._failed(error);
             return EMPTY;
           }),
         );
@@ -195,7 +198,7 @@ export const FilesPageStore = signalStore(
     },
   })),
   withMethods((store) => ({
-    /** Back to the account: the folder shown again as it — its home when it may not open it. */
+    /** Back to the account: the folder shown again as it — home (the page) when it may not open it. */
     lockRoot(): void {
       if (!store.asRoot()) return;
       patchState(store, { asRoot: false });
@@ -220,11 +223,10 @@ export const FilesPageStore = signalStore(
 
       signOut: rxMethod<void>(tap(() => linuxSessionStore.signOut())),
 
-      /** The Linux session changed: its home opened (as the account), or nothing of it left. */
-      sessionChanged(home: string | null): void {
-        patchState(store, { asRoot: false });
-        if (home) store.open(home);
-        else patchState(store, { list: null, loading: false, deleting: null });
+      /** The Linux session changed: as the account again (the page opens its folder), or gone. */
+      sessionChanged(signedIn: boolean): void {
+        patchState(store, { asRoot: false, failed: null });
+        if (!signedIn) patchState(store, { list: null, loading: false, deleting: null });
       },
 
       /**
@@ -375,14 +377,14 @@ export const FilesPageStore = signalStore(
       onInit() {
         linuxSessionStore.check();
         store._uploadFinished(uploadsStore.finished$);
-        // Signed in here or elsewhere (the top bar, another page): the same account opens once.
+        // Signed in here or elsewhere (the top bar, another page), or gone.
         let shown: string | null = null;
         effect(() => {
           const session = store.session();
           const key = session ? `${session.username}:${session.home}` : null;
           if (key === shown) return;
           shown = key;
-          untracked(() => store.sessionChanged(session?.home ?? null));
+          untracked(() => store.sessionChanged(session !== null));
         });
         // "Lock now" in the top bar, or sudo's time ran out, while working as root.
         effect(() => {

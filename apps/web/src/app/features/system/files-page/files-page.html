@@ -30,7 +30,7 @@
         size="icon"
         [disabled]="!filesPageStore.list()?.parent || filesPageStore.loading()"
         [attr.aria-label]="'files.up' | translate"
-        (click)="filesPageStore.open(filesPageStore.list()!.parent!)"
+        (click)="go(filesPageStore.list()!.parent!)"
       >
         <ng-icon name="lucideArrowUp" class="rtl:rotate-0" aria-hidden="true" />
       </button>

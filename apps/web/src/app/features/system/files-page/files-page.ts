@@ -8,7 +8,10 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router } from '@angular/router';
 import type { FileEntry, LinuxSignInRequest } from '@ilex/shared';
+import { map } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideArrowUp,
@@ -34,7 +37,9 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
 /**
  * The Files page: sign in as a Linux user, then browse,
  * download, upload (button or drop), make folders, rename or move, delete — exactly what that
- * account may, or as root through its unlocked sudo (the lock button; locked on every visit). The data and actions are the page store's; the page asks before deleting. The
+ * account may, or as root through its unlocked sudo (the lock button; locked on every visit). The
+ * open folder is the address's (`?path=`): opening one navigates, so the browser's back and forward
+ * (a phone's back gesture) move through the folders; the store loads what the address names. The data and actions are the page store's; the page asks before deleting. The
  * uploads' progress and the question before replacing a file are the uploads panel's (every page).
  */
 @Component({
@@ -66,6 +71,13 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
 })
 export class FilesPage {
   protected readonly filesPageStore = inject(FilesPageStore);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  /** The folder the address names (`?path=`). */
+  private readonly addressPath = toSignal(
+    this.route.queryParamMap.pipe(map((params) => params.get('path'))),
+    { initialValue: null },
+  );
   private readonly nameDialog = viewChild.required(FileNameDialog);
   private readonly signInButton = viewChild<ElementRef<HTMLButtonElement>>('signInButton');
 
@@ -86,6 +98,39 @@ export class FilesPage {
   });
 
   constructor() {
+    // The address decides which folder is open: without one (or not a path), the home folder in
+    // its place; another account signing in, its home folder.
+    let account: string | null = null;
+    let opened: string | null = null;
+    effect(() => {
+      const session = this.filesPageStore.session();
+      const path = this.addressPath();
+      if (!session) {
+        account = opened = null;
+        return;
+      }
+      const who = `${session.username}:${session.home}`;
+      const switched = account !== null && account !== who;
+      account = who;
+      if (switched) opened = null;
+      const target = !path?.startsWith('/') || switched ? session.home : path;
+      untracked(() => {
+        if (target !== path) this.go(target, { replace: true });
+        else if (target !== opened) {
+          opened = target;
+          this.filesPageStore.open(target);
+        }
+      });
+    });
+    // A folder from the address that doesn't open (an old bookmark, root's after locking): home
+    // in its place, so back doesn't return to it.
+    effect(() => {
+      const failed = this.filesPageStore.failed();
+      const home = this.filesPageStore.session()?.home;
+      if (failed && home && failed !== home && failed === untracked(this.addressPath))
+        untracked(() => this.go(home, { replace: true }));
+    });
+
     let arrived = false;
     effect(() => {
       if (arrived || !this.filesPageStore.checked()) return;
@@ -101,7 +146,16 @@ export class FilesPage {
 
   protected openEntry(entry: FileEntry): void {
     const folder = this.filesPageStore.list()?.path;
-    if (folder) this.filesPageStore.open(joinPath(folder, entry.name));
+    if (folder) this.go(joinPath(folder, entry.name));
+  }
+
+  /** Opens a folder by going there: a new step in the browser's history (unless `replace`). */
+  protected go(path: string, { replace = false } = {}): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { path },
+      replaceUrl: replace,
+    });
   }
 
   protected act(action: FileAction): void {

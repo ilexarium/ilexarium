@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import type { FileEntry, FileList, FileSummary, LinuxSession } from '@ilex/shared';
 import { toast } from '@spartan-ng/brain/sonner';
 import { of, Subject, throwError } from 'rxjs';
@@ -100,18 +101,32 @@ function fakeApi(session: LinuxSession | null) {
   };
 }
 
-async function render(session: LinuxSession | null = ANNA) {
+/** The page at its route, so the address (`?path=`) works as in the app; `url` as arrived at. */
+async function render(session: LinuxSession | null = ANNA, url = '/system/files') {
   const auth = fakeAuthApi({ user: OWNER });
   const api = fakeApi(session);
   TestBed.configureTestingModule({
-    providers: [provideRouter([]), auth.provider, { provide: FilesApi, useValue: api }],
+    providers: [
+      provideRouter([{ path: 'system/files', component: FilesPage }]),
+      auth.provider,
+      { provide: FilesApi, useValue: api },
+    ],
   });
   await TestBed.inject(AuthStore).load();
-  const fixture = TestBed.createComponent(FilesPage);
+  const harness = await RouterTestingHarness.create();
+  await harness.navigateByUrl(url, FilesPage);
+  // The page's own element and injector (its store), and the harness's change detection.
+  const fixture = {
+    whenStable: () => harness.fixture.whenStable(),
+    detectChanges: () => harness.fixture.detectChanges(),
+    get debugElement() {
+      return harness.routeDebugElement!;
+    },
+  };
   await fixture.whenStable();
   await vi.waitFor(() => expect(api.session).toHaveBeenCalled());
   await fixture.whenStable();
-  const el = fixture.nativeElement as HTMLElement;
+  const el = harness.routeNativeElement!;
   const button = (text: string) =>
     [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
       b.textContent?.trim().startsWith(text),
@@ -198,7 +213,8 @@ describe('FilesPage', () => {
     await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna', false));
     await fixture.whenStable();
     button('music')!.click();
-    await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/music', false));
+    // The fake has no music folder: opened, then (not found) home again.
+    await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna/music', false));
   });
 
   it('a folder opened while another one loads: the one opened last is shown', async () => {
@@ -452,6 +468,79 @@ describe('FilesPage', () => {
     expect(signInDialog()).toBeNull();
   });
 
+  describe('the folder in the address', () => {
+    const url = () => TestBed.inject(Router).url;
+    const HOME_URL = '/system/files?path=%2Fhome%2Fanna';
+
+    it('arriving without one: the home folder, in the address in its place', async () => {
+      const { names } = await render();
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+      expect(names()).toEqual(['Photos', 'music', 'notes.txt']);
+    });
+
+    it('opening a folder and going up change the address; an address change (back) opens its folder', async () => {
+      const { el, api, fixture, names } = await render();
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+      (el.querySelector('tbody th button') as HTMLButtonElement).click();
+      await vi.waitFor(() => expect(url()).toBe('/system/files?path=%2Fhome%2Fanna%2FPhotos'));
+      await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/Photos', false));
+      await fixture.whenStable();
+      el.querySelector<HTMLButtonElement>('button[aria-label="Up one folder"]')!.click();
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+      // What the browser's back and forward do: the address changes, the folder follows.
+      await TestBed.inject(Router).navigateByUrl('/system/files?path=%2Fhome%2Fanna%2FPhotos');
+      await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna/Photos', false));
+      await TestBed.inject(Router).navigateByUrl(HOME_URL);
+      await vi.waitFor(() => expect(names()).toEqual(['Photos', 'music', 'notes.txt']));
+    });
+
+    it('a bookmarked folder opens as it is', async () => {
+      const { api } = await render(ANNA, '/system/files?path=%2Fhome%2Fanna%2FPhotos');
+      await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna/Photos', false));
+      expect(url()).toBe('/system/files?path=%2Fhome%2Fanna%2FPhotos');
+      expect(api.list).not.toHaveBeenCalledWith('/home/anna', false);
+    });
+
+    it('signing in on a bookmarked folder opens it, not the home folder', async () => {
+      const { api } = await render(null, '/system/files?path=%2Fhome%2Fanna%2FPhotos');
+      signIn('anna', 'secret');
+      await vi.waitFor(() => expect(api.list).toHaveBeenCalledWith('/home/anna/Photos', false));
+      expect(api.list).not.toHaveBeenCalledWith('/home/anna', false);
+      expect(url()).toBe('/system/files?path=%2Fhome%2Fanna%2FPhotos');
+    });
+
+    it('a folder that doesn’t open: why in a toast, then home in its place', async () => {
+      const error = vi.spyOn(toast, 'error').mockReturnValue(0);
+      const { names } = await render(ANNA, '/system/files?path=%2Fgone');
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+      expect(error).toHaveBeenCalled();
+      await vi.waitFor(() => expect(names()).toEqual(['Photos', 'music', 'notes.txt']));
+    });
+
+    it('not a path: home in its place', async () => {
+      await render(ANNA, '/system/files?path=relative');
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+    });
+
+    it('refresh and changes leave the address as it is', async () => {
+      const { el, api, fixture } = await render();
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+      el.querySelector<HTMLButtonElement>('button[aria-label="Refresh"]')!.click();
+      await fixture.whenStable();
+      await fixture.debugElement.injector.get(FilesPageStore).newFolder('Taxes');
+      expect(api.newFolder).toHaveBeenCalled();
+      expect(url()).toBe(HOME_URL);
+    });
+
+    it('as root, nothing of it in the address', async () => {
+      const { api, button } = await render(UNLOCKED);
+      await vi.waitFor(() => expect(url()).toBe(HOME_URL));
+      button('As anna')!.click();
+      await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna', true));
+      expect(url()).toBe(HOME_URL);
+    });
+  });
+
   describe('as administrator', () => {
     const warning = (el: HTMLElement) => el.textContent!.includes('You’re working as root');
 
@@ -485,10 +574,11 @@ describe('FilesPage', () => {
       const { api, fixture, button, names } = await render(UNLOCKED);
       button('As anna')!.click();
       await vi.waitFor(() => expect(api.list).toHaveBeenLastCalledWith('/home/anna', true));
-      fixture.debugElement.injector.get(FilesPageStore).open('/root');
+      await TestBed.inject(Router).navigateByUrl('/system/files?path=%2Froot');
       await vi.waitFor(() => expect(names()).toEqual(['.bashrc']));
       button('As root')!.click();
       await vi.waitFor(() => expect(names()).toEqual(['Photos', 'music', 'notes.txt']));
+      expect(TestBed.inject(Router).url).toBe('/system/files?path=%2Fhome%2Fanna');
       await fixture.whenStable();
     });
 
