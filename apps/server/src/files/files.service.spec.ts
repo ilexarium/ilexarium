@@ -7,9 +7,11 @@ import {
   rmSync,
   statSync,
   symlinkSync,
+  truncateSync,
   writeFileSync,
 } from 'node:fs';
-import { Readable } from 'node:stream';
+import { FILES_LIMITS } from '@ilex/shared';
+import { PassThrough, Readable } from 'node:stream';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AuditService } from '../audit/audit.service.js';
@@ -234,5 +236,127 @@ describe('FilesService.upload', () => {
     chmodSync(join(dir, 'tool'), 0o4755);
     await upload('tool', 'new', true);
     expect(mode('tool')).toBe(0o755);
+  });
+});
+
+describe('FilesService previews', () => {
+  let dir: string;
+  let usedRoot: ReturnType<typeof vi.fn>;
+  let files: FilesService;
+  let sftpAsked: boolean[];
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
+
+  const collect = async (stream: Readable) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    return Buffer.concat(chunks);
+  };
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'files-'));
+    usedRoot = vi.fn();
+    sftpAsked = [];
+    const linuxSessions = {
+      sftp: (_id: string, options?: { root?: boolean }) => {
+        sftpAsked.push(options?.root === true);
+        return { sftp: new Sftp(fakeSftp()), username: 'anna' };
+      },
+      usedRoot,
+    } as unknown as LinuxSessions;
+    files = new FilesService(linuxSessions, {} as SystemReader, {} as AuditService);
+  });
+
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it.each([
+    ['a PNG', PNG, 'image/png'],
+    ['a JPEG', Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6, 7, 8]), 'image/jpeg'],
+    ['a GIF', Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00', 'latin1'), 'image/gif'],
+    ['a WebP', Buffer.from('RIFF\x10\x00\x00\x00WEBPVP8 ', 'latin1'), 'image/webp'],
+  ])('%s is known by its bytes and sent whole', async (_name, head, type) => {
+    const content = Buffer.concat([head, Buffer.alloc(200_000, 7)]);
+    writeFileSync(join(dir, 'picture.bin'), content);
+    const image = await files.previewImage('s1', join(dir, 'picture.bin'));
+    expect(image.type).toBe(type);
+    expect((await collect(image.stream)).equals(content)).toBe(true);
+  });
+
+  it('a .png holding a page is refused, an SVG too (never an image)', async () => {
+    writeFileSync(join(dir, 'page.png'), '<html><script>alert(1)</script></html>');
+    writeFileSync(join(dir, 'logo.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+    writeFileSync(join(dir, 'tiny'), Buffer.from([0x89, 0x50]));
+    for (const name of ['page.png', 'logo.svg', 'tiny']) {
+      await expect(files.previewImage('s1', join(dir, name))).rejects.toMatchObject({
+        response: { code: 'not_previewable' },
+      });
+    }
+  });
+
+  it('the response given up before it starts: the file is closed all the same', async () => {
+    const source = new PassThrough();
+    source.write(PNG);
+    vi.spyOn(Sftp.prototype, 'readStream').mockResolvedValue(source);
+    writeFileSync(join(dir, 'p.png'), PNG);
+    const image = await files.previewImage('s1', join(dir, 'p.png'));
+    image.stream.destroy();
+    await vi.waitFor(() => expect(source.destroyed).toBe(true));
+    vi.restoreAllMocks();
+  });
+
+  it('more than 20 MB, a folder or a missing file is refused', async () => {
+    const big = join(dir, 'big.png');
+    writeFileSync(big, PNG);
+    truncateSync(big, FILES_LIMITS.previewImageMaxBytes + 1);
+    await expect(files.previewImage('s1', big)).rejects.toMatchObject({
+      response: { code: 'file_too_large' },
+    });
+    await expect(files.previewImage('s1', dir)).rejects.toMatchObject({
+      response: { code: 'wrong_type' },
+    });
+    await expect(files.previewImage('s1', join(dir, 'gone.png'))).rejects.toMatchObject({
+      response: { code: 'file_not_found' },
+    });
+  });
+
+  it('as root: root’s SFTP, and the bytes sent count as use of sudo', async () => {
+    writeFileSync(join(dir, 'p.png'), Buffer.concat([PNG, Buffer.alloc(300_000)]));
+    const image = await files.previewImage('s1', join(dir, 'p.png'), true);
+    await collect(image.stream);
+    expect(sftpAsked).toEqual([true]);
+    expect(usedRoot).toHaveBeenCalled();
+    writeFileSync(join(dir, 'shadow'), 'root:*:19000:0:99999:7:::\n');
+    expect((await files.readText('s1', join(dir, 'shadow'), true)).text).toContain('root:*');
+    expect(sftpAsked).toEqual([true, true]);
+  });
+
+  it('text: the whole file when small, its size', async () => {
+    writeFileSync(join(dir, 'app.env'), 'PORT=8080\nNAME=Grüße\n');
+    expect(await files.readText('s1', join(dir, 'app.env'))).toEqual({
+      text: 'PORT=8080\nNAME=Grüße\n',
+      truncated: false,
+      size: Buffer.byteLength('PORT=8080\nNAME=Grüße\n'),
+    });
+  });
+
+  it('text: only the first 256 KB, a character cut at the end left out', async () => {
+    const max = FILES_LIMITS.previewTextMaxBytes;
+    // "ü" is two bytes: the second falls just past the limit.
+    writeFileSync(join(dir, 'long.log'), `${'a'.repeat(max - 1)}ü${'b'.repeat(1000)}`);
+    const answer = await files.readText('s1', join(dir, 'long.log'));
+    expect(answer.truncated).toBe(true);
+    expect(answer.text).toBe('a'.repeat(max - 1));
+    expect(answer.size).toBe(max + 1 + 1000);
+  });
+
+  it('text: invalid UTF-8 becomes U+FFFD; a NUL byte early means binary', async () => {
+    writeFileSync(join(dir, 'latin1.txt'), Buffer.from([0x61, 0xe9, 0x62]));
+    expect((await files.readText('s1', join(dir, 'latin1.txt'))).text).toBe('a�b');
+    writeFileSync(join(dir, 'program'), Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0, 1]));
+    await expect(files.readText('s1', join(dir, 'program'))).rejects.toMatchObject({
+      response: { code: 'not_text' },
+    });
+    await expect(files.readText('s1', dir)).rejects.toMatchObject({
+      response: { code: 'wrong_type' },
+    });
   });
 });

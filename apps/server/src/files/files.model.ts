@@ -6,3 +6,9 @@ export interface Download {
   size: number;
   stream: Readable;
 }
+
+/** An image for the preview, its type checked from its bytes. */
+export interface PreviewImage {
+  type: string;
+  stream: Readable;
+}
