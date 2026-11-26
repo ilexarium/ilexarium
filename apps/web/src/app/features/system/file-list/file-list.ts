@@ -14,6 +14,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideDownload,
   lucideEllipsis,
+  lucideEye,
   lucideFile,
   lucideFolder,
   lucideFolderOpen,
@@ -35,7 +36,7 @@ interface Row {
   entry: FileEntry;
   /** Opens as a folder (a folder, or a link to one). */
   folder: boolean;
-  /** Downloads (a file, or a link to one). */
+  /** Previews (a file, or a link to one). */
   file: boolean;
   icon: string;
   size: string;
@@ -45,8 +46,8 @@ interface Row {
 
 /**
  * A folder's entries: a table on wide screens, a list below (only the one that fits is
- * rendered). Folders open, files download (a plain link: the browser saves the attachment);
- * rename and delete go out through `action` (the page asks). Presentational.
+ * rendered). Folders open, files show in the preview (`preview`), and download from the menu (a
+ * plain link: the browser saves the attachment); rename and delete go out through `action` (the page asks). Presentational.
  */
 @Component({
   selector: 'ilex-file-list',
@@ -62,6 +63,7 @@ interface Row {
     provideIcons({
       lucideDownload,
       lucideEllipsis,
+      lucideEye,
       lucideFile,
       lucideFolder,
       lucideFolderOpen,
@@ -79,6 +81,8 @@ export class FileList {
   /** Names being renamed or deleted. */
   readonly busy = input<string[]>([]);
   readonly open = output<FileEntry>();
+  /** A file clicked: shown in the preview. */
+  readonly preview = output<FileEntry>();
   readonly action = output<FileAction>();
 
   private readonly formatter = inject(Formatter);

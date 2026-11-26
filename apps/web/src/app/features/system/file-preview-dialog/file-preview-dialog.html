@@ -1,0 +1,70 @@
+<hlm-dialog [state]="shown() ? 'open' : 'closed'" (closed)="closed.emit()">
+  <hlm-dialog-content
+    *hlmDialogPortal
+    class="flex max-h-[95dvh] w-[calc(100vw-2rem)] flex-col gap-4 p-4 sm:max-w-4xl sm:p-6"
+    [closeLabel]="'files.preview.close' | translate"
+  >
+    @if (shownPreview(); as preview) {
+      @let content = preview.content;
+      <hlm-dialog-header class="min-w-0 pe-8">
+        <h2 hlmDialogTitle class="truncate" dir="ltr">{{ preview.entry.name }}</h2>
+        <p hlmDialogDescription>{{ size() }}</p>
+      </hlm-dialog-header>
+
+      <div class="min-h-0 flex-1">
+        @switch (content.kind) {
+          @case ('loading') {
+            <p role="status" class="py-8 text-center text-muted-foreground">
+              {{ 'files.preview.loading' | translate }}
+            </p>
+          }
+          @case ('image') {
+            <img
+              class="mx-auto max-h-[80dvh] max-w-full object-contain"
+              [src]="content.url"
+              [alt]="preview.entry.name"
+              (load)="imageLoaded.emit()"
+              (error)="imageFailed.emit()"
+            />
+          }
+          @case ('text') {
+            @if (content.truncated) {
+              <p class="mb-2 text-sm text-muted-foreground">
+                {{ 'files.preview.truncated' | translate: { size: textLimit } }}
+              </p>
+            }
+            <pre
+              class="max-h-[65dvh] overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-mono text-xs"
+              dir="ltr"
+              tabindex="0"
+              [attr.aria-label]="
+                'files.preview.textLabel' | translate: { name: preview.entry.name }
+              "
+              >{{ content.text }}</pre>
+          }
+          @case ('unavailable') {
+            <div class="grid justify-items-center gap-2 py-8 text-center">
+              <ng-icon name="lucideFileX" class="size-8 text-muted-foreground" aria-hidden="true" />
+              <p>
+                {{ content.reason[0] | translate: content.reason[1] ?? { size: imageLimit } }}
+              </p>
+              <p class="text-sm text-muted-foreground">
+                {{ 'files.preview.downloadInstead' | translate }}
+              </p>
+            </div>
+          }
+        }
+      </div>
+
+      <hlm-dialog-footer>
+        <button hlmBtn variant="outline" type="button" (click)="shown.set(false)">
+          {{ 'files.preview.close' | translate }}
+        </button>
+        <a hlmBtn [href]="preview.downloadUrl" download>
+          <ng-icon name="lucideDownload" aria-hidden="true" />
+          {{ 'files.download' | translate }}
+        </a>
+      </hlm-dialog-footer>
+    }
+  </hlm-dialog-content>
+</hlm-dialog>

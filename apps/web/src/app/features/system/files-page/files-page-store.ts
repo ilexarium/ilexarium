@@ -9,6 +9,7 @@ import {
 } from '@ngrx/signals';
 import {
   FILES_ERROR_CODES,
+  FILES_LIMITS,
   type FileEntry,
   type FileList,
   type LinuxSignInRequest,
@@ -36,7 +37,8 @@ import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { apiErrorCode, apiErrorText } from '../../../shared/forms/submission-errors';
 import { joinPath, renameTarget } from '../../../core/files/files-paths';
 import { UploadsStore } from '../../../core/files/uploads-store';
-import type { FileDeletion } from '../files.model';
+import type { FileDeletion, FilePreview, FilePreviewContent } from '../files.model';
+import { PREVIEW_IMAGE_NAME } from './files-page-store.constants';
 
 interface FilesPageState {
   list: FileList | null;
@@ -49,6 +51,21 @@ interface FilesPageState {
   deleting: FileDeletion | null;
   /** A folder asked for didn't open: the page puts the one still shown back in the address. */
   refused: string | null;
+  /** The file shown in the preview dialog. */
+  preview: FilePreview | null;
+}
+
+/** Why a preview can't be shown, in `Translator` arguments. */
+function previewRefusal(error: unknown): [string, Record<string, unknown>?] {
+  switch (apiErrorCode(error)) {
+    case FILES_ERROR_CODES.notText:
+    case FILES_ERROR_CODES.notPreviewable:
+      return ['files.preview.notPreviewable'];
+    case FILES_ERROR_CODES.tooLarge:
+      return ['files.preview.tooLarge'];
+    default:
+      return apiErrorText(error);
+  }
 }
 
 const initialState: FilesPageState = {
@@ -58,6 +75,7 @@ const initialState: FilesPageState = {
   pending: [],
   deleting: null,
   refused: null,
+  preview: null,
 };
 
 /**
@@ -103,7 +121,7 @@ export const FilesPageStore = signalStore(
     /** sudo locked while working as root: back to the account, said in a toast. */
     _rootLocked(): boolean {
       if (!store.asRoot()) return false;
-      patchState(store, { asRoot: false });
+      patchState(store, { asRoot: false, preview: null });
       toast.info(
         translator.t('files.admin.lockedToast', { account: store.session()?.username ?? '' }),
       );
@@ -119,6 +137,12 @@ export const FilesPageStore = signalStore(
       toast.error(translator.t('files.actionFailed'), {
         description: translator.t(...apiErrorText(error)),
       });
+    },
+
+    /** What the preview shows, if it's still this file's. */
+    _previewShows(entry: FileEntry, content: FilePreview['content']): void {
+      const preview = store.preview();
+      if (preview?.entry === entry) patchState(store, { preview: { ...preview, content } });
     },
 
     _folder(): string {
@@ -199,7 +223,8 @@ export const FilesPageStore = signalStore(
     /** Back to the account: the folder shown again as it — home (the page) when it may not open it. */
     lockRoot(): void {
       if (!store.asRoot()) return;
-      patchState(store, { asRoot: false });
+      // A root file's preview (and its Download) is root's: gone with it.
+      patchState(store, { asRoot: false, preview: null });
       store._openAsAccount(store._folder());
     },
 
@@ -229,6 +254,7 @@ export const FilesPageStore = signalStore(
           list: null,
           loading: false,
           deleting: null,
+          preview: null,
         });
       },
 
@@ -257,6 +283,66 @@ export const FilesPageStore = signalStore(
             );
         }),
       ),
+
+      /**
+       * Shows a file: an image by its name (the server checks its bytes), anything else as text.
+       * Another file asked for meanwhile wins.
+       */
+      openPreview: rxMethod<FileEntry>(
+        switchMap((entry) => {
+          const path = joinPath(store._folder(), entry.name);
+          const root = store.asRoot();
+          const downloadUrl = filesApi.downloadUrl(path, root);
+          if (PREVIEW_IMAGE_NAME.test(entry.name)) {
+            // Its size is known: one the server would refuse isn't asked for.
+            if (entry.size > FILES_LIMITS.previewImageMaxBytes) {
+              const content: FilePreviewContent = {
+                kind: 'unavailable',
+                reason: ['files.preview.tooLarge'],
+              };
+              patchState(store, { preview: { entry, downloadUrl, content } });
+              return EMPTY;
+            }
+            const url = filesApi.previewUrl(path, root);
+            patchState(store, { preview: { entry, downloadUrl, content: { kind: 'image', url } } });
+            return EMPTY;
+          }
+          patchState(store, { preview: { entry, downloadUrl, content: { kind: 'loading' } } });
+          return filesApi.text(path, root).pipe(
+            tap(({ text, truncated }) => {
+              store._usedRoot(root);
+              store._previewShows(entry, { kind: 'text', text, truncated });
+            }),
+            catchError((error: unknown) => {
+              store._sessionEnded(error);
+              if (root && store._sudoEnded(error)) {
+                patchState(store, { preview: null });
+                return EMPTY;
+              }
+              store._previewShows(entry, { kind: 'unavailable', reason: previewRefusal(error) });
+              return EMPTY;
+            }),
+          );
+        }),
+      ),
+
+      /** The image didn't load: the server refused it (not a real image, too large, gone). */
+      previewImageFailed(): void {
+        const entry = store.preview()?.entry;
+        if (entry)
+          store._previewShows(entry, {
+            kind: 'unavailable',
+            reason: ['files.preview.notPreviewable'],
+          });
+      },
+
+      previewImageLoaded(): void {
+        store._usedRoot(store.asRoot());
+      },
+
+      closePreview(): void {
+        patchState(store, { preview: null });
+      },
 
       downloadUrl(entry: FileEntry): string {
         return filesApi.downloadUrl(joinPath(store._folder(), entry.name), store.asRoot());

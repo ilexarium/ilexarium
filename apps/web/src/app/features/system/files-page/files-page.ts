@@ -28,6 +28,7 @@ import { HlmSkeleton } from '@ui/skeleton';
 import { FileDeleteDialog } from '../file-delete-dialog/file-delete-dialog';
 import { FileList } from '../file-list/file-list';
 import { FileNameDialog } from '../file-name-dialog/file-name-dialog';
+import { FilePreviewDialog } from '../file-preview-dialog/file-preview-dialog';
 import { SignInDialog } from '../../../shared/sign-in-dialog/sign-in-dialog';
 import type { FileAction } from '../files.model';
 import { joinPath } from '../../../core/files/files-paths';
@@ -36,7 +37,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
 
 /**
  * The Files page: sign in as a Linux user, then browse,
- * download, upload (button or drop), make folders, rename or move, delete — exactly what that
+ * preview (images and text), download, upload (button or drop), make folders, rename or move, delete — exactly what that
  * account may, or as root through its unlocked sudo (the lock button; locked on every visit). The
  * open folder is the address's (`?path=`): opening one navigates, so back and forward (a phone's
  * back gesture) move through the folders, and the store loads what the address names. The data
@@ -50,6 +51,7 @@ import { EmptyState } from '../../../shared/empty-state/empty-state';
     FileDeleteDialog,
     FileList,
     FileNameDialog,
+    FilePreviewDialog,
     HlmButton,
     HlmSkeleton,
     NgIcon,

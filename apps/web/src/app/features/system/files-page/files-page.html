@@ -118,6 +118,7 @@
           [urlFor]="urlFor"
           [busy]="busy()"
           (open)="openEntry($event)"
+          (preview)="filesPageStore.openPreview($event)"
           (action)="act($event)"
         />
       } @else {
@@ -142,6 +143,12 @@
 }
 
 <ilex-file-name-dialog />
+<ilex-file-preview-dialog
+  [preview]="filesPageStore.preview()"
+  (closed)="filesPageStore.closePreview()"
+  (imageLoaded)="filesPageStore.previewImageLoaded()"
+  (imageFailed)="filesPageStore.previewImageFailed()"
+/>
 <ilex-file-delete-dialog
   [deleting]="filesPageStore.deleting()"
   (confirm)="filesPageStore.delete($event)"
