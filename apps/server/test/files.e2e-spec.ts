@@ -249,6 +249,72 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
     expect(missing.body.code).toBe('file_not_found');
   });
 
+  it('previews an image (checked, sandboxed) and text (as JSON); refuses the rest', async () => {
+    const started = new Date();
+    const previews = `/home/anna/e2e-preview-${Date.now()}`;
+    const name = previews.split('/').pop()!;
+    await api().post('/files/folder', { parent: '/home/anna', name }).expect(204);
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(5000, 1),
+    ]);
+    await api()
+      .put(`/files/upload?folder=${q(previews)}&name=p.png`, png)
+      .expect(204);
+    await api()
+      .put(`/files/upload?folder=${q(previews)}&name=fake.png`, '<script>alert(1)</script>')
+      .expect(204);
+    await api()
+      .put(`/files/upload?folder=${q(previews)}&name=app.env`, 'PORT=8080\n')
+      .expect(204);
+    await api()
+      .put(`/files/upload?folder=${q(previews)}&name=bin`, Buffer.from([0x7f, 0x45, 0, 1]))
+      .expect(204);
+
+    const image = await api()
+      .get(`/files/preview?path=${q(`${previews}/p.png`)}`)
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect((image.body as Buffer).equals(png)).toBe(true);
+    expect(image.headers['content-type']).toBe('image/png');
+    expect(image.headers['x-content-type-options']).toBe('nosniff');
+    expect(image.headers['content-security-policy']).toBe("default-src 'none'; sandbox");
+    expect(image.headers['cache-control']).toBe('no-store');
+    const fake = await api()
+      .get(`/files/preview?path=${q(`${previews}/fake.png`)}`)
+      .expect(409);
+    expect(fake.body.code).toBe('not_previewable');
+
+    const text = await api()
+      .get(`/files/text?path=${q(`${previews}/app.env`)}`)
+      .expect(200);
+    expect(text.headers['content-type']).toMatch(/^application\/json/);
+    expect(text.body).toEqual({ text: 'PORT=8080\n', truncated: false, size: 10 });
+    const binary = await api()
+      .get(`/files/text?path=${q(`${previews}/bin`)}`)
+      .expect(409);
+    expect(binary.body.code).toBe('not_text');
+    // What Linux refuses anna is refused here too.
+    expect(
+      (
+        await api()
+          .get(`/files/text?path=${q('/etc/shadow')}`)
+          .expect(403)
+      ).body.code,
+    ).toBe('permission_denied');
+    // Reads, not audited.
+    const audited = await prisma.auditEvent.findMany({ where: { at: { gte: started } } });
+    expect(new Set(audited.map((a) => a.action))).toEqual(new Set(['files.upload']));
+    await api()
+      .delete(`/files?path=${q(previews)}`)
+      .expect(204);
+  });
+
   it('as administrator: root through anna’s own unlocked sudo, closed when it locks', async () => {
     const asRoot = (path: string) => `/files/list?path=${q(path)}&root=true`;
     expect((await api().get(asRoot('/root')).expect(403)).body.code).toBe('sudo_required');
@@ -272,6 +338,10 @@ describe.skipIf(!sshdUp)('files (e2e)', () => {
       })
       .expect(200);
     expect((secret.body as Buffer).toString()).toBe('secret\n');
+    const preview = await api()
+      .get(`/files/text?path=${q('/home/bob/private.txt')}&root=true`)
+      .expect(200);
+    expect(preview.body).toEqual({ text: 'secret\n', truncated: false, size: 7 });
     await api()
       .post('/files/rename', { from: `${rootFolder}/a.txt`, to: `${rootFolder}/b.txt`, root: true })
       .expect(204);

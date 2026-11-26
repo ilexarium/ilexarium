@@ -21,9 +21,15 @@ export function fakeSftp(): SFTPWrapper {
           names?.map((filename) => ({ filename, attrs: {} })),
         ),
       ),
-    createReadStream: (path: string, options: { start: number; end: number }) => {
+    // ssh2's handle stands in for an opened file; here the path is opened again by the stream.
+    open: (path: string, _flags: string, cb: (e: Error | null, handle?: Buffer) => void) =>
+      fs.open(path, 'r', (error, fd) => {
+        if (!error) fs.closeSync(fd);
+        done(cb)(error, Buffer.alloc(4));
+      }),
+    createReadStream: (path: string, options: { start?: number; end?: number }) => {
       const out = new PassThrough();
-      fs.createReadStream(path, options)
+      fs.createReadStream(path, { start: options.start, end: options.end })
         .on('error', (error: NodeJS.ErrnoException) => out.destroy(sftpError(error)))
         .pipe(out);
       return out;

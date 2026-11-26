@@ -23,6 +23,8 @@ const STATUS: Partial<Record<FilesErrorCode, HttpStatus>> = {
   [FILES_ERROR_CODES.exists]: HttpStatus.CONFLICT,
   [FILES_ERROR_CODES.wrongType]: HttpStatus.CONFLICT,
   [FILES_ERROR_CODES.tooLarge]: HttpStatus.PAYLOAD_TOO_LARGE,
+  [FILES_ERROR_CODES.notPreviewable]: HttpStatus.CONFLICT,
+  [FILES_ERROR_CODES.notText]: HttpStatus.CONFLICT,
   [FILES_ERROR_CODES.failed]: HttpStatus.CONFLICT,
 };
 

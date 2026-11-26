@@ -18,6 +18,7 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type {
   FileList,
   FileSummary,
+  FileText,
   LinuxSession,
   LinuxSessionAnswer,
   PublicUser,
@@ -139,6 +140,36 @@ export class FilesController {
       'Cache-Control': 'no-store',
     });
     await pipeline(file.stream, res).catch(() => res.destroy());
+  }
+
+  /**
+   * An image for the preview, its type checked from its bytes; sandboxed and never sniffed, so
+   * even opened in a tab of its own it can't run as the app.
+   */
+  @Get('preview')
+  async preview(
+    @Query() { path, root }: FilePathQueryDto,
+    @CurrentSession() session: { id: string },
+    @Res() res: Response,
+  ): Promise<void> {
+    const image = await this.filesService.previewImage(session.id, path, root === 'true');
+    res.status(200).set({
+      'Content-Type': image.type,
+      'Content-Disposition': 'inline',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+      'Cache-Control': 'no-store',
+    });
+    await pipeline(image.stream, res).catch(() => res.destroy());
+  }
+
+  /** A text file's start as JSON: never served as a page. */
+  @Get('text')
+  text(
+    @Query() { path, root }: FilePathQueryDto,
+    @CurrentSession() session: { id: string },
+  ): Promise<FileText> {
+    return this.filesService.readText(session.id, path, root === 'true');
   }
 
   /** The file is the request's body (streamed through, never held in memory). */
