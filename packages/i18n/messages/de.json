@@ -87,7 +87,9 @@
       "expiredTitle": "Deine Sitzung ist abgelaufen",
       "expiredText": "Bitte melde dich erneut an.",
       "submit": "Anmelden",
-      "submitting": "Anmeldung läuft …"
+      "submitting": "Anmeldung läuft …",
+      "restoredTitle": "Ilexarium wurde wiederhergestellt",
+      "restoredText": "Melde dich mit deinem Konto vom alten Rechner an."
     },
     "setup": {
       "heading": "{{app}} einrichten",
@@ -98,7 +100,9 @@
       "passwordHelp": "Mindestens {{passwordMin}} Zeichen. Ein paar zufällige Wörter funktionieren gut.",
       "confirmPassword": "Passwort bestätigen",
       "submit": "Konto anlegen",
-      "submitting": "Konto wird angelegt …"
+      "submitting": "Konto wird angelegt …",
+      "movingTitle": "Umzug von einem anderen Rechner?",
+      "movingText": "Lege ein Konto an und stelle Ilexarium dann auf der Seite „Sicherungen“ von deinem Sicherungslaufwerk wieder her. Oder führe statt dessen dies auf dem Server aus:"
     }
   },
   "account": {
@@ -174,7 +178,9 @@
     "backupSkipInvalid": "Ein Pfad unterhalb des Ordners, ohne .. oder Klammern.",
     "backupFolderSystem": "Kein Systemordner.",
     "mountPointRequired": "Gib einen Ordner ein.",
-    "mountPointInvalid": "Ein absoluter Ordner, nicht / und kein Systemordner."
+    "mountPointInvalid": "Ein absoluter Ordner, nicht / und kein Systemordner.",
+    "backupPassphraseRequired": "Gib die Sicherungs-Passphrase ein",
+    "backupPassphraseInvalid": "Das ist keine Sicherungs-Passphrase"
   },
   "errors": {
     "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
@@ -295,7 +301,9 @@
     "update_not_configured": "Diese Installation weiß nicht, woher ihre Updates kommen.",
     "update_not_available": "Diese Version ist nicht mehr die neueste gefundene. Prüfe erneut.",
     "update_busy": "Gerade läuft etwas anderes (eine Sicherung, eine Wiederherstellung, eine App-Aufgabe oder ein anderes Update). Versuche es danach erneut.",
-    "update_unavailable": "Das Update konnte auf diesem Rechner nicht gestartet werden."
+    "update_unavailable": "Das Update konnte auf diesem Rechner nicht gestartet werden.",
+    "backup_newer": "Diese Sicherung stammt von einem neueren Ilexarium. Aktualisiere dieses zuerst und versuche es dann erneut.",
+    "recovery_failed": "Ilexarium konnte nicht wiederhergestellt werden; es ist wie zuvor."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -1057,6 +1065,45 @@
       "items": "Was gesichert wird",
       "history": "Verlauf",
       "settings": "Einstellungen"
+    },
+    "recovery": {
+      "cardTitle": "Umzug von einem anderen Rechner?",
+      "cardText": "Hol Ilexarium von seinem Sicherungslaufwerk zurück, statt neu einzurichten: seine Konten, Einstellungen und den Sicherungsplan. Deine Apps und Ordner stellst du danach einzeln wieder her.",
+      "open": "Ilexarium von einem Sicherungslaufwerk wiederherstellen",
+      "orCommand": "Oder auf dem Server:",
+      "title": "Ilexarium wiederherstellen",
+      "description": "Aus der neuesten Sicherung von Ilexarium auf deinem Sicherungslaufwerk.",
+      "close": "Schließen",
+      "finding": "Suche Sicherungen auf den eingehängten Laufwerken…",
+      "noneFound": "Keine Sicherungen auf den eingehängten Laufwerken. Schließe das Sicherungslaufwerk an und hänge es auf der Seite „Laufwerke“ ein.",
+      "lookAgain": "Erneut suchen",
+      "where": "Sicherungen auf",
+      "passphrase": "Sicherungs-Passphrase",
+      "passphraseHelp": "Die sechs Wörter, die du beim Einrichten der Sicherungen gespeichert hast.",
+      "check": "Sicherungen öffnen",
+      "checking": "Wird geöffnet…",
+      "newest": "Neueste Sicherung von Ilexarium: {{time}}.",
+      "replaces": "Ilexarium hält für eine Minute an. Konten, Einstellungen und Sicherungsplan kommen aus der Sicherung: das Konto, mit dem du gerade angemeldet bist, entfällt, und alle melden sich neu an.",
+      "restore": "Wiederherstellen",
+      "starting": "Wird gestartet…",
+      "cancel": "Abbrechen",
+      "waiting": "Ilexarium wird wiederhergestellt…",
+      "waitingText": "Es startet neu. Danach kommst du zur Anmeldung: melde dich mit deinem Konto vom alten Rechner an.",
+      "tooLong": "Die Wiederherstellung dauert länger als erwartet. Lade die Seite später neu; das Protokoll des Servers sagt mehr (journalctl -u \"ilex-recover@*\").",
+      "restoredTitle": "Wiederhergestellt aus der Sicherung vom {{time}}",
+      "accountsText": "Wiederhergestellte Dateien behalten die Benutzernummer ihres Eigentümers. Deine Apps und Ordner gehören diesen Konten:",
+      "account": {
+        "there": "vorhanden",
+        "missing": "fehlt auf diesem Rechner: lege es zuerst an",
+        "other": "heißt hier {{here}}"
+      },
+      "accountItems": "Für:",
+      "accountsUnknown": "Die Sicherungen sagten nicht, wem was gehört.",
+      "next": "Stelle jede App und jeden Ordner wieder her: Wiederherstellen … → An den alten Ort.",
+      "failedTitle": "Ilexarium konnte nicht wiederhergestellt werden",
+      "dismiss": "Ausblenden",
+      "dismissFailed": "Der Hinweis konnte nicht ausgeblendet werden",
+      "wrongPassphrase": "Diese Passphrase öffnet diese Sicherungen nicht. Prüfe die sechs Wörter und versuche es erneut."
     }
   },
   "disks": {
@@ -2025,5 +2072,10 @@
       "cancel": "Abbrechen",
       "confirm": "Aktualisieren"
     }
+  },
+  "copyCommand": {
+    "copy": "Befehl kopieren",
+    "copied": "Kopiert",
+    "failed": "Der Befehl konnte nicht kopiert werden"
   }
 }

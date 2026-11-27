@@ -87,7 +87,9 @@
       "expiredTitle": "Your session expired",
       "expiredText": "Please sign in again.",
       "submit": "Sign in",
-      "submitting": "Signing in…"
+      "submitting": "Signing in…",
+      "restoredTitle": "Ilexarium was restored",
+      "restoredText": "Sign in with your account from the old machine."
     },
     "setup": {
       "heading": "Set up {{app}}",
@@ -98,7 +100,9 @@
       "passwordHelp": "At least {{passwordMin}} characters. A few random words work well.",
       "confirmPassword": "Confirm password",
       "submit": "Create account",
-      "submitting": "Creating account…"
+      "submitting": "Creating account…",
+      "movingTitle": "Moving from another machine?",
+      "movingText": "Create an account, then restore Ilexarium from your backup disk on the Backups page. Or run this on the server instead of creating one:"
     }
   },
   "account": {
@@ -174,7 +178,9 @@
     "backupSkipInvalid": "A path below the folder, without .. or brackets.",
     "backupFolderSystem": "Not a system folder.",
     "mountPointRequired": "Enter a folder.",
-    "mountPointInvalid": "An absolute folder, not / or a system folder."
+    "mountPointInvalid": "An absolute folder, not / or a system folder.",
+    "backupPassphraseRequired": "Enter the backup passphrase",
+    "backupPassphraseInvalid": "That isn't a backup passphrase"
   },
   "errors": {
     "network": "Couldn't reach the server. Check your connection and try again.",
@@ -295,7 +301,9 @@
     "update_not_configured": "This install doesn't know where its updates come from.",
     "update_not_available": "This version is no longer the newest found. Check again.",
     "update_busy": "Something else is running (a backup, a restore, an app task or another update). Try again when it has finished.",
-    "update_unavailable": "The update couldn't be started on this machine."
+    "update_unavailable": "The update couldn't be started on this machine.",
+    "backup_newer": "This backup is from a newer Ilexarium. Update this one first, then try again.",
+    "recovery_failed": "Ilexarium couldn't be restored; it's as it was before."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -1057,6 +1065,45 @@
       "items": "What’s backed up",
       "history": "History",
       "settings": "Settings"
+    },
+    "recovery": {
+      "cardTitle": "Moving from another machine?",
+      "cardText": "Bring Ilexarium back from its backup disk instead of setting up anew: its accounts, settings and backup plan. Your apps and folders are restored afterwards, one by one.",
+      "open": "Restore Ilexarium from a backup disk",
+      "orCommand": "Or on the server:",
+      "title": "Restore Ilexarium",
+      "description": "From the newest backup of Ilexarium on your backup disk.",
+      "close": "Close",
+      "finding": "Looking for backups on the mounted disks…",
+      "noneFound": "No backups on the mounted disks. Connect the backup disk and mount it on the Disks page.",
+      "lookAgain": "Look again",
+      "where": "Backups on",
+      "passphrase": "Backup passphrase",
+      "passphraseHelp": "The six words you saved when backups were set up.",
+      "check": "Open the backups",
+      "checking": "Opening…",
+      "newest": "Newest backup of Ilexarium: {{time}}.",
+      "replaces": "Ilexarium stops for a minute. Its accounts, settings and backup plan come from the backup: the account you're signed in with now goes, and everyone signs in again.",
+      "restore": "Restore",
+      "starting": "Starting…",
+      "cancel": "Cancel",
+      "waiting": "Restoring Ilexarium…",
+      "waitingText": "It restarts. When it's back, you're taken to the sign-in page: sign in with your account from the old machine.",
+      "tooLong": "Restoring takes longer than expected. Reload the page in a while; the server’s log says more (journalctl -u \"ilex-recover@*\").",
+      "restoredTitle": "Restored from the backup of {{time}}",
+      "accountsText": "Restored files keep their owner's user number. Your apps and folders belong to these accounts:",
+      "account": {
+        "there": "there",
+        "missing": "missing on this machine: make it first",
+        "other": "here it is {{here}}"
+      },
+      "accountItems": "For:",
+      "accountsUnknown": "The backups didn't say who owns what.",
+      "next": "Restore each app and folder: Restore… → Back in place.",
+      "failedTitle": "Ilexarium couldn't be restored",
+      "dismiss": "Dismiss",
+      "dismissFailed": "Couldn't dismiss the notice",
+      "wrongPassphrase": "This passphrase doesn't open these backups. Check the six words and try again."
     }
   },
   "disks": {
@@ -2025,5 +2072,10 @@
       "cancel": "Cancel",
       "confirm": "Update"
     }
+  },
+  "copyCommand": {
+    "copy": "Copy the command",
+    "copied": "Copied",
+    "failed": "Couldn't copy the command"
   }
 }

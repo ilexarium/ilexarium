@@ -198,6 +198,11 @@ export const BACKUP_ERROR_CODES = {
   /** An item's backups can't be deleted while a restore keeps a previous version of it. */
   setAsideKept: 'backup_set_aside_kept',
   destinationNotAllowed: 'destination_not_allowed',
+  // Restoring Ilexarium from the backup disk.
+  /** The backup is from a newer Ilexarium (a migration this one doesn't have): nothing changed. */
+  backupNewer: 'backup_newer',
+  /** The database (or a step after it) couldn't be restored: everything was put back. */
+  recoveryFailed: 'recovery_failed',
 } as const;
 export type BackupErrorCode = (typeof BACKUP_ERROR_CODES)[keyof typeof BACKUP_ERROR_CODES];
 
@@ -586,3 +591,95 @@ export const backupsStatusSchema = z.object({
     .nullable(),
 });
 export type BackupsStatus = z.infer<typeof backupsStatusSchema>;
+
+// Restoring Ilexarium from the backup disk (docs/plans/recover_from_backup.md).
+
+/** The longest backup passphrase accepted (the generated one is six words). */
+export const BACKUP_PASSPHRASE_MAX = 1024;
+
+const recoveryPassphraseSchema = z
+  .string()
+  .trim()
+  .min(1, 'validation.backupPassphraseRequired')
+  .max(BACKUP_PASSPHRASE_MAX, 'validation.backupPassphraseInvalid')
+  .refine((value) => !/[\x00-\x1f\x7f]/.test(value), 'validation.backupPassphraseInvalid');
+
+/** A repository on a mounted disk: `<mount point>/ilex-backups`. */
+const recoveryRepositorySchema = folderPathSchema.refine(
+  (path) => path.endsWith(`/${BACKUP_REPOSITORY_FOLDER}`),
+  'validation.pathInvalid',
+);
+
+/**
+ * `POST /api/backups/recovery/check`, through the person's sudo: without a repository, the
+ * backups found on mounted disks; with one and its passphrase, its newest backups of Ilexarium.
+ */
+export const backupRecoveryCheckRequestSchema = z
+  .strictObject({
+    repository: recoveryRepositorySchema.optional(),
+    passphrase: recoveryPassphraseSchema.optional(),
+  })
+  .refine((body) => (body.repository === undefined) === (body.passphrase === undefined), {
+    message: 'validation.backupPassphraseRequired',
+    path: ['passphrase'],
+  });
+export type BackupRecoveryCheckRequest = z.infer<typeof backupRecoveryCheckRequestSchema>;
+
+/** The Restore Ilexarium dialog's passphrase field. */
+export const backupRecoveryPassphraseFormSchema = z.object({
+  passphrase: recoveryPassphraseSchema,
+});
+export type BackupRecoveryPassphraseForm = z.infer<typeof backupRecoveryPassphraseFormSchema>;
+
+export const backupRecoveryArchiveSchema = z.object({ name: z.string(), time: z.iso.datetime() });
+export type BackupRecoveryArchive = z.infer<typeof backupRecoveryArchiveSchema>;
+
+export const backupRecoveryCheckResponseSchema = z.object({
+  repositories: z.array(z.string()),
+  /** Newest first; only with a repository and its passphrase. */
+  archives: z.array(backupRecoveryArchiveSchema).optional(),
+});
+export type BackupRecoveryCheckResponse = z.infer<typeof backupRecoveryCheckResponseSchema>;
+
+/**
+ * `POST /api/backups/recovery`: only while there's no backup plan. Runs as its own unit
+ * (`ilex-recover@<id>`): the app stops, its database is replaced, everyone signs in again.
+ */
+export const backupRecoveryRequestSchema = z.strictObject({
+  repository: recoveryRepositorySchema,
+  passphrase: recoveryPassphraseSchema,
+  archive: z.string().regex(BACKUP_ARCHIVE_PATTERN),
+});
+export type BackupRecoveryRequest = z.infer<typeof backupRecoveryRequestSchema>;
+
+export const backupRecoveryStartedResponseSchema = z.object({ recoveryId: z.uuid() });
+export type BackupRecoveryStartedResponse = z.infer<typeof backupRecoveryStartedResponseSchema>;
+
+/** An account whose files the backups hold, compared with this machine's accounts. */
+export const backupRecoveryAccountSchema = z.object({
+  uid: z.number().int(),
+  /** Its name on the old machine. */
+  name: z.string(),
+  /** The apps (by name) and folders it owns. */
+  items: z.array(z.string()),
+  /** This machine's account with that number: null when there's none. */
+  here: z.string().nullable(),
+});
+export type BackupRecoveryAccount = z.infer<typeof backupRecoveryAccountSchema>;
+
+/** `GET /api/backups/recovery`: the last recovery here, or null. */
+export const backupRecoverySchema = z.object({
+  id: z.uuid(),
+  status: z.enum(['succeeded', 'failed']),
+  errorCode: z.string().nullable(),
+  archive: z.string(),
+  archiveTime: z.iso.datetime(),
+  finishedAt: z.iso.datetime(),
+  /** null: not checked. */
+  accounts: z.array(backupRecoveryAccountSchema).nullable(),
+  dismissed: z.boolean(),
+});
+export type BackupRecovery = z.infer<typeof backupRecoverySchema>;
+
+export const backupRecoveryResponseSchema = z.object({ recovery: backupRecoverySchema.nullable() });
+export type BackupRecoveryResponse = z.infer<typeof backupRecoveryResponseSchema>;

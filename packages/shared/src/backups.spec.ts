@@ -4,6 +4,8 @@ import {
   BACKUP_LIMITS,
   backupItemRequestSchema,
   backupPlanUpdateSchema,
+  backupRecoveryCheckRequestSchema,
+  backupRecoveryRequestSchema,
   backupRestoreRequestSchema,
   backupRetentionSchema,
   backupScheduleSchema,
@@ -210,5 +212,40 @@ describe('backupRestoreRequestSchema', () => {
     expect(backupRestoreRequestSchema.safeParse({ ...restore, path: '/home/alice' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('restoring Ilexarium from the backup disk', () => {
+  const repository = '/mnt/usb/ilex-backups';
+  const passphrase = 'acorn bagel cactus dolphin ember fjord';
+
+  it('checks nothing, or a repository with its passphrase — never half of it', () => {
+    expect(backupRecoveryCheckRequestSchema.safeParse({}).success).toBe(true);
+    expect(backupRecoveryCheckRequestSchema.safeParse({ repository, passphrase }).success).toBe(
+      true,
+    );
+    expect(backupRecoveryCheckRequestSchema.safeParse({ repository }).success).toBe(false);
+    expect(backupRecoveryCheckRequestSchema.safeParse({ passphrase }).success).toBe(false);
+    expect(backupRecoveryCheckRequestSchema.safeParse({ other: 1 }).success).toBe(false);
+  });
+
+  it('takes only a backups folder, a one-line passphrase and an archive name', () => {
+    const archive = '0193a000-0000-7000-8000-000000000001-2026-11-26T03:00:00';
+    const ok = { repository, passphrase, archive };
+    expect(backupRecoveryRequestSchema.safeParse(ok).success).toBe(true);
+    for (const change of [
+      { repository: '/mnt/usb' },
+      { repository: '/etc/ilex-backups' },
+      { repository: 'mnt/usb/ilex-backups' },
+      { passphrase: '' },
+      { passphrase: 'two\nlines' },
+      { passphrase: 'x'.repeat(1025) },
+      { archive: 'latest' },
+    ]) {
+      expect(
+        backupRecoveryRequestSchema.safeParse({ ...ok, ...change }).success,
+        JSON.stringify(change),
+      ).toBe(false);
+    }
   });
 });
