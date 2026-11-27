@@ -224,9 +224,10 @@ export class BackupChecks {
     if (problem) throw validationFailed([{ field: 'folders', ...problem }]);
   }
 
-  /** A folder item's change: its skips inside the folder. */
-  checkFolderChange(path: string, change: BackupItemUpdate): void {
-    const problem = skipsProblem(change.skip ?? [], path);
+  checkFolderChange(path: string | null, change: BackupItemUpdate): void {
+    const problem = path
+      ? skipsProblem(change.skip ?? [], path)
+      : { code: BACKUP_ERROR_CODES.itemFixed, message: 'A folder item without its folder' };
     if (problem) throw validationFailed([{ field: 'skip', ...problem }]);
   }
 
@@ -340,7 +341,7 @@ export class BackupChecks {
   }
 }
 
-/** A folder item's skips: each below the folder (the backup program checks them again). */
+/** The backup program checks them again, its own way. */
 function skipsProblem(skips: string[], folder: string): Omit<FieldError, 'field'> | null {
   return skips.every((skip) => isSkipInFolders(skip, [folder]))
     ? null

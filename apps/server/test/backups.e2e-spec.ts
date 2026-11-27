@@ -464,6 +464,17 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
       .expect(400);
   });
 
+  it('a folder removed and added again keeps its skips (Add a folder sends none)', async () => {
+    const docs = join(storage, 'docs');
+    const folder = (await plan()).items.find((i) => i.kind === 'folder' && i.path === docs)!;
+    await api().delete(`/backups/items/${folder.id}`).expect(204);
+    const again = await api()
+      .post('/backups/items', { item: { kind: 'folder', path: docs } })
+      .expect(201);
+    expect(again.body).toMatchObject({ id: folder.id, removed: false, skip: folder.skip });
+    expect(folder.skip).toEqual([join(docs, 'cache')]);
+  });
+
   it('lets one root operation run at a time: the program’s lock — a second run is recorded as busy', async () => {
     const first = api().post('/backups/runs', {});
     const second = api().post('/backups/runs', {});

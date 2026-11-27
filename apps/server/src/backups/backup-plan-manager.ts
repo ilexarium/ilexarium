@@ -147,7 +147,8 @@ export class BackupPlanManager {
               where: { id: removed.id },
               data: {
                 removedAt: null,
-                skip: row.skip,
+                // "Add a folder" sends no skips: a folder added again keeps its own.
+                skip: row.kind === 'folder' && row.skip.length === 0 ? removed.skip : row.skip,
                 ...(row.kind === 'app' && { folders: row.folders, mode: row.mode }),
               },
             })
@@ -166,11 +167,14 @@ export class BackupPlanManager {
       const folderSkips = item.kind === 'folder' && !change.folders && !change.mode;
       if ((item.kind !== 'app' && !folderSkips) || item.removedAt) {
         throw new BadRequestException(
-          apiError('Only an app’s folders can be changed', BACKUP_ERROR_CODES.itemFixed),
+          apiError(
+            'Only an app’s folders and mode, or a folder’s skips, can be changed',
+            BACKUP_ERROR_CODES.itemFixed,
+          ),
         );
       }
       if (item.kind === 'app') this.backupChecks.checkAppChange(item, change, plan.destination);
-      else this.backupChecks.checkFolderChange(item.path ?? '', change);
+      else this.backupChecks.checkFolderChange(item.path, change);
       await this.applyPlanChange(actor, (tx) =>
         tx.backupItem.update({
           where: { id },
