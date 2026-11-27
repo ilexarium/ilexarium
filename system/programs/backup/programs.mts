@@ -66,17 +66,25 @@ export function runProgram(
     cwd?: string;
     capture?: boolean;
     stdoutFd?: number;
+    /** What it reads: a file (a dump to restore) or a text (SQL); nothing by default. */
+    stdinFd?: number;
+    input?: string;
     onLine?: (line: string) => void;
   },
 ): Promise<Ran> {
   return new Promise((resolve, reject) => {
+    const stdin = options.stdinFd ?? (options.input !== undefined ? 'pipe' : 'ignore');
     const child = spawn(file, args, {
       env: options.env,
       cwd: options.cwd ?? '/',
-      stdio: ['ignore', options.stdoutFd ?? 'pipe', 'pipe'],
+      stdio: [stdin, options.stdoutFd ?? 'pipe', 'pipe'],
       shell: false,
     });
     current = child;
+    if (options.input !== undefined) {
+      child.stdin!.on('error', () => undefined);
+      child.stdin!.end(options.input);
+    }
     let stdout = '';
     const logs: BorgLog[] = [];
     const line = (text: string) => {
@@ -154,7 +162,13 @@ export async function removeFolder(config: Config, path: string): Promise<boolea
 export function docker(
   config: Config,
   args: string[],
-  options: { capture?: boolean; stdoutFd?: number; onLine?: (line: string) => void } = {},
+  options: {
+    capture?: boolean;
+    stdoutFd?: number;
+    stdinFd?: number;
+    input?: string;
+    onLine?: (line: string) => void;
+  } = {},
 ): Promise<Ran> {
   return runProgram(config.dockerBin, args, {
     env: { PATH: SAFE_PATH, HOME: home(config) },

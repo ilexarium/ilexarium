@@ -10,6 +10,7 @@ import { init } from './init.mts';
 import { MAX_INPUT_BYTES, requireNoInput } from './input.mts';
 import { forget, list, passphrase } from './maintenance.mts';
 import { stopping, stopRunning } from './programs.mts';
+import { recover, recoverCheck, recoverRun, recoverStart } from './recover.mts';
 import { discard, restoreRun, restoreStart } from './restore.mts';
 import { run } from './run.mts';
 import { parseInstance, start as startRun } from './start.mts';
@@ -29,15 +30,22 @@ export const ACTIONS = new Set([
   'forget',
   'list',
   'passphrase',
+  'recover-check',
+  'recover',
+  'recover-start',
+  'recover-run',
 ]);
 
-/** The action, and for `run-requested` and `restore-run` their unit instance (the only actions with an argument). */
+/** The actions started with their unit's instance (the only ones with an argument). */
+const WITH_INSTANCE = ['run-requested', 'restore-run', 'recover-run'];
+
+/** The action, and for those a unit starts (`WITH_INSTANCE`) the unit's instance. */
 export function checkStartup(): { action: string; instance: string | null } {
   if (process.env['NODE_OPTIONS'] !== undefined || process.execArgv.length > 0) {
     throw new Refusal('invalid_request', 'Node was started with options', 6);
   }
   const args = process.argv.slice(2);
-  const expected = args[0] === 'run-requested' || args[0] === 'restore-run' ? 2 : 1;
+  const expected = WITH_INSTANCE.includes(args[0]) ? 2 : 1;
   if (args.length !== expected || !ACTIONS.has(args[0])) {
     throw new Refusal('invalid_request', `usage: ilex-backup ${[...ACTIONS].join('|')}`);
   }
@@ -102,6 +110,19 @@ export async function main(): Promise<number> {
       requireNoInput(input);
       passphrase(paths);
       return 0;
+    case 'recover-check':
+      await recoverCheck(config, paths, input);
+      return 0;
+    case 'recover':
+      return recover(config, paths, input);
+    case 'recover-start':
+      await recoverStart(config, paths, input);
+      emit(`@@result ${JSON.stringify({ started: true })}`);
+      return 0;
+    case 'recover-run':
+      // Started by ilex-recover@<id>.service (or, in development, by `recover-start`).
+      requireNoInput(input);
+      return recoverRun(config, paths, instance!);
   }
   throw new Refusal('invalid_request', 'unknown action');
 }

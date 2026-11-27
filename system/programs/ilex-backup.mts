@@ -15,6 +15,14 @@
 //   ilex-backup forget            {"itemId"} on stdin → deletes a removed item's archives
 //   ilex-backup list              nothing on stdin → each plan item's archives, for "Restore…"
 //   ilex-backup passphrase        nothing on stdin → the passphrase, for "Show again"
+//   ilex-backup recover-check     {"repository"?, "passphrase"?} on stdin → the repositories on
+//                                    mounted disks; with one and its passphrase, its newest
+//                                    backups of Ilexarium itself
+//   ilex-backup recover           {"repository", "passphrase", "archive"} on stdin → brings
+//                                    Ilexarium back from that backup (ilex-recover)
+//   ilex-backup recover-start     {"recoveryId", "repository", "passphrase", "archive"} on stdin →
+//                                    the same from the app: ilex-recover@<recoveryId>.service
+//   ilex-backup recover-run <id>  nothing on stdin (ilex-recover@.service runs it)
 //
 // Backups run as root with Borg, one repository on one disk under /mnt or /media, one archive
 // per item per run. The app can only change *what* is backed up, through `configure`, which
@@ -25,7 +33,8 @@
 // `env -i` in the shebang empties the environment before Node starts.
 //
 // The passphrase never appears in arguments, the environment or output (except `passphrase`'s own
-// result): Borg reads it with BORG_PASSCOMMAND from the root-only file.
+// result): Borg reads it with BORG_PASSCOMMAND from the root-only file (a recovery's typed one
+// from a root-only file of its own).
 //
 // Output (stdout): `@@phase <phase>`, `@@error code=<code>`, `@@info <text>`, `@@result <json>`,
 // and the programs' output, every line prefixed with "> ". Runs, checks and restores also write

@@ -22,7 +22,8 @@
         "/etc/ilex/wrappers.json",
         "/etc/ilex/backup.json",
         "/etc/ilex/backup-repository.json",
-        "/etc/systemd/system/ilex-backup.timer.d/schedule.conf"
+        "/etc/systemd/system/ilex-backup.timer.d/schedule.conf",
+        "/etc/ilex/version"
       ]
     }
   }
