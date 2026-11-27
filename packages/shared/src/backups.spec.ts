@@ -3,6 +3,7 @@ import { VALIDATION_LIMITS } from './auth.js';
 import {
   BACKUP_LIMITS,
   backupItemRequestSchema,
+  backupItemUpdateSchema,
   backupPlanUpdateSchema,
   backupRecoveryCheckRequestSchema,
   backupRecoveryRequestSchema,
@@ -13,6 +14,7 @@ import {
   DEFAULT_BACKUP_RETENTION,
   DEFAULT_BACKUP_SCHEDULE,
   isBackupFolder,
+  isSkipInFolders,
 } from './backups.js';
 
 const ITEM = '0b6f3c1e-2d4a-4f8b-9c3e-1a2b3c4d5e6f';
@@ -146,6 +148,49 @@ describe('backupItemRequestSchema', () => {
     expect(backupItemRequestSchema.safeParse({ ...app, skip: ['relative'] }).success).toBe(false);
     expect(backupItemRequestSchema.safeParse({ ...app, skip: ['/x/../y'] }).success).toBe(false);
     expect(backupItemRequestSchema.safeParse({ ...app, mode: 'pause' }).success).toBe(false);
+  });
+
+  it('lets a folder carry skips, checked like an app’s, but no folders or mode', () => {
+    const folder = { kind: 'folder', path: '/home/alice/Documents' };
+    expect(
+      backupItemRequestSchema.safeParse({
+        ...folder,
+        skip: ['/home/alice/Documents/cache', '/home/alice/Documents/*.tmp'],
+      }).success,
+    ).toBe(true);
+    expect(backupItemRequestSchema.safeParse({ ...folder, skip: ['relative'] }).success).toBe(
+      false,
+    );
+    expect(
+      backupItemRequestSchema.safeParse({
+        ...folder,
+        skip: Array.from({ length: 21 }, (_, i) => `/home/alice/Documents/${i}`),
+      }).success,
+    ).toBe(false);
+    expect(backupItemRequestSchema.safeParse({ ...folder, mode: 'live' }).success).toBe(false);
+    expect(backupItemRequestSchema.safeParse({ ...folder, folders: [] }).success).toBe(false);
+  });
+});
+
+describe('isSkipInFolders', () => {
+  it.each([
+    ['/srv/media/cache', true],
+    ['/srv/media/a/*.tmp', true],
+    ['/srv/media', false],
+    ['/srv/media2/x', false],
+    ['/srv/media/../etc', false],
+    ['/srv/media/-x', false],
+    ['/srv/other/x', false],
+  ])('%s below /srv/media: %s', (skip, inside) => {
+    expect(isSkipInFolders(skip, ['/srv/media'])).toBe(inside);
+  });
+});
+
+describe('backupItemUpdateSchema', () => {
+  it('takes skips alone (a folder item’s change)', () => {
+    expect(backupItemUpdateSchema.safeParse({ skip: ['/srv/media/cache'] }).success).toBe(true);
+    expect(backupItemUpdateSchema.safeParse({ skip: ['/srv/../etc'] }).success).toBe(false);
+    expect(backupItemUpdateSchema.safeParse({ path: '/srv' }).success).toBe(false);
   });
 });
 

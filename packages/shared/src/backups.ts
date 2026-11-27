@@ -236,7 +236,7 @@ export const backupItemSchema = z.object({
   folders: z.array(z.string()),
   /** `app`: folders it uses (as Docker sees them now) that aren't backed up. */
   otherFolders: z.array(z.string()),
-  /** `app`: what's skipped inside its folders (absolute; `*` within a name). */
+  /** What's skipped inside its folders, or the folder (absolute; `*` within a name). */
   skip: z.array(z.string()),
   /** `app`: stopped while it's copied, or copied while it runs. */
   mode: backupModeSchema.nullable(),
@@ -299,9 +299,25 @@ export const backupItemSkipSchema = z
     'validation.backupSkipInvalid',
   );
 
+/**
+ * A skip inside one of `folders`, the part below it a plain relative path (no leading `-`, which
+ * the whole path's check alone lets through below the first name). The backup program's own
+ * check is the same.
+ */
+export function isSkipInFolders(skip: string, folders: readonly string[]): boolean {
+  const folder = folders.find((f) => skip.startsWith(`${f}/`));
+  return (
+    folder !== undefined &&
+    backupItemSkipSchema.safeParse(skip).success &&
+    RELATIVE_PATH_PATTERN.test(skip.slice(folder.length + 1))
+  );
+}
+
+const skipListSchema = z.array(backupItemSkipSchema).max(CATALOG_LIMITS.maxBackupSkips);
+
 const appItemFields = {
   folders: z.array(folderPathSchema).max(CATALOG_LIMITS.maxFields),
-  skip: z.array(backupItemSkipSchema).max(CATALOG_LIMITS.maxBackupSkips),
+  skip: skipListSchema,
   mode: backupModeSchema,
 };
 
@@ -311,7 +327,11 @@ export const backupItemRequestSchema = z.discriminatedUnion('kind', [
     project: z.string().regex(APP_NAME_PATTERN),
     ...appItemFields,
   }),
-  z.strictObject({ kind: z.literal('folder'), path: folderPathSchema }),
+  z.strictObject({
+    kind: z.literal('folder'),
+    path: folderPathSchema,
+    skip: skipListSchema.optional(),
+  }),
 ]);
 export type BackupItemRequest = z.infer<typeof backupItemRequestSchema>;
 
@@ -354,10 +374,10 @@ export const backupPlanUpdateSchema = z.strictObject({
 });
 export type BackupPlanUpdate = z.infer<typeof backupPlanUpdateSchema>;
 
-/** `PATCH /api/backups/items/:id`: an app item's folders, skips and mode. */
+/** `PATCH /api/backups/items/:id`: an app item's folders, skips and mode; a folder item's skips. */
 export const backupItemUpdateSchema = z.strictObject({
   folders: appItemFields.folders.optional(),
-  skip: appItemFields.skip.optional(),
+  skip: skipListSchema.optional(),
   mode: backupModeSchema.optional(),
 });
 export type BackupItemUpdate = z.infer<typeof backupItemUpdateSchema>;
