@@ -1074,7 +1074,6 @@
       "title": "Ilexarium wiederherstellen",
       "description": "Aus der neuesten Sicherung von Ilexarium auf deinem Sicherungslaufwerk.",
       "close": "Schließen",
-      "finding": "Suche Sicherungen auf den eingehängten Laufwerken…",
       "noneFound": "Keine Sicherungen auf den eingehängten Laufwerken. Schließe das Sicherungslaufwerk an und hänge es auf der Seite „Laufwerke“ ein.",
       "lookAgain": "Erneut suchen",
       "where": "Sicherungen auf",

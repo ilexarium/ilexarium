@@ -33,27 +33,13 @@ import type {
   UpdateStartOutcome,
 } from './root-programs.model.js';
 
-/** `recover-check`'s answer, checked: the repositories, and the archives once it opened one. */
+/** `recover-check`'s answer, checked: the newest backup of Ilexarium there. */
 function readRecoverCheck(
   result: Record<string, unknown> | undefined,
 ): ProgramRecoverCheck | undefined {
-  const repositories = result?.['repositories'];
-  if (!Array.isArray(repositories) || !repositories.every((r) => typeof r === 'string')) {
-    return undefined;
-  }
-  const archives = result?.['archives'];
-  if (archives === undefined) return { repositories };
-  const valid =
-    Array.isArray(archives) &&
-    archives.every(
-      (a) =>
-        typeof a === 'object' &&
-        a !== null &&
-        typeof (a as Record<string, unknown>)['name'] === 'string' &&
-        typeof (a as Record<string, unknown>)['time'] === 'string',
-    );
-  return valid
-    ? { repositories, archives: archives as ProgramRecoverCheck['archives'] }
+  const archive = result?.['archive'] as Record<string, unknown> | undefined;
+  return typeof archive?.['name'] === 'string' && typeof archive['time'] === 'string'
+    ? { archive: { name: archive['name'], time: archive['time'] } }
     : undefined;
 }
 
@@ -204,16 +190,15 @@ export class RootPrograms {
   }
 
   /**
-   * The backups on mounted disks; with a repository and its passphrase, its newest backups of
-   * Ilexarium. The passphrase goes to the program only: never the audit details or a log.
+   * The newest backup of Ilexarium in a repository, opened with the passphrase. The passphrase
+   * goes to the program only: never the audit details or a log.
    */
   backupRecoverCheck(
-    input: { repository?: string; passphrase?: string },
+    input: { repository: string; passphrase: string },
     actor: RootActor,
   ): Promise<BackupOutcome<ProgramRecoverCheck>> {
-    const repository = input.repository;
     return this.backup('recover-check', actor, 'backup.recover_check', input, {
-      audit: { repository },
+      audit: { repository: input.repository },
       timeoutMs: BACKUP_LONG_TIMEOUT_MS,
       read: (result) => readRecoverCheck(result),
     });

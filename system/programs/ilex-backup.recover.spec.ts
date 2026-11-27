@@ -7,6 +7,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -62,6 +63,7 @@ function writeConfig() {
           mountInfo: join(dir, 'mountinfo'),
           lockWaitMs: 300,
           retryDelayMs: 10,
+          installedVersion: join(dir, 'installed-version'),
         },
       },
     }),
@@ -171,6 +173,7 @@ beforeEach(() => {
   mkdirSync(join(dir, 'etc'), { recursive: true });
   writeFileSync(join(dir, 'etc', 'master.key'), 'old machine key');
   writeFileSync(join(dir, 'etc', 'version'), '0.2.7\n');
+  writeFileSync(join(dir, 'installed-version'), '0.2.7\n');
   for (const fake of ['borg', 'docker', 'systemctl']) {
     const source = readFileSync(join(FAKES, `fake-${fake}.cjs`), 'utf8');
     writeFileSync(join(dir, fake), `#!${process.execPath}\n${source}`, { mode: 0o755 });
@@ -191,26 +194,23 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('recover-check', () => {
-  it('finds the repositories on mounted disks, then the newest backups of Ilexarium', async () => {
+  it('answers the newest backup of Ilexarium on the chosen disk, the passphrase never shown', async () => {
     const archive = await backedUp();
     newMachine();
-    const found = await wrapper('recover-check', {});
-    expect(found.result).toEqual({ repositories: [repository()] });
     const checked = await wrapper('recover-check', {
       repository: repository(),
       passphrase: PASSPHRASE,
     });
     expect(checked.code, checked.lines.join('\n')).toBe(0);
-    expect(checked.result!['archives']).toEqual([
-      { name: archive, time: `${archive.slice(-19)}.000Z` },
-    ]);
+    expect(checked.result).toEqual({
+      archive: { name: archive, time: `${archive.slice(-19)}.000Z` },
+    });
     // The typed passphrase went to a file of its own, gone again.
-    expect(existsSync(join(dev, 'state', 'recover'))).toBe(true);
-    expect(readFileSync(WRAPPER, 'utf8')).toContain('recover-check');
+    expect(readdirSync(join(dev, 'state', 'recover'))).toEqual([]);
     expect(checked.lines.join('\n')).not.toContain(PASSPHRASE);
   });
 
-  it('refuses a wrong passphrase, a repository not found, and bad input', async () => {
+  it('refuses a wrong passphrase, a folder that isn’t a disk’s backups, and bad input', async () => {
     await backedUp();
     newMachine();
     expectRefused(
@@ -220,18 +220,27 @@ describe('recover-check', () => {
     );
     expectRefused(
       await wrapper('recover-check', {
-        repository: join(dir, 'elsewhere'),
+        repository: join(dir, 'elsewhere', 'ilex-backups'),
         passphrase: PASSPHRASE,
       }),
-      'repository_mismatch',
-      5,
+      'destination_not_allowed',
+    );
+    expectRefused(
+      await wrapper('recover-check', { repository: destination, passphrase: PASSPHRASE }),
+      'invalid_request',
     );
     expectRefused(
       await wrapper('recover-check', { repository: repository(), passphrase: 'two\nlines' }),
       'invalid_request',
     );
     expectRefused(await wrapper('recover-check', { repository: repository() }), 'invalid_request');
-    expectRefused(await wrapper('recover-check', { other: 1 }), 'invalid_request');
+    expectRefused(await wrapper('recover-check', {}), 'invalid_request');
+    rmSync(join(repository(), 'config'));
+    expectRefused(
+      await wrapper('recover-check', { repository: repository(), passphrase: PASSPHRASE }),
+      'repository_mismatch',
+      5,
+    );
   });
 });
 
@@ -255,7 +264,7 @@ describe('recover', () => {
     expect(
       readFileSync(join(dev, 'systemd', 'ilex-backup.timer.d', 'schedule.conf'), 'utf8'),
     ).toContain('OnCalendar=*-*-* 04:30:00');
-    // The old database, into an emptied schema; the one here dumped first.
+    // The old database, into an emptied schema.
     const inputs = psqlInputs();
     expect(inputs).toContain('DROP SCHEMA public CASCADE;\nCREATE SCHEMA public;\n');
     expect(readFileSync(join(dir, 'restored-dumps.txt'), 'utf8')).toBe('PGDMP the old database\n');
@@ -277,6 +286,10 @@ describe('recover', () => {
       { uid: 1501, name: 'bob', items: [join(storage, 'bob', 'docs')] },
     ]);
     expect(statSync(join(dev, 'state', 'recovery.json')).mode & 0o777).toBe(0o640);
+    // The recovered settings work: the Restore dialog's list reads the disk with them.
+    const listed = await wrapper('list');
+    expect(listed.code, listed.lines.join('\n')).toBe(0);
+    expect(listed.result!['archives'][APP]).toHaveLength(1);
   });
 
   it('moves the plan to where the disk is mounted now (the same repository)', async () => {
@@ -315,11 +328,10 @@ describe('recover', () => {
     expect(recovery()).toMatchObject({ status: 'failed', errorCode: 'repository_mismatch' });
   });
 
-  it('refuses a newer Ilexarium’s backup and puts everything back', async () => {
+  it('refuses a newer Ilexarium’s backup before anything changes', async () => {
     const archive = await backedUp();
     newMachine();
-    writeFileSync(join(dir, 'dump.txt'), 'PGDMP the new machine\n');
-    writeFileSync(join(dir, 'migrations.txt'), '20991231000000_from_the_future\n');
+    writeFileSync(join(dir, 'installed-version'), '0.2.6\n');
     const refused = await wrapper('recover', {
       repository: repository(),
       passphrase: PASSPHRASE,
@@ -327,17 +339,20 @@ describe('recover', () => {
     });
     expectRefused(refused, 'backup_newer', 5);
     expect(refused.lines.join('\n')).toContain('a newer Ilexarium (0.2.7)');
-    expect(readFileSync(join(dir, 'restored-dumps.txt'), 'utf8')).toBe(
-      'PGDMP the old database\nPGDMP the new machine\n',
-    );
+    expect(existsSync(join(dir, 'restored-dumps.txt'))).toBe(false);
     expect(readFileSync(join(dir, 'etc', 'master.key'), 'utf8')).toBe('new machine key');
-    expect(existsSync(join(dev, 'backup.json'))).toBe(false);
-    expect(existsSync(join(dev, 'backup.passphrase'))).toBe(false);
-    expect(systemctlCalls().at(-1)).toBe('start ilex.service');
-    expect(existsSync(join(dev, 'updating'))).toBe(false);
+    expect(systemctlCalls()).toEqual([]);
+    // An older one is fine (this release migrates it).
+    writeFileSync(join(dir, 'installed-version'), '0.3.0\n');
+    const done = await wrapper('recover', {
+      repository: repository(),
+      passphrase: PASSPHRASE,
+      archive,
+    });
+    expect(done.code, done.lines.join('\n')).toBe(0);
   });
 
-  it('puts everything back when the restore fails midway', async () => {
+  it('a restore that fails midway changes none of the files, starts the app again, says to run it again', async () => {
     const archive = await backedUp();
     newMachine();
     writeFileSync(join(dir, 'exit-pg_restore-once.txt'), '1');
@@ -347,15 +362,24 @@ describe('recover', () => {
       archive,
     });
     expectRefused(refused, 'restore_failed', 5);
-    expect(refused.markers).toContain('@@phase rollback');
+    expect(refused.lines.join('\n')).toContain('run the recovery again');
     expect(readFileSync(join(dir, 'etc', 'master.key'), 'utf8')).toBe('new machine key');
     expect(existsSync(join(dev, 'backup.json'))).toBe(false);
+    expect(existsSync(join(dev, 'backup.passphrase'))).toBe(false);
     expect(systemctlCalls()).toEqual(['stop ilex.service', 'start ilex.service']);
+    expect(existsSync(join(dev, 'updating'))).toBe(false);
     expect(recovery()).toMatchObject({
       status: 'failed',
       errorCode: 'restore_failed',
       accounts: null,
     });
+    // Run again, it works.
+    const again = await wrapper('recover', {
+      repository: repository(),
+      passphrase: PASSPHRASE,
+      archive,
+    });
+    expect(again.code, again.lines.join('\n')).toBe(0);
   });
 
   it('refuses a wrong passphrase and an archive that isn’t Ilexarium’s, the app left running', async () => {
@@ -440,11 +464,11 @@ describe('recover-start and recover-run (the app’s way)', () => {
       archive,
     });
     writeFileSync(join(dir, 'mountinfo'), '');
-    expectRefused(await wrapper(['recover-run', RECOVERY]), 'repository_mismatch', 5);
+    expectRefused(await wrapper(['recover-run', RECOVERY]), 'destination_unavailable', 5);
     expect(recovery()).toMatchObject({
       id: RECOVERY,
       status: 'failed',
-      errorCode: 'repository_mismatch',
+      errorCode: 'destination_unavailable',
     });
     expect(existsSync(join(dev, 'state', 'recover-requests', `${RECOVERY}.json`))).toBe(false);
   });

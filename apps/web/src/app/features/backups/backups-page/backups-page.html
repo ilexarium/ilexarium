@@ -126,10 +126,11 @@
   </div>
   <ilex-recover-dialog
     [open]="recoverOpen()"
-    [found]="backupsPageStore.recoveryFound()"
+    [repositories]="recoveryRepositories()"
+    [newest]="backupsPageStore.recoveryNewest()"
     [step]="backupsPageStore.recoveryStep()"
     [error]="backupsPageStore.recoveryError()"
-    (find)="backupsPageStore.findRecoveryBackups()"
+    (refresh)="backupsPageStore.load()"
     (check)="backupsPageStore.checkRecoveryPassphrase($event)"
     (recover)="backupsPageStore.recover($event)"
     (closed)="recoverOpen.set(false); backupsPageStore.resetRecovery()"

@@ -3,31 +3,25 @@
 # or reinstalled machine: its users, settings, alert channels, the backup plan and its history,
 # the key that opens the stored secrets, the schedule.
 #
-#   sudo ilex-recover [<repository>] [--archive <name>] [--yes]
+#   sudo ilex-recover [<repository>] [--yes]
 #
-#   <repository>      the backups' folder on the disk (<where it's mounted>/ilex-backups); without
-#                     it, the mounted disks are searched
-#   --archive <name>  that backup of Ilexarium instead of the newest
-#   --yes             don't ask (the install test): the passphrase is read from stdin
+#   <repository>  the backups' folder on the disk (<where it's mounted>/ilex-backups); without
+#                 it, the mounted disks are searched
+#   --yes         don't ask (the install test): the passphrase is read from stdin
 #
-# Mount the backup disk first (the Disks page, or mount). Your apps and folders aren't touched:
-# restore each from the Backups page afterwards, once the accounts listed at the end exist.
+# From the newest backup of Ilexarium there. Mount the backup disk first (the Disks page, or
+# mount). Your apps and folders aren't touched: restore each from the Backups page afterwards,
+# once the accounts listed at the end exist.
 set -euo pipefail
 umask 0077
 
 REPOSITORY=''
-ARCHIVE=''
 ASSUME_YES=0
 while (($# > 0)); do
   case "$1" in
     --yes) ASSUME_YES=1 ;;
-    --archive)
-      (($# >= 2)) || { printf -- '--archive needs a name (see --help)\n' >&2; exit 2; }
-      ARCHIVE="$2"
-      shift
-      ;;
     -h | --help)
-      sed -n '2,15s/^# \{0,1\}//p' "$0"
+      sed -n '2,16s/^# \{0,1\}//p' "$0"
       exit 0
       ;;
     -*)
@@ -72,16 +66,15 @@ to_json() {
   ' "$@"
 }
 
-# The program's @@result as lines: its repositories, its archives ("<name> <time>") or its
-# accounts ("<uid>\t<name>\t<items>").
+# The program's @@result as lines: its archive ("<name> <time>") or its accounts
+# ("<uid>\t<name>\t<items>").
 result_lines() {
   "$NODE" -e '
     const line = require("fs").readFileSync(0, "utf8").split("\n").findLast((l) => l.startsWith("@@result "));
     if (!line) process.exit(1);
     const r = JSON.parse(line.slice(9));
     const lines = {
-      repositories: () => r.repositories ?? [],
-      archives: () => (r.archives ?? []).map((a) => `${a.name} ${a.time}`),
+      archive: () => (r.archive ? [`${r.archive.name} ${r.archive.time}`] : []),
       accounts: () => (r.accounts ?? []).map((a) => [a.uid, a.name || "-", a.items.join(", ")].join("\t")),
     }[process.argv[1]]();
     for (const out of lines) console.log(out);
@@ -103,6 +96,16 @@ refusal() {
   esac
 }
 
+# The backups' folders on the mounted disks (the program checks the one chosen).
+find_repositories() {
+  local target
+  while IFS= read -r target; do
+    if [[ -d "$target/ilex-backups" && -f "$target/ilex-backups/config" ]]; then
+      printf '%s\n' "$target/ilex-backups"
+    fi
+  done < <(findmnt -rn -o TARGET | sort -u)
+}
+
 # Runs ilex-backup <action> with the JSON on stdin; its output in OUTPUT.
 run_program() {
   OUTPUT="$("$PROGRAM" "$1" <<<"$2" 2>&1)" && return 0
@@ -111,8 +114,7 @@ run_program() {
 
 log 'Restoring Ilexarium from the backup disk'
 if [[ -z "$REPOSITORY" ]]; then
-  run_program recover-check '{}' || die "$(refusal "$OUTPUT")"
-  mapfile -t FOUND < <(result_lines repositories <<<"$OUTPUT")
+  mapfile -t FOUND < <(find_repositories)
   if ((${#FOUND[@]} == 0)); then
     die 'No backups found on the mounted disks: mount the backup disk (the Disks page, or mount), then run this again'
   elif ((${#FOUND[@]} == 1 || ASSUME_YES == 1)); then
@@ -138,14 +140,9 @@ fi
 
 json="$(printf '%s\n%s\n' "$REPOSITORY" "$PASSPHRASE" | to_json repository passphrase)"
 run_program recover-check "$json" || die "$(refusal "$OUTPUT")"
-mapfile -t NEWEST < <(result_lines archives <<<"$OUTPUT")
-if [[ -z "$ARCHIVE" ]]; then
-  ARCHIVE="${NEWEST[0]%% *}"
-  WHEN="${NEWEST[0]#* }"
-else
-  WHEN="$(printf '%s\n' "${NEWEST[@]}" | awk -v a="$ARCHIVE" '$1 == a { print $2 }')"
-  [[ -n "$WHEN" ]] || WHEN="${ARCHIVE: -19}Z"
-fi
+NEWEST="$(result_lines archive <<<"$OUTPUT")"
+ARCHIVE="${NEWEST%% *}"
+WHEN="${NEWEST#* }"
 WHEN_LOCAL="$(date -d "$WHEN" '+%e %b %Y, %H:%M' 2>/dev/null | sed 's/^ //' || printf '%s' "$WHEN")"
 
 if [[ "$ASSUME_YES" == 0 ]]; then
@@ -153,7 +150,7 @@ if [[ "$ASSUME_YES" == 0 ]]; then
   [[ "$answer" == y || "$answer" == Y ]] || die 'Nothing was changed'
   # Users here: everything they set up is replaced.
   if [[ "$(curl -fsS --max-time 5 "$(app_url)/api/auth/status" 2>/dev/null || true)" == *'"needsSetup":false'* ]]; then
-    warn 'This Ilexarium has accounts already: its users, settings and backup plan are replaced.'
+    warn 'This Ilexarium has accounts already: its users, settings and backup plan are replaced, and not kept.'
     read -r -p '    Type replace to go on: ' answer
     [[ "$answer" == replace ]] || die 'Nothing was changed'
   fi
@@ -164,7 +161,7 @@ unset PASSPHRASE
 info 'Restoring (Ilexarium stops for a minute)…'
 if ! run_program recover "$json"; then
   sed -n 's/^> /    /p' <<<"$OUTPUT" | tail -n 15 >&2
-  die "$(refusal "$OUTPUT") — Ilexarium is as it was before"
+  die "$(refusal "$OUTPUT")"
 fi
 unset json
 

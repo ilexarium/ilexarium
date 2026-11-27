@@ -12,7 +12,7 @@ import {
 import { form, FormField, FormRoot, validateStandardSchema } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import {
-  type BackupRecoveryCheckResponse,
+  type BackupRecoveryArchive,
   type BackupRecoveryPassphraseForm,
   type BackupRecoveryRequest,
   backupRecoveryPassphraseFormSchema,
@@ -29,10 +29,10 @@ import { Formatter } from '../../../shared/format/formatter';
 import type { RecoveryStep } from '../backups-page/store/backups-page-store.model';
 
 /**
- * Restoring Ilexarium from a backup disk: the backups found on mounted disks (or the way to the
+ * Restoring Ilexarium from a backup disk: the mounted disks holding backups (or the way to the
  * Disks page), the passphrase, then the newest backup's date to confirm — and the wait while it
- * restarts. UI only: the page store does each step (`find`, `check`, `recover`); the passphrase
- * lives here until it's sent, and goes when the dialog closes.
+ * restarts. UI only: the page store does each step (`check`, `recover`); the passphrase lives
+ * here until it's sent, and goes when the dialog closes.
  */
 @Component({
   selector: 'ilex-recover-dialog',
@@ -53,11 +53,15 @@ import type { RecoveryStep } from '../backups-page/store/backups-page-store.mode
 })
 export class RecoverDialog {
   readonly open = input(false);
-  readonly found = input<BackupRecoveryCheckResponse | null>(null);
+  /** The backups' folders on the mounted disks; null while the disks load. */
+  readonly repositories = input<string[] | null>(null);
+  /** The newest backup of Ilexarium, once the passphrase opened its repository. */
+  readonly newest = input<{ repository: string; archive: BackupRecoveryArchive } | null>(null);
   readonly step = input<RecoveryStep>('idle');
   readonly error = input<string | null>(null);
 
-  readonly find = output<void>();
+  /** "Look again": the disks read again (one mounted meanwhile). */
+  readonly refresh = output<void>();
   readonly check = output<{ repository: string; passphrase: string }>();
   readonly recover = output<BackupRecoveryRequest>();
   readonly closed = output<void>();
@@ -68,7 +72,7 @@ export class RecoverDialog {
   protected readonly showPassphrase = signal(false);
   /** The repository chosen: kept while the list still has it (the check's answer lists them again). */
   protected readonly chosen = linkedSignal<string[], string | null>({
-    source: () => this.found()?.repositories ?? [],
+    source: () => this.repositories() ?? [],
     computation: (list, previous) =>
       previous?.value && list.includes(previous.value) ? previous.value : (list[0] ?? null),
   });
@@ -88,13 +92,12 @@ export class RecoverDialog {
     },
   );
 
-  protected readonly newest = computed(() => this.found()?.archives?.[0] ?? null);
   protected readonly newestTime = computed(() => {
     const newest = this.newest();
-    return newest ? this.formatter.dateTime(newest.time) : '';
+    return newest ? this.formatter.dateTime(newest.archive.time) : '';
   });
   protected readonly busy = computed(() =>
-    ['finding', 'checking', 'starting', 'waiting'].includes(this.step()),
+    ['checking', 'starting', 'waiting'].includes(this.step()),
   );
 
   constructor() {
@@ -103,7 +106,6 @@ export class RecoverDialog {
       untracked(() => {
         this.form().reset({ passphrase: '' });
         this.showPassphrase.set(false);
-        this.find.emit();
       });
     });
   }
@@ -113,13 +115,12 @@ export class RecoverDialog {
   }
 
   protected restore(): void {
-    const repository = this.chosen();
     const newest = this.newest();
-    if (!repository || !newest) return;
+    if (!newest) return;
     this.recover.emit({
-      repository,
+      repository: newest.repository,
       passphrase: this.form.passphrase().value(),
-      archive: newest.name,
+      archive: newest.archive.name,
     });
   }
 
