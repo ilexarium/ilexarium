@@ -1005,6 +1005,7 @@
       "discarded": "The previous version was deleted.",
       "discardFailed": "Couldn't delete the previous version",
       "replaces": "Replaces these folders (as the plan has them now):",
+      "skipsKept": "What its backups skip isn't in them: it stays only in the folders set aside, so look there before deleting them.",
       "applyText": "The app is running with its settings from before the restore. Apply the restored settings (its compose file and versions) to finish.",
       "apply": "Apply the restored settings",
       "applyStarted": "Applying the restored settings. You can follow it on the app’s page.",

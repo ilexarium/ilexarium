@@ -49,7 +49,6 @@ export class ItemSheet {
     return item ? [...new Set([...item.folders, ...item.otherFolders])].sort() : [];
   });
 
-  /** Where skips go: an app's folders backed up, or the folder item's folder. */
   protected readonly skipFolders = computed(() => {
     const item = this.row()?.item;
     if (item?.kind === 'app') return item.folders;

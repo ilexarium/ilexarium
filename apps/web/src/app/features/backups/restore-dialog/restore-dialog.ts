@@ -45,6 +45,8 @@ export class RestoreDialog {
     if (!item) return [];
     return item.kind === 'app' ? item.folders : item.path ? [item.path] : [];
   });
+  /** Skipped paths aren't in the archive: in place, they're left only in the folders set aside. */
+  protected readonly hasSkips = computed(() => (this.row()?.item.skip.length ?? 0) > 0);
   protected readonly folderValid = computed(() => isBackupFolder(this.folder().trim()));
   /** The newest backup, until one is chosen. */
   protected readonly chosen = computed(() => this.archive() ?? this.archives()?.[0]?.name ?? null);

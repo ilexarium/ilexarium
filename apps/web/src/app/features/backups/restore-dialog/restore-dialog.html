@@ -63,6 +63,11 @@
                     }
                   </ul>
                 }
+                @if (hasSkips()) {
+                  <span class="text-muted-foreground" data-skips-kept>{{
+                    'backups.restore.skipsKept' | translate
+                  }}</span>
+                }
               </span>
             </label>
           }

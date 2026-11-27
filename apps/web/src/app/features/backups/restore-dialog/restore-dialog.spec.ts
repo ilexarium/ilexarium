@@ -55,6 +55,18 @@ const folderInput = () => dialog().querySelector<HTMLInputElement>('input[dir="l
 describe('RestoreDialog', () => {
   afterEach(() => document.querySelectorAll('[role="alertdialog"]').forEach((d) => d.remove()));
 
+  it('says skipped paths stay only in the folders set aside, when the item has skips', async () => {
+    await open(row('folder'));
+    expect(dialog().querySelector('[data-skips-kept]')).toBeNull();
+    document.querySelectorAll('[role="alertdialog"]').forEach((d) => d.remove());
+    const skipping = row('folder');
+    skipping.item.skip = ['/srv/x/tmp'];
+    await open(skipping);
+    expect(dialog().querySelector('[data-skips-kept]')!.textContent).toContain(
+      'stays only in the folders set aside',
+    );
+  });
+
   it('restores an app back where it was by default, from the newest backup', async () => {
     const fixture = await open(row('app'));
     expect(dialog().textContent).toContain('current folders are set aside');
