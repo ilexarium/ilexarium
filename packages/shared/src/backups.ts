@@ -290,18 +290,17 @@ const folderPathSchema = z
   .refine(isPlainAbsolutePath, 'validation.pathInvalid')
   .refine(isBackupFolder, 'validation.backupFolderSystem');
 
-/** A skip: an absolute path inside one of the item's folders, `*` and `?` within a name. */
+/**
+ * A skip: a plain absolute path. Where it may be (inside one of the item's folders, a plain path
+ * below it) is `isSkipInFolders` — the folder part may hold what a skip's own part may not.
+ */
 export const backupItemSkipSchema = z
   .string()
-  .max(CATALOG_LIMITS.pathMax)
-  .refine(
-    (path) => path.startsWith('/') && RELATIVE_PATH_PATTERN.test(path.slice(1)),
-    'validation.backupSkipInvalid',
-  );
+  .refine((path) => path !== '/' && isPlainAbsolutePath(path), 'validation.backupSkipInvalid');
 
 /**
- * A skip inside one of `folders`, the part below it a plain relative path (no leading `-`, which
- * the whole path's check alone lets through below the first name). The backup program's own
+ * A skip inside the first of `folders` it starts with, the part below it a plain relative path
+ * (`*` and `?` within a name; no leading `-`, brackets or backslash). The backup program's own
  * check is the same.
  */
 export function isSkipInFolders(skip: string, folders: readonly string[]): boolean {

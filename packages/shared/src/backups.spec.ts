@@ -181,8 +181,16 @@ describe('isSkipInFolders', () => {
     ['/srv/media/../etc', false],
     ['/srv/media/-x', false],
     ['/srv/other/x', false],
+    ['/srv/media/[ab]', false],
   ])('%s below /srv/media: %s', (skip, inside) => {
     expect(isSkipInFolders(skip, ['/srv/media'])).toBe(inside);
+  });
+
+  it('takes any folder a folder item may have: brackets, and long paths', () => {
+    expect(isSkipInFolders('/home/anna/Music [old]/cache', ['/home/anna/Music [old]'])).toBe(true);
+    const long = `/srv/${'a'.repeat(600)}`;
+    expect(isSkipInFolders(`${long}/${'b'.repeat(255)}`, [long])).toBe(true);
+    expect(isSkipInFolders(`${long}/${'b'.repeat(256)}`, [long])).toBe(false);
   });
 });
 
