@@ -20,6 +20,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertParentsSafe, assertSafeFolder } from './backup/places.mts';
+import { skipExcludes } from './backup/run.mts';
 import { startTime } from './lib/lock.mts';
 
 const WRAPPER = fileURLToPath(new URL('./ilex-backup.mts', import.meta.url));
@@ -268,6 +269,24 @@ describe('ilex-backup starts safely', () => {
   it('ships the unchanged EFF large word list', () => {
     const hash = createHash('sha256').update(readFileSync(WORDLIST)).digest('hex');
     expect(hash).toBe('addd35536511597a02fa0a9ff1e5284677b8883b83e986e43f15a3db996b903e');
+  });
+});
+
+describe('skipExcludes', () => {
+  it('a plain skip by path, a pattern only in its own part, below the folder as it really is', () => {
+    expect(
+      skipExcludes(
+        ['/srv/music/cache', '/srv/music/*.tmp', '/srv/other/x'],
+        '/srv/music',
+        '/mnt/data/Music [2020] *?',
+      ),
+    ).toEqual([
+      '--exclude',
+      'pp:/mnt/data/Music [2020] *?/cache',
+      '--exclude',
+      'sh:/mnt/data/Music [[]2020] [*][?]/*.tmp',
+    ]);
+    expect(skipExcludes(undefined, '/srv/music', '/srv/music')).toEqual([]);
   });
 });
 
@@ -1559,6 +1578,10 @@ describe('ilex-backup restore', () => {
   });
 
   describe('Borg’s warnings', () => {
+    // The demo app skips data/cache: never in its archives, left only in the folder set aside.
+    const skippedCache = (dataAside: string) =>
+      `${join(storage, 'demo', 'data', 'cache')}: skipped by its backups, so not restored; what was there is in ${dataAside}/cache`;
+
     it('a succeeded restore carries them (a mode it couldn’t set)', async () => {
       const warning = {
         type: 'log_message',
@@ -1570,11 +1593,15 @@ describe('ilex-backup restore', () => {
       writeFileSync(join(dir, 'exit-extract.txt'), '1');
       const result = await restore(restoreInput());
       expect(result.code, result.lines.join('\n')).toBe(0);
+      const setAside = done()!.setAside as string[];
+      expect(setAside).toHaveLength(2);
       expect(done()).toMatchObject({
         status: 'succeeded',
-        warnings: ['/srv/shared: chmod: [Errno 1] Operation not permitted'],
+        warnings: [
+          skippedCache(setAside[0]),
+          '/srv/shared: chmod: [Errno 1] Operation not permitted',
+        ],
       });
-      expect(done()!.setAside).toHaveLength(2);
     });
 
     it('exit code 1 without a warning line is still said', async () => {
@@ -1587,8 +1614,8 @@ describe('ilex-backup restore', () => {
       });
     });
 
-    it('none: an empty list', async () => {
-      await restore(restoreInput());
+    it('none: an empty list (a folder without skips, back where it was)', async () => {
+      await restore(restoreInput({ itemId: FOLDER, archive: folderArchive }));
       expect(done()).toMatchObject({ status: 'succeeded', warnings: [] });
     });
 
@@ -1611,6 +1638,7 @@ describe('ilex-backup restore', () => {
       expect(result.code, result.lines.join('\n')).toBe(0);
       const [dataAside] = done()!.setAside as string[];
       expect(done()!.warnings).toEqual([
+        skippedCache(dataAside),
         `${cache}: not in this backup's files, its previous version is in ${dataAside}`,
       ]);
     });
@@ -1626,6 +1654,7 @@ describe('ilex-backup restore', () => {
       expect(setAside).toHaveLength(1);
       expect(setAside[0]).toMatch(/demo\/data\.before-restore-/);
       expect(done()!.warnings).toEqual([
+        skippedCache(setAside[0]),
         `${media}: not in this backup's files, the current folder was put back`,
       ]);
       const listed = JSON.parse(readFileSync(join(dev, 'state', 'set-aside.json'), 'utf8'));

@@ -356,14 +356,16 @@ export async function backupItem(
 
 /**
  * Borg's `--exclude`s for the skips below `folder`, as it really is (`real`: a symlink above it
- * resolved). A skip below another of the item's folders is left for that one.
+ * resolved). A skip below another of the item's folders is left for that one. Only the skip's own
+ * part is a pattern: `[`, `*` and `?` in the folder's path are matched as themselves.
  */
-function skipExcludes(skips: string[] | undefined, folder: string, real: string): string[] {
+export function skipExcludes(skips: string[] | undefined, folder: string, real: string): string[] {
   return (skips ?? [])
     .filter((skip) => skip.startsWith(`${folder}/`))
     .flatMap((skip) => {
-      const inside = `${real}${skip.slice(folder.length)}`;
-      return ['--exclude', /[*?]/.test(inside) ? `sh:${inside}` : `pp:${inside}`];
+      const below = skip.slice(folder.length);
+      if (!/[*?]/.test(below)) return ['--exclude', `pp:${real}${below}`];
+      return ['--exclude', `sh:${real.replace(/[[*?]/g, '[$&]')}${below}`];
     });
 }
 

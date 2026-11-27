@@ -219,6 +219,28 @@ describe.skipIf(!BORG)('ilex-backup with the real Borg', () => {
     expect(existsSync(join(dirname(restored), 'old.bak'))).toBe(false);
   }, 60_000);
 
+  it('restores a folder in place, its skips said to be only in the folder set aside', async () => {
+    const docs = join(storage, 'docs');
+    const id = '66666666-6666-4666-8666-666666666665';
+    const result = await restore({
+      restoreId: id,
+      itemId: FOLDER,
+      archive: runs()[1].items[2].archive,
+      target: null,
+    });
+    expect(result.code, result.out).toBe(0);
+    const done = restoreDone(id);
+    const [setAside] = done.setAside as string[];
+    expect(readFileSync(join(docs, 'letter.txt'), 'utf8')).toBe('Dear …');
+    expect(existsSync(join(docs, 'tmp'))).toBe(false);
+    expect(readFileSync(join(setAside, 'tmp', 'draft.txt'), 'utf8')).toBe('skipped');
+    expect(done.warnings.slice(0, 2)).toEqual([
+      `${join(docs, 'tmp')}: skipped by its backups, so not restored; what was there is in ${join(setAside, 'tmp')}`,
+      `${join(docs, '*.bak')}: skipped by its backups, so not restored; what was there is in ${join(setAside, '*.bak')}`,
+    ]);
+    expect((await wrapper('discard', { path: setAside })).code).toBe(0);
+  }, 60_000);
+
   it('the platform archive holds the dump and the platform files', async () => {
     const archive = runs()[1].items[0].archive;
     const result = await restore({

@@ -372,6 +372,17 @@ function foldersToRestore(
   return { sources, restored: outermost(sources) };
 }
 
+/** The item's skips, each below its folder as it really is now (before anything is moved). */
+function skippedPaths(item: PlanItem): { skip: string; real: string }[] {
+  const planned = item.kind === 'app' ? (item.folders ?? []) : [item.path!];
+  return (item.skip ?? []).flatMap((skip) => {
+    const folder = planned.find((f) => skip.startsWith(`${f}/`));
+    if (!folder) return [];
+    const real = existsSync(folder) ? realpathSync(folder) : folder;
+    return [{ skip, real: `${real}${skip.slice(folder.length)}` }];
+  });
+}
+
 async function restoreInPlace(
   config: Config,
   paths: Paths,
@@ -382,6 +393,7 @@ async function restoreInPlace(
   { phase, line, aside }: RestoreReport,
 ): Promise<RestoreOutcome> {
   const { sources, restored } = foldersToRestore(config, item, infoJson, line);
+  const skipped = skippedPaths(item);
   // Only these are moved, so only their parents are checked (an inner folder's parent is the
   // outer one, often a container's uid).
   for (const source of restored) {
@@ -479,6 +491,17 @@ async function restoreInPlace(
         readSetAside(paths).filter((e) => !putBack.includes(e.path)),
       );
     }
+    // Never in the archive: what was there is only in the folder set aside — said first, before
+    // anyone deletes that one. Not moved back: root would walk folders their owner can change.
+    const skippedAside = skipped.flatMap(({ skip, real }) => {
+      const outer = moved.find((m) => real.startsWith(`${m.from}/`));
+      return outer
+        ? [
+            `${skip}: skipped by its backups, so not restored; what was there is in ${outer.to}${real.slice(outer.from.length)}`,
+          ]
+        : [];
+    });
+    warnings.unshift(...skippedAside);
   } catch (error) {
     failure = error instanceof Refusal ? error : new Refusal('borg_failed', String(error), 5);
     await rollBack(config, paths, done, { line, aside });

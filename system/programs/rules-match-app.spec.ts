@@ -122,7 +122,8 @@ describe('the app and the root programs check the same rules', () => {
     expect(String(wrapperPlan.PROJECT_PATTERN)).toBe(String(APP_NAME_PATTERN));
     expect(String(wrapperPlan.SKIP_PATTERN)).toBe(String(RELATIVE_PATH_PATTERN));
     expect(wrapperPlan.MAX_SKIPS).toBe(CATALOG_LIMITS.maxBackupSkips);
-    const folders = ['/srv/media', '/home/anna/apps/immich', '/srv/media/-b'];
+    const long = `/srv/${'a'.repeat(700)}`;
+    const folders = ['/srv/media', '/home/anna/apps/immich', '/srv/media/-b', '/srv/a [b]', long];
     for (const skip of [
       '/srv/media/cache',
       '/srv/media/a/b/*.tmp',
@@ -140,6 +141,11 @@ describe('the app and the root programs check the same rules', () => {
       '/srv/media/a\\b',
       '/srv/other/x',
       'srv/media/x',
+      '/srv/a [b]/cache',
+      '/srv/a [b]/*.tmp',
+      `${long}/${'b'.repeat(255)}`,
+      `${long}/${'b'.repeat(300)}`,
+      `${long}/${'b'.repeat(250)}/c`,
     ]) {
       expect(wrapperPlan.skipAllowed(skip, folders), skip).toBe(isSkipInFolders(skip, folders));
     }
