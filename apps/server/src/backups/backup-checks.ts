@@ -345,7 +345,10 @@ export class BackupChecks {
 function skipsProblem(skips: string[], folder: string): Omit<FieldError, 'field'> | null {
   return skips.every((skip) => isSkipInFolders(skip, [folder]))
     ? null
-    : { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'A skip outside the folder' };
+    : {
+        code: BACKUP_ERROR_CODES.pathNotAllowed,
+        message: 'A skip that can’t be used in this folder',
+      };
 }
 
 /** The folders in `path` (not links), sorted, at most SUBFOLDERS_MAX; null when it can't be read. */
