@@ -8,6 +8,11 @@ import type {
   BackupPlan,
   BackupPlanResponse,
   BackupPlanUpdate,
+  BackupRecoveryCheckRequest,
+  BackupRecoveryCheckResponse,
+  BackupRecoveryRequest,
+  BackupRecoveryResponse,
+  BackupRecoveryStartedResponse,
   BackupRestoreRequest,
   BackupRunOutputResponse,
   BackupSetupRequest,
@@ -134,6 +139,26 @@ export class BackupsService {
   }
 
   /** As the person; `true` once answered — an empty answer (204) would be null, like a dismissal. */
+  /** Restoring Ilexarium: the backups on mounted disks, or a repository's newest (its passphrase). */
+  recoveryCheck(
+    request: BackupRecoveryCheckRequest,
+  ): Observable<BackupRecoveryCheckResponse | null> {
+    return this.linuxSessionStore.asPerson$(() => this.backupsApi.recoveryCheck(request));
+  }
+
+  /** Starts it, through the person's sudo: its own unit stops this app and replaces the database. */
+  recover(request: BackupRecoveryRequest): Observable<BackupRecoveryStartedResponse | null> {
+    return this.linuxSessionStore.asPerson$(() => this.backupsApi.recover(request));
+  }
+
+  recovery(): Observable<BackupRecoveryResponse> {
+    return this.backupsApi.recovery();
+  }
+
+  dismissRecovery(): Observable<void> {
+    return this.backupsApi.dismissRecovery();
+  }
+
   private done(request: () => Observable<unknown>): Observable<true | null> {
     return this.linuxSessionStore.asPerson$(() => request().pipe(map(() => true as const)));
   }

@@ -1,0 +1,124 @@
+<hlm-dialog [state]="shown() ? 'open' : 'closed'" (closed)="close(); closed.emit()">
+  <hlm-dialog-content
+    *hlmDialogPortal
+    class="max-h-[90dvh] overflow-y-auto"
+    [closeLabel]="'backups.recovery.close' | translate"
+  >
+    <hlm-dialog-header>
+      <h2 hlmDialogTitle>{{ 'backups.recovery.title' | translate }}</h2>
+      <p hlmDialogDescription>{{ 'backups.recovery.description' | translate }}</p>
+    </hlm-dialog-header>
+
+    @if (step() === 'waiting' || step() === 'starting') {
+      <div class="grid gap-2" role="status" aria-live="polite">
+        <p class="font-medium">{{ 'backups.recovery.waiting' | translate }}</p>
+        <p class="text-sm text-muted-foreground">
+          {{ 'backups.recovery.waitingText' | translate }}
+        </p>
+      </div>
+    } @else {
+      @if (error(); as message) {
+        <div hlmAlert variant="destructive" role="alert">
+          <p hlmAlertDescription>{{ message }}</p>
+        </div>
+      }
+      @if (step() === 'finding') {
+        <p class="text-sm text-muted-foreground" role="status">
+          {{ 'backups.recovery.finding' | translate }}
+        </p>
+      } @else if (found(); as backups) {
+        @if (backups.repositories.length === 0) {
+          <div class="grid gap-3">
+            <p class="text-sm">{{ 'backups.recovery.noneFound' | translate }}</p>
+            <div class="flex flex-wrap gap-2">
+              <a hlmBtn variant="outline" routerLink="/disks">{{
+                'backups.setup.mountDisk' | translate
+              }}</a>
+              <button hlmBtn variant="ghost" type="button" (click)="find.emit()">
+                {{ 'backups.recovery.lookAgain' | translate }}
+              </button>
+            </div>
+          </div>
+        } @else if (newest(); as archive) {
+          <div class="grid gap-3">
+            <p class="text-sm">
+              {{ 'backups.recovery.newest' | translate: { time: newestTime() } }}
+            </p>
+            <div hlmAlert role="note">
+              <p hlmAlertDescription>{{ 'backups.recovery.replaces' | translate }}</p>
+            </div>
+          </div>
+        } @else {
+          <form id="recover-form" [formRoot]="form" class="grid gap-4">
+            <fieldset class="grid gap-2">
+              <legend class="mb-1 text-sm font-medium">
+                {{ 'backups.recovery.where' | translate }}
+              </legend>
+              @for (repository of backups.repositories; track repository) {
+                <label
+                  class="flex cursor-pointer items-center gap-3 rounded-md border p-3 has-checked:border-primary"
+                >
+                  <input
+                    type="radio"
+                    name="repository"
+                    class="size-4"
+                    [value]="repository"
+                    [checked]="chosen() === repository"
+                    (change)="choose(repository)"
+                  />
+                  <span class="min-w-0 break-all font-mono text-sm" dir="ltr">{{
+                    repository
+                  }}</span>
+                </label>
+              }
+            </fieldset>
+            <div hlmField>
+              <label hlmFieldLabel for="recover-passphrase">{{
+                'backups.recovery.passphrase' | translate
+              }}</label>
+              <div class="relative">
+                <input
+                  hlmInput
+                  id="recover-passphrase"
+                  dir="ltr"
+                  class="pe-10"
+                  [type]="showPassphrase() ? 'text' : 'password'"
+                  [formField]="form.passphrase"
+                  autocomplete="off"
+                  autocapitalize="none"
+                  spellcheck="false"
+                />
+                <ilex-password-toggle [(visible)]="showPassphrase" />
+              </div>
+              <p hlmFieldDescription>{{ 'backups.recovery.passphraseHelp' | translate }}</p>
+              <ilex-field-errors [field]="form.passphrase" />
+            </div>
+          </form>
+        }
+      }
+    }
+
+    <hlm-dialog-footer>
+      @if (step() !== 'waiting' && step() !== 'starting') {
+        <button hlmBtn variant="outline" type="button" (click)="close()">
+          {{ 'backups.recovery.cancel' | translate }}
+        </button>
+      }
+      @if (newest() && step() !== 'waiting') {
+        <button hlmBtn type="button" [disabled]="busy()" (click)="restore()">
+          {{
+            (step() === 'starting' ? 'backups.recovery.starting' : 'backups.recovery.restore')
+              | translate
+          }}
+        </button>
+      } @else if (found()?.repositories?.length && !newest()) {
+        <button hlmBtn type="submit" form="recover-form" [disabled]="busy()">
+          {{
+            (step() === 'checking' ? 'backups.recovery.checking' : 'backups.recovery.check')
+              | translate
+          }}
+        </button>
+      }
+    </hlm-dialog-footer>
+  </hlm-dialog-content>
+</hlm-dialog>

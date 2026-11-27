@@ -6,6 +6,8 @@ import { AuthStore } from '../../../core/auth/auth-store';
 import { fakeAuthApi, OWNER } from '../../../core/auth/testing';
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
 import { submit, textOf, typeInto } from '../../../shared/forms/testing';
+import { readStored, writeStored } from '../../../core/storage/browser-storage';
+import { stubLocalStorage } from '../../../layout/testing';
 import { LoginPage } from './login-page';
 
 async function render({ secure = true, query = {} as Record<string, string> } = {}) {
@@ -116,5 +118,22 @@ describe('LoginPage', () => {
     el.querySelector<HTMLButtonElement>('button[aria-label="Show passwords"]')!.click();
     await fixture.whenStable();
     expect(input.type).toBe('text');
+  });
+
+  it('after Ilexarium was restored from this browser: says so instead of "expired", until signed in', async () => {
+    const storage = stubLocalStorage();
+    try {
+      writeStored(window, 'ilex.recovered', '0193a000-0000-7000-8000-0000000000aa');
+      const { fixture, api } = await render({ query: { reason: 'expired' } });
+      expect(textOf(fixture)).toContain('Ilexarium was restored');
+      expect(textOf(fixture)).not.toContain('Your session expired');
+      api.login.mockReturnValue(of({ user: OWNER }));
+      typeInto(fixture, 'username', 'owner');
+      typeInto(fixture, 'password', 'correct horse battery');
+      await submit(fixture);
+      expect(readStored(window, 'ilex.recovered')).toBe('');
+    } finally {
+      storage.restore();
+    }
   });
 });

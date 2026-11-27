@@ -79,5 +79,12 @@
         {{ (form().submitting() ? 'auth.setup.submitting' : 'auth.setup.submit') | translate }}
       </button>
     </form>
+    <aside class="mt-6 grid gap-2 border-t pt-4" aria-labelledby="setup-moving">
+      <p id="setup-moving" class="text-sm font-medium">
+        {{ 'auth.setup.movingTitle' | translate }}
+      </p>
+      <p class="text-sm text-muted-foreground">{{ 'auth.setup.movingText' | translate }}</p>
+      <ilex-copy-command command="sudo ilex-recover" />
+    </aside>
   }
 </ilex-auth-frame>

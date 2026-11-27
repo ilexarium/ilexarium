@@ -12,6 +12,11 @@ import type {
   BackupPlan,
   BackupPlanResponse,
   BackupPlanUpdate,
+  BackupRecoveryCheckRequest,
+  BackupRecoveryCheckResponse,
+  BackupRecoveryRequest,
+  BackupRecoveryResponse,
+  BackupRecoveryStartedResponse,
   BackupRestore,
   BackupRestoreRequest,
   BackupRestoresResponse,
@@ -107,5 +112,21 @@ export class BackupsApi {
   /** "Show again": needs the app password. */
   passphrase(): Observable<BackupPassphraseResponse> {
     return this.http.post<BackupPassphraseResponse>('/api/backups/passphrase', {});
+  }
+
+  recoveryCheck(request: BackupRecoveryCheckRequest): Observable<BackupRecoveryCheckResponse> {
+    return this.http.post<BackupRecoveryCheckResponse>('/api/backups/recovery/check', request);
+  }
+
+  recover(request: BackupRecoveryRequest): Observable<BackupRecoveryStartedResponse> {
+    return this.http.post<BackupRecoveryStartedResponse>('/api/backups/recovery', request);
+  }
+
+  recovery(): Observable<BackupRecoveryResponse> {
+    return this.http.get<BackupRecoveryResponse>('/api/backups/recovery');
+  }
+
+  dismissRecovery(): Observable<void> {
+    return this.http.post<void>('/api/backups/recovery/dismiss', {});
   }
 }

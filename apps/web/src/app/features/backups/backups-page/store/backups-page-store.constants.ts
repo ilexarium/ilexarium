@@ -1,6 +1,7 @@
 import type {
   BackupHistoryState,
   BackupPlanState,
+  BackupRecoveryState,
   BackupRestoresState,
   BackupsCoreState,
   FolderPickerState,
@@ -28,3 +29,14 @@ export const initialBackupHistoryState: BackupHistoryState = { outputs: {} };
 export const initialBackupRestoresState: BackupRestoresState = { archives: null };
 
 export const initialFolderPickerState: FolderPickerState = { folders: null };
+
+export const initialBackupRecoveryState: BackupRecoveryState = {
+  recovery: null,
+  recoveryFound: null,
+  recoveryStep: 'idle',
+  recoveryError: null,
+};
+
+/** While Ilexarium restarts after a recovery: how often to look, and for how long at most. */
+export const RECOVERY_POLL_MS = 3_000;
+export const RECOVERY_WAIT_MS = 20 * 60_000;

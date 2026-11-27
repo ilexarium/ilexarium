@@ -5,6 +5,7 @@ import { MonitoringStore } from '../../../../core/monitoring/monitoring-store';
 import { withBackupHistory } from './with-backup-history';
 import { withBackupItems } from './with-backup-items';
 import { withBackupPlan } from './with-backup-plan';
+import { withBackupRecovery } from './with-backup-recovery';
 import { withBackupRestores } from './with-backup-restores';
 import { withBackupsCore } from './with-backups-core';
 import { withFolderPicker } from './with-folder-picker';
@@ -23,10 +24,12 @@ export const BackupsPageStore = signalStore(
   withFolderPicker(),
   withBackupItems(),
   withBackupRestores(),
+  withBackupRecovery(),
   withMethods((store) => ({
     load(): void {
       store._loadDestinations();
       store.reload();
+      store.loadRecovery();
     },
   })),
   withHooks(

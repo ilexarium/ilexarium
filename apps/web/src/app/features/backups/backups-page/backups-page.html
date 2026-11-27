@@ -7,6 +7,9 @@
   <p role="alert" class="text-sm text-destructive">{{ 'backups.failed' | translate }}</p>
 } @else if (backupsPageStore.plan(); as plan) {
   <div class="grid grid-cols-1 gap-5">
+    @if (recoveryNotice(); as recovery) {
+      <ilex-recovery-notice [recovery]="recovery" (dismiss)="backupsPageStore.dismissRecovery()" />
+    }
     @if (backupsPageStore.passphrase(); as passphrase) {
       <ilex-passphrase-card
         [passphrase]="passphrase"
@@ -108,11 +111,27 @@
     (restore)="backupsPageStore.restore($event)"
   />
 } @else {
-  <ilex-backup-setup
-    [destinations]="backupsPageStore.destinations()"
-    [apps]="backupsPageStore.apps()"
-    [folderListing]="backupsPageStore.folders()"
-    (browse)="backupsPageStore.browse($event)"
-    (closeBrowser)="backupsPageStore.closeBrowser()"
+  <div class="grid grid-cols-1 gap-5">
+    @if (recoveryNotice(); as recovery) {
+      <ilex-recovery-notice [recovery]="recovery" (dismiss)="backupsPageStore.dismissRecovery()" />
+    }
+    <ilex-recover-card (restore)="recoverOpen.set(true)" />
+    <ilex-backup-setup
+      [destinations]="backupsPageStore.destinations()"
+      [apps]="backupsPageStore.apps()"
+      [folderListing]="backupsPageStore.folders()"
+      (browse)="backupsPageStore.browse($event)"
+      (closeBrowser)="backupsPageStore.closeBrowser()"
+    />
+  </div>
+  <ilex-recover-dialog
+    [open]="recoverOpen()"
+    [found]="backupsPageStore.recoveryFound()"
+    [step]="backupsPageStore.recoveryStep()"
+    [error]="backupsPageStore.recoveryError()"
+    (find)="backupsPageStore.findRecoveryBackups()"
+    (check)="backupsPageStore.checkRecoveryPassphrase($event)"
+    (recover)="backupsPageStore.recover($event)"
+    (closed)="recoverOpen.set(false); backupsPageStore.resetRecovery()"
   />
 }
