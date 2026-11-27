@@ -201,6 +201,9 @@ describe('BackupChecks.checkFolderChange', () => {
       }),
     ).not.toThrow();
     expect(() => checks.checkFolderChange('/srv/ilex/docs', {})).not.toThrow();
+    expect(() =>
+      checks.checkFolderChange('/srv/ilex/old [1]', { skip: ['/srv/ilex/old [1]/*.tmp'] }),
+    ).toThrow();
     for (const skip of ['/srv/ilex/docs2/x', '/srv/ilex/docs', '/srv/ilex/docs/-x']) {
       expect(() => checks.checkFolderChange('/srv/ilex/docs', { skip: [skip] }), skip).toThrow();
     }
