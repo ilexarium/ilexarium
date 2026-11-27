@@ -266,12 +266,7 @@ export async function backupItem(
           return fail('source_missing', `${path}: missing or not allowed`);
         }
         sources.push(real);
-        for (const skip of item.skip ?? []) {
-          if (!skip.startsWith(`${path}/`)) continue;
-          // Below the folder as it really is (a symlink above it resolved).
-          const inside = `${real}${skip.slice(path.length)}`;
-          excludes.push('--exclude', /[*?]/.test(inside) ? `sh:${inside}` : `pp:${inside}`);
-        }
+        excludes.push(...skipExcludes(item.skip, path, real));
       }
       // A `stop` app, by its project name: Compose finds its containers by their labels.
       if (item.mode === 'stop') project = item.project!;
@@ -281,6 +276,7 @@ export async function backupItem(
         return fail('source_missing', `${item.path}: missing or not allowed`);
       }
       sources = [real];
+      excludes.push(...skipExcludes(item.skip, item.path!, real));
     }
     if (sources.length === 0) return fail('source_missing', 'nothing to back up');
 
@@ -356,6 +352,19 @@ export async function backupItem(
     if (error instanceof Refusal) return fail(error.code, error.message);
     return fail('borg_failed', String((error as Error)?.message ?? error));
   }
+}
+
+/**
+ * Borg's `--exclude`s for the skips below `folder`, as it really is (`real`: a symlink above it
+ * resolved). A skip below another of the item's folders is left for that one.
+ */
+function skipExcludes(skips: string[] | undefined, folder: string, real: string): string[] {
+  return (skips ?? [])
+    .filter((skip) => skip.startsWith(`${folder}/`))
+    .flatMap((skip) => {
+      const inside = `${real}${skip.slice(folder.length)}`;
+      return ['--exclude', /[*?]/.test(inside) ? `sh:${inside}` : `pp:${inside}`];
+    });
 }
 
 /** Thins an item's archives to the plan's retention. */

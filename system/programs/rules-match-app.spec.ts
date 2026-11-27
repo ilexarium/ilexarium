@@ -18,6 +18,7 @@ import {
   DISK_UUID_PATTERN,
   FILES_LIMITS,
   isMountPointAllowed,
+  isSkipInFolders,
   JOURNAL_BOOT_ID_PATTERN,
   JOURNAL_CURSOR_PATTERN,
   JOURNAL_LIMITS,
@@ -121,6 +122,27 @@ describe('the app and the root programs check the same rules', () => {
     expect(String(wrapperPlan.PROJECT_PATTERN)).toBe(String(APP_NAME_PATTERN));
     expect(String(wrapperPlan.SKIP_PATTERN)).toBe(String(RELATIVE_PATH_PATTERN));
     expect(wrapperPlan.MAX_SKIPS).toBe(CATALOG_LIMITS.maxBackupSkips);
+    const folders = ['/srv/media', '/home/anna/apps/immich', '/srv/media/-b'];
+    for (const skip of [
+      '/srv/media/cache',
+      '/srv/media/a/b/*.tmp',
+      '/home/anna/apps/immich/thumbs?',
+      '/srv/media',
+      '/srv/media/',
+      '/srv/media2/x',
+      '/srv/media/../etc',
+      '/srv/media/./x',
+      '/srv/media//x',
+      '/srv/media/-rf',
+      '/srv/media/a/-rf',
+      '/srv/media/-b/x',
+      '/srv/media/[ab]',
+      '/srv/media/a\\b',
+      '/srv/other/x',
+      'srv/media/x',
+    ]) {
+      expect(wrapperPlan.skipAllowed(skip, folders), skip).toBe(isSkipInFolders(skip, folders));
+    }
   });
 
   it('backups: the timer runs at the hours the app shows as the next run', () => {

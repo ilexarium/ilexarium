@@ -52,13 +52,14 @@ export type ItemKind = 'platform' | 'app' | 'folder';
 export interface PlanItem {
   id: string;
   kind: ItemKind;
-  /** app: its Compose project (stopped and started by name), its folders, skips and mode. */
+  /** app: its Compose project (stopped and started by name), its folders and mode. */
   project?: string;
   folders?: string[];
-  skip?: string[];
   mode?: 'live' | 'stop';
   /** folder */
   path?: string;
+  /** What's skipped below its folders (app) or the folder (folder; optional in older plans). */
+  skip?: string[];
   /** Not backed up any more; kept so its archives can be restored or forgotten. */
   removed?: boolean;
 }

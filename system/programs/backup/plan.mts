@@ -99,12 +99,18 @@ export function checkPlan(raw: unknown, config: Config, paths: Paths): Plan {
       if (!Array.isArray(skip) || skip.length > MAX_SKIPS) return refuse('skip');
       if (!skip.every((one) => skipAllowed(one, own as string[]))) refuse('skip: not in a folder');
     } else if (kind === 'folder') {
-      exactKeys(item, ['id', 'kind', 'path'], ['removed'], 'folder item');
-      const path = item.path;
+      // `skip` optional: plans written before folder items had skips.
+      exactKeys(item, ['id', 'kind', 'path'], ['removed', 'skip'], 'folder item');
+      const { path, skip } = item;
       if (!absolute(path) || !allowedFolder(config, path)) refuse('folder: not allowed');
       if (overlaps(path as string, destination as string)) refuse('folder: overlaps the disk');
       if (folders.has(path as string)) refuse('folder: twice');
       folders.add(path as string);
+      if (skip !== undefined) {
+        if (!Array.isArray(skip) || skip.length > MAX_SKIPS) return refuse('skip');
+        if (!skip.every((one) => skipAllowed(one, [path as string])))
+          refuse('skip: not in the folder');
+      }
     } else {
       refuse('item kind');
     }

@@ -303,6 +303,20 @@ describe('ilex-backup configure', () => {
     expect((await wrapper('configure', plan({ items }))).code).toBe(0);
   });
 
+  it('accepts a folder item with skips, and one without (an older plan)', async () => {
+    const docs = join(storage, 'docs');
+    const items = plan().items.map((i: any) =>
+      i.id === FOLDER ? { ...i, skip: [join(docs, 'cache'), join(docs, 'photos', '*.tmp')] } : i,
+    );
+    expect((await wrapper('configure', plan({ items }))).code).toBe(0);
+    expect(JSON.parse(readFileSync(join(dev, 'backup.json'), 'utf8')).items[3].skip).toEqual([
+      join(docs, 'cache'),
+      join(docs, 'photos', '*.tmp'),
+    ]);
+    expect(plan().items[3]).not.toHaveProperty('skip');
+    expect((await wrapper('configure', plan())).code).toBe(0);
+  });
+
   const withItem = (item: Record<string, unknown>) => plan({ items: [plan().items[0], item] });
   it.each<[string, () => Record<string, any>]>([
     ['a destination outside /mnt and /media', () => plan({ destination: storage })],
@@ -363,8 +377,48 @@ describe('ilex-backup configure', () => {
       () => withItem({ id: RUN, kind: 'service', catalogId: 'demo', folders: {} }),
     ],
     [
-      'a skip list on a folder item',
-      () => withItem({ id: RUN, kind: 'folder', path: join(storage, 'docs'), skip: ['x'] }),
+      'a relative folder skip',
+      () => withItem({ id: RUN, kind: 'folder', path: join(storage, 'docs2'), skip: ['x'] }),
+    ],
+    [
+      'a folder skip outside the folder',
+      () =>
+        withItem({
+          id: RUN,
+          kind: 'folder',
+          path: join(storage, 'docs2'),
+          skip: [join(storage, 'docs', 'x')],
+        }),
+    ],
+    [
+      'a folder skip with ..',
+      () =>
+        withItem({
+          id: RUN,
+          kind: 'folder',
+          path: join(storage, 'docs2'),
+          skip: [join(storage, 'docs2', '..', 'docs')],
+        }),
+    ],
+    [
+      'too many folder skips',
+      () =>
+        withItem({
+          id: RUN,
+          kind: 'folder',
+          path: join(storage, 'docs2'),
+          skip: Array.from({ length: 21 }, (_, i) => join(storage, 'docs2', String(i))),
+        }),
+    ],
+    [
+      'a folder skip list that is not a list',
+      () =>
+        withItem({
+          id: RUN,
+          kind: 'folder',
+          path: join(storage, 'docs2'),
+          skip: join(storage, 'docs2', 'x'),
+        }),
     ],
   ])('refuses %s', async (_, value) => {
     expectRefused(await wrapper('configure', value()), 'invalid_plan');
@@ -527,6 +581,24 @@ describe('ilex-backup run', () => {
       join(storage, 'demo', 'media'),
     ]);
     expect(creates[2].args).toContain(`pp:${join(storage, 'live')}/thumbs`);
+  });
+
+  it('skips what a folder item says, below the folder as it really is', async () => {
+    const docs = join(storage, 'docs');
+    const items = plan().items.map((i: any) =>
+      i.id === FOLDER ? { ...i, skip: [join(docs, 'tmp'), join(docs, '*.bak')] } : i,
+    );
+    expect((await wrapper('configure', plan({ items }))).code).toBe(0);
+    expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
+    const create = calls('borg').find((c) => c.args[0] === 'create')!.args;
+    expect(create.slice(create.indexOf('--comment') + 2)).toEqual([
+      '--exclude',
+      `pp:${docs}/tmp`,
+      '--exclude',
+      `sh:${docs}/*.bak`,
+      expect.stringMatching(new RegExp(`::${FOLDER}-`)),
+      docs,
+    ]);
   });
 
   it('archives a folder inside another one with it, once; the comment lists both', async () => {

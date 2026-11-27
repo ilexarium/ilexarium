@@ -82,12 +82,14 @@ describe.skipIf(!BORG)('ilex-backup with the real Borg', () => {
     dev = join(dir, 'dev');
     destination = join(dir, 'mnt', 'usb');
     mkdirSync(join(storage, 'demo', 'data', 'cache'), { recursive: true });
-    mkdirSync(join(storage, 'docs'), { recursive: true });
+    mkdirSync(join(storage, 'docs', 'tmp'), { recursive: true });
     mkdirSync(destination, { recursive: true });
     writeFileSync(join(storage, 'demo', 'data', 'db.sqlite'), 'version 1');
     writeFileSync(join(storage, 'demo', 'data', 'cache', 'big.bin'), 'rebuilt by the service');
     writeFileSync(join(storage, 'docs', 'letter.txt'), 'Dear …');
     writeFileSync(join(storage, 'docs', 'private.txt'), 'only mine', { mode: 0o600 });
+    writeFileSync(join(storage, 'docs', 'tmp', 'draft.txt'), 'skipped');
+    writeFileSync(join(storage, 'docs', 'old.bak'), 'skipped too');
     mkdirSync(join(dir, 'etc'));
     writeFileSync(join(dir, 'etc', 'master.key'), 'key');
     writeFileSync(
@@ -139,7 +141,12 @@ describe.skipIf(!BORG)('ilex-backup with the real Borg', () => {
           skip: [join(storage, 'demo', 'data', 'cache')],
           mode: 'stop',
         },
-        { id: FOLDER, kind: 'folder', path: join(storage, 'docs') },
+        {
+          id: FOLDER,
+          kind: 'folder',
+          path: join(storage, 'docs'),
+          skip: [join(storage, 'docs', 'tmp'), join(storage, 'docs', '*.bak')],
+        },
       ],
     };
     expect((await wrapper('configure', plan)).code).toBe(0);
@@ -207,6 +214,9 @@ describe.skipIf(!BORG)('ilex-backup with the real Borg', () => {
       expect(mode(folder), folder).toBe(0o755);
     }
     expect(mode(join(dirname(restored), 'private.txt'))).toBe(0o600);
+    // Its skips (a folder and a pattern) aren't in the archive.
+    expect(existsSync(join(dirname(restored), 'tmp'))).toBe(false);
+    expect(existsSync(join(dirname(restored), 'old.bak'))).toBe(false);
   }, 60_000);
 
   it('the platform archive holds the dump and the platform files', async () => {
