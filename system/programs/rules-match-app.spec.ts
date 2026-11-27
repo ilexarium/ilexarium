@@ -62,6 +62,7 @@ import * as wrapperBackupInput from './backup/input.mts';
 import * as wrapperPlan from './backup/plan.mts';
 import * as wrapperPlaces from './backup/places.mts';
 import * as wrapperRecover from './backup/recover.mts';
+import * as wrapperRecoverAccounts from './backup/recover-accounts.mts';
 import * as wrapperDiskConfig from './disk/config.mts';
 import * as wrapperDiskDevices from './disk/devices.mts';
 import * as wrapperDiskMount from './disk/mount.mts';
@@ -104,7 +105,9 @@ describe('the app and the root programs check the same rules', () => {
         !backupRecoveryPassphraseFormSchema.safeParse({ passphrase: sample }).success,
       );
     }
-    expect(String(wrapperRecover.ACCOUNT_NAME_PATTERN)).toBe(String(LINUX_USERNAME_PATTERN));
+    expect(String(wrapperRecoverAccounts.ACCOUNT_NAME_PATTERN)).toBe(
+      String(LINUX_USERNAME_PATTERN),
+    );
   });
 
   it('backups: no item on the backup disk or holding it', () => {

@@ -32,7 +32,7 @@ export const initialFolderPickerState: FolderPickerState = { folders: null };
 
 export const initialBackupRecoveryState: BackupRecoveryState = {
   recovery: null,
-  recoveryFound: null,
+  recoveryNewest: null,
   recoveryStep: 'idle',
   recoveryError: null,
 };

@@ -219,8 +219,8 @@ describe('restoring Ilexarium from the backup disk', () => {
   const repository = '/mnt/usb/ilex-backups';
   const passphrase = 'acorn bagel cactus dolphin ember fjord';
 
-  it('checks nothing, or a repository with its passphrase — never half of it', () => {
-    expect(backupRecoveryCheckRequestSchema.safeParse({}).success).toBe(true);
+  it('checks a repository with its passphrase — never half of it, never nothing', () => {
+    expect(backupRecoveryCheckRequestSchema.safeParse({}).success).toBe(false);
     expect(backupRecoveryCheckRequestSchema.safeParse({ repository, passphrase }).success).toBe(
       true,
     );

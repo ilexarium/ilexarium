@@ -444,15 +444,16 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     const repository = () => join(disk, 'ilex-backups');
     const passphrase = () => readFileSync(join(dir, 'backup', 'backup.passphrase'), 'utf8').trim();
 
-    it('finds the backups on mounted disks, and with the passphrase the newest of Ilexarium', async () => {
-      const found = await api().post('/backups/recovery/check', {}).expect(200);
-      expect(found.body).toEqual({ repositories: [repository()] });
+    it('lists the disk holding backups, and with the passphrase the newest of Ilexarium', async () => {
+      const { destinations } = (await api().get('/backups/destinations').expect(200)).body;
+      expect(destinations).toContainEqual(
+        expect.objectContaining({ mountPoint: disk, hasRepository: true }),
+      );
       const checked = await api()
         .post('/backups/recovery/check', { repository: repository(), passphrase: passphrase() })
         .expect(200);
       const platform = (await plan()).items.find((i) => i.kind === 'platform')!;
-      expect(checked.body.archives.length).toBeGreaterThan(0);
-      expect(checked.body.archives[0].name.startsWith(platform.id)).toBe(true);
+      expect(checked.body.archive.name.startsWith(platform.id)).toBe(true);
       const audit = await app
         .get(PrismaService)
         .auditEvent.findMany({ where: { action: 'backup.recover_check' } });
@@ -466,6 +467,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
         .expect(422);
       expect(wrong.body.code).toBe('passphrase_invalid');
       await api().post('/backups/recovery/check', { repository: repository() }).expect(400);
+      await api().post('/backups/recovery/check', {}).expect(400);
       await api()
         .post('/backups/recovery/check', { repository: disk, passphrase: 'x' })
         .expect(400);

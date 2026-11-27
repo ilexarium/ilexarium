@@ -1074,7 +1074,6 @@
       "title": "Restore Ilexarium",
       "description": "From the newest backup of Ilexarium on your backup disk.",
       "close": "Close",
-      "finding": "Looking for backups on the mounted disks…",
       "noneFound": "No backups on the mounted disks. Connect the backup disk and mount it on the Disks page.",
       "lookAgain": "Look again",
       "where": "Backups on",

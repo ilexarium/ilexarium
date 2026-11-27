@@ -28,6 +28,8 @@ export interface BackupConfig {
     retryDelayMs?: number;
     /** Who asked (a uid), instead of this account — root mode goes by whose sudo started it. */
     askedBy?: number;
+    /** The installed version a recovery compares the backup's with (root mode: /etc/ilex/version). */
+    installedVersion?: string;
   };
 }
 

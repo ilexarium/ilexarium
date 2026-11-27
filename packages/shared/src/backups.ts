@@ -611,18 +611,14 @@ const recoveryRepositorySchema = folderPathSchema.refine(
 );
 
 /**
- * `POST /api/backups/recovery/check`, through the person's sudo: without a repository, the
- * backups found on mounted disks; with one and its passphrase, its newest backups of Ilexarium.
+ * `POST /api/backups/recovery/check`, through the person's sudo: the newest backup of Ilexarium in
+ * that repository (a disk the destinations list shows with `hasRepository`), opened with the
+ * passphrase.
  */
-export const backupRecoveryCheckRequestSchema = z
-  .strictObject({
-    repository: recoveryRepositorySchema.optional(),
-    passphrase: recoveryPassphraseSchema.optional(),
-  })
-  .refine((body) => (body.repository === undefined) === (body.passphrase === undefined), {
-    message: 'validation.backupPassphraseRequired',
-    path: ['passphrase'],
-  });
+export const backupRecoveryCheckRequestSchema = z.strictObject({
+  repository: recoveryRepositorySchema,
+  passphrase: recoveryPassphraseSchema,
+});
 export type BackupRecoveryCheckRequest = z.infer<typeof backupRecoveryCheckRequestSchema>;
 
 /** The Restore Ilexarium dialog's passphrase field. */
@@ -634,11 +630,7 @@ export type BackupRecoveryPassphraseForm = z.infer<typeof backupRecoveryPassphra
 export const backupRecoveryArchiveSchema = z.object({ name: z.string(), time: z.iso.datetime() });
 export type BackupRecoveryArchive = z.infer<typeof backupRecoveryArchiveSchema>;
 
-export const backupRecoveryCheckResponseSchema = z.object({
-  repositories: z.array(z.string()),
-  /** Newest first; only with a repository and its passphrase. */
-  archives: z.array(backupRecoveryArchiveSchema).optional(),
-});
+export const backupRecoveryCheckResponseSchema = z.object({ archive: backupRecoveryArchiveSchema });
 export type BackupRecoveryCheckResponse = z.infer<typeof backupRecoveryCheckResponseSchema>;
 
 /**

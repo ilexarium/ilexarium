@@ -117,6 +117,8 @@ async function render(
   start: BackupPlan | null,
   url = '/backups',
   recovery: BackupRecovery | null = null,
+  /** A mounted disk holding backups (from another machine). */
+  oldDisk = false,
 ) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
@@ -129,6 +131,7 @@ async function render(
           disk(),
           disk({ mountPoint: '/media/alice/stick', filesystem: 'vfat', supported: false }),
           disk({ mountPoint: '/mnt/data', sameDiskAsData: true }),
+          ...(oldDisk ? [disk({ mountPoint: '/mnt/old', hasRepository: true })] : []),
         ],
       }),
     ),
@@ -162,18 +165,10 @@ async function render(
       of({ name: 'immich', folder: '/home/anna/apps/immich', task: null }),
     ),
     recovery: vi.fn(() => of({ recovery })),
-    recoveryCheck: vi.fn(
-      (request: { repository?: string }): Observable<BackupRecoveryCheckResponse> =>
-        of(
-          request.repository
-            ? {
-                repositories: ['/mnt/usb/ilex-backups'],
-                archives: [
-                  { name: `${PLATFORM}-2026-11-26T03:00:00`, time: '2026-11-26T03:00:00.000Z' },
-                ],
-              }
-            : { repositories: ['/mnt/usb/ilex-backups'] },
-        ),
+    recoveryCheck: vi.fn((): Observable<BackupRecoveryCheckResponse> =>
+      of({
+        archive: { name: `${PLATFORM}-2026-11-26T03:00:00`, time: '2026-11-26T03:00:00.000Z' },
+      }),
     ),
     recover: vi.fn(() => of({ recoveryId: RECOVERY })),
     dismissRecovery: vi.fn(() => of(undefined)),
@@ -657,21 +652,21 @@ describe('BackupsPage: restoring Ilexarium from a backup disk', () => {
   beforeEach(() => (storage = stubLocalStorage()));
   afterEach(() => storage.restore());
 
-  it('before setup: finds the backups as the person, opens one with the passphrase, restores the newest', async () => {
-    const { el, api, asPerson, button } = await render(null);
+  it('before setup: lists the disk with backups, opens it with the passphrase as the person, restores the newest', async () => {
+    const { el, api, asPerson, button } = await render(null, '/backups', null, true);
     expect(el.textContent).toContain('Moving from another machine?');
     expect(el.textContent).toContain('sudo ilex-recover');
     button('Restore Ilexarium from a backup disk').click();
-    await vi.waitFor(() => expect(dialog()?.textContent).toContain('/mnt/usb/ilex-backups'));
-    expect(api.recoveryCheck).toHaveBeenCalledWith({});
-    expect(asPerson).toHaveBeenCalled();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('/mnt/old/ilex-backups'));
+    expect(api.recoveryCheck).not.toHaveBeenCalled();
     typePassphrase(PASSPHRASE);
     dialogButton('Open the backups')!.click();
     await vi.waitFor(() => expect(dialog()?.textContent).toContain('Newest backup of Ilexarium'));
     expect(api.recoveryCheck).toHaveBeenLastCalledWith({
-      repository: '/mnt/usb/ilex-backups',
+      repository: '/mnt/old/ilex-backups',
       passphrase: PASSPHRASE,
     });
+    expect(asPerson).toHaveBeenCalled();
     expect(dialog()!.textContent).toContain('everyone signs in again');
     // Its own end is the session going (a 401: the sign-in page); here its file says it failed.
     api.recovery.mockReturnValue(
@@ -691,7 +686,7 @@ describe('BackupsPage: restoring Ilexarium from a backup disk', () => {
     dialogButton('Restore')!.click();
     await vi.waitFor(() => expect(dialog()?.textContent).toContain('Restoring Ilexarium…'));
     expect(api.recover).toHaveBeenCalledWith({
-      repository: '/mnt/usb/ilex-backups',
+      repository: '/mnt/old/ilex-backups',
       passphrase: PASSPHRASE,
       archive: `${PLATFORM}-2026-11-26T03:00:00`,
     });
@@ -705,14 +700,17 @@ describe('BackupsPage: restoring Ilexarium from a backup disk', () => {
 
   it('words a wrong passphrase, and says how to mount a disk when none has backups', async () => {
     const { api, button } = await render(null);
-    api.recoveryCheck.mockReturnValueOnce(of({ repositories: [] }));
     button('Restore Ilexarium from a backup disk').click();
     await vi.waitFor(() =>
       expect(dialog()?.textContent).toContain('No backups on the mounted disks'),
     );
     expect(dialog()!.querySelector('a[href="/disks"]')).not.toBeNull();
+    // One mounted meanwhile: "Look again" reads the disks again.
+    api.destinations.mockReturnValue(
+      of({ destinations: [disk({ mountPoint: '/mnt/old', hasRepository: true })] }),
+    );
     dialogButton('Look again')!.click();
-    await vi.waitFor(() => expect(dialog()?.textContent).toContain('/mnt/usb/ilex-backups'));
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('/mnt/old/ilex-backups'));
     api.recoveryCheck.mockReturnValueOnce(
       throwError(
         () =>

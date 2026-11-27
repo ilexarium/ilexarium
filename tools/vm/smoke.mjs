@@ -1776,9 +1776,26 @@ async function recoverCli() {
   await recovered(null);
 
   console.log('\nAn app restored back in place, as anna');
+  // The checks before leave her out of the administrators (they test both ways).
+  sh('usermod', ['-aG', ADMINS, 'anna']);
   await linuxSignIn('anna');
-  await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
-  await api('POST', '/backups/archives/refresh', {});
+  const sudo = await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  check(
+    'anna’s sudo unlocked',
+    sudo.status === 200 || sudo.status === 204,
+    `${sudo.status} ${sudo.text}`,
+  );
+  // The check timer, on again, runs its missed check at once: it holds the lock a while (busy).
+  await until(
+    'the backups read again from the disk',
+    async () => {
+      const refreshed = await api('POST', '/backups/archives/refresh', {});
+      // Spaced out: changes are limited to 20 a minute.
+      if (refreshed.status !== 204) await sleep(4000);
+      return { done: refreshed.status === 204, value: `${refreshed.status} ${refreshed.text}` };
+    },
+    10 * 60_000,
+  );
   const item = (await api('GET', '/backups/plan')).json?.plan?.items.find(
     (i) => i.project === 'navidrome',
   );
@@ -1825,13 +1842,20 @@ async function recoverApp() {
   const setup = await api('POST', '/auth/setup', { setupToken, ...throwaway });
   check('a throwaway account', setup.status === 200 || setup.status === 201, setup.text);
   await api('POST', '/auth/login', throwaway);
+  sh('usermod', ['-aG', ADMINS, 'anna']);
   await linuxSignIn('anna');
-  await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
-  const found = await api('POST', '/backups/recovery/check', {});
+  const sudo = await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
   check(
-    'the backups found on the mounted disk',
-    found.status === 200 && found.json?.repositories?.includes(REPOSITORY),
-    `${found.status} ${found.text}`,
+    'anna’s sudo unlocked',
+    sudo.status === 200 || sudo.status === 204,
+    `${sudo.status} ${sudo.text}`,
+  );
+  // The disks with backups, as the Disks data shows them (no sudo needed).
+  const disks = (await api('GET', '/backups/destinations')).json?.destinations ?? [];
+  check(
+    'the backup disk listed, holding backups',
+    disks.some((d) => d.mountPoint === '/mnt/backup' && d.hasRepository),
+    JSON.stringify(disks).slice(0, 300),
   );
   const passphrase = readFileSync(KEPT_PASSPHRASE, 'utf8').trim();
   const wrong = await api('POST', '/backups/recovery/check', {
@@ -1847,7 +1871,7 @@ async function recoverApp() {
     repository: REPOSITORY,
     passphrase,
   });
-  const archive = checked.json?.archives?.[0]?.name;
+  const archive = checked.json?.archive?.name;
   check(
     'its newest backup of Ilexarium',
     checked.status === 200 && typeof archive === 'string',
@@ -1863,14 +1887,40 @@ async function recoverApp() {
     started.status === 202,
     `${started.status} ${started.text}`,
   );
-  await until(
-    'the session gone (the restored database never had it)',
-    async () => {
-      const me = await api('GET', '/auth/me').catch(() => ({ status: 0 }));
-      return { done: me.status === 401, value: me.status };
-    },
-    10 * 60_000,
-  );
+  // The session goes with the replaced database; a failure leaves it and says so in its file.
+  const end = Date.now() + 10 * 60_000;
+  let me = { status: 0 };
+  while (Date.now() < end) {
+    me = await api('GET', '/auth/me').catch(() => ({ status: 0 }));
+    if (me.status === 401) break;
+    const recovery =
+      me.status === 200 ? (await api('GET', '/backups/recovery')).json?.recovery : null;
+    if (recovery?.id === started.json?.recoveryId && recovery.status === 'failed') break;
+    await sleep(3000);
+  }
+  if (me.status !== 401) {
+    let journal = '';
+    try {
+      journal = sh('journalctl', [
+        '-u',
+        `ilex-recover@${started.json?.recoveryId}`,
+        '-n',
+        '60',
+        '--no-pager',
+      ]);
+    } catch (error) {
+      journal = String(error);
+    }
+    const file = existsSync('/var/lib/ilex/backups/recovery.json')
+      ? readFileSync('/var/lib/ilex/backups/recovery.json', 'utf8')
+      : 'no recovery.json';
+    check(
+      'the session gone (the restored database never had it)',
+      false,
+      `${me.status}\n${file}\n${journal}`,
+    );
+    done();
+  }
   cookie = '';
   await recovered(started.json?.recoveryId);
   const gone = await api('POST', '/auth/login', throwaway);

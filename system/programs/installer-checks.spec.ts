@@ -637,9 +637,8 @@ describe('ilex-uninstall and ilex-recover: their arguments', () => {
     expect(refused.stderr).toContain('Unknown option: --force');
   });
 
-  it('ilex-recover takes one repository at most, and --archive needs a name', () => {
+  it('ilex-recover takes one repository at most', () => {
     expect(run('ilex-recover', '/mnt/a/ilex-backups', '/mnt/b/ilex-backups').status).toBe(2);
-    expect(run('ilex-recover', '--archive').status).toBe(2);
   });
 
   it.runIf(process.getuid?.() !== 0).each(['ilex-uninstall', 'ilex-recover'])(

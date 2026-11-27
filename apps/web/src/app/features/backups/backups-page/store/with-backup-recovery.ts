@@ -37,8 +37,8 @@ import {
 import type { withBackupsCore } from './with-backups-core';
 
 /**
- * Restoring Ilexarium from the backup disk (only while there's no plan): the backups found, the
- * passphrase checked, the start — then the wait while Ilexarium restarts. Its end is the session
+ * Restoring Ilexarium from the backup disk (only while there's no plan): the passphrase checked
+ * against the repository chosen, the start — then the wait while Ilexarium restarts. Its end is the session
  * going (the restored database doesn't have it: the sign-in page, told by `RECOVERY_STORAGE_KEY`),
  * or the failure its file reports. And the last recovery's notice, with its Dismiss.
  */
@@ -74,36 +74,18 @@ export function withBackupRecovery() {
             ),
           ),
 
-          /** The backups on mounted disks, through the person's sudo. */
-          findRecoveryBackups: rxMethod<void>(
-            pipe(
-              exhaustMap(() => {
-                patchState(store, {
-                  recoveryStep: 'finding',
-                  recoveryFound: null,
-                  recoveryError: null,
-                });
-                return backupsService.recoveryCheck({}).pipe(
-                  tap((found) => patchState(store, { recoveryStep: 'idle', recoveryFound: found })),
-                  catchError((error: unknown) => {
-                    failedWith(error);
-                    return EMPTY;
-                  }),
-                );
-              }),
-            ),
-          ),
-
-          /** The passphrase against a repository: its newest backups of Ilexarium. */
+          /** The passphrase against a repository (as the person): its newest backup of Ilexarium. */
           checkRecoveryPassphrase: rxMethod<{ repository: string; passphrase: string }>(
             pipe(
               exhaustMap((request) => {
                 patchState(store, { recoveryStep: 'checking', recoveryError: null });
                 return backupsService.recoveryCheck(request).pipe(
-                  tap((found) =>
+                  tap((checked) =>
                     patchState(store, {
                       recoveryStep: 'idle',
-                      recoveryFound: found ?? store.recoveryFound(),
+                      recoveryNewest: checked
+                        ? { repository: request.repository, archive: checked.archive }
+                        : null,
                     }),
                   ),
                   catchError((error: unknown) => {
@@ -194,11 +176,7 @@ export function withBackupRecovery() {
           /** The dialog closed: nothing of it kept (the passphrase stays in the dialog only). */
           resetRecovery(): void {
             if (['starting', 'waiting'].includes(store.recoveryStep())) return;
-            patchState(store, {
-              recoveryStep: 'idle',
-              recoveryFound: null,
-              recoveryError: null,
-            });
+            patchState(store, { recoveryStep: 'idle', recoveryNewest: null, recoveryError: null });
           },
         };
       },
