@@ -49,6 +49,12 @@ export interface ProgramBackupConfig {
   };
 }
 
+/** `recover-check`: the repositories found, and a chosen one's newest backups of Ilexarium. */
+export interface ProgramRecoverCheck {
+  repositories: string[];
+  archives?: { name: string; time: string }[];
+}
+
 /** Who asks, and through whose Linux session (whose sudo). */
 export interface RootActor {
   user: PublicUser;

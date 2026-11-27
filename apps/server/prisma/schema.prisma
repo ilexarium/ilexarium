@@ -216,6 +216,15 @@ model BackupRestore {
   @@index([startedAt])
 }
 
+/// A recovery from the backup disk (ilex-recover, or Backups → Restore Ilexarium), as the backup
+/// program's recovery.json tells it: recorded once (its audit entry), its notice until dismissed.
+model BackupRecovery {
+  /// The recovery's id, from the file.
+  id          String    @id @db.Uuid
+  recordedAt  DateTime  @default(now()) @db.Timestamptz(3)
+  dismissedAt DateTime? @db.Timestamptz(3)
+}
+
 enum AlertSeverity {
   warning
   critical

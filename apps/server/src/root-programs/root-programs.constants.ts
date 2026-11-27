@@ -57,7 +57,15 @@ const BACKUP_CODES: Record<string, BackupErrorCode> = {
   not_configured: BACKUP_ERROR_CODES.notConfigured,
   not_found: BACKUP_ERROR_CODES.restoreNotFound,
   invalid_plan: BACKUP_ERROR_CODES.invalidPlan,
+  already_configured: BACKUP_ERROR_CODES.alreadyConfigured,
+  backup_newer: BACKUP_ERROR_CODES.backupNewer,
+  restore_failed: BACKUP_ERROR_CODES.recoveryFailed,
 };
+
+/** An ilex-backup code as ours (a recovery's, from its file): null for one we don't know. */
+export function backupCodeOf(code: string): BackupErrorCode | null {
+  return Object.hasOwn(BACKUP_CODES, code) ? BACKUP_CODES[code] : null;
+}
 
 /** ilex-disk's `@@error` codes → ours (the same words). */
 const DISK_CODES: Record<string, DiskErrorCode> = Object.fromEntries(

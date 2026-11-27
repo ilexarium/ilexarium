@@ -27,10 +27,35 @@ import type {
   DiskOutcome,
   ProgramBackupPlan,
   ProgramKind,
+  ProgramRecoverCheck,
   ProgramRestoreInput,
   RootActor,
   UpdateStartOutcome,
 } from './root-programs.model.js';
+
+/** `recover-check`'s answer, checked: the repositories, and the archives once it opened one. */
+function readRecoverCheck(
+  result: Record<string, unknown> | undefined,
+): ProgramRecoverCheck | undefined {
+  const repositories = result?.['repositories'];
+  if (!Array.isArray(repositories) || !repositories.every((r) => typeof r === 'string')) {
+    return undefined;
+  }
+  const archives = result?.['archives'];
+  if (archives === undefined) return { repositories };
+  const valid =
+    Array.isArray(archives) &&
+    archives.every(
+      (a) =>
+        typeof a === 'object' &&
+        a !== null &&
+        typeof (a as Record<string, unknown>)['name'] === 'string' &&
+        typeof (a as Record<string, unknown>)['time'] === 'string',
+    );
+  return valid
+    ? { repositories, archives: archives as ProgramRecoverCheck['archives'] }
+    : undefined;
+}
 
 /** What one run printed and how it ended, before it means anything. */
 interface RawRun {
@@ -175,6 +200,36 @@ export class RootPrograms {
         typeof result?.['passphrase'] === 'string'
           ? { passphrase: result['passphrase'] }
           : undefined,
+    });
+  }
+
+  /**
+   * The backups on mounted disks; with a repository and its passphrase, its newest backups of
+   * Ilexarium. The passphrase goes to the program only: never the audit details or a log.
+   */
+  backupRecoverCheck(
+    input: { repository?: string; passphrase?: string },
+    actor: RootActor,
+  ): Promise<BackupOutcome<ProgramRecoverCheck>> {
+    const repository = input.repository;
+    return this.backup('recover-check', actor, 'backup.recover_check', input, {
+      audit: { repository },
+      timeoutMs: BACKUP_LONG_TIMEOUT_MS,
+      read: (result) => readRecoverCheck(result),
+    });
+  }
+
+  /**
+   * Restoring Ilexarium from a backup: systemd runs it as its own unit (`ilex-recover@<id>`),
+   * which stops this app and replaces its database; returns once it's started.
+   */
+  backupRecoverStart(
+    input: { recoveryId: string; repository: string; passphrase: string; archive: string },
+    actor: RootActor,
+  ): Promise<BackupOutcome<null>> {
+    return this.backup('recover-start', actor, 'backup.recover', input, {
+      audit: { recoveryId: input.recoveryId, repository: input.repository, archive: input.archive },
+      read: () => null,
     });
   }
 

@@ -20,6 +20,8 @@ export const SUBFOLDERS_MAX = 500;
 /** The production places of the wrapper's files (development: under the config's dev folder). */
 export const STATE_DIR = '/var/lib/ilex/backups';
 export const MOUNT_INFO = '/proc/self/mountinfo';
+/** In the state folder: the last recovery from the backup disk, written by the backup program. */
+export const RECOVERY_FILE = 'recovery.json';
 
 /** The time at the end of an archive's name: `YYYY-MM-DDTHH:MM:SS`, UTC. */
 export const ARCHIVE_TIME_LENGTH = 19;

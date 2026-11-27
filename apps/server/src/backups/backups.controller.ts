@@ -24,6 +24,9 @@ import type {
   BackupPassphraseResponse,
   BackupPlan,
   BackupPlanResponse,
+  BackupRecoveryCheckResponse,
+  BackupRecoveryResponse,
+  BackupRecoveryStartedResponse,
   BackupRestore,
   BackupRestoresResponse,
   BackupRestoreStartedResponse,
@@ -36,6 +39,7 @@ import type {
 import { TooManyAttemptsFilter } from '../auth/too-many-attempts.filter.js';
 import { BackupChecks } from './backup-checks.js';
 import { BackupPlanManager } from './backup-plan-manager.js';
+import { BackupRecoveryService } from './backup-recovery.js';
 import { BackupRestores } from './backup-restores.js';
 import { BackupRuns } from './backup-runs.js';
 import { BackupStatusReader } from './backup-status-reader.js';
@@ -46,6 +50,8 @@ import {
   BackupItemIdParamsDto,
   BackupItemUpdateDto,
   BackupPlanUpdateDto,
+  BackupRecoveryCheckDto,
+  BackupRecoveryDto,
   BackupRestoreApplyDto,
   BackupRestoreDto,
   BackupRestoreIdParamsDto,
@@ -65,6 +71,7 @@ export class BackupsController {
     private readonly backupRuns: BackupRuns,
     private readonly backupRestores: BackupRestores,
     private readonly backupStatusReader: BackupStatusReader,
+    private readonly backupRecoveryService: BackupRecoveryService,
   ) {}
 
   @Get('status')
@@ -263,5 +270,45 @@ export class BackupsController {
     @Ip() ip: string,
   ): Promise<BackupPassphraseResponse> {
     return this.backupPlanManager.passphrase({ user, ip, appSessionId: session.id });
+  }
+
+  /** Restoring Ilexarium: the backups on mounted disks, a repository's newest (its passphrase). */
+  @Post('recovery/check')
+  @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle(PASSPHRASE_LIMIT)
+  recoveryCheck(
+    @Body() body: BackupRecoveryCheckDto,
+    @CurrentSession() session: { id: string },
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<BackupRecoveryCheckResponse> {
+    return this.backupRecoveryService.check(body, { user, ip, appSessionId: session.id });
+  }
+
+  /** 202: its own unit stops this app and replaces the database; everyone signs in again. */
+  @Post('recovery')
+  @HttpCode(202)
+  @UseGuards(ThrottlerGuard)
+  @Throttle(PASSPHRASE_LIMIT)
+  recover(
+    @Body() body: BackupRecoveryDto,
+    @CurrentSession() session: { id: string },
+    @CurrentUser() user: PublicUser,
+    @Ip() ip: string,
+  ): Promise<BackupRecoveryStartedResponse> {
+    return this.backupRecoveryService.start(body, { user, ip, appSessionId: session.id });
+  }
+
+  @Get('recovery')
+  async recovery(): Promise<BackupRecoveryResponse> {
+    return { recovery: await this.backupRecoveryService.recovery() };
+  }
+
+  /** The notice's Dismiss, kept in the database. */
+  @Post('recovery/dismiss')
+  @HttpCode(204)
+  async dismissRecovery(): Promise<void> {
+    await this.backupRecoveryService.dismiss();
   }
 }
