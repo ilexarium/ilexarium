@@ -439,4 +439,83 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     const busy = runs.filter((run) => run.errorCode === 'busy');
     expect(busy.length + runs.filter((run) => run.status !== 'failed').length).toBe(2);
   }, 90_000);
+
+  describe('restoring Ilexarium from the backup disk', () => {
+    const repository = () => join(disk, 'ilex-backups');
+    const passphrase = () => readFileSync(join(dir, 'backup', 'backup.passphrase'), 'utf8').trim();
+
+    it('finds the backups on mounted disks, and with the passphrase the newest of Ilexarium', async () => {
+      const found = await api().post('/backups/recovery/check', {}).expect(200);
+      expect(found.body).toEqual({ repositories: [repository()] });
+      const checked = await api()
+        .post('/backups/recovery/check', { repository: repository(), passphrase: passphrase() })
+        .expect(200);
+      const platform = (await plan()).items.find((i) => i.kind === 'platform')!;
+      expect(checked.body.archives.length).toBeGreaterThan(0);
+      expect(checked.body.archives[0].name.startsWith(platform.id)).toBe(true);
+      const audit = await app
+        .get(PrismaService)
+        .auditEvent.findMany({ where: { action: 'backup.recover_check' } });
+      expect(audit.map((e) => e.outcome)).toContain('success');
+      expect(JSON.stringify(audit)).not.toContain(passphrase());
+    }, 60_000);
+
+    it('refuses a wrong passphrase, half a request, and a folder that is not a repository', async () => {
+      const wrong = await api()
+        .post('/backups/recovery/check', { repository: repository(), passphrase: 'wrong words' })
+        .expect(422);
+      expect(wrong.body.code).toBe('passphrase_invalid');
+      await api().post('/backups/recovery/check', { repository: repository() }).expect(400);
+      await api()
+        .post('/backups/recovery/check', { repository: disk, passphrase: 'x' })
+        .expect(400);
+    }, 60_000);
+
+    it('is refused while a backup plan exists (a terminal’s ilex-recover is for that)', async () => {
+      const refused = await api()
+        .post('/backups/recovery', {
+          repository: repository(),
+          passphrase: passphrase(),
+          archive: `${randomUUID()}-2026-01-01T00:00:00`,
+        })
+        .expect(409);
+      expect(refused.body.code).toBe('backups_already_configured');
+    });
+
+    it('shows the last recovery with its accounts, audits it once, and keeps its Dismiss', async () => {
+      expect((await api().get('/backups/recovery').expect(200)).body).toEqual({ recovery: null });
+      const id = randomUUID();
+      const me = process.getuid!();
+      writeFileSync(
+        join(dir, 'backup', 'state', 'recovery.json'),
+        JSON.stringify({
+          id,
+          status: 'succeeded',
+          errorCode: null,
+          archive: `${randomUUID()}-2026-11-26T03:00:00`,
+          archiveTime: '2026-11-26T03:00:00.000Z',
+          repository: repository(),
+          askedBy: me,
+          startedAt: '2026-11-27T10:00:00.000Z',
+          finishedAt: '2026-11-27T10:01:00.000Z',
+          accounts: [
+            { uid: me, name: 'old-name', items: ['navidrome'] },
+            { uid: 4_000_000, name: 'gone', items: ['/srv/docs'] },
+          ],
+        }),
+      );
+      const shown = (await api().get('/backups/recovery').expect(200)).body.recovery;
+      expect(shown).toMatchObject({ id, status: 'succeeded', dismissed: false });
+      expect(shown.accounts[0].here).toEqual(expect.any(String));
+      expect(shown.accounts[1].here).toBeNull();
+      await api().get('/backups/recovery').expect(200);
+      const audit = await app
+        .get(PrismaService)
+        .auditEvent.findMany({ where: { action: 'backup.recover_result' } });
+      expect(audit).toHaveLength(1);
+      expect(audit[0]).toMatchObject({ outcome: 'success' });
+      await api().post('/backups/recovery/dismiss', {}).expect(204);
+      expect((await api().get('/backups/recovery').expect(200)).body.recovery.dismissed).toBe(true);
+    });
+  });
 });

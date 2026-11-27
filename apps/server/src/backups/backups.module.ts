@@ -9,6 +9,7 @@ import { RootProgramsModule } from '../root-programs/root-programs.module.js';
 import { BackupChecks } from './backup-checks.js';
 import { BackupPlanManager } from './backup-plan-manager.js';
 import { BackupJobs } from './backup-jobs.js';
+import { BackupRecoveryService } from './backup-recovery.js';
 import { BackupRestores } from './backup-restores.js';
 import { BackupRuns } from './backup-runs.js';
 import { BackupStatusReader } from './backup-status-reader.js';
@@ -34,6 +35,7 @@ import { BackupsTopic } from './backups-topic.js';
     BackupChecks,
     BackupJobs,
     BackupPlanManager,
+    BackupRecoveryService,
     BackupRestores,
     BackupRuns,
     BackupStatusReader,

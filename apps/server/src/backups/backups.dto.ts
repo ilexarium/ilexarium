@@ -5,6 +5,8 @@ import {
   backupItemAddRequestSchema,
   backupItemUpdateSchema,
   backupPlanUpdateSchema,
+  backupRecoveryCheckRequestSchema,
+  backupRecoveryRequestSchema,
   backupRestoreApplySchema,
   backupRestoreIdParamsSchema,
   backupRestoreRequestSchema,
@@ -26,3 +28,5 @@ export class BackupRestoreDto extends zodDto(backupRestoreRequestSchema) {}
 export class BackupRestoreIdParamsDto extends zodDto(backupRestoreIdParamsSchema) {}
 export class BackupRestoreApplyDto extends zodDto(backupRestoreApplySchema) {}
 export class BackupFoldersQueryDto extends zodDto(backupFoldersQuerySchema) {}
+export class BackupRecoveryCheckDto extends zodDto(backupRecoveryCheckRequestSchema) {}
+export class BackupRecoveryDto extends zodDto(backupRecoveryRequestSchema) {}

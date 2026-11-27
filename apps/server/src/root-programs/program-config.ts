@@ -146,7 +146,12 @@ export class ProgramConfigService implements OnModuleInit {
         container: 'ilex-dev-postgres-1',
         database: 'ilex',
         user: 'ilex',
-        files: [this.file],
+        // What a recovery from the backup disk brings back (development has no key file).
+        files: [
+          this.file,
+          resolve(backupDir, 'backup.json'),
+          resolve(backupDir, 'backup-repository.json'),
+        ],
       },
       dev: { dir: backupDir, destinationRoots: [mnt], mountInfo },
     };
