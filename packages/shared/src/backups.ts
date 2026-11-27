@@ -300,16 +300,27 @@ export const backupItemSkipSchema = z
 
 /**
  * A skip inside the first of `folders` it starts with, the part below it a plain relative path
- * (`*` and `?` within a name; no leading `-`, brackets or backslash). The backup program's own
- * check is the same.
+ * (`*` and `?` within a name; no leading `-`, brackets or backslash), and usable as a pattern
+ * (`isSkipPatternUsable`). The backup program's check of a skip's place is the same.
  */
 export function isSkipInFolders(skip: string, folders: readonly string[]): boolean {
   const folder = folders.find((f) => skip.startsWith(`${f}/`));
   return (
     folder !== undefined &&
     backupItemSkipSchema.safeParse(skip).success &&
-    RELATIVE_PATH_PATTERN.test(skip.slice(folder.length + 1))
+    RELATIVE_PATH_PATTERN.test(skip.slice(folder.length + 1)) &&
+    isSkipPatternUsable(skip, folders)
   );
+}
+
+/**
+ * A skip with `*` or `?` is a pattern for Borg, its folder's path part of it: below a folder whose
+ * path has `[`, `*` or `?` it would match the wrong things. Refused here; the backup program
+ * doesn't apply one (a plan from before, or a symlink) and says so.
+ */
+export function isSkipPatternUsable(skip: string, folders: readonly string[]): boolean {
+  const folder = folders.find((f) => skip.startsWith(`${f}/`));
+  return !folder || !/[*?]/.test(skip.slice(folder.length)) || !/[[*?]/.test(folder);
 }
 
 const skipListSchema = z.array(backupItemSkipSchema).max(CATALOG_LIMITS.maxBackupSkips);

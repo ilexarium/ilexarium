@@ -15,6 +15,7 @@ import {
   DEFAULT_BACKUP_SCHEDULE,
   isBackupFolder,
   isSkipInFolders,
+  isSkipPatternUsable,
 } from './backups.js';
 
 const ITEM = '0b6f3c1e-2d4a-4f8b-9c3e-1a2b3c4d5e6f';
@@ -191,6 +192,19 @@ describe('isSkipInFolders', () => {
     const long = `/srv/${'a'.repeat(600)}`;
     expect(isSkipInFolders(`${long}/${'b'.repeat(255)}`, [long])).toBe(true);
     expect(isSkipInFolders(`${long}/${'b'.repeat(256)}`, [long])).toBe(false);
+  });
+});
+
+describe('isSkipPatternUsable', () => {
+  it('refuses a pattern below a folder whose path has [, * or ?, never a plain skip', () => {
+    for (const folder of ['/srv/Music [2020]', '/srv/what?', '/srv/all*']) {
+      expect(isSkipPatternUsable(`${folder}/*.tmp`, [folder]), folder).toBe(false);
+      expect(isSkipPatternUsable(`${folder}/a?`, [folder]), folder).toBe(false);
+      expect(isSkipPatternUsable(`${folder}/cache`, [folder]), folder).toBe(true);
+      expect(isSkipInFolders(`${folder}/*.tmp`, [folder]), folder).toBe(false);
+      expect(isSkipInFolders(`${folder}/cache`, [folder]), folder).toBe(true);
+    }
+    expect(isSkipPatternUsable('/srv/media/*.tmp', ['/srv/media'])).toBe(true);
   });
 });
 
