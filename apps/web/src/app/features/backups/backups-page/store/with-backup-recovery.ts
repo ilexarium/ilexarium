@@ -1,15 +1,16 @@
-import { DOCUMENT, inject } from '@angular/core';
+import { computed, DOCUMENT, inject } from '@angular/core';
 import {
   patchState,
   signalStoreFeature,
   type SignalStoreFeatureType,
   type,
+  withComputed,
   withMethods,
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { toast } from '@spartan-ng/brain/sonner';
-import type { BackupRecoveryRequest } from '@ilex/shared';
+import { BACKUP_REPOSITORY_FOLDER, type BackupRecoveryRequest } from '@ilex/shared';
 import {
   catchError,
   EMPTY,
@@ -34,6 +35,7 @@ import {
   RECOVERY_POLL_MS,
   RECOVERY_WAIT_MS,
 } from './backups-page-store.constants';
+import type { withBackupPlan } from './with-backup-plan';
 import type { withBackupsCore } from './with-backups-core';
 
 /**
@@ -44,8 +46,20 @@ import type { withBackupsCore } from './with-backups-core';
  */
 export function withBackupRecovery() {
   return signalStoreFeature(
-    type<SignalStoreFeatureType<typeof withBackupsCore>>(),
+    type<
+      SignalStoreFeatureType<typeof withBackupsCore> & SignalStoreFeatureType<typeof withBackupPlan>
+    >(),
     withState<BackupRecoveryState>(initialBackupRecoveryState),
+    withComputed((store) => ({
+      /** The backups' folders on the mounted disks that may hold backups; null while they load. */
+      recoveryRepositories: computed(
+        () =>
+          store
+            .destinations()
+            ?.filter((disk) => disk.hasRepository && disk.supported)
+            .map((disk) => `${disk.mountPoint}/${BACKUP_REPOSITORY_FOLDER}`) ?? null,
+      ),
+    })),
     withMethods(
       (
         store,
@@ -74,7 +88,7 @@ export function withBackupRecovery() {
             ),
           ),
 
-          /** The passphrase against a repository (as the person): its newest backup of Ilexarium. */
+          /** The passphrase against a repository (as the person): its backups of Ilexarium. */
           checkRecoveryPassphrase: rxMethod<{ repository: string; passphrase: string }>(
             pipe(
               exhaustMap((request) => {
@@ -83,8 +97,8 @@ export function withBackupRecovery() {
                   tap((checked) =>
                     patchState(store, {
                       recoveryStep: 'idle',
-                      recoveryNewest: checked
-                        ? { repository: request.repository, archive: checked.archive }
+                      recoveryBackups: checked
+                        ? { repository: request.repository, archives: checked.archives }
                         : null,
                     }),
                   ),
@@ -176,7 +190,7 @@ export function withBackupRecovery() {
           /** The dialog closed: nothing of it kept (the passphrase stays in the dialog only). */
           resetRecovery(): void {
             if (['starting', 'waiting'].includes(store.recoveryStep())) return;
-            patchState(store, { recoveryStep: 'idle', recoveryNewest: null, recoveryError: null });
+            patchState(store, { recoveryStep: 'idle', recoveryBackups: null, recoveryError: null });
           },
         };
       },

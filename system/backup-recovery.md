@@ -23,9 +23,9 @@ Either in a terminal on the server:
 sudo ilex-recover
 ```
 
-It finds the backups on the mounted disks, asks for the passphrase, shows the newest backup of Ilexarium and asks before replacing anything. Or in the browser: on the setup page create a throwaway account, sign in, then **Backups → Restore Ilexarium from a backup disk** (through your Linux sign-in and sudo).
+It finds the backups on the mounted disks, asks for the passphrase, lists the backups of Ilexarium there and asks before restoring the newest (`--archive <name>` restores an older one instead). Or in the browser: on the setup page create a throwaway account, sign in, then **Backups → Restore Ilexarium from a backup disk** (through your Linux sign-in and sudo).
 
-Either way Ilexarium stops for a minute; its database, the key that opens the secrets stored in it, the backup plan, its schedule and the passphrase come back from the newest backup of Ilexarium on the disk. A backup of a newer Ilexarium is refused before anything changes (update this one first). If it fails midway, run it again: the backup is untouched. Then sign in with your **old account** — the throwaway one is gone.
+Either way Ilexarium stops for a minute; its database, the key that opens the secrets stored in it, the backup plan, its schedule and the passphrase come back from that backup (the browser always takes the newest). A backup of a newer Ilexarium is refused before anything changes (update this one first). If it fails midway, run it again: the backup is untouched. Then sign in with your **old account** — the throwaway one is gone.
 
 ## 4. Make the Linux accounts again
 

@@ -124,11 +124,13 @@ describe('LoginPage', () => {
     const storage = stubLocalStorage();
     try {
       writeStored(window, 'ilex.recovered', String(Date.now() - 31 * 60_000));
-      expect(textOf((await render()).fixture)).not.toContain('Ilexarium was restored');
+      expect(textOf((await render()).fixture)).not.toContain(
+        'Ilexarium restarted after the recovery',
+      );
       TestBed.resetTestingModule();
       writeStored(window, 'ilex.recovered', String(Date.now()));
       const { fixture, api } = await render({ query: { reason: 'expired' } });
-      expect(textOf(fixture)).toContain('Ilexarium was restored');
+      expect(textOf(fixture)).toContain('Ilexarium restarted after the recovery');
       expect(textOf(fixture)).not.toContain('Your session expired');
       api.login.mockReturnValue(of({ user: OWNER }));
       typeInto(fixture, 'username', 'owner');

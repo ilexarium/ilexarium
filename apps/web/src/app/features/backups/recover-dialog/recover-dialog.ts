@@ -30,7 +30,7 @@ import type { RecoveryStep } from '../backups-page/store/backups-page-store.mode
 
 /**
  * Restoring Ilexarium from a backup disk: the mounted disks holding backups (or the way to the
- * Disks page), the passphrase, then the newest backup's date to confirm — and the wait while it
+ * Disks page), the passphrase, then which backup (the newest unless another is chosen) — and the wait while it
  * restarts. UI only: the page store does each step (`check`, `recover`); the passphrase lives
  * here until it's sent, and goes when the dialog closes.
  */
@@ -55,8 +55,8 @@ export class RecoverDialog {
   readonly open = input(false);
   /** The backups' folders on the mounted disks; null while the disks load. */
   readonly repositories = input<string[] | null>(null);
-  /** The newest backup of Ilexarium, once the passphrase opened its repository. */
-  readonly newest = input<{ repository: string; archive: BackupRecoveryArchive } | null>(null);
+  /** The backups of Ilexarium (oldest first), once the passphrase opened their repository. */
+  readonly backups = input<{ repository: string; archives: BackupRecoveryArchive[] } | null>(null);
   readonly step = input<RecoveryStep>('idle');
   readonly error = input<string | null>(null);
 
@@ -92,10 +92,14 @@ export class RecoverDialog {
     },
   );
 
-  protected readonly newestTime = computed(() => {
-    const newest = this.newest();
-    return newest ? this.formatter.dateTime(newest.archive.time) : '';
-  });
+  /** Newest first, each with its date in words. */
+  protected readonly archives = computed(() =>
+    [...(this.backups()?.archives ?? [])]
+      .reverse()
+      .map((archive) => ({ name: archive.name, time: this.formatter.dateTime(archive.time) })),
+  );
+  /** The backup to restore: the newest until another is chosen. */
+  protected readonly chosenArchive = linkedSignal(() => this.archives()[0]?.name ?? null);
   protected readonly busy = computed(() =>
     ['checking', 'starting', 'waiting'].includes(this.step()),
   );
@@ -115,12 +119,13 @@ export class RecoverDialog {
   }
 
   protected restore(): void {
-    const newest = this.newest();
-    if (!newest) return;
+    const backups = this.backups();
+    const archive = this.chosenArchive();
+    if (!backups || !archive) return;
     this.recover.emit({
-      repository: newest.repository,
+      repository: backups.repository,
       passphrase: this.form.passphrase().value(),
-      archive: newest.archive.name,
+      archive,
     });
   }
 

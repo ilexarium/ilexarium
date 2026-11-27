@@ -15,9 +15,8 @@
 //   ilex-backup forget            {"itemId"} on stdin → deletes a removed item's archives
 //   ilex-backup list              nothing on stdin → each plan item's archives, for "Restore…"
 //   ilex-backup passphrase        nothing on stdin → the passphrase, for "Show again"
-//   ilex-backup recover-check     {"repository"?, "passphrase"?} on stdin → the repositories on
-//                                    mounted disks; with one and its passphrase, its newest
-//                                    backups of Ilexarium itself
+//   ilex-backup recover-check     {"repository", "passphrase"} on stdin → the backups of
+//                                    Ilexarium itself there, oldest first
 //   ilex-backup recover           {"repository", "passphrase", "archive"} on stdin → brings
 //                                    Ilexarium back from that backup (ilex-recover)
 //   ilex-backup recover-start     {"recoveryId", "repository", "passphrase", "archive"} on stdin →

@@ -167,7 +167,10 @@ async function render(
     recovery: vi.fn(() => of({ recovery })),
     recoveryCheck: vi.fn((): Observable<BackupRecoveryCheckResponse> =>
       of({
-        archive: { name: `${PLATFORM}-2026-11-26T03:00:00`, time: '2026-11-26T03:00:00.000Z' },
+        archives: [
+          { name: `${PLATFORM}-2026-11-19T03:00:00`, time: '2026-11-19T03:00:00.000Z' },
+          { name: `${PLATFORM}-2026-11-26T03:00:00`, time: '2026-11-26T03:00:00.000Z' },
+        ],
       }),
     ),
     recover: vi.fn(() => of({ recoveryId: RECOVERY })),
@@ -661,7 +664,7 @@ describe('BackupsPage: restoring Ilexarium from a backup disk', () => {
     expect(api.recoveryCheck).not.toHaveBeenCalled();
     typePassphrase(PASSPHRASE);
     dialogButton('Open the backups')!.click();
-    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Newest backup of Ilexarium'));
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Restore from the backup of'));
     expect(api.recoveryCheck).toHaveBeenLastCalledWith({
       repository: '/mnt/old/ilex-backups',
       passphrase: PASSPHRASE,
@@ -697,6 +700,30 @@ describe('BackupsPage: restoring Ilexarium from a backup disk', () => {
     );
     expect(readStored(window, 'ilex.recovered')).toBe('');
   }, 10_000);
+
+  it('restores an older backup when it’s chosen (the newest is preselected)', async () => {
+    const { api, button } = await render(null, '/backups', null, true);
+    button('Restore Ilexarium from a backup disk').click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('/mnt/old/ilex-backups'));
+    typePassphrase(PASSPHRASE);
+    dialogButton('Open the backups')!.click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Restore from the backup of'));
+    const choices = [...dialog()!.querySelectorAll<HTMLInputElement>('input[name="archive"]')];
+    expect(choices.map((c) => c.value)).toEqual([
+      `${PLATFORM}-2026-11-26T03:00:00`,
+      `${PLATFORM}-2026-11-19T03:00:00`,
+    ]);
+    expect(choices[0].checked).toBe(true);
+    expect(dialog()!.textContent).toContain('newest');
+    choices[1].click();
+    dialogButton('Restore')!.click();
+    await vi.waitFor(() => expect(api.recover).toHaveBeenCalled());
+    expect(api.recover).toHaveBeenCalledWith({
+      repository: '/mnt/old/ilex-backups',
+      passphrase: PASSPHRASE,
+      archive: `${PLATFORM}-2026-11-19T03:00:00`,
+    });
+  });
 
   it('words a wrong passphrase, and says how to mount a disk when none has backups', async () => {
     const { api, button } = await render(null);

@@ -68,6 +68,19 @@ export function withBackupPlan() {
           ),
         ),
 
+        /** The disks again (the Restore Ilexarium dialog: one may have been mounted meanwhile). */
+        loadDestinations: rxMethod<void>(
+          pipe(
+            exhaustMap(() =>
+              backupsService.destinations().pipe(
+                tap(({ destinations }) => patchState(store, { destinations })),
+                // A failure mustn't look like "no disks": the list stays as it was.
+                catchError(() => EMPTY),
+              ),
+            ),
+          ),
+        ),
+
         /**
          * Sets backups up, as the person, with these apps (their templates' presets) and folders;
          * rejects with the server's error (the form puts it on its fields).

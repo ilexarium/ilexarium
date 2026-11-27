@@ -453,7 +453,7 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
         .post('/backups/recovery/check', { repository: repository(), passphrase: passphrase() })
         .expect(200);
       const platform = (await plan()).items.find((i) => i.kind === 'platform')!;
-      expect(checked.body.archive.name.startsWith(platform.id)).toBe(true);
+      expect(checked.body.archives.at(-1).name.startsWith(platform.id)).toBe(true);
       const audit = await app
         .get(PrismaService)
         .auditEvent.findMany({ where: { action: 'backup.recover_check' } });

@@ -22,8 +22,8 @@
           <p hlmAlertDescription>{{ message }}</p>
         </div>
       }
-      @if (repositories(); as backups) {
-        @if (backups.length === 0) {
+      @if (repositories(); as disks) {
+        @if (disks.length === 0) {
           <div class="grid gap-3">
             <p class="text-sm">{{ 'backups.recovery.noneFound' | translate }}</p>
             <div class="flex flex-wrap gap-2">
@@ -35,11 +35,35 @@
               </button>
             </div>
           </div>
-        } @else if (newest()) {
+        } @else if (backups()) {
           <div class="grid gap-3">
-            <p class="text-sm">
-              {{ 'backups.recovery.newest' | translate: { time: newestTime() } }}
-            </p>
+            <fieldset class="grid gap-2">
+              <legend class="mb-1 text-sm font-medium">
+                {{ 'backups.recovery.which' | translate }}
+              </legend>
+              @for (archive of archives(); track archive.name; let first = $first) {
+                <label
+                  class="flex cursor-pointer items-center gap-3 rounded-md border p-3 has-checked:border-primary"
+                >
+                  <input
+                    type="radio"
+                    name="archive"
+                    class="size-4"
+                    [value]="archive.name"
+                    [checked]="chosenArchive() === archive.name"
+                    (change)="chosenArchive.set(archive.name)"
+                  />
+                  <span class="text-sm">
+                    {{ archive.time }}
+                    @if (first) {
+                      <span class="text-muted-foreground">
+                        · {{ 'backups.recovery.newestLabel' | translate }}</span
+                      >
+                    }
+                  </span>
+                </label>
+              }
+            </fieldset>
             <div hlmAlert role="note">
               <p hlmAlertDescription>{{ 'backups.recovery.replaces' | translate }}</p>
             </div>
@@ -50,7 +74,7 @@
               <legend class="mb-1 text-sm font-medium">
                 {{ 'backups.recovery.where' | translate }}
               </legend>
-              @for (repository of backups; track repository) {
+              @for (repository of disks; track repository) {
                 <label
                   class="flex cursor-pointer items-center gap-3 rounded-md border p-3 has-checked:border-primary"
                 >
@@ -100,14 +124,14 @@
           {{ 'backups.recovery.cancel' | translate }}
         </button>
       }
-      @if (newest() && step() !== 'waiting') {
+      @if (backups() && step() !== 'waiting') {
         <button hlmBtn type="button" [disabled]="busy()" (click)="restore()">
           {{
             (step() === 'starting' ? 'backups.recovery.starting' : 'backups.recovery.restore')
               | translate
           }}
         </button>
-      } @else if (repositories()?.length && !newest()) {
+      } @else if (repositories()?.length && !backups()) {
         <button hlmBtn type="submit" form="recover-form" [disabled]="busy()">
           {{
             (step() === 'checking' ? 'backups.recovery.checking' : 'backups.recovery.check')

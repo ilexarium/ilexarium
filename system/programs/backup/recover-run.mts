@@ -1,11 +1,12 @@
 // backup/recover-run.mts — runs as root.
 //
 // The recovery itself: everything checked first (the backup, its version, its plan, this
-// repository's id), then the app stopped, the database restored, the files written, the app
-// started again. No copy of what's replaced is kept: the backup stays the way back, and a
-// recovery that fails midway is run again.
+// repository's id), then the app stopped, the database restored, the files written, this
+// release's migrations, the app started again. No copy of what's replaced is kept: the backup
+// stays the way back, and a recovery that fails midway is run again — from a terminal
+// (`ilex-recover`), since the half-restored database may already hold the backup's plan.
 
-import { chownSync, lstatSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { chownSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { isObject } from './config.mts';
 import { onCalendar } from './configure.mts';
@@ -15,7 +16,7 @@ import type { Config, Paths, Plan } from './model.mts';
 import { checkPlan } from './plan.mts';
 import { borgFailed, borgFailure, failedLine, home, runProgram, takeLock } from './programs.mts';
 import { accountsOf } from './recover-accounts.mts';
-import { archiveTime, borgWith, newestPlatformArchive, withPassphrase } from './recover-borg.mts';
+import { archiveTime, borgWith, platformArchives, withPassphrase } from './recover-borg.mts';
 import { migrate, moveDestination, restoreDatabase } from './recover-database.mts';
 import type {
   FromBackup,
@@ -83,13 +84,10 @@ export async function recoverPlatform(
     mkdirSync(staging, { recursive: true, mode: 0o700 });
     return await withPassphrase(config, paths, request.passphrase, async (env) => {
       phase('checking');
-      const newest = await newestPlatformArchive(config, paths, env, request.repository);
-      if (newest.name !== request.archive) {
-        throw new Refusal(
-          'archive_not_found',
-          'not the newest backup of Ilexarium on this disk',
-          5,
-        );
+      // The one confirmed (the newest then: a backup made meanwhile doesn't refuse it).
+      const archives = await platformArchives(config, paths, env, request.repository);
+      if (!archives.some((a) => a.name === request.archive)) {
+        throw new Refusal('archive_not_found', 'not a backup of Ilexarium on this disk', 5);
       }
       phase('extracting');
       const fromBackup = await extractBackup(config, paths, env, request, staging);
@@ -102,8 +100,9 @@ export async function recoverPlatform(
       phase('restoring');
       await restoreDatabase(config, fromBackup.dump);
       if (fromBackup.moved) await moveDestination(config, fromBackup.plan.destination);
-      await migrate(config, staging);
+      // Right after the database: its secrets need the key from the same backup.
       writeFiles(config, paths, request, fromBackup);
+      await migrate(config, staging);
 
       phase('accounts');
       const accounts = await accountsOf(config, env, request.repository, fromBackup.plan);
@@ -119,8 +118,9 @@ export async function recoverPlatform(
     });
   } catch (error) {
     const refusal = error instanceof Refusal ? error : new Refusal('internal', String(error), 6);
-    // Stopped already: the database may be half restored — this machine's files are untouched.
-    const message = held ? `${refusal.message}; run the recovery again` : refusal.message;
+    // Stopped already: the database may be half restored. Run again from a terminal (the app
+    // refuses once a plan exists, which the restored database may already hold).
+    const message = held ? `${refusal.message}; run sudo ilex-recover again` : refusal.message;
     try {
       writeRecord(config, paths, request, startedAt, 'failed', refusal.code, null);
     } catch {
@@ -190,8 +190,10 @@ function readBackup(
 
   const versionFile = platformFile('version');
   const version =
-    versionFile && plainFile(staged(versionFile)) ? readFileSync(staged(versionFile), 'utf8') : '';
-  checkVersion(version.trim(), installedVersionFile(config));
+    versionFile && plainFile(staged(versionFile))
+      ? readFileSync(staged(versionFile), 'utf8')
+      : null;
+  checkVersion(version === null ? null : version.trim(), installedVersionFile(config));
 
   const json = (file: string): unknown => {
     if (!plainFile(file)) throw missing(basename(file));
@@ -229,12 +231,19 @@ function readBackup(
 
 /**
  * A newer Ilexarium's backup is refused, before anything changes: its database has migrations
- * this release doesn't know. A backup without a version file was made before Ilexarium kept one: older.
+ * this release doesn't know. A backup without a version file was made before Ilexarium kept one:
+ * older. One that can't be read, or no installed version to compare with, is refused.
  */
-export function checkVersion(backup: string, installedFile: string | undefined): void {
-  const installed = installedFile ? readFileSync(installedFile, 'utf8').trim() : '';
+export function checkVersion(backup: string | null, installedFile: string | undefined): void {
+  if (backup === null) return;
+  const installed =
+    installedFile && existsSync(installedFile) ? readFileSync(installedFile, 'utf8').trim() : '';
   const [b, i] = [VERSION.exec(backup), VERSION.exec(installed)];
-  if (!b || !i) return;
+  if (!b) throw new Refusal('archive_not_found', 'the backup’s version file is damaged', 5);
+  if (!i) {
+    if (!isRoot && !installedFile) return; // development without a pretend version
+    throw new Refusal('setup', 'this machine’s version is unknown', 6);
+  }
   for (let part = 1; part <= 3; part++) {
     const diff = Number(b[part]) - Number(i[part]);
     if (diff < 0) return;

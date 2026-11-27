@@ -5,7 +5,7 @@
 // schedule — from the newest backup of the platform item, with the passphrase the person typed.
 // Never apps or folders: each is restored from the Backups page, as its owner's account.
 //
-//   recover-check   {"repository", "passphrase"} → the newest backup of Ilexarium there
+//   recover-check   {"repository", "passphrase"} → the backups of Ilexarium there, oldest first
 //   recover         {"repository", "passphrase", "archive"} → the recovery (`ilex-recover`, run
 //                   by root in a terminal)
 //   recover-start   {"recoveryId", "repository", "passphrase", "archive"} → the app's: the request
@@ -25,7 +25,7 @@ import type { Config, Paths } from './model.mts';
 import { askingAccount } from './places.mts';
 import { ARCHIVE_PATTERN, UUID } from './plan.mts';
 import { takeLock } from './programs.mts';
-import { newestPlatformArchive, withPassphrase } from './recover-borg.mts';
+import { platformArchives, withPassphrase } from './recover-borg.mts';
 import type { RecoverRequest } from './recover-model.mts';
 import { recoverPlatform, writeRecord } from './recover-run.mts';
 import { startDetached, startUnit } from './start.mts';
@@ -78,10 +78,11 @@ export async function recoverCheck(config: Config, paths: Paths, input: string):
   const passphrase = checkPassphrase(given['passphrase']);
   const release = await takeLock(paths, false);
   try {
-    const archive = await withPassphrase(config, paths, passphrase, (env) =>
-      newestPlatformArchive(config, paths, env, repository),
+    const archives = await withPassphrase(config, paths, passphrase, (env) =>
+      platformArchives(config, paths, env, repository),
     );
-    emit(`@@result ${JSON.stringify({ archive })}`);
+    // Every one: the newest is offered, another can be chosen.
+    emit(`@@result ${JSON.stringify({ archives })}`);
   } finally {
     release();
   }

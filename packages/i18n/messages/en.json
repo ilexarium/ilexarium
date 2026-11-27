@@ -88,8 +88,8 @@
       "expiredText": "Please sign in again.",
       "submit": "Sign in",
       "submitting": "Signing in…",
-      "restoredTitle": "Ilexarium was restored",
-      "restoredText": "Sign in with your account from the old machine."
+      "restoredTitle": "Ilexarium restarted after the recovery",
+      "restoredText": "Sign in with your account from the old machine. If it doesn't work, the recovery didn't finish: run sudo ilex-recover on the server."
     },
     "setup": {
       "heading": "Set up {{app}}",
@@ -303,7 +303,7 @@
     "update_busy": "Something else is running (a backup, a restore, an app task or another update). Try again when it has finished.",
     "update_unavailable": "The update couldn't be started on this machine.",
     "backup_newer": "This backup is from a newer Ilexarium. Update this one first, then try again.",
-    "recovery_failed": "Ilexarium couldn't be restored; it's as it was before."
+    "recovery_failed": "Ilexarium couldn't be restored. Run sudo ilex-recover on the server to try again."
   },
   "format": {
     "lessThanAMinute": "less than a minute"
@@ -1081,7 +1081,6 @@
       "passphraseHelp": "The six words you saved when backups were set up.",
       "check": "Open the backups",
       "checking": "Opening…",
-      "newest": "Newest backup of Ilexarium: {{time}}.",
       "replaces": "Ilexarium stops for a minute. Its accounts, settings and backup plan come from the backup: the account you're signed in with now goes, and everyone signs in again.",
       "restore": "Restore",
       "starting": "Starting…",
@@ -1102,7 +1101,9 @@
       "failedTitle": "Ilexarium couldn't be restored",
       "dismiss": "Dismiss",
       "dismissFailed": "Couldn't dismiss the notice",
-      "wrongPassphrase": "This passphrase doesn't open these backups. Check the six words and try again."
+      "wrongPassphrase": "This passphrase doesn't open these backups. Check the six words and try again.",
+      "which": "Restore from the backup of",
+      "newestLabel": "newest"
     }
   },
   "disks": {

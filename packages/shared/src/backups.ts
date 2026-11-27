@@ -611,8 +611,8 @@ const recoveryRepositorySchema = folderPathSchema.refine(
 );
 
 /**
- * `POST /api/backups/recovery/check`, through the person's sudo: the newest backup of Ilexarium in
- * that repository (a disk the destinations list shows with `hasRepository`), opened with the
+ * `POST /api/backups/recovery/check`, through the person's sudo: the backups of Ilexarium in that
+ * repository (a disk the destinations list shows with `hasRepository`), opened with the
  * passphrase.
  */
 export const backupRecoveryCheckRequestSchema = z.strictObject({
@@ -630,7 +630,10 @@ export type BackupRecoveryPassphraseForm = z.infer<typeof backupRecoveryPassphra
 export const backupRecoveryArchiveSchema = z.object({ name: z.string(), time: z.iso.datetime() });
 export type BackupRecoveryArchive = z.infer<typeof backupRecoveryArchiveSchema>;
 
-export const backupRecoveryCheckResponseSchema = z.object({ archive: backupRecoveryArchiveSchema });
+/** The backups of Ilexarium in the repository, oldest first (the dialog offers the newest). */
+export const backupRecoveryCheckResponseSchema = z.object({
+  archives: z.array(backupRecoveryArchiveSchema).min(1),
+});
 export type BackupRecoveryCheckResponse = z.infer<typeof backupRecoveryCheckResponseSchema>;
 
 /**

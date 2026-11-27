@@ -33,13 +33,26 @@ import type {
   UpdateStartOutcome,
 } from './root-programs.model.js';
 
-/** `recover-check`'s answer, checked: the newest backup of Ilexarium there. */
+/** `recover-check`'s answer, checked: the backups of Ilexarium there, oldest first. */
 function readRecoverCheck(
   result: Record<string, unknown> | undefined,
 ): ProgramRecoverCheck | undefined {
-  const archive = result?.['archive'] as Record<string, unknown> | undefined;
-  return typeof archive?.['name'] === 'string' && typeof archive['time'] === 'string'
-    ? { archive: { name: archive['name'], time: archive['time'] } }
+  const archives = result?.['archives'];
+  if (!Array.isArray(archives) || archives.length === 0) return undefined;
+  const valid = archives.every(
+    (a: unknown) =>
+      typeof a === 'object' &&
+      a !== null &&
+      typeof (a as Record<string, unknown>)['name'] === 'string' &&
+      typeof (a as Record<string, unknown>)['time'] === 'string',
+  );
+  return valid
+    ? {
+        archives: archives.map(({ name, time }: { name: string; time: string }) => ({
+          name,
+          time,
+        })),
+      }
     : undefined;
 }
 
@@ -190,7 +203,7 @@ export class RootPrograms {
   }
 
   /**
-   * The newest backup of Ilexarium in a repository, opened with the passphrase. The passphrase
+   * The backups of Ilexarium in a repository, opened with the passphrase. The passphrase
    * goes to the program only: never the audit details or a log.
    */
   backupRecoverCheck(
