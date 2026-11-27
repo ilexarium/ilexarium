@@ -176,6 +176,7 @@
     "fileTooLarge": "The file is too large.",
     "composeRequired": "A Compose file is needed.",
     "backupSkipInvalid": "A path below the folder, without .. or brackets.",
+    "backupSkipPatternFolder": "A pattern (* or ?) can't be used below a folder whose name has [, * or ?. Skip a plain path instead.",
     "backupFolderSystem": "Not a system folder.",
     "mountPointRequired": "Enter a folder.",
     "mountPointInvalid": "An absolute folder, not / or a system folder.",

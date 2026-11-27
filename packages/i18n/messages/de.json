@@ -176,6 +176,7 @@
     "fileTooLarge": "Die Datei ist zu groß.",
     "composeRequired": "Eine Compose-Datei wird gebraucht.",
     "backupSkipInvalid": "Ein Pfad unterhalb des Ordners, ohne .. oder Klammern.",
+    "backupSkipPatternFolder": "Ein Muster (* oder ?) geht nicht unter einem Ordner, dessen Name [, * oder ? enthält. Lass stattdessen einen genauen Pfad aus.",
     "backupFolderSystem": "Kein Systemordner.",
     "mountPointRequired": "Gib einen Ordner ein.",
     "mountPointInvalid": "Ein absoluter Ordner, nicht / und kein Systemordner.",

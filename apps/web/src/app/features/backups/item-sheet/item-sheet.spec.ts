@@ -161,6 +161,34 @@ describe('ItemSheet', () => {
     ]);
   });
 
+  it('says why a pattern is refused below a folder whose name has brackets', async () => {
+    const fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.row.set({
+      item: testItem({ id: ITEM, path: '/srv/old [1]' }),
+      name: null,
+      icon: null,
+    });
+    await vi.waitFor(() => expect(sheet()).not.toBeNull());
+    const input = sheet()!.querySelector<HTMLInputElement>(
+      'input[aria-label="A subfolder to skip"]',
+    )!;
+    const add = async (text: string) => {
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      [...sheet()!.querySelectorAll('button')]
+        .find((b) => b.textContent?.trim() === 'Skip')!
+        .click();
+      await fixture.whenStable();
+    };
+    await add('*.tmp');
+    expect(sheet()!.querySelector('#skip-error')!.textContent).toContain("can't be used below");
+    expect(fixture.componentInstance.changes).toEqual([]);
+    await add('cache');
+    expect(fixture.componentInstance.changes).toEqual([
+      { itemId: ITEM, change: { skip: ['/srv/old [1]/cache'] } },
+    ]);
+  });
+
   it('shows no skips for the platform', async () => {
     const fixture = TestBed.createComponent(Host);
     fixture.componentInstance.row.set({

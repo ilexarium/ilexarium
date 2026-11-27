@@ -176,6 +176,7 @@
     "fileTooLarge": "الملف كبير جدًا.",
     "composeRequired": "يلزم ملف Compose.",
     "backupSkipInvalid": "مسار داخل المجلد، بلا .. أو أقواس.",
+    "backupSkipPatternFolder": "لا يمكن استخدام نمط (* أو ?) تحت مجلد يحتوي اسمه على [ أو * أو ?. تخطَّ مسارًا محددًا بدلًا من ذلك.",
     "backupFolderSystem": "ليس مجلد نظام.",
     "mountPointRequired": "أدخل مجلدًا.",
     "mountPointInvalid": "مجلد بمسار كامل، ليس / ولا مجلد نظام.",

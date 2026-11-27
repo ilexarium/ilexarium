@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, linkedSignal, output } from '@angular/core';
-import { isSkipInFolders } from '@ilex/shared';
+import { isSkipInFolders, isSkipPatternUsable } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArchiveRestore, lucidePlay, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -68,7 +68,11 @@ export class ItemSheet {
     const chosen = this.chosenSkipFolder();
     return chosen && folders.includes(chosen) ? chosen : (folders[0] ?? '');
   });
-  protected readonly skipInvalid = linkedSignal({ source: this.itemId, computation: () => false });
+  /** Why the typed skip was refused: a translation key, or null. */
+  protected readonly skipError = linkedSignal<string | null, string | null>({
+    source: this.itemId,
+    computation: () => null,
+  });
 
   protected readonly changing = computed(() => {
     const id = this.row()?.item.id;
@@ -106,7 +110,7 @@ export class ItemSheet {
 
   protected typeSkip(event: Event): void {
     this.newSkip.set((event.target as HTMLInputElement).value);
-    this.skipInvalid.set(false);
+    this.skipError.set(null);
   }
 
   protected chooseSkipFolder(event: Event): void {
@@ -121,7 +125,11 @@ export class ItemSheet {
     if (!below) return;
     const skip = `${this.skipFolder()}/${below}`;
     if (!isSkipInFolders(skip, this.skipFolders())) {
-      this.skipInvalid.set(true);
+      this.skipError.set(
+        isSkipPatternUsable(skip, this.skipFolders())
+          ? 'validation.backupSkipInvalid'
+          : 'validation.backupSkipPatternFolder',
+      );
       return;
     }
     if (!row.item.skip.includes(skip)) {
