@@ -11,6 +11,7 @@ import {
   type BackupItemUpdate,
   type FieldError,
   isPlainAbsolutePath,
+  isSkipInFolders,
   pathsOverlap,
 } from '@ilex/shared';
 import { DockerService } from '../docker/docker.service.js';
@@ -177,7 +178,8 @@ export class BackupChecks {
       const problem =
         request.kind === 'app'
           ? this.appProblem(request, apps, destination)
-          : await this.folderProblem(request.path, destination);
+          : ((await this.folderProblem(request.path, destination)) ??
+            skipsProblem(request.skip ?? [], request.path));
       if (problem) {
         problems.push({ field, ...problem });
         continue;
@@ -200,7 +202,12 @@ export class BackupChecks {
               skip: [...new Set(request.skip)],
               mode: request.mode,
             }
-          : { id: randomUUID(), kind: 'folder', path: request.path },
+          : {
+              id: randomUUID(),
+              kind: 'folder',
+              path: request.path,
+              skip: [...new Set(request.skip ?? [])],
+            },
       );
     }
     if (problems.length > 0) throw validationFailed(problems);
@@ -215,6 +222,12 @@ export class BackupChecks {
   ): void {
     const problem = this.appFoldersProblem(change.folders ?? current.folders, destination);
     if (problem) throw validationFailed([{ field: 'folders', ...problem }]);
+  }
+
+  /** A folder item's change: its skips inside the folder. */
+  checkFolderChange(path: string, change: BackupItemUpdate): void {
+    const problem = skipsProblem(change.skip ?? [], path);
+    if (problem) throw validationFailed([{ field: 'skip', ...problem }]);
   }
 
   /** An item's backups can't be deleted while a restore's set-aside folders depend on its record. */
@@ -325,6 +338,13 @@ export class BackupChecks {
     }
     return null;
   }
+}
+
+/** A folder item's skips: each below the folder (the backup program checks them again). */
+function skipsProblem(skips: string[], folder: string): Omit<FieldError, 'field'> | null {
+  return skips.every((skip) => isSkipInFolders(skip, [folder]))
+    ? null
+    : { code: BACKUP_ERROR_CODES.pathNotAllowed, message: 'A skip outside the folder' };
 }
 
 /** The folders in `path` (not links), sorted, at most SUBFOLDERS_MAX; null when it can't be read. */

@@ -21,4 +21,4 @@ export type NewItemRow =
       skip: string[];
       mode: BackupMode;
     }
-  | { id: string; kind: 'folder'; path: string };
+  | { id: string; kind: 'folder'; path: string; skip: string[] };

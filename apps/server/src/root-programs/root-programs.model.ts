@@ -83,7 +83,7 @@ export type ProgramBackupItem =
       mode: BackupMode;
       removed?: boolean;
     }
-  | { id: string; kind: 'folder'; path: string; removed?: boolean };
+  | { id: string; kind: 'folder'; path: string; skip: string[]; removed?: boolean };
 
 export interface ProgramRestoreInput {
   restoreId: string;

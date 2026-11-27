@@ -100,6 +100,7 @@ describe('BackupChecks.checkNewItems', () => {
           skip: ['/home/anna/apps/music/cache'],
         },
         { kind: 'folder', path: '/srv/ilex/docs' },
+        { kind: 'folder', path: '/srv/ilex/photos', skip: ['/srv/ilex/photos/*.tmp'] },
       ],
       DISK,
     );
@@ -113,7 +114,25 @@ describe('BackupChecks.checkNewItems', () => {
         skip: ['/home/anna/apps/music/cache'],
         mode: 'stop',
       },
-      { id: expect.any(String), kind: 'folder', path: '/srv/ilex/docs' },
+      { id: expect.any(String), kind: 'folder', path: '/srv/ilex/docs', skip: [] },
+      {
+        id: expect.any(String),
+        kind: 'folder',
+        path: '/srv/ilex/photos',
+        skip: ['/srv/ilex/photos/*.tmp'],
+      },
+    ]);
+  });
+
+  it('refuses a folder’s skip outside it', async () => {
+    const response = await problems(
+      checksWith([]).checkNewItems(
+        [{ kind: 'folder', path: '/srv/ilex/docs', skip: ['/srv/ilex/docs2/x'] }],
+        DISK,
+      ),
+    );
+    expect(response.errors).toEqual([
+      expect.objectContaining({ field: 'items.0', code: BACKUP_ERROR_CODES.pathNotAllowed }),
     ]);
   });
 
@@ -170,6 +189,21 @@ describe('BackupChecks.checkNewItems', () => {
         DISK,
       ),
     ).toThrow();
+  });
+});
+
+describe('BackupChecks.checkFolderChange', () => {
+  it('takes skips below the folder, and refuses one outside it or leading with "-"', () => {
+    const checks = checksWith([]);
+    expect(() =>
+      checks.checkFolderChange('/srv/ilex/docs', {
+        skip: ['/srv/ilex/docs/cache', '/srv/ilex/docs/a/*.tmp'],
+      }),
+    ).not.toThrow();
+    expect(() => checks.checkFolderChange('/srv/ilex/docs', {})).not.toThrow();
+    for (const skip of ['/srv/ilex/docs2/x', '/srv/ilex/docs', '/srv/ilex/docs/-x']) {
+      expect(() => checks.checkFolderChange('/srv/ilex/docs', { skip: [skip] }), skip).toThrow();
+    }
   });
 });
 

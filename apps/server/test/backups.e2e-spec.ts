@@ -393,6 +393,34 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
       .expect(200);
   });
 
+  it('changes a folder item’s skips — inside its folder only, nothing else of it', async () => {
+    const folder = (await plan()).items.find((i) => i.kind === 'folder')!;
+    const docs = join(storage, 'docs');
+    const skip = [join(docs, 'tmp'), join(docs, '*.bak')];
+    const res = await api().patch(`/backups/items/${folder.id}`, { skip }).expect(200);
+    expect(res.body).toMatchObject({ kind: 'folder', path: docs, skip });
+    const written = JSON.parse(readFileSync(join(dir, 'backup', 'backup.json'), 'utf8'));
+    expect(written.items.find((i: { id: string }) => i.id === folder.id).skip).toEqual(skip);
+
+    const outside = await api()
+      .patch(`/backups/items/${folder.id}`, { skip: [join(storage, 'other', 'x')] })
+      .expect(400);
+    expect(outside.body.errors[0]).toMatchObject({ field: 'skip', code: 'path_not_allowed' });
+    const below = await api()
+      .patch(`/backups/items/${folder.id}`, { skip: [`${docs}2/x`] })
+      .expect(400);
+    expect(below.body.errors[0]).toMatchObject({ field: 'skip' });
+    for (const change of [{ folders: [docs] }, { mode: 'live' }]) {
+      const fixed = await api().patch(`/backups/items/${folder.id}`, change).expect(400);
+      expect(fixed.body.code).toBe('backup_item_fixed');
+    }
+    const platform = (await plan()).items.find((i) => i.kind === 'platform')!;
+    expect(
+      (await api().patch(`/backups/items/${platform.id}`, { skip: [] }).expect(400)).body.code,
+    ).toBe('backup_item_fixed');
+    expect((await plan()).items.find((i) => i.id === folder.id)!.skip).toEqual(skip);
+  });
+
   it('changes the schedule', async () => {
     const updated = await api()
       .put('/backups/plan', { schedule: { frequency: 'every6h', time: '01:30' } })
@@ -419,11 +447,18 @@ describe.skipIf(!BORG)('backups (e2e, real Borg)', () => {
     await api().delete(`/backups/items/${platform.id}`).expect(400);
   }, 60_000);
 
-  it('adds a folder again', async () => {
+  it('adds a folder again, with its skips', async () => {
+    const skip = [join(storage, 'docs', 'cache')];
     const res = await api()
-      .post('/backups/items', { item: { kind: 'folder', path: join(storage, 'docs') } })
+      .post('/backups/items', { item: { kind: 'folder', path: join(storage, 'docs'), skip } })
       .expect(201);
-    expect(res.body).toMatchObject({ kind: 'folder', removed: false });
+    expect(res.body).toMatchObject({ kind: 'folder', removed: false, skip });
+    const outside = await api()
+      .post('/backups/items', {
+        item: { kind: 'folder', path: join(storage, 'docs'), skip: [join(storage, 'x', 'y')] },
+      })
+      .expect(400);
+    expect(outside.body.errors[0]).toMatchObject({ field: 'items.0', code: 'path_not_allowed' });
     await api()
       .post('/backups/items', { item: { kind: 'folder', path: join(storage, 'docs') } })
       .expect(400);

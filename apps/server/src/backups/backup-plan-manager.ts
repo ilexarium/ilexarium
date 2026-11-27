@@ -147,11 +147,8 @@ export class BackupPlanManager {
               where: { id: removed.id },
               data: {
                 removedAt: null,
-                ...(row.kind === 'app' && {
-                  folders: row.folders,
-                  skip: row.skip,
-                  mode: row.mode,
-                }),
+                skip: row.skip,
+                ...(row.kind === 'app' && { folders: row.folders, mode: row.mode }),
               },
             })
           : tx.backupItem.create({ data: newItemData(row) }),
@@ -161,17 +158,19 @@ export class BackupPlanManager {
     return this.item(id);
   }
 
-  /** An app item's folders, skips or mode. */
+  /** An app item's folders, skips or mode; a folder item's skips. */
   async updateItem(id: string, change: BackupItemUpdate, actor: RootActor): Promise<BackupItem> {
     await this.changePlan(async () => {
       const plan = await requirePlan(this.prisma);
       const item = await requireItem(this.prisma, id);
-      if (item.kind !== 'app' || item.removedAt) {
+      const folderSkips = item.kind === 'folder' && !change.folders && !change.mode;
+      if ((item.kind !== 'app' && !folderSkips) || item.removedAt) {
         throw new BadRequestException(
           apiError('Only an app’s folders can be changed', BACKUP_ERROR_CODES.itemFixed),
         );
       }
-      this.backupChecks.checkAppChange(item, change, plan.destination);
+      if (item.kind === 'app') this.backupChecks.checkAppChange(item, change, plan.destination);
+      else this.backupChecks.checkFolderChange(item.path ?? '', change);
       await this.applyPlanChange(actor, (tx) =>
         tx.backupItem.update({
           where: { id },
@@ -306,7 +305,9 @@ export class BackupPlanManager {
     const removed = item.removedAt ? { removed: true } : {};
     if (item.kind === 'platform') return { id: item.id, kind: 'platform' };
     if (item.kind === 'folder') {
-      return item.path ? { id: item.id, kind: 'folder', path: item.path, ...removed } : null;
+      return item.path
+        ? { id: item.id, kind: 'folder', path: item.path, skip: item.skip, ...removed }
+        : null;
     }
     if (!item.project || (item.folders.length === 0 && !item.removedAt)) return null;
     return {
@@ -340,5 +341,5 @@ function newItemData(row: NewItemRow): Prisma.BackupItemCreateManyInput {
         skip: row.skip,
         mode: row.mode,
       }
-    : { id: row.id, kind: 'folder', path: row.path };
+    : { id: row.id, kind: 'folder', path: row.path, skip: row.skip };
 }
