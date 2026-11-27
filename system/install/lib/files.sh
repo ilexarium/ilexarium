@@ -8,6 +8,7 @@ ETC=/etc/ilex
 VAR=/var/lib/ilex
 PREVIOUS=$OPT/previous
 SOCKET_GENERATOR=/usr/local/lib/systemd/system-generators/ilex-socket-generator
+INSTALLED_LIB=/usr/local/lib/ilex
 
 # A system user without a login shell. Its home, the only folder it may write, is
 # /var/lib/ilex/app: /var/lib/ilex itself is root's, so the app can't swap the backups'
@@ -90,6 +91,11 @@ install_release() {
   replace_tree "$staged" "$OPT/libexec"
   rm -rf "$staged"
   install -o root -g root -m 0755 "$RELEASE/system/install/ilex-setup-code" /usr/local/bin/ilex-setup-code
+  # Removing Ilexarium and bringing it back from the backup disk: root's commands, with the
+  # installer's functions they use (outside /opt/ilex: an uninstall stopped halfway can finish).
+  replace_tree "$RELEASE/system/install/lib" "$INSTALLED_LIB"
+  install -o root -g root -m 0755 "$RELEASE/system/install/ilex-uninstall" /usr/local/sbin/ilex-uninstall
+  install -o root -g root -m 0755 "$RELEASE/system/install/ilex-recover" /usr/local/sbin/ilex-recover
   info "$OPT"
 }
 
@@ -136,7 +142,7 @@ keep_previous() {
     /etc/systemd/system/ilex*.socket "$SOCKET_GENERATOR" \
     "$ETC"/{version,app.env,platform.env,wrappers.json,release.env,release.pub} \
     "$OPT/backup-recovery.md" /etc/tmpfiles.d/ilex.conf /etc/ssh/sshd_config.d/ilex.conf \
-    /usr/local/bin/ilex-setup-code; do
+    /usr/local/bin/ilex-setup-code /usr/local/sbin/ilex-uninstall /usr/local/sbin/ilex-recover; do
     if [[ -f "$file" ]]; then cp -a --parents "$file" "$kept/files/"; fi
   done
   printf '%s\n' "$OLD_VERSION" >"$kept/VERSION"

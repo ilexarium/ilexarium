@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+# /usr/local/sbin/ilex-uninstall — runs as root. Removes Ilexarium, and only Ilexarium:
+#
+#   sudo ilex-uninstall [--yes] [--keep-database]
+#
+#   --yes             don't ask (the install test)
+#   --keep-database   keep the database's Docker volume (ilex_pgdata), for a quick reinstall;
+#                     without it the volume goes: the backups hold the database
+#
+# Your apps (their folders, containers and volumes), your disks and their mounts, the backup disk
+# and its backups, Docker, Node.js and Borg all stay. The backup settings (the passphrase, the
+# plan) are moved to /root/ilex-backup-settings, so the backups stay readable.
+#
+# Every step checks first: running it again finishes a run that stopped halfway.
+set -euo pipefail
+umask 0022
+
+ASSUME_YES=0
+KEEP_DATABASE=0
+for arg in "$@"; do
+  case "$arg" in
+    --yes) ASSUME_YES=1 ;;
+    --keep-database) KEEP_DATABASE=1 ;;
+    -h | --help)
+      sed -n '2,15s/^# \{0,1\}//p' "$0"
+      exit 0
+      ;;
+    *)
+      printf 'Unknown option: %s (see --help)\n' "$arg" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "$(id -u)" != 0 ]]; then
+  printf 'Run it as root: sudo ilex-uninstall\n' >&2
+  exit 1
+fi
+
+# The installer's own functions and paths: beside this script in the release, or where the
+# installer put them. Removed last, with this script.
+INSTALLED_LIB=/usr/local/lib/ilex
+SELF=/usr/local/sbin/ilex-uninstall
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB="$HERE/lib"
+[[ -f "$LIB/common.sh" ]] || LIB="$INSTALLED_LIB"
+[[ -f "$LIB/common.sh" && -f "$LIB/files.sh" ]] || { printf 'The installer’s files are missing (%s)\n' "$LIB" >&2; exit 1; }
+UPDATE=0
+# shellcheck source=lib/common.sh
+. "$LIB/common.sh"
+# shellcheck source=lib/files.sh
+. "$LIB/files.sh"
+
+SETTINGS_KEPT=/root/ilex-backup-settings
+BACKUP_SETTINGS=("$ETC/backup.passphrase" "$ETC/backup.json" "$ETC/backup-repository.json"
+  /etc/systemd/system/ilex-backup.timer.d)
+DATABASE_VOLUME=ilex_pgdata
+UNITS=(ilex.socket ilex-https.socket ilex.service ilex-backup.timer ilex-backup-check.timer
+  ilex-platform.service)
+
+say_what() {
+  log 'Removing Ilexarium'
+  info 'Goes: the app, its database (unless --keep-database), its settings, units and accounts'
+  info "      ($APP_USER, $PROXY_USER), $OPT, $ETC, $VAR."
+  info 'Stays: your apps and their data, your disks, the backup disk and its backups, Docker,'
+  info "      Node.js and Borg. The backup settings move to $SETTINGS_KEPT."
+}
+
+confirm_uninstall() {
+  if [[ "$ASSUME_YES" == 1 ]]; then
+    info 'Confirmed (--yes)'
+    return
+  fi
+  [[ -t 0 ]] || die 'Run it in a terminal, or with --yes'
+  local answer
+  read -r -p "    Type uninstall to go on: " answer
+  [[ "$answer" == uninstall ]] || die 'Nothing was changed'
+}
+
+# Not while a backup, restore, disk change or update runs: the lock stays ours until the end.
+refuse_while_busy() {
+  if [[ -e /run/ilex/updating ]]; then die 'An update is running — run this again when it’s done'; fi
+  take_lock "$ROOT_LOCK" || die 'A backup, restore or disk change is running — run this again when it’s done'
+  local busy
+  busy="$(systemctl list-units --no-legend --plain --state=active,activating,deactivating \
+    'ilex-backup-now@*' 'ilex-restore@*' 'ilex-update@*' 'ilex-recover@*' 'ilex-backup.service' \
+    'ilex-backup-check.service' 2>/dev/null | awk '{ print $1 }' | tr '\n' ' ')"
+  if [[ -n "${busy// /}" ]]; then die "Still running: $busy— run this again when it’s done"; fi
+}
+
+# Moved, not copied: the passphrase stays in one root-only place. Kept settings of an earlier
+# uninstall are moved aside first, never overwritten.
+keep_backup_settings() {
+  local found=0 path
+  for path in "${BACKUP_SETTINGS[@]}"; do [[ -e "$path" ]] && found=1; done
+  if [[ "$found" == 0 ]]; then
+    if [[ -d "$SETTINGS_KEPT" ]]; then info "Backup settings: $SETTINGS_KEPT (kept before)"; fi
+    return
+  fi
+  if [[ -e "$SETTINGS_KEPT" ]] && [[ -n "$(ls -A "$SETTINGS_KEPT" 2>/dev/null)" ]]; then
+    mv "$SETTINGS_KEPT" "$SETTINGS_KEPT-$(date +%Y%m%d-%H%M%S)"
+  fi
+  ensure_dir "$SETTINGS_KEPT" root:root 0700
+  for path in "${BACKUP_SETTINGS[@]}"; do
+    if [[ -e "$path" ]]; then mv "$path" "$SETTINGS_KEPT/"; fi
+  done
+  info "Backup settings: $SETTINGS_KEPT"
+  if [[ -f "$SETTINGS_KEPT/backup.json" ]]; then
+    local destination
+    destination="$(sed -n 's/^ *"destination": *"\(.*\)",\{0,1\}$/\1/p' "$SETTINGS_KEPT/backup.json" | head -n1)"
+    if [[ -n "$destination" ]]; then
+      info 'To list the backups with them:'
+      info "    BORG_PASSCOMMAND='cat $SETTINGS_KEPT/backup.passphrase' borg list $destination/ilex-backups"
+    fi
+  fi
+  info 'To bring Ilexarium back after installing it again: sudo ilex-recover'
+}
+
+stop_units() {
+  log 'Stopping Ilexarium'
+  local unit
+  systemctl stop 'ilex-backup-now@*' 'ilex-restore@*' 'ilex-update@*' 'ilex-recover@*' 2>/dev/null || true
+  for unit in "${UNITS[@]}"; do
+    if [[ -n "$(systemctl list-unit-files --no-legend "$unit" 2>/dev/null)" ]]; then
+      systemctl disable --now "$unit" >/dev/null 2>&1 || systemctl stop "$unit" 2>/dev/null || true
+    fi
+  done
+  info "${UNITS[*]}"
+}
+
+# The platform's containers by their Compose project (its file may be gone already).
+remove_platform() {
+  log 'The platform’s containers'
+  if command -v docker >/dev/null; then
+    if [[ -n "$(docker ps -aq --filter label=com.docker.compose.project=ilex 2>/dev/null)" ]]; then
+      docker compose -p ilex down --remove-orphans >/dev/null 2>&1 ||
+        die 'The platform’s containers could not be removed (docker compose -p ilex down)'
+    fi
+    if [[ "$KEEP_DATABASE" == 1 ]]; then
+      info "database volume $DATABASE_VOLUME kept (--keep-database)"
+    elif docker volume inspect "$DATABASE_VOLUME" >/dev/null 2>&1; then
+      docker volume rm "$DATABASE_VOLUME" >/dev/null || die "The database volume could not be removed ($DATABASE_VOLUME)"
+      info "database volume $DATABASE_VOLUME removed"
+    fi
+  fi
+  info 'removed'
+}
+
+remove_files() {
+  log 'Ilexarium’s files'
+  local units=/etc/systemd/system path
+  # Units, their drop-ins and the links enabling them (dangling now).
+  find "$units" -maxdepth 2 -name 'ilex*' \( -type f -o -type l \) -delete
+  find "$units" -maxdepth 1 -type d -name 'ilex*.d' -exec rm -rf {} +
+  rm -f "$SOCKET_GENERATOR" /etc/tmpfiles.d/ilex.conf /usr/local/bin/ilex-setup-code \
+    /usr/local/sbin/ilex-recover
+  if [[ -e /etc/ssh/sshd_config.d/ilex.conf ]]; then
+    rm -f /etc/ssh/sshd_config.d/ilex.conf
+    reload_ssh
+  fi
+  for path in "$OPT" "$VAR" "$ETC" /run/ilex; do
+    # The lock (ours) is in /run/ilex: released once this script ends.
+    if [[ -e "$path" ]]; then rm -rf --one-file-system "$path"; fi
+  done
+  systemctl daemon-reload
+  info "$OPT, $VAR, $ETC, the units"
+  if [[ -e /etc/ssh/sshd_config.d/ilex-listen.conf ]]; then
+    info 'Kept: /etc/ssh/sshd_config.d/ilex-listen.conf — the SSH server listens on this machine'
+    info 'only because of it (the installer turned it on); removing it opens SSH to the network.'
+  fi
+}
+
+# Password logins from this machine went with the drop-in: sshd reloads, after checking itself.
+reload_ssh() {
+  local unit
+  if ! /usr/sbin/sshd -t 2>/dev/null; then
+    warn 'sshd refuses its configuration (not because of Ilexarium): not reloaded'
+    return
+  fi
+  for unit in ssh.service sshd.service; do
+    if systemctl is-active --quiet "$unit"; then systemctl reload-or-restart "$unit" || true; fi
+  done
+}
+
+remove_accounts() {
+  log 'Accounts'
+  local account
+  for account in "$APP_USER" "$PROXY_USER"; do
+    if id -u "$account" >/dev/null 2>&1; then
+      userdel "$account" || die "The account $account could not be removed (a process still running as it?)"
+    fi
+    if getent group "$account" >/dev/null; then groupdel "$account" || true; fi
+  done
+  info "$APP_USER, $PROXY_USER"
+}
+
+# This script and the installer's functions, last — only where the installer put them.
+remove_self() {
+  rm -rf "$INSTALLED_LIB"
+  if [[ "$(readlink -f "$0")" == "$SELF" ]]; then rm -f "$SELF"; fi
+}
+
+say_what
+confirm_uninstall
+refuse_while_busy
+keep_backup_settings
+stop_units
+remove_platform
+remove_files
+remove_accounts
+remove_self
+log 'Ilexarium is removed'
+if [[ -d "$SETTINGS_KEPT" ]]; then info "The backup settings are in $SETTINGS_KEPT."; fi

@@ -614,3 +614,47 @@ describe('HTTPS on the network (the installer’s https.sh)', () => {
     expect(existsSync(join(dir, 'tls'))).toBe(false);
   });
 });
+
+describe('ilex-uninstall and ilex-recover: their arguments', () => {
+  const script = (name: string) =>
+    join(dirname(fileURLToPath(import.meta.url)), `../install/${name}`);
+  const run = (name: string, ...args: string[]) =>
+    spawnSync('bash', [script(name), ...args], { encoding: 'utf8', input: '' });
+
+  it.each(['ilex-uninstall', 'ilex-recover'])(
+    '%s: --help says what it does, changes nothing',
+    (name) => {
+      const help = run(name, '--help');
+      expect(help.status).toBe(0);
+      expect(help.stdout).toContain(`sudo ${name}`);
+      expect(help.stdout).not.toMatch(/^#/m);
+    },
+  );
+
+  it.each(['ilex-uninstall', 'ilex-recover'])('%s: an unknown option is refused', (name) => {
+    const refused = run(name, '--force');
+    expect(refused.status).toBe(2);
+    expect(refused.stderr).toContain('Unknown option: --force');
+  });
+
+  it('ilex-recover takes one repository at most, and --archive needs a name', () => {
+    expect(run('ilex-recover', '/mnt/a/ilex-backups', '/mnt/b/ilex-backups').status).toBe(2);
+    expect(run('ilex-recover', '--archive').status).toBe(2);
+  });
+
+  it.runIf(process.getuid?.() !== 0).each(['ilex-uninstall', 'ilex-recover'])(
+    '%s: only as root, before anything else',
+    (name) => {
+      const refused = run(name, '--yes');
+      expect(refused.status).toBe(1);
+      expect(refused.stderr).toContain(`Run it as root: sudo ${name}`);
+    },
+  );
+
+  it('the installer installs both, with the functions they use, and keeps them as the way back', () => {
+    const files = readFileSync(FILES, 'utf8');
+    expect(files).toContain('/usr/local/sbin/ilex-uninstall');
+    expect(files).toContain('/usr/local/sbin/ilex-recover');
+    expect(files).toContain('replace_tree "$RELEASE/system/install/lib" "$INSTALLED_LIB"');
+  });
+});
