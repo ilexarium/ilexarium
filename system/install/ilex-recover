@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+# /usr/local/sbin/ilex-recover — runs as root. Brings Ilexarium back from the backup disk on a new
+# or reinstalled machine: its users, settings, alert channels, the backup plan and its history,
+# the key that opens the stored secrets, the schedule.
+#
+#   sudo ilex-recover [<repository>] [--archive <name>] [--yes]
+#
+#   <repository>      the backups' folder on the disk (<where it's mounted>/ilex-backups); without
+#                     it, the mounted disks are searched
+#   --archive <name>  that backup of Ilexarium instead of the newest
+#   --yes             don't ask (the install test): the passphrase is read from stdin
+#
+# Mount the backup disk first (the Disks page, or mount). Your apps and folders aren't touched:
+# restore each from the Backups page afterwards, once the accounts listed at the end exist.
+set -euo pipefail
+umask 0077
+
+REPOSITORY=''
+ARCHIVE=''
+ASSUME_YES=0
+while (($# > 0)); do
+  case "$1" in
+    --yes) ASSUME_YES=1 ;;
+    --archive)
+      (($# >= 2)) || { printf -- '--archive needs a name (see --help)\n' >&2; exit 2; }
+      ARCHIVE="$2"
+      shift
+      ;;
+    -h | --help)
+      sed -n '2,15s/^# \{0,1\}//p' "$0"
+      exit 0
+      ;;
+    -*)
+      printf 'Unknown option: %s (see --help)\n' "$1" >&2
+      exit 2
+      ;;
+    *)
+      [[ -z "$REPOSITORY" ]] || { printf 'One repository at most (see --help)\n' >&2; exit 2; }
+      REPOSITORY="$1"
+      ;;
+  esac
+  shift
+done
+
+if [[ "$(id -u)" != 0 ]]; then
+  printf 'Run it as root: sudo ilex-recover\n' >&2
+  exit 1
+fi
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB="$HERE/lib"
+[[ -f "$LIB/common.sh" ]] || LIB=/usr/local/lib/ilex
+[[ -f "$LIB/common.sh" && -f "$LIB/files.sh" ]] || { printf 'The installer’s files are missing (%s)\n' "$LIB" >&2; exit 1; }
+UPDATE=0
+# shellcheck source=lib/common.sh
+. "$LIB/common.sh"
+# shellcheck source=lib/files.sh
+. "$LIB/files.sh"
+# shellcheck source=lib/https.sh
+. "$LIB/https.sh"
+
+PROGRAM="$OPT/libexec/ilex-backup.mts"
+NODE=/usr/bin/node
+[[ -x "$PROGRAM" && -f "$ETC/version" ]] || die 'Ilexarium is not installed here: install it first (get-ilex.sh)'
+
+# JSON from lines on stdin (values never in arguments: the passphrase is one of them).
+to_json() {
+  "$NODE" -e '
+    const keys = process.argv.slice(1);
+    const values = require("fs").readFileSync(0, "utf8").split("\n");
+    process.stdout.write(JSON.stringify(Object.fromEntries(keys.map((k, i) => [k, values[i]]))));
+  ' "$@"
+}
+
+# The program's @@result as lines: its repositories, its archives ("<name> <time>") or its
+# accounts ("<uid>\t<name>\t<items>").
+result_lines() {
+  "$NODE" -e '
+    const line = require("fs").readFileSync(0, "utf8").split("\n").findLast((l) => l.startsWith("@@result "));
+    if (!line) process.exit(1);
+    const r = JSON.parse(line.slice(9));
+    const lines = {
+      repositories: () => r.repositories ?? [],
+      archives: () => (r.archives ?? []).map((a) => `${a.name} ${a.time}`),
+      accounts: () => (r.accounts ?? []).map((a) => [a.uid, a.name, a.items.join(", ")].join("\t")),
+    }[process.argv[1]]();
+    for (const out of lines) console.log(out);
+  ' "$1"
+}
+
+# Why the program refused, from its last @@info and @@error lines.
+refusal() {
+  local info code
+  info="$(sed -n 's/^@@info //p' <<<"$1" | tail -n1)"
+  code="$(sed -n 's/^@@error code=\([a-z_]*\).*/\1/p' <<<"$1" | tail -n1)"
+  case "$code" in
+    passphrase_invalid) printf 'The passphrase doesn’t open these backups' ;;
+    repository_mismatch) printf 'Not Ilexarium’s backups, or not where they were found (%s)' "$info" ;;
+    archive_not_found) printf 'No backup of Ilexarium there (%s)' "$info" ;;
+    backup_newer) printf 'This backup is from a newer Ilexarium: update this one first (%s)' "$info" ;;
+    busy) printf 'A backup, restore or disk change is running — try again when it’s done' ;;
+    *) printf '%s (%s)' "${info:-it failed}" "${code:-no code}" ;;
+  esac
+}
+
+# Runs ilex-backup <action> with the JSON on stdin; its output in OUTPUT.
+run_program() {
+  OUTPUT="$("$PROGRAM" "$1" <<<"$2" 2>&1)" && return 0
+  return 1
+}
+
+log 'Restoring Ilexarium from the backup disk'
+if [[ -z "$REPOSITORY" ]]; then
+  run_program recover-check '{}' || die "$(refusal "$OUTPUT")"
+  mapfile -t FOUND < <(result_lines repositories <<<"$OUTPUT")
+  if ((${#FOUND[@]} == 0)); then
+    die 'No backups found on the mounted disks: mount the backup disk (the Disks page, or mount), then run this again'
+  elif ((${#FOUND[@]} == 1 || ASSUME_YES == 1)); then
+    REPOSITORY="${FOUND[0]}"
+  else
+    info 'Backups found on:'
+    for i in "${!FOUND[@]}"; do info "  $((i + 1)). ${FOUND[i]}"; done
+    read -r -p '    Which one? ' choice
+    [[ "$choice" =~ ^[0-9]+$ ]] && ((choice >= 1 && choice <= ${#FOUND[@]})) || die 'Nothing was changed'
+    REPOSITORY="${FOUND[choice - 1]}"
+  fi
+fi
+info "Backups: $REPOSITORY"
+
+if [[ "$ASSUME_YES" == 1 ]]; then
+  IFS= read -r PASSPHRASE || true
+else
+  [[ -t 0 ]] || die 'Run it in a terminal, or with --yes (the passphrase on stdin)'
+  IFS= read -rs -p '    The backup passphrase (six words): ' PASSPHRASE
+  printf '\n'
+fi
+[[ -n "$PASSPHRASE" ]] || die 'No passphrase'
+
+json="$(printf '%s\n%s\n' "$REPOSITORY" "$PASSPHRASE" | to_json repository passphrase)"
+run_program recover-check "$json" || die "$(refusal "$OUTPUT")"
+mapfile -t NEWEST < <(result_lines archives <<<"$OUTPUT")
+if [[ -z "$ARCHIVE" ]]; then
+  ARCHIVE="${NEWEST[0]%% *}"
+  WHEN="${NEWEST[0]#* }"
+else
+  WHEN="$(printf '%s\n' "${NEWEST[@]}" | awk -v a="$ARCHIVE" '$1 == a { print $2 }')"
+  [[ -n "$WHEN" ]] || WHEN="${ARCHIVE: -19}Z"
+fi
+WHEN_LOCAL="$(date -d "$WHEN" '+%e %b %Y, %H:%M' 2>/dev/null | sed 's/^ //' || printf '%s' "$WHEN")"
+
+if [[ "$ASSUME_YES" == 0 ]]; then
+  read -r -p "    Restore Ilexarium from the backup of $WHEN_LOCAL? [y/N] " answer
+  [[ "$answer" == y || "$answer" == Y ]] || die 'Nothing was changed'
+  # Users here: everything they set up is replaced.
+  if [[ "$(curl -fsS --max-time 5 "$(app_url)/api/auth/status" 2>/dev/null || true)" == *'"needsSetup":false'* ]]; then
+    warn 'This Ilexarium has accounts already: its users, settings and backup plan are replaced.'
+    read -r -p '    Type replace to go on: ' answer
+    [[ "$answer" == replace ]] || die 'Nothing was changed'
+  fi
+fi
+
+json="$(printf '%s\n%s\n%s\n' "$REPOSITORY" "$PASSPHRASE" "$ARCHIVE" | to_json repository passphrase archive)"
+unset PASSPHRASE
+info 'Restoring (Ilexarium stops for a minute)…'
+if ! run_program recover "$json"; then
+  sed -n 's/^> /    /p' <<<"$OUTPUT" | tail -n 15 >&2
+  die "$(refusal "$OUTPUT") — Ilexarium is as it was before"
+fi
+unset json
+
+log "Ilexarium is back, from the backup of $WHEN_LOCAL"
+mapfile -t ACCOUNTS < <(result_lines accounts <<<"$OUTPUT")
+if ((${#ACCOUNTS[@]} > 0)); then
+  info 'The accounts your apps and folders belong to (restores keep each file’s owner by number):'
+  missing=0
+  for line in "${ACCOUNTS[@]}"; do
+    IFS=$'\t' read -r uid name items <<<"$line"
+    here="$(getent passwd "$uid" | cut -d: -f1 || true)"
+    if [[ -z "$here" ]]; then
+      info "  $uid $name — missing (for $items): useradd --create-home --uid $uid $name && passwd $name"
+      missing=1
+    elif [[ "$here" == "$name" ]]; then
+      info "  $uid $name — there (for $items)"
+    else
+      info "  $uid $name — here it is $here (for $items)"
+    fi
+  done
+  if [[ "$missing" == 1 ]]; then info 'Make the missing ones (in the groups they were in: sudo or wheel, docker) before restoring their apps.'; fi
+fi
+if https_on 2>/dev/null; then address="$(https_link)"; else address='https://<your address>'; fi
+info "Sign in with your account from the old machine at $address"
+info 'Then bring each app and folder back: Backups → Restore… → Back in place.'

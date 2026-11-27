@@ -37,6 +37,8 @@ export const ROOT_PROGRAMS: Record<string, { path: string; actions: readonly str
       'forget',
       'list',
       'passphrase',
+      'recover-check',
+      'recover-start',
     ],
   },
   disk: {

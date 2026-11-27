@@ -1,0 +1,27 @@
+# Bringing Ilexarium back from the backup disk, from the app: started by `ilex-backup recover-start`
+# (through the person's sudo) with the instance <recoveryId> — a uuid, checked again by the
+# program, which reads the request from its own root-only file and removes it first (the
+# passphrase is in it). Its own unit, not a child of the app: it stops the app, replaces its
+# database and starts it again. Its result goes to /var/lib/ilex/backups/recovery.json.
+
+[Unit]
+Description=Ilexarium recovery from the backup disk
+After=docker.service local-fs.target ilex-platform.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/ilex/libexec/ilex-backup.mts recover-run %i
+TimeoutStartSec=1h
+TimeoutStopSec=5min
+KillMode=mixed
+# It writes /etc/ilex (the key, the plan, the passphrase), the timer's drop-in, its state and the
+# lock; it reads the backup disk. Never the programs or root's home.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ReadWritePaths=/etc/ilex /etc/systemd/system
+ReadOnlyPaths=/opt/ilex /root
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
