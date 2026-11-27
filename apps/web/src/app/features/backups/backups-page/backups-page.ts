@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, untracked, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -15,6 +15,9 @@ import { BACKUPS_TABS, RESTORE_SHOWN_MS } from '../backups.constants';
 import type { BackupsTab, ItemLabel, ItemRow } from '../backups.model';
 import { ItemSheet } from '../item-sheet/item-sheet';
 import { PassphraseCard } from '../passphrase-card/passphrase-card';
+import { RecoverCard } from '../recover-card/recover-card';
+import { RecoverDialog } from '../recover-dialog/recover-dialog';
+import { RecoveryNotice } from '../recovery-notice/recovery-notice';
 import { RemoveItemDialog } from '../remove-item-dialog/remove-item-dialog';
 import { RestoreDialog } from '../restore-dialog/restore-dialog';
 import { RestoreStatus } from '../restore-status/restore-status';
@@ -39,6 +42,9 @@ import { BackupsPageStore } from './store/backups-page-store';
     HlmTabsImports,
     ItemSheet,
     PassphraseCard,
+    RecoverCard,
+    RecoverDialog,
+    RecoveryNotice,
     RemoveItemDialog,
     RestoreDialog,
     RestoreStatus,
@@ -56,6 +62,15 @@ export class BackupsPage {
   private readonly router = inject(Router);
   private readonly restoreDialog = viewChild(RestoreDialog);
   private readonly removeDialog = viewChild(RemoveItemDialog);
+
+  /** The Restore Ilexarium dialog (only before backups are set up). */
+  protected readonly recoverOpen = signal(false);
+
+  /** The last recovery's notice, until dismissed. */
+  protected readonly recoveryNotice = computed(() => {
+    const recovery = this.backupsPageStore.recovery();
+    return recovery && !recovery.dismissed ? recovery : null;
+  });
 
   /** What each item is called (removed ones too, for the history). */
   protected readonly labels = computed(() => {

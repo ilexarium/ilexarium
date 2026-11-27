@@ -1,0 +1,17 @@
+<section
+  class="grid max-w-5xl gap-3 rounded-xl border bg-card p-4"
+  aria-labelledby="recover-card-title"
+>
+  <h2 id="recover-card-title" class="flex items-center gap-2 font-semibold">
+    <ng-icon name="lucideArchiveRestore" aria-hidden="true" />
+    {{ 'backups.recovery.cardTitle' | translate }}
+  </h2>
+  <p class="text-sm text-muted-foreground">{{ 'backups.recovery.cardText' | translate }}</p>
+  <div class="flex flex-wrap items-center gap-3">
+    <button hlmBtn variant="outline" type="button" (click)="restore.emit()">
+      {{ 'backups.recovery.open' | translate }}
+    </button>
+  </div>
+  <p class="text-sm text-muted-foreground">{{ 'backups.recovery.orCommand' | translate }}</p>
+  <ilex-copy-command class="max-w-md" command="sudo ilex-recover" />
+</section>

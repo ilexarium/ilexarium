@@ -86,4 +86,10 @@ describe('SetupPage', () => {
     await submit(fixture);
     expect(textOf(fixture)).toContain('This setup code is not valid');
   });
+
+  it('tells someone moving from another machine how to bring Ilexarium back', async () => {
+    const { fixture } = await render();
+    expect(textOf(fixture)).toContain('Moving from another machine?');
+    expect(textOf(fixture)).toContain('sudo ilex-recover');
+  });
 });

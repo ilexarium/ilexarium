@@ -6,6 +6,8 @@ import type {
   BackupDestination,
   BackupFoldersResponse,
   BackupPlan,
+  BackupRecovery,
+  BackupRecoveryCheckResponse,
   BackupsStatus,
   Container,
 } from '@ilex/shared';
@@ -20,6 +22,8 @@ import { AppsApi } from '../../../core/apps/apps-api';
 import { testAppItem, testItem } from '../../../core/backups/testing';
 import { LinuxSessionStore } from '../../../core/linux/linux-session-store';
 import { formatBytes } from '../../../shared/format/format';
+import { readStored } from '../../../core/storage/browser-storage';
+import { stubLocalStorage } from '../../../layout/testing';
 import { BackupsPage } from './backups-page';
 import { BackupsPageStore } from './store/backups-page-store';
 import { toast } from '@spartan-ng/brain/sonner';
@@ -28,6 +32,7 @@ const PLATFORM = '0193a000-0000-7000-8000-000000000001';
 const IMMICH_ITEM = '0193a000-0000-7000-8000-000000000002';
 const FOLDER_ITEM = '0193a000-0000-7000-8000-000000000003';
 const PASSPHRASE = 'acorn bagel cactus dolphin ember fjord';
+const RECOVERY = '0193a000-0000-7000-8000-0000000000aa';
 
 /** An app's container as the containers topic shows it. */
 const container = (project: string, template: string | null): Omit<Container, 'stats'> => ({
@@ -108,7 +113,11 @@ const status = (change: Partial<BackupsStatus> = {}): BackupsStatus => ({
   ...change,
 });
 
-async function render(start: BackupPlan | null, url = '/backups') {
+async function render(
+  start: BackupPlan | null,
+  url = '/backups',
+  recovery: BackupRecovery | null = null,
+) {
   const auth = fakeAuthApi({ user: OWNER });
   const sockets = fakeSockets();
   let current = start;
@@ -152,6 +161,22 @@ async function render(start: BackupPlan | null, url = '/backups') {
     applyRestored: vi.fn(() =>
       of({ name: 'immich', folder: '/home/anna/apps/immich', task: null }),
     ),
+    recovery: vi.fn(() => of({ recovery })),
+    recoveryCheck: vi.fn(
+      (request: { repository?: string }): Observable<BackupRecoveryCheckResponse> =>
+        of(
+          request.repository
+            ? {
+                repositories: ['/mnt/usb/ilex-backups'],
+                archives: [
+                  { name: `${PLATFORM}-2026-11-26T03:00:00`, time: '2026-11-26T03:00:00.000Z' },
+                ],
+              }
+            : { repositories: ['/mnt/usb/ilex-backups'] },
+        ),
+    ),
+    recover: vi.fn(() => of({ recoveryId: RECOVERY })),
+    dismissRecovery: vi.fn(() => of(undefined)),
   };
   const apps = {
     templates: vi.fn(() => of([])),
@@ -613,5 +638,121 @@ describe('BackupsPage with a plan', () => {
     store.browse('/home/anna/Photos');
     await fixture.whenStable();
     expect(store.folders()).toEqual(anna);
+  });
+});
+
+describe('BackupsPage: restoring Ilexarium from a backup disk', () => {
+  const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+  const dialogButton = (text: string) =>
+    [...(dialog()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((b) =>
+      b.textContent?.includes(text),
+    );
+  const typePassphrase = (value: string) => {
+    const input = dialog()!.querySelector<HTMLInputElement>('#recover-passphrase')!;
+    input.value = value;
+    input.dispatchEvent(new Event('input'));
+  };
+
+  let storage: ReturnType<typeof stubLocalStorage>;
+  beforeEach(() => (storage = stubLocalStorage()));
+  afterEach(() => storage.restore());
+
+  it('before setup: finds the backups as the person, opens one with the passphrase, restores the newest', async () => {
+    const { el, api, asPerson, button } = await render(null);
+    expect(el.textContent).toContain('Moving from another machine?');
+    expect(el.textContent).toContain('sudo ilex-recover');
+    button('Restore Ilexarium from a backup disk').click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('/mnt/usb/ilex-backups'));
+    expect(api.recoveryCheck).toHaveBeenCalledWith({});
+    expect(asPerson).toHaveBeenCalled();
+    typePassphrase(PASSPHRASE);
+    dialogButton('Open the backups')!.click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Newest backup of Ilexarium'));
+    expect(api.recoveryCheck).toHaveBeenLastCalledWith({
+      repository: '/mnt/usb/ilex-backups',
+      passphrase: PASSPHRASE,
+    });
+    expect(dialog()!.textContent).toContain('everyone signs in again');
+    // Its own end is the session going (a 401: the sign-in page); here its file says it failed.
+    api.recovery.mockReturnValue(
+      of({
+        recovery: {
+          id: RECOVERY,
+          status: 'failed',
+          errorCode: 'backup_newer',
+          archive: `${PLATFORM}-2026-11-26T03:00:00`,
+          archiveTime: '2026-11-26T03:00:00.000Z',
+          finishedAt: '2026-11-27T10:00:00.000Z',
+          accounts: null,
+          dismissed: false,
+        } satisfies BackupRecovery,
+      }),
+    );
+    dialogButton('Restore')!.click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('Restoring Ilexarium…'));
+    expect(api.recover).toHaveBeenCalledWith({
+      repository: '/mnt/usb/ilex-backups',
+      passphrase: PASSPHRASE,
+      archive: `${PLATFORM}-2026-11-26T03:00:00`,
+    });
+    expect(readStored(window, 'ilex.recovered')).toBe(RECOVERY);
+    await vi.waitFor(
+      () => expect(dialog()?.textContent).toContain('This backup is from a newer Ilexarium'),
+      { timeout: 6000 },
+    );
+    expect(readStored(window, 'ilex.recovered')).toBe('');
+  }, 10_000);
+
+  it('words a wrong passphrase, and says how to mount a disk when none has backups', async () => {
+    const { api, button } = await render(null);
+    api.recoveryCheck.mockReturnValueOnce(of({ repositories: [] }));
+    button('Restore Ilexarium from a backup disk').click();
+    await vi.waitFor(() =>
+      expect(dialog()?.textContent).toContain('No backups on the mounted disks'),
+    );
+    expect(dialog()!.querySelector('a[href="/disks"]')).not.toBeNull();
+    dialogButton('Look again')!.click();
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain('/mnt/usb/ilex-backups'));
+    api.recoveryCheck.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 422,
+            error: { message: 'x', code: 'passphrase_invalid' },
+          }),
+      ),
+    );
+    typePassphrase('wrong words');
+    dialogButton('Open the backups')!.click();
+    await vi.waitFor(() =>
+      expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain(
+        "This passphrase doesn't open these backups",
+      ),
+    );
+    expect(api.recover).not.toHaveBeenCalled();
+  });
+
+  it('shows the last recovery: its backup, the accounts to make, until dismissed', async () => {
+    const { el, api, button } = await render(plan(), '/backups', {
+      id: RECOVERY,
+      status: 'succeeded',
+      errorCode: null,
+      archive: `${PLATFORM}-2026-11-26T03:00:00`,
+      archiveTime: '2026-11-26T03:00:00.000Z',
+      finishedAt: '2026-11-27T10:00:00.000Z',
+      accounts: [
+        { uid: 1500, name: 'anna', items: ['immich'], here: 'anna' },
+        { uid: 1501, name: 'bob', items: ['/srv/docs'], here: null },
+      ],
+      dismissed: false,
+    });
+    await vi.waitFor(() => expect(el.textContent).toContain('Restored from the backup of'));
+    expect(el.textContent).toContain('missing on this machine');
+    expect(el.textContent).toContain('sudo useradd --create-home --uid 1501 bob');
+    expect(el.textContent).not.toContain('--uid 1500');
+    expect(el.textContent).not.toContain('Moving from another machine?');
+    button('Dismiss').click();
+    await vi.waitFor(() => expect(el.textContent).not.toContain('Restored from the backup of'));
+    expect(api.dismissRecovery).toHaveBeenCalled();
   });
 });

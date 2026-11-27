@@ -1,5 +1,7 @@
 import type {
   BackupArchive,
+  BackupRecovery,
+  BackupRecoveryCheckResponse,
   BackupDestination,
   BackupFoldersResponse,
   BackupPlan,
@@ -44,4 +46,17 @@ export interface BackupRestoresState {
 export interface FolderPickerState {
   /** The folder picker's current place. */
   folders: BackupFoldersResponse | null;
+}
+
+/** Restoring Ilexarium from the backup disk: the dialog's steps. */
+export type RecoveryStep = 'idle' | 'finding' | 'checking' | 'starting' | 'waiting' | 'failed';
+
+export interface BackupRecoveryState {
+  /** The last recovery here (its notice), or null. */
+  recovery: BackupRecovery | null;
+  /** The backups found on mounted disks, and once the passphrase opened one, its newest. */
+  recoveryFound: BackupRecoveryCheckResponse | null;
+  recoveryStep: RecoveryStep;
+  /** Why the last step failed, in words. */
+  recoveryError: string | null;
 }

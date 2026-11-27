@@ -14,6 +14,7 @@ import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { Translator } from '../../../core/i18n/translator';
 import { APP_NAME } from '../../../core/page-title/page-title';
+import { CopyCommand } from '../../../shared/copy-command/copy-command';
 import { AuthFrame } from '../auth-frame/auth-frame';
 import { SetupPageStore } from './setup-page-store';
 
@@ -38,6 +39,7 @@ function takeTokenFromFragment(document: Document): string {
   selector: 'ilex-setup-page',
   imports: [
     AuthFrame,
+    CopyCommand,
     FieldErrors,
     FormErrors,
     FormField,

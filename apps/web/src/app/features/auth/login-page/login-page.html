@@ -6,7 +6,12 @@
     <ilex-insecure-context-notice />
   } @else {
     <form [formRoot]="form" class="grid gap-5">
-      @if (expired) {
+      @if (restored) {
+        <div hlmAlert>
+          <p hlmAlertTitle>{{ 'auth.login.restoredTitle' | translate }}</p>
+          <p hlmAlertDescription>{{ 'auth.login.restoredText' | translate }}</p>
+        </div>
+      } @else if (expired) {
         <div hlmAlert>
           <p hlmAlertTitle>{{ 'auth.login.expiredTitle' | translate }}</p>
           <p hlmAlertDescription>{{ 'auth.login.expiredText' | translate }}</p>

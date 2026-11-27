@@ -1,0 +1,54 @@
+<section
+  class="grid min-w-0 max-w-5xl gap-3 rounded-xl border bg-card p-4"
+  aria-labelledby="recovery-notice-title"
+  role="status"
+>
+  @if (recovery().status === 'succeeded') {
+    <h2 id="recovery-notice-title" class="font-semibold">
+      {{ 'backups.recovery.restoredTitle' | translate: { time: time() } }}
+    </h2>
+    @if (accounts().length > 0) {
+      <p class="text-sm text-muted-foreground">{{ 'backups.recovery.accountsText' | translate }}</p>
+      <ul class="grid min-w-0 gap-2">
+        @for (account of accounts(); track account.uid) {
+          <li class="grid min-w-0 gap-2 rounded-md border p-3">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span class="font-medium" dir="ltr">{{ account.name }}</span>
+              <span class="text-xs text-muted-foreground" dir="ltr">{{ account.uid }}</span>
+              <span class="text-sm" [class.text-destructive]="account.state === 'missing'">
+                {{
+                  'backups.recovery.account.' + account.state
+                    | translate: { here: account.here ?? '' }
+                }}
+              </span>
+            </div>
+            <p class="text-sm text-muted-foreground">
+              {{ 'backups.recovery.accountItems' | translate }}
+              <span dir="ltr">{{ account.items.join(', ') }}</span>
+            </p>
+            @if (account.state === 'missing') {
+              <ilex-copy-command [command]="account.command" />
+            }
+          </li>
+        }
+      </ul>
+    } @else if (recovery().accounts === null) {
+      <p class="text-sm text-muted-foreground">
+        {{ 'backups.recovery.accountsUnknown' | translate }}
+      </p>
+    }
+    <p class="text-sm">{{ 'backups.recovery.next' | translate }}</p>
+  } @else {
+    <h2 id="recovery-notice-title" class="font-semibold text-destructive">
+      {{ 'backups.recovery.failedTitle' | translate }}
+    </h2>
+    <p class="text-sm">
+      {{ 'errors.' + (recovery().errorCode ?? 'recovery_failed') | translate }}
+    </p>
+  }
+  <div>
+    <button hlmBtn variant="outline" type="button" [disabled]="pending()" (click)="dismiss.emit()">
+      {{ 'backups.recovery.dismiss' | translate }}
+    </button>
+  </div>
+</section>
