@@ -429,4 +429,54 @@ describe('recover-start and recover-run (the app’s way)', () => {
     expectRefused(await wrapper(['recover-run', RECOVERY]), 'not_found');
     expectRefused(await wrapper('recover-run'), 'invalid_request');
   });
+
+  it('a run refused before it begins (the disk unmounted since) still leaves its result for the app', async () => {
+    const archive = await backedUp();
+    newMachine();
+    await wrapper('recover-start', {
+      recoveryId: RECOVERY,
+      repository: repository(),
+      passphrase: PASSPHRASE,
+      archive,
+    });
+    writeFileSync(join(dir, 'mountinfo'), '');
+    expectRefused(await wrapper(['recover-run', RECOVERY]), 'repository_mismatch', 5);
+    expect(recovery()).toMatchObject({
+      id: RECOVERY,
+      status: 'failed',
+      errorCode: 'repository_mismatch',
+    });
+    expect(existsSync(join(dev, 'state', 'recover-requests', `${RECOVERY}.json`))).toBe(false);
+  });
+});
+
+describe('recover: its edges', () => {
+  it('the app is never left held when it can’t be stopped', async () => {
+    const archive = await backedUp();
+    newMachine();
+    writeFileSync(join(dir, 'exit-systemctl.txt'), '1');
+    expectRefused(
+      await wrapper('recover', { repository: repository(), passphrase: PASSPHRASE, archive }),
+      'setup',
+      6,
+    );
+    expect(existsSync(join(dev, 'updating'))).toBe(false);
+    expect(systemctlCalls()).toEqual(['stop ilex.service', 'start ilex.service']);
+  });
+
+  it('lists an account the backups name oddly without its name (never in a command)', async () => {
+    writeFileSync(
+      join(dir, 'owners.json'),
+      JSON.stringify({ [join(storage, 'anna', 'navidrome')]: [1500, 'a;rm-rf'] }),
+    );
+    const archive = await backedUp();
+    newMachine();
+    const done = await wrapper('recover', {
+      repository: repository(),
+      passphrase: PASSPHRASE,
+      archive,
+    });
+    expect(done.code, done.lines.join('\n')).toBe(0);
+    expect(recovery().accounts).toContainEqual({ uid: 1500, name: '', items: ['navidrome'] });
+  });
 });

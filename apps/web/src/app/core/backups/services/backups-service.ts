@@ -138,7 +138,6 @@ export class BackupsService {
     return this.done(() => this.backupsApi.discardPrevious(restoreId));
   }
 
-  /** As the person; `true` once answered — an empty answer (204) would be null, like a dismissal. */
   /** Restoring Ilexarium: the backups on mounted disks, or a repository's newest (its passphrase). */
   recoveryCheck(
     request: BackupRecoveryCheckRequest,
@@ -159,6 +158,7 @@ export class BackupsService {
     return this.backupsApi.dismissRecovery();
   }
 
+  /** As the person; `true` once answered — an empty answer (204) would be null, like a dismissal. */
   private done(request: () => Observable<unknown>): Observable<true | null> {
     return this.linuxSessionStore.asPerson$(() => request().pipe(map(() => true as const)));
   }

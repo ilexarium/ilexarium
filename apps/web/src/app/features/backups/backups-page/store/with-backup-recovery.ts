@@ -130,7 +130,7 @@ export function withBackupRecovery() {
                       patchState(store, { recoveryStep: 'idle' });
                       return EMPTY;
                     }
-                    writeStored(window, RECOVERY_STORAGE_KEY, started.recoveryId);
+                    writeStored(window, RECOVERY_STORAGE_KEY, String(Date.now()));
                     patchState(store, { recoveryStep: 'waiting' });
                     return timer(RECOVERY_POLL_MS, RECOVERY_POLL_MS).pipe(
                       exhaustMap((tick) =>
@@ -193,7 +193,7 @@ export function withBackupRecovery() {
 
           /** The dialog closed: nothing of it kept (the passphrase stays in the dialog only). */
           resetRecovery(): void {
-            if (store.recoveryStep() === 'waiting') return;
+            if (['starting', 'waiting'].includes(store.recoveryStep())) return;
             patchState(store, {
               recoveryStep: 'idle',
               recoveryFound: null,

@@ -123,7 +123,10 @@ describe('LoginPage', () => {
   it('after Ilexarium was restored from this browser: says so instead of "expired", until signed in', async () => {
     const storage = stubLocalStorage();
     try {
-      writeStored(window, 'ilex.recovered', '0193a000-0000-7000-8000-0000000000aa');
+      writeStored(window, 'ilex.recovered', String(Date.now() - 31 * 60_000));
+      expect(textOf((await render()).fixture)).not.toContain('Ilexarium was restored');
+      TestBed.resetTestingModule();
+      writeStored(window, 'ilex.recovered', String(Date.now()));
       const { fixture, api } = await render({ query: { reason: 'expired' } });
       expect(textOf(fixture)).toContain('Ilexarium was restored');
       expect(textOf(fixture)).not.toContain('Your session expired');

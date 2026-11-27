@@ -8,7 +8,7 @@ import { HlmButton } from '@ui/button';
 import { HlmFieldImports } from '@ui/field';
 import { HlmInput } from '@ui/input';
 import { safeReturnUrl } from '../../../core/auth/return-url';
-import { RECOVERY_STORAGE_KEY } from '../../../core/backups/backups.constants';
+import { RECOVERY_NOTICE_MS, RECOVERY_STORAGE_KEY } from '../../../core/backups/backups.constants';
 import { readStored, writeStored } from '../../../core/storage/browser-storage';
 import { InsecureContextNotice } from '../../../core/security/insecure-context-notice';
 import { SECURE_CONTEXT } from '../../../core/security/secure-context';
@@ -47,7 +47,8 @@ export class LoginPage {
   private readonly window = inject(DOCUMENT).defaultView;
   protected readonly expired = this.query.get('reason') === 'expired';
   /** Ilexarium was just restored from the backup disk (started from this browser). */
-  protected readonly restored = !!readStored(this.window, RECOVERY_STORAGE_KEY);
+  protected readonly restored =
+    Date.now() - Number(readStored(this.window, RECOVERY_STORAGE_KEY) || 0) < RECOVERY_NOTICE_MS;
   protected readonly showPassword = signal(false);
 
   private readonly model = signal<LoginRequest>({ username: '', password: '' });

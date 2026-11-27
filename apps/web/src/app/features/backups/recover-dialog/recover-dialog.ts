@@ -66,7 +66,12 @@ export class RecoverDialog {
   protected readonly shown = linkedSignal(() => this.open());
   private readonly formatter = inject(Formatter);
   protected readonly showPassphrase = signal(false);
-  protected readonly chosen = linkedSignal(() => this.found()?.repositories[0] ?? null);
+  /** The repository chosen: kept while the list still has it (the check's answer lists them again). */
+  protected readonly chosen = linkedSignal<string[], string | null>({
+    source: () => this.found()?.repositories ?? [],
+    computation: (list, previous) =>
+      previous?.value && list.includes(previous.value) ? previous.value : (list[0] ?? null),
+  });
 
   private readonly model = signal<BackupRecoveryPassphraseForm>({ passphrase: '' });
   protected readonly form = form(
@@ -118,9 +123,13 @@ export class RecoverDialog {
     });
   }
 
+  /** While it starts or restores the dialog can't be closed: the wait stays on screen. */
+  protected readonly restoring = computed(() => ['starting', 'waiting'].includes(this.step()));
+
   protected close(): void {
-    if (this.step() === 'waiting' || this.step() === 'starting') return;
+    if (this.restoring()) return;
     this.form().reset({ passphrase: '' });
     this.shown.set(false);
+    this.closed.emit();
   }
 }
