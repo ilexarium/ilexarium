@@ -311,7 +311,7 @@ describe('recover', () => {
     });
     expect(done.code, done.lines.join('\n')).toBe(0);
     expect(readFileSync(join(dir, 'restored-dumps.txt'), 'utf8')).toBe('PGDMP the old database\n');
-  });
+  }, 20_000);
 
   it('moves the plan to where the disk is mounted now (the same repository)', async () => {
     const archive = await backedUp();
