@@ -2,7 +2,9 @@
 # Tests the installer end to end on a throwaway machine: builds a release signed with a test key, serves it over HTTPS inside the
 # machine, installs it through get-ilex.sh (--yes; a tampered archive and a port another program answers on refused first), runs the
 # smoke test inside, moves the app to another port (the machine's settings, which updates keep),
-# runs the installer again (--update) and the smoke test again, then updates by ilex-update.
+# runs the installer again (--update) and the smoke test again, then updates by ilex-update; then
+# removes Ilexarium (ilex-uninstall), installs it again and brings it back from the backup disk —
+# by ilex-recover, then (removed and installed once more) through the app.
 #
 #   tools/vm/test-install.sh --container   a Debian 13 container with systemd (any machine with
 #                                           Docker; privileged — root-equivalent while it runs,
@@ -358,6 +360,51 @@ run_in node /root/smoke.mjs self-update "$GOOD" updated | tee -a "$LOG"
 app_settings_kept "the update to $GOOD"
 run_in node /root/smoke.mjs self-update "$BROKEN" rolled_back | tee -a "$LOG"
 app_settings_kept "the rolled-back update to $BROKEN"
+# Removing Ilexarium leaves the person's apps, disks and backups, and the backup settings where
+# root finds them; a fresh install then comes back from the backup disk — by `ilex-recover`, and
+# (after another uninstall) through the app.
+uninstall() {
+  if ! run_in /usr/local/sbin/ilex-uninstall --yes >>"$LOG" 2>&1; then
+    tail -40 "$LOG"
+    exit 1
+  fi
+  run_in bash -c '
+    fail() { echo "  FAIL $*"; exit 1; }
+    for path in /opt/ilex /etc/ilex /var/lib/ilex /run/ilex /usr/local/bin/ilex-setup-code \
+      /usr/local/sbin/ilex-recover /usr/local/sbin/ilex-uninstall /usr/local/lib/ilex \
+      /etc/tmpfiles.d/ilex.conf /etc/ssh/sshd_config.d/ilex.conf \
+      /usr/local/lib/systemd/system-generators/ilex-socket-generator; do
+      [[ ! -e "$path" ]] || fail "$path is still there"
+    done
+    ! compgen -G "/etc/systemd/system/ilex*" >/dev/null || fail "units are still there: $(ls -d /etc/systemd/system/ilex*)"
+    ! id -u ilex >/dev/null 2>&1 && ! id -u ilex-proxy >/dev/null 2>&1 || fail "the accounts are still there"
+    ! getent group ilex >/dev/null || fail "the group ilex is still there"
+    [[ -z "$(docker ps -aq --filter label=com.docker.compose.project=ilex)" ]] || fail "the platform containers are still there"
+    ! docker volume inspect ilex_pgdata >/dev/null 2>&1 || fail "the database volume is still there"
+    [[ -f /root/ilex-backup-settings/backup.passphrase && "$(stat -c %a /root/ilex-backup-settings)" == 700 ]] || fail "the backup settings were not kept"
+    [[ -f /root/ilex-backup-settings/backup.json ]] || fail "the backup plan was not kept"
+    [[ -d /mnt/backup/ilex-backups ]] || fail "the backups are gone"
+    [[ -n "$(docker ps -q --filter label=com.docker.compose.project=navidrome)" ]] || fail "navidrome stopped"
+    systemctl is-active --quiet ssh.service || systemctl is-active --quiet sshd.service || fail "sshd stopped"
+    echo "  ok   only Ilexarium removed: apps, backups and sshd stay; the backup settings kept in /root"
+  ' | tee -a "$LOG"
+}
+install_fresh() {
+  if ! run_in bash -c "cd /root/ilex-$VERSION && ./install.sh --yes" >>"$LOG" 2>&1; then
+    tail -40 "$LOG"
+    exit 1
+  fi
+}
+step 'Uninstalling (ilex-uninstall --yes)'
+uninstall
+step 'Installing after the uninstall, then restoring from the backup disk (ilex-recover)'
+install_fresh
+run_in node /root/smoke.mjs recover-cli | tee -a "$LOG"
+step 'Uninstalling and installing again, then restoring through the app'
+uninstall
+install_fresh
+run_in node /root/smoke.mjs recover-app | tee -a "$LOG"
+
 # Every release updates from every older one (the project's rule): the oldest supported one is
 # installed on a second machine, its own smoke test sets everything up, and ilex-update takes it
 # straight to this release. Its release address and key are pointed at the test's (the archive
