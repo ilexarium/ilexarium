@@ -225,6 +225,7 @@ export async function backupItem(
   try {
     let sources: string[] = [];
     const excludes: string[] = [];
+    const notApplied: string[] = [];
     let project: string | null = null;
     let dumpDir: string | null = null;
 
@@ -266,7 +267,9 @@ export async function backupItem(
           return fail('source_missing', `${path}: missing or not allowed`);
         }
         sources.push(real);
-        excludes.push(...skipExcludes(item.skip, path, real));
+        const skipped = skipExcludes(item.skip, path, real);
+        excludes.push(...skipped.excludes);
+        notApplied.push(...skipped.notApplied);
       }
       // A `stop` app, by its project name: Compose finds its containers by their labels.
       if (item.mode === 'stop') project = item.project!;
@@ -276,7 +279,9 @@ export async function backupItem(
         return fail('source_missing', `${item.path}: missing or not allowed`);
       }
       sources = [real];
-      excludes.push(...skipExcludes(item.skip, item.path!, real));
+      const skipped = skipExcludes(item.skip, item.path!, real);
+      excludes.push(...skipped.excludes);
+      notApplied.push(...skipped.notApplied);
     }
     if (sources.length === 0) return fail('source_missing', 'nothing to back up');
 
@@ -323,10 +328,12 @@ export async function backupItem(
         );
       }
       result.archive = name;
-      result.warnings = create.logs
-        .filter((l) => l.level === 'WARNING')
-        .map((l) => l.message.slice(0, 500))
-        .slice(0, MAX_WARNINGS);
+      result.warnings = [
+        ...notApplied.map(
+          (skip) => `${skip}: not skipped, its folder's name has [, * or ? (backed up whole)`,
+        ),
+        ...create.logs.filter((l) => l.level === 'WARNING').map((l) => l.message.slice(0, 500)),
+      ].slice(0, MAX_WARNINGS);
       result.status = create.code === 1 || result.warnings.length > 0 ? 'warning' : 'ok';
       try {
         const stats = (
@@ -354,19 +361,31 @@ export async function backupItem(
   }
 }
 
+/** `[`, `*` or `?` in a path: in a pattern they'd be read as more of the pattern. */
+const PATTERN_CHARACTERS = /[[*?]/;
+
 /**
  * Borg's `--exclude`s for the skips below `folder`, as it really is (`real`: a symlink above it
- * resolved). A skip below another of the item's folders is left for that one. Only the skip's own
- * part is a pattern: `[`, `*` and `?` in the folder's path are matched as themselves.
+ * resolved). A skip below another of the item's folders is left for that one. A skip with `*` or
+ * `?` becomes a pattern, the folder's path part of it: when that path has pattern characters too
+ * (a symlink, or a plan from before the app refused it) the skip isn't applied — said in
+ * `notApplied`, and the folder is backed up whole rather than not at all.
  */
-export function skipExcludes(skips: string[] | undefined, folder: string, real: string): string[] {
-  return (skips ?? [])
-    .filter((skip) => skip.startsWith(`${folder}/`))
-    .flatMap((skip) => {
-      const below = skip.slice(folder.length);
-      if (!/[*?]/.test(below)) return ['--exclude', `pp:${real}${below}`];
-      return ['--exclude', `sh:${real.replace(/[[*?]/g, '[$&]')}${below}`];
-    });
+export function skipExcludes(
+  skips: string[] | undefined,
+  folder: string,
+  real: string,
+): { excludes: string[]; notApplied: string[] } {
+  const excludes: string[] = [];
+  const notApplied: string[] = [];
+  for (const skip of skips ?? []) {
+    if (!skip.startsWith(`${folder}/`)) continue;
+    const below = skip.slice(folder.length);
+    if (!/[*?]/.test(below)) excludes.push('--exclude', `pp:${real}${below}`);
+    else if (PATTERN_CHARACTERS.test(real)) notApplied.push(skip);
+    else excludes.push('--exclude', `sh:${real}${below}`);
+  }
+  return { excludes, notApplied };
 }
 
 /** Thins an item's archives to the plan's retention. */

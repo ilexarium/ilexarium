@@ -273,21 +273,32 @@ describe('ilex-backup starts safely', () => {
 });
 
 describe('skipExcludes', () => {
-  it('a plain skip by path, a pattern only in its own part, below the folder as it really is', () => {
+  it('a plain skip by path, a pattern below the folder as it really is', () => {
     expect(
       skipExcludes(
         ['/srv/music/cache', '/srv/music/*.tmp', '/srv/other/x'],
         '/srv/music',
-        '/mnt/data/Music [2020] *?',
+        '/mnt/m',
       ),
-    ).toEqual([
-      '--exclude',
-      'pp:/mnt/data/Music [2020] *?/cache',
-      '--exclude',
-      'sh:/mnt/data/Music [[]2020] [*][?]/*.tmp',
-    ]);
-    expect(skipExcludes(undefined, '/srv/music', '/srv/music')).toEqual([]);
+    ).toEqual({
+      excludes: ['--exclude', 'pp:/mnt/m/cache', '--exclude', 'sh:/mnt/m/*.tmp'],
+      notApplied: [],
+    });
+    expect(skipExcludes(undefined, '/srv/music', '/srv/music')).toEqual({
+      excludes: [],
+      notApplied: [],
+    });
   });
+
+  it.each(['/mnt/Music [2020]', '/mnt/what?', '/mnt/all*'])(
+    'below %s: a plain skip still, a pattern not applied (said)',
+    (real) => {
+      expect(skipExcludes(['/srv/m/cache', '/srv/m/*.tmp', '/srv/m/a?'], '/srv/m', real)).toEqual({
+        excludes: ['--exclude', `pp:${real}/cache`],
+        notApplied: ['/srv/m/*.tmp', '/srv/m/a?'],
+      });
+    },
+  );
 });
 
 describe('ilex-backup configure', () => {
@@ -618,6 +629,26 @@ describe('ilex-backup run', () => {
       expect.stringMatching(new RegExp(`::${FOLDER}-`)),
       docs,
     ]);
+  });
+
+  it('a pattern skip below a folder whose name has [, * or ?: backed up whole, and said', async () => {
+    const odd = join(storage, 'odd [1]');
+    mkdirSync(odd, { recursive: true });
+    const items = plan().items.map((i: any) =>
+      i.id === FOLDER ? { ...i, path: odd, skip: [join(odd, 'cache'), join(odd, '*.bak')] } : i,
+    );
+    expect((await wrapper('configure', plan({ items }))).code).toBe(0);
+    expect((await runNow({ runId: RUN, itemId: FOLDER })).code).toBe(0);
+    const create = calls('borg').find((c) => c.args[0] === 'create')!.args;
+    expect(create.filter((a) => a.startsWith('pp:') || a.startsWith('sh:'))).toEqual([
+      `pp:${odd}/cache`,
+    ]);
+    expect(results().at(-1)!.items[0]).toMatchObject({
+      status: 'warning',
+      warnings: [
+        `${join(odd, '*.bak')}: not skipped, its folder's name has [, * or ? (backed up whole)`,
+      ],
+    });
   });
 
   it('archives a folder inside another one with it, once; the comment lists both', async () => {

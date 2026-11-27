@@ -61,6 +61,7 @@ import * as wrapperBackupConfig from './backup/config.mts';
 import * as wrapperDestination from './backup/destination.mts';
 import * as wrapperBackupInput from './backup/input.mts';
 import * as wrapperPlan from './backup/plan.mts';
+import * as wrapperRun from './backup/run.mts';
 import * as wrapperPlaces from './backup/places.mts';
 import * as wrapperRecover from './backup/recover.mts';
 import * as wrapperRecoverAccounts from './backup/recover-accounts.mts';
@@ -143,11 +144,20 @@ describe('the app and the root programs check the same rules', () => {
       'srv/media/x',
       '/srv/a [b]/cache',
       '/srv/a [b]/*.tmp',
+      '/srv/a [b]/x?',
+      '/srv/media/a/*.tmp',
       `${long}/${'b'.repeat(255)}`,
       `${long}/${'b'.repeat(300)}`,
       `${long}/${'b'.repeat(250)}/c`,
     ]) {
-      expect(wrapperPlan.skipAllowed(skip, folders), skip).toBe(isSkipInFolders(skip, folders));
+      // The program checks a skip's place in the plan, and leaves out a pattern it can't use
+      // when it runs (`skipExcludes`); the app refuses both when the plan is saved.
+      const folder = folders.find((f) => skip.startsWith(`${f}/`));
+      const usable =
+        !folder || wrapperRun.skipExcludes([skip], folder, folder).notApplied.length === 0;
+      expect(wrapperPlan.skipAllowed(skip, folders) && usable, skip).toBe(
+        isSkipInFolders(skip, folders),
+      );
     }
   });
 
