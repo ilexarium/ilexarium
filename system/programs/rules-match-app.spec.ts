@@ -5,6 +5,8 @@ import {
   BACKUP_FILESYSTEMS,
   BACKUP_FREQUENCIES,
   BACKUP_LIMITS,
+  BACKUP_PASSPHRASE_MAX,
+  backupRecoveryPassphraseFormSchema,
   BACKUP_REPOSITORY_FOLDER,
   BACKUP_SYSTEM_FOLDERS,
   pathsOverlap,
@@ -21,6 +23,7 @@ import {
   JOURNAL_LIMITS,
   JOURNAL_PRIORITIES,
   linuxSudoRequestSchema,
+  LINUX_USERNAME_PATTERN,
   PATH_FORBIDDEN,
   PROCESS_LIMITS,
   PROCESS_SIGNALS,
@@ -58,6 +61,7 @@ import * as wrapperDestination from './backup/destination.mts';
 import * as wrapperBackupInput from './backup/input.mts';
 import * as wrapperPlan from './backup/plan.mts';
 import * as wrapperPlaces from './backup/places.mts';
+import * as wrapperRecover from './backup/recover.mts';
 import * as wrapperDiskConfig from './disk/config.mts';
 import * as wrapperDiskDevices from './disk/devices.mts';
 import * as wrapperDiskMount from './disk/mount.mts';
@@ -85,6 +89,22 @@ describe('the app and the root programs check the same rules', () => {
     expect(wrapperDestination.REPOSITORY_FOLDER).toBe(BACKUP_REPOSITORY_FOLDER);
     expect(wrapperPlan.MAX_ITEMS).toBe(BACKUP_LIMITS.maxItems);
     expect(String(wrapperPlan.TIME_PATTERN)).toBe(String(BACKUP_TIME_PATTERN));
+  });
+
+  it('restoring Ilexarium: the passphrase typed, the account names offered in a command', () => {
+    expect(wrapperRecover.PASSPHRASE_MAX).toBe(BACKUP_PASSPHRASE_MAX);
+    for (const sample of [
+      'six words here',
+      'tab\there',
+      'line\nbreak',
+      'del\x7f',
+      'ünïcode wörds',
+    ]) {
+      expect(wrapperRecover.PASSPHRASE_FORBIDDEN.test(sample), sample).toBe(
+        !backupRecoveryPassphraseFormSchema.safeParse({ passphrase: sample }).success,
+      );
+    }
+    expect(String(wrapperRecover.ACCOUNT_NAME_PATTERN)).toBe(String(LINUX_USERNAME_PATTERN));
   });
 
   it('backups: no item on the backup disk or holding it', () => {

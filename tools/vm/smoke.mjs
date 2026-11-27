@@ -72,6 +72,10 @@ const TLS = '/etc/ilex/tls';
 const KEPT_FINGERPRINT = '/root/https-fingerprint';
 const ORIGIN = BASE;
 const USER = 'owner';
+// Where ilex-uninstall keeps the backup settings, and the test's backup disk.
+const KEPT_PASSPHRASE = '/root/ilex-backup-settings/backup.passphrase';
+const REPOSITORY = '/mnt/backup/ilex-backups';
+
 const PASSWORD = 'correct horse battery staple';
 const { default: WebSocket } = await import('/opt/ilex/app/node_modules/ws/index.js');
 
@@ -1679,9 +1683,6 @@ function appOf(snapshot, name) {
   const own = (snapshot.containers ?? []).filter((c) => c.composeProject === name);
   return own.length ? { folder: own[0].composeWorkingDir } : null;
 }
-
-const KEPT_PASSPHRASE = '/root/ilex-backup-settings/backup.passphrase';
-const REPOSITORY = '/mnt/backup/ilex-backups';
 
 /** How many audit entries of an action the database holds. */
 function auditCount(action) {

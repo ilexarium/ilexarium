@@ -67,6 +67,13 @@ import { isRoot } from '../lib/startup.mts';
 
 export const PASSPHRASE_MAX = 1024;
 
+/** What a typed passphrase may not hold (it's one line). */
+export const PASSPHRASE_FORBIDDEN = /[\x00-\x1f\x7f]/;
+
+/** An account name the backups may list: a Linux one, offered in a `useradd` command. */
+export const ACCOUNT_NAME_PATTERN = /^[a-z_][a-z0-9_.-]*\$?$/;
+export const ACCOUNT_NAME_MAX = 32;
+
 /** The newest platform backups `recover-check` answers with. */
 export const ARCHIVES_SHOWN = 5;
 
@@ -133,6 +140,38 @@ export interface RecoveryRecord {
 }
 
 const recoveryFile = (paths: Paths) => join(paths.state, 'recovery.json');
+
+/** The result, for the app and `ilex-recover`: written at every end (best effort on a refusal). */
+function writeRecord(
+  config: Config,
+  paths: Paths,
+  request: Pick<RecoverRequest, 'recoveryId' | 'archive' | 'repository' | 'askedBy'>,
+  startedAt: string,
+  status: RecoveryRecord['status'],
+  errorCode: string | null,
+  accounts: RecoveredAccount[] | null,
+): RecoveryRecord {
+  const entry: RecoveryRecord = {
+    id: request.recoveryId,
+    status,
+    errorCode,
+    archive: request.archive,
+    archiveTime: archiveTime(request.archive),
+    repository: request.repository,
+    askedBy: request.askedBy,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    accounts,
+  };
+  prepareState(config, paths);
+  writeAtomic(
+    recoveryFile(paths),
+    `${JSON.stringify(entry, null, 2)}\n`,
+    0o640,
+    config.backup.appGid,
+  );
+  return entry;
+}
 const requestFile = (paths: Paths, id: string) =>
   join(paths.state, 'recover-requests', `${id}.json`);
 const archiveTime = (name: string) => `${name.slice(-19)}.000Z`;
@@ -146,7 +185,7 @@ function checkPassphrase(value: unknown): string {
     typeof value !== 'string' ||
     value.trim().length === 0 ||
     value.length > PASSPHRASE_MAX ||
-    /[\x00-\x1f\x7f]/.test(value)
+    PASSPHRASE_FORBIDDEN.test(value)
   ) {
     throw new Refusal('invalid_request', 'passphrase', 2, 'passphrase');
   }
@@ -346,8 +385,38 @@ export async function recoverRun(config: Config, paths: Paths, id: string): Prom
     // The passphrase in it: gone before anything else happens.
     rmSync(file, { force: true });
   }
-  const request = checkRequest(config, paths, given, given['askedBy']);
-  if (request.recoveryId !== id) throw new Refusal('invalid_request', 'another recovery');
+  let request: RecoverRequest;
+  try {
+    request = checkRequest(config, paths, given, given['askedBy']);
+    if (request.recoveryId !== id) throw new Refusal('invalid_request', 'another recovery');
+  } catch (error) {
+    // Refused before it began (the disk unmounted since the check): the app waits for this file.
+    const { archive, repository, askedBy } = given;
+    if (typeof archive === 'string' && ARCHIVE_PATTERN.test(archive)) {
+      const code = error instanceof Refusal ? error.code : 'internal';
+      const asked =
+        typeof askedBy === 'number' && Number.isInteger(askedBy) && askedBy >= 0 ? askedBy : 0;
+      try {
+        writeRecord(
+          config,
+          paths,
+          {
+            recoveryId: id,
+            archive,
+            repository: typeof repository === 'string' ? repository : '',
+            askedBy: asked,
+          },
+          new Date().toISOString(),
+          'failed',
+          code,
+          null,
+        );
+      } catch {
+        // The refusal below is still reported.
+      }
+    }
+    throw error;
+  }
   return recoverPlatform(config, paths, request);
 }
 
@@ -394,41 +463,22 @@ async function recoverPlatform(
 ): Promise<number> {
   const startedAt = new Date().toISOString();
   const phase = (name: string) => emit(`@@phase ${name}`);
-  const release = await takeLock(paths, false);
-  prepareState(config, paths);
-  const staging = join(paths.state, 'recover', request.recoveryId);
-  rmSync(staging, { recursive: true, force: true });
-  mkdirSync(join(staging, 'before'), { recursive: true, mode: 0o700 });
   const record = (
     status: RecoveryRecord['status'],
     errorCode: string | null,
     accounts: RecoveredAccount[] | null,
-  ) => {
-    const entry: RecoveryRecord = {
-      id: request.recoveryId,
-      status,
-      errorCode,
-      archive: request.archive,
-      archiveTime: archiveTime(request.archive),
-      repository: request.repository,
-      askedBy: request.askedBy,
-      startedAt,
-      finishedAt: new Date().toISOString(),
-      accounts,
-    };
-    writeAtomic(
-      recoveryFile(paths),
-      `${JSON.stringify(entry, null, 2)}\n`,
-      0o640,
-      config.backup.appGid,
-    );
-    return entry;
-  };
+  ) => writeRecord(config, paths, request, startedAt, status, errorCode, accounts);
+  const staging = join(paths.state, 'recover', request.recoveryId);
+  let release: (() => void) | null = null;
   const replaced = replacedFiles(config, paths);
   let held = false;
   let saved = false;
   let changed = false;
   try {
+    release = await takeLock(paths, false);
+    prepareState(config, paths);
+    rmSync(staging, { recursive: true, force: true });
+    mkdirSync(join(staging, 'before'), { recursive: true, mode: 0o700 });
     const repoId = repositoryId(request.repository)!;
     return await withPassphrase(config, paths, request.passphrase, async (env) => {
       phase('checking');
@@ -454,8 +504,9 @@ async function recoverPlatform(
       const fromBackup = readBackup(config, paths, staged, dumpFile, request.repository, repoId);
 
       phase('stopping');
-      await holdApp(config);
+      // Set first: a stop that fails still leaves the hold file, which only startApp removes.
       held = true;
+      await holdApp(config);
 
       phase('saving');
       await saveCurrent(config, staging, replaced);
@@ -510,8 +561,11 @@ async function recoverPlatform(
     if (held) await startApp(config);
     throw refusal;
   } finally {
-    rmSync(staging, { recursive: true, force: true });
-    release();
+    // Only a run that holds the lock owns the staging folder (another may be using its own).
+    if (release) {
+      rmSync(staging, { recursive: true, force: true });
+      release();
+    }
   }
 }
 
@@ -876,7 +930,12 @@ function ownerOf(
         }
         const match = /^d (\d+) (\S*) (.*)$/.exec(line);
         if (match && match[3] === relative) {
-          found = { uid: Number(match[1]), name: match[2].slice(0, 64) };
+          // A name that isn't a Linux one is left out: it would end up in a useradd command.
+          const name =
+            match[2].length <= ACCOUNT_NAME_MAX && ACCOUNT_NAME_PATTERN.test(match[2])
+              ? match[2]
+              : '';
+          found = { uid: Number(match[1]), name };
           child.kill('SIGTERM');
         }
       },

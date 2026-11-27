@@ -34,7 +34,7 @@ export class BackupRecoveryService implements OnApplicationBootstrap {
   private readonly logger = new Logger(BackupRecoveryService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prismaService: PrismaService,
     private readonly rootPrograms: RootPrograms,
     private readonly programConfigService: ProgramConfigService,
     private readonly systemReader: SystemReader,
@@ -58,7 +58,7 @@ export class BackupRecoveryService implements OnApplicationBootstrap {
 
   /** Only while there's no backup plan: a machine set up already is recovered from a terminal. */
   async start(request: BackupRecoveryRequest, actor: RootActor): Promise<{ recoveryId: string }> {
-    if (await this.prisma.backupPlan.findUnique({ where: { id: 1 } })) {
+    if (await this.prismaService.backupPlan.findUnique({ where: { id: 1 } })) {
       throw new ConflictException(
         apiError('Backups are set up here already', BACKUP_ERROR_CODES.alreadyConfigured),
       );
@@ -76,7 +76,7 @@ export class BackupRecoveryService implements OnApplicationBootstrap {
     if (!record) return null;
     await this.recordOnce(record);
     const [row, users] = await Promise.all([
-      this.prisma.backupRecovery.findUnique({ where: { id: record.id } }),
+      this.prismaService.backupRecovery.findUnique({ where: { id: record.id } }),
       this.systemReader.users(),
     ]);
     return {
@@ -97,7 +97,7 @@ export class BackupRecoveryService implements OnApplicationBootstrap {
   async dismiss(): Promise<void> {
     const record = await this.read();
     if (!record) return;
-    await this.prisma.backupRecovery.upsert({
+    await this.prismaService.backupRecovery.upsert({
       where: { id: record.id },
       create: { id: record.id, dismissedAt: new Date() },
       update: { dismissedAt: new Date() },
@@ -122,9 +122,9 @@ export class BackupRecoveryService implements OnApplicationBootstrap {
   private async recordOnce(known?: RecoveryRecord): Promise<void> {
     const record = known ?? (await this.read());
     if (!record) return;
-    if (await this.prisma.backupRecovery.findUnique({ where: { id: record.id } })) return;
+    if (await this.prismaService.backupRecovery.findUnique({ where: { id: record.id } })) return;
     try {
-      await this.prisma.backupRecovery.create({ data: { id: record.id } });
+      await this.prismaService.backupRecovery.create({ data: { id: record.id } });
     } catch {
       return; // recorded meanwhile (a request at startup)
     }

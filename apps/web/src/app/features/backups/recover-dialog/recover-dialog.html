@@ -1,4 +1,4 @@
-<hlm-dialog [state]="shown() ? 'open' : 'closed'" (closed)="close(); closed.emit()">
+<hlm-dialog [state]="shown() ? 'open' : 'closed'" [disableClose]="restoring()" (closed)="close()">
   <hlm-dialog-content
     *hlmDialogPortal
     class="max-h-[90dvh] overflow-y-auto"

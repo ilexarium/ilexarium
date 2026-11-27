@@ -82,7 +82,7 @@ result_lines() {
     const lines = {
       repositories: () => r.repositories ?? [],
       archives: () => (r.archives ?? []).map((a) => `${a.name} ${a.time}`),
-      accounts: () => (r.accounts ?? []).map((a) => [a.uid, a.name, a.items.join(", ")].join("\t")),
+      accounts: () => (r.accounts ?? []).map((a) => [a.uid, a.name || "-", a.items.join(", ")].join("\t")),
     }[process.argv[1]]();
     for (const out of lines) console.log(out);
   ' "$1"
@@ -176,7 +176,10 @@ if ((${#ACCOUNTS[@]} > 0)); then
   for line in "${ACCOUNTS[@]}"; do
     IFS=$'\t' read -r uid name items <<<"$line"
     here="$(getent passwd "$uid" | cut -d: -f1 || true)"
-    if [[ -z "$here" ]]; then
+    if [[ -z "$here" && "$name" == - ]]; then
+      info "  $uid (no name in the backups) — missing (for $items): useradd --create-home --uid $uid <name>"
+      missing=1
+    elif [[ -z "$here" ]]; then
       info "  $uid $name — missing (for $items): useradd --create-home --uid $uid $name && passwd $name"
       missing=1
     elif [[ "$here" == "$name" ]]; then

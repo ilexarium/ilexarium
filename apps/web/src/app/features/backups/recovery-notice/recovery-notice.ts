@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
-import type { BackupRecovery } from '@ilex/shared';
+import { type BackupRecovery, LINUX_USERNAME_PATTERN } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmAlertImports } from '@ui/alert';
 import { HlmButton } from '@ui/button';
@@ -27,7 +27,10 @@ export class RecoveryNotice {
     (this.recovery().accounts ?? []).map((account) => ({
       ...account,
       state: account.here === null ? 'missing' : account.here === account.name ? 'there' : 'other',
-      command: `sudo useradd --create-home --uid ${account.uid} ${account.name}`,
+      // Only for a Linux name: anything else read from the backups never becomes a command.
+      command: LINUX_USERNAME_PATTERN.test(account.name)
+        ? `sudo useradd --create-home --uid ${account.uid} ${account.name}`
+        : null,
     })),
   );
 }
