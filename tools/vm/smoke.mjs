@@ -1887,14 +1887,14 @@ async function recoverApp() {
     started.status === 202,
     `${started.status} ${started.text}`,
   );
-  // The session goes with the replaced database; a failure leaves it and says so in its file.
+  // The session goes with the replaced database: a 401, as the web app's wait sees it (/auth/me
+  // answers 200 signed out). A failure leaves it, and says so in its file.
   const end = Date.now() + 10 * 60_000;
   let me = { status: 0 };
   while (Date.now() < end) {
-    me = await api('GET', '/auth/me').catch(() => ({ status: 0 }));
+    me = await api('GET', '/backups/recovery').catch(() => ({ status: 0 }));
     if (me.status === 401) break;
-    const recovery =
-      me.status === 200 ? (await api('GET', '/backups/recovery')).json?.recovery : null;
+    const recovery = me.status === 200 ? me.json?.recovery : null;
     if (recovery?.id === started.json?.recoveryId && recovery.status === 'failed') break;
     await sleep(3000);
   }
