@@ -48,13 +48,13 @@ export const borgWith = (
 ): Promise<Ran> =>
   runProgram(config.backup.borgBin, [command, '--log-json', ...args], { env, ...options });
 
-/** The newest backup of Ilexarium itself: the newest whose comment lists its database dump. */
-export async function newestPlatformArchive(
+/** The backups of Ilexarium itself (their comment lists its database dump), oldest first. */
+export async function platformArchives(
   config: Config,
   paths: Paths,
   env: Record<string, string>,
   repository: string,
-): Promise<{ name: string; time: string }> {
+): Promise<{ name: string; time: string }[]> {
   const listed = await borgWith(
     config,
     env,
@@ -73,16 +73,17 @@ export async function newestPlatformArchive(
     throw new Refusal('borg_failed', 'borg list gave no JSON', 5);
   }
   const dump = join(paths.state, 'platform');
-  const newest = archives
+  const found = archives
     .filter(
       (a): a is { name: string; comment?: unknown } =>
         typeof a.name === 'string' &&
         ARCHIVE_PATTERN.test(a.name) &&
         (archiveFolders(JSON.stringify({ archives: [a] })) ?? []).includes(dump),
     )
-    .map((a) => a.name)
-    .sort((a, b) => archiveTime(a).localeCompare(archiveTime(b)))
-    .at(-1);
-  if (!newest) throw new Refusal('archive_not_found', 'no backup of Ilexarium on this disk', 5);
-  return { name: newest, time: archiveTime(newest) };
+    .map((a) => ({ name: a.name, time: archiveTime(a.name) }))
+    .sort((a, b) => a.time.localeCompare(b.time));
+  if (found.length === 0) {
+    throw new Refusal('archive_not_found', 'no backup of Ilexarium on this disk', 5);
+  }
+  return found;
 }

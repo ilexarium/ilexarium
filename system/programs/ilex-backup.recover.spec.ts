@@ -202,9 +202,8 @@ describe('recover-check', () => {
       passphrase: PASSPHRASE,
     });
     expect(checked.code, checked.lines.join('\n')).toBe(0);
-    expect(checked.result).toEqual({
-      archive: { name: archive, time: `${archive.slice(-19)}.000Z` },
-    });
+    const backup = { name: archive, time: `${archive.slice(-19)}.000Z` };
+    expect(checked.result).toEqual({ archives: [backup] });
     // The typed passphrase went to a file of its own, gone again.
     expect(readdirSync(join(dev, 'state', 'recover'))).toEqual([]);
     expect(checked.lines.join('\n')).not.toContain(PASSPHRASE);
@@ -292,6 +291,28 @@ describe('recover', () => {
     expect(listed.result!['archives'][APP]).toHaveLength(1);
   });
 
+  it('restores an older backup of Ilexarium when it’s the one named', async () => {
+    const older = await backedUp();
+    await new Promise((r) => setTimeout(r, 1100)); // archive names go by the second
+    writeFileSync(join(dir, 'dump.txt'), 'PGDMP a newer database\n');
+    const again = await wrapper(['run-requested', RECOVERY]);
+    expect(again.code, again.lines.join('\n')).toBe(0);
+    newMachine();
+    const checked = await wrapper('recover-check', {
+      repository: repository(),
+      passphrase: PASSPHRASE,
+    });
+    expect(checked.result!['archives'].map((a: { name: string }) => a.name)[0]).toBe(older);
+    expect(checked.result!['archives']).toHaveLength(2);
+    const done = await wrapper('recover', {
+      repository: repository(),
+      passphrase: PASSPHRASE,
+      archive: older,
+    });
+    expect(done.code, done.lines.join('\n')).toBe(0);
+    expect(readFileSync(join(dir, 'restored-dumps.txt'), 'utf8')).toBe('PGDMP the old database\n');
+  });
+
   it('moves the plan to where the disk is mounted now (the same repository)', async () => {
     const archive = await backedUp();
     newMachine();
@@ -328,6 +349,18 @@ describe('recover', () => {
     expect(recovery()).toMatchObject({ status: 'failed', errorCode: 'repository_mismatch' });
   });
 
+  it('refuses a backup whose version file can’t be read', async () => {
+    writeFileSync(join(dir, 'etc', 'version'), 'not a version\n');
+    const archive = await backedUp();
+    newMachine();
+    expectRefused(
+      await wrapper('recover', { repository: repository(), passphrase: PASSPHRASE, archive }),
+      'archive_not_found',
+      5,
+    );
+    expect(systemctlCalls()).toEqual([]);
+  });
+
   it('refuses a newer Ilexarium’s backup before anything changes', async () => {
     const archive = await backedUp();
     newMachine();
@@ -362,7 +395,7 @@ describe('recover', () => {
       archive,
     });
     expectRefused(refused, 'restore_failed', 5);
-    expect(refused.lines.join('\n')).toContain('run the recovery again');
+    expect(refused.lines.join('\n')).toContain('run sudo ilex-recover again');
     expect(readFileSync(join(dir, 'etc', 'master.key'), 'utf8')).toBe('new machine key');
     expect(existsSync(join(dev, 'backup.json'))).toBe(false);
     expect(existsSync(join(dev, 'backup.passphrase'))).toBe(false);

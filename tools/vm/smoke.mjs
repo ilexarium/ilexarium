@@ -1871,7 +1871,7 @@ async function recoverApp() {
     repository: REPOSITORY,
     passphrase,
   });
-  const archive = checked.json?.archive?.name;
+  const archive = checked.json?.archives?.at(-1)?.name;
   check(
     'its newest backup of Ilexarium',
     checked.status === 200 && typeof archive === 'string',

@@ -88,8 +88,8 @@
       "expiredText": "Bitte melde dich erneut an.",
       "submit": "Anmelden",
       "submitting": "Anmeldung läuft …",
-      "restoredTitle": "Ilexarium wurde wiederhergestellt",
-      "restoredText": "Melde dich mit deinem Konto vom alten Rechner an."
+      "restoredTitle": "Ilexarium wurde nach der Wiederherstellung neu gestartet",
+      "restoredText": "Melde dich mit deinem Konto vom alten Rechner an. Klappt das nicht, wurde die Wiederherstellung nicht abgeschlossen: führe sudo ilex-recover auf dem Server aus."
     },
     "setup": {
       "heading": "{{app}} einrichten",
@@ -303,7 +303,7 @@
     "update_busy": "Gerade läuft etwas anderes (eine Sicherung, eine Wiederherstellung, eine App-Aufgabe oder ein anderes Update). Versuche es danach erneut.",
     "update_unavailable": "Das Update konnte auf diesem Rechner nicht gestartet werden.",
     "backup_newer": "Diese Sicherung stammt von einem neueren Ilexarium. Aktualisiere dieses zuerst und versuche es dann erneut.",
-    "recovery_failed": "Ilexarium konnte nicht wiederhergestellt werden; es ist wie zuvor."
+    "recovery_failed": "Ilexarium konnte nicht wiederhergestellt werden. Führe sudo ilex-recover auf dem Server aus, um es erneut zu versuchen."
   },
   "format": {
     "lessThanAMinute": "weniger als eine Minute"
@@ -1081,7 +1081,6 @@
       "passphraseHelp": "Die sechs Wörter, die du beim Einrichten der Sicherungen gespeichert hast.",
       "check": "Sicherungen öffnen",
       "checking": "Wird geöffnet…",
-      "newest": "Neueste Sicherung von Ilexarium: {{time}}.",
       "replaces": "Ilexarium hält für eine Minute an. Konten, Einstellungen und Sicherungsplan kommen aus der Sicherung: das Konto, mit dem du gerade angemeldet bist, entfällt, und alle melden sich neu an.",
       "restore": "Wiederherstellen",
       "starting": "Wird gestartet…",
@@ -1102,7 +1101,9 @@
       "failedTitle": "Ilexarium konnte nicht wiederhergestellt werden",
       "dismiss": "Ausblenden",
       "dismissFailed": "Der Hinweis konnte nicht ausgeblendet werden",
-      "wrongPassphrase": "Diese Passphrase öffnet diese Sicherungen nicht. Prüfe die sechs Wörter und versuche es erneut."
+      "wrongPassphrase": "Diese Passphrase öffnet diese Sicherungen nicht. Prüfe die sechs Wörter und versuche es erneut.",
+      "which": "Wiederherstellen aus der Sicherung vom",
+      "newestLabel": "neueste"
     }
   },
   "disks": {

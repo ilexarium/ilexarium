@@ -1,7 +1,6 @@
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { BACKUP_REPOSITORY_FOLDER } from '@ilex/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { HlmSkeleton } from '@ui/skeleton';
 import { HlmTabsImports } from '@ui/tabs';
@@ -67,14 +66,10 @@ export class BackupsPage {
   /** The Restore Ilexarium dialog (only before backups are set up). */
   protected readonly recoverOpen = signal(false);
 
-  /** The backups' folders on the mounted disks, for the Restore Ilexarium dialog. */
-  protected readonly recoveryRepositories = computed(
-    () =>
-      this.backupsPageStore
-        .destinations()
-        ?.filter((disk) => disk.hasRepository)
-        .map((disk) => `${disk.mountPoint}/${BACKUP_REPOSITORY_FOLDER}`) ?? null,
-  );
+  protected openRecover(): void {
+    this.backupsPageStore.loadDestinations();
+    this.recoverOpen.set(true);
+  }
 
   /** The last recovery's notice, until dismissed. */
   protected readonly recoveryNotice = computed(() => {

@@ -115,7 +115,7 @@
     @if (recoveryNotice(); as recovery) {
       <ilex-recovery-notice [recovery]="recovery" (dismiss)="backupsPageStore.dismissRecovery()" />
     }
-    <ilex-recover-card (restore)="recoverOpen.set(true)" />
+    <ilex-recover-card (restore)="openRecover()" />
     <ilex-backup-setup
       [destinations]="backupsPageStore.destinations()"
       [apps]="backupsPageStore.apps()"
@@ -126,11 +126,11 @@
   </div>
   <ilex-recover-dialog
     [open]="recoverOpen()"
-    [repositories]="recoveryRepositories()"
-    [newest]="backupsPageStore.recoveryNewest()"
+    [repositories]="backupsPageStore.recoveryRepositories()"
+    [backups]="backupsPageStore.recoveryBackups()"
     [step]="backupsPageStore.recoveryStep()"
     [error]="backupsPageStore.recoveryError()"
-    (refresh)="backupsPageStore.load()"
+    (refresh)="backupsPageStore.loadDestinations()"
     (check)="backupsPageStore.checkRecoveryPassphrase($event)"
     (recover)="backupsPageStore.recover($event)"
     (closed)="recoverOpen.set(false); backupsPageStore.resetRecovery()"

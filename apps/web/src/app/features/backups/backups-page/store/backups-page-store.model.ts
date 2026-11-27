@@ -54,8 +54,8 @@ export type RecoveryStep = 'idle' | 'checking' | 'starting' | 'waiting' | 'faile
 export interface BackupRecoveryState {
   /** The last recovery here (its notice), or null. */
   recovery: BackupRecovery | null;
-  /** The newest backup of Ilexarium, once the passphrase opened its repository. */
-  recoveryNewest: { repository: string; archive: BackupRecoveryArchive } | null;
+  /** The backups of Ilexarium (oldest first), once the passphrase opened their repository. */
+  recoveryBackups: { repository: string; archives: BackupRecoveryArchive[] } | null;
   recoveryStep: RecoveryStep;
   /** Why the last step failed, in words. */
   recoveryError: string | null;
