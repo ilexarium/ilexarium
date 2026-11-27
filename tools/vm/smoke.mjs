@@ -13,6 +13,13 @@
 //                            an update by ilex-update from the test's release folder: its
 //                            outcome (updated, rolled_back), the version answering, and then
 //                            everything still there
+//   node smoke.mjs recover-cli
+//                            after ilex-uninstall and a fresh install: Ilexarium brought back
+//                            from the backup disk by `ilex-recover --yes` — the owner signs in,
+//                            the plan and its backups are there, an app restores back in place
+//   node smoke.mjs recover-app
+//                            the same through the app: a throwaway account, the Linux sign-in,
+//                            her sudo, Backups → Restore Ilexarium (its own unit)
 //   node smoke.mjs https     HTTPS on the network as app.env says (on: the socket, the
 //                            certificate in /etc/ilex/tls served, a sign-in over it; off: the
 //                            port closed) — after the install test changed it
@@ -1538,6 +1545,8 @@ async function selfUpdate(version, expected) {
 }
 
 if (process.argv[2] === 'self-update') await selfUpdate(process.argv[3], process.argv[4]);
+else if (process.argv[2] === 'recover-cli') await recoverCli();
+else if (process.argv[2] === 'recover-app') await recoverApp();
 else if (process.argv[2] === 'https') {
   await httpsPort();
   done();
@@ -1669,4 +1678,206 @@ async function installPasted(name, compose) {
 function appOf(snapshot, name) {
   const own = (snapshot.containers ?? []).filter((c) => c.composeProject === name);
   return own.length ? { folder: own[0].composeWorkingDir } : null;
+}
+
+const KEPT_PASSPHRASE = '/root/ilex-backup-settings/backup.passphrase';
+const REPOSITORY = '/mnt/backup/ilex-backups';
+
+/** How many audit entries of an action the database holds. */
+function auditCount(action) {
+  return Number(
+    sh('docker', [
+      'exec',
+      'ilex-postgres-1',
+      'psql',
+      '-tA',
+      '-U',
+      'ilex_owner',
+      '-d',
+      'ilex',
+      '-c',
+      `SELECT count(*) FROM "AuditEvent" WHERE action = '${action}'`,
+    ]).trim(),
+  );
+}
+
+/** What a recovered Ilexarium must have: the owner, the plan, its backups, the settings. */
+async function recovered(expectedId) {
+  await until(
+    'the app answers after the recovery',
+    async () => ({ done: (await api('GET', '/health').catch(() => ({}))).status === 200 }),
+    3 * 60_000,
+  );
+  check(
+    'set up again (the restored accounts)',
+    (await api('GET', '/auth/status')).json?.needsSetup === false,
+  );
+  await signIn();
+  const plan = (await api('GET', '/backups/plan')).json?.plan;
+  check(
+    'the backup plan is back, on the same disk, navidrome in it',
+    plan?.destination === '/mnt/backup' && plan.items.some((i) => i.project === 'navidrome'),
+    JSON.stringify(plan).slice(0, 300),
+  );
+  check('backups configured', (await api('GET', '/backups/status')).json?.configured === true);
+  const runs = (await api('GET', '/backups/runs')).json?.runs ?? [];
+  check('the backup history is back', runs.length > 0, `${runs.length} runs`);
+  expect('/etc/ilex/backup.passphrase', { mode: '0400', uid: 0 });
+  expect('/etc/ilex/master.key', { mode: '0400', uid: uidOf('ilex') });
+  expect('/var/lib/ilex/backups/recovery.json', { mode: '0640', uid: 0, gid: gidOf('ilex') });
+  check(
+    'the passphrase is the one from the backup disk',
+    readFileSync('/etc/ilex/backup.passphrase', 'utf8').trim() ===
+      readFileSync(KEPT_PASSPHRASE, 'utf8').trim(),
+  );
+  check(
+    'the backup timer is on',
+    !fails('systemctl', ['is-enabled', '--quiet', 'ilex-backup.timer']),
+  );
+  check(
+    'nothing of the recovery left behind',
+    !existsSync('/var/lib/ilex/backups/recover') ||
+      sh('ls', ['-A', '/var/lib/ilex/backups/recover']).trim() === '',
+  );
+  const recovery = (await api('GET', '/backups/recovery')).json?.recovery;
+  check(
+    'the recovery shown: succeeded, anna (1500) there',
+    recovery?.status === 'succeeded' &&
+      (!expectedId || recovery.id === expectedId) &&
+      recovery.accounts?.some((a) => a.uid === 1500 && a.name === 'anna' && a.here === 'anna'),
+    JSON.stringify(recovery).slice(0, 400),
+  );
+  check('its result audited once', auditCount('backup.recover_result') === 1);
+  return recovery;
+}
+
+async function recoverCli() {
+  console.log('Restoring Ilexarium from the backup disk (ilex-recover)');
+  check(
+    'a fresh install: needs setup',
+    (await api('GET', '/auth/status')).json?.needsSetup === true,
+  );
+  let out = '';
+  try {
+    out = sh('/usr/local/sbin/ilex-recover', ['--yes'], {
+      input: `${readFileSync(KEPT_PASSPHRASE, 'utf8').trim()}\n`,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    out = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+  }
+  check('ilex-recover finished', out.includes('Ilexarium is back'), out.slice(-1500));
+  check('it lists the accounts the apps need', /1500 anna — there/.test(out), out.slice(-800));
+  check(
+    'it never prints the passphrase',
+    !out.includes(readFileSync(KEPT_PASSPHRASE, 'utf8').trim()),
+  );
+  await recovered(null);
+
+  console.log('\nAn app restored back in place, as anna');
+  await linuxSignIn('anna');
+  await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  await api('POST', '/backups/archives/refresh', {});
+  const item = (await api('GET', '/backups/plan')).json?.plan?.items.find(
+    (i) => i.project === 'navidrome',
+  );
+  const archives = (await api('GET', `/backups/items/${item?.id}/archives`)).json?.archives ?? [];
+  const back = await api('POST', '/backups/restores', {
+    itemId: item?.id,
+    archive: archives.at(-1)?.name,
+    target: null,
+  });
+  check('the restore started', back.status === 202, `${back.status} ${back.text}`);
+  const restored = await until(
+    'the restore finished',
+    async () => {
+      const r = await api('GET', `/backups/restores/${back.json?.restoreId}`);
+      return { done: r.json && r.json.status !== 'running', value: r.json };
+    },
+    10 * 60_000,
+  );
+  check(
+    'navidrome restored back in place, owned by anna',
+    restored.value?.status === 'succeeded' &&
+      statSync('/home/anna/apps/navidrome/compose.yml').uid === 1500,
+    JSON.stringify(restored.value).slice(0, 300),
+  );
+  for (const path of restored.value?.setAside ?? []) rmSync(path, { recursive: true, force: true });
+  const dismissed = await api('POST', '/backups/recovery/dismiss', {});
+  check(
+    'the notice dismissed, kept in the database',
+    dismissed.status === 204 &&
+      (await api('GET', '/backups/recovery')).json?.recovery?.dismissed === true,
+  );
+  await api('DELETE', '/files/session');
+  done();
+}
+
+async function recoverApp() {
+  console.log('Restoring Ilexarium from the backup disk, through the app');
+  check(
+    'a fresh install: needs setup',
+    (await api('GET', '/auth/status')).json?.needsSetup === true,
+  );
+  const setupToken = readFileSync('/var/lib/ilex/app/setup-token', 'utf8').trim();
+  const throwaway = { username: 'setup', password: 'only for the recovery here' };
+  const setup = await api('POST', '/auth/setup', { setupToken, ...throwaway });
+  check('a throwaway account', setup.status === 200 || setup.status === 201, setup.text);
+  await api('POST', '/auth/login', throwaway);
+  await linuxSignIn('anna');
+  await api('POST', '/files/session/sudo', { password: 'anna-smoke-password' });
+  const found = await api('POST', '/backups/recovery/check', {});
+  check(
+    'the backups found on the mounted disk',
+    found.status === 200 && found.json?.repositories?.includes(REPOSITORY),
+    `${found.status} ${found.text}`,
+  );
+  const passphrase = readFileSync(KEPT_PASSPHRASE, 'utf8').trim();
+  const wrong = await api('POST', '/backups/recovery/check', {
+    repository: REPOSITORY,
+    passphrase: 'not the words',
+  });
+  check(
+    'a wrong passphrase refused',
+    wrong.status === 422 && wrong.json?.code === 'passphrase_invalid',
+    wrong.text,
+  );
+  const checked = await api('POST', '/backups/recovery/check', {
+    repository: REPOSITORY,
+    passphrase,
+  });
+  const archive = checked.json?.archives?.[0]?.name;
+  check(
+    'its newest backup of Ilexarium',
+    checked.status === 200 && typeof archive === 'string',
+    checked.text,
+  );
+  const started = await api('POST', '/backups/recovery', {
+    repository: REPOSITORY,
+    passphrase,
+    archive,
+  });
+  check(
+    'the recovery started (its own unit)',
+    started.status === 202,
+    `${started.status} ${started.text}`,
+  );
+  await until(
+    'the session gone (the restored database never had it)',
+    async () => {
+      const me = await api('GET', '/auth/me').catch(() => ({ status: 0 }));
+      return { done: me.status === 401, value: me.status };
+    },
+    10 * 60_000,
+  );
+  cookie = '';
+  await recovered(started.json?.recoveryId);
+  const gone = await api('POST', '/auth/login', throwaway);
+  check('the throwaway account is gone', gone.status === 401, `${gone.status}`);
+  check(
+    'the request file with the passphrase is gone',
+    !existsSync('/var/lib/ilex/backups/recover-requests') ||
+      sh('ls', ['-A', '/var/lib/ilex/backups/recover-requests']).trim() === '',
+  );
+  done();
 }

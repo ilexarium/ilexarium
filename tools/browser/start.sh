@@ -41,7 +41,7 @@ printf '900 1 0:99 / %s rw - ext4 /dev/sdz1 rw\n901 1 0:98 / %s rw - ext4 /dev/s
   "$S/mnt/usb" "$S/mnt/usb2" >"$S/backup/mountinfo"
 cat >"$S/wrappers.json" <<JSON
 {"protectedPaths":[],"dockerBin":"/usr/bin/docker","lockFile":"$S/compose.lock","home":"$HOME",
-"backup":{"borgBin":"/usr/bin/borg","platform":{"container":"ilex-dev-postgres-1","database":"ilex_test","user":"ilex","files":["$S/wrappers.json"]},
+"backup":{"borgBin":"/usr/bin/borg","platform":{"container":"ilex-dev-postgres-1","database":"ilex_test","user":"ilex","files":["$S/wrappers.json","$S/backup/backup.json","$S/backup/backup-repository.json"]},
 "dev":{"dir":"$S/backup","destinationRoots":["$S/mnt"],"mountInfo":"$S/backup/mountinfo"}}}
 JSON
 

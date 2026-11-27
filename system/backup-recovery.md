@@ -1,55 +1,82 @@
 # Bringing everything back on a new machine
 
-When the server is lost (a dead disk, a stolen machine), the backup disk and the six-word backup passphrase bring everything back: Ilexarium with its users, settings and backup plan, and your apps with their data. A guided version of this is planned; until then, these are the steps. They need a terminal on the new machine and take about half an hour, plus the time to copy your data back.
+When the server is lost (a dead disk, a stolen machine), the backup disk and the six-word backup passphrase bring everything back: Ilexarium with its users, settings and backup plan, and your apps with their data.
 
 You need:
 
 - the **backup disk** (it holds the folder `ilex-backups`);
 - the **backup passphrase** (six words, from your password manager or paper).
 
-Every command below runs as root (`sudo -i` first).
-
 ## 1. Install Ilexarium
 
-Install it as on the first machine (`get-ilex.sh`), but **don't open the setup page**: your old account comes back in step 4.
+Install it as on the first machine (`get-ilex.sh`).
 
 ## 2. Connect the backup disk
 
-Mount it at **the same place as before** (for example `/mnt/usb`): the backup plan names that place. Then give this machine the passphrase and check that it opens the backups:
+Connect it and mount it: on the **Disks** page (create a throwaway account on the setup page first to reach it), or with `mount` in a terminal. Any place works: if it's mounted somewhere else than before, the backup plan follows it.
+
+## 3. Bring Ilexarium back
+
+Either in a terminal on the server:
+
+```sh
+sudo ilex-recover
+```
+
+It finds the backups on the mounted disks, asks for the passphrase, shows the newest backup of Ilexarium and asks before replacing anything. Or in the browser: on the setup page create a throwaway account, sign in, then **Backups → Restore Ilexarium from a backup disk** (through your Linux sign-in and sudo).
+
+Either way Ilexarium stops for a minute; its database, the key that opens the secrets stored in it, the backup plan, its schedule and the passphrase come back. A backup of a newer Ilexarium is refused (update this one first); if anything fails, everything is put back as it was. Then sign in with your **old account** — the throwaway one is gone.
+
+## 4. Make the Linux accounts again
+
+Restored files keep their owner's user **number**, not the name. The end of `ilex-recover`, and the notice on the **Backups** page, list the accounts your apps and folders belong to — there, missing, or under another name here — with the command for each missing one, for example:
+
+```sh
+sudo useradd --create-home --uid 1500 anna && sudo passwd anna
+```
+
+Put each in the groups it was in (`sudo`, or `wheel` on Arch; `docker` if it was in it).
+
+## 5. Bring the apps back
+
+On the **Backups** page, for each app, signed in to Linux as the account it belongs to: **Restore…** (it reads the backups from the disk) → the newest backup → **Back in place**: its folder comes back where it was. The app then shows on the **Apps** page, not running yet: **Start** starts it from its restored files.
+
+Folders you backed up come back the same way, **Back in place**, or into a folder you choose.
+
+## 6. Check
+
+Start a backup with **Back up now**. When it's done, everything is backed up again from the new machine.
+
+---
+
+## Appendix: by hand
+
+What `ilex-recover` does, should it ever be needed without it. Every command runs as root (`sudo -i` first).
+
+Give this machine the passphrase and check that it opens the backups:
 
 ```sh
 REPO=/mnt/usb/ilex-backups                 # where the disk is mounted, plus ilex-backups
 read -rs WORDS && printf '%s\n' "$WORDS" | install -m 0400 /dev/stdin /etc/ilex/backup.passphrase && unset WORDS
-                                           # ↑ type the six words with spaces between, then Enter
 mkdir -p -m 0700 /var/lib/ilex/backups/borg
 export BORG_BASE_DIR=/var/lib/ilex/backups/borg BORG_PASSCOMMAND='cat /etc/ilex/backup.passphrase'
 borg list --short "$REPO" | tail -3        # shows the newest backups: the passphrase is right
 ```
-
-## 3. Put Ilexarium's files back
 
 The newest backup of Ilexarium itself is the newest one holding its database dump:
 
 ```sh
 PLATFORM=$(borg list --format '{archive} {comment}{NL}' "$REPO" |
   grep -F '"/var/lib/ilex/backups/platform"' | tail -1 | cut -d' ' -f1)
-echo "$PLATFORM"                           # one name: <id>-<date and time>
 ```
 
-Stop Ilexarium, then take back the database dump, the key that opens the secrets stored in the database, the backup plan and its schedule. Nothing else from that backup: the rest of `/etc/ilex` belongs to this machine.
+Stop Ilexarium, take back the dump, the key, the plan and its schedule (nothing else: the rest of `/etc/ilex` belongs to this machine), and restore the database into an emptied schema:
 
 ```sh
-systemctl stop ilex.socket ilex-https.socket ilex   # the app and its ports (its database keeps running)
+systemctl stop ilex.socket ilex-https.socket ilex
 cd / && borg extract "$REPO::$PLATFORM" \
   var/lib/ilex/backups/platform etc/ilex/master.key etc/ilex/backup.json \
   etc/ilex/backup-repository.json etc/systemd/system/ilex-backup.timer.d
-```
-
-## 4. Restore the database
-
-The dump replaces the new, empty database, as the database's owner and into an emptied schema. Sessions aren't in it: everyone signs in again.
-
-```sh
 docker exec ilex-postgres-1 psql -v ON_ERROR_STOP=1 -q -U ilex_owner -d ilex \
   -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
 docker exec -i ilex-postgres-1 pg_restore --exit-on-error -U ilex_owner -d ilex \
@@ -57,37 +84,9 @@ docker exec -i ilex-postgres-1 pg_restore --exit-on-error -U ilex_owner -d ilex 
 rm -r /var/lib/ilex/backups/platform
 ```
 
-## 5. Run the installer once more
-
-Run `get-ilex.sh` again, as in step 1. It repairs what the restore can't: it brings the database up to this version, gives the app its rights in it, makes the restored key the app's own again, and starts Ilexarium. Then turn the backup schedule back on:
+If the disk is mounted somewhere else now, change `destination` in `/etc/ilex/backup.json` and the path in `/etc/ilex/backup-repository.json`, and in the database: `UPDATE "BackupPlan" SET destination = '/new/place';`. Then run `get-ilex.sh` again (it migrates the database, gives the app its rights in it and makes the key the app's own), and turn the schedule back on:
 
 ```sh
 systemctl daemon-reload
 systemctl enable --now ilex-backup.timer ilex-backup-check.timer
 ```
-
-Sign in with your old account and password. The **Backups** page shows your plan and your backups.
-
-## 6. Make the Linux accounts again
-
-Restored files keep their owner's user **number**, not the name. Make each person's account again with the same name and the same number, in the same groups as before (`sudo`, or `wheel` on Arch; `docker` if they were in it). The backups show who owned what (still in the shell of step 2):
-
-```sh
-for a in $(borg list --short --last 20 "$REPO"); do borg list --format '{user} {uid}{NL}' "$REPO::$a"; done | sort -u
-```
-
-Then for each person, for example anna with 1000: `useradd --create-home --uid 1000 --groups sudo anna && passwd anna`. Your own account, made when the machine was set up, usually has its number already (check with `id`).
-
-## 7. Bring the apps back
-
-Their backups bring them back, through the Linux sign-in of the account each app belongs to. On the **Backups** page, for each app: **Restore…** (it reads the backups from the disk) → the newest backup → **Back where it was**: its folder comes back where it was. The app now shows on the **Apps** page, not running yet: **Start** starts it from its restored files.
-
-Folders you backed up (home folders, others) come back the same way, **Back where it was**, or into a folder you choose.
-
-## 8. Check
-
-Start a backup with **Back up now**. When it's done, everything is backed up again from the new machine.
-
----
-
-_Tested 2026-11-16 on two throwaway Debian 13 machines (`tools/vm`): the first installed and backed up by the install test (an app, navidrome, as anna); the second a fresh install with the same backup disk, brought back with these steps — the owner signs in, the backup plan and its backups are listed, navidrome restored where it was (owned by anna) and started with Update, and a new backup succeeds._
