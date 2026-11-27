@@ -943,7 +943,7 @@
       "folders": "Folders backed up",
       "addFolder": "Add a folder",
       "addFailed": "Couldn't add it to the backups",
-      "foldersFailed": "Couldn't change its folders",
+      "foldersFailed": "Couldn't change what it backs up",
       "removeFailed": "Couldn't remove it from the backups",
       "deleteFailed": "Couldn't delete its backups",
       "removedTitle": "No longer backed up",

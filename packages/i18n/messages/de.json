@@ -943,7 +943,7 @@
       "folders": "Gesicherte Ordner",
       "addFolder": "Ordner hinzufügen",
       "addFailed": "Konnte nicht zu den Backups hinzugefügt werden",
-      "foldersFailed": "Die Ordner konnten nicht geändert werden",
+      "foldersFailed": "Was gesichert wird, konnte nicht geändert werden",
       "removeFailed": "Konnte nicht aus den Backups entfernt werden",
       "deleteFailed": "Die Backups konnten nicht gelöscht werden",
       "removedTitle": "Nicht mehr gesichert",

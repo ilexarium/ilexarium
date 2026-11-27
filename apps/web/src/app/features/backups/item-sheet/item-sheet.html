@@ -75,6 +75,8 @@
               <option value="live">{{ 'apps.backup.live' | translate }}</option>
             </select>
           </div>
+        }
+        @if (item.kind === 'app' || item.kind === 'folder') {
           <div class="grid gap-2">
             <span class="font-medium">{{ 'backups.items.skipped' | translate }}</span>
             @for (skip of item.skip; track skip) {
@@ -91,7 +93,7 @@
                 </button>
               </span>
             }
-            @if (item.folders.length > 1) {
+            @if (skipFolders().length > 1) {
               <label for="skip-folder" class="text-muted-foreground">{{
                 'backups.items.skipBelow' | translate
               }}</label>
@@ -102,7 +104,7 @@
                 [value]="skipFolder()"
                 (change)="chooseSkipFolder($event)"
               >
-                @for (folder of item.folders; track folder) {
+                @for (folder of skipFolders(); track folder) {
                   <option [value]="folder">{{ folder }}</option>
                 }
               </select>

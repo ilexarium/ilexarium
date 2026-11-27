@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { testAppItem } from '../../../core/backups/testing';
+import { testAppItem, testItem } from '../../../core/backups/testing';
 import type { ItemChange, ItemRow } from '../backups.model';
 import { ItemSheet } from './item-sheet';
 
@@ -122,6 +122,54 @@ describe('ItemSheet', () => {
       itemId: ITEM,
       change: { skip: ['/home/anna/apps/immich/data/thumbs'] },
     });
+  });
+
+  it('lets a folder item skip below its folder, without folders or a mode', async () => {
+    const fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.row.set({
+      item: testItem({ id: ITEM, path: '/srv/docs', skip: ['/srv/docs/tmp'] }),
+      name: null,
+      icon: null,
+    });
+    await vi.waitFor(() => expect(sheet()).not.toBeNull());
+    expect(sheet()!.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(sheet()!.querySelector('#item-mode')).toBeNull();
+    expect(sheet()!.querySelector('#skip-folder')).toBeNull();
+    expect(sheet()!.textContent).toContain('/srv/docs/tmp');
+    const input = sheet()!.querySelector<HTMLInputElement>(
+      'input[aria-label="A subfolder to skip"]',
+    )!;
+    const add = async (text: string) => {
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      [...sheet()!.querySelectorAll('button')]
+        .find((b) => b.textContent?.trim() === 'Skip')!
+        .click();
+      await fixture.whenStable();
+    };
+
+    await add('../etc');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(fixture.componentInstance.changes).toEqual([]);
+    await add('*.bak');
+    [...sheet()!.querySelectorAll('button')]
+      .find((b) => b.textContent?.trim() === 'Back up')!
+      .click();
+    expect(fixture.componentInstance.changes).toEqual([
+      { itemId: ITEM, change: { skip: ['/srv/docs/tmp', '/srv/docs/*.bak'] } },
+      { itemId: ITEM, change: { skip: [] } },
+    ]);
+  });
+
+  it('shows no skips for the platform', async () => {
+    const fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.row.set({
+      item: testItem({ id: ITEM, kind: 'platform', path: null }),
+      name: null,
+      icon: null,
+    });
+    await vi.waitFor(() => expect(sheet()).not.toBeNull());
+    expect(sheet()!.querySelector('input[aria-label="A subfolder to skip"]')).toBeNull();
   });
 
   it('says when it closed itself (Escape), not when the page closed it', async () => {

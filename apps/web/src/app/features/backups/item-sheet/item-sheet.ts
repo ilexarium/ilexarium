@@ -1,5 +1,5 @@
 import { Component, computed, inject, input, linkedSignal, output } from '@angular/core';
-import { backupItemSkipSchema, RELATIVE_PATH_PATTERN } from '@ilex/shared';
+import { isSkipInFolders } from '@ilex/shared';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideArchiveRestore, lucidePlay, lucideTrash2 } from '@ng-icons/lucide';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -13,8 +13,9 @@ import type { ItemChange, ItemLabel, ItemRow } from '../backups.model';
 
 /**
  * An item's details in a side sheet, open while `row` is set: an app's folders (those not backed
- * up marked), stopped or kept running, what's skipped (and a subfolder to skip); Borg's warnings and the last error; Back up
- * now, Restore…, Remove. UI only: changes and actions go out, `closed` when it closes itself.
+ * up marked), stopped or kept running; what's skipped in an app's or a folder item's folders (and
+ * a subfolder to skip); Borg's warnings and the last error; Back up now, Restore…, Remove. UI
+ * only: changes and actions go out, `closed` when it closes itself.
  */
 @Component({
   selector: 'ilex-item-sheet',
@@ -48,6 +49,13 @@ export class ItemSheet {
     return item ? [...new Set([...item.folders, ...item.otherFolders])].sort() : [];
   });
 
+  /** Where skips go: an app's folders backed up, or the folder item's folder. */
+  protected readonly skipFolders = computed(() => {
+    const item = this.row()?.item;
+    if (item?.kind === 'app') return item.folders;
+    return item?.kind === 'folder' && item.path ? [item.path] : [];
+  });
+
   /** A subfolder to skip: typed below one of the folders backed up (the first, until chosen). */
   private readonly itemId = computed(() => this.row()?.item.id ?? null);
   protected readonly newSkip = linkedSignal({ source: this.itemId, computation: () => '' });
@@ -57,7 +65,7 @@ export class ItemSheet {
   });
   /** The folder chosen while it's still backed up; the first one otherwise. */
   protected readonly skipFolder = computed(() => {
-    const folders = this.row()?.item.folders ?? [];
+    const folders = this.skipFolders();
     const chosen = this.chosenSkipFolder();
     return chosen && folders.includes(chosen) ? chosen : (folders[0] ?? '');
   });
@@ -113,11 +121,7 @@ export class ItemSheet {
       .replace(/^\.?\/+/, '');
     if (!below) return;
     const skip = `${this.skipFolder()}/${below}`;
-    if (
-      !row.item.folders.includes(this.skipFolder()) ||
-      !RELATIVE_PATH_PATTERN.test(below) ||
-      !backupItemSkipSchema.safeParse(skip).success
-    ) {
+    if (!isSkipInFolders(skip, this.skipFolders())) {
       this.skipInvalid.set(true);
       return;
     }
