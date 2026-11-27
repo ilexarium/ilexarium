@@ -1072,7 +1072,7 @@
       "open": "Ilexarium von einem Sicherungslaufwerk wiederherstellen",
       "orCommand": "Oder auf dem Server:",
       "title": "Ilexarium wiederherstellen",
-      "description": "Aus der neuesten Sicherung von Ilexarium auf deinem Sicherungslaufwerk.",
+      "description": "Aus einer Sicherung von Ilexarium auf deinem Sicherungslaufwerk: der neuesten, außer du wählst eine andere.",
       "close": "Schließen",
       "noneFound": "Keine Sicherungen auf den eingehängten Laufwerken. Schließe das Sicherungslaufwerk an und hänge es auf der Seite „Laufwerke“ ein.",
       "lookAgain": "Erneut suchen",

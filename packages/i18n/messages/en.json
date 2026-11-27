@@ -1072,7 +1072,7 @@
       "open": "Restore Ilexarium from a backup disk",
       "orCommand": "Or on the server:",
       "title": "Restore Ilexarium",
-      "description": "From the newest backup of Ilexarium on your backup disk.",
+      "description": "From a backup of Ilexarium on your backup disk: the newest, unless you choose another.",
       "close": "Close",
       "noneFound": "No backups on the mounted disks. Connect the backup disk and mount it on the Disks page.",
       "lookAgain": "Look again",
